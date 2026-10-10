@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 09/10/2026, au soir**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 10/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
@@ -8,7 +8,8 @@
 > rail et des emojis (fiche 58), celle de ses retours du 09/10 — la question au-dessus des
 > panneaux, le canevas qui suit, le copier unique (fiche 59) —, et celle de ses essais du soir :
 > les dossiers, la carte au journal, le presse-papiers tenu, et le recul du copier sous Linux et
-> Mac qui retient la beta 3 (fiche 60). Ce document dit l'état **vérifié** du projet,
+> Mac qui retient la beta 3 (fiche 60), et celle du copier unique sous Linux, la voie B qu'il a
+> choisie (fiche 61). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -32,7 +33,9 @@
   l'Ouest), éprouvé de bout en bout sur Internet ; Glucose y envoie avec l'accord de chacun,
   demandé au premier lancement. **Le 08/10 au soir, huit sessions y sont arrivées**, dont quatre
   de son téléphone (fiche 57 § 5) : la question dessinée a donc marché chez lui.
-* **Android : Glucose tourne sur son Redmi 9** (« oui, ça fonctionne sur téléphone », 08/10 ; **mais le téléphone branché le 09/10 est un moto g54 5G** — lequel est le sien, à lui demander, fiche 60 § 4) —
+* **Android : Glucose tourne sur son moto g54 5G** (« oui, ça fonctionne sur téléphone », 08/10 ;
+  **c'est lui qui a montré les rayures** ; une puce graphique PowerVR, pas une Mali — fiche 61
+  § 6 ; le Redmi 9 des documents n'a jamais été essayé) —
   ARM 64 et 32 bits, Android 5.0 et après, avec les doigts. L'APK est signé de **la clé de
   Glucose pour Android** (créée le 08/10, `Documents\Glucose-cle-android`, et dans les secrets
   du dépôt) : la publication le joint à la release.
@@ -75,7 +78,14 @@
   Glucose lâchait le presse-papiers sitôt la copie faite, qui disparaissait là où aucun
   gestionnaire ne la reprend (TENU-1, en local, à prouver sur son Linux). **Et COPIER-1 fait
   reculer Linux et Mac** (plus de « Copier l'image » vers les autres applications) : la
-  2.0.2-beta.3 attend son choix entre A et B (fiche 60 § 3).
+  2.0.2-beta.3 attendait son choix entre A et B (fiche 60 § 3) : **il a choisi B**.
+* **Fiche 61 — le copier unique sous Linux** : Glucose sert lui-même la sélection de X11 — le
+  lot, le texte, l'image seule ou les fichiers des images, `INCR`, `MULTIPLE`, l'heure du
+  serveur, la remise au gestionnaire du presse-papiers à la fermeture ; un bloc se recolle d'un
+  Glucose à l'autre. **Compilé, passé à clippy et éprouvé sous Linux sur ce PC** (une
+  distribution WSL à part, un serveur X invisible, `xclip` pour demander) : neuf épreuves, quinze
+  sabotages, vingt tours verts. **Jamais essayé sur son Linux** (son NixOS était éteint). Le Mac
+  attend son tour (aucune version Mac n'est publiée).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -98,15 +108,19 @@
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution, la page demandée **compressée** ; un repli en lien **dit pourquoi**, et se rattrape au clic droit : « Remplacer par l'image ») ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
-| **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). Sous Linux et Mac, le copier ne pose encore que le lot |
+| **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). **Sous Linux** (X11, et Wayland par XWayland), le même copier unique, servi par Glucose (fiche 61) — sans le glisser vers une autre application ; sous Mac, le lot seul |
 | **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, Ordonner, aimant aux voisines, placement aimanté dès le premier clic |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
 | **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — la 2.0.2-beta.2 la porte ; pas encore prouvée : il faut qu'une version suivante arrive à un téléphone qui a la beta 2 |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 259** sous Windows, toutes vertes (fiche 60) ; clippy strict à zéro avec Rust 1.99, **et pour Android** ; la fiche 60 a saboté
-  quatorze gardes, quatorze chutes. **Les six commits de la fiche 59 sont partis avec la CI**
+* **Épreuves** : **2 261** sous Windows et **2 255 sous Linux**, toutes vertes (fiche 61) —
+  la suite tourne désormais **aussi sous Linux sur ce PC**, dans la distribution WSL
+  `Glucose-Linux` (METHODE § 5) ; clippy strict à zéro avec Rust 1.99, sous Windows, Linux **et
+  pour Android** ; la fiche 61 a saboté quinze gardes, quinze chutes.
+  **Attendent en local, avec ceux de la fiche 60** : le copier unique sous Linux et sa
+  documentation (fiche 61). **Les six commits de la fiche 59 sont partis avec la CI**
   (`3fbf383`, exécution 37946507360) : **les dix tâches vertes**, Linux et les deux Mac compris.
   **Attendent en local** : `abae87b` (DOSSIER-1), `e869805` (CARTE-1), `b72965a` (TENU-1), `a092eb7` (les cliquets tenus) et la
   documentation de la fiche 60 — rien n'est envoyé sans sa parole. **Sur GitHub, à
@@ -229,8 +243,10 @@ parfait », 07/10 au soir), sauf où c'est dit :
   lui ; sa chronique (16 % des images au bord, un tressaut de 64 px au p99) est à relire avec.
 * **Les dossiers au téléphone** : corrigés (DOSSIER-1), **à son téléphone** avec un APK neuf.
 * **Son Linux** (2.0.2-beta.2) : « tant de choses ne marchent pas » — TENU-1 en est une cause
-  probable ; **la liste est à lui demander**.
-* **Le recul de COPIER-1 sous Linux et Mac**, et la beta 3 qui attend **A ou B** (fiche 60 § 3).
+  probable ; **la liste est à lui demander**. C'est une machine NixOS à part, `nixos.home` sur son
+  réseau (pas NixOS-Proteo) ; **éteinte pendant la fiche 61** : aucun accès, aucun essai.
+* **Le recul de COPIER-1 sous Linux et Mac** : il a choisi **B** ; fait sous Linux (fiche 61),
+  le Mac ensuite.
 * **Au repos, sa chronique redessine pour les messages** (371 images, 1,6 par seconde) : la
   charte dit zéro — à reprendre.
 

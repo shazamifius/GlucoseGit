@@ -98,6 +98,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 58 | [Les questions dessinées, le rail, les emojis, la mise à jour d'Android](58-LES-QUESTIONS-DESSINEES-LE-RAIL-ET-LES-EMOJIS.md) | POPUP-1 (toutes les questions dessinées, au clavier aussi ; une suite au lieu d'un retour ; DIAL-5, la seule boîte avant la fenêtre) ; les noms du rail, colonne après colonne ; GESTES-1 proposé ; EMOJI-1 (Noto Emoji en repli d'Inter) ; MAJ-ANDROID-1 (l'APK confié à `PackageInstaller`) ; le journal technique lisible (`journal-technique`, un lisez-moi en colonnes, la clé d'une session) ; GESTES-1 écrit |
 | 59 | [La question au-dessus, le canevas qui suit, le copier unique](59-LA-QUESTION-AU-DESSUS-LE-CANEVAS-QUI-SUIT-LE-COPIER-UNIQUE.md) | ses retours du 09/10 ; ses captures datées (l'APK du 07/10) ; DECISION-1 (la question par-dessus les panneaux, aucun panneau au lancement) ; DEFILE-1 (le canevas défile au bord — *Push-Edge* lu et écarté) ; COPIER-1 (un seul copier, les images en fichiers fabriqués à la demande — lu dans Chromium) ; PLAFOND-1 (jamais une texture plus grande que la carte) ; les rayures du téléphone, non reproduites ici — **§ 10 : ce qui attend sa parole** |
 | 60 | [Les dossiers, la carte au journal, le presse-papiers tenu](60-LES-DOSSIERS-LA-CARTE-AU-JOURNAL-LE-PRESSE-PAPIERS-TENU.md) | ses essais de la fiche 59 ; l'envoi avec la CI (dix vertes) ; DOSSIER-1 (un dossier choisi a son menu et sa barre) ; CARTE-1 (la carte au journal technique, par ses numéros ; le serveur redéployé) ; TENU-1 (le presse-papiers tenu, cause probable des pannes sous Linux) ; **le recul de COPIER-1 sous Linux et Mac, qui retient la beta 3** — **§ 6 : ce qui attend sa parole** |
+| 61 | [Le copier unique sous Linux](61-LE-COPIER-UNIQUE-SOUS-LINUX.md) | ses réponses (la voie B ; son NixOS, une machine à part, éteinte ; le moto g54 a les rayures — une PowerVR, pas une Mali) ; **la sélection X11 servie par Glucose** : le lot, le texte, l'image seule ou les fichiers, `INCR`, `MULTIPLE`, l'heure du serveur, la remise au gestionnaire ; le bloc d'un autre Glucose lu hors du fil qui dessine ; **éprouvée contre un vrai serveur X** (WSL, Xvfb, `xclip`) — quinze sabotages ; le Mac, après — **§ 9 : ce qui attend sa parole** |
 
 ## Les décisions — **foi**
 
@@ -111,6 +112,7 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [07](decisions/07-LE-PAVE-PAR-DIRECT-MANIPULATION.md) le pavé par *Direct Manipulation* ·
 [08](decisions/08-ANDROID-PAR-GAMEACTIVITY.md) Android par `GameActivity` ·
 [09](decisions/09-LE-PARTAGE-PAR-JNI.md) le partage vers Glucose, par `jni` ·
-[10](decisions/10-LES-EMOJIS-PAR-NOTO-EMOJI.md) les emojis, par Noto Emoji.
+[10](decisions/10-LES-EMOJIS-PAR-NOTO-EMOJI.md) les emojis, par Noto Emoji ·
+[11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb`.
 
-La prochaine fiche porte le numéro **61**.
+La prochaine fiche porte le numéro **62**.

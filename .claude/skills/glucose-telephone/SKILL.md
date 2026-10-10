@@ -119,9 +119,15 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 * **Le journal du téléphone** : `adb logcat -s Glucose` (la sortie de Glucose y est redirigée).
   Au lancement, il dit **la carte** : son nom, le moteur (Vulkan ou GL), le pilote, la plus grande
   texture — la première question devant un défaut d'affichage (ses rayures du 09/10, fiche 59).
+  Sur une PowerVR, **la version du pilote** d'abord : Chromium écarte un chemin Vulkan sur les
+  puces Imagination, et Chrome corrompait ses pages sur la sienne avec un pilote ancien (fiche
+  61 § 6).
   Dater toute capture qu'il envoie avant d'en tirer une cause : plusieurs APK cohabitent.
 * **Java seulement à la frontière** : `MainActivity.java` reçoit ce que seul Java reçoit (une
   intention de partage, le résultat d'un sélecteur) et le confie à Rust — par un fichier dans le
   dossier de l'application, ou par JNI. Aucune logique en Java.
-* Le téléphone de référence : **Redmi 9** (Helio G80, Mali-G52, Android 10, 720 × 1600) — le
-  plus ancien connu de ses testeurs.
+* **Son téléphone : le moto g54 5G** (MediaTek Dimensity 7020, puce graphique **PowerVR IMG
+  BXM-8-256**, Android 13 d'origine, 1080 × 2400 à 120 Hz) — celui de toutes ses captures et de
+  ses rayures (fiche 61 § 1). Le **Redmi 9** (Helio G80, Mali-G52, Android 10, 720 × 1600) reste
+  le plus ancien connu de ses testeurs, **jamais essayé** encore. Demander au système ce qui est
+  branché (`Get-PnpDevice`, `adb devices`) avant de raisonner sur un nom.

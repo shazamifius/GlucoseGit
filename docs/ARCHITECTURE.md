@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 09/10/2026** (fiches 51 à 59 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 10/10/2026** (fiches 51 à 61 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -31,7 +31,8 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
   de fichiers, ouverts sur un fil à eux — DIAL-2, `persist::choix` —, et la seule boîte posée
   avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
   sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`
-  (signatures), `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs. Une dépendance nouvelle exige une note dans
+  (signatures), `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs, `x11rb` sous
+  Linux (la sélection de X11, déjà là par `arboard`, `decisions/11`). Une dépendance nouvelle exige une note dans
   [`carnet/decisions/`](carnet/decisions/).
 
 ## 2. La vie d'une image
@@ -98,9 +99,13 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   à chaque image (`bouger_la_camera`, une raison de réveil à lui), d'autant plus vite qu'il s'y
   enfonce ; et **ce que la main tient suit la vue qui bouge**, d'où que vienne le mouvement
   (`les_gestes_suivent_la_camera`). Sortir de la fenêtre fait toujours partir le glisser.
-* **Le copier unique** (COPIER-1, `clipboard/formes.rs`, fiche 59) : `Ctrl+C` et le glisser
-  rassemblent la sélection sous toutes ses formes — le lot, le texte, l'image seule en PNG et en
-  pixels, chaque image en fichier (octets d'origine) —, que la plateforme confie au système.
+* **Le copier unique** (COPIER-1, `clipboard/formes.rs`, fiches 59 et 61) : `Ctrl+C` et le
+  glisser rassemblent la sélection sous toutes ses formes — le lot, le texte, l'image seule en PNG
+  et en pixels, chaque image en fichier (octets d'origine) —, et **une seule règle** dit lesquelles
+  partent (`Formes::offertes` : une image seule en image, jamais aussi en fichier) ; chaque
+  système la dit dans ses formats (`selection_windows`, `selection_x11`). Un lot collé se lit
+  **sur le fil du collage** (`LotALire`) : sous X11, celui d'un autre Glucose vient par le
+  serveur.
 * **Transformer la sélection entière** (`resize.rs`, fiche 53 § 10) : le noyau calcule
   (`core/groupe/` — mise à l'échelle par un coin, rotation, origine commune ou individuelle) et le
   magasin réécrit tout depuis la pose de départ (`core/store/groupe.rs`) ; le cadre du groupe se
@@ -198,7 +203,7 @@ fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pa
 objet, `selection_windows` (COPIER-1, `IDataObject`), qui part au presse-papiers
 (`OleSetClipboard`) et dans le glisser : le lot « Glucose.Lot », le texte, l'image seule en PNG et
 `CF_DIBV5`, plusieurs images en `CF_HDROP` — des fichiers écrits au premier collage qui les veut,
-dans `%TEMP%\glucose-copies`, et rendus à la fermeture (`OleFlushClipboard`) ; ailleurs, `arboard` ne pose que le lot, et son objet est **tenu** toute la vie de l'application (TENU-1 : sous X11, le copieur sert le collage) —, le téléchargement (WinHTTP sous Windows,
+dans `%TEMP%\glucose-copies` (`copies.rs`, partagé), et rendus à la fermeture (`OleFlushClipboard`) ; **sous X11, la sélection servie par Glucose** (`selection_x11`, fiche 61) — sa connexion, sa fenêtre marquée et son fil : le lot (`application/x-glucose-lot`), le texte, `image/png` ou `text/uri-list` et `x-special/gnome-copied-files`, `TARGETS`, `TIMESTAMP`, `MULTIPLE`, `INCR` au-delà de la plus grande requête, la prise à l'heure du serveur, la remise au gestionnaire à la fermeture (`SAVE_TARGETS`) ; sous macOS, `arboard` ne pose encore que le lot, en HTML ; l'objet d'`arboard` est **tenu** toute la vie de l'application (TENU-1 : sous X11, le copieur sert le collage) —, le téléchargement (WinHTTP sous Windows,
 `ureq` ailleurs), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la
 carte (DXGI), la priorité des fils, l'identité pour la barre des tâches, l'heure locale, le journal
 des plantages de Windows, la batterie.
@@ -250,4 +255,6 @@ des plantages de Windows, la batterie.
   les marques de mesure, l'unique endroit qui remplace un fichier. Le correctif d'un cliquet n'est
   jamais de relever son plafond.
 * **Rien ne touche la machine de l'utilisateur** : chaque application d'épreuve habite un dossier
-  temporaire et a son propre presse-papiers ; seul `main.rs` ouvre le vrai dossier.
+  temporaire et a son propre presse-papiers ; seul `main.rs` ouvre le vrai dossier. Les épreuves
+  de la sélection X11 ne visent qu'un serveur X nommé (`GLUCOSE_ECRAN_X_D_EPREUVE`, un Xvfb) —
+  sur GitHub comme dans la distribution `Glucose-Linux` de ce PC (METHODE § 5).

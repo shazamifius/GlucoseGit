@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 09/10/2026, au soir** (fiches 59 et 60). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 10/10/2026** (fiches 59 à 61). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -44,12 +44,13 @@ par un recul trouvé en relisant COPIER-1.
 
 | | chantier | où en est-il |
 |---|---|---|
-| [ ] | **Le recul de COPIER-1 sous Linux et Mac** : la beta 2 y avait « Copier l'image » (l'image partait vers Discord) ; le copier unique n'y pose que le lot, `arboard` ne posant qu'une forme à la fois | **son choix** : A (remettre « Copier l'image » sous Linux et Mac seulement, ce soir, puis publier) ou B (la voie native d'abord : un propriétaire X11 par `x11rb`, `INCR` compris, et `NSPasteboard` à plusieurs types) — fiche 60 § 3 ; mon avis : A puis B |
+| [~] | **Le recul de COPIER-1 sous Linux** : **la voie B, son choix** — Glucose sert la sélection de X11 lui-même (`selection_x11`, `decisions/11`) : le lot, le texte, l'image seule ou les fichiers, `INCR`, `MULTIPLE`, l'heure du serveur, la remise au gestionnaire | **écrit, éprouvé contre un vrai serveur X** (fiche 61 : neuf épreuves, quinze sabotages, vingt tours) ; **à son Linux** : Discord, un bloc d'un Glucose à l'autre, après fermeture |
+| [ ] | **Le recul de COPIER-1 sous Mac** : `NSPasteboard` à plusieurs types, les fichiers fournis à la demande | aucune version Mac publiée : personne ne recule ; **le prochain chantier du copier**, après la beta 3 (fiche 61 § 7) — seule la CI le compile |
 | [~] | **DOSSIER-1 — un dossier choisi a son menu et sa barre** (« les dossiers ça ne fonctionne pas ») | en local (`abae87b`) ; **à son téléphone, avec un APK neuf** — celui de son Bureau ne le porte pas |
 | [~] | **CARTE-1 — la carte graphique au journal technique, par ses numéros** | en local (`e869805`) ; le serveur **redéployé et vérifié en ligne** ; la première vraie session la montrera dans la base |
 | [~] | **TENU-1 — le presse-papiers du système tenu toute la vie de Glucose** (cause probable de « tant de choses ne marchent pas » sous Linux) | en local (`b72965a`) ; **à son Linux** |
-| [ ] | **Son Linux** : la liste de ce qui ne marche pas ; est-ce la NixOS de WSL (« NixOS-Proteo ») sur ce PC, et peut-on s'en servir pour compiler et essayer ? | **à lui demander** |
-| [ ] | **L'envoi** des quatre commits (`abae87b`, `e869805`, `b72965a`, `a092eb7`) et de la documentation, avec la CI ; puis la publication (Actions → Publier, en brouillon) ; son clic « Publish release » | **à sa parole** |
+| [ ] | **Son Linux** : une machine NixOS à part (`nixos.home`), pas NixOS-Proteo — **éteinte pendant la fiche 61** ; la liste de ce qui ne marche pas, et l'accès SSH qu'il croit ouvert | **son NixOS allumé**, puis la liste ; pour compiler et éprouver, la distribution `Glucose-Linux` de ce PC suffit (METHODE § 5) |
+| [ ] | **L'envoi** des commits de la fiche 60 (`abae87b`, `e869805`, `b72965a`, `a092eb7`, `9aa4816`) et de ceux de la fiche 61, avec la CI — la tâche Linux éprouvera la sélection contre son Xvfb ; puis la publication (Actions → Publier, `2.0.2-beta.3`, en brouillon) ; son clic « Publish release » | **à sa parole** |
 
 ## 0 bis. Ses retours du 09/10 — **les problèmes d'abord, l'ergonomie ensuite** (fiche 59)
 
@@ -60,7 +61,7 @@ la praticité, ce sont des domaines beaucoup plus longs et complexes »*.
 |---|---|---|
 | [x] | **DECISION-1 — la question par-dessus les panneaux**, sur les deux voies ; **aucun panneau au lancement** | **jugé** au PC et au téléphone (09/10 au soir, fiche 60) |
 | [x] | **« Supprimer » au téléphone** — l'APK de ses captures (07/10) n'avait ni appui long ni marges ; l'actuel les a | **« ça fonctionne »** (09/10 au soir) — sauf sur un dossier : DOSSIER-1 (§ 0 ter) |
-| [ ] | **Les rayures du téléphone** — non reproduites sur ce PC (Vulkan, GL, DX12) ; PLAFOND-1 (jamais une texture plus grande que la carte) fait ; le journal du téléphone dit sa carte au lancement | **« pour l'instant rien, je surveillerai »** (09/10 au soir) ; si elles reviennent : le débogage USB, puis `adb logcat -s Glucose` ; la ligne « carte » part au journal technique (CARTE-1). **Le téléphone branché est un moto g54 5G**, les documents disent un Redmi 9 : lequel ? |
+| [ ] | **Les rayures du téléphone** — non reproduites sur ce PC (Vulkan, GL, DX12) ; PLAFOND-1 (jamais une texture plus grande que la carte) fait ; le journal du téléphone dit sa carte au lancement | **« pour l'instant rien, je surveillerai »** (09/10 au soir) ; si elles reviennent : le débogage USB, puis `adb logcat -s Glucose` ; la ligne « carte » part au journal technique (CARTE-1). **C'est le moto g54 5G** (sa réponse, fiche 61) — une **PowerVR BXM-8-256**, pas une Mali : d'abord la version du pilote (fiche 61 § 6) |
 | [ ] | **DEFILE-1 — le canevas défile quand on tient un nœud près du bord** (une bande, la cible d'un doigt ; *Push-Edge* lu et écarté) | **« moche, pas fluide, pas très pratique »** (09/10 au soir) — remis à plus tard par lui ; à reprendre avec sa chronique |
 | [x] | **COPIER-1 — un seul copier, et une image reste une image** : le lot, le texte, les images (une en PNG, plusieurs en fichiers fabriqués à la demande) ; le glisser vers Discord, Docs, le bureau | **sous Windows, jugé** : « absolument impressionnant », recoller et glisser « parfaits » (09/10 au soir) ; **Linux et Mac reculent** (§ 0 ter) ; Android : le presse-papiers du système (§ 2) |
 | [ ] | **La provenance des images** (son point 1 ; la fiche 27, étapes 1 à 4) : la page d'origine gardée au dépôt, l'empreinte perceptuelle mesurée sur ses documents (une copie), « Trouver l'origine… » par SauceNAO, la provenance dans le document | **sa clé SauceNAO** pour l'étape 3 ; la carte « Origine » lui sera montrée en image avant d'être écrite |
@@ -136,7 +137,7 @@ dans `style.md`. Si c'est la couleur qui lui manque, c'est `style.md` qui change
 ## 2. Le toucher : **Android d'abord**, et l'iPad par le web — ce qu'il attend le plus
 
 **Fait les 07 et 08/10 (fiches 54 à 56, `decisions/08` et `09`)** : Glucose compile pour Android et
-**tourne sur son Redmi 9** ; la couche de gestes ; la clé de signature et l'APK dans la
+**tourne sur son moto g54 5G** (fiche 61) ; la couche de gestes ; la clé de signature et l'APK dans la
 publication ; **le rail** (la barre sur le côté quand elle ne tient plus — à juger à son écran).
 **Sa liste du 08/10, dans son ordre** (fiche 55 § 4), la vidéo remise à plus tard — et ce que
 la session du 08/10 (fiche 56) en a fait :

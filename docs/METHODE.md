@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 09/10/2026** (fiches 59 et 60). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 10/10/2026** (fiches 59 à 61). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -103,7 +103,14 @@
 | **Un chantier qui ajoute sur un système et retire sur les autres** : COPIER-1 a retiré « Copier l'image » partout et ne l'a remplacé que sous Windows — Linux et Mac reculaient, la CI verte (fiche 60 § 3) | relire ce qu'un chantier **retire**, plateforme par plateforme, avant de publier |
 | **La durée de vie d'une bibliothèque jamais lue** : un `arboard::Clipboard` ouvert puis lâché à chaque geste — juste sous Windows, faux sous X11, où le copieur sert le collage ; la copie disparaissait (fiche 60, TENU-1) | lire la documentation et la source jusqu'au `Drop` ; tenir ce que la plateforme veut vivant |
 | **Un compte refait à chaque endroit** : le menu, la barre et le clavier comptaient chacun la sélection, et deux oubliaient le dossier (fiche 60, DOSSIER-1) | une seule question au noyau (`compte_de_la_selection`), lue partout |
-| **Un diagnostic bâti sur le nom d'un appareil** : les documents disaient Redmi 9, le téléphone branché est un moto g54 5G (fiche 60 § 4) | demander au système ce qui est branché (`Get-PnpDevice`, `adb devices`) avant de raisonner sur lui |
+| **Un diagnostic bâti sur le nom d'un appareil** : les documents disaient Redmi 9, le téléphone branché est un moto g54 5G (fiche 60 § 4) — et ses rayures avaient été cherchées sur une puce Mali, alors que la sienne est une PowerVR (fiche 61 § 6) | demander au système ce qui est branché (`Get-PnpDevice`, `adb devices`) avant de raisonner sur lui ; et à lui, quel appareil a montré le défaut |
+| **Un code de plateforme écrit sans jamais tourner** : le copier de Linux n'était que relu, et la CI ne fait que compiler ce qu'aucune épreuve n'exerce (fiche 61) | la distribution `Glucose-Linux` (§ 5) : compiler, clippy, et éprouver contre un vrai serveur X, avec un demandeur qui n'est pas le nôtre (`xclip`) |
+| **Une épreuve qui prend la sélection X de l'écran** prend le presse-papiers de la personne qui la lance (fiche 61) | ne viser qu'un serveur X nommé exprès (`GLUCOSE_ECRAN_X_D_EPREUVE`), jamais `DISPLAY` |
+| **L'ordre entre deux clients X** : une prise envoyée avant une question peut être traitée après ; et un client qui ferme sa connexion juste après sa dernière requête peut la voir jetée — deux blocages d'épreuve, une fois sur deux (fiche 61 § 5) | un aller-retour avec le serveur (une requête qui attend sa réponse) avant de se dire prêt, et avant de partir |
+| **Un serveur X d'épreuve qui se réinitialise** dès que son dernier client part, et coupe un moment les connexions : une épreuve sur vingt tombait (fiche 61 § 5) | `Xvfb … -noreset` ; rejouer une série vingt fois de suite pour débusquer une course |
+| **Deux signes de fin pour une même attente** : la remise au gestionnaire finissait sur sa réponse **ou** sur la sélection prise — chacun, retiré seul, n'aurait rien fait tomber (fiche 61) | chercher l'évènement qui vaut chez tous (la sélection prise, KDE compris), et retirer l'autre |
+| **Des épreuves de droits jouées en `root`**, qui écrit même dans un fichier en lecture seule — et des dossiers d'épreuve laissés par `root`, interdits ensuite à l'utilisateur (fiche 61) | éprouver en utilisateur ordinaire, comme sur GitHub |
+| **Deux compilations à la fois** (Windows et la machine virtuelle Linux) : « le fichier d'échange est trop petit », et des erreurs « can't find crate » qui ne disent pas leur cause (fiche 61) | une seule grosse compilation à la fois ; éteindre la machine virtuelle (`wsl --shutdown`, quand aucune autre distribution ne tourne) avant la suite Windows — arrêter la distribution seule lui laissait 14 Go engagés |
 
 ## 5. Les pièges pratiques
 
@@ -136,8 +143,18 @@
 * **Les épreuves de la mémoire offerte** (`plateforme::offre`, le `Ctrl+B` qui attend ses
   originaux) tombent sous une forte pression mémoire : le système jette alors les pages offertes.
   Les rejouer seules avant de conclure (fiche 59).
-* **`cargo check --target x86_64-unknown-linux-gnu` ne passe pas ici** : la caisse `ring` veut un
-  compilateur C de Linux. Le code hors de Windows se relit à la main, et la CI le compile.
+* **Linux, sur ce PC : la distribution WSL `Glucose-Linux`** (Ubuntu 24.04, à part de
+  NixOS-Proteo, qui est un autre projet). Un utilisateur ordinaire `glucose`, Rust stable, et un
+  serveur X **invisible** (Xvfb `:99 -noreset`) — rien ne s'affiche sur son écran ; WSLg est
+  écarté (`DISPLAY`, `WAYLAND_DISPLAY`). Deux commandes, en `root` :
+  `glucose-lancer '<commande>'` recopie le dépôt de Windows (`rsync`, sans `target`) puis lance
+  la commande dans la copie ; `glucose-faire <sortie.txt> <commande>` fait de même et écrit tout
+  dans le fichier, fini par `CODE <n>`. Les épreuves de la sélection X11 veulent
+  `GLUCOSE_ECRAN_X_D_EPREUVE=:99` (et `GLUCOSE_EXIGER_UN_SERVEUR_X=1` pour tomber sans lui).
+  Exemple : `wsl -d Glucose-Linux -u root -- glucose-faire /mnt/c/…/sortie.txt cargo clippy
+  --workspace --all-targets -- -D warnings`. `cargo check --target …-linux-gnu` depuis Windows ne
+  passe toujours pas (`ring`).
+* **Le Mac ne se compile pas ici** : seule la CI le fait.
 * **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le
   fichier, le dossier seul échoue sur ce Node. **Cloudflare refuse un client sans en-tête
   d'identité** (erreur 1010) : un essai en ligne donne un `user-agent`, s'efface ensuite
