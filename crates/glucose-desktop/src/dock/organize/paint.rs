@@ -1,8 +1,10 @@
 //! Le dessin du panneau ORDONNER. Il lit la géométrie de [`super::layout_organize_panel`]
 //! et l'état ; il ne décide de rien.
 
-use super::{layout_organize_panel, OrganizePanelLayout, OrganizeState};
+use super::{layout_organize_panel, OrganizePanelLayout};
+use crate::dock::champ::Champ;
 use crate::dock::paint::{Brush, ButtonLook};
+use crate::dock::DockManager;
 use crate::params::ScaledRect;
 use crate::typography::Face;
 use glucose_core::store::Store;
@@ -12,9 +14,10 @@ pub fn render_organize_panel(
     pixmap: &mut PixmapMut,
     brush: &Brush,
     frame: ScaledRect,
-    state: &OrganizeState,
+    dock: &DockManager,
     store: &Store,
 ) {
+    let state = &dock.organize;
     let layout = layout_organize_panel(frame, brush.typo);
     brush.title(pixmap, frame, "ORDONNER");
     draw_target(pixmap, brush, &layout, store);
@@ -47,7 +50,15 @@ pub fn render_organize_panel(
         );
     }
 
-    draw_fields(pixmap, brush, &layout, state);
+    for (champ, rect) in [
+        (Champ::OrdonnerTaille, layout.size_rect),
+        (Champ::OrdonnerEcart, layout.gap_rect),
+        (Champ::OrdonnerColonnes, layout.cols_rect),
+    ] {
+        if champ.present(dock) {
+            crate::dock::champ::paint::peindre(pixmap, brush, dock, champ, rect);
+        }
+    }
     let look = ButtonLook::default();
     brush.button(pixmap, layout.apply_rect, "Appliquer", 12.0, look);
 }
@@ -122,35 +133,4 @@ fn draw_layout_mode(
         theme.text_muted,
         Face::Regular,
     );
-}
-
-fn draw_fields(
-    pixmap: &mut PixmapMut,
-    brush: &Brush,
-    layout: &OrganizePanelLayout,
-    state: &OrganizeState,
-) {
-    let above = |r: crate::dock::WidgetRect| (r.x, r.y - brush.px(12.0));
-    brush.text(
-        pixmap,
-        "LARGEUR CIBLE",
-        above(layout.target_size_rect),
-        9.0,
-        brush.theme.text_muted,
-        Face::Bold,
-    );
-    brush.text(
-        pixmap,
-        "ESPACEMENT",
-        above(layout.gap_rect),
-        9.0,
-        brush.theme.text_muted,
-        Face::Bold,
-    );
-    brush.field(
-        pixmap,
-        layout.target_size_rect,
-        &format!("{}", state.size as i32),
-    );
-    brush.field(pixmap, layout.gap_rect, &format!("{}", state.gap as i32));
 }

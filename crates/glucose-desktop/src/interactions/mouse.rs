@@ -183,6 +183,10 @@ impl GlucoseApp {
         if self.suivre_la_zone_tenue() {
             return true;
         }
+        // Un champ de nombre tenu : sa valeur suit la main (CHAMP-1).
+        if self.glisser_le_champ(position.x as f32) {
+            return true;
+        }
         // La réglette de la Time Machine tenue : le passé suit le curseur.
         if self.dock_manager.temps.glisse {
             self.glisser_la_reglette(position.x as f32);
@@ -212,6 +216,8 @@ impl GlucoseApp {
         if self.ui.onglets.renomme.is_some() && !self.clic_dans_le_champ_de_l_onglet() {
             self.valider_le_renommage();
         }
+        // De même, le champ de nombre qu'on tape (CHAMP-1).
+        self.valider_le_champ_quitte(self.screen_frame(screen_w, screen_h));
         // Une question posée ne répond qu'au bouton gauche : un clic droit derrière son voile
         // ouvrirait un menu, et une autre question à sa place (POPUP-1).
         if self.ui.question.is_some() && button != MouseButton::Left {
@@ -284,7 +290,10 @@ impl GlucoseApp {
                 }
             }
             MouseButton::Left => {
-                if self.relacher_la_question() || self.lacher_l_onglet() || self.lacher_l_ancrage()
+                if self.relacher_la_question()
+                    || self.lacher_l_onglet()
+                    || self.lacher_l_ancrage()
+                    || self.lacher_le_champ()
                 {
                     return;
                 }

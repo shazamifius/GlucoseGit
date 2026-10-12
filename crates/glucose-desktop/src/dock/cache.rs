@@ -28,6 +28,7 @@
 //! six (2 560 × 1 600). Ce n'est pas le cache qui a gagné — c'est la référence qui paie
 //! maintenant son tampon.
 
+use super::champ::Saisie;
 use super::paint::Brush;
 use super::render::draw_panel;
 use super::{
@@ -49,9 +50,10 @@ use tiny_skia::{Pixmap, PixmapMut, Transform};
 /// panneaux qui n'ont rien à voir : changer le minuteur referait le panneau des domaines.
 #[derive(Clone, PartialEq)]
 enum EtatPanneau {
-    Organize(OrganizeState),
+    /// Ordonner et le Storyboard montrent aussi le champ qu'on tient ou qu'on tape (CHAMP-1).
+    Organize(OrganizeState, Option<Saisie>),
     Pomodoro(PomodoroState),
-    Storyboard(StoryboardState),
+    Storyboard(StoryboardState, Option<Saisie>),
     Plugins(plugins::PluginsState),
     /// Le panneau des Presets ne tient aucun état : tout ce qu'il montre se lit dans le
     /// document, dont la version est déjà dans la clé.
@@ -63,9 +65,9 @@ enum EtatPanneau {
 impl EtatPanneau {
     fn de(dock: &DockManager, tab: TabId) -> Self {
         match tab {
-            TabId::Organize => Self::Organize(dock.organize.clone()),
+            TabId::Organize => Self::Organize(dock.organize.clone(), dock.saisie_du(tab)),
             TabId::Pomodoro => Self::Pomodoro(dock.pomodoro.clone()),
-            TabId::Storyboard => Self::Storyboard(dock.storyboard.clone()),
+            TabId::Storyboard => Self::Storyboard(dock.storyboard.clone(), dock.saisie_du(tab)),
             TabId::Plugins => Self::Plugins(dock.plugins.clone()),
             TabId::Preset => Self::Preset,
             TabId::Domains => Self::Domains(dock.domains.clone()),

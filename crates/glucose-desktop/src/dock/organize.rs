@@ -192,8 +192,10 @@ pub struct OrganizePanelLayout {
     pub target_count_rect: WidgetRect,
     pub sort_buttons: Vec<OrganizeSortButton>,
     pub layout_modes: Vec<OrganizeLayoutModeItem>,
-    pub target_size_rect: WidgetRect,
+    /// Les trois champs de nombre (CHAMP-1) : la taille, l'espacement, les colonnes.
+    pub size_rect: WidgetRect,
     pub gap_rect: WidgetRect,
+    pub cols_rect: WidgetRect,
     pub apply_rect: WidgetRect,
 }
 
@@ -240,17 +242,18 @@ pub fn layout_organize_panel(frame: ScaledRect, typo: &Typography) -> OrganizePa
         .collect();
     cy += LayoutMode::ALL.len() as f32 * (row_h + 2.0 * s) + (6.0 + 12.0) * s;
 
-    let col_w = (inner_w - 8.0 * s) / 2.0;
-    let target_size_rect = WidgetRect::new(px + pad_x, cy, col_w, 20.0 * s);
-    let gap_rect = WidgetRect::new(px + pad_x + col_w + 8.0 * s, cy, col_w, 20.0 * s);
+    let col_w = (inner_w - 12.0 * s) / 3.0;
+    let colonne = |i: f32| WidgetRect::new(px + pad_x + i * (col_w + 6.0 * s), cy, col_w, 20.0 * s);
+    let (size_rect, gap_rect, cols_rect) = (colonne(0.0), colonne(1.0), colonne(2.0));
     let apply_rect = WidgetRect::new(px + pad_x, py + ph - 38.0 * s, inner_w, 26.0 * s);
 
     OrganizePanelLayout {
         target_count_rect,
         sort_buttons,
         layout_modes,
-        target_size_rect,
+        size_rect,
         gap_rect,
+        cols_rect,
         apply_rect,
     }
 }

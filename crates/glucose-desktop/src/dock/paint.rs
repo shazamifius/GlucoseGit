@@ -307,6 +307,11 @@ impl<'a> Brush<'a> {
     /// Un champ de valeur : un fond de saisie et sa valeur, alignée à gauche.
     pub fn field(&self, pixmap: &mut PixmapMut, rect: WidgetRect, value: &str) {
         self.fill(pixmap, rect, self.px(3.0), self.theme.input_bg);
+        self.field_text(pixmap, rect, value);
+    }
+
+    /// La valeur d'un champ, à sa place — sans son fond.
+    pub fn field_text(&self, pixmap: &mut PixmapMut, rect: WidgetRect, value: &str) {
         let at = (
             rect.x + self.px(8.0),
             rect.y + (rect.h - self.px(11.0) * 1.2) / 2.0,

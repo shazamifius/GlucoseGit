@@ -254,13 +254,13 @@ fn draw_content(
 ) {
     match tab {
         TabId::Organize => {
-            organize::paint::render_organize_panel(pixmap, brush, frame, &dock.organize, store);
+            organize::paint::render_organize_panel(pixmap, brush, frame, dock, store);
         }
         TabId::Pomodoro => {
             pomodoro::paint::render_pomodoro_panel(pixmap, brush, frame, &dock.pomodoro);
         }
         TabId::Storyboard => {
-            storyboard::paint::render_storyboard_panel(pixmap, brush, frame, &dock.storyboard);
+            storyboard::paint::render_storyboard_panel(pixmap, brush, frame, dock);
         }
         TabId::Plugins => {
             plugins::paint::render_plugins_panel(pixmap, brush, frame, &dock.plugins);

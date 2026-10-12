@@ -8,6 +8,7 @@ mod aimant;
 pub mod ancrage;
 pub mod arrow_edit;
 pub mod bord;
+pub mod champ;
 pub mod chrome;
 pub mod clipboard;
 pub mod cursor;

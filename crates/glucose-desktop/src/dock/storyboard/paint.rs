@@ -1,7 +1,9 @@
 //! Le dessin du panneau STORYBOARD.
 
-use super::{layout_storyboard_panel, StoryboardPanelLayout, StoryboardState};
+use super::{layout_storyboard_panel, StoryboardState};
+use crate::dock::champ::Champ;
 use crate::dock::paint::{Brush, ButtonLook};
+use crate::dock::DockManager;
 use crate::dock::WidgetRect;
 use crate::params::ScaledRect;
 use crate::typography::Face;
@@ -11,8 +13,9 @@ pub fn render_storyboard_panel(
     pixmap: &mut PixmapMut,
     brush: &Brush,
     frame: ScaledRect,
-    state: &StoryboardState,
+    dock: &DockManager,
 ) {
+    let state = &dock.storyboard;
     let layout = layout_storyboard_panel(frame);
     brush.title(pixmap, frame, "STORYBOARD");
 
@@ -24,7 +27,13 @@ pub fn render_storyboard_panel(
     );
     draw_format(pixmap, brush, layout.format_button, state);
 
-    draw_fields(pixmap, brush, &layout, state);
+    for (champ, rect) in [
+        (Champ::StoryLargeur, layout.width_input),
+        (Champ::StoryColonnes, layout.cols_input),
+        (Champ::StoryEcart, layout.gap_input),
+    ] {
+        crate::dock::champ::paint::peindre(pixmap, brush, dock, champ, rect);
+    }
     for (i, cell) in layout.cells.iter().enumerate() {
         draw_cell(pixmap, brush, *cell, i + 1);
     }
@@ -63,39 +72,6 @@ fn draw_format(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect, state: &
     );
     let chevron = (rect.x + rect.w - brush.px(16.0), rect.y + brush.px(4.0));
     brush.text(pixmap, "˅", chevron, 12.0, theme.text_muted, Face::Regular);
-}
-
-fn draw_fields(
-    pixmap: &mut PixmapMut,
-    brush: &Brush,
-    layout: &StoryboardPanelLayout,
-    state: &StoryboardState,
-) {
-    let fields = [
-        (
-            layout.width_input,
-            "LARGEUR",
-            format!("{}", state.panel_width as i32),
-        ),
-        (layout.cols_input, "COLONNES", format!("{}", state.cols)),
-        (
-            layout.gap_input,
-            "ESPACEMENT",
-            format!("{}", state.gap as i32),
-        ),
-    ];
-    for (rect, caption, value) in fields {
-        let above = (rect.x, rect.y - brush.px(12.0));
-        brush.text(
-            pixmap,
-            caption,
-            above,
-            9.0,
-            brush.theme.text_muted,
-            Face::Bold,
-        );
-        brush.field(pixmap, rect, &value);
-    }
 }
 
 /// Une cellule numérotée de la grille.

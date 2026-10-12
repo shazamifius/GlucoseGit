@@ -10,7 +10,9 @@ impl GlucoseApp {
     /// La poignée d'un panneau, puis son contenu. Le panneau le plus haut dans la pile — le
     /// dernier dessiné — est regardé en premier.
     pub fn click_dock(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
-        self.click_dock_grip(pointer, screen) || self.click_dock_content(pointer, screen)
+        self.click_dock_grip(pointer, screen)
+            || self.prendre_un_champ(pointer, screen)
+            || self.click_dock_content(pointer, screen)
     }
 
     fn click_dock_grip(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {

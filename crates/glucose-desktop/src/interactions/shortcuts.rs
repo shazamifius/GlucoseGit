@@ -72,22 +72,26 @@ impl GlucoseApp {
     /// quand la touche ne le concerne pas ; aucun ne contient de logique (§ 1.7).
     pub fn handle_key(&mut self, event: &KeyEvent) {
         let appuyee = event.state == winit::event::ElementState::Pressed;
-        // Une question posée prend tout le clavier : rien ne passe sous son voile (POPUP-1).
-        if self.touche_de_la_question(&event.logical_key, appuyee) {
-            return;
-        }
-        if appuyee
-            && (self.touche_de_l_ancrage(&event.logical_key)
-                || self.frapper_le_nom_du_jalon(&event.logical_key)
-                || self.frapper_le_nom_de_l_onglet(&event.logical_key)
-                || self.touche_du_temps(&event.logical_key))
-        {
+        if self.prendre_la_touche(&event.logical_key, appuyee) {
             return;
         }
         if self.handle_domain_rename_key(event) || self.handle_text_key(event) {
             return;
         }
         self.handle_keyboard_shortcut(event);
+    }
+
+    /// **Les preneurs qui passent avant tout**, sans le `KeyEvent` de winit qui ne se
+    /// construit pas hors de la boucle : une question, puis les saisies du dock et de la bande.
+    pub(crate) fn prendre_la_touche(&mut self, key: &Key, appuyee: bool) -> bool {
+        // Une question posée prend tout le clavier : rien ne passe sous son voile (POPUP-1).
+        self.touche_de_la_question(key, appuyee)
+            || appuyee
+                && (self.touche_de_l_ancrage(key)
+                    || self.frapper_le_nom_du_jalon(key)
+                    || self.frapper_dans_le_champ(key)
+                    || self.frapper_le_nom_de_l_onglet(key)
+                    || self.touche_du_temps(key))
     }
 
     /// Traite les raccourcis clavier hors session d'édition de texte.

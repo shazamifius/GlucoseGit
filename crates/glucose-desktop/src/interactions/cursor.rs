@@ -14,6 +14,9 @@ impl GlucoseApp {
         if let Some(bord) = self.bord_sous(self.mouse_pos) {
             // En mode référence, la fenêtre se prend par ses bords (fiche 51 § 5).
             CursorIcon::from(bord)
+        } else if let Some(champ) = self.curseur_du_champ() {
+            // Un champ de nombre du dock se glisse, ou se tape (CHAMP-1).
+            champ
         } else if self.is_panning {
             CursorIcon::Grabbing
         } else if self.ui.active_tool == ActiveTool::Pan {
