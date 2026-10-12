@@ -59,6 +59,7 @@ impl GlucoseApp {
         if self.place_with_tool(wx, wy)
             || self.begin_arrow_bend(wx, wy)
             || self.begin_resize_at(wx, wy)
+            || self.prendre_la_zone_choisie()
         {
             return;
         }
@@ -79,6 +80,11 @@ impl GlucoseApp {
         }
 
         let Some(top) = self.pick_for_click(wx, wy) else {
+            // Le bandeau d'une zone de gabarit la prend ; ailleurs, le vide est au canevas
+            // (PRESET-1).
+            if self.prendre_le_bandeau() {
+                return;
+            }
             self.commit_editing();
             self.store.clear_selection();
             // Le doigt, sur le vide, déplace le canevas ; la souris y trace un cadre (fiche 54).

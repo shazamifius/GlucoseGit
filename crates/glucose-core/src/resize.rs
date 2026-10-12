@@ -133,6 +133,10 @@ pub const MIN_MEMBRANE_SIDE: f64 = 120.0;
 /// Dimensions minimales d'un dossier : son en-tête (38) plus une rangée.
 pub const MIN_FOLDER_WIDTH: f64 = 120.0;
 pub const MIN_FOLDER_HEIGHT: f64 = 80.0;
+/// Dimensions minimales d'une zone de gabarit : celles de Glucose Tauri (`ZoneRenderer.ts`),
+/// la place de son bandeau et d'une rangée.
+pub const MIN_ZONE_WIDTH: f64 = 100.0;
+pub const MIN_ZONE_HEIGHT: f64 = 80.0;
 
 /// Ce qu'un nœud impose au geste.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -183,6 +187,15 @@ impl ResizeRule {
         Self {
             min_width: MIN_FOLDER_WIDTH,
             min_height: MIN_FOLDER_HEIGHT,
+            keep_aspect: false,
+        }
+    }
+
+    /// Une zone de gabarit (PRESET-1) : libre, à sa taille minimale.
+    pub fn zone() -> Self {
+        Self {
+            min_width: MIN_ZONE_WIDTH,
+            min_height: MIN_ZONE_HEIGHT,
             keep_aspect: false,
         }
     }

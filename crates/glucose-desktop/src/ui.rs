@@ -132,6 +132,8 @@ pub struct UiState {
     pub noeud_pressenti: Option<String>,
     /// Sous un outil de création armé, l'élément à naître, là où il se poserait (PLACEMENT-1).
     pub placement: crate::interactions::placement::Placement,
+    /// La zone de gabarit choisie, et celle que la main tient (PRESET-1).
+    pub zones: crate::interactions::zone::ZonesUi,
     /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
     pub ancrage: Option<ancrage::Ancrage>,
     pub current_toast: Option<Toast>,
@@ -203,6 +205,7 @@ impl UiState {
             fleche_survolee: None,
             noeud_pressenti: None,
             placement: Default::default(),
+            zones: Default::default(),
             ancrage: None,
             current_toast: None,
             context_menu_at: None,

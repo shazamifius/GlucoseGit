@@ -41,7 +41,7 @@ use tiny_skia::{Color, PixmapMut, Rect};
 /// Le tiret et le vide du bord, en unités du monde.
 const TIRET: (f32, f32) = (8.0, 6.0);
 /// La hauteur du bandeau, l'épaisseur du filet, la marge du texte, en unités du monde.
-const BANDEAU: f32 = 36.0;
+pub(crate) const BANDEAU: f32 = 36.0;
 const FILET: f32 = 2.0;
 const MARGE: f32 = 12.0;
 /// Les corps du nom et de la phrase.
@@ -240,6 +240,84 @@ fn bord(
         poser((x, y + t, e, l), c);
         poser((x + w - e, y + t, e, l), c);
         t += periode;
+    }
+}
+
+/// Le côté de la croix d'une zone choisie, et sa marge au coin, en pixels d'écran.
+const CROIX: (f32, f32) = (18.0, 6.0);
+
+/// **La croix de la zone choisie, à l'écran** : dans le coin haut droit de sa boîte. La seule
+/// géométrie, que le dessin et le clic lisent (loi L4).
+pub(crate) fn croix((x, y, w, _): Boite, densite: f32) -> Boite {
+    let (cote, marge) = (CROIX.0 * densite, CROIX.1 * densite);
+    (x + w - cote - marge, y + marge, cote, cote)
+}
+
+/// **La zone choisie** : un contour, ses quatre coins — les poignées des nœuds, leur loi de
+/// prise comprise —, et sa croix. Dans la couche du dessus : ce sont des prises, pas du
+/// contenu.
+pub(super) fn orner_la_zone_choisie(
+    pixmap: &mut PixmapMut,
+    theme: &crate::theme::Theme,
+    (store, pass): (&Store, ViewPass<'_>),
+    choisie: Option<&str>,
+) {
+    let Some(id) = choisie else {
+        return;
+    };
+    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
+    let Some((_, b)) = visibles(store, pass, ecran)
+        .into_iter()
+        .find(|(z, _)| z.slot_id == id)
+    else {
+        return;
+    };
+    let scale = pass.echelle();
+    let d = scale.screen(1.0);
+    let contour = rgba(0xffffff, 128);
+    let e = (1.5 * d).max(1.0);
+    for cote in [
+        (b.0 - 2.0 * d, b.1 - 2.0 * d, b.2 + 4.0 * d, e),
+        (b.0 - 2.0 * d, b.1 + b.3 + 2.0 * d - e, b.2 + 4.0 * d, e),
+        (b.0 - 2.0 * d, b.1 - 2.0 * d, e, b.3 + 4.0 * d),
+        (b.0 + b.2 + 2.0 * d - e, b.1 - 2.0 * d, e, b.3 + 4.0 * d),
+    ] {
+        if let Some(r) = Rect::from_xywh(cote.0, cote.1, cote.2, cote.3) {
+            crate::renderer::scale::fill_crisp(pixmap, r, contour);
+        }
+    }
+    let coins: Vec<glucose_core::resize::Handle> = glucose_core::resize::Handle::ALL
+        .into_iter()
+        .filter(|h| h.is_corner())
+        .collect();
+    crate::renderer::handles::draw_resize_handles(pixmap, theme, scale, b, &coins);
+    let (cx, cy, cw, ch) = croix(b, d);
+    if let Some(r) = Rect::from_xywh(cx, cy, cw, ch) {
+        crate::renderer::scale::fill_crisp(pixmap, r, theme.btn_bg);
+    }
+    let mut trait_ = tiny_skia::PathBuilder::new();
+    let m = cw * 0.3;
+    trait_.move_to(cx + m, cy + m);
+    trait_.line_to(cx + cw - m, cy + ch - m);
+    trait_.move_to(cx + cw - m, cy + m);
+    trait_.line_to(cx + m, cy + ch - m);
+    if let Some(chemin) = trait_.finish() {
+        let mut paint = tiny_skia::Paint {
+            anti_alias: true,
+            ..Default::default()
+        };
+        paint.set_color(theme.text_primary);
+        let stroke = tiny_skia::Stroke {
+            width: 1.5 * d,
+            ..Default::default()
+        };
+        pixmap.stroke_path(
+            &chemin,
+            &paint,
+            &stroke,
+            tiny_skia::Transform::identity(),
+            None,
+        );
     }
 }
 

@@ -138,6 +138,9 @@ pub(super) fn dessiner_sur_les_photos(
     // les posait a un rang et l'autre au-dessus.
     grille::dessiner_les_ornements(kit, pixmap, store, pass);
     super::handles::dessiner_le_cadre_du_groupe(kit.theme, pixmap, store, pass);
+    // La zone de gabarit choisie : ses prises, comme celles d'un nœud choisi (PRESET-1).
+    let choisie = ui.zones.choisie.as_deref();
+    super::zone::orner_la_zone_choisie(pixmap, kit.theme, (store, pass), choisie);
     crate::perf::stage("ornements");
     let taille = (pixmap.width(), pixmap.height());
     dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);

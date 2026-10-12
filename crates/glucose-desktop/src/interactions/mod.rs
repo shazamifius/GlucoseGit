@@ -41,3 +41,4 @@ pub mod text_mouse;
 pub mod tools;
 pub mod toucher;
 pub mod vol;
+pub mod zone;

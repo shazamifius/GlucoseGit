@@ -484,6 +484,10 @@ impl GlucoseApp {
     /// comme un collage, qui se voit et se tait (fiche 51 § 2). Sa place est allée à `Ctrl+N`,
     /// qui avait quelque chose à dire (fiche 52).
     pub(crate) fn delete_selection(&mut self) {
+        // Une zone de gabarit choisie se retire seule : les nœuds ne sont pas choisis avec elle.
+        if self.retirer_la_zone_choisie() {
+            return;
+        }
         let board = self.store.project.active_board_id.clone();
         self.store.delete_selected(&board);
         self.mark_dirty();

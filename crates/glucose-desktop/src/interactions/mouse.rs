@@ -179,6 +179,10 @@ impl GlucoseApp {
         if self.suivre_l_onglet_tenu() {
             return true;
         }
+        // Une zone de gabarit tenue : elle suit la main (PRESET-1).
+        if self.suivre_la_zone_tenue() {
+            return true;
+        }
         // La réglette de la Time Machine tenue : le passé suit le curseur.
         if self.dock_manager.temps.glisse {
             self.glisser_la_reglette(position.x as f32);
@@ -312,6 +316,7 @@ impl GlucoseApp {
                 }
                 self.finish_bend();
                 self.finish_resize();
+                self.lacher_la_zone();
                 self.finish_item_drag();
                 self.finish_selection_box();
             }
