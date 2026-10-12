@@ -50,7 +50,7 @@ par un recul trouvé en relisant COPIER-1.
 | [~] | **CARTE-1 — la carte graphique au journal technique, par ses numéros** | en local (`e869805`) ; le serveur **redéployé et vérifié en ligne** ; la première vraie session la montrera dans la base |
 | [~] | **TENU-1 — le presse-papiers du système tenu toute la vie de Glucose** (cause probable de « tant de choses ne marchent pas » sous Linux) | en local (`b72965a`) ; **à son Linux** |
 | [ ] | **Son Linux** : une machine NixOS à part (`nixos.home`), pas NixOS-Proteo — **éteinte pendant la fiche 61** ; la liste de ce qui ne marche pas, et l'accès SSH qu'il croit ouvert | **son NixOS allumé**, puis la liste ; pour compiler et éprouver, la distribution `Glucose-Linux` de ce PC suffit (METHODE § 5) |
-| [ ] | **L'envoi** des commits de la fiche 60 (`abae87b`, `e869805`, `b72965a`, `a092eb7`, `9aa4816`) et de ceux de la fiche 61, avec la CI — la tâche Linux éprouvera la sélection contre son Xvfb ; puis la publication (Actions → Publier, `2.0.2-beta.3`, en brouillon) ; son clic « Publish release » | **à sa parole** |
+| [~] | **L'envoi** des commits des fiches 60 et 61 : **fait le 12/10, à sa demande, sans la CI** (`[skip ci]`). Reste la CI — la tâche Linux éprouvera la sélection contre son Xvfb —, puis la publication (Actions → Publier, `2.0.2-beta.3`, en brouillon) ; son clic « Publish release » | la CI et la publication **à sa parole** |
 
 ## 0 bis. Ses retours du 09/10 — **les problèmes d'abord, l'ergonomie ensuite** (fiche 59)
 

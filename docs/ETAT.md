@@ -119,11 +119,14 @@
   la suite tourne désormais **aussi sous Linux sur ce PC**, dans la distribution WSL
   `Glucose-Linux` (METHODE § 5) ; clippy strict à zéro avec Rust 1.99, sous Windows, Linux **et
   pour Android** ; la fiche 61 a saboté quinze gardes, quinze chutes.
-  **Attendent en local, avec ceux de la fiche 60** : le copier unique sous Linux et sa
-  documentation (fiche 61). **Les six commits de la fiche 59 sont partis avec la CI**
+  **Les commits des fiches 60 et 61** (`abae87b` à `4deba20` : DOSSIER-1, CARTE-1, TENU-1, les
+  cliquets tenus, le copier unique sous Linux et leur documentation) **sont partis le 12/10,
+  à sa demande, sans la CI** (« envoyer tout sur GitHub, mais pour l'instant pas avec la CI ») :
+  le dernier porte `[skip ci]`. Rejoués avant l'envoi : 2 261 épreuves sous Windows, clippy
+  strict sous Windows et pour Android. **Linux et Mac ne sont donc pas vérifiés par GitHub** : la
+  2.0.2-beta.3 attend un envoi avec la CI. **Les six commits de la fiche 59 sont partis avec la CI**
   (`3fbf383`, exécution 37946507360) : **les dix tâches vertes**, Linux et les deux Mac compris.
-  **Attendent en local** : `abae87b` (DOSSIER-1), `e869805` (CARTE-1), `b72965a` (TENU-1), `a092eb7` (les cliquets tenus) et la
-  documentation de la fiche 60 — rien n'est envoyé sans sa parole. **Sur GitHub, à
+  **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
