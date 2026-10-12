@@ -923,3 +923,62 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
         "prevue bien au-dela des cinq millisecondes du budget : elle attend"
     );
 }
+
+/// **NETTETE-1 — la cascade dit qu'elle n'a pas fini.**
+///
+/// Ce qu'elle reporte attend l'image suivante — et sans qu'elle le dise, l'image suivante
+/// n'arrivait qu'au prochain geste : des tuiles floues restaient posées au repos. À l'envers,
+/// une scène servie en entier est finie, et ne redemande rien.
+///
+/// **Un repli qui attend ne la rend pas inachevée.** Il ne force jamais une image
+/// (`test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force`) : sur une machine
+/// dont chaque image dépasse le plancher, il attendrait toujours, et la boucle redessinerait
+/// sans fin au repos pour lui.
+#[test]
+fn test_nettete_1_la_cascade_dit_qu_elle_n_a_pas_fini() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let source = |_: &str| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
+    let mut servir = |scene: &mut SceneGpu, demandes: &[APoser], budget| {
+        scene.ouvrir();
+        scene.assurer(&peripherique, &mut envoi, (demandes, budget), &source);
+        scene.inachevee()
+    };
+    let deux = [a_poser("a", pose), a_poser("b", pose)];
+    assert!(
+        servir(&mut scene, &deux, std::time::Duration::ZERO),
+        "une texture reportee laisse la scene inachevee"
+    );
+    assert!(
+        !servir(&mut scene, &deux, std::time::Duration::MAX),
+        "servie en entier, la scene est finie"
+    );
+
+    let tuile = APoser {
+        repli: Some(Box::new(a_poser("entier-bas", pose))),
+        ..a_poser("tuile", pose)
+    };
+    let tuile = std::slice::from_ref(&tuile);
+    assert!(
+        !servir(&mut scene, tuile, std::time::Duration::ZERO),
+        "la tuile est servie ; son repli attend, et ne garde pas la boucle eveillee"
+    );
+    assert!(
+        !scene.detient("entier-bas"),
+        "le montage : le repli a bien attendu"
+    );
+}

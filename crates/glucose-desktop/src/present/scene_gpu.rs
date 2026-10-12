@@ -109,6 +109,9 @@ pub struct SceneGpu {
     en_cache: u64,
     /// Ce qu'une texture a coûté sur cette machine, par pixel posé (CASCADE-3).
     debit: cascade::Debit,
+    /// **La dernière cascade a-t-elle reporté quelque chose ?** (NETTETE-1) Ce qui attend
+    /// demande l'image suivante, même quand plus rien ne bouge.
+    inachevee: bool,
 }
 
 struct Televersee {
@@ -171,6 +174,7 @@ impl SceneGpu {
             image: 0,
             en_cache: 0,
             debit: cascade::Debit::default(),
+            inachevee: false,
         }
     }
 

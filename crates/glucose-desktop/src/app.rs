@@ -487,17 +487,6 @@ impl GlucoseApp {
         }
     }
 
-    /// Applique a la camera ce que l'elan a retenu pour cette image.
-    ///
-    /// Un seul deplacement et un seul changement d'echelle, quel que soit le nombre
-    /// d'evenements recus depuis la derniere image. La diagonale de la fenetre sert de mesure
-    /// commune aux deux : elle dit ce qu'un reste de zoom deplacerait a l'ecran, donc quand il
-    /// devient invisible.
-    /// Marque **toute** la vue comme sale et planifie un rafraîchissement (R-15).
-    ///
-    /// C'est la déclaration de celui qui ne sait pas ce qu'il a changé, et elle reste juste :
-    /// redessiner l'écran entier coûte ce qu'il coûtait hier. Un geste qui sait désigner sa
-    /// zone appelle [`GlucoseApp::salir`] et paie beaucoup moins.
     /// Ce que la prochaine image devra redessiner, pris comme la peinture le prend : une
     /// épreuve y lit si un geste a demandé une image, sans avoir à en peindre une.
     #[cfg(test)]
@@ -505,10 +494,22 @@ impl GlucoseApp {
         self.salissure.replace(crate::salissure::Salissure::Rien)
     }
 
+    /// Marque **toute** la vue comme sale et planifie un rafraîchissement (R-15).
+    ///
+    /// C'est la déclaration de celui qui ne sait pas ce qu'il a changé, et elle reste juste :
+    /// redessiner l'écran entier coûte ce qu'il coûtait hier. Un geste qui sait désigner sa
+    /// zone appelle [`GlucoseApp::salir`] et paie beaucoup moins.
     pub fn mark_dirty(&self) {
+        self.salissure.set(crate::salissure::Salissure::Tout);
+        self.demander_une_image();
+    }
+
+    /// **Demande une image sans rien salir** (NETTETE-1) : ce qui est peint reste juste, seule
+    /// la présentation a du travail à finir — des textures que la carte a reportées. La
+    /// demande compte pour la raison qui la fait, comme celle d'un `mark_dirty`.
+    pub(crate) fn demander_une_image(&self) {
         self.provenance.noter_une_demande();
         self.noter_l_echeance(std::time::Instant::now());
-        self.salissure.set(crate::salissure::Salissure::Tout);
         if let Some(window) = &self.window {
             window.request_redraw();
         }

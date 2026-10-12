@@ -63,10 +63,22 @@ impl SceneGpu {
                 }
             }
         }
+        // **Ce qui est reporté se fera à l'image suivante — encore faut-il qu'elle vienne**
+        // (NETTETE-1). La cascade le dit, et la boucle la redemande tant qu'elle n'a pas fini.
+        // Seul compte ce que la règle « au moins une par image » couvre : c'est elle qui fait
+        // finir la scène en un nombre fini d'images. Un repli ne force jamais une image ; le
+        // compter garderait éveillée, sans fin, une machine dont chaque image dépasse déjà le
+        // plancher — le téléphone.
+        self.inachevee = tranche.reportees > 0.0;
         crate::perf::compteur("textures_kpx", tranche.surface);
         crate::perf::compteur("textures_rendu_us", tranche.rendu.as_secs_f64() * 1e6);
         crate::perf::compteur("textures_faites", tranche.faites);
         crate::perf::compteur("textures_reportees", tranche.reportees);
+    }
+
+    /// **La dernière cascade a-t-elle reporté du contenu ?** (NETTETE-1)
+    pub fn inachevee(&self) -> bool {
+        self.inachevee
     }
 
     /// Rend et téléverse `t` si ce tour le concerne et que le budget le permet.

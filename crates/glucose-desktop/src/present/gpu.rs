@@ -494,6 +494,10 @@ impl Presenter for GpuPresenter {
         true
     }
 
+    fn scene_inachevee(&self) -> bool {
+        self.scene.inachevee()
+    }
+
     fn brancher_le_reveil(&mut self, reveil: crate::plateforme::graphique::Reveil) {
         if let Some(sonde) = self.sonde.as_mut() {
             sonde.veiller(reveil);

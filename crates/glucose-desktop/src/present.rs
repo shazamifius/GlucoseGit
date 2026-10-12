@@ -193,6 +193,13 @@ pub trait Presenter {
         ))
     }
 
+    /// **La dernière scène posée attend-elle des textures que le budget a reportées ?**
+    /// (NETTETE-1) Alors l'image suivante est due, même quand plus rien ne bouge. Toujours
+    /// non pour une présentation qui ne pose pas la scène elle-même.
+    fn scene_inachevee(&self) -> bool {
+        false
+    }
+
     /// Comment cette présentation s'appelle, pour le dire à qui veut le savoir.
     fn nom(&self) -> &'static str;
 

@@ -53,6 +53,10 @@ pub enum Raison {
     /// **Un nœud tenu près du bord fait défiler la vue** (DEFILE-1, fiche 59) : elle avance à
     /// chaque image, même quand la main ne bouge plus.
     Defile,
+    /// **L'image montrée n'est pas finie** (NETTETE-1, fiche 63) : la dernière d'un geste, une
+    /// scène encore réduite, des textures que la carte a reportées. La netteté revient en un
+    /// nombre fini d'images, puis plus rien.
+    Nettete,
     /// La main a bougé, cliqué ou tapé depuis l'image précédente.
     Main,
     /// Un dépôt est arrivé — un fichier lâché, une image rapatriée d'une page.
@@ -63,10 +67,11 @@ pub enum Raison {
 }
 
 impl Raison {
-    /// Dans l'ordre des bits du masque. Les douze premières réveillent — chacune a sa ligne
+    /// Dans l'ordre des bits du masque. Les treize premières réveillent — chacune a sa ligne
     /// dans [`GlucoseApp::prochain_reveil`] ; les trois dernières ne réveillent pas, elles
-    /// disent ce qui est arrivé.
-    pub const TOUTES: [Self; 15] = [
+    /// disent ce qui est arrivé. Seize, c'est tout le masque : une de plus demandera de
+    /// l'élargir, et la chronique avec lui.
+    pub const TOUTES: [Self; 16] = [
         Self::Curseur,
         Self::Toast,
         Self::Animation,
@@ -79,6 +84,7 @@ impl Raison {
         Self::Pave,
         Self::Appui,
         Self::Defile,
+        Self::Nettete,
         Self::Main,
         Self::Depot,
         Self::Systeme,
@@ -98,6 +104,7 @@ impl Raison {
             Self::Pave => "le pave tactile",
             Self::Appui => "un appui long se decide",
             Self::Defile => "le bord fait defiler",
+            Self::Nettete => "la nettete revient",
             Self::Main => "la main",
             Self::Depot => "un depot arrive",
             Self::Systeme => "le systeme",
@@ -238,7 +245,7 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 14] = [
+        let attentes: [(Raison, Attente); 15] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
@@ -253,6 +260,7 @@ impl GlucoseApp {
             (Raison::Pave, Self::attente_du_pave),
             (Raison::Appui, Self::attente_de_l_appui),
             (Raison::Defile, Self::attente_du_bord),
+            (Raison::Nettete, Self::attente_de_la_nettete),
         ];
         let (mut masque, mut plus_proche) = (0u16, None::<u64>);
         for (raison, attente) in attentes {
@@ -278,6 +286,34 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         Some(self.animation_interval_ms())
+    }
+
+    /// **NETTETE-1 — une image qui n'est pas finie demande la suivante.**
+    ///
+    /// La charte dit « à l'arrêt, net à quasi 100 % », et trois chemins s'endormaient avant :
+    ///
+    /// * **la dernière image d'un geste** est une image de mouvement — à la molette, l'élan
+    ///   s'éteint dans l'image même qui montre le cran. Les textes y sont au palier dyadique le
+    ///   plus proche, agrandis jusqu'à √2 : l'image d'arrêt est due, une seule ;
+    /// * **la voie processeur** rend la scène réduite et remonte par moitiés à l'arrêt : une
+    ///   image par moitié, jusqu'à la pleine finesse ;
+    /// * **la carte a reporté des textures** (CASCADE-2) — les tuiles d'un texte vu de près, les
+    ///   paliers neufs : il faut l'image suivante, mais rien à repeindre.
+    ///
+    /// Chacun finit de lui-même — un geste fini ne recommence pas, le facteur ne fait que
+    /// descendre, la cascade rend au moins une texture par image — : le repos reste à zéro.
+    fn attente_de_la_nettete(&mut self) -> Option<u64> {
+        let arret_a_montrer = self.elan.bouge() && !self.elan.en_cours();
+        let finesse_a_rendre = self.resolution.reduite() && !self.la_vue_bouge();
+        if arret_a_montrer || finesse_a_rendre {
+            self.mark_dirty();
+            return Some(self.animation_interval_ms());
+        }
+        if self.presenter.as_ref().is_some_and(|p| p.scene_inachevee()) {
+            self.demander_une_image();
+            return Some(self.animation_interval_ms());
+        }
+        None
     }
 
     /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1), **un rangement ses couleurs**
