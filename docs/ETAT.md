@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 10/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 12/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
@@ -9,7 +9,8 @@
 > panneaux, le canevas qui suit, le copier unique (fiche 59) —, et celle de ses essais du soir :
 > les dossiers, la carte au journal, le presse-papiers tenu, et le recul du copier sous Linux et
 > Mac qui retient la beta 3 (fiche 60), et celle du copier unique sous Linux, la voie B qu'il a
-> choisie (fiche 61). Ce document dit l'état **vérifié** du projet,
+> choisie (fiche 61), et celle des boutons qui ne faisaient rien — les tris par la couleur, l'export
+> en image, les Presets et leurs zones, les champs du dock (fiche 62). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -86,6 +87,15 @@
   distribution WSL à part, un serveur X invisible, `xclip` pour demander) : neuf épreuves, quinze
   sabotages, vingt tours verts. **Jamais essayé sur son Linux** (son NixOS était éteint). Le Mac
   attend son tour (aucune version Mac n'est publiée).
+* **Fiche 62 — les boutons qui ne faisaient rien** (« tous les boutons sont obligatoires, je
+  n'en délaisserai pas un seul ») : **les trois tris par la couleur** d'Ordonner (Oklab, la
+  moyenne exacte de chaque image) ; **l'export en PNG** de la sélection ou du tableau, à 100 %,
+  par bandes ; **les Presets** — les six gabarits de Tauri, des zones dessinées sur les deux
+  voies, posées par un fantôme, prises par leur bandeau, et **« Par slot preset »** qui range
+  chaque zone en elle-même ; **les champs de nombre du dock**, qui ne répondaient à rien (glisser
+  ou taper), et le champ « Colonnes » d'Ordonner, perdu au portage. **Neuf commits en local, non
+  envoyés.** Tout est éprouvé et saboté, **rien n'est encore jugé à son écran**. Ce qui reste en
+  façade : fiche 62 § 8 — d'abord **le Storyboard**.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -109,13 +119,17 @@
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
 | **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). **Sous Linux** (X11, et Wayland par XWayland), le même copier unique, servi par Glucose (fiche 61) — sans le glisser vers une autre application ; sous Mac, le lot seul |
-| **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, Ordonner, aimant aux voisines, placement aimanté dès le premier clic |
+| **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, aimant aux voisines, placement aimanté dès le premier clic ; **Ordonner** : cinq dispositions, huit tris dont **trois par la couleur** (fiche 62), des champs qui se glissent ou se tapent ; **les Presets** : six gabarits, leurs zones posées, déplacées, redimensionnées, retirées, et « Par slot preset » qui range chaque zone |
+| **Exporter** | Markdown, SVG (sans les images ni les membranes), et **PNG** : la sélection ou le tableau, à 100 % (fiche 62) |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
 | **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — la 2.0.2-beta.2 la porte ; pas encore prouvée : il faut qu'une version suivante arrive à un téléphone qui a la beta 2 |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 261** sous Windows et **2 255 sous Linux**, toutes vertes (fiche 61) —
+* **Épreuves** : **2 334** sous Windows, toutes vertes (fiche 62 ; la suite Linux de WSL n'a
+  pas été rejouée depuis la fiche 61, où elle comptait **2 255**) ; clippy strict à zéro sous
+  Windows et pour Android. **Les neuf commits de la fiche 62** (`64b5922` à `82911ea`) sont
+  **en local**, non envoyés. Fiche 61 —
   la suite tourne désormais **aussi sous Linux sur ce PC**, dans la distribution WSL
   `Glucose-Linux` (METHODE § 5) ; clippy strict à zéro avec Rust 1.99, sous Windows, Linux **et
   pour Android** ; la fiche 61 a saboté quinze gardes, quinze chutes.
@@ -162,8 +176,8 @@
 
 ## 5. Ce qui manque encore (de Tauri)
 
-Rideaux · temporalité (réglette de −10 000 à 2 100) · storyboard · presets et zones · exports PNG et
-HTML · miroirs et dossiers miroirs du disque · recherche (`Ctrl+F`) · couleur des domaines sur le
+Rideaux · temporalité (réglette de −10 000 à 2 100) · **storyboard** (le prochain) · un preset
+personnel (« Créer un preset custom ») · l'export HTML, et le SVG complet · miroirs et dossiers miroirs du disque · recherche (`Ctrl+F`) · couleur des domaines sur le
 canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur · collaboration · MCP ·
 plugins et IA locale · Mac · iPad. **Android** : tourne sur son téléphone ; les questions s'y
 dessinent (fiche 56) ; le clavier, l'appui long et la gestion des documents sont écrits (fiche
@@ -255,11 +269,9 @@ parfait », 07/10 au soir), sauf où c'est dit :
 
 ## 7. Points de vigilance
 
-* **Sa clé de signature** est dans les secrets du dépôt (elle a signé chaque version de Tauri). Il
-  manque **une copie hors de ce PC** : perdue, plus aucune mise à jour n'atteint personne.
-* **`%TEMP%\glucose_pasted`** garde 2,9 Go d'anciennes images collées. Aucun document n'en dépend
-  plus (fiche 47), mais c'est à lui de décider de les effacer.
-* Sur GitHub, quatre **brouillons de release** de juillet (Tauri 1.0.1-beta.1, .7, .16, .19) et la
-  branche `feat/mcp-glucose-bridge` (entièrement contenue dans `main`) encombrent. À retirer s'il
-  le veut. Une branche locale, `secours/avant-reattribution`, garde 83 commits d'avant la
+* **Sa clé de signature** est dans les secrets du dépôt (elle a signé chaque version de Tauri) ;
+  **il l'a sauvegardée** hors de ce PC (« ma clé est sauvegardée », 12/10).
+* `%TEMP%\glucose_pasted` : vide (relevé le 12/10). Les brouillons de release de juillet et la
+  branche `feat/mcp-glucose-bridge` sont **retirés de GitHub** (12/10, à sa demande) : il reste
+  `main` et `tauri-v1.0.1`. Une branche locale, `secours/avant-reattribution`, garde 83 commits d'avant la
   réécriture des auteurs : une sauvegarde, à garder.

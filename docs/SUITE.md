@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 10/10/2026** (fiches 59 à 61). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 12/10/2026** (fiches 59 à 62). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -19,6 +19,29 @@
 > construira sur GitHub au prochain envoi avec CI.
 
 ---
+
+## 0 quater. Les boutons qui ne faisaient rien — **d'abord** (fiche 62)
+
+Ses mots, le 12/10 : *« il y a encore des dizaines d'options et de boutons qui ne fonctionnent
+pas »* ; *« 100 % des boutons existants, ainsi que toutes les fonctionnalités à venir, sont
+quasi obligatoires — je n'en délaisserai pas un seul »*. **Ne jamais proposer d'en retirer un.**
+La méthode qui marche : relire le composant de Tauri **champ par champ** à côté du panneau de
+Rust (c'est elle qui a trouvé le champ Colonnes perdu et le libellé faux d'Ordonner).
+
+| | chantier | où en est-il |
+|---|---|---|
+| [~] | **ORDONNER-2** — les trois tris par la couleur (Oklab, la moyenne exacte de la pyramide) | `64b5922` — **à son écran** |
+| [~] | **EXPORT-PNG-1** — la sélection, ou le tableau, en PNG, à 100 %, par bandes | `9fca9ca` — **à son écran** ; la taille (100 % ou pleine résolution) **à sa parole** |
+| [~] | **PRESET-1** — six gabarits, zones sur les deux voies, posées par un fantôme, prises par leur bandeau ; « Par slot preset » | `c442ea2` à `367fa73` — **à son écran** |
+| [~] | **CHAMP-1** — les champs de nombre du dock (glisser, ou cliquer et taper) ; « Colonnes » d'Ordonner | `82911ea` — **à son écran** |
+| [ ] | **L'envoi** des neuf commits (`64b5922` à `82911ea`, plus la documentation) | **à sa parole** : avec la CI, ou sans (`[skip ci]`) |
+| [ ] | **STORYBOARD-1** — le panneau entier : poser la grille par un fantôme, dessiner les cases sur les deux voies, une image posée dans une case s'y ajuste, la description qui se tape, ajouter, retirer, renuméroter, « ✕ » ; les cases prises par leur bandeau | **le prochain** — Tauri lu (fiche 62 § 10) ; recherche internet à faire avant de concevoir |
+| [ ] | **« Créer un preset custom »** — les zones du tableau enregistrées comme gabarit du document (`project.presets` se lit déjà dans le panneau) | après le Storyboard |
+| [ ] | **L'export SVG complet** — les images et les membranes | |
+| [ ] | **Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande | la liste exécutable de ce qui manque |
+| [ ] | **Les champs du dock au téléphone** : glisser marche, taper non — le miroir du clavier (CLAVIER-1) ne sert ni les champs de nombre, ni le nom d'un jalon, ni celui d'un domaine | avec **l'UX du téléphone, toute à refaire** (sa demande : ultra rapide, fluide, pratique), l'une des dernières étapes |
+| [ ] | **Collaborer** — « absolument obligatoire » | **plus tard, à sa parole** |
+| [ ] | Trans-domaines ; l'IA locale (« Télécharger » du panneau Plugins) | plus tard |
 
 ## 0. Ses demandes du 08/10 au soir — **avant tout le reste**
 
@@ -66,7 +89,7 @@ la praticité, ce sont des domaines beaucoup plus longs et complexes »*.
 | [x] | **COPIER-1 — un seul copier, et une image reste une image** : le lot, le texte, les images (une en PNG, plusieurs en fichiers fabriqués à la demande) ; le glisser vers Discord, Docs, le bureau | **sous Windows, jugé** : « absolument impressionnant », recoller et glisser « parfaits » (09/10 au soir) ; **Linux et Mac reculent** (§ 0 ter) ; Android : le presse-papiers du système (§ 2) |
 | [ ] | **La provenance des images** (son point 1 ; la fiche 27, étapes 1 à 4) : la page d'origine gardée au dépôt, l'empreinte perceptuelle mesurée sur ses documents (une copie), « Trouver l'origine… » par SauceNAO, la provenance dans le document | **sa clé SauceNAO** pour l'étape 3 ; la carte « Origine » lui sera montrée en image avant d'être écrite |
 | [ ] | **L'ergonomie** — le rail qui prend tout l'écran, les boutons, les fenêtres | **après**, à sa demande : des planches, regardées par lui |
-| [ ] | **L'export PNG de la sélection** — son idée de repli (les images composées dans la disposition de l'auteur) | avec les exports (§ 5) |
+| [~] | **L'export PNG de la sélection** — son idée de repli (les images composées dans la disposition de l'auteur) | **fait** (EXPORT-PNG-1, fiche 62) — à son écran |
 
 ## 1. Ses retours sur la V2, et la 2.0.2 bêta — **d'abord**
 

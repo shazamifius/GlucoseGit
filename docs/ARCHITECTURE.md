@@ -31,7 +31,8 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
   de fichiers, ouverts sur un fil à eux — DIAL-2, `persist::choix` —, et la seule boîte posée
   avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
   sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`
-  (signatures), `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs, `x11rb` sous
+  (signatures), `png` (l'export en image, écrit par bandes au fil de l'eau, `decisions/12`),
+  `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs, `x11rb` sous
   Linux (la sélection de X11, déjà là par `arboard`, `decisions/11`). Une dépendance nouvelle exige une note dans
   [`carnet/decisions/`](carnet/decisions/).
 
@@ -121,6 +122,9 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Le scribe** | `desktop/persist/scribe.rs` | un fil qui ajoute les gestes au fichier et synchronise le disque ; la cadence suit le disque. `Ctrl+S` pose un **jalon**. Un document sans nom vit dans un **brouillon** |
 | **Les documents du téléphone** | `persist/documents.rs`, `documents/gestion.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste. DOCUMENTS-2 : un appui long dans la liste renomme (par « Enregistrer sous » pour le document ouvert), duplique, supprime |
 | **Les filets** | `persist/frappe.rs`, `reprise.rs`, `recuperation.rs`, `verrou.rs`, `atomic.rs` | le texte en cours de frappe survit à un plantage ; le lancement rouvre le dernier travail ; ce qu'on va recouvrir est mis de côté (FIN-1) ; un seul scribe par fichier ; **un seul endroit** pose un fichier à la place d'un autre (cliquet 11) |
+| **Les gabarits et leurs zones** | `core/gabarits.rs`, `core/store/zones.rs`, `core/layout/zones.rs` | PRESET-1 (fiche 62) : les six gabarits de Tauri ; une zone porte `gabarit/catégorie` ; une image appartient à la zone où est son centre — rien ne s'écrit sur elle ; « Par slot preset » range chaque zone en rangées justifiées, qui tiennent dans la zone |
+| **Les couleurs** | `core/couleur.rs` | Oklab et Oklch, les trois tris par la couleur (ORDONNER-2) ; la couleur d'une image est le sommet de sa pyramide (MOYENNE-1) |
+| **Exporter** | `desktop/persist/export.rs`, `export/png.rs`, `renderer/export.rs` | Markdown, SVG, et PNG par bandes de la surface d'un écran, sur un fil à soi (EXPORT-PNG-1) ; ce qui est exporté est une copie (`Store::copie_a_exporter`) |
 | **Glucose Tauri** | `core/persist/tauri.rs`, `desktop/persist/import.rs` | un lecteur d'Automerge écrit ici, sans dépendance, identique à la bibliothèque de référence ; le fichier Tauri n'est jamais réécrit |
 
 ## 4. Le rendu : deux voies, un socle
@@ -150,6 +154,9 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
 * **La carte qui tient l'écran** (`plateforme/ecran.rs`, ECRAN-1) : sous Windows, Glucose dessine
   sur la carte dont une sortie porte le moniteur de la fenêtre — dessiner ailleurs fait recopier
   chaque image par le compositeur. L'ordre : `GLUCOSE_CARTE` › l'écran › le souvenir › l'économe.
+* **Les zones des gabarits** : le socle en dresse une seule liste de rectangles
+  (`renderer/zone.rs`) ; le processeur les remplit, la carte graphique les pose
+  (`present/zones_gpu.rs`) juste après le fond, sous les membranes, comme dans Tauri.
 * **L'arbitre** (`present/arbitre.rs`) ne s'installe que quand l'écran n'a pas tranché : il
   choisit la carte en la regardant travailler, et retient son verdict pour le lancement suivant
   (`carte.txt`) : changer de carte en cours de route figeait l'affichage (ARBITRE-4).
@@ -187,8 +194,11 @@ l'écran) ; **la question** (`question.rs`, QUESTION-1, POPUP-1), que Glucose de
 **suite** (`interactions/question.rs` ; la fermeture en a une, `persist::close::Apres`) : elle
 répond au relâchement, sur la réponse pressée, et au clavier (Entrée, Tab, Échap), prend tout
 ce qui la touche, et peut porter un **champ** de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
-Timer, Domaines, Time Machine ; Storyboard, Presets et Plugins sont des façades honnêtes), chacun
-avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
+Timer, Domaines, Time Machine, Presets ; Storyboard et Plugins sont encore des façades honnêtes),
+chacun avec son cache ; `dock/clic.rs` aiguille le clic, `dock/champ.rs` porte les **champs de
+nombre** (CHAMP-1 : glisser, ou cliquer et taper — tout le panneau est la règle). Les zones des
+gabarits se prennent par leur bandeau (`interactions/zone.rs`), un gabarit armé suit le curseur
+(`interactions/gabarit.rs`). Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
 
 ## 7. La plateforme
 
@@ -255,6 +265,7 @@ des plantages de Windows, la batterie.
   les marques de mesure, l'unique endroit qui remplace un fichier. Le correctif d'un cliquet n'est
   jamais de relever son plafond.
 * **Rien ne touche la machine de l'utilisateur** : chaque application d'épreuve habite un dossier
-  temporaire et a son propre presse-papiers ; seul `main.rs` ouvre le vrai dossier. Les épreuves
+  temporaire (`crate::epreuve::Dossier`, retiré quand il sort de portée, qu'elle réussisse ou
+  tombe) et a son propre presse-papiers ; seul `main.rs` ouvre le vrai dossier. Les épreuves
   de la sélection X11 ne visent qu'un serveur X nommé (`GLUCOSE_ECRAN_X_D_EPREUVE`, un Xvfb) —
   sur GitHub comme dans la distribution `Glucose-Linux` de ce PC (METHODE § 5).
