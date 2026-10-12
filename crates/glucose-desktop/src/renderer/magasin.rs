@@ -26,6 +26,17 @@ use glucose_core::store::Store;
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
+/// Ce que le magasin sait de la couleur moyenne d'une image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Moyenne {
+    /// Le pixel du sommet de sa pyramide, prémultiplié.
+    Connue([u8; 4]),
+    /// Pas encore lue : l'atelier y travaille.
+    EnChemin,
+    /// Elle ne se lira jamais : un fichier absent ou illisible.
+    Illisible,
+}
+
 /// Une image décodée, et ce qu'on sait d'elle.
 pub struct Entree {
     pub pyramide: Pyramide,
@@ -241,6 +252,25 @@ impl Magasin {
         parole: crate::persist::objets::Parole,
     ) -> bool {
         self.atelier.adopter(src, rgba, dimensions, parole)
+    }
+
+    /// **La couleur moyenne de cette image** (ORDONNER-2) : son sommet, que la vue d'ensemble
+    /// tient toujours. Une image qui n'est pas dans le magasin est demandée à l'atelier — sans
+    /// la marquer vue, pour ne rien changer à ce que l'écran garde — et dite en chemin.
+    pub fn moyenne(&mut self, src: &str) -> Moyenne {
+        if self.echecs.contains(src) {
+            return Moyenne::Illisible;
+        }
+        match self.cache.get(src) {
+            Some(entree) => entree
+                .pyramide
+                .couleur_moyenne()
+                .map_or(Moyenne::EnChemin, Moyenne::Connue),
+            None => {
+                self.atelier.demander(src);
+                Moyenne::EnChemin
+            }
+        }
     }
 
     /// **L'original de cette image est-il tenu ?** `None` si l'image n'est pas dans le magasin.

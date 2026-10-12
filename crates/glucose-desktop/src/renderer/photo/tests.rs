@@ -216,3 +216,122 @@ fn test_plafond_1_un_repli_trop_grand_ne_se_pose_pas() {
     );
     assert_eq!(p.repli_qui_tient(1, 2, None), 1, "sans plafond, le tenu");
 }
+
+/// Une rangée de gris opaques, de ces valeurs.
+fn rangee(gris: &[u8]) -> Pixmap {
+    let mut p = Pixmap::new(gris.len() as u32, 1).expect("une image");
+    for (bloc, &g) in p.data_mut().as_chunks_mut::<4>().0.iter_mut().zip(gris) {
+        *bloc = [g, g, g, 255];
+    }
+    p
+}
+
+/// L'ancienne réduction, rejouée : quatre sources à poids égaux, tronquées — d'étage en étage
+/// jusqu'au pixel, sur une rangée.
+fn ancien_sommet(mut gris: Vec<u32>) -> u32 {
+    while gris.len() > 1 {
+        gris = gris
+            .chunks(2)
+            .map(|b| b.iter().sum::<u32>() / b.len() as u32)
+            .collect();
+    }
+    gris[0]
+}
+
+/// **MOYENNE-1 — le sommet est la couleur moyenne de l'image**, même quand un côté n'est pas
+/// une puissance de deux. Cinq pixels, un seul blanc : la moyenne vaut 51.
+///
+/// La preuve à l'envers : l'ancienne réduction donnait au dernier pixel le poids d'un bloc
+/// entier à chaque étage, et rendait 127 — le cinquième de l'image pesait la moitié.
+#[test]
+fn test_moyenne_1_le_sommet_est_la_moyenne_de_l_image() {
+    let p = Pyramide::nouvelle(rangee(&[0, 0, 0, 0, 255]));
+    assert_eq!(p.couleur_moyenne(), Some([51, 51, 51, 255]));
+    assert_eq!(ancien_sommet(vec![0, 0, 0, 0, 255]), 127);
+
+    let p = Pyramide::nouvelle(rangee(&[0, 0, 255]));
+    assert_eq!(p.couleur_moyenne(), Some([85, 85, 85, 255]));
+    assert_eq!(ancien_sommet(vec![0, 0, 255]), 127);
+
+    // En deux dimensions, où les blocs entiers prennent le chemin rapide : un carré de 5 × 5
+    // noir, sa dernière colonne blanche — le cinquième de l'image, 51 encore.
+    let mut carre = unie(5, 5, [0, 0, 0, 255]);
+    for (k, bloc) in carre
+        .data_mut()
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .enumerate()
+    {
+        if k % 5 == 4 {
+            *bloc = [255, 255, 255, 255];
+        }
+    }
+    assert_eq!(
+        Pyramide::nouvelle(carre).couleur_moyenne(),
+        Some([51, 51, 51, 255])
+    );
+}
+
+/// **MOYENNE-1, sur une image quelconque** : le sommet s'écarte de la moyenne exacte d'au plus
+/// un demi par étage — l'arrondi de chacun. Et la moyenne s'arrondit au plus proche : l'ancienne
+/// troncature assombrissait une image d'un gris à l'autre jusqu'à sortir de cette borne.
+#[test]
+fn test_moyenne_1_le_sommet_tient_a_un_arrondi_par_etage() {
+    let (l, h) = (37u32, 23u32);
+    let mut source = Pixmap::new(l, h).expect("une image");
+    let mut somme = [0u64; 3];
+    for (k, bloc) in source
+        .data_mut()
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .enumerate()
+    {
+        let v = |m: usize| ((k * m + k * k / 7) % 256) as u8;
+        *bloc = [v(31), v(57), v(11), 255];
+        for c in 0..3 {
+            somme[c] += u64::from(bloc[c]);
+        }
+    }
+    let p = Pyramide::nouvelle(source);
+    let sommet = p.couleur_moyenne().expect("un sommet tenu");
+    let etages = (p.niveaux_construits() - 1) as f64;
+    for c in 0..3 {
+        let exacte = somme[c] as f64 / f64::from(l * h);
+        let ecart = (f64::from(sommet[c]) - exacte).abs();
+        assert!(
+            ecart <= etages / 2.0,
+            "canal {c} : {} contre {exacte}",
+            sommet[c]
+        );
+    }
+    assert_eq!(sommet[3], 255);
+}
+
+/// La moyenne s'arrondit au plus proche, et non vers le bas : deux pixels de 0 et 1 donnent 1
+/// (0,5 arrondi au-dessus), là où la troncature rendait 0 — sur une rangée, et sur un bloc
+/// entier de 2 × 2, qui prend le chemin rapide.
+#[test]
+fn test_moyenne_1_l_arrondi_est_au_plus_proche() {
+    let p = Pyramide::nouvelle(rangee(&[0, 1]));
+    assert_eq!(p.couleur_moyenne(), Some([1, 1, 1, 255]));
+    assert_eq!(ancien_sommet(vec![0, 1]), 0);
+
+    let mut bloc = unie(2, 2, [0, 0, 0, 255]);
+    for (k, px) in bloc
+        .data_mut()
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .enumerate()
+    {
+        if k == 1 || k == 2 {
+            *px = [1, 1, 1, 255];
+        }
+    }
+    assert_eq!(
+        Pyramide::nouvelle(bloc).couleur_moyenne(),
+        Some([1, 1, 1, 255])
+    );
+}

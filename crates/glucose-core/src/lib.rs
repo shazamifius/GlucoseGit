@@ -12,6 +12,7 @@ pub mod arrow;
 pub mod arrow_anchor;
 pub mod bordures;
 pub mod chemin;
+pub mod couleur;
 pub mod cout;
 pub mod curtain_model;
 pub mod curtain_panel;

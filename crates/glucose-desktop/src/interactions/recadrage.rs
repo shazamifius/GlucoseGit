@@ -57,8 +57,8 @@ impl GlucoseApp {
             return;
         }
         let board = self.store.project.active_board_id.clone();
-        self.bordures_en_attente = Some(LotDeBordures { board, ids });
-        self.poursuivre_les_bordures();
+        self.attentes.bordures = Some(LotDeBordures { board, ids });
+        self.poursuivre_les_attentes();
     }
 
     /// **Applique le lot en attente dès que tous ses originaux sont tenus** — appelée à
@@ -68,7 +68,7 @@ impl GlucoseApp {
     /// reprend. Une image qui n'est pas du tout dans le magasin n'est pas attendue — elle n'a
     /// pas de pixels, et le compte-rendu le dira.
     pub(crate) fn poursuivre_les_bordures(&mut self) {
-        let Some(lot) = self.bordures_en_attente.as_ref() else {
+        let Some(lot) = self.attentes.bordures.as_ref() else {
             return;
         };
         let fichiers: Vec<String> = lot
@@ -83,7 +83,7 @@ impl GlucoseApp {
         if en_route > 0 {
             return;
         }
-        if let Some(lot) = self.bordures_en_attente.take() {
+        if let Some(lot) = self.attentes.bordures.take() {
             self.appliquer_les_bordures(lot);
         }
     }

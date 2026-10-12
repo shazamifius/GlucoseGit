@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 pub(crate) mod accueil;
+mod attentes;
 mod decision;
 mod evenements;
 mod fenetre;
@@ -168,8 +169,9 @@ pub struct GlucoseApp {
     /// la serait clone a chaque frappe.
     pub historique_du_texte: crate::interactions::text_edit::historique::Historique,
 
-    /// Un `Ctrl+B` dont les originaux reviennent de chez le système (ETAGES-1).
-    pub bordures_en_attente: Option<crate::interactions::recadrage::LotDeBordures>,
+    /// Les commandes qui attendent des pixels : un `Ctrl+B` ses originaux, un rangement ses
+    /// couleurs (ETAGES-1, ORDONNER-2).
+    pub attentes: attentes::Attentes,
 
     /// **Le prochain clic ne sert qu'à revenir au premier plan** (REVEIL-1).
     ///
@@ -378,7 +380,7 @@ impl GlucoseApp {
             reduire_a_la_relache: None,
             lancement: Default::default(),
             historique_du_texte: Default::default(),
-            bordures_en_attente: None,
+            attentes: attentes::Attentes::default(),
             clic_de_reveil: false,
             relachement_a_jeter: false,
             window: None,
@@ -469,9 +471,10 @@ impl GlucoseApp {
             self.bouger_la_camera(width, height);
 
             let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
-            // Un `Ctrl+B` qui attend ses originaux les redemande, ou s'applique s'ils sont
-            // revenus (ETAGES-1) — avant la peinture, pour que ce qu'il change se voie ici.
-            self.poursuivre_les_bordures();
+            // Un `Ctrl+B` qui attend ses originaux, un rangement qui attend ses couleurs, les
+            // redemandent ou s'appliquent (ETAGES-1, ORDONNER-2) — avant la peinture, pour que
+            // ce qu'ils changent se voie ici.
+            self.poursuivre_les_attentes();
             self.preparer_la_carte((width, height));
             self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 

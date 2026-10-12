@@ -280,11 +280,14 @@ impl GlucoseApp {
         Some(self.animation_interval_ms())
     }
 
-    /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1) : il faut repasser à chaque image,
-    /// parce que le dernier revient pendant un rendu — après que le lot a regardé — et que
-    /// plus rien d'autre ne réveillerait l'application pour qu'il s'applique.
+    /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1), **un rangement ses couleurs**
+    /// (ORDONNER-2) : il faut repasser à chaque image, parce que le dernier revient pendant un
+    /// rendu — après que la commande a regardé — et que plus rien d'autre ne réveillerait
+    /// l'application pour qu'elle s'applique.
     fn attente_de_la_commande(&mut self) -> Option<u64> {
-        self.bordures_en_attente.as_ref()?;
+        if self.attentes.aucune() {
+            return None;
+        }
         self.mark_dirty();
         Some(self.animation_interval_ms())
     }

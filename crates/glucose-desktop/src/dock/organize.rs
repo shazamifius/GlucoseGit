@@ -3,12 +3,14 @@
 //!
 //! # Ce que le panneau dit, et ce qu'il fait
 //!
-//! Trois tris de la référence — par couleur, du sombre au clair, du clair au sombre — et la
-//! disposition « par slot preset » demandent ce que l'application n'a pas encore : les pixels
-//! des images pour les premiers, des presets posés pour la seconde. Leurs boutons étaient là,
-//! s'allumaient au clic, et retombaient en silence sur « Ordre actuel » et « Rangées
-//! compactes ». Ils sont désormais **grisés et inertes** (fiche 05 § 5.4) : ce que
-//! [`SortType::implemented`] et [`LayoutMode::implemented`] disent, le panneau le montre.
+//! La disposition « par slot preset » demande ce que l'application n'a pas encore : des
+//! presets posés. Son bouton était là, s'allumait au clic, et retombait en silence sur
+//! « Rangées compactes ». Il est **grisé et inerte** (fiche 05 § 5.4) : ce que
+//! [`LayoutMode::implemented`] dit, le panneau le montre.
+//!
+//! Les trois tris par la couleur — par teinte, du sombre au clair, du clair au sombre — l'ont
+//! été aussi, faute des pixels. Ils lisent désormais la couleur moyenne de chaque image, le
+//! sommet de sa pyramide (ORDONNER-2, `glucose_core::couleur`).
 //!
 //! # Une seule géométrie (loi L4)
 //!
@@ -19,6 +21,7 @@
 use super::WidgetRect;
 use crate::params::{Pointer, ScaledRect};
 use crate::typography::{Face, Typography};
+use glucose_core::couleur::Tri;
 use glucose_core::layout::{OrganizeMode, OrganizeSort};
 use glucose_core::types::BoardImage;
 
@@ -62,16 +65,27 @@ impl SortType {
         }
     }
 
-    /// Le tri que le noyau sait faire, s'il le sait. Trier par couleur ou par luminance
-    /// demande les pixels des images, que le noyau n'a pas (fiche 12, chantier 3.D).
+    /// Le tri que la disposition du noyau applique. Les tris par la couleur lui arrivent
+    /// **déjà rangés** — ils demandent les pixels des images, que le noyau n'a pas — : il garde
+    /// l'ordre qu'on lui donne.
     pub fn core_sort(self) -> Option<OrganizeSort> {
         match self {
-            Self::None => Some(OrganizeSort::None),
+            Self::None | Self::Color | Self::LumAsc | Self::LumDesc => Some(OrganizeSort::None),
             Self::SizeDesc => Some(OrganizeSort::SizeDesc),
             Self::SizeAsc => Some(OrganizeSort::SizeAsc),
             Self::RatioPort => Some(OrganizeSort::RatioPortrait),
             Self::RatioLand => Some(OrganizeSort::RatioLandscape),
-            Self::Color | Self::LumAsc | Self::LumDesc => None,
+        }
+    }
+
+    /// **Le rangement par la couleur** qu'il demande, s'il en demande un (ORDONNER-2) : celui-là
+    /// attend la couleur de chaque image avant de s'appliquer.
+    pub fn tri_par_couleur(self) -> Option<Tri> {
+        match self {
+            Self::Color => Some(Tri::Teinte),
+            Self::LumAsc => Some(Tri::SombreVersClair),
+            Self::LumDesc => Some(Tri::ClairVersSombre),
+            _ => None,
         }
     }
 

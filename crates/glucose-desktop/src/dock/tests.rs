@@ -187,10 +187,11 @@ fn test_l4_a_sort_button_is_clicked_where_it_is_drawn() {
     }
 }
 
-/// Un tri que le noyau ne sait pas faire ne se choisit pas : le bouton est inerte, et l'état
-/// ne bouge pas. Il s'allumait, puis la disposition retombait en silence sur l'ordre courant.
+/// **ORDONNER-2 — les trois tris par la couleur se choisissent**, par le clic, là où ils sont
+/// dessinés ; ils étaient grisés faute des pixels. Une disposition que le noyau ne sait pas
+/// faire, elle, ne se choisit toujours pas : le bouton est inerte, et l'état ne bouge pas.
 #[test]
-fn test_an_unimplemented_sort_cannot_be_chosen() {
+fn test_the_colour_sorts_are_chosen_and_an_unimplemented_layout_is_not() {
     let typo = Typography::new();
     let store = Store::new("Clic");
     let mut dock = dock_with(TabId::Organize);
@@ -198,14 +199,18 @@ fn test_an_unimplemented_sort_cannot_be_chosen() {
     let layout = organize::layout_organize_panel(frame, &typo);
 
     for sort in [SortType::Color, SortType::LumAsc, SortType::LumDesc] {
-        assert!(!sort.implemented(), "{sort:?} n'est pas encore faisable");
+        assert!(sort.implemented(), "{sort:?} se fait");
+        assert!(
+            sort.tri_par_couleur().is_some(),
+            "{sort:?} lit les couleurs"
+        );
         let button = layout
             .sort_buttons
             .iter()
             .find(|b| b.sort_type == sort)
             .expect("le tri est dans le panneau");
         handle_dock_click(&mut dock, &store, &typo, SCREEN, center(button.rect));
-        assert_eq!(dock.organize.sort_by, SortType::None, "{sort:?}");
+        assert_eq!(dock.organize.sort_by, sort);
     }
     assert!(!LayoutMode::BySlot.implemented());
     let by_slot = layout

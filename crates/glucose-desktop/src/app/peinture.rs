@@ -145,7 +145,7 @@ impl GlucoseApp {
             self.pixmap = Pixmap::new(largeur, hauteur);
         }
         self.mark_dirty();
-        self.poursuivre_les_bordures();
+        self.poursuivre_les_attentes();
         self.peindre_ce_qui_a_change((largeur, hauteur), false);
     }
 

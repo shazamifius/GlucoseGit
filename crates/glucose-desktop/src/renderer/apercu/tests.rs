@@ -154,3 +154,24 @@ fn test_les_apercus_d_avant_se_retirent() {
     assert!(!d.join("v1").exists());
     assert!(d.join("note.txt").exists(), "rien d'autre n'est touché");
 }
+
+/// **MOYENNE-1 — un aperçu d'avant la moyenne exacte ne se lit plus** : ses niveaux donnaient
+/// au bord d'une image jusqu'à la moitié du poids de son sommet, et le tri par couleur lirait
+/// ce sommet faux. Un aperçu de la version 2, scellé comme il faut, se tait ; il se refait.
+#[test]
+fn test_moyenne_1_un_apercu_d_avant_la_moyenne_exacte_ne_se_lit_plus() {
+    let a = pyramide().apercu(3).expect("tenus");
+    let d = dossier("avant-la-moyenne");
+    let chemin = d.join("a.apercu");
+    ecrire(&chemin, &a).expect("l'ecriture");
+    assert!(lire(&chemin).is_some(), "celui d'aujourd'hui se lit");
+
+    let mut octets = std::fs::read(&chemin).expect("relu");
+    let corps = octets.len() - SCEAU;
+    octets[8] = 2;
+    let sceau = sha256(&octets[..corps]);
+    octets[corps..].copy_from_slice(&sceau[..SCEAU]);
+    std::fs::write(&chemin, &octets).expect("un aperçu de la version 2");
+    assert!(lire(&chemin).is_none());
+    let _ = std::fs::remove_dir_all(&d);
+}

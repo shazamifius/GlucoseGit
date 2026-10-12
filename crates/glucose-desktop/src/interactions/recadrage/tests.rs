@@ -240,14 +240,14 @@ fn test_un_lot_attend_ses_originaux_puis_s_applique_d_un_bloc() {
     );
 
     for _ in 0..1000 {
-        if app.bordures_en_attente.is_none() || app.prochain_reveil().is_none() {
+        if app.attentes.bordures.is_none() || app.prochain_reveil().is_none() {
             break;
         }
         app.une_image_sans_fenetre((800, 600));
         app.renderer.magasin.attendre_le_chantier();
     }
     assert!(
-        app.bordures_en_attente.is_none(),
+        app.attentes.bordures.is_none(),
         "le lot attend encore : plus rien ne l'a fait repasser"
     );
     assert!(

@@ -64,11 +64,13 @@
 //! pyramide ne décide rien, elle dit ce qu'on lui a demandé.
 
 mod niveau;
+mod pixels;
 pub use niveau::{Etat, Retour, Transit};
 
 use glucose_core::occlusion::Boite;
 use glucose_core::report;
 use niveau::{Niveau, Octets};
+use pixels::{premultiplier, reduire_par_deux};
 use std::sync::atomic::{AtomicU64, Ordering};
 use tiny_skia::{Pixmap, PixmapRef};
 
@@ -183,6 +185,7 @@ impl Pyramide {
             .0
             .iter()
             .all(|p| p[3] == 255);
+        let natives = (native.largeur, native.hauteur);
         let mut niveaux = vec![native];
         // La descente s'arrête d'elle-même à une image de 1 × 1 : la largeur et la hauteur
         // sont divisées par deux en arrondissant vers le haut, donc elles atteignent 1 et n'en
@@ -195,7 +198,14 @@ impl Pyramide {
                 }
                 let (dw, dh) = dimensions_au_rang((dernier.largeur, dernier.hauteur), 1)?;
                 let mut suivant = Niveau::vide(dw, dh)?;
-                reduire_par_deux(dernier.vue()?, suivant.octets_mut()?, (dw, dh));
+                let rang = niveaux.len() - 1;
+                reduire_par_deux(
+                    dernier.vue()?,
+                    suivant.octets_mut()?,
+                    (dw, dh),
+                    natives,
+                    rang,
+                );
                 suivant
             };
             niveaux.push(suivant);
@@ -218,6 +228,16 @@ impl Pyramide {
     /// vaut 255. Le drapeau constaté sur le niveau natif vaut donc pour toute la pyramide.
     pub fn opaque(&self) -> bool {
         self.opaque
+    }
+
+    /// **La couleur moyenne de l'image** : son sommet, le niveau d'un seul pixel, prémultiplié
+    /// (MOYENNE-1). Il reste tenu quoi qu'il arrive — il est dans la vue d'ensemble de toute
+    /// image — et le lire ne le marque pas voulu : le tri par couleur ne demande rien à
+    /// l'écran (ORDONNER-2).
+    pub fn couleur_moyenne(&self) -> Option<[u8; 4]> {
+        let sommet = self.niveaux.last()?;
+        let (pixel, _) = sommet.vue()?.data().as_chunks::<4>();
+        (sommet.largeur == 1 && sommet.hauteur == 1).then_some(*pixel.first()?)
     }
 
     /// Les dimensions de la résolution native — toujours connues, même quand ses pixels ne
@@ -529,71 +549,6 @@ pub fn dimensions_au_rang((mut l, mut h): (u32, u32), rang: usize) -> Option<(u3
         (l, h) = (l.div_ceil(2).max(1), h.div_ceil(2).max(1));
     }
     Some((l, h))
-}
-
-/// Prémultiplie des pixels RGBA droits dans `dest`, en entiers et arrondis au plus proche.
-///
-/// Sur le fil de fond, parce que la prémultiplication coûte autant que le décodage sur une
-/// grande photo — la laisser au fil de rendu aurait déplacé le problème d'un mètre.
-fn premultiplier(rgba: &[u8], dest: &mut [u8]) {
-    let (source, _) = rgba.as_chunks::<4>();
-    let (destination, _) = dest.as_chunks_mut::<4>();
-    for (px, out) in source.iter().zip(destination.iter_mut()) {
-        let a = u32::from(px[3]);
-        // `t = c·a + 128`, puis `(t + (t >> 8)) >> 8` : le décalage remplace la division par
-        // 255 exactement sur toute la plage — c'est vérifié canal par canal, et `a = 255`
-        // redonne `c` sans écart.
-        //
-        // La version flottante qui était ici tronquait : un canal à 255 sur un pixel opaque
-        // ressortait à 254. Invisible sur une photo, visible sur un aplat près d'une bordure.
-        // Ma première réécriture se trompait dans l'autre sens — 128 devenait 129 — et c'est
-        // le test qui l'a dit, pas la relecture.
-        let premultiplie = |c: u8| {
-            let t = u32::from(c) * a + 128;
-            ((t + (t >> 8)) >> 8) as u8
-        };
-        *out = [
-            premultiplie(px[0]),
-            premultiplie(px[1]),
-            premultiplie(px[2]),
-            px[3],
-        ];
-    }
-}
-
-/// Réduit une image de moitié sur chaque côté, en moyennant les quatre pixels d'un bloc.
-///
-/// Les côtés impairs sont arrondis vers le haut, et le bloc est alors tronqué : le dernier
-/// pixel d'une ligne impaire n'a pas de voisin de droite, et la moyenne porte sur ce qui
-/// existe. Aucune borne, aucun cas particulier écrit à la main.
-///
-/// La moyenne se fait sur les octets tels quels, donc sur des valeurs prémultipliées en sRGB.
-/// C'est ce que fait déjà le filtre bilinéaire du rasteriseur : le niveau réduit et la
-/// réduction à la volée sont ainsi cohérents entre eux, ce qui est ce qui compte ici.
-fn reduire_par_deux(source: PixmapRef<'_>, dst: &mut [u8], (dw, dh): (u32, u32)) {
-    let (sw, sh) = (source.width(), source.height());
-    let src = source.data();
-    for y in 0..dh {
-        for x in 0..dw {
-            let mut somme = [0u32; 4];
-            let mut compte = 0u32;
-            for (ox, oy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
-                let (sx, sy) = (x * 2 + ox, y * 2 + oy);
-                if sx >= sw || sy >= sh {
-                    continue;
-                }
-                let i = ((sy * sw + sx) * 4) as usize;
-                for c in 0..4 {
-                    somme[c] += src[i + c] as u32;
-                }
-                compte += 1;
-            }
-            let j = ((y * dw + x) * 4) as usize;
-            for c in 0..4 {
-                dst[j + c] = (somme[c] / compte) as u8;
-            }
-        }
-    }
 }
 
 #[cfg(test)]
