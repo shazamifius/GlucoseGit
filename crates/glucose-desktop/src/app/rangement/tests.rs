@@ -1,10 +1,13 @@
 //! ORDONNER-2 — ranger par la couleur, de bout en bout : la couleur de chaque image, l'attente
-//! de celles qui ne sont pas lues, un seul geste à annuler.
+//! de celles qui ne sont pas lues, un seul geste à annuler. PRESET-1 — « Par slot preset » :
+//! chaque zone de gabarit range ses images en elle-même.
 
 use super::*;
 use crate::dock::{LayoutMode, SortType};
 use crate::renderer::magasin::Entree;
 use crate::renderer::photo::Pyramide;
+use glucose_core::store::zones::{BANDEAU, MARGE};
+use glucose_core::types::BoardZone;
 use tiny_skia::Pixmap;
 
 /// Une application sans rien dessus.
@@ -177,4 +180,89 @@ fn test_ordonner_2_le_rangement_attend_une_couleur_en_chemin() {
     assert!(app.store.undo(), "il y a quelque chose à annuler");
     assert_eq!(de_gauche_a_droite(&app), avant);
     assert!(!app.store.undo(), "un seul geste : une seule entrée");
+}
+
+/// « Par slot preset », avec ce tri.
+fn par_zone(sort_by: SortType) -> OrganizeState {
+    OrganizeState {
+        sort_by,
+        layout: LayoutMode::BySlot,
+        size: 200.0,
+        gap: 10.0,
+        cols: 0,
+    }
+}
+
+fn boite(app: &GlucoseApp, id: &str) -> (f64, f64, f64, f64) {
+    let board = app.store.project.active_board_id.clone();
+    let i = app.store.image(&board, id).expect("l'image");
+    (i.x, i.y, i.width, i.height)
+}
+
+/// **Chaque zone range ses images en elle-même**, sous son bandeau, dans l'ordre de la couleur ;
+/// l'image hors de toute zone ne bouge pas ; un seul `Ctrl+Z` rend tout.
+#[test]
+fn test_preset_1_par_slot_preset_range_chaque_zone() {
+    let mut app = quatre_couleurs();
+    poser(&mut app, "dehors", "gris.png", 5000.0);
+    let board = app.store.project.active_board_id.clone();
+    app.store.poser_les_zones(
+        &board,
+        vec![
+            BoardZone::new("g/gauche", -150.0, -150.0, 600.0, 400.0),
+            BoardZone::new("g/droite", 500.0, -150.0, 600.0, 400.0),
+        ],
+    );
+    app.store.journal.clear();
+    let dehors = boite(&app, "dehors");
+
+    app.apply_dock_layout(&par_zone(SortType::LumAsc));
+    // Gris et jaune (en 0 et 300) dans la première ; rouge et bleu (600, 900) dans la seconde.
+    let (gris, jaune) = (boite(&app, "gris"), boite(&app, "jaune"));
+    let (rouge, bleu) = (boite(&app, "rouge"), boite(&app, "bleu"));
+    let haut = -150.0 + BANDEAU + MARGE;
+    assert_eq!(
+        gris.0 - gris.2 / 2.0,
+        -150.0 + MARGE,
+        "le gris ouvre sa zone"
+    );
+    assert!(jaune.0 > gris.0, "le gris est plus sombre que le jaune");
+    assert_eq!(
+        bleu.0 - bleu.2 / 2.0,
+        500.0 + MARGE,
+        "le bleu ouvre la sienne"
+    );
+    assert!(rouge.0 > bleu.0, "le bleu est plus sombre que le rouge");
+    for b in [gris, jaune, rouge, bleu] {
+        assert_eq!(b.1 - b.3 / 2.0, haut, "sous le bandeau");
+    }
+    assert_eq!(
+        boite(&app, "dehors"),
+        dehors,
+        "hors des zones, rien ne bouge"
+    );
+    let toast = app.ui.current_toast.as_ref().expect("un compte-rendu");
+    assert!(
+        toast.message.starts_with("Par slot preset"),
+        "{}",
+        toast.message
+    );
+
+    assert!(app.store.undo(), "il y a quelque chose à annuler");
+    assert_eq!(boite(&app, "rouge").0, 600.0);
+    assert!(!app.store.undo(), "un seul geste : une seule entrée");
+}
+
+/// **Sans zone, rien ne bouge, et on dit pourquoi** — et rien n'entre au journal.
+#[test]
+fn test_preset_1_par_slot_preset_sans_zone_le_dit() {
+    let mut app = quatre_couleurs();
+    let avant = de_gauche_a_droite(&app);
+    let rouge = boite(&app, "rouge");
+    app.apply_dock_layout(&par_zone(SortType::None));
+    assert_eq!(de_gauche_a_droite(&app), avant);
+    assert_eq!(boite(&app, "rouge"), rouge);
+    let toast = app.ui.current_toast.as_ref().expect("un mot");
+    assert!(toast.message.contains("Aucune zone"), "{}", toast.message);
+    assert!(!app.store.undo(), "rien à annuler");
 }

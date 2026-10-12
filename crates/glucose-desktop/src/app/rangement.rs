@@ -16,6 +16,7 @@ use super::GlucoseApp;
 use crate::dock::{apply_organize_layout, OrganizeState};
 use crate::renderer::magasin::Moyenne;
 use glucose_core::couleur::{self, Oklch, Tri};
+use glucose_core::layout::OrganizeSort;
 use glucose_core::types::BoardImage;
 use std::collections::HashMap;
 
@@ -136,30 +137,68 @@ impl GlucoseApp {
         sans_couleur: usize,
     ) {
         let combien = self.store.selected_image_ids.len();
-        // Le cliche se prend autour du geste, et non apres lui : pris apres coup, il capturait
-        // l'etat deja range, et Ctrl+Z ne defaisait rien.
-        self.store.mutate_board_layout(board_id, |board| {
-            for res in apply_organize_layout(images, state) {
-                if let Some(img) = board.images.iter_mut().find(|i| i.id == res.id) {
-                    img.x = res.x;
-                    img.y = res.y;
-                    img.width = res.width;
-                    img.height = res.height;
-                }
+        let message = match self.places(board_id, images, state) {
+            None => "Aucune zone sur ce tableau : posez d'abord un gabarit (Preset)".to_string(),
+            Some(places) => {
+                // Le cliche se prend autour du geste, et non apres lui : pris apres coup, il
+                // capturait l'etat deja range, et Ctrl+Z ne defaisait rien.
+                self.store.mutate_board_layout(board_id, |board| {
+                    for (id, x, y, width, height) in places {
+                        if let Some(img) = board.images.iter_mut().find(|i| i.id == id) {
+                            (img.x, img.y, img.width, img.height) = (x, y, width, height);
+                        }
+                    }
+                });
+                compte_rendu(state, combien, sans_couleur)
             }
-        });
-        let quoi = if combien == 0 {
-            "tout le canvas".to_string()
-        } else {
-            format!("{combien} image(s)")
         };
-        let mut message = format!("{} : {quoi} rangé(es)", state.layout.title());
-        if sans_couleur > 0 {
-            message.push_str(&format!(" — {sans_couleur} sans couleur, à la fin"));
-        }
         self.ui.show_toast(message);
         self.mark_dirty();
     }
+
+    /// **Les places nouvelles** : celles de la disposition, ou, « Par slot preset », celles de
+    /// chaque zone de gabarit rangée en elle-même (PRESET-1) — `None` sans zone à ranger.
+    fn places(
+        &self,
+        board_id: &str,
+        images: &[BoardImage],
+        state: &OrganizeState,
+    ) -> Option<Vec<Place>> {
+        if !state.layout.par_zone() {
+            let toutes = apply_organize_layout(images, state);
+            return Some(
+                toutes
+                    .into_iter()
+                    .map(|r| (r.id, r.x, r.y, r.width, r.height))
+                    .collect(),
+            );
+        }
+        let zones = self.store.zones(board_id);
+        (!zones.is_empty()).then(|| {
+            let sort = state.sort_by.core_sort().unwrap_or(OrganizeSort::None);
+            glucose_core::layout::ranger_dans_les_zones(images, zones, sort, state.size, state.gap)
+                .into_iter()
+                .map(|r| (r.id, r.x, r.y, r.width, r.height))
+                .collect()
+        })
+    }
+}
+
+/// Une place nouvelle : l'image, son centre, sa taille.
+type Place = (String, f64, f64, f64, f64);
+
+/// Ce qu'un rangement a fait, en une phrase.
+fn compte_rendu(state: &OrganizeState, combien: usize, sans_couleur: usize) -> String {
+    let quoi = if combien == 0 {
+        "tout le canvas".to_string()
+    } else {
+        format!("{combien} image(s)")
+    };
+    let mut message = format!("{} : {quoi} rangé(es)", state.layout.title());
+    if sans_couleur > 0 {
+        message.push_str(&format!(" — {sans_couleur} sans couleur, à la fin"));
+    }
+    message
 }
 
 #[cfg(test)]

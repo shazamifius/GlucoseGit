@@ -40,10 +40,11 @@ use tiny_skia::{Color, PixmapMut, Rect};
 
 /// Le tiret et le vide du bord, en unités du monde.
 const TIRET: (f32, f32) = (8.0, 6.0);
-/// La hauteur du bandeau, l'épaisseur du filet, la marge du texte, en unités du monde.
-pub(crate) const BANDEAU: f32 = 36.0;
+/// La hauteur du bandeau et la marge du texte, en unités du monde — celles du noyau, que le
+/// rangement des zones lit aussi ; l'épaisseur du filet.
+pub(crate) const BANDEAU: f32 = glucose_core::store::zones::BANDEAU as f32;
+const MARGE: f32 = glucose_core::store::zones::MARGE as f32;
 const FILET: f32 = 2.0;
-const MARGE: f32 = 12.0;
 /// Les corps du nom et de la phrase.
 const CORPS_DU_NOM: f32 = 13.0;
 const CORPS_DE_LA_PHRASE: f32 = 11.0;

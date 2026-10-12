@@ -212,14 +212,15 @@ fn test_the_colour_sorts_are_chosen_and_an_unimplemented_layout_is_not() {
         handle_dock_click(&mut dock, &store, &typo, SCREEN, center(button.rect));
         assert_eq!(dock.organize.sort_by, sort);
     }
-    assert!(!LayoutMode::BySlot.implemented());
+    // « Par slot preset » aussi, depuis que les gabarits se posent (PRESET-1).
+    assert!(LayoutMode::BySlot.implemented());
     let by_slot = layout
         .layout_modes
         .iter()
         .find(|m| m.mode == LayoutMode::BySlot)
         .expect("la disposition est dans le panneau");
     handle_dock_click(&mut dock, &store, &typo, SCREEN, center(by_slot.rect));
-    assert_eq!(dock.organize.layout, LayoutMode::Compact);
+    assert_eq!(dock.organize.layout, LayoutMode::BySlot);
 }
 
 /// `Appliquer` demande la disposition ; les autres clics du panneau ne la demandent pas.

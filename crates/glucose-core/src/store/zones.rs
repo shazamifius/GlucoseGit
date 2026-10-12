@@ -20,6 +20,10 @@ use crate::types::{BoardImage, BoardZone};
 /// (`applyPresetToBoard`).
 pub const ZONE: (f64, f64) = (340.0, 700.0);
 pub const ECART: f64 = 30.0;
+/// La hauteur du bandeau d'une zone, et la marge de ce qu'elle contient — celles de Tauri
+/// (`ZoneRenderer.ts`). Le dessin des zones et leur rangement lisent les mêmes.
+pub const BANDEAU: f64 = 36.0;
+pub const MARGE: f64 = 12.0;
 
 /// **La rangée de zones d'un gabarit**, centrée sur `centre` : une zone par catégorie, à la
 /// taille et à l'écart de Glucose Tauri. Le fantôme qui suit le curseur et le clic qui pose la

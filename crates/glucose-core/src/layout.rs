@@ -5,6 +5,9 @@
 
 use crate::types::BoardImage;
 
+mod zones;
+pub use zones::ranger_dans_les_zones;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OrganizeMode {
     #[default]

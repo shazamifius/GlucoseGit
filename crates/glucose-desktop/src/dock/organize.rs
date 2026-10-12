@@ -3,10 +3,9 @@
 //!
 //! # Ce que le panneau dit, et ce qu'il fait
 //!
-//! La disposition « par slot preset » demande ce que l'application n'a pas encore : des
-//! presets posés. Son bouton était là, s'allumait au clic, et retombait en silence sur
-//! « Rangées compactes ». Il est **grisé et inerte** (fiche 05 § 5.4) : ce que
-//! [`LayoutMode::implemented`] dit, le panneau le montre.
+//! La disposition « par slot preset » range les images de chaque zone de gabarit en elle-même
+//! (PRESET-1, `glucose_core::layout::ranger_dans_les_zones`) ; elle était grisée tant qu'aucun
+//! gabarit ne se posait.
 //!
 //! Les trois tris par la couleur — par teinte, du sombre au clair, du clair au sombre — l'ont
 //! été aussi, faute des pixels. Ils lisent désormais la couleur moyenne de chaque image, le
@@ -133,8 +132,8 @@ impl LayoutMode {
         }
     }
 
-    /// La disposition que le noyau sait faire, s'il la sait. « Par slot preset » attend les
-    /// presets posés sur un tableau (fiche 12, chantier 3.G).
+    /// La disposition que le noyau pose d'un bloc. « Par slot preset » n'en est pas une : elle
+    /// range chaque zone en elle-même ([`LayoutMode::par_zone`]).
     pub fn core_mode(self) -> Option<OrganizeMode> {
         match self {
             Self::Compact => Some(OrganizeMode::CompactRows),
@@ -145,8 +144,13 @@ impl LayoutMode {
         }
     }
 
+    /// **Ranger dans les zones** : la disposition « Par slot preset » (PRESET-1).
+    pub fn par_zone(self) -> bool {
+        self == Self::BySlot
+    }
+
     pub fn implemented(self) -> bool {
-        self.core_mode().is_some()
+        self.core_mode().is_some() || self.par_zone()
     }
 }
 
