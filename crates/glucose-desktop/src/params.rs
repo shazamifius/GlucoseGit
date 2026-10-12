@@ -101,6 +101,9 @@ pub struct SceneOverlay<'a> {
     /// Sous un outil de création armé, l'élément à naître là où il se poserait, en unités
     /// monde (PLACEMENT-1).
     pub fantome: Option<glucose_core::geometry::Rect>,
+    /// **Le gabarit qui suit le curseur** : une boîte par zone, là où un clic le poserait
+    /// (PRESET-1).
+    pub gabarit: &'a [glucose_core::geometry::Rect],
 }
 
 impl<'a> SceneOverlay<'a> {
@@ -118,6 +121,7 @@ impl<'a> SceneOverlay<'a> {
             badges: &[],
             designees: &[],
             fantome: None,
+            gabarit: &[],
         }
     }
 }

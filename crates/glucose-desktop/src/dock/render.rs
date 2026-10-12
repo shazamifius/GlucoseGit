@@ -265,7 +265,7 @@ fn draw_content(
         TabId::Plugins => {
             plugins::paint::render_plugins_panel(pixmap, brush, frame, &dock.plugins);
         }
-        TabId::Preset => preset::paint::render_presets_panel(pixmap, brush, frame),
+        TabId::Preset => preset::paint::render_presets_panel(pixmap, brush, frame, store),
         TabId::Domains => {
             domains::paint::render_domains_panel(pixmap, store, &dock.domains, brush, frame)
         }

@@ -109,6 +109,7 @@ impl GlucoseApp {
             self.suivre_la_fleche_survolee();
             self.suivre_le_noeud_pressenti();
             self.suivre_le_fantome();
+            self.suivre_le_gabarit();
         }
 
         self.update_cursor();
@@ -240,7 +241,9 @@ impl GlucoseApp {
             || self.click_skips_flight()
             || self.redimensionner_par_le_bord()
             || self.deplacer_la_fenetre_avec_alt()
-            || !self.ui.reference && self.click_l_interface(pointer, screen);
+            || !self.ui.reference && self.click_l_interface(pointer, screen)
+            // Un gabarit qui suit le curseur se pose au premier clic sur le canevas (PRESET-1).
+            || self.poser_le_gabarit_arme();
         if !taken {
             self.click_canvas(screen);
         }

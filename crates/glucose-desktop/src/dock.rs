@@ -10,7 +10,7 @@
 //! | [`domains`] | DOMAINES | agit : une vue du catalogue du document (DOM-UI-1) |
 //! | [`storyboard`] | STORYBOARD | façade honnête (fiche 09 § 8) |
 //! | [`plugins`] | PLUGINS | façade honnête (fiche 09 § 10) |
-//! | [`preset`] | PRESETS | les gabarits s'affichent, aucun ne se pose encore |
+//! | [`preset`] | PRESETS | agit : il arme un gabarit, que le clic pose sur le tableau (PRESET-1) |
 //! | [`temps`] | TIME MACHINE | agit : l'histoire du document, l'aperçu du passé, restaurer, les jalons |
 //!
 //! Chaque module porte **son** état, **sa** géométrie et **son** clic ; son sous-module
@@ -46,7 +46,6 @@ pub use cache::{DockCache, Raison as RaisonDuPanneau};
 pub use organize::{apply_organize_layout, LayoutMode, LayoutResult, OrganizeState, SortType};
 pub use plugins::OLLAMA_STATUS;
 pub use pomodoro::PomodoroState;
-pub use preset::PresetsState;
 pub use render::{confier_les_docks, lisere, lisere_du_passe, render_docks, DockPass};
 pub use storyboard::StoryboardState;
 
@@ -103,7 +102,8 @@ impl TabId {
             Self::Pomodoro => 210.0,
             Self::Storyboard => 340.0,
             Self::Plugins => 460.0,
-            Self::Preset => 460.0,
+            // Celle de ce qu'il peut montrer de plus grand, mesurée sur sa mise en page.
+            Self::Preset => preset::hauteur_naturelle(),
             Self::Domains => 430.0,
             // Toute la hauteur disponible : `place` la borne à l'écran.
             Self::Temps => f32::MAX,
@@ -146,7 +146,6 @@ pub struct DockManager {
     pub pomodoro: PomodoroState,
     pub storyboard: StoryboardState,
     pub plugins: plugins::PluginsState,
-    pub presets: PresetsState,
     /// L'état d'**interaction** du panneau DOMAINES : ce qui attend une confirmation, ce qui
     /// est en cours de frappe. Aucune donnée de domaine — celles-ci vivent dans le document
     /// (DOM-UI-1, `dock::domains`).
@@ -177,7 +176,6 @@ impl DockManager {
             pomodoro: PomodoroState::default(),
             storyboard: StoryboardState::default(),
             plugins: plugins::PluginsState::default(),
-            presets: PresetsState::default(),
             domains: domains::DomainsUi::default(),
             right_tabs: Vec::new(),
             temps: temps::TempsUi::default(),
@@ -476,6 +474,8 @@ pub enum PanelClickResult {
     Domain(domains::DomainIntent),
     /// Un geste de la Time Machine, à traduire par `interactions::temps`.
     Temps(temps::TempsIntent),
+    /// Armer un gabarit, ou retirer celui du tableau (PRESET-1).
+    Gabarit(preset::GabaritIntent),
 }
 
 /// Le clic va au panneau qui le contient, et à personne d'autre.
@@ -567,9 +567,14 @@ fn click_panel(
                 _ => PanelClickResult::Handled,
             }
         }
-        // Cliquer un gabarit ne le pose pas encore (fiche 12, chantier 3.G) ; le clic est
-        // tout de même consommé, pour ne pas traverser le panneau jusqu'au canevas.
-        TabId::Preset => PanelClickResult::Handled,
+        // Un clic arme un gabarit, ou retire celui que le tableau suit ; ailleurs, il est
+        // consommé, pour ne pas traverser le panneau jusqu'au canevas.
+        TabId::Preset => {
+            let contenu = preset::Contenu::du(store);
+            let layout = preset::layout_presets_panel(frame, &contenu);
+            preset::click_presets_panel(&layout, &contenu, (pointer.x, pointer.y))
+                .map_or(PanelClickResult::Handled, PanelClickResult::Gabarit)
+        }
         TabId::Domains => {
             let layout = domains::layout_domains_panel(frame, store, &dock.domains);
             let has_selection =

@@ -28,10 +28,13 @@ pub struct Fantome {
     pub guides: SnapGuides,
 }
 
-/// Ce que le placement garde d'une image à l'autre : le fantôme montré.
+/// Ce que le placement garde d'une image à l'autre : le fantôme montré, et le gabarit qui
+/// attend d'être posé (PRESET-1, [`super::gabarit`]).
 #[derive(Debug, Clone, Default)]
 pub struct Placement {
     pub fantome: Option<Fantome>,
+    /// Le gabarit choisi dans le panneau des Presets, qui suit le curseur jusqu'au clic.
+    pub gabarit: Option<String>,
 }
 
 impl GlucoseApp {

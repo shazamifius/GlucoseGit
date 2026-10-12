@@ -32,7 +32,7 @@ use super::paint::Brush;
 use super::render::draw_panel;
 use super::{
     domains, plugins, DockManager, DockPass, OrganizeState, PanelLayoutBox, PomodoroState,
-    PresetsState, StoryboardState, TabId,
+    StoryboardState, TabId,
 };
 use crate::composition::poser;
 use crate::dock::WidgetRect;
@@ -53,7 +53,9 @@ enum EtatPanneau {
     Pomodoro(PomodoroState),
     Storyboard(StoryboardState),
     Plugins(plugins::PluginsState),
-    Preset(PresetsState),
+    /// Le panneau des Presets ne tient aucun état : tout ce qu'il montre se lit dans le
+    /// document, dont la version est déjà dans la clé.
+    Preset,
     Domains(domains::DomainsUi),
     Temps(super::temps::TempsUi),
 }
@@ -65,7 +67,7 @@ impl EtatPanneau {
             TabId::Pomodoro => Self::Pomodoro(dock.pomodoro.clone()),
             TabId::Storyboard => Self::Storyboard(dock.storyboard.clone()),
             TabId::Plugins => Self::Plugins(dock.plugins.clone()),
-            TabId::Preset => Self::Preset(dock.presets.clone()),
+            TabId::Preset => Self::Preset,
             TabId::Domains => Self::Domains(dock.domains.clone()),
             TabId::Temps => Self::Temps(dock.temps.clone()),
         }

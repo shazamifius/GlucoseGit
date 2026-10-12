@@ -21,6 +21,28 @@ use crate::types::{BoardImage, BoardZone};
 pub const ZONE: (f64, f64) = (340.0, 700.0);
 pub const ECART: f64 = 30.0;
 
+/// **La rangée de zones d'un gabarit**, centrée sur `centre` : une zone par catégorie, à la
+/// taille et à l'écart de Glucose Tauri. Le fantôme qui suit le curseur et le clic qui pose la
+/// lisent tous deux : le gabarit se pose là où on l'a vu.
+pub fn rangee((gabarit, categories): (&str, &[&str]), centre: (f64, f64)) -> Vec<BoardZone> {
+    let n = categories.len() as f64;
+    let largeur = n * ZONE.0 + (n - 1.0).max(0.0) * ECART;
+    let (gauche, haut) = (centre.0 - largeur / 2.0, centre.1 - ZONE.1 / 2.0);
+    categories
+        .iter()
+        .enumerate()
+        .map(|(i, cat)| {
+            BoardZone::new(
+                identifiant(gabarit, cat),
+                gauche + i as f64 * (ZONE.0 + ECART),
+                haut,
+                ZONE.0,
+                ZONE.1,
+            )
+        })
+        .collect()
+}
+
 impl Store {
     /// **Pose ce gabarit sur le tableau**, une zone par catégorie, en rangée centrée sur
     /// `centre` ; les zones d'avant partent — un tableau suit un gabarit.
@@ -30,26 +52,10 @@ impl Store {
     pub fn poser_un_gabarit(
         &mut self,
         board_id: &str,
-        (gabarit, categories): (&str, &[&str]),
+        gabarit: (&str, &[&str]),
         centre: (f64, f64),
     ) {
-        let n = categories.len() as f64;
-        let largeur = n * ZONE.0 + (n - 1.0).max(0.0) * ECART;
-        let (gauche, haut) = (centre.0 - largeur / 2.0, centre.1 - ZONE.1 / 2.0);
-        let zones = categories
-            .iter()
-            .enumerate()
-            .map(|(i, cat)| {
-                BoardZone::new(
-                    identifiant(gabarit, cat),
-                    gauche + i as f64 * (ZONE.0 + ECART),
-                    haut,
-                    ZONE.0,
-                    ZONE.1,
-                )
-            })
-            .collect();
-        self.remplacer_les_zones(board_id, |z| *z = zones);
+        self.poser_les_zones(board_id, rangee(gabarit, centre));
     }
 
     /// **Pose ces zones**, toutes d'un coup, à la place de celles du tableau.

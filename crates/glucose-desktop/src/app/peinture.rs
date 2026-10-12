@@ -175,6 +175,7 @@ impl GlucoseApp {
             badges: self.suivre_les_badges(),
             designees: self.suivre_la_designation(),
             fantome: self.fantome_montre(),
+            gabarit: self.fantome_du_gabarit(),
         }
     }
 
@@ -261,6 +262,7 @@ struct Dessus {
     badges: Vec<(String, f32)>,
     designees: Vec<(String, f32)>,
     fantome: Option<crate::interactions::placement::Fantome>,
+    gabarit: Vec<glucose_core::geometry::Rect>,
 }
 
 impl Dessus {
@@ -278,6 +280,7 @@ impl Dessus {
             badges: &self.badges,
             designees: &self.designees,
             fantome: self.fantome.as_ref().map(|f| f.rect),
+            gabarit: &self.gabarit,
             ..SceneOverlay::sans_rien(self.guides(du_geste))
         }
     }

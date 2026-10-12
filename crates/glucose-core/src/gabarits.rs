@@ -160,6 +160,57 @@ pub fn identifiant(gabarit: &str, categorie: &str) -> String {
     format!("{gabarit}/{categorie}")
 }
 
+/// **Un gabarit qu'on peut choisir** — intégré, ou venu du document : son identifiant, son
+/// nom, sa phrase, et ses catégories (identifiant, nom, couleur).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Choix<'a> {
+    pub id: &'a str,
+    pub nom: &'a str,
+    pub description: &'a str,
+    pub categories: Vec<(&'a str, &'a str, u32)>,
+}
+
+/// **Les gabarits qu'on peut poser** : les six de Glucose Tauri, puis ceux du document — ce que
+/// Tauri appelait `getAllPresets`.
+pub fn a_choisir(projet: &Project) -> Vec<Choix<'_>> {
+    let integres = INTEGRES.iter().map(|g| Choix {
+        id: g.id,
+        nom: g.nom,
+        description: g.description,
+        categories: g
+            .categories
+            .iter()
+            .map(|c| (c.id, c.nom, c.couleur))
+            .collect(),
+    });
+    let du_document = projet.presets.iter().map(|p| Choix {
+        id: p.id.as_str(),
+        nom: p.name.as_str(),
+        description: p.description.as_str(),
+        categories: p
+            .slots
+            .iter()
+            .map(|s| {
+                (
+                    s.id.as_str(),
+                    s.name.as_str(),
+                    couleur_de(&s.color).unwrap_or(GRIS),
+                )
+            })
+            .collect(),
+    });
+    integres.chain(du_document).collect()
+}
+
+/// **Le gabarit que ces zones suivent** : celui que toutes nomment, ou aucun.
+pub fn suivi(zones: &[BoardZone]) -> Option<&str> {
+    let premier = zones.first()?.slot_id.split_once('/')?.0;
+    zones
+        .iter()
+        .all(|z| z.slot_id.split_once('/').is_some_and(|(g, _)| g == premier))
+        .then_some(premier)
+}
+
 /// Ce qu'une zone montre : le nom de sa catégorie, sa couleur, sa phrase.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Montre {

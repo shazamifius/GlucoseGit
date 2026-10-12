@@ -232,6 +232,22 @@ impl<'a> Brush<'a> {
         self.text(pixmap, text, at, size, color, face);
     }
 
+    /// **Écrit un texte centré, seulement s'il tient** dans le rectangle : un nom qui déborde
+    /// chevaucherait son voisin — la couleur, elle, dit déjà ce qu'est la case.
+    pub fn text_centered_if_fits(
+        &self,
+        pixmap: &mut PixmapMut,
+        rect: WidgetRect,
+        text: &str,
+        size: f32,
+        color: Color,
+    ) {
+        let (w, _) = self.typo.measure_text(text, self.px(size), Face::Regular);
+        if w <= rect.w {
+            self.text_centered(pixmap, rect, text, size, color, Face::Regular);
+        }
+    }
+
     /// Le titre d'un panneau, en haut à gauche de son cadre.
     pub fn title(&self, pixmap: &mut PixmapMut, frame: ScaledRect, text: &str) {
         let at = (frame.x + self.px(14.0), frame.y + self.px(18.0));

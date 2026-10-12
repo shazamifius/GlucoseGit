@@ -16,6 +16,7 @@ pub mod domains;
 pub mod drag;
 pub mod drop;
 pub mod elan;
+pub mod gabarit;
 pub mod links;
 pub mod mouse;
 pub mod onglets;

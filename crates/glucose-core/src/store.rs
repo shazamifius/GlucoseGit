@@ -52,7 +52,7 @@ mod resize;
 mod selection;
 mod textes;
 mod undo;
-mod zones;
+pub mod zones;
 
 pub use annotations::Reglage;
 pub use domains::DomainPatch;

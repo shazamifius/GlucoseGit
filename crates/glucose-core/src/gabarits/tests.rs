@@ -67,3 +67,43 @@ fn test_preset_1_un_gabarit_du_document_et_une_zone_inconnue() {
     assert_eq!(inconnue.nom, "ailleurs/y");
     assert_eq!(inconnue.couleur, GRIS);
 }
+
+/// **On choisit parmi les six de Tauri, puis ceux du document** — comme `getAllPresets`.
+#[test]
+fn test_preset_1_on_choisit_parmi_les_integres_puis_ceux_du_document() {
+    let mut projet = Project::new("p");
+    projet.presets.push(Preset {
+        id: "perso".into(),
+        name: "Perso".into(),
+        description: "à moi".into(),
+        slots: vec![PresetSlot {
+            id: "x".into(),
+            name: "Croquis".into(),
+            color: "#123456".into(),
+            description: String::new(),
+            order: 0,
+        }],
+        is_builtin: false,
+        created_at: 0,
+    });
+    let choix = a_choisir(&projet);
+    assert_eq!(choix.len(), 7);
+    assert_eq!(choix[0].id, "charadesign");
+    assert_eq!(choix[6].id, "perso");
+    assert_eq!(choix[6].categories, vec![("x", "Croquis", 0x123456)]);
+}
+
+/// **Le gabarit qu'un tableau suit** : celui que toutes ses zones nomment — aucun s'il n'y a pas
+/// de zone, ou si deux gabarits se mêlent.
+#[test]
+fn test_preset_1_le_gabarit_suivi() {
+    let z = |id: &str| BoardZone::new(id, 0.0, 0.0, 1.0, 1.0);
+    assert_eq!(suivi(&[]), None);
+    assert_eq!(suivi(&[z("props/ref"), z("props/final")]), Some("props"));
+    assert_eq!(suivi(&[z("props/ref"), z("creature/ref")]), None);
+    assert_eq!(
+        suivi(&[z("ref")]),
+        None,
+        "une zone qui ne nomme pas son gabarit"
+    );
+}
