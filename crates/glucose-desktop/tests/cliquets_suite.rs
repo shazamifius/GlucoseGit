@@ -1116,6 +1116,28 @@ fn test_cliquet_10_aucune_marque_de_mesure_n_est_perdue() {
     );
 }
 
+/// **Le serveur connaît chaque marque de mesure** (POSTES-1, fiche 63). La boîte noire écrit le
+/// nom des postes d'un épisode trop lent, et le serveur refuse une session **entière** pour un
+/// nom absent de sa liste fermée : une marque ajoutée ici sans l'être là-bas ferait perdre, en
+/// silence, chaque session lente de chaque utilisateur. Seule la liste `poste` est lue.
+#[test]
+fn test_le_serveur_connait_chaque_marque_de_mesure() {
+    let chemin = racine_du_workspace().join("outils/telemetrie/src/valider.js");
+    let serveur = fs::read_to_string(&chemin).expect("valider.js");
+    let debut = serveur.find("  poste: [").expect("la liste poste de NOMS");
+    let liste = &serveur[debut..];
+    let liste = &liste[..liste.find(']').expect("la fin de la liste")];
+    let manquantes: Vec<String> = marques_de_mesure()
+        .into_iter()
+        .filter(|m| !liste.contains(&format!("\"{m}\"")))
+        .collect();
+    assert!(
+        manquantes.is_empty(),
+        "le serveur ne connaît pas ces postes : {manquantes:?}. Les ajouter à NOMS.poste de \
+         outils/telemetrie/src/valider.js, puis redéployer le serveur avant de publier."
+    );
+}
+
 // ── Cliquet 11 : un seul endroit pose un fichier à la place d'un autre ──────
 
 /// **Seul `persist::atomic` renomme ou copie un fichier à la place d'un autre** (SAVE-1,

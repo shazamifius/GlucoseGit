@@ -18,6 +18,9 @@ précédentes. On y trouve :
 
 * le temps que chaque image a pris à dessiner, geste par geste (déplacer la vue, zoomer, glisser
   un nœud…) ;
+* quand un geste a été trop lent — plus de dix millisecondes par image —, les étapes du dessin
+  qui l'ont ralenti, par leur nom fixé dans le code (« textures », « présenter »…) et leur
+  durée ;
 * la version de Glucose, le système (Windows, Linux, macOS, Android) et le type de processeur ;
 * la carte graphique qui dessine, **par ses numéros** — son fabricant, son modèle, son moteur
   (Vulkan, GL…), si elle est intégrée ou dédiée, et la plus grande image qu'elle accepte —,

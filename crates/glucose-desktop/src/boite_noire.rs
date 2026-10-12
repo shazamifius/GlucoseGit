@@ -66,11 +66,41 @@ pub struct BoiteNoire {
     chemin: PathBuf,
 }
 
-/// L'épisode en cours : un geste, depuis quand, et ce que ses images coûtent.
+/// L'épisode en cours : un geste, depuis quand, ce que ses images coûtent — et chacun de leurs
+/// postes, dans l'ordre où la chronique les a nommés (POSTES-1).
 struct Episode {
     geste: Geste,
     debut_ms: u64,
     durees: Histogramme,
+    postes: Vec<(&'static str, Histogramme)>,
+}
+
+/// **Les postes qui expliquent qu'une image ordinaire dépasse le plancher** (POSTES-1) : le plus
+/// petit ensemble — du plus cher au moins cher — sans lequel elle y tiendrait, c'est-à-dire dont
+/// les médianes couvrent son **excès**.
+///
+/// Couvrir sa médiane entière, ma première règle, les prenait presque tous : les marques de
+/// mesure se ferment l'une l'autre, donc les postes d'une image se somment à sa durée. Aucun
+/// nombre n'est choisi : l'excès est la médiane moins le plancher de la charte.
+fn postes_qui_expliquent(
+    postes: &[(&'static str, Histogramme)],
+    exces_us: u32,
+) -> Vec<(&'static str, u32, u32)> {
+    let mut tries: Vec<(&'static str, u32, u32)> = postes
+        .iter()
+        .map(|(nom, h)| (*nom, h.centile(0.5), h.centile(0.99)))
+        .filter(|(_, median, _)| *median > 0)
+        .collect();
+    tries.sort_by_key(|(_, median, _)| std::cmp::Reverse(*median));
+    let mut couvert = 0u64;
+    tries
+        .into_iter()
+        .take_while(|(_, median, _)| {
+            let avant = couvert;
+            couvert += u64::from(*median);
+            avant < u64::from(exces_us)
+        })
+        .collect()
 }
 
 impl BoiteNoire {
@@ -150,20 +180,27 @@ impl BoiteNoire {
         }
     }
 
-    /// **Une image rendue**, pendant ce geste, qui a coûté `duree_us`.
-    pub fn image(&mut self, geste: Geste, duree_us: u32) {
+    /// **Une image rendue**, pendant ce geste, qui a coûté `duree_us` — et chacun de ses postes,
+    /// leurs noms et leurs durées dans l'ordre de la chronique.
+    pub fn image(&mut self, geste: Geste, duree_us: u32, (noms, us): (&[&'static str], &[u32])) {
         let maintenant = self.instant_ms();
         if self.episode.as_ref().is_some_and(|e| e.geste != geste) {
             self.clore_l_episode(maintenant);
         }
-        self.episode
-            .get_or_insert_with(|| Episode {
-                geste,
-                debut_ms: maintenant,
-                durees: Histogramme::nouveau(),
-            })
-            .durees
-            .ajouter(duree_us);
+        let episode = self.episode.get_or_insert_with(|| Episode {
+            geste,
+            debut_ms: maintenant,
+            durees: Histogramme::nouveau(),
+            postes: Vec::new(),
+        });
+        episode.durees.ajouter(duree_us);
+        // Les noms ne font que s'ajouter, dans la chronique : un rang garde son poste.
+        for (rang, (nom, us)) in noms.iter().zip(us).enumerate() {
+            if rang == episode.postes.len() {
+                episode.postes.push((nom, Histogramme::nouveau()));
+            }
+            episode.postes[rang].1.ajouter(*us);
+        }
         if duree_us > self.pire_us {
             self.pire_us = duree_us;
             self.envoyer(Enregistrement::Pire {
@@ -175,16 +212,35 @@ impl BoiteNoire {
     }
 
     fn clore_l_episode(&mut self, maintenant: u64) {
-        if let Some(e) = self.episode.take() {
-            self.envoyer(Enregistrement::Episode {
+        let Some(e) = self.episode.take() else {
+            return;
+        };
+        let median_us = e.durees.centile(0.5);
+        self.envoyer(Enregistrement::Episode {
+            instant_ms: e.debut_ms,
+            duree_ms: maintenant.saturating_sub(e.debut_ms),
+            geste: e.geste.nom(),
+            images: e.durees.compte(),
+            median_us,
+            p99_us: e.durees.centile(0.99),
+            pire_us: e.durees.pire(),
+        });
+        // **POSTES-1 — un épisode plus lent que le plancher dit où son temps est parti.** Sur
+        // une machine qu'on ne possède pas — son téléphone, 19 ms par image en déplaçant la vue
+        // —, la durée seule ne désignait aucun coupable. Au-dessous du plancher, rien : il n'y a
+        // rien à expliquer, et le poids d'une session reste celui d'aujourd'hui.
+        let plancher = u32::try_from(crate::cadence::BUDGET_TOTAL.as_micros()).unwrap_or(u32::MAX);
+        if median_us <= plancher {
+            return;
+        }
+        for (nom, median_us, p99_us) in postes_qui_expliquent(&e.postes, median_us - plancher) {
+            self.envoyer(Enregistrement::Poste(enregistrement::Poste {
                 instant_ms: e.debut_ms,
-                duree_ms: maintenant.saturating_sub(e.debut_ms),
                 geste: e.geste.nom(),
-                images: e.durees.compte(),
-                median_us: e.durees.centile(0.5),
-                p99_us: e.durees.centile(0.99),
-                pire_us: e.durees.pire(),
-            });
+                nom,
+                median_us,
+                p99_us,
+            }));
         }
     }
 

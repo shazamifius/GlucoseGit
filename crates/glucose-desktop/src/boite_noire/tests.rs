@@ -8,6 +8,9 @@ use crate::epreuve::Dossier;
 use glucose_core::persist::tauri::{json, Valeur};
 use std::path::{Path, PathBuf};
 
+/// Une image dont les postes ne sont pas l'objet de l'épreuve.
+const SANS_POSTES: (&[&str], &[u32]) = (&[], &[]);
+
 /// Le dossier du journal technique, dans un dossier d'épreuve.
 fn boite(d: &Dossier) -> PathBuf {
     d.join(DOSSIER)
@@ -32,9 +35,9 @@ fn test_une_session_fermee_se_relit_propre() {
     let (mut b, precedente) = BoiteNoire::ouvrir(&d).expect("ouverte");
     assert_eq!(precedente, None, "rien avant la première");
     for us in [1000, 3000, 2000] {
-        b.image(Geste::Zoomer, us);
+        b.image(Geste::Zoomer, us, SANS_POSTES);
     }
-    b.image(Geste::DeplacerLaVue, 500);
+    b.image(Geste::DeplacerLaVue, 500, SANS_POSTES);
     let premiere = b.chemin().to_path_buf();
     b.clore();
 
@@ -65,8 +68,8 @@ fn test_une_session_fermee_se_relit_propre() {
 fn test_une_session_coupee_se_relit_interrompue() {
     let d = Dossier::nouveau("coupee");
     let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
-    b.image(Geste::GlisserUnNoeud, 4000);
-    b.image(Geste::Repos, 100);
+    b.image(Geste::GlisserUnNoeud, 4000, SANS_POSTES);
+    b.image(Geste::Repos, 100, SANS_POSTES);
     b.synchroniser();
     let en_vol = lire(b.chemin());
     assert_eq!(
@@ -286,6 +289,7 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         "debut",
         "precedente",
         "episode",
+        "poste",
         "machine",
         "pire",
         "pave",
@@ -339,7 +343,7 @@ fn test_seules_les_images_record_s_ecrivent_une_a_une() {
     let d = Dossier::nouveau("pires");
     let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     for us in [100, 50, 300, 300, 200, 900] {
-        b.image(Geste::Zoomer, us);
+        b.image(Geste::Zoomer, us, SANS_POSTES);
     }
     b.synchroniser();
     let pires: Vec<i64> = lignes_du_type(&lire(b.chemin()), "pire")
@@ -355,7 +359,7 @@ fn test_la_machine_ne_s_ecrit_que_si_elle_change() {
     let d = Dossier::nouveau("machine");
     let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     for geste in [Geste::Zoomer, Geste::Repos, Geste::Zoomer, Geste::Repos] {
-        b.image(geste, 10);
+        b.image(geste, 10, SANS_POSTES);
         b.synchroniser();
     }
     let etats: Vec<(Option<i64>, Option<bool>)> = lignes_du_type(&lire(b.chemin()), "machine")
@@ -428,7 +432,7 @@ fn vu_par_le_systeme(chemin: &Path, gel: bool) -> crate::plateforme::journal::Ev
 fn test_une_session_arretee_se_dit_plantee_d_apres_le_systeme() {
     let d = Dossier::nouveau("plantee");
     let (mut b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
-    b.image(Geste::Zoomer, 900);
+    b.image(Geste::Zoomer, 900, SANS_POSTES);
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     // Ce qu'un plantage laisse : la session lâchée sans être close — sans sa ligne de fin.
@@ -563,4 +567,106 @@ fn test_la_carte_s_ecrit_par_ses_numeros() {
     assert_eq!(cartes[0].entier("fabricant"), Some(0x13B5));
     assert_eq!(cartes[0].entier("modele"), Some(0));
     assert_eq!(cartes[0].entier("plafond"), Some(4096));
+}
+
+/// **POSTES-1 — un épisode trop lent dit où son temps est parti** : les postes du plus cher au
+/// moins cher, jusqu'à couvrir ce qui dépasse le plancher — ceux sans lesquels l'image y
+/// tiendrait, ni plus, ni les postes nuls. Un épisode sous le plancher n'en dit rien.
+#[test]
+fn test_postes_1_un_episode_trop_lent_dit_ou_son_temps_est_parti() {
+    let d = Dossier::nouveau("postes");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
+    let noms: &[&str] = &["clear", "textures", "present", "ui", "docks"];
+    // Une image de 19 ms, 9 de trop : 6 de textures, 5 de présentation, 4 et 4 ailleurs.
+    for _ in 0..5 {
+        b.image(
+            Geste::DeplacerLaVue,
+            19_000,
+            (noms, &[0, 6_000, 5_000, 4_000, 4_000]),
+        );
+    }
+    // Puis un zoom sous le plancher : rien à expliquer.
+    for _ in 0..5 {
+        b.image(Geste::Zoomer, 4_000, (noms, &[1_000, 2_000, 1_000, 0, 0]));
+    }
+    let chemin = b.chemin().to_path_buf();
+    b.clore();
+    let postes = lignes_du_type(&lire(&chemin), "poste");
+    let dits: Vec<(&str, i64)> = postes
+        .iter()
+        .map(|p| {
+            (
+                p.texte("nom").expect("un nom"),
+                p.entier("median_us").expect("une mediane"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        dits,
+        vec![("textures", 6_000), ("present", 5_000)],
+        "sans eux, l'image tiendrait dans les 10 ms -- et rien du zoom"
+    );
+    assert!(postes
+        .iter()
+        .all(|p| p.texte("geste") == Some("deplacer la vue")));
+}
+
+/// **Un seul poste suffit quand il porte tout l'excès** : les autres ne diraient rien que lui
+/// n'ait déjà dit, et une session garde le poids qu'elle a.
+#[test]
+fn test_postes_1_un_poste_qui_porte_l_exces_suffit() {
+    let d = Dossier::nouveau("postes-couverts");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
+    let noms: &[&str] = &["textures", "present", "ui"];
+    b.image(Geste::Zoomer, 30_000, (noms, &[25_000, 3_000, 2_000]));
+    let chemin = b.chemin().to_path_buf();
+    b.clore();
+    let postes = lignes_du_type(&lire(&chemin), "poste");
+    assert_eq!(postes.len(), 1, "les textures portent les 20 ms de trop");
+    assert_eq!(postes[0].texte("nom"), Some("textures"));
+}
+
+/// **Un poste nul ne se dit jamais**, même quand les postes ne couvrent pas tout l'excès : le
+/// temps que la chronique ne mesure pas n'est la faute d'aucun d'eux.
+#[test]
+fn test_postes_1_un_poste_nul_ne_se_dit_jamais() {
+    let d = Dossier::nouveau("postes-nuls");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
+    let noms: &[&str] = &["textures", "ui"];
+    b.image(Geste::Zoomer, 30_000, (noms, &[5_000, 0]));
+    let chemin = b.chemin().to_path_buf();
+    b.clore();
+    let postes = lignes_du_type(&lire(&chemin), "poste");
+    let noms: Vec<_> = postes.iter().filter_map(|p| p.texte("nom")).collect();
+    assert_eq!(noms, vec!["textures"]);
+}
+
+/// **La chronique transmet les postes de chaque image à la boîte noire** — par le chemin même
+/// de l'application, et non la boîte appelée à la main : sans lui, les lignes « poste »
+/// n'existeraient que dans les épreuves.
+#[test]
+fn test_postes_1_la_chronique_transmet_les_postes() {
+    let d = Dossier::nouveau("postes-chronique");
+    let mut chronique = crate::chronique::Chronique::nouvelle();
+    chronique.ouvrir_la_boite_noire(&d);
+    let textures = chronique.poste("textures").expect("un rang");
+    let mut vu = crate::chronique::Instantane {
+        duree_us: 25_000,
+        geste: Geste::TOUS
+            .iter()
+            .position(|g| *g == Geste::DeplacerLaVue)
+            .expect("le geste") as u8,
+        ..Default::default()
+    };
+    vu.postes_us.0[textures] = 20_000;
+    for _ in 0..3 {
+        chronique.enregistrer(vu);
+    }
+    let b = chronique.boite.take().expect("la boite ouverte");
+    let chemin = b.chemin().to_path_buf();
+    b.clore();
+    let postes = lignes_du_type(&lire(&chemin), "poste");
+    assert_eq!(postes.len(), 1, "le poste qui porte l'excès");
+    assert_eq!(postes[0].texte("nom"), Some("textures"));
+    assert_eq!(postes[0].entier("median_us"), Some(20_000));
 }

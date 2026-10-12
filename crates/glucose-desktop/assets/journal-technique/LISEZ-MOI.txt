@@ -76,6 +76,18 @@ type « episode » — une suite d'images d'un même geste, et ce qu'elles ont c
   p99_us                   le temps des 1 % d'images les plus lentes           11754
   pire_us                  le temps de la plus lente                           15377
 
+type « poste » — après un épisode trop lent (plus de 10 ms par image), une étape du dessin
+                 qui l'a ralenti : celles sans lesquelles une image ordinaire tiendrait
+                 dans les 10 ms
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand le geste a commencé (celui de son épisode)    1655
+  geste                    pendant quel geste (la liste de « episode »)        zoomer
+  nom                      l'étape, par son nom dans le code de Glucose        textures
+  median_us                ce qu'elle a coûté à une image ordinaire            6120
+  p99_us                   ce qu'elle a coûté aux 1 % d'images les plus lentes 14200
+
 type « pire » — une image plus lente que toutes les précédentes de la session
 
   champ                    ce qu'il dit                                        exemple

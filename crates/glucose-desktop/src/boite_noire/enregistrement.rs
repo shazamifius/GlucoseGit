@@ -64,6 +64,8 @@ pub enum Enregistrement {
     },
     /// **La carte graphique qui présente** (fiche 60), au lancement et à chaque réouverture.
     Carte { instant_ms: u64, carte: Carte },
+    /// **Une étape du dessin qui a ralenti un épisode** (POSTES-1, fiche 63).
+    Poste(Poste),
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
 }
@@ -107,6 +109,33 @@ impl Carte {
             ("fabricant", Entier(u64::from(self.fabricant))),
             ("modele", Entier(u64::from(self.modele))),
             ("plafond", Entier(u64::from(self.plafond))),
+        ]
+    }
+}
+
+/// **Une étape du dessin d'un épisode trop lent** (POSTES-1, fiche 63) : son nom — une marque
+/// de mesure du code (`perf::stage`), fixée à la compilation — et ce qu'elle a coûté pendant
+/// l'épisode. C'est ce qui dit, d'une machine qu'on ne possède pas, **où** part le temps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Poste {
+    /// Quand l'épisode a commencé.
+    pub instant_ms: u64,
+    pub geste: &'static str,
+    pub nom: &'static str,
+    /// Ce qu'elle a coûté à une image ordinaire de l'épisode, et aux plus lentes.
+    pub median_us: u32,
+    pub p99_us: u32,
+}
+
+impl Poste {
+    fn champs(&self) -> Vec<(&'static str, Champ)> {
+        use Champ::{Entier, Nom};
+        vec![
+            ("instant_ms", Entier(self.instant_ms)),
+            ("geste", Nom(self.geste)),
+            ("nom", Nom(self.nom)),
+            ("median_us", Entier(u64::from(self.median_us))),
+            ("p99_us", Entier(u64::from(self.p99_us))),
         ]
     }
 }
@@ -171,6 +200,7 @@ impl Enregistrement {
             Self::Pire { .. } => "pire",
             Self::Pave { .. } => "pave",
             Self::Carte { .. } => "carte",
+            Self::Poste(_) => "poste",
             Self::Fin { .. } => "fin",
         }
     }
@@ -267,6 +297,7 @@ impl Enregistrement {
                 ("valeur", Entier(valeur)),
             ],
             Self::Carte { instant_ms, carte } => carte.champs(instant_ms),
+            Self::Poste(poste) => poste.champs(),
             Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
         }
     }

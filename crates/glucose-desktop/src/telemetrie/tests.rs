@@ -108,8 +108,8 @@ fn test_une_session_sans_debut_ne_part_pas() {
 fn test_une_vraie_session_fait_un_corps() {
     let d = Dossier::nouveau("vraie");
     let (mut b, _) = crate::boite_noire::BoiteNoire::ouvrir(&d).expect("ouverte");
-    b.image(crate::chronique::Geste::Zoomer, 900);
-    b.image(crate::chronique::Geste::Repos, 100);
+    b.image(crate::chronique::Geste::Zoomer, 900, (&[], &[]));
+    b.image(crate::chronique::Geste::Repos, 100, (&[], &[]));
     let chemin = b.chemin().to_path_buf();
     b.clore();
     let texte = std::fs::read_to_string(&chemin).expect("la session");

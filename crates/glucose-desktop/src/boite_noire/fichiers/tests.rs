@@ -148,6 +148,13 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
                 plafond: 4096,
             },
         },
+        Enregistrement::Poste(crate::boite_noire::enregistrement::Poste {
+            instant_ms: 0,
+            geste: "zoomer",
+            nom: "textures",
+            median_us: 1,
+            p99_us: 1,
+        }),
         Enregistrement::Fin { instant_ms: 0 },
     ];
     let plantage = crate::boite_noire::plantage::Plantage {
@@ -190,8 +197,8 @@ fn test_le_lisez_moi_dit_chaque_champ_de_chaque_ligne() {
         }
         sortes.insert(sorte);
     }
-    assert_eq!(sortes.len(), 10, "les dix sortes de lignes : {sortes:?}");
-    assert_eq!(sections.len(), 10, "et pas une section de plus");
+    assert_eq!(sortes.len(), 11, "les onze sortes de lignes : {sortes:?}");
+    assert_eq!(sections.len(), 11, "et pas une section de plus");
 }
 
 /// **Les répétitions de la bascule plantent leur témoin dans le dossier de Glucose** : le

@@ -38,6 +38,7 @@ pub mod geste;
 pub mod histogramme;
 pub mod instantane;
 pub mod navigation;
+mod par_geste;
 pub mod rythme;
 pub mod veille;
 
@@ -45,6 +46,7 @@ pub use entracte::Entracte;
 pub use geste::Geste;
 pub use histogramme::Histogramme;
 pub use instantane::Instantane;
+use par_geste::Poste;
 pub use rythme::Rythme;
 pub use veille::Veille;
 
@@ -69,54 +71,6 @@ pub const POSTES: usize = 44;
 /// Les tempos que la chronique distingue : de un à huit balayages, et au-delà dans la
 /// dernière case. L'indice zéro, hors mouvement, ne se remplit jamais.
 const TEMPOS_SUIVIS: usize = 9;
-
-/// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
-#[derive(Debug, Clone)]
-struct Poste {
-    /// La distribution des durées de ses images, en microsecondes.
-    durees: Histogramme,
-    /// La distribution de chaque poste de rendu, pour savoir **où** va le temps de ce geste —
-    /// un geste lent ne l'est pas pour la même raison qu'un autre.
-    ///
-    /// # Pourquoi une distribution, alors qu'une somme tenait en huit octets
-    ///
-    /// C'était une somme, et le rapport en tirait un pourcentage. Sur une session réelle de
-    /// trente et une images, il a annoncé **`blit` 62,4 %** du temps du repos. La vérité :
-    /// trente images à 0,94 ms, et **une** à 335 ms — le gel d'initialisation du pilote, à la
-    /// deuxième seconde. Une seule image aberrante décidait donc du portrait de tout un geste,
-    /// et je l'ai crue au point de l'écrire dans une fiche d'architecture.
-    ///
-    /// C'est exactement ce que le module d'à côté interdit dans sa première phrase — *« cent
-    /// images à 2 ms et une à 200 ms donnent une moyenne de 4 ms, alors que l'utilisateur a vu
-    /// un gel »*. La leçon avait été tirée pour les durées d'image et jamais appliquée à leur
-    /// décomposition, si bien que le tableau des gestes se lisait au centile pendant que la
-    /// ligne du dessous se lisait en moyenne.
-    ///
-    /// Le coût est de 356 octets par poste et par geste, soit 142 Ko pour la session entière,
-    /// quelle que soit sa durée. Le tableau vit dans un `Vec`, donc rien ne passe par la pile.
-    postes: Vec<Histogramme>,
-}
-
-impl Default for Poste {
-    fn default() -> Self {
-        Self {
-            durees: Histogramme::nouveau(),
-            postes: vec![Histogramme::nouveau(); POSTES],
-        }
-    }
-}
-
-impl Poste {
-    /// Compte cette image : sa durée, et celle de chacun de ses postes.
-    fn ajouter(&mut self, vu: &Instantane) {
-        self.durees.ajouter(vu.duree_us);
-        // Les zéros comptent : un poste qui ne travaille qu'une image sur dix ne coûte rien à
-        // une image typique, et c'est précisément ce qu'on veut lire.
-        for (distribution, us) in self.postes.iter_mut().zip(vu.postes_us.iter()) {
-            distribution.ajouter(*us);
-        }
-    }
-}
 
 /// Tout ce que la session a observé.
 pub struct Chronique {
@@ -439,7 +393,11 @@ impl Chronique {
     pub fn enregistrer(&mut self, mut vu: Instantane) {
         vu.instant_ms = self.debut.elapsed().as_millis().min(u128::from(u32::MAX)) as u32;
         if let Some(b) = &mut self.boite {
-            b.image(vu.geste(), vu.duree_us);
+            b.image(
+                vu.geste(),
+                vu.duree_us,
+                (&self.noms_des_postes, vu.postes_us.as_slice()),
+            );
         }
         self.rendues += 1;
         self.photos_posees += u64::from(vu.photos);
