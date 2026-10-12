@@ -211,3 +211,23 @@ fn test_les_repetitions_plantent_dans_le_dossier_du_journal() {
         );
     }
 }
+
+/// **Les répétitions plantent l'aperçu témoin dans le dossier de la version courante** : une
+/// version qui change retire le dossier d'avant au lancement (c'est un cache) — et le témoin de
+/// `apercus/v2`, oublié quand les aperçus sont passés en version 3 (MOYENNE-1), a fait tomber
+/// la répétition de la bascule sur GitHub (fiche 63). Ici, l'épreuve tombe d'abord.
+#[test]
+fn test_les_repetitions_plantent_l_apercu_dans_la_version_courante() {
+    let version = crate::renderer::apercu::VERSION;
+    let windows = include_str!("../../../../../outils/installeur/commun.ps1");
+    let linux = include_str!("../../../../../outils/paquets/une_forme.sh");
+    for (nom, script, chemin) in [
+        ("commun.ps1", windows, format!("\\apercus\\v{version}\\")),
+        ("une_forme.sh", linux, format!("/apercus/v{version}/")),
+    ] {
+        assert!(
+            script.contains(&chemin),
+            "{nom} ne plante pas son aperçu témoin dans {chemin}"
+        );
+    }
+}

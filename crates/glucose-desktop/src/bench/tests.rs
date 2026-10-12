@@ -403,7 +403,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (FORMULE-2) : les mêmes 31 035 pixels, sous le menu.
 /// **Puis** (fiche 51 § 2) : « Copier » et « Couper » en tête du menu d'une sélection, regardés.
 /// **Puis** (fiche 53 § 10) : le cadre du groupe sous le menu, regardé.
-const EMPREINTE_TEMOIN_MENU: &str = "6b1848a698012a70";
+/// **Puis** (ACCES-1, fiche 63) : « Cadrer la sélection  F » après « Dupliquer », regardé.
+const EMPREINTE_TEMOIN_MENU: &str = "51100ba2f92123e8";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

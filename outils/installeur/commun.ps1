@@ -96,7 +96,7 @@ function PlanterSesDonnees {
         "$donnees\brouillons\brouillon-essai.glucose",
         "$donnees\brouillons\recuperation\essai-0-1.fin",
         "$donnees\journal-technique\session-essai.jsonl",
-        "$donnees\apercus\v2\essai.apercu",
+        "$donnees\apercus\v3\essai.apercu",
         "$donnees\dernier-document.txt",
         "$magasin\assets\essai.png",
         "$documents\essai-tauri.glucose"

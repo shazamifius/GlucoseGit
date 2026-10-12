@@ -45,7 +45,7 @@ const MAGIE: &[u8; 8] = b"GLAPERCU";
 /// Un aperçu d'une autre version ne se lit pas : il se refait. La version 2 porte un sceau ;
 /// la 3, des niveaux qui sont chacun la moyenne exacte de ce qu'ils couvrent (MOYENNE-1) —
 /// ceux d'avant donnaient au bord d'une image jusqu'à la moitié du poids de son sommet.
-const VERSION: u8 = 3;
+pub(crate) const VERSION: u8 = 3;
 /// Magie, version, opacité, rang, largeur, hauteur.
 const ENTETE: usize = 8 + 1 + 1 + 1 + 4 + 4;
 /// Le sceau qui clôt un aperçu : le début de l'empreinte de tout ce qui le précède.

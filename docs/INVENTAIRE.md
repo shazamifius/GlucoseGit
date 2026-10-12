@@ -30,7 +30,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Enregistrer sous | **menu du vide** (ACCES-1), `Ctrl+Maj+S` | ✅ menu (un autre nom) |
 | Renommer, dupliquer, supprimer un document | l'explorateur du système | ✅ appui long dans la liste |
 | Importer un document en onglets | menu d'un onglet, ou le déposer sur les onglets | ✅ menu d'un onglet (la liste) — **ACCES-1** |
-| Exporter (Markdown, SVG, PNG) | bouton Exporter, **menu du vide**, `Ctrl+E` | ❌ **le sélecteur n'existe pas au téléphone : rien ne s'ouvre** |
+| Exporter (Markdown, SVG, PNG) | bouton Exporter, **menu du vide**, `Ctrl+E` | ✅ rail, menu : le format se demande, puis **la feuille de partage** (PARTAGE-2) |
 | Time Machine (regarder, restaurer, jalons) | bouton, `Ctrl+H` | ✅ rail |
 | Annuler, rétablir | **menu** (ACCES-1), `Ctrl+Z`, `Ctrl+Y` | ✅ menu, deux et trois doigts |
 | Journal technique, voir ce qui part | menu du vide | ✅ menu (sans « voir ce qui part » : pas d'explorateur) |
@@ -56,7 +56,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Ajouter des images | bouton Images, menu du vide, `Ctrl+I`, glisser-déposer, coller | ✅ rail, menu (sélecteur de photos), « Partager » vers Glucose |
 | Copier, couper, coller, dupliquer | menu, `Ctrl+C` `X` `V` `D` | 🟡 dans Glucose seulement : le presse-papiers d'Android n'est pas encore pris |
 | Copier vers Discord, un navigateur, Paint | `Ctrl+C`, glisser | ❌ Android (le presse-papiers du système) |
-| Enregistrer une image sous | menu d'une image | ❌ **rien ne s'ouvre au téléphone** |
+| Enregistrer une image sous | menu d'une image | ✅ menu : **la feuille de partage** (Fichiers, la galerie…) — PARTAGE-2 |
 | Remplacer un lien par son image | menu | ✅ |
 | Verrouiller | barre d'action, menu, `L` | ✅ |
 | Retirer les bordures | menu, `Ctrl+B` | ✅ |
@@ -83,7 +83,6 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 
 | où | quoi | ce qu'il faut | quand |
 |---|---|---|---|
-| **le téléphone** | **Exporter** et **« Enregistrer l'image sous… »** : rien ne s'ouvre | la feuille de partage d'Android (ce que font Procreate et Concepts) | **PARTAGE-2, la suite immédiate** |
 | bande | **Storyboard** : « Activer » refuse, rien ne se dessine | STORYBOARD-1 | prochain chantier de fonction |
 | Preset | « Créer un preset custom », grisé | les zones du tableau, gardées comme gabarit du document | après le Storyboard |
 | Plugins | « Télécharger » le modèle d'IA | l'IA locale | plus tard |

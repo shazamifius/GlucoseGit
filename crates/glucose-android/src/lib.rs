@@ -15,6 +15,7 @@ use winit::platform::android::EventLoopBuilderExtAndroid;
 fn android_main(app: AndroidApp) {
     journal::rediriger_la_sortie();
     selecteur::brancher(&app);
+    feuille::brancher(&app);
     installation::brancher(&app);
     batterie::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
@@ -140,6 +141,27 @@ mod selecteur {
         glucose_desktop::plateforme::partage::installer_le_selecteur(Box::new(move || {
             activite.appeler(jni::jni_str!("choisirDesImages"), "selecteur de photos");
         }));
+    }
+}
+
+/// **La feuille de partage** (PARTAGE-2, fiche 63) : exporter et enregistrer une image écrivent
+/// dans `partages/`, puis `MainActivity.partagerUnFichier` offre le fichier aux autres
+/// applications.
+mod feuille {
+    use winit::platform::android::activity::AndroidApp;
+
+    pub fn brancher(app: &AndroidApp) {
+        let activite = super::java::Activite::de(app);
+        glucose_desktop::plateforme::partager::installer_le_partageur(std::sync::Arc::new(
+            move |chemin, type_mime| {
+                let chemin = chemin.to_string_lossy();
+                activite.appeler_avec_deux(
+                    jni::jni_str!("partagerUnFichier"),
+                    (&chemin, type_mime),
+                    "feuille de partage",
+                );
+            },
+        ));
     }
 }
 
@@ -342,6 +364,32 @@ mod java {
                         methode,
                         jni::jni_sig!("(Ljava/lang/String;)V"),
                         &[jni::JValue::from(&texte)],
+                    )?;
+                    Ok(())
+                },
+                quoi,
+            );
+        }
+
+        /// Appelle une méthode `(String, String)V` de `MainActivity`, avec ces deux chaînes.
+        pub fn appeler_avec_deux(
+            self,
+            methode: &'static JNIStr,
+            (premiere, seconde): (&str, &str),
+            quoi: &str,
+        ) {
+            sur_le_fil(
+                |env| {
+                    // SAFETY : comme dans `appeler`, la référence globale qu'`android-activity`
+                    // garde à l'activité tant qu'elle vit.
+                    let activite = unsafe { JObject::from_raw(env, self.0 as jni::sys::jobject) };
+                    let a = env.new_string(premiere)?;
+                    let b = env.new_string(seconde)?;
+                    env.call_method(
+                        &activite,
+                        methode,
+                        jni::jni_sig!("(Ljava/lang/String;Ljava/lang/String;)V"),
+                        &[jni::JValue::from(&a), jni::JValue::from(&b)],
                     )?;
                     Ok(())
                 },

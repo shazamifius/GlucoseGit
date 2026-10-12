@@ -32,8 +32,11 @@
 
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use entrees::{entrees, Def};
 use glucose_core::store::Store;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
+
+mod entrees;
 
 /// Marges intérieures du menu.
 const PAD: f32 = 4.0;
@@ -132,9 +135,6 @@ pub struct ContextMenu {
     pub font: f32,
 }
 
-mod entrees;
-use entrees::{entrees, Def};
-
 /// Ce qu'un menu proposerait à cet endroit, ouvert en `(ax, ay)` — sur le canevas, ou sur
 /// l'onglet qu'on nomme.
 ///
@@ -203,11 +203,25 @@ pub fn layout_context_menu(
         (at.1 - hauteur).max(0.0)
     };
 
-    // Chaque colonne a la largeur de sa plus longue entrée ; ses entrées, cette largeur moins
-    // les marges — la mesure d'une seule colonne, inchangée.
+    Some(ContextMenu {
+        rect: (x, y, largeur, hauteur),
+        rows: poser(colonnes, &largeurs, (x, y), (pad, rangee, filet)),
+        font,
+    })
+}
+
+/// **Les rangées, posées colonne après colonne** depuis le coin `(x, y)` du menu. Chaque
+/// colonne a la largeur de sa plus longue entrée ; ses entrées, cette largeur moins les marges
+/// — la mesure d'une seule colonne, inchangée.
+fn poser(
+    colonnes: Vec<Vec<Def>>,
+    largeurs: &[f32],
+    (x, y): (f32, f32),
+    (pad, rangee, filet): (f32, f32, f32),
+) -> Vec<MenuRow> {
     let mut rows = Vec::new();
     let mut gauche = x;
-    for (colonne, l) in colonnes.into_iter().zip(largeurs) {
+    for (colonne, &l) in colonnes.into_iter().zip(largeurs) {
         let mut curseur = y + pad;
         for def in colonne {
             match def {
@@ -232,12 +246,7 @@ pub fn layout_context_menu(
         }
         gauche += l;
     }
-
-    Some(ContextMenu {
-        rect: (x, y, largeur, hauteur),
-        rows,
-        font,
-    })
+    rows
 }
 
 /// La hauteur d'une colonne d'entrées : une rangée par entrée, un filet par séparation.

@@ -62,7 +62,7 @@ PLANTES=(
   "$DONNEES/brouillons/brouillon-essai.glucose"
   "$DONNEES/brouillons/recuperation/essai-0-1.fin"
   "$DONNEES/journal-technique/session-essai.jsonl"
-  "$DONNEES/apercus/v2/essai.apercu"
+  "$DONNEES/apercus/v3/essai.apercu"
   "$DONNEES/dernier-document.txt"
   "$MAGASIN/assets/essai.png"
   "$HOME/Documents/essai-tauri.glucose"

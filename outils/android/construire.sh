@@ -22,7 +22,7 @@ cargo ndk -t arm64-v8a -t armeabi-v7a -P 21 \
   -o android/app/src/main/jniLibs \
   build --release -p glucose-android
 
-# Gradle 9.8 : celui du système, ou celui que GRADLE désigne.
+# Gradle (9.6 ou plus) : celui du système, ou celui que GRADLE désigne.
 cd "$RACINE/android"
 if [ -n "${GLUCOSE_KEYSTORE:-}" ]; then
   "${GRADLE:-gradle}" --no-daemon assembleRelease
