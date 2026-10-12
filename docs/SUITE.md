@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 12/10/2026** (fiches 59 à 62). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 12/10/2026** (fiches 59 à 63). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -20,7 +20,27 @@
 
 ---
 
-## 0 quater. Les boutons qui ne faisaient rien — **d'abord** (fiche 62)
+## 0 quinquies. Le flou, chaque bouton, et la 2.0.3-beta.1 — **d'abord** (fiche 63)
+
+Ses mots, le 12/10 au soir : des textes et des membranes « qui restent ultra floutés, même pour
+du texte — des carrés qui ne souhaitent pas du tout se déflouter » ; « un bouton pour absolument
+chaque fonctionnalité, sur PC ou téléphone » ; « regarde les performances » ; et publier la
+2.0.3-beta.1 quand « absolument tout sera parfait ».
+
+| | chantier | où en est-il |
+|---|---|---|
+| [~] | **NETTETE-1** — une image qui n'est pas finie demande la suivante (`c94cc60`) | **à son écran** : zoomer à la molette, s'arrêter entre deux crans |
+| [~] | **ACCES-1** — chaque commande dans le clic droit, au PC et au téléphone ; les signets sans clavier ; le menu en colonnes (`aabd7da`) | **à son écran** |
+| [~] | **PARTAGE-2** — exporter et enregistrer une image au téléphone, par la feuille de partage (`aabd7da`) | **à son téléphone** (l'APK de son Bureau) |
+| [~] | **POSTES-1** — la boîte noire dit quelle étape ralentit un épisode trop lent (`939eab7`, serveur redéployé) | **sa prochaine session au téléphone** le dira |
+| [ ] | **La CI** sur le dernier commit — dix tâches, Linux et les deux Mac : rien ne les a vérifiés depuis le 09/10 | avant la publication — un seul envoi, avec elle |
+| [ ] | **La 2.0.3-beta.1** — notes écrites (`outils/publication/notes.md`), version de travail en 2.0.3-dev ; Actions → Publier, `2.0.3-beta.1`, brouillon coché ; **son essai à l'écran**, puis son clic « Publish release » | après la CI |
+| [ ] | **CHROME-1** — la bande, le rail, la minimap posés par la carte (la couche du dessus repart entière à chaque image : 2,4 à 8 Mo au téléphone) | **après les postes de son téléphone** : ils diront sa part |
+| [ ] | **RASTER-1** — les textes rendus sur plusieurs fils, comme Chromium (chaque fil sa typographie) | idem |
+| [ ] | **Trans-domaines dit « bientôt »** comme Collaborer — le seul bouton qui ne dit pas qu'il ne fait rien | **à sa parole** (fiche 63 § 9) |
+| [ ] | **Mac** : une version publiée, et la mise à jour qui sait la remplacer | chantier à part (§ 3) |
+
+## 0 quater. Les boutons qui ne faisaient rien (fiche 62)
 
 Ses mots, le 12/10 : *« il y a encore des dizaines d'options et de boutons qui ne fonctionnent
 pas »* ; *« 100 % des boutons existants, ainsi que toutes les fonctionnalités à venir, sont
@@ -34,7 +54,7 @@ Rust (c'est elle qui a trouvé le champ Colonnes perdu et le libellé faux d'Ord
 | [~] | **EXPORT-PNG-1** — la sélection, ou le tableau, en PNG, à 100 %, par bandes | `9fca9ca` — **à son écran** ; la taille (100 % ou pleine résolution) **à sa parole** |
 | [~] | **PRESET-1** — six gabarits, zones sur les deux voies, posées par un fantôme, prises par leur bandeau ; « Par slot preset » | `c442ea2` à `367fa73` — **à son écran** |
 | [~] | **CHAMP-1** — les champs de nombre du dock (glisser, ou cliquer et taper) ; « Colonnes » d'Ordonner | `82911ea` — **à son écran** |
-| [ ] | **L'envoi** des neuf commits (`64b5922` à `82911ea`, plus la documentation) | **à sa parole** : avec la CI, ou sans (`[skip ci]`) |
+| [x] | **L'envoi** des neuf commits (`64b5922` à `82911ea`, plus la documentation) | **fait le 12/10** (« urgent », `58ad6ea`) ; sa règle désormais : envoyer sans la CI, la CI avec raison |
 | [ ] | **STORYBOARD-1** — le panneau entier : poser la grille par un fantôme, dessiner les cases sur les deux voies, une image posée dans une case s'y ajuste, la description qui se tape, ajouter, retirer, renuméroter, « ✕ » ; les cases prises par leur bandeau | **le prochain** — Tauri lu (fiche 62 § 10) ; recherche internet à faire avant de concevoir |
 | [ ] | **« Créer un preset custom »** — les zones du tableau enregistrées comme gabarit du document (`project.presets` se lit déjà dans le panneau) | après le Storyboard |
 | [ ] | **L'export SVG complet** — les images et les membranes | |

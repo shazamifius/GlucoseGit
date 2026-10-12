@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 10/10/2026** (fiches 59 à 61). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 12/10/2026** (fiches 59 à 63). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -113,6 +113,11 @@
 | **Deux signes de fin pour une même attente** : la remise au gestionnaire finissait sur sa réponse **ou** sur la sélection prise — chacun, retiré seul, n'aurait rien fait tomber (fiche 61) | chercher l'évènement qui vaut chez tous (la sélection prise, KDE compris), et retirer l'autre |
 | **Des épreuves de droits jouées en `root`**, qui écrit même dans un fichier en lecture seule — et des dossiers d'épreuve laissés par `root`, interdits ensuite à l'utilisateur (fiche 61) | éprouver en utilisateur ordinaire, comme sur GitHub |
 | **Deux compilations à la fois** (Windows et la machine virtuelle Linux) : « le fichier d'échange est trop petit », et des erreurs « can't find crate » qui ne disent pas leur cause (fiche 61) | une seule grosse compilation à la fois ; éteindre la machine virtuelle (`wsl --shutdown`, quand aucune autre distribution ne tourne) avant la suite Windows — arrêter la distribution seule lui laissait 14 Go engagés |
+| **Un travail qui s'endort avant d'être fini** : la dernière image d'un geste, la finesse qui remonte par moitiés, les textures reportées — aucune raison de réveil ne les rappelait, et le flou restait jusqu'au geste suivant (fiche 63, NETTETE-1) | tout ce qui « se fera à l'image suivante » doit **demander** cette image, et finir d'elle-même ; l'épreuve joue l'endormissement (`prochain_reveil`) et exige qu'une image soit demandée, puis plus aucune |
+| **Une règle d'arrêt bâtie sur une somme qui vaut le tout** : « les postes jusqu'à couvrir la médiane » les prenait tous, puisqu'ils se somment à la durée (fiche 63, POSTES-1) | se demander ce que la règle rend **dans le cas ordinaire** avant de l'écrire ; ici, couvrir l'**excès** au-dessus du plancher |
+| **Deux suites d'épreuves lancées l'une sur l'autre** : `LNK1104`, l'exécutable verrouillé, pris pour une épreuve bloquée (fiche 63) | attendre la fin d'une vérification (ou la tuer) avant d'en lancer une autre ; `Get-CimInstance Win32_Process` dit qui tient l'exécutable |
+| **Un commit pris pendant un sabotage** (l'envoi « urgent ») : le saboteur modifie des fichiers le temps d'une épreuve (fiche 63) | après tout commit qu'on n'a pas fait, vérifier qu'aucune garde sabotée n'y est entrée (`git show HEAD:<fichier>`) et qu'il compile ses épreuves |
+| **Un témoin planté sous un nom de version** que le code a changé : `apercus/v2`, retiré au lancement par la version 3 — la répétition de la bascule rouge sur GitHub seulement (fiche 63) | une épreuve lie le script au nom que le code emploie (`apercu::VERSION`) : elle tombe ici d'abord |
 
 ## 5. Les pièges pratiques
 
@@ -129,6 +134,15 @@
   cliquets (fiche 56 : deux `fill_rect`).
 * **Ne jamais éditer un fichier pendant qu'un sabotage le touche** : le saboteur restaure ce
   qu'il a lu au départ, et effacerait la modification (fiche 54 : elle a survécu, de peu).
+* **Git Bash exécute ce qu'on met entre accents graves**, même dans une chaîne destinée à
+  Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
+  (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
+* **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,
+  `JAVA_HOME=C:/Program Files/Java/jdk-21.0.12`, `ANDROID_HOME=C:/Users/Administrator/Android/Sdk`,
+  `GRADLE=C:/Users/Administrator/Android/gradle/gradle-9.8.1/bin/gradle.bat`, et
+  `GLUCOSE_KEYSTORE` / `GLUCOSE_KEYSTORE_PASSWORD` lus dans `Documents\Glucose-cle-android` ;
+  vérifier l'empreinte (`apksigner verify --print-certs` : `3f2af005…`) avant de le poser sur
+  son Bureau.
 * **Android** : les objets de construction dans `target/android` (`CARGO_TARGET_DIR`) pour ne pas
   recompiler le bureau ; `cargo ndk -t arm64-v8a -P 21 clippy -p glucose-android -p
   glucose-desktop -- -D warnings` voit ce que Windows ne compile pas (les doigts, `ureq`).

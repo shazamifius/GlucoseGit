@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 10/10/2026** (fiches 51 à 61 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 12/10/2026** (fiches 51 à 63 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -51,7 +51,11 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
 
 * **`app/`** : la boucle (`evenements.rs`) ne contient aucune logique, elle traduit et confie.
   `peinture.rs` décide quoi repeindre, `presentation.rs` remet l'image à l'écran, `reveil.rs` dit
-  quand se réveiller (**`ControlFlow::Wait`** : sans raison, Glucose dort).
+  quand se réveiller (**`ControlFlow::Wait`** : sans raison, Glucose dort). **Une image qui n'est
+  pas finie demande la suivante** (NETTETE-1, `Raison::Nettete`, fiche 63) : la dernière image
+  d'un geste appelle son image d'arrêt, la finesse réduite remonte jusqu'à un, et les textures
+  que la cascade a reportées (`SceneGpu::inachevee`, lu par `Presenter::scene_inachevee`) se
+  redemandent **sans rien repeindre** (`demander_une_image`). Chacune finit d'elle-même.
 * **`interactions/`** : chaque geste a son module. La souris (`mouse.rs`) pose sa question aux
   couches du haut vers le bas ; le clic (`pick.rs`) passe par l'arbitre du noyau (`hit_priority`,
   PICK-2) ; le glisser (`drag.rs`), l'aimant (`aimant.rs`, SNAP-4), le placement aimanté
@@ -193,7 +197,7 @@ l'écran) ; **la question** (`question.rs`, QUESTION-1, POPUP-1), que Glucose de
 **partout** — aucune boîte du système ne tient plus sa boucle — et dont la réponse déclenche une
 **suite** (`interactions/question.rs` ; la fermeture en a une, `persist::close::Apres`) : elle
 répond au relâchement, sur la réponse pressée, et au clavier (Entrée, Tab, Échap), prend tout
-ce qui la touche, et peut porter un **champ** de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
+ce qui la touche, et peut porter un **champ** de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. **Le menu porte chaque commande** (ACCES-1, fiche 63) — ce qu'il propose dans `ui/context_menu/entrees.rs`, sa pose dans `context_menu.rs`, **en colonnes** quand l'écran est trop bas (un groupe reste entier) ; les signets vivent dans `interactions/signets.rs` (le clavier et la question « Signets… » appellent les mêmes gestes). `dock/` : les panneaux (Ordonner,
 Timer, Domaines, Time Machine, Presets ; Storyboard et Plugins sont encore des façades honnêtes),
 chacun avec son cache ; `dock/clic.rs` aiguille le clic, `dock/champ.rs` porte les **champs de
 nombre** (CHAMP-1 : glisser, ou cliquer et taper — tout le panneau est la règle). Les zones des
@@ -214,7 +218,11 @@ objet, `selection_windows` (COPIER-1, `IDataObject`), qui part au presse-papiers
 (`OleSetClipboard`) et dans le glisser : le lot « Glucose.Lot », le texte, l'image seule en PNG et
 `CF_DIBV5`, plusieurs images en `CF_HDROP` — des fichiers écrits au premier collage qui les veut,
 dans `%TEMP%\glucose-copies` (`copies.rs`, partagé), et rendus à la fermeture (`OleFlushClipboard`) ; **sous X11, la sélection servie par Glucose** (`selection_x11`, fiche 61) — sa connexion, sa fenêtre marquée et son fil : le lot (`application/x-glucose-lot`), le texte, `image/png` ou `text/uri-list` et `x-special/gnome-copied-files`, `TARGETS`, `TIMESTAMP`, `MULTIPLE`, `INCR` au-delà de la plus grande requête, la prise à l'heure du serveur, la remise au gestionnaire à la fermeture (`SAVE_TARGETS`) ; sous macOS, `arboard` ne pose encore que le lot, en HTML ; l'objet d'`arboard` est **tenu** toute la vie de l'application (TENU-1 : sous X11, le copieur sert le collage) —, le téléchargement (WinHTTP sous Windows,
-`ureq` ailleurs), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la
+`ureq` ailleurs), **la feuille de partage** (PARTAGE-2, fiche 63 : `plateforme::partager`, une
+porte que `glucose-android` branche sur `MainActivity.partagerUnFichier` ; là où elle est
+branchée, exporter et enregistrer une image écrivent dans `partages/` — `persist/partages.rs`,
+le seul dossier que le `FileProvider` ouvre — et **tout fichier qui vient d'y être écrit
+s'offre**), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la
 carte (DXGI), la priorité des fils, l'identité pour la barre des tâches, l'heure locale, le journal
 des plantages de Windows, la batterie.
 
@@ -231,7 +239,11 @@ des plantages de Windows, la batterie.
   toutes celles qui ont mal fini, efface le reste. Une session se reconnaît par sa **clé** (son
   début et son processus), pas par le nom de son fichier. Ses lignes ne portent que des nombres
   et des mots fixés à la compilation ; la carte graphique y entre par ses numéros (CARTE-1,
-  fiche 60), que la présentation rend avec son nom (`Presenter::carte`).
+  fiche 60), que la présentation rend avec son nom (`Presenter::carte`). **Un épisode plus lent
+  que le plancher dit où son temps est parti** (POSTES-1, fiche 63) : une ligne `poste` pour
+  chacun des postes sans lesquels son image ordinaire tiendrait dans les 10 ms — leurs noms sont
+  les marques de mesure du code, une liste fermée du serveur qu'une épreuve lie au code. Les
+  distributions par geste de la chronique vivent dans `chronique/par_geste.rs`.
 * **La boîte noire qui voyage** (`telemetrie.rs`, fiche 54) : **avec l'accord de chacun**, les
   sessions closes partent au lancement, sur un fil à part, vers un Worker de Cloudflare
   (`outils/telemetrie/`, qui n'accepte que les noms de ses listes fermées). Rien ne part tant que

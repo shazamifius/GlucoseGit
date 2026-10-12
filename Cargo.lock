@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "glucose-android"
-version = "2.0.2-dev"
+version = "2.0.3-dev"
 dependencies = [
  "glucose-desktop",
  "jni",
@@ -1176,7 +1176,7 @@ version = "1.0.0"
 
 [[package]]
 name = "glucose-desktop"
-version = "2.0.2-dev"
+version = "2.0.3-dev"
 dependencies = [
  "arboard",
  "automerge",

@@ -2,52 +2,34 @@
 
 **Ce qui change dans cette version**
 
-* **Fini les gels d'une demi-seconde sur les portables à deux cartes graphiques** : Glucose
-  dessine désormais sur la carte qui tient l'écran. Il pouvait dessiner sur l'autre, une
-  session sur deux, et chaque image devait alors traverser d'une carte à l'autre.
-* **Au dézoom, les poignées et le cadre d'une sélection suivent la taille des nœuds** : ils ne
-  recouvrent plus des vignettes plus petites qu'eux, et une vignette sélectionnée se déplace
-  au lieu de se redimensionner.
-* **Au pavé tactile, Glucose suit exactement les doigts** : le pincement et le déplacement à
-  deux doigts arrivent tels que les doigts les font, avec l'inertie de Windows, et se mêlent
-  librement — un déplacement en biais ne se bloque plus en zoom. Le pincement s'arrête avec
-  les doigts.
-* **Transformer toute une sélection, comme dans Blender** : plusieurs nœuds choisis ont un seul
-  cadre ; tirer un coin les met à l'échelle ensemble, `Alt` + coin les fait tourner. Le bouton
-  « Origine commune / Origines individuelles » dit autour de quoi.
-* **`F` cadre la sélection** (ou tout, si rien n'est choisi), **`Ctrl+F` cadre tout**.
-* **Une épingle de Pinterest paraît tout de suite** : une copie se pose aussitôt, et l'image
-  d'origine prend sa place dès qu'elle arrive.
-* **Le journal technique, si tu le veux** : au premier lancement, Glucose demande s'il peut
-  envoyer le journal technique de ses sessions (le temps de chaque image, le système, la façon
-  dont une session a fini — jamais le contenu des documents). « Non » ne change rien, et le
-  choix se reprend au clic droit sur le canevas.
-* **Les images glissées depuis Pinterest arrivent bien plus vite** (la page est demandée
-  compressée : une seconde au lieu de vingt). Si une image ne vient vraiment pas, le lien posé
-  à sa place dit pourquoi, et le clic droit « Remplacer par l'image » réessaie.
-* **`Ctrl+N` demande toujours** avant de commencer un nouveau document : un raccourci tapé par
-  erreur ne fait plus rien disparaître de l'écran.
-* **Le mode référence au pavé tactile** : `Alt` + glisser déplace la fenêtre, `Alt` + pincer
-  l'agrandit ou la rétrécit ; les panneaux s'effacent avec le reste de l'interface.
-* **Les signets ramènent au même lieu dans une fenêtre de n'importe quelle taille** : ils
-  retiennent le centre de la vue. Ceux posés avec une version précédente sont à reposer une fois.
-* **La molette zoome bien plus vite** : trois crans doublent la taille.
-* **À la souris, tout est instantané** : un cran de molette zoome tout de suite, le glisser au
-  bouton du milieu suit la souris au pixel, et rien ne glisse quand on lâche. Au pavé tactile,
-  le déplacement à deux doigts garde son élan.
-* **Copier, couper, coller des nœuds** — textes, images, flèches, membranes —, y compris d'une
-  fenêtre de Glucose à une autre : `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, ou le clic droit. Le collage se
-  pose sous la souris et se défait d'un seul `Ctrl+Z`.
-* **Clic droit sur une image** : « Copier l'image », pour la coller dans Discord, un navigateur
-  ou un logiciel de dessin ; « Enregistrer l'image sous… », qui rend le fichier d'origine, tel
-  qu'il avait été posé.
-* **`Ctrl+N`** : un nouveau document vierge (aussi au clic droit sur le vide). Un travail sans
-  nom pose la question habituelle avant.
-* **Le mode référence**, comme PureRef : `Ctrl+Maj+A` (ou le clic droit) retire toute
-  l'interface et le cadre de la fenêtre, et la garde au premier plan — pour garder sa
-  référence au-dessus de Blender. On la déplace au **bouton droit**, on la redimensionne par
-  ses bords, et Glucose s'en souvient à la relance. Le même geste le défait.
-* Supprimer une sélection qui mêle images et textes se défait désormais d'un seul `Ctrl+Z`.
+* **Le texte et les membranes redeviennent nets dès qu'on s'arrête** : à certains niveaux de
+  zoom, des textes restaient flous, parfois par carrés, jusqu'au geste suivant. Glucose finit
+  désormais chaque image avant de s'endormir.
+* **Chaque commande a son entrée dans le clic droit** — au téléphone, deux touchers sur le
+  vide : annuler et rétablir, tout cadrer, cadrer la sélection, les **signets** (y aller, en
+  poser un, en remplacer un), enregistrer, enregistrer sous, exporter. Plus rien ne demande un
+  clavier. Sur un petit écran, le menu se range en colonnes au lieu de sortir de l'écran.
+* **Un seul « Copier »**, et une image reste une image : collée dans Discord, un navigateur ou
+  Paint, une image arrive comme une image, plusieurs comme des fichiers. Sous Windows, on peut
+  aussi **glisser** des nœuds vers Discord, Google Docs ou le bureau. Sous Linux, le même
+  copier, et une copie ne disparaît plus quand Glucose la quitte.
+* **Ordonner** : les tris **par la couleur** (couleur, du sombre au clair, du clair au sombre),
+  le champ « Colonnes », et des champs qu'on règle en glissant ou en tapant.
+* **Les Presets** : six gabarits (CharaDesign, Environment, Creature Design, Props & Items,
+  Storyboard, Mood Board) posés où l'on veut ; leurs zones se déplacent et se redimensionnent par leur bandeau ; « Par slot preset »
+  range les images de chaque zone dans la zone.
+* **Exporter en image** : la sélection, ou tout le tableau, en PNG.
+* **La question passe par-dessus les panneaux**, et aucun panneau ne s'ouvre au lancement.
+* **Le canevas défile** quand on tient un nœud près du bord de la fenêtre (une première
+  version).
+* **Au téléphone** : exporter et enregistrer une image passent par le **partage** d'Android
+  (Fichiers, la galerie, une conversation…) ; « Enregistrer » range un travail sans nom,
+  « Enregistrer sous… » le renomme, « Importer un document… » ajoute un autre document en
+  onglets ; un dossier choisi a son menu ; les grandes photos ne dépassent plus ce que la puce
+  graphique accepte.
+* **Le journal technique, si tu l'as accepté**, dit désormais la carte graphique (par ses
+  numéros) et, quand un geste a été trop lent, quelle étape du dessin l'a ralenti — toujours
+  aucun contenu de tes documents. Tout est décrit dans le `LISEZ-MOI.txt` de son dossier.
 
 | système | fichier |
 |---|---|
@@ -56,7 +38,7 @@
 | Debian, Ubuntu | `Glucose_{version}_amd64.deb` |
 | Fedora | `Glucose-{version}-1.x86_64.rpm` |
 | NixOS | `nix run github:shazamifius/GlucoseGit` |
-| Android 5.0 et après | `Glucose_{version}_android.apk` — **une première version d'essai** : on y navigue et on y pince, le clavier et l'ouverture de fichiers viendront |
+| Android 5.0 et après | `Glucose_{version}_android.apk` — au doigt : deux touchers sur le vide ouvrent le menu, un appui long fait le clic droit, deux doigts touchés annulent, trois rétablissent |
 
 **Sous Windows**, un avertissement peut paraître (« Windows a protégé votre ordinateur ») :
 Glucose n'est pas signé par un certificat payant. « Informations complémentaires », puis
@@ -65,8 +47,9 @@ Glucose n'est pas signé par un certificat payant. « Informations complémentai
 **Sous Android**, ouvrir l'APK depuis le téléphone : il demande d'autoriser l'installation
 d'applications inconnues pour l'application qui l'ouvre (Fichiers, Drive, le navigateur), puis
 peut dire qu'elle n'est pas vérifiée — elle n'est pas sur le Play Store. « Installer quand même ».
+Les versions suivantes arrivent d'elles-mêmes.
 
-**Avec Glucose Tauri déjà installé**, la mise à jour arrive d'elle-même, par la fenêtre
-habituelle. Les documents et les images restent à leur place.
+**Avec Glucose Tauri ou une version précédente déjà installée**, la mise à jour arrive
+d'elle-même, par la fenêtre habituelle. Les documents et les images restent à leur place.
 
 Les fichiers `.sig` et `latest.json` servent la mise à jour automatique.

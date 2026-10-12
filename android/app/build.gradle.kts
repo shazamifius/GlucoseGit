@@ -5,7 +5,7 @@ plugins {
 }
 
 // **La version** (fiche 54) : celle que la publication donne, ou celle du travail.
-val versionDeGlucose: String = System.getenv("GLUCOSE_VERSION") ?: "2.0.2-dev"
+val versionDeGlucose: String = System.getenv("GLUCOSE_VERSION") ?: "2.0.3-dev"
 
 /**
  * **Un code qui monte avec la version** : Android refuse une mise à jour dont le code ne monte

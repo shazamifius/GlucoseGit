@@ -10,7 +10,9 @@
 > les dossiers, la carte au journal, le presse-papiers tenu, et le recul du copier sous Linux et
 > Mac qui retient la beta 3 (fiche 60), et celle du copier unique sous Linux, la voie B qu'il a
 > choisie (fiche 61), et celle des boutons qui ne faisaient rien — les tris par la couleur, l'export
-> en image, les Presets et leurs zones, les champs du dock (fiche 62). Ce document dit l'état **vérifié** du projet,
+> en image, les Presets et leurs zones, les champs du dock (fiche 62), et celle du flou qui restait
+> et d'un bouton pour chaque fonction — la netteté, les menus, le partage au téléphone, la boîte
+> noire qui dit où part le temps (fiche 63). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -22,7 +24,9 @@
   09/10/2026 (construite sur `06f4217`, la fiche 58 — relevé sur GitHub le 09/10 au soir, aucun
   document ne le disait) : installeur Windows, AppImage, `.deb`, `.rpm`, **l'APK Android**, et
   `nix run github:shazamifius/GlucoseGit`. La 2.0.2-beta.1 (07/10) et la 2.0.1-beta.1 (30/09) la
-  précèdent. **Les fiches 59 et 60 ne sont dans aucune publication** : ce sera la 2.0.2-beta.3.
+  précèdent. **Les fiches 59 à 63 ne sont dans aucune publication** : la 2.0.2-beta.3 n'a jamais
+  paru ; la suivante est la **2.0.3-beta.1**, prête jusqu'au brouillon (notes écrites, version
+  de travail en 2.0.3-dev) — elle attend la CI, son essai à l'écran, puis son clic.
 * **Glucose Tauri bascule de lui-même.** Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   trouve la 2.0.1 dans le même `latest.json`, par le popup habituel. Ses documents s'ouvrent dans
   Glucose Rust, et ses données ne sont jamais touchées. Cette bascule a été répétée de bout en bout
@@ -33,7 +37,10 @@
   compte Cloudflare (`glucose-boite-noire.ferme-nilslamber.workers.dev`, base D1 en Europe de
   l'Ouest), éprouvé de bout en bout sur Internet ; Glucose y envoie avec l'accord de chacun,
   demandé au premier lancement. **Le 08/10 au soir, huit sessions y sont arrivées**, dont quatre
-  de son téléphone (fiche 57 § 5) : la question dessinée a donc marché chez lui.
+  de son téléphone (fiche 57 § 5) : la question dessinée a donc marché chez lui. **Au 12/10, 34
+  sessions** — et **un nouvel utilisateur** : une installation Windows inconnue (`5280efb2`),
+  montée de la 2.0.1-beta.1 à la 2.0.2-beta.2 par la mise à jour automatique, des sessions de
+  deux heures, fins propres (fiche 63 § 5).
 * **Android : Glucose tourne sur son moto g54 5G** (« oui, ça fonctionne sur téléphone », 08/10 ;
   **c'est lui qui a montré les rayures** ; une puce graphique PowerVR, pas une Mali — fiche 61
   § 6 ; le Redmi 9 des documents n'a jamais été essayé) —
@@ -93,9 +100,18 @@
   par bandes ; **les Presets** — les six gabarits de Tauri, des zones dessinées sur les deux
   voies, posées par un fantôme, prises par leur bandeau, et **« Par slot preset »** qui range
   chaque zone en elle-même ; **les champs de nombre du dock**, qui ne répondaient à rien (glisser
-  ou taper), et le champ « Colonnes » d'Ordonner, perdu au portage. **Neuf commits en local, non
-  envoyés.** Tout est éprouvé et saboté, **rien n'est encore jugé à son écran**. Ce qui reste en
-  façade : fiche 62 § 8 — d'abord **le Storyboard**.
+  ou taper), et le champ « Colonnes » d'Ordonner, perdu au portage. **Envoyés le 12/10** (dans
+  « urgent », `58ad6ea`). Tout est éprouvé et saboté, **rien n'est encore jugé à son écran**.
+* **Fiche 63 — le flou qui restait, et un bouton pour chaque fonction** : **NETTETE-1** — une
+  image qui n'est pas finie demande la suivante (la dernière image d'un geste, la finesse qui
+  remonte, les textures que la carte a reportées : ses « carrés qui ne se défloutent pas ») ;
+  **ACCES-1** — annuler, rétablir, tout cadrer, cadrer la sélection, **les signets**, enregistrer,
+  enregistrer sous, exporter, dans le clic droit (et au téléphone) ; le menu se range en
+  colonnes ; **PARTAGE-2** — au téléphone, exporter et enregistrer une image par la feuille de
+  partage d'Android ; **POSTES-1** — la boîte noire dit quelle étape ralentit un épisode trop
+  lent (le serveur redéployé, éprouvé en ligne). L'inventaire de chaque fonction et de son
+  bouton : [`INVENTAIRE.md`](INVENTAIRE.md). **Envoyé sans la CI** (`aabd7da`, `939eab7`) ;
+  **rien n'est jugé à son écran** ; un APK neuf, signé de sa clé, est sur son Bureau.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -126,10 +142,14 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 334** sous Windows, toutes vertes (fiche 62 ; la suite Linux de WSL n'a
+* **Épreuves** : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
   pas été rejouée depuis la fiche 61, où elle comptait **2 255**) ; clippy strict à zéro sous
-  Windows et pour Android. **Les neuf commits de la fiche 62** (`64b5922` à `82911ea`) sont
-  **en local**, non envoyés. Fiche 61 —
+  Windows et pour Android. **Tout est envoyé** (12/10 au soir) : la fiche 62 et NETTETE-1 dans
+  « urgent » (`58ad6ea`, sa CI : APK, NixOS, paquets Linux et installeur verts ; formatage rouge,
+  réglé ; **la répétition de la bascule rouge** — son témoin plantait dans `apercus/v2`, que la
+  version 3 retire : réparé, fiche 63 § 8), puis `aabd7da` et `939eab7` **sans la CI**. **La
+  prochaine CI vérifiera tout cela, Linux et les deux Mac compris** — avant la 2.0.3-beta.1.
+  Fiche 61 —
   la suite tourne désormais **aussi sous Linux sur ce PC**, dans la distribution WSL
   `Glucose-Linux` (METHODE § 5) ; clippy strict à zéro avec Rust 1.99, sous Windows, Linux **et
   pour Android** ; la fiche 61 a saboté quinze gardes, quinze chutes.
@@ -160,8 +180,13 @@
   la répétition de la bascule rouge** — son témoin était planté dans l'ancien dossier du journal
   (fiche 58 § 9). Deux envois plus tard, **`06f4217` : les dix tâches vertes** (exécution
   37850791104), Linux et les deux Mac compris.
-* **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
-  05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
+* **Son téléphone** (moto g54, sa télémétrie, 14 sessions) : **19,5 ms** par image en
+  déplaçant la vue, 15,7 en zoomant, un glisser de nœud gelé jusqu'à 885 ms — cinq à six fois
+  son PC, et sous le plancher presque tout le temps. **Où part le temps : POSTES-1 le dira** à sa
+  prochaine session avec l'APK neuf (fiche 63 § 7 : CHROME-1 et RASTER-1, les deux pistes).
+* **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %) : au
+  12/10, par sa télémétrie, **3,25 ms** en zoomant, 3,03 en déplaçant la vue (médianes) ; session
+  du 05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
   **pas encore tenu partout**.
 * **Le lag du 07/10 au matin** (gels de 300 à 500 ms dans `present`, pour des images de 3 ms) :
@@ -175,6 +200,9 @@
   dessinent les messages qui s'effacent et les glissades qui finissent.
 
 ## 5. Ce qui manque encore (de Tauri)
+
+**L'inventaire complet, fonction par fonction et bouton par bouton, au PC et au téléphone,
+vit dans [`INVENTAIRE.md`](INVENTAIRE.md)** (fiche 63). En bref :
 
 Rideaux · temporalité (réglette de −10 000 à 2 100) · **storyboard** (le prochain) · un preset
 personnel (« Créer un preset custom ») · l'export HTML, et le SVG complet · miroirs et dossiers miroirs du disque · recherche (`Ctrl+F`) · couleur des domaines sur le

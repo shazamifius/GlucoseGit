@@ -1,7 +1,7 @@
 [package]
 name = "glucose-android"
 # La même version que l'application : l'APK et le programme de bureau sont un seul Glucose.
-version = "2.0.2-dev"
+version = "2.0.3-dev"
 edition = "2021"
 description = "Glucose sur Android : le point d'entrée que GameActivity appelle (fiche 54)"
 publish = false
