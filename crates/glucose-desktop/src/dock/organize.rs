@@ -128,7 +128,7 @@ impl LayoutMode {
             Self::Masonry => "Colonnes indépendantes — Pinterest",
             Self::Grid => "Même largeur par colonne, ratios conservés",
             Self::SameHeight => "Hauteur fixe, largeur proportionnelle",
-            Self::BySlot => "Colonnes séparées par catégorie",
+            Self::BySlot => "Chaque zone du gabarit range ses images",
         }
     }
 
