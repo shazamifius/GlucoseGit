@@ -18,6 +18,10 @@ pub struct Attentes {
     pub bordures: Option<LotDeBordures>,
     /// Un rangement par la couleur qui attend ses couleurs.
     pub rangement: Option<RangementEnAttente>,
+    /// **Un export en image**, sur son fil (EXPORT-PNG-1). Il ne compte pas dans
+    /// [`Attentes::aucune`] : il réveille la boucle lui-même à chaque bande, et rien n'est à
+    /// redessiner entre deux.
+    pub export: Option<crate::persist::export::png::EnCours>,
 }
 
 impl Attentes {

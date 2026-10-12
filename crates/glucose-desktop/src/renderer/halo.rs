@@ -482,6 +482,14 @@ pub(crate) fn portee_du_flou(sigma: f32, alpha: u8) -> f32 {
     EdgeProfile::new(sigma).reach(alpha)
 }
 
+/// **Jusqu'où une lueur au repos déborde de sa carte**, en pixels, à cette échelle : sa
+/// dilatation, puis la portée de son flou. Au-delà, elle ne change plus un pixel — la marge
+/// d'un export (EXPORT-PNG-1).
+pub(crate) fn debord_au_repos(echelle: f32) -> f32 {
+    let eclat = Eclat::REPOS;
+    eclat.etalement() * echelle + portee_du_flou(eclat.sigma() * echelle, eclat.alpha())
+}
+
 /// Passe de rendu des lueurs d'ambiance (L1 : ne parcourt que les cartes visibles).
 pub fn draw_halos(
     hue_cache: &mut SymbioticHueCache,

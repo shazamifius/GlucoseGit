@@ -241,7 +241,7 @@ impl GlucoseApp {
     }
 
     /// Le chemin est connu : lire, adopter le document ou dire pourquoi ça a échoué.
-    pub(crate) fn open_from(&mut self, path: PathBuf) {
+    pub fn open_from(&mut self, path: PathBuf) {
         let message = self.ouvrir_et_dire(path);
         self.ui.show_toast(message);
     }

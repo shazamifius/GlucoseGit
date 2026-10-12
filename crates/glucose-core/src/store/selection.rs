@@ -97,4 +97,32 @@ impl Store {
             .filter(|a| self.selected_annotation_ids.iter().any(|s| s == a.id()))
             .collect()
     }
+
+    /// **Une copie du document pour un export** (EXPORT-PNG-1) : sans histoire ni sélection,
+    /// et, si `la_selection`, réduite sur le tableau actif à ce qui est choisi — images,
+    /// annotations, dossier. Elle prend le document en lecture : celui qu'on édite n'est jamais
+    /// touché.
+    pub fn copie_a_exporter(&self, la_selection: bool) -> Store {
+        let mut copie = Store::new(self.project.name.clone());
+        copie.project = self.project.clone();
+        copie.assets = self.assets.clone();
+        if la_selection {
+            let choisie = |ids: &[String], id: &str| ids.iter().any(|s| s == id);
+            if let Some(b) = copie.active_board_mut() {
+                b.images
+                    .retain(|i| choisie(&self.selected_image_ids, &i.id));
+                b.annotations
+                    .retain(|a| choisie(&self.selected_annotation_ids, a.id()));
+                b.folders
+                    .retain(|f| self.selected_folder_id.as_deref() == Some(f.id.as_str()));
+            }
+        }
+        copie
+    }
+
+    /// Le tableau actif porte-t-il au moins une annotation ?
+    pub fn a_des_annotations(&self) -> bool {
+        self.active_board()
+            .is_some_and(|b| !b.annotations.is_empty())
+    }
 }

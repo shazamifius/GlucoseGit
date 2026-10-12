@@ -28,6 +28,7 @@ pub mod card;
 pub mod composants;
 mod decision;
 pub mod domain;
+pub mod export;
 mod fenetre_d_ancrage;
 mod fils;
 pub mod focus;

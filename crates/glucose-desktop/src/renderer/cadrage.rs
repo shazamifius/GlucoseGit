@@ -133,6 +133,10 @@ pub struct Cadrage {
     pub en_mouvement: bool,
     /// Quelle part de la scene ce rendu produit (voir [`Couche`]).
     pub couche: Couche,
+    /// **Les reperes de la navigation** -- la grille de points -- se dessinent-ils ? Ils aident
+    /// l'oeil a sentir la vue qui bouge ; ils ne sont pas du contenu, et un export en image ne
+    /// les porte pas (EXPORT-PNG-1).
+    pub reperes: bool,
 }
 
 impl Cadrage {
@@ -145,6 +149,7 @@ impl Cadrage {
             degradation_permise: false,
             en_mouvement: false,
             couche: Couche::Tout,
+            reperes: true,
         }
     }
 
@@ -159,6 +164,7 @@ impl Cadrage {
             degradation_permise: true,
             en_mouvement: true,
             couche: Couche::Tout,
+            reperes: true,
         }
     }
 
@@ -171,6 +177,7 @@ impl Cadrage {
             degradation_permise: false,
             en_mouvement: false,
             couche: Couche::Tout,
+            reperes: true,
         }
     }
 
@@ -192,6 +199,7 @@ impl Cadrage {
             degradation_permise: false,
             en_mouvement: false,
             couche: Couche::Tout,
+            reperes: true,
         }
     }
 
@@ -199,6 +207,14 @@ impl Cadrage {
     pub fn avec_degradation(self, permise: bool) -> Self {
         Self {
             degradation_permise: permise,
+            ..self
+        }
+    }
+
+    /// Le meme cadrage, **sans les reperes de la navigation** : ce que montre un export.
+    pub fn sans_reperes(self) -> Self {
+        Self {
+            reperes: false,
             ..self
         }
     }

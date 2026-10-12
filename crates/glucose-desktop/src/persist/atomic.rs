@@ -74,6 +74,21 @@ pub fn ecrire_d_un_bloc(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     poser_d_un_bloc(path, |temp| fill(temp, bytes))
 }
 
+/// **Écrit à `path` au fil de l'eau**, sous la même loi : `ecrire` reçoit le voisin et y écrit
+/// ce qu'il veut, en autant de fois qu'il veut ; tout est poussé jusqu'au disque avant de
+/// prendre la place de la destination. Un export en image s'écrit ainsi bande après bande, sans
+/// tenir l'image entière (EXPORT-PNG-1) — et une erreur en chemin ne laisse rien.
+pub fn ecrire_en_flux(
+    path: &Path,
+    ecrire: impl FnOnce(&mut std::io::BufWriter<File>) -> std::io::Result<()>,
+) -> std::io::Result<()> {
+    poser_d_un_bloc(path, |temp| {
+        let mut sortie = std::io::BufWriter::new(File::create(temp)?);
+        ecrire(&mut sortie)?;
+        sortie.into_inner().map_err(|e| e.into_error())?.sync_all()
+    })
+}
+
 /// **Copie `source` à `path`** sous la même loi : la copie entière et poussée sur le disque
 /// avant de prendre la place de ce qui s'y trouvait (« Enregistrer sous », SAUVER-1).
 pub fn copier_d_un_bloc(source: &Path, path: &Path) -> std::io::Result<()> {
@@ -236,6 +251,37 @@ mod tests {
         assert!(leftovers.is_empty(), "temporaires restants : {leftovers:?}");
 
         std::fs::remove_dir_all(destination.parent().expect("parent")).expect("nettoyage");
+    }
+
+    /// **Écrire au fil de l'eau ne touche la destination qu'entier** (EXPORT-PNG-1) : une
+    /// erreur au milieu de l'écriture — la moitié d'une image déjà écrite — laisse l'ancien
+    /// fichier tel quel, et aucun voisin. Écrire directement dans la destination aurait laissé
+    /// la moitié de la nouvelle.
+    #[test]
+    fn test_ecrire_en_flux_ne_pose_rien_a_moitie() {
+        let path = scratch("flux", "image.png");
+        write_atomic(&path, b"l'image d'hier").expect("une image d'hier");
+        let echec = ecrire_en_flux(&path, |sortie| {
+            sortie.write_all(b"la moitie d'une image")?;
+            sortie.flush()?;
+            Err(std::io::Error::other("le rendu a echoue en chemin"))
+        });
+        assert!(echec.is_err());
+        assert_eq!(std::fs::read(&path).expect("relu"), b"l'image d'hier");
+        let voisins = std::fs::read_dir(path.parent().expect("un dossier"))
+            .expect("lisible")
+            .count();
+        assert_eq!(voisins, 1, "aucun voisin ne reste");
+
+        ecrire_en_flux(&path, |sortie| {
+            sortie.write_all(b"l'image ")?;
+            sortie.write_all(b"d'aujourd'hui")
+        })
+        .expect("une image entiere");
+        assert_eq!(
+            std::fs::read(&path).expect("relu"),
+            b"l'image d'aujourd'hui"
+        );
     }
 
     #[test]

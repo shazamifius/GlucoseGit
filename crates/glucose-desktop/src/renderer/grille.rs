@@ -170,7 +170,9 @@ pub(super) fn poser_le_fond(
     }
     pixmap.fill(fond.theme.bg_canvas);
     crate::perf::stage("clear");
-    super::scene::grid::draw_grid(pixmap, &pass.vp, width, height, header_h);
+    if cadrage.reperes {
+        super::scene::grid::draw_grid(pixmap, &pass.vp, width, height, header_h);
+    }
     crate::perf::stage("grid");
 }
 

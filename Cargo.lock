@@ -1187,6 +1187,7 @@ dependencies = [
  "libc",
  "minisign-verify",
  "miniz_oxide 0.8.9",
+ "png 0.18.1",
  "pollster",
  "rfd",
  "softbuffer",

@@ -38,7 +38,7 @@ fn un_nom_sans_extension_connue_prend_le_premier_format() {
 
     let (chemin, format) = destination(PathBuf::from("carte"));
     assert_eq!(format, Format::TOUS[0]);
-    assert_eq!(chemin, PathBuf::from("carte.md"));
+    assert_eq!(chemin, PathBuf::from("carte.png"), "l'image d'abord");
 
     // Et le chemin rendu annonce bien ce qui sera écrit : le nom ne peut pas mentir.
     assert_eq!(Format::du_chemin(&chemin), Some(format));
@@ -76,7 +76,7 @@ fn deux_formats_ne_partagent_jamais_une_extension() {
 fn chaque_format_rend_sa_propre_forme() {
     let board = tableau_avec_une_carte();
 
-    let markdown = Format::Markdown.rendre(&board);
+    let markdown = Format::Markdown.rendre(&board).expect("un format de texte");
     assert!(
         markdown.contains("Un titre"),
         "le markdown porte le texte de la carte : {markdown}"
@@ -86,7 +86,8 @@ fn chaque_format_rend_sa_propre_forme() {
         "le markdown n'est pas du svg : {markdown}"
     );
 
-    let svg = Format::Svg.rendre(&board);
+    let svg = Format::Svg.rendre(&board).expect("un format de texte");
+    assert_eq!(Format::Png.rendre(&board), None, "une image se dessine");
     assert!(svg.starts_with("<?xml"), "un svg commence par son prologue");
     assert!(svg.contains("<svg"), "et porte sa balise racine");
 }

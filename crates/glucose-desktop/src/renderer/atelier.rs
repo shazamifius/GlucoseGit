@@ -39,6 +39,13 @@
 use super::apercu::{self, Apercu};
 use super::photo::{Pyramide, Retour, Transit};
 use crate::persist::objets::Parole;
+
+/// Ce qu'un atelier prête à un autre : où lire les octets des images, et ses aperçus.
+#[derive(Clone, Default)]
+pub struct Partage {
+    objets: Option<Arc<crate::persist::objets::Objets>>,
+    apercus: Option<Arc<std::path::Path>>,
+}
 use std::collections::{HashSet, VecDeque};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex};
@@ -272,6 +279,23 @@ impl Atelier {
     /// s'y écrivent.
     pub fn brancher_les_apercus(&mut self, dossier: std::path::PathBuf) {
         self.apercus = Some(apercu::dossier_de_cette_version(&dossier).into());
+    }
+
+    /// **Ce qu'un autre atelier partage** — où lire les octets des images, et ses aperçus, déjà
+    /// rangés : le moteur d'un export lit ceux de l'écran (EXPORT-PNG-1). Brancher le dossier
+    /// des aperçus une seconde fois le rangerait de nouveau — et le rangement retire tout
+    /// aperçu posé à sa racine, donc tous ceux de l'écran.
+    pub fn a_partager(&self) -> Partage {
+        Partage {
+            objets: self.objets.clone(),
+            apercus: self.apercus.clone(),
+        }
+    }
+
+    /// **Lit comme cet autre atelier** : ses objets, et ses aperçus tels qu'ils sont rangés.
+    pub fn partager_avec(&mut self, partage: Partage) {
+        self.objets = partage.objets;
+        self.apercus = partage.apercus;
     }
 
     /// Les aperçus sont-ils gardés ?

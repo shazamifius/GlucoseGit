@@ -1,4 +1,4 @@
-//! Sortir un tableau vers le monde extérieur : Markdown ou image vectorielle.
+//! Sortir un tableau vers le monde extérieur : une image, du Markdown, ou une image vectorielle.
 //!
 //! # Ce module n'écrit aucun format — il les branche
 //!
@@ -37,6 +37,8 @@ use std::path::{Path, PathBuf};
 /// donc une variante et trois lignes — jamais un `match` de plus ailleurs dans le code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
+    /// Le tableau, ou la sélection, dessiné en image (EXPORT-PNG-1, [`png`]).
+    Png,
     Markdown,
     Svg,
 }
@@ -44,10 +46,14 @@ pub enum Format {
 impl Format {
     /// Tous les formats, dans l'ordre où le sélecteur les propose. Le **premier** sert de
     /// repli quand le nom choisi ne porte aucune extension connue.
-    pub const TOUS: [Self; 2] = [Self::Markdown, Self::Svg];
+    ///
+    /// L'image d'abord : c'est ce qu'on exporte le plus souvent, et le repli d'un nom sans
+    /// extension.
+    pub const TOUS: [Self; 3] = [Self::Png, Self::Markdown, Self::Svg];
 
     pub fn extension(self) -> &'static str {
         match self {
+            Self::Png => "png",
             Self::Markdown => "md",
             Self::Svg => "svg",
         }
@@ -55,6 +61,7 @@ impl Format {
 
     pub fn nom(self) -> &'static str {
         match self {
+            Self::Png => "Image",
             Self::Markdown => "Markdown",
             Self::Svg => "Image vectorielle",
         }
@@ -70,11 +77,13 @@ impl Format {
             .find(|f| extension.eq_ignore_ascii_case(f.extension()))
     }
 
-    /// Le texte de ce tableau dans ce format. C'est le seul endroit qui appelle les moteurs.
-    pub fn rendre(self, tableau: &Board) -> String {
+    /// Le texte de ce tableau dans ce format. C'est le seul endroit qui appelle les moteurs de
+    /// texte ; une image n'en est pas un — elle se dessine ([`png`]).
+    pub fn rendre(self, tableau: &Board) -> Option<String> {
         match self {
-            Self::Markdown => glucose_core::export::to_markdown(tableau),
-            Self::Svg => glucose_core::export::to_svg(tableau),
+            Self::Png => None,
+            Self::Markdown => Some(glucose_core::export::to_markdown(tableau)),
+            Self::Svg => Some(glucose_core::export::to_svg(tableau)),
         }
     }
 }
@@ -112,8 +121,12 @@ impl GlucoseApp {
     }
 
     /// Le choix revenu : le tableau s'écrit là, au format que son nom dit.
-    pub(crate) fn exporter_vers(&mut self, choisi: PathBuf) {
+    pub fn exporter_vers(&mut self, choisi: PathBuf) {
         let (chemin, format) = destination(choisi);
+        if format == Format::Png {
+            self.exporter_en_image(chemin);
+            return;
+        }
         let message = match self.try_export(&chemin, format) {
             Ok(octets) => format!(
                 "{} exporté en {} — {}",
@@ -136,7 +149,12 @@ impl GlucoseApp {
                 path: chemin.display().to_string(),
                 reason: "aucun tableau ouvert".into(),
             })?;
-        let texte = format.rendre(tableau);
+        let texte = format
+            .rendre(tableau)
+            .ok_or_else(|| DesktopError::SaveFailed {
+                path: chemin.display().to_string(),
+                reason: "une image se dessine, elle ne s'écrit pas en texte".into(),
+            })?;
         write_atomic(chemin, texte.as_bytes())?;
         Ok(texte.len())
     }
@@ -149,6 +167,8 @@ fn nom_du_fichier(chemin: &Path) -> String {
         .unwrap_or("export")
         .to_string()
 }
+
+pub mod png;
 
 #[cfg(test)]
 mod tests;

@@ -210,6 +210,8 @@ impl GlucoseApp {
 
         // **Ce que le pont natif et les relances ont apporte** (DEPOT-WEB-1, 6).
         self.relever_les_depots();
+        // Où en est l'export en image, qui a réveillé la boucle (EXPORT-PNG-1).
+        self.suivre_l_export();
         // Les marges du système, puis le clavier du téléphone (BORD-1, CLAVIER-1).
         self.suivre_les_marges();
         self.suivre_le_clavier();
