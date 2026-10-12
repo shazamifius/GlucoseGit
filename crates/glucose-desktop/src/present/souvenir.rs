@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_le_souvenir_se_relit_tel_qu_il_a_ete_ecrit() {
-        let dossier = std::env::temp_dir().join(format!("glucose-souvenir-{}", std::process::id()));
+        let dossier = crate::epreuve::Dossier::nouveau("souvenir");
         let chemin = dossier.join(FICHIER);
         assert_eq!(lire(&chemin), None, "aucune session n'a encore choisi");
         for carte in [Preference::Rapide, Preference::Econome] {
@@ -119,7 +119,6 @@ mod tests {
             None,
             "un contenu inconnu n'est pas un souvenir"
         );
-        std::fs::remove_dir_all(&dossier).ok();
     }
 
     #[test]

@@ -1,6 +1,7 @@
 //! POPUP-1 — la question dessinée partout, et au clavier (fiche 58).
 
 use crate::app::GlucoseApp;
+use crate::epreuve::Dossier;
 use crate::persist::close::Apres;
 use crate::telemetrie::Telemetrie;
 use crate::ui::question::{Reponse, Suite};
@@ -42,25 +43,15 @@ fn frapper(app: &mut GlucoseApp, touche: NamedKey) -> bool {
 }
 
 /// Un dossier d'épreuve, effacé à la fin.
-struct Dossier(std::path::PathBuf);
-
-impl Drop for Dossier {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 /// Une application dont le journal technique vit dans un dossier d'épreuve, et sa question
 /// posée — « Oui », « Non », sans « Annuler ».
 fn avec_la_question_du_journal(nom: &str) -> (GlucoseApp, Dossier) {
-    let d = std::env::temp_dir().join(format!("glucose-popup-{nom}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).expect("dossier d'épreuve");
+    let d = Dossier::nouveau(&format!("popup-{nom}"));
     let mut app = GlucoseApp::new();
-    app.lancement.telemetrie = Telemetrie::habiter(d.clone(), None);
+    app.lancement.telemetrie = Telemetrie::habiter(d.to_path_buf(), None);
     app.revoir_la_telemetrie();
     assert!(app.ui.question.is_some(), "la question est posée");
-    (app, Dossier(d))
+    (app, d)
 }
 
 /// **Entrée donne la réponse en évidence**, la première ; **Tab** la déplace, et revient au
@@ -76,7 +67,7 @@ fn test_popup_1_entree_donne_la_reponse_en_evidence_et_tab_la_deplace() {
     frapper(&mut app, NamedKey::Tab);
     frapper(&mut app, NamedKey::Enter);
     assert_eq!(
-        Telemetrie::habiter(d.0.clone(), None).accorde(),
+        Telemetrie::habiter(d.to_path_buf(), None).accorde(),
         Some(false),
         "Tab, puis Entrée : « Non »"
     );
@@ -108,7 +99,7 @@ fn test_popup_1_echap_sans_annuler_ne_repond_rien() {
         "rien n'est répondu"
     );
     assert_eq!(
-        Telemetrie::habiter(d.0.clone(), None).accorde(),
+        Telemetrie::habiter(d.to_path_buf(), None).accorde(),
         None,
         "rien ne s'est écrit"
     );

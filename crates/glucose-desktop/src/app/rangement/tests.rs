@@ -133,24 +133,13 @@ fn test_ordonner_2_une_image_illisible_va_a_la_fin_et_se_dit() {
     );
 }
 
-/// Un dossier d'épreuve à soi, retiré quand l'épreuve finit — même si elle tombe.
-struct Dossier(std::path::PathBuf);
-
-impl Drop for Dossier {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 /// **Une couleur qui n'est pas encore lue est attendue, sans geler** : rien ne bouge tant que
 /// l'atelier décode le fichier, et le rangement s'applique de lui-même, d'un bloc, à l'image
 /// où la couleur arrive — le réveil le fait repasser.
 #[test]
 fn test_ordonner_2_le_rangement_attend_une_couleur_en_chemin() {
-    let dossier =
-        Dossier(std::env::temp_dir().join(format!("glucose-ordonner-2-{}", std::process::id())));
-    std::fs::create_dir_all(&dossier.0).expect("un dossier d'épreuve");
-    let fichier = dossier.0.join("violet.png");
+    let dossier = crate::epreuve::Dossier::nouveau("ordonner-2");
+    let fichier = dossier.join("violet.png");
     image::RgbaImage::from_pixel(12, 8, image::Rgba([120, 0, 200, 255]))
         .save(&fichier)
         .expect("une image sur le disque");

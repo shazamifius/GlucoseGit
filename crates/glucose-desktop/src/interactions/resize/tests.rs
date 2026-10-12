@@ -630,8 +630,7 @@ fn test_persist_1_a_resized_image_survives_save_and_reopen() {
         "{resized:?}"
     );
 
-    let dir = std::env::temp_dir().join(format!("glucose-resize-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("dossier temporaire");
+    let dir = crate::epreuve::Dossier::nouveau("resize");
     let path = dir.join("resized.glucose");
     app.save_to(path.clone());
     assert!(!app.is_dirty(), "enregistré");
@@ -646,7 +645,6 @@ fn test_persist_1_a_resized_image_survives_save_and_reopen() {
         "la taille est là au réveil"
     );
     drop((app, reopened));
-    std::fs::remove_dir_all(&dir).expect("nettoyage");
 }
 
 #[test]
@@ -658,8 +656,7 @@ fn test_text_fit_1_an_older_document_gets_its_card_heights_fitted_on_open() {
         &board,
         text_card("T1", 0.0, 0.0, 240.0, "un\ndeux\ntrois\nquatre"),
     );
-    let dir = std::env::temp_dir().join(format!("glucose-fit-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("dossier temporaire");
+    let dir = crate::epreuve::Dossier::nouveau("fit");
     let path = dir.join("old.glucose");
     app.save_to(path.clone());
 
@@ -683,7 +680,6 @@ fn test_text_fit_1_an_older_document_gets_its_card_heights_fitted_on_open() {
         "recaler à l'ouverture n'est pas une modification"
     );
     drop((app, reopened));
-    std::fs::remove_dir_all(&dir).expect("nettoyage");
 }
 
 // ── La rotation (fiche 03 § 2.11) ─────────────────────────────────────────────

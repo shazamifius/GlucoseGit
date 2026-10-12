@@ -226,12 +226,10 @@ fn test_ce_qui_revient_pour_une_autre_pyramide_ne_s_y_pose_pas() {
 #[test]
 fn test_une_image_vue_une_fois_s_ouvre_deja_montree() {
     let src = grande_photo("etages-apercu.png");
-    let dossier =
-        std::env::temp_dir().join(format!("glucose-apercus-magasin-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dossier);
+    let dossier = crate::epreuve::Dossier::nouveau("apercus-magasin");
     let session = || {
         let mut m = Magasin::nouveau();
-        m.brancher_les_apercus(dossier.clone());
+        m.brancher_les_apercus(dossier.to_path_buf());
         m.echelle_ensemble = 0.25;
         for _ in 0..1000 {
             une_image(&mut m, |m| {
@@ -278,9 +276,7 @@ fn test_une_image_sans_fichier_s_ouvre_deja_montree() {
     let octets = std::fs::read(&photo).expect("la photo");
     let empreinte = glucose_core::hash::sha256(&octets);
     let cle = "collee:sans-fichier";
-    let dossier =
-        std::env::temp_dir().join(format!("glucose-apercus-empreinte-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dossier);
+    let dossier = crate::epreuve::Dossier::nouveau("apercus-empreinte");
     // Ses octets dans un document : la photo entière en est la tranche.
     let objets = Objets::nouveau();
     objets.poser(
@@ -296,7 +292,7 @@ fn test_une_image_sans_fichier_s_ouvre_deja_montree() {
         let mut m = Magasin::nouveau();
         m.atelier
             .brancher_les_objets(std::sync::Arc::clone(&objets));
-        m.brancher_les_apercus(dossier.clone());
+        m.brancher_les_apercus(dossier.to_path_buf());
         m.echelle_ensemble = 0.25;
         for _ in 0..1000 {
             une_image(&mut m, |m| {
@@ -331,12 +327,10 @@ fn test_une_image_sans_fichier_s_ouvre_deja_montree() {
 #[test]
 fn test_un_apercu_abime_se_refait() {
     let src = grande_photo("etages-apercu-abime.png");
-    let dossier =
-        std::env::temp_dir().join(format!("glucose-apercus-abime-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dossier);
+    let dossier = crate::epreuve::Dossier::nouveau("apercus-abime");
     let session = || {
         let mut m = Magasin::nouveau();
-        m.brancher_les_apercus(dossier.clone());
+        m.brancher_les_apercus(dossier.to_path_buf());
         m.echelle_ensemble = 0.25;
         for _ in 0..1000 {
             une_image(&mut m, |m| {

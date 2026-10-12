@@ -93,9 +93,9 @@ mod tests {
     /// aucun morceau ne reste dans le dossier.
     #[test]
     fn test_une_fin_plus_courte_que_promis_n_est_pas_mise_de_cote_a_moitie() {
-        let d = std::env::temp_dir().join(format!("glucose-recuperation-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).expect("dossier d'épreuve");
+        // Déclaré avant le fichier ouvert : il part après lui — Windows ne retire pas un dossier
+        // dont un fichier est ouvert.
+        let d = crate::epreuve::Dossier::nouveau("recuperation");
         let doc = d.join("court.glucose");
         std::fs::write(&doc, b"0123456789").expect("document d'épreuve");
         let mut f = File::open(&doc).expect("ouverture");
@@ -106,6 +106,5 @@ mod tests {
         assert_eq!(restes, 0, "aucun morceau ne reste");
         let cote = mettre_de_cote(&mut f, &doc, (5, 10), &d).expect("une fin entière");
         assert_eq!(std::fs::read(cote).expect("relecture"), b"56789");
-        let _ = std::fs::remove_dir_all(&d);
     }
 }

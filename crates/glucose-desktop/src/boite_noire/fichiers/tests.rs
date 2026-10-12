@@ -2,25 +2,8 @@
 //! celui de l'utilisateur.
 
 use super::*;
+use crate::epreuve::Dossier;
 use std::collections::BTreeSet;
-
-/// Un dossier d'épreuve, effacé à la fin.
-struct Dossier(PathBuf);
-
-impl Dossier {
-    fn nouveau(nom: &str) -> Self {
-        let p = std::env::temp_dir().join(format!("glucose-journal-{nom}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&p);
-        std::fs::create_dir_all(&p).expect("dossier d'épreuve");
-        Self(p)
-    }
-}
-
-impl Drop for Dossier {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 /// **Un nom se lit** : une date, une heure, le processus, et `.txt` — et il se relit.
 #[test]
@@ -56,7 +39,7 @@ fn test_la_date_universelle_est_exacte() {
 #[test]
 fn test_l_ancien_dossier_se_range_sans_rien_perdre() {
     let d = Dossier::nouveau("migrer");
-    let ancien = d.0.join("boite-noire");
+    let ancien = d.join("boite-noire");
     std::fs::create_dir_all(&ancien).unwrap();
     let ancien_nom = "session-00000001791477194257-16656.jsonl";
     let texte =
@@ -64,8 +47,8 @@ fn test_l_ancien_dossier_se_range_sans_rien_perdre() {
     std::fs::write(ancien.join(ancien_nom), texte).unwrap();
     std::fs::write(ancien.join("autre.txt"), "à garder").unwrap();
 
-    let journal = preparer(&d.0).expect("préparé");
-    assert_eq!(journal, d.0.join(DOSSIER));
+    let journal = preparer(&d).expect("préparé");
+    assert_eq!(journal, d.join(DOSSIER));
     assert!(!ancien.exists(), "l'ancien dossier est parti");
     let lisible = journal.join(nom_de_session(1_791_477_194_257, 16_656));
     assert_eq!(
@@ -91,13 +74,13 @@ fn test_l_ancien_dossier_se_range_sans_rien_perdre() {
 #[test]
 fn test_les_deux_dossiers_se_rejoignent_sans_rien_ecraser() {
     let d = Dossier::nouveau("rejoindre");
-    let (ancien, journal) = (d.0.join("boite-noire"), d.0.join(DOSSIER));
+    let (ancien, journal) = (d.join("boite-noire"), d.join(DOSSIER));
     std::fs::create_dir_all(&ancien).unwrap();
     std::fs::create_dir_all(&journal).unwrap();
     std::fs::write(ancien.join("a.txt"), "ancien a").unwrap();
     std::fs::write(ancien.join("b.txt"), "ancien b").unwrap();
     std::fs::write(journal.join("b.txt"), "nouveau b").unwrap();
-    preparer(&d.0).expect("préparé");
+    preparer(&d).expect("préparé");
     assert_eq!(
         std::fs::read_to_string(journal.join("a.txt")).unwrap(),
         "ancien a"

@@ -195,9 +195,7 @@ mod tests {
     /// `target\release\glucose-desktop.exe` — n'en a pas, et ne se propose rien.
     #[test]
     fn test_sous_windows_seul_un_glucose_installe_se_remplace() {
-        let d = std::env::temp_dir().join(format!("glucose-installation-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let d = crate::epreuve::Dossier::nouveau("installation");
         let exe = d.join("glucose.exe");
         std::fs::write(&exe, b"x").unwrap();
         assert_eq!(
@@ -207,7 +205,6 @@ mod tests {
         );
         std::fs::write(d.join(DESINSTALLEUR), b"x").unwrap();
         assert_eq!(Installation::de_windows(&exe), Some(Installation::Nsis));
-        let _ = std::fs::remove_dir_all(&d);
     }
 
     /// **Le désinstalleur que Glucose cherche est celui que l'installeur écrit** : écrit deux

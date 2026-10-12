@@ -4,30 +4,13 @@ use super::bilan::{self, Fin};
 use super::enregistrement::{ligne_de_panique, Enregistrement};
 use super::{sondes, BoiteNoire, DOSSIER};
 use crate::chronique::Geste;
+use crate::epreuve::Dossier;
 use glucose_core::persist::tauri::{json, Valeur};
 use std::path::{Path, PathBuf};
 
-/// Un dossier d'épreuve, effacé à la fin.
-struct Dossier(PathBuf);
-
-impl Dossier {
-    fn nouveau(nom: &str) -> Self {
-        let p =
-            std::env::temp_dir().join(format!("glucose-boite-noire-{nom}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&p);
-        std::fs::create_dir_all(&p).expect("dossier d'épreuve");
-        Self(p)
-    }
-
-    fn boite(&self) -> PathBuf {
-        self.0.join(DOSSIER)
-    }
-}
-
-impl Drop for Dossier {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
+/// Le dossier du journal technique, dans un dossier d'épreuve.
+fn boite(d: &Dossier) -> PathBuf {
+    d.join(DOSSIER)
 }
 
 fn lire(p: &Path) -> String {
@@ -46,7 +29,7 @@ fn lignes_du_type(texte: &str, nom: &str) -> Vec<Valeur> {
 #[test]
 fn test_une_session_fermee_se_relit_propre() {
     let d = Dossier::nouveau("propre");
-    let (mut b, precedente) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (mut b, precedente) = BoiteNoire::ouvrir(&d).expect("ouverte");
     assert_eq!(precedente, None, "rien avant la première");
     for us in [1000, 3000, 2000] {
         b.image(Geste::Zoomer, us);
@@ -63,7 +46,7 @@ fn test_une_session_fermee_se_relit_propre() {
     assert_eq!(episodes[0].entier("pire_us"), Some(3000));
     assert_eq!(lignes_du_type(&texte, "fin").len(), 1);
 
-    let (seconde, precedente) = BoiteNoire::ouvrir(&d.0).expect("rouverte");
+    let (seconde, precedente) = BoiteNoire::ouvrir(&d).expect("rouverte");
     let p = precedente.expect("la session d'avant");
     assert_eq!(p.fin, Fin::Propre);
     assert!(!p.appareil_redemarre);
@@ -81,7 +64,7 @@ fn test_une_session_fermee_se_relit_propre() {
 #[test]
 fn test_une_session_coupee_se_relit_interrompue() {
     let d = Dossier::nouveau("coupee");
-    let (mut b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     b.image(Geste::GlisserUnNoeud, 4000);
     b.image(Geste::Repos, 100);
     b.synchroniser();
@@ -167,9 +150,9 @@ fn test_une_panique_d_un_autre_fil_ne_finit_pas_la_session() {
 #[test]
 fn test_ranger_garde_la_precedente_et_ce_qui_a_mal_fini() {
     let d = Dossier::nouveau("ranger");
-    std::fs::create_dir_all(d.boite()).expect("boîte");
+    std::fs::create_dir_all(boite(&d)).expect("boîte");
     let ecrire = |nom: &str, texte: &str| {
-        let p = d.boite().join(nom);
+        let p = boite(&d).join(nom);
         std::fs::write(&p, texte).expect("écrite");
         p
     };
@@ -182,7 +165,7 @@ fn test_ranger_garde_la_precedente_et_ce_qui_a_mal_fini() {
     let derniere = ecrire(&nom(4_000), &format!("{}{fin}", debut(4_000)));
     let autre = ecrire("autre-chose.txt", "à ne pas toucher");
 
-    let precedente = bilan::ranger(&d.boite(), None, |_| {
+    let precedente = bilan::ranger(&boite(&d), None, |_| {
         panic!("une session propre ne demande rien au système")
     })
     .expect("la dernière");
@@ -276,7 +259,7 @@ fn test_chaque_ligne_est_du_json() {
 #[test]
 fn test_un_signe_du_pave_s_ecrit_a_son_heure() {
     let d = Dossier::nouveau("pave");
-    let (b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     b.signe_du_pave(crate::interactions::pave::Signe {
         quand: b.depart + std::time::Duration::from_millis(5_000),
         quoi: "statut_suspendu",
@@ -354,7 +337,7 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
 #[test]
 fn test_seules_les_images_record_s_ecrivent_une_a_une() {
     let d = Dossier::nouveau("pires");
-    let (mut b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     for us in [100, 50, 300, 300, 200, 900] {
         b.image(Geste::Zoomer, us);
     }
@@ -370,7 +353,7 @@ fn test_seules_les_images_record_s_ecrivent_une_a_une() {
 #[test]
 fn test_la_machine_ne_s_ecrit_que_si_elle_change() {
     let d = Dossier::nouveau("machine");
-    let (mut b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     for geste in [Geste::Zoomer, Geste::Repos, Geste::Zoomer, Geste::Repos] {
         b.image(geste, 10);
         b.synchroniser();
@@ -404,7 +387,7 @@ fn test_les_sondes_repondent() {
 #[test]
 fn test_le_temoin_note_une_vraie_panique() {
     let d = Dossier::nouveau("temoin");
-    let (b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     b.temoigner_des_paniques();
     let _ = std::thread::spawn(|| panic!("secret de l'utilisateur")).join();
     b.synchroniser();
@@ -444,14 +427,14 @@ fn vu_par_le_systeme(chemin: &Path, gel: bool) -> crate::plateforme::journal::Ev
 #[test]
 fn test_une_session_arretee_se_dit_plantee_d_apres_le_systeme() {
     let d = Dossier::nouveau("plantee");
-    let (mut b, _) = BoiteNoire::ouvrir_avec(&d.0, |_| Vec::new()).expect("ouverte");
+    let (mut b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
     b.image(Geste::Zoomer, 900);
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     // Ce qu'un plantage laisse : la session lâchée sans être close — sans sa ligne de fin.
     drop(b);
     let vu = vu_par_le_systeme(&tombee, false);
-    let (seconde, precedente) = BoiteNoire::ouvrir_avec(&d.0, |depuis| {
+    let (seconde, precedente) = BoiteNoire::ouvrir_avec(&d, |depuis| {
         assert!(
             depuis <= vu.instant_ms,
             "on lit depuis le début de la session"
@@ -484,14 +467,14 @@ fn test_une_session_arretee_se_dit_plantee_d_apres_le_systeme() {
 #[test]
 fn test_sans_rien_du_systeme_la_session_reste_muette() {
     let d = Dossier::nouveau("muette");
-    let (b, _) = BoiteNoire::ouvrir_avec(&d.0, |_| Vec::new()).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     drop(b);
     let mut ailleurs = vu_par_le_systeme(&tombee, false);
     ailleurs.processus = ailleurs.processus.wrapping_add(1);
     let (seconde, precedente) =
-        BoiteNoire::ouvrir_avec(&d.0, move |_| vec![ailleurs]).expect("rouverte");
+        BoiteNoire::ouvrir_avec(&d, move |_| vec![ailleurs]).expect("rouverte");
     assert_eq!(
         precedente.expect("la session d'avant").fin,
         Fin::Interrompue
@@ -504,12 +487,12 @@ fn test_sans_rien_du_systeme_la_session_reste_muette() {
 #[test]
 fn test_un_gel_ferme_par_le_systeme_se_dit_gel() {
     let d = Dossier::nouveau("gelee");
-    let (b, _) = BoiteNoire::ouvrir_avec(&d.0, |_| Vec::new()).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     drop(b);
     let gel = vu_par_le_systeme(&tombee, true);
-    let (_, precedente) = BoiteNoire::ouvrir_avec(&d.0, move |_| vec![gel]).expect("rouverte");
+    let (_, precedente) = BoiteNoire::ouvrir_avec(&d, move |_| vec![gel]).expect("rouverte");
     let p = precedente.expect("la session d'avant");
     assert_eq!(p.fin, Fin::Gelee);
     assert!(p.dire().starts_with("gelée"), "{}", p.dire());
@@ -540,14 +523,14 @@ fn test_la_ligne_d_un_plantage_est_du_json() {
 #[test]
 fn test_l_heure_qui_revient_ne_trompe_pas_le_rangement() {
     let d = Dossier::nouveau("heure-d-ete");
-    std::fs::create_dir_all(d.boite()).expect("boîte");
+    std::fs::create_dir_all(boite(&d)).expect("boîte");
     let debut = |ms: u64| format!("{{\"type\":\"debut\",\"epoque_ms\":{ms}}}\n");
     let fin = "{\"type\":\"fin\",\"instant_ms\":9}\n";
-    let premiere = d.boite().join("2026-10-25 02h30m00 (1).txt");
+    let premiere = boite(&d).join("2026-10-25 02h30m00 (1).txt");
     std::fs::write(&premiere, debut(1_000)).expect("écrite");
-    let seconde = d.boite().join("2026-10-25 02h10m00 (2).txt");
+    let seconde = boite(&d).join("2026-10-25 02h10m00 (2).txt");
     std::fs::write(&seconde, format!("{}{fin}", debut(4_000_000))).expect("écrite");
-    let precedente = bilan::ranger(&d.boite(), None, |_| Vec::new()).expect("la dernière");
+    let precedente = bilan::ranger(&boite(&d), None, |_| Vec::new()).expect("la dernière");
     assert_eq!(
         precedente.fin,
         Fin::Propre,
@@ -564,7 +547,7 @@ fn test_l_heure_qui_revient_ne_trompe_pas_le_rangement() {
 #[test]
 fn test_la_carte_s_ecrit_par_ses_numeros() {
     let d = Dossier::nouveau("carte");
-    let (b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
     b.carte(super::enregistrement::Carte {
         moteur: "gl",
         genre: "integree",

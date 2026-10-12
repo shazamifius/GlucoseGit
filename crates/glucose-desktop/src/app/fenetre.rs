@@ -354,9 +354,9 @@ mod tests {
     /// fil entre la présentation et la boîte noire, que l'épreuve de la boîte seule ne voit pas.
     #[test]
     fn test_la_carte_ouverte_arrive_au_journal_sans_son_nom() {
-        let dossier = std::env::temp_dir().join(format!("glucose-carte-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dossier);
-        std::fs::create_dir_all(&dossier).expect("dossier d'épreuve");
+        // Déclaré avant l'application : il part après elle — sa boîte noire tient un fichier
+        // ouvert dedans, que Windows ne laisse pas retirer.
+        let dossier = crate::epreuve::Dossier::nouveau("carte");
         let mut app = GlucoseApp::new();
         let _ = app.chronique.ouvrir_la_boite_noire(&dossier);
         let rendue = app.noter_la_carte(&Factice).map(|(nom, _)| nom);
@@ -368,7 +368,6 @@ mod tests {
         let boite = app.chronique.boite_noire().expect("ouverte");
         boite.synchroniser();
         let texte = std::fs::read_to_string(boite.chemin()).expect("la session");
-        let _ = std::fs::remove_dir_all(&dossier);
         let ligne = texte
             .lines()
             .find(|l| l.contains("\"type\":\"carte\""))

@@ -4,17 +4,9 @@
 use super::*;
 use crate::renderer::photo::{Etat, Pyramide};
 
-/// Un dossier à cette épreuve, vidé : les aperçus d'une autre épreuve n'y sont pas.
-///
-/// Le nom porte celui du module : `glucose-apercus-abime-…` était aussi celui d'une épreuve du
-/// magasin, et les deux, lancées ensemble, s'effaçaient leur dossier (vu le 07/10).
-fn dossier(nom: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!(
-        "glucose-apercus-module-{nom}-{}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&d);
-    d
+/// Un dossier à cette épreuve, neuf, et retiré quand elle finit (`crate::epreuve`).
+fn dossier(nom: &str) -> crate::epreuve::Dossier {
+    crate::epreuve::Dossier::nouveau(&format!("apercus-{nom}"))
 }
 
 /// Une image de 300 × 200 aux pixels tous différents.
@@ -40,7 +32,8 @@ fn test_un_apercu_revient_au_bit_pres() {
         .apercu(2)
         .expect("tous les niveaux d'une pyramide neuve sont tenus");
     assert_eq!(a.niveaux.len(), p.niveaux_construits() - 2);
-    let chemin = dossier("aller-retour").join("a.apercu");
+    let d = dossier("aller-retour");
+    let chemin = d.join("a.apercu");
     ecrire(&chemin, &a).expect("l'ecriture");
     let relu = lire(&chemin).expect("la relecture");
     assert!(relu == a, "l'apercu relu differe de celui ecrit");
@@ -173,5 +166,4 @@ fn test_moyenne_1_un_apercu_d_avant_la_moyenne_exacte_ne_se_lit_plus() {
     octets[corps..].copy_from_slice(&sceau[..SCEAU]);
     std::fs::write(&chemin, &octets).expect("un aperçu de la version 2");
     assert!(lire(&chemin).is_none());
-    let _ = std::fs::remove_dir_all(&d);
 }

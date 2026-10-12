@@ -29,6 +29,8 @@ pub mod composition;
 pub mod demarrage;
 pub mod dialogue;
 pub mod dock;
+#[cfg(test)]
+mod epreuve;
 pub mod error;
 pub mod horloge;
 pub mod icons;

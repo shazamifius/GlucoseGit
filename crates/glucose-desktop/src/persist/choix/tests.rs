@@ -4,28 +4,11 @@
 
 use crate::app::GlucoseApp;
 use crate::dialogue::epreuve::choisir;
+use crate::epreuve::Dossier;
 use crate::interactions::question::tests::repondre;
 use crate::persist::close::Apres;
 use crate::ui::question::Reponse;
 use std::path::PathBuf;
-
-/// Un dossier d'épreuve, effacé à la fin.
-struct Dossier(PathBuf);
-
-impl Dossier {
-    fn nouveau(nom: &str) -> Self {
-        let p = std::env::temp_dir().join(format!("glucose-choix-{nom}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&p);
-        std::fs::create_dir_all(&p).expect("dossier d'épreuve");
-        Self(p)
-    }
-}
-
-impl Drop for Dossier {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 /// Une application avec du travail sans nom.
 fn travail_sans_nom() -> GlucoseApp {
@@ -42,11 +25,11 @@ fn test_dial_2_fermer_en_enregistrant_ecrit_puis_ferme() {
     let d = Dossier::nouveau("fermer");
     let mut app = travail_sans_nom();
     app.fermer_puis(Apres::Quitter);
-    choisir(Some(vec![d.0.join("carnet")]));
+    choisir(Some(vec![d.join("carnet")]));
     repondre(&mut app, Reponse::Oui);
     assert!(!app.ui.fermer_la_fenetre, "rien ne part avant le choix");
     app.suivre_les_fichiers_choisis();
-    let ecrit = d.0.join("carnet.glucose");
+    let ecrit = d.join("carnet.glucose");
     assert!(ecrit.exists(), "le document s'est écrit");
     assert_eq!(app.project_path.as_ref(), Some(&ecrit));
     assert!(app.ui.fermer_la_fenetre, "puis la fenêtre part");
@@ -72,10 +55,10 @@ fn test_dial_2_laisser_en_enregistrant_ecrit_puis_continue() {
     let d = Dossier::nouveau("laisser");
     let mut app = travail_sans_nom();
     app.nouveau_document();
-    choisir(Some(vec![d.0.join("garde.glucose")]));
+    choisir(Some(vec![d.join("garde.glucose")]));
     repondre(&mut app, Reponse::Oui);
     app.suivre_les_fichiers_choisis();
-    assert!(d.0.join("garde.glucose").exists(), "il s'est écrit");
+    assert!(d.join("garde.glucose").exists(), "il s'est écrit");
     assert!(app.project_path.is_none(), "le vierge l'a remplacé");
     assert!(
         app.store.active_board().unwrap().annotations.is_empty(),
@@ -102,7 +85,7 @@ fn test_dial_2_la_mise_a_jour_se_reporte_si_l_on_renonce() {
 fn test_dial_2_exporter_ecrit_au_choix() {
     let d = Dossier::nouveau("exporter");
     let mut app = travail_sans_nom();
-    let sortie = d.0.join("tableau.md");
+    let sortie = d.join("tableau.md");
     choisir(Some(vec![sortie.clone()]));
     app.export_board();
     app.suivre_les_fichiers_choisis();
@@ -114,7 +97,7 @@ fn test_dial_2_exporter_ecrit_au_choix() {
 #[test]
 fn test_dial_2_ouvrir_au_choix() {
     let d = Dossier::nouveau("ouvrir");
-    let autre = d.0.join("autre.glucose");
+    let autre = d.join("autre.glucose");
     let mut source = GlucoseApp::new();
     crate::persist::disque::tests::noter(&mut source, "x", "l'autre document");
     source.save_to(autre.clone());

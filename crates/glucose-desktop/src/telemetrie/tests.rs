@@ -4,27 +4,8 @@
 use super::accord::{est_un_identifiant, nouvel_identifiant, Accord};
 use super::envoi::{a_envoyer, corps, identifiant_de_session};
 use super::Telemetrie;
+use crate::epreuve::Dossier;
 use glucose_core::persist::tauri::json;
-use std::path::PathBuf;
-
-/// Un dossier d'épreuve, effacé à la fin.
-struct Dossier(PathBuf);
-
-impl Dossier {
-    fn nouveau(nom: &str) -> Self {
-        let p =
-            std::env::temp_dir().join(format!("glucose-telemetrie-{nom}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&p);
-        std::fs::create_dir_all(&p).expect("dossier d'épreuve");
-        Self(p)
-    }
-}
-
-impl Drop for Dossier {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 const INSTALLATION: &str = "0123456789abcdef0123456789abcdef";
 
@@ -126,7 +107,7 @@ fn test_une_session_sans_debut_ne_part_pas() {
 #[test]
 fn test_une_vraie_session_fait_un_corps() {
     let d = Dossier::nouveau("vraie");
-    let (mut b, _) = crate::boite_noire::BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    let (mut b, _) = crate::boite_noire::BoiteNoire::ouvrir(&d).expect("ouverte");
     b.image(crate::chronique::Geste::Zoomer, 900);
     b.image(crate::chronique::Geste::Repos, 100);
     let chemin = b.chemin().to_path_buf();
@@ -155,17 +136,17 @@ fn test_une_vraie_session_fait_un_corps() {
 #[test]
 fn test_la_reponse_se_retient_et_non_change_d_identifiant() {
     let d = Dossier::nouveau("reponse");
-    let mut t = Telemetrie::habiter(d.0.clone(), None);
+    let mut t = Telemetrie::habiter(d.to_path_buf(), None);
     assert_eq!(t.accorde(), None, "personne n'a répondu");
     t.repondre(true).expect("écrit");
-    let premier = Accord::charger(&d.0);
+    let premier = Accord::charger(&d);
     assert_eq!(premier.envoyer, Some(true));
     t.repondre(false).expect("écrit");
-    let second = Accord::charger(&d.0);
+    let second = Accord::charger(&d);
     assert_eq!(second.envoyer, Some(false));
     assert_ne!(second.installation, premier.installation);
     assert_eq!(
-        Telemetrie::habiter(d.0.clone(), None).accorde(),
+        Telemetrie::habiter(d.to_path_buf(), None).accorde(),
         Some(false)
     );
 }
@@ -178,13 +159,13 @@ fn test_par_le_menu_la_reponse_se_retient() {
     use crate::ui::question::Reponse;
     let d = Dossier::nouveau("menu");
     let mut app = crate::app::GlucoseApp::new();
-    app.lancement.telemetrie = Telemetrie::habiter(d.0.clone(), None);
+    app.lancement.telemetrie = Telemetrie::habiter(d.to_path_buf(), None);
     app.revoir_la_telemetrie();
     repondre(&mut app, Reponse::Oui);
     assert_eq!(app.lancement.telemetrie.accorde(), Some(true));
     app.revoir_la_telemetrie();
     repondre(&mut app, Reponse::Non);
-    assert_eq!(Accord::charger(&d.0).envoyer, Some(false));
+    assert_eq!(Accord::charger(&d).envoyer, Some(false));
 
     let mut sans = crate::app::GlucoseApp::new();
     sans.revoir_la_telemetrie();
@@ -265,9 +246,9 @@ fn test_l_envoi_atteint_le_serveur_tel_qu_il_l_attend() {
 fn test_non_apres_oui_efface_sur_le_serveur() {
     let d = Dossier::nouveau("effacer");
     let (racine, recu) = serveur_local(200);
-    let mut t = Telemetrie::habiter_avec(d.0.clone(), None, Some(racine));
+    let mut t = Telemetrie::habiter_avec(d.to_path_buf(), None, Some(racine));
     t.repondre(true).expect("écrit");
-    let avant = Accord::charger(&d.0).installation;
+    let avant = Accord::charger(&d).installation;
     t.repondre(false).expect("écrit");
     let (verbe, chemin, _, _) = recu
         .recv_timeout(std::time::Duration::from_secs(30))
@@ -313,7 +294,7 @@ fn test_question_1_la_question_dessinee_repond_au_toucher() {
     use crate::ui::question::{placer, Reponse};
     let d = Dossier::nouveau("dessinee");
     let mut app = crate::app::GlucoseApp::new();
-    app.lancement.telemetrie = Telemetrie::habiter(d.0.clone(), None);
+    app.lancement.telemetrie = Telemetrie::habiter(d.to_path_buf(), None);
     app.revoir_la_telemetrie();
     assert!(
         app.ui.question.is_some(),
@@ -355,7 +336,7 @@ fn test_question_1_la_question_dessinee_repond_au_toucher() {
     assert!(app.ui.question.is_none(), "répondue, elle s'en va");
     assert_eq!(app.lancement.telemetrie.accorde(), Some(true));
     assert_eq!(
-        Accord::charger(&d.0).envoyer,
+        Accord::charger(&d).envoyer,
         Some(true),
         "et la réponse se retient"
     );
