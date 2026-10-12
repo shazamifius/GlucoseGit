@@ -262,7 +262,10 @@ impl GlucoseApp {
             match nouvelle {
                 Nouvelle::Rangees(n) => faites = Some(n),
                 Nouvelle::Fini(fin) => {
-                    self.attentes.export = None;
+                    let chemin = self.attentes.export.take().map(|e| e.chemin);
+                    if let (Ok(_), Some(chemin)) = (&fin, &chemin) {
+                        self.offrir_si_partage(chemin);
+                    }
                     self.ui.show_toast(match fin {
                         Ok(octets) => format!(
                             "{nom} exporté — {largeur} × {hauteur} pixels, {}",

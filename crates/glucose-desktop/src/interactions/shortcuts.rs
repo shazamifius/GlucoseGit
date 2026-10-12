@@ -286,55 +286,8 @@ impl GlucoseApp {
         } else {
             self.voler_vers_le_signet(cle)
         };
-        // Un seul site de message pour les deux gestes : poser ne se voit pas, et un signet
-        // vide ne se voit pas non plus. Un vol **réussi**, lui, se voit -- donc il se tait.
-        if let Some(message) = message {
-            self.ui.show_toast(message);
-        }
+        self.annoncer_le_signet(message);
         true
-    }
-
-    /// # SIGNET-2 — un signet retient la vue par son **centre**
-    ///
-    /// Le signet retenait la vue telle quelle : le décalage du coin haut-gauche du monde à
-    /// l'écran. Rappelé dans une fenêtre plus petite — le mode référence, sans bande, réduit à
-    /// une vignette —, ce qui était au centre partait sur le côté, et l'on « tombait dans le
-    /// vide » (son essai du 07/10). Il retient désormais le décalage **par rapport au centre du
-    /// canevas**, et se rappelle autour du centre du canevas d'aujourd'hui : même lieu, même
-    /// échelle, quelle que soit la fenêtre. Le format du fichier ne change pas ; seuls les
-    /// signets posés avant se rappellent décalés d'une demi-fenêtre.
-    /// La vue où ce signet ramène, dans le canevas d'aujourd'hui (SIGNET-2).
-    pub(crate) fn vue_du_signet(&self, cle: char) -> Option<glucose_core::types::Viewport> {
-        let tableau = &self.store.project.active_board_id;
-        let vue = self.store.bookmark(tableau, &cle.to_string())?;
-        let (cx, cy) = self.centre_du_canevas();
-        Some(glucose_core::types::Viewport {
-            x: vue.x + cx,
-            y: vue.y + cy,
-            ..vue
-        })
-    }
-
-    fn poser_le_signet(&mut self, cle: char) -> Option<String> {
-        let tableau = self.store.project.active_board_id.clone();
-        let (cx, cy) = self.centre_du_canevas();
-        let vue = self.store.viewport();
-        let vue = glucose_core::types::Viewport {
-            x: vue.x - cx,
-            y: vue.y - cy,
-            ..vue
-        };
-        self.store.set_bookmark(&tableau, &cle.to_string(), vue);
-        Some(format!("Signet {cle} pose ici"))
-    }
-
-    fn voler_vers_le_signet(&mut self, cle: char) -> Option<String> {
-        let Some(vue) = self.vue_du_signet(cle) else {
-            return Some(format!("Signet {cle} vide -- Ctrl+{cle} le pose ici"));
-        };
-        self.vol.voler_vers(vue);
-        self.mark_dirty();
-        None
     }
 
     /// Raccourcis d'édition du document. Rend `true` si la touche a été consommée.
@@ -541,7 +494,7 @@ impl GlucoseApp {
     ///
     /// La taille est celle de la fenêtre, ou celle de sa naissance quand elle n'existe pas : une
     /// épreuve joue la touche sans fenêtre.
-    fn cadrer(&mut self, la_selection: bool) {
+    pub(crate) fn cadrer(&mut self, la_selection: bool) {
         let (largeur, hauteur) = self.taille_de_la_fenetre();
         let ecran = glucose_core::membrane_focus::ScreenSize {
             width: f64::from(largeur),

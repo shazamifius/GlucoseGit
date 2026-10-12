@@ -59,5 +59,18 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <!-- **La feuille de partage** (PARTAGE-2, fiche 63) : ce que Glucose écrit dans
+             `glucose/partages/` de son dossier privé — un export, une image enregistrée —, offert
+             à l'application que l'utilisateur choisit, qui ne peut lire que ce fichier-là. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fichiers"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/fichiers_partages" />
+        </provider>
     </application>
 </manifest>

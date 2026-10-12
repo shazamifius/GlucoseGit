@@ -163,3 +163,52 @@ fn test_les_documents_du_plus_recent_au_plus_ancien() {
     poser("note.txt", 1);
     assert_eq!(les_documents(&bac.0), vec![recent, moyen, vieux]);
 }
+
+/// La suite de la question posée, s'il y en a une.
+fn suite(app: &GlucoseApp) -> Option<crate::ui::question::Suite> {
+    app.ui.question.as_ref().map(|(_, s)| s.clone())
+}
+
+/// **ACCES-1 — au téléphone, « Enregistrer » range le travail sans nom** sous un nom libre : il
+/// n'y a pas de dossier à demander, et le sélecteur du bureau n'y ouvrait rien.
+#[test]
+fn test_acces_1_au_telephone_enregistrer_range_le_travail_sans_nom() {
+    let bac = Bac::neuf("menu-enregistrer");
+    let mut app = telephone(&bac);
+    app.enregistrer_depuis_le_menu();
+    let range = bac.0.join("documents").join("Canevas 1.glucose");
+    assert_eq!(app.project_path.as_deref(), Some(range.as_path()));
+    assert!(!app.is_dirty(), "le travail est en sureté");
+}
+
+/// **ACCES-1 — au téléphone, « Enregistrer sous… » donne un autre nom** : sans dossiers, c'est
+/// tout ce qu'il peut vouloir dire. Un travail sans nom se range d'abord.
+#[test]
+fn test_acces_1_au_telephone_enregistrer_sous_donne_un_autre_nom() {
+    let bac = Bac::neuf("menu-sous");
+    let mut app = telephone(&bac);
+    app.enregistrer_sous_depuis_le_menu();
+    let range = bac.0.join("documents").join("Canevas 1.glucose");
+    assert_eq!(
+        suite(&app),
+        Some(crate::ui::question::Suite::Renommer(range)),
+        "le champ du nom, pour le document rangé"
+    );
+}
+
+/// **ACCES-1 — au téléphone, « Importer un document… » montre les autres documents rangés** :
+/// le sélecteur de fichiers n'y ouvrait rien. Celui qu'on regarde n'y est pas.
+#[test]
+fn test_acces_1_au_telephone_importer_montre_les_autres_documents() {
+    let bac = Bac::neuf("menu-importer");
+    let mut app = telephone(&bac);
+    app.enregistrer_depuis_le_menu();
+    let autre = bac.0.join("documents").join("Autre.glucose");
+    std::fs::write(&autre, b"x").expect("un autre document");
+    app.choisir_un_document_a_ajouter();
+    assert_eq!(
+        suite(&app),
+        Some(crate::ui::question::Suite::Ajouter(vec![autre])),
+        "l'autre, et pas celui qu'on regarde"
+    );
+}

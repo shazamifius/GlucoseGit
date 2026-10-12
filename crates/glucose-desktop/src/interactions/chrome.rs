@@ -145,6 +145,14 @@ impl GlucoseApp {
             }
             MenuAction::NouvelOnglet => self.ajouter_un_onglet(),
             MenuAction::AjouterUnDocument => self.choisir_un_document_a_ajouter(),
+            MenuAction::Annuler => self.annuler(),
+            MenuAction::Retablir => self.retablir(),
+            MenuAction::ToutCadrer => self.cadrer(false),
+            MenuAction::CadrerLaSelection => self.cadrer(true),
+            MenuAction::Signets => self.montrer_les_signets(),
+            MenuAction::Enregistrer => self.enregistrer_depuis_le_menu(),
+            MenuAction::EnregistrerSous => self.enregistrer_sous_depuis_le_menu(),
+            MenuAction::Exporter => self.export_board(),
         }
         self.mark_dirty();
     }

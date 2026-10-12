@@ -95,6 +95,19 @@ pub enum MenuAction {
     JournalTechnique,
     /// Ouvrir le dossier de la boîte noire : exactement ce qui part (fiche 49 § 2.2).
     VoirCeQuiPart,
+    /// Le dernier geste défait, puis refait — `Ctrl+Z`, `Ctrl+Y` (ACCES-1).
+    Annuler,
+    Retablir,
+    /// Le vol qui montre tout le tableau, ou la sélection (`Ctrl+F`, `F`).
+    ToutCadrer,
+    CadrerLaSelection,
+    /// Les signets de vue : y voler, en poser un (fiche 53 ; ACCES-1).
+    Signets,
+    /// Le document : un jalon, ou un autre nom (`Ctrl+S`, `Ctrl+Maj+S`).
+    Enregistrer,
+    EnregistrerSous,
+    /// Le tableau dans un autre format (`Ctrl+E`).
+    Exporter,
 }
 
 /// Une ligne du menu : soit une entrée, soit un filet.
@@ -106,8 +119,8 @@ pub enum MenuRow {
         shortcut: &'static str,
         rect: (f32, f32, f32, f32),
     },
-    /// Un filet de séparation, à cette ordonnée.
-    Separator(f32),
+    /// Un filet de séparation, à cette ordonnée, sur la largeur de sa colonne.
+    Separator { y: f32, x: f32, largeur: f32 },
 }
 
 /// Le menu, une fois placé.
@@ -119,139 +132,8 @@ pub struct ContextMenu {
     pub font: f32,
 }
 
-/// Les entrées que l'état courant justifie, `None` entre deux groupes.
-///
-/// Rien n'est grisé : une entrée sans objet **disparaît**. Griser, c'est montrer une porte
-/// fermée ; retirer, c'est ne pas parler de porte du tout.
-type Def = Option<(MenuAction, &'static str, &'static str)>;
-
-/// Les entrées d'un menu ouvert sur un onglet — celles du menu des feuilles d'un classeur.
-fn entrees_d_onglet(store: &Store) -> Vec<Def> {
-    let mut defs = vec![Some((
-        MenuAction::RenommerOnglet,
-        "Renommer",
-        "Double-clic",
-    ))];
-    if store.onglets().nth(1).is_some() {
-        defs.push(Some((MenuAction::SupprimerOnglet, "Supprimer", "×")));
-    }
-    defs.push(None);
-    defs.push(Some((MenuAction::NouvelOnglet, "Nouveau board", "+")));
-    defs.push(Some((
-        MenuAction::AjouterUnDocument,
-        "Importer un document…",
-        "déposer ici",
-    )));
-    defs
-}
-
-fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
-    if onglet.is_some() {
-        return Some(entrees_d_onglet(store));
-    }
-    if store.compte_de_la_selection() > 0 {
-        entrees_de_selection(store)
-    } else {
-        Some(entrees_du_vide())
-    }
-}
-
-/// Les entrées d'un menu ouvert sur une sélection : ce qu'on fait de ce qu'on a choisi.
-fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
-    // **Un dossier seul** (DOSSIER-1) : copier, dupliquer et l'ordre ne portent pas encore les
-    // dossiers — les proposer mentirait. La suppression, elle, les prend.
-    if store.selected_image_ids.is_empty() && store.selected_annotation_ids.is_empty() {
-        return Some(vec![Some((MenuAction::Delete, "Supprimer", "Suppr"))]);
-    }
-    let images = store.selected_image_ids.len();
-    let mut defs: Vec<Def> = Vec::new();
-    // « Copier » emporte tout : le lot, le texte, les images elles-mêmes — « Copier l'image »
-    // n'avait plus de raison d'être un geste à part (COPIER-1, fiche 59).
-    defs.push(Some((MenuAction::Copier, "Copier", "Ctrl+C")));
-    defs.push(Some((MenuAction::Couper, "Couper", "Ctrl+X")));
-    defs.push(Some((MenuAction::Duplicate, "Dupliquer", "Ctrl+D")));
-    if images == 1 && store.selected_annotation_ids.is_empty() {
-        defs.push(None);
-        defs.push(Some((
-            MenuAction::EnregistrerLImage,
-            "Enregistrer l'image sous…",
-            "",
-        )));
-    }
-    // Un dépôt replié en lien se rattrape là où il est (DEPOT-WEB-6).
-    if !crate::interactions::depot_web::liens_choisis(store).is_empty() {
-        defs.push(None);
-        defs.push(Some((
-            MenuAction::RemplacerParLImage,
-            "Remplacer par l'image",
-            "",
-        )));
-    }
-    if images > 0 {
-        let board = store.active_board()?;
-        let toutes_fermees = board
-            .images
-            .iter()
-            .filter(|i| store.selected_image_ids.contains(&i.id))
-            .all(|i| i.locked);
-        let label = if toutes_fermees {
-            "Déverrouiller"
-        } else {
-            "Verrouiller"
-        };
-        defs.push(Some((MenuAction::ToggleLock, label, "L")));
-        defs.push(Some((
-            MenuAction::TrimBorders,
-            "Retirer les bordures",
-            "Ctrl+B",
-        )));
-    }
-    defs.push(None);
-    defs.push(Some((MenuAction::ToFront, "Au premier plan", "Ctrl+]")));
-    defs.push(Some((MenuAction::ToBack, "À l'arrière-plan", "Ctrl+[")));
-    defs.push(None);
-    defs.push(Some((MenuAction::Delete, "Supprimer", "Suppr")));
-    Some(defs)
-}
-
-/// Les entrées d'un menu ouvert sur le vide : ce qu'on y apporte, et le document.
-fn entrees_du_vide() -> Vec<Def> {
-    let mut defs: Vec<Def> = vec![
-        Some((MenuAction::AjouterDesImages, "Ajouter des images…", "")),
-        None,
-        Some((MenuAction::Paste, "Coller", "Ctrl+V")),
-        Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")),
-        None,
-        Some((MenuAction::NouveauDocument, "Nouveau document", "Ctrl+N")),
-        Some((
-            MenuAction::OuvrirUnDocument,
-            "Ouvrir un document…",
-            "Ctrl+O",
-        )),
-    ];
-    // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
-    if !cfg!(target_os = "android") {
-        defs.push(Some((
-            MenuAction::ModeReference,
-            "Mode référence",
-            "Ctrl+Maj+A",
-        )));
-    }
-    // Sans serveur, ces entrées n'ont pas d'objet : elles n'existent pas.
-    if crate::telemetrie::serveur().is_some() {
-        defs.push(None);
-        defs.push(Some((
-            MenuAction::JournalTechnique,
-            "Journal technique…",
-            "",
-        )));
-        // Un dossier à ouvrir dans l'explorateur : le téléphone n'en a pas (fiche 56).
-        if !cfg!(target_os = "android") {
-            defs.push(Some((MenuAction::VoirCeQuiPart, "Voir ce qui part", "")));
-        }
-    }
-    defs
-}
+mod entrees;
+use entrees::{entrees, Def};
 
 /// Ce qu'un menu proposerait à cet endroit, ouvert en `(ax, ay)` — sur le canevas, ou sur
 /// l'onglet qu'on nomme.
@@ -289,16 +171,23 @@ pub fn layout_context_menu(
         let (b, _) = typography.measure_text(shortcut, font, Face::Regular);
         a + SHORTCUT_GAP * s + b + ROW_PAD_X * s * 2.0
     };
-    let largeur = defs
+    let (pad, filet) = (PAD * s, SEPARATOR * s);
+    let colonnes = en_colonnes(defs, screen.1 - pad * 2.0, (rangee, filet));
+    let largeurs: Vec<f32> = colonnes
         .iter()
-        .flatten()
-        .map(|(_, l, k)| largeur_ligne(l, k))
-        .fold(0.0f32, f32::max);
-    let hauteur = PAD * s * 2.0
-        + defs
+        .map(|c| {
+            c.iter()
+                .flatten()
+                .map(|(_, l, k)| largeur_ligne(l, k))
+                .fold(0.0f32, f32::max)
+        })
+        .collect();
+    let largeur = largeurs.iter().sum::<f32>();
+    let hauteur = pad * 2.0
+        + colonnes
             .iter()
-            .map(|d| if d.is_some() { rangee } else { SEPARATOR * s })
-            .sum::<f32>();
+            .map(|c| hauteur_de(c, (rangee, filet)))
+            .fold(0.0f32, f32::max);
 
     // Le menu reste dans la fenêtre : s'il déborde, il bascule de l'autre côté du curseur,
     // comme n'importe quel menu système. Sans cela, un clic droit près du bord ouvrirait un
@@ -314,24 +203,34 @@ pub fn layout_context_menu(
         (at.1 - hauteur).max(0.0)
     };
 
-    let mut curseur = y + PAD * s;
-    let mut rows = Vec::with_capacity(defs.len());
-    for def in defs {
-        match def {
-            Some((action, label, shortcut)) => {
-                rows.push(MenuRow::Item {
-                    action,
-                    label,
-                    shortcut,
-                    rect: (x + PAD * s, curseur, largeur - PAD * s * 2.0, rangee),
-                });
-                curseur += rangee;
-            }
-            None => {
-                rows.push(MenuRow::Separator(curseur + SEPARATOR * s / 2.0));
-                curseur += SEPARATOR * s;
+    // Chaque colonne a la largeur de sa plus longue entrée ; ses entrées, cette largeur moins
+    // les marges — la mesure d'une seule colonne, inchangée.
+    let mut rows = Vec::new();
+    let mut gauche = x;
+    for (colonne, l) in colonnes.into_iter().zip(largeurs) {
+        let mut curseur = y + pad;
+        for def in colonne {
+            match def {
+                Some((action, label, shortcut)) => {
+                    rows.push(MenuRow::Item {
+                        action,
+                        label,
+                        shortcut,
+                        rect: (gauche + pad, curseur, l - pad * 2.0, rangee),
+                    });
+                    curseur += rangee;
+                }
+                None => {
+                    rows.push(MenuRow::Separator {
+                        y: curseur + filet / 2.0,
+                        x: gauche + pad,
+                        largeur: l - pad * 2.0,
+                    });
+                    curseur += filet;
+                }
             }
         }
+        gauche += l;
     }
 
     Some(ContextMenu {
@@ -339,6 +238,47 @@ pub fn layout_context_menu(
         rows,
         font,
     })
+}
+
+/// La hauteur d'une colonne d'entrées : une rangée par entrée, un filet par séparation.
+fn hauteur_de(colonne: &[Def], (rangee, filet): (f32, f32)) -> f32 {
+    colonne
+        .iter()
+        .map(|d| if d.is_some() { rangee } else { filet })
+        .sum()
+}
+
+/// **Les entrées, en colonnes qui tiennent dans `hauteur`** (ACCES-1) — la règle du rail :
+/// colonne après colonne, quand la place manque. Un menu plus haut que l'écran en perdait le
+/// bas : au doigt, sur un téléphone de cinq pouces, il n'en tient qu'une douzaine.
+///
+/// Une colonne se ferme **à une séparation** quand le groupe qui suit ne tiendrait pas entier
+/// sous elle : les gestes d'un même groupe restent ensemble. Seul un groupe plus haut qu'une
+/// colonne se coupe entre deux entrées. Une séparation ne commence ni ne finit une colonne.
+fn en_colonnes(defs: Vec<Def>, hauteur: f32, (rangee, filet): (f32, f32)) -> Vec<Vec<Def>> {
+    let groupes: Vec<&[Def]> = defs.split(Option::is_none).collect();
+    let mut colonnes: Vec<Vec<Def>> = vec![Vec::new()];
+    for groupe in groupes.into_iter().filter(|g| !g.is_empty()) {
+        let colonne = colonnes.last_mut().expect("au moins une colonne");
+        let sous = if colonne.is_empty() { 0.0 } else { filet };
+        let deja = hauteur_de(colonne, (rangee, filet));
+        if !colonne.is_empty() && deja + sous + hauteur_de(groupe, (rangee, filet)) > hauteur {
+            colonnes.push(Vec::new());
+        } else if !colonne.is_empty() {
+            colonne.push(None);
+        }
+        for def in groupe {
+            let colonne = colonnes.last_mut().expect("au moins une colonne");
+            if !colonne.is_empty() && hauteur_de(colonne, (rangee, filet)) + rangee > hauteur {
+                colonnes.push(Vec::new());
+            }
+            colonnes
+                .last_mut()
+                .expect("au moins une colonne")
+                .push(*def);
+        }
+    }
+    colonnes
 }
 
 /// L'entrée visée en `(px, py)`, s'il y en a une.
@@ -401,7 +341,7 @@ pub fn draw_context_menu(
 
     for row in &menu.rows {
         match row {
-            MenuRow::Separator(sy) => filet(pixmap, x + PAD * s, *sy, w - PAD * s * 2.0, theme),
+            MenuRow::Separator { y, x, largeur } => filet(pixmap, *x, *y, *largeur, theme),
             MenuRow::Item { .. } => draw_row(pixmap, row, typography, theme, pointer, font),
         }
     }

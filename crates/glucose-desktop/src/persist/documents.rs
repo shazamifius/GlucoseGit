@@ -104,6 +104,61 @@ impl GlucoseApp {
         self.demander(question, Suite::Ouvrir(documents));
     }
 
+    /// **« Importer un document… » au téléphone** (ACCES-1) : les documents rangés, sauf celui
+    /// qu'on regarde ; celui qu'on touche s'ajoute en onglets (BOARDS-2).
+    pub(crate) fn montrer_les_documents_a_ajouter(&mut self) {
+        use crate::ui::question::{Question, Reponse, Suite};
+        let mut documents: Vec<PathBuf> = les_documents(&self.disque.documents)
+            .into_iter()
+            .filter(|p| self.project_path.as_deref() != Some(p.as_path()))
+            .collect();
+        documents.truncate(MONTRES);
+        let mut choix: Vec<(String, Reponse)> = documents
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (nom_de(p), Reponse::Choix(i)))
+            .collect();
+        choix.push(("Annuler".into(), Reponse::Annuler));
+        let texte = if documents.is_empty() {
+            "Aucun autre document rangé."
+        } else {
+            "Ses tableaux s'ajoutent ici, en onglets."
+        };
+        let question = Question {
+            titre: "Importer un document".into(),
+            texte: texte.into(),
+            choix,
+            ..Default::default()
+        };
+        self.demander(question, Suite::Ajouter(documents));
+    }
+
+    /// **« Enregistrer » du menu** (ACCES-1) : `Ctrl+S` au bureau ; au téléphone, un travail
+    /// sans nom se range d'abord dans les documents — il n'y a pas de dossier à demander.
+    pub(crate) fn enregistrer_depuis_le_menu(&mut self) {
+        if self.ui.documents_ranges && self.project_path.is_none() {
+            self.ranger_dans_les_documents();
+            return;
+        }
+        self.save_project();
+    }
+
+    /// **« Enregistrer sous… » du menu** : `Ctrl+Maj+S` au bureau ; au téléphone, sans dossiers,
+    /// c'est lui donner un autre nom — rangé d'abord s'il n'en a pas (DOCUMENTS-2).
+    pub(crate) fn enregistrer_sous_depuis_le_menu(&mut self) {
+        if !self.ui.documents_ranges {
+            self.save_project_as();
+            return;
+        }
+        if self.project_path.is_none() && !self.ranger_dans_les_documents() {
+            return;
+        }
+        if let Some(chemin) = self.project_path.clone() {
+            let nom = nom_de(&chemin);
+            self.demander_un_nom(chemin, nom, String::new());
+        }
+    }
+
     /// **Range le travail sans nom dans les documents**, sous le premier nom libre, et rend
     /// `true` s'il y est en sûreté — sinon le document reste celui qu'on regarde, et
     /// l'échec s'est dit.

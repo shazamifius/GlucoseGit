@@ -115,6 +115,12 @@ impl GlucoseApp {
     /// Exporte le tableau courant : demande un nom ; le choix revenu, écrit, et dit ce qui a
     /// été écrit ([`Self::exporter_vers`]).
     pub fn export_board(&mut self) {
+        // Sans sélecteur — au téléphone —, le format se demande, et la feuille de partage
+        // reçoit le fichier (PARTAGE-2).
+        if crate::plateforme::partager::disponible() {
+            self.demander_le_format_a_partager();
+            return;
+        }
         let sortie = la_sortie(&self.document_label());
         let demande = super::choix::Demande::Exporter;
         self.demander_un_fichier(sortie, crate::dialogue::Mode::Enregistrer, demande);
@@ -128,12 +134,15 @@ impl GlucoseApp {
             return;
         }
         let message = match self.try_export(&chemin, format) {
-            Ok(octets) => format!(
-                "{} exporté en {} — {}",
-                nom_du_fichier(&chemin),
-                format.nom(),
-                human_size(octets)
-            ),
+            Ok(octets) => {
+                self.offrir_si_partage(&chemin);
+                format!(
+                    "{} exporté en {} — {}",
+                    nom_du_fichier(&chemin),
+                    format.nom(),
+                    human_size(octets)
+                )
+            }
             Err(err) => err.to_string(),
         };
         self.ui.show_toast(message);

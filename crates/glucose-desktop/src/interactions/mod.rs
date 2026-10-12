@@ -34,6 +34,7 @@ pub mod reference;
 pub mod resize;
 pub mod selection;
 pub mod shortcuts;
+pub mod signets;
 pub mod survol;
 pub mod temps;
 pub mod text_edit;

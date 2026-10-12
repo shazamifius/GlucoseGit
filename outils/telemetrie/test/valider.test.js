@@ -10,6 +10,7 @@ const SESSION = [
   '{"type":"machine","instant_ms":0,"batterie_pct":null,"en_charge":null}',
   '{"type":"pire","instant_ms":817,"duree_us":27484,"geste":"zoomer"}',
   '{"type":"episode","instant_ms":817,"duree_ms":13,"geste":"deplacer la vue","images":1,"median_us":27484,"p99_us":27484,"pire_us":27484}',
+  '{"type":"poste","instant_ms":817,"geste":"deplacer la vue","nom":"textures","median_us":14200,"p99_us":21000}',
   '{"type":"pave","instant_ms":900,"quoi":"statut_en_cours","valeur":5}',
   '{"type":"panique","instant_ms":901,"fichier":"crates\\\\glucose-desktop\\\\src\\\\app.rs","ligne":12,"principal":true}',
   '{"type":"plantage","instant_ms":0,"gel":false,"module":"nvoglv64.dll","version_du_module":"32.0.16.1074","code":3221225477,"decalage":4660}',
@@ -39,6 +40,8 @@ test("un mot de l'utilisateur ne passe pas, ou qu'il se cache", () => {
     SESSION.replace('"genre":"integree"', '"genre":"le portable de marie"'),
     SESSION.replace('"fabricant":5045', '"fabricant":"ARM"'),
     SESSION.replace('"plafond":8192', '"plafond":8192,"nom":"Mali-G52"'),
+    SESSION.replace('"nom":"textures"', '"nom":"mon document secret"'),
+    SESSION.replace('"nom":"textures"', '"nom":"Textures"'),
   ];
   for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
 });

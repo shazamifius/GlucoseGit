@@ -36,7 +36,7 @@ fn actions(m: &ContextMenu) -> Vec<MenuAction> {
         .iter()
         .filter_map(|r| match r {
             MenuRow::Item { action, .. } => Some(*action),
-            MenuRow::Separator(_) => None,
+            MenuRow::Separator { .. } => None,
         })
         .collect()
 }
@@ -47,11 +47,17 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
         vec![
+            MenuAction::Annuler,
             MenuAction::AjouterDesImages,
             MenuAction::Paste,
             MenuAction::SelectAll,
+            MenuAction::ToutCadrer,
+            MenuAction::Signets,
             MenuAction::NouveauDocument,
             MenuAction::OuvrirUnDocument,
+            MenuAction::Enregistrer,
+            MenuAction::EnregistrerSous,
+            MenuAction::Exporter,
             MenuAction::ModeReference
         ],
         "sans sélection, ni dupliquer ni supprimer n'ont d'objet"
@@ -64,9 +70,11 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
         vec![
+            MenuAction::Annuler,
             MenuAction::Copier,
             MenuAction::Couper,
             MenuAction::Duplicate,
+            MenuAction::CadrerLaSelection,
             MenuAction::ToggleLock,
             MenuAction::TrimBorders,
             MenuAction::ToFront,
@@ -134,7 +142,7 @@ fn test_un_separateur_ne_declenche_rien() {
         .rows
         .iter()
         .find_map(|r| match r {
-            MenuRow::Separator(y) => Some(*y),
+            MenuRow::Separator { y, .. } => Some(*y),
             _ => None,
         })
         .expect("un séparateur");
@@ -246,6 +254,147 @@ fn test_dossier_1_un_dossier_seul_offre_supprimer_et_rien_d_autre() {
     store.select_folder("d".into());
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
-        vec![MenuAction::Delete]
+        vec![MenuAction::Annuler, MenuAction::Delete]
     );
+}
+
+/// **ACCES-1 — Annuler et Rétablir n'existent que s'ils ont un objet**, en tête de tout menu du
+/// canevas : sans clavier — le doigt, la souris seule —, rien ne défaisait un geste au bureau.
+#[test]
+fn test_acces_1_annuler_et_retablir_n_existent_que_s_ils_ont_un_objet() {
+    let neuf = Store::new("neuf");
+    let a = actions(&menu(&neuf, (100.0, 100.0)));
+    assert!(!a.contains(&MenuAction::Annuler) && !a.contains(&MenuAction::Retablir));
+
+    let mut store = store_with(1, 0, true);
+    let a = actions(&menu(&store, (100.0, 100.0)));
+    assert_eq!(
+        a.first(),
+        Some(&MenuAction::Annuler),
+        "en tete, sur une selection"
+    );
+    assert!(!a.contains(&MenuAction::Retablir), "rien a refaire");
+    assert!(store.undo());
+    let a = actions(&menu(&store, (100.0, 100.0)));
+    assert!(
+        a.contains(&MenuAction::Retablir),
+        "le geste defait se refait"
+    );
+}
+
+/// **ACCES-1 — chaque geste du clavier a son entrée.** Tout cadrer, les signets, enregistrer,
+/// enregistrer sous, exporter ne s'atteignaient qu'au clavier — donc jamais au téléphone ; la
+/// sélection se cadre aussi d'une entrée.
+#[test]
+fn test_acces_1_chaque_geste_du_clavier_a_son_entree() {
+    let vide = actions(&menu(&store_with(1, 0, false), (100.0, 100.0)));
+    for attendue in [
+        MenuAction::ToutCadrer,
+        MenuAction::Signets,
+        MenuAction::Enregistrer,
+        MenuAction::EnregistrerSous,
+        MenuAction::Exporter,
+        MenuAction::AjouterDesImages,
+    ] {
+        assert!(
+            vide.contains(&attendue),
+            "{attendue:?} manque au menu du vide"
+        );
+    }
+    let selection = actions(&menu(&store_with(1, 0, true), (100.0, 100.0)));
+    assert!(selection.contains(&MenuAction::CadrerLaSelection));
+}
+
+/// **ACCES-1 — un menu plus haut que l'écran se range en colonnes, sans rien perdre.** Au doigt,
+/// un écran de cinq pouces ne tient qu'une douzaine d'entrées : le bas sortait de l'écran. Les
+/// colonnes tiennent dans l'écran, aucune entrée ne se chevauche, toutes sont là ; et sur un
+/// écran qui le tient, le menu reste d'une seule colonne.
+#[test]
+fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
+    let store = store_with(1, 0, false);
+    let typo = Typography::new();
+    let haut = layout_context_menu(&store, &typo, ((10.0, 10.0), None), SCREEN, 1.0, true)
+        .expect("un menu");
+    // Trois cents pixels : sous les deux premiers groupes, le troisième ne tient plus entier —
+    // sans la règle des groupes, la colonne se couperait au milieu de lui.
+    let bas = (SCREEN.0, 300.0);
+    let range =
+        layout_context_menu(&store, &typo, ((10.0, 10.0), None), bas, 1.0, true).expect("un menu");
+    assert_eq!(actions(&range), actions(&haut), "aucune entree perdue");
+    let colonnes = |m: &ContextMenu| {
+        let mut x: Vec<i32> = m
+            .rows
+            .iter()
+            .filter_map(|r| match r {
+                MenuRow::Item { rect, .. } => Some(rect.0 as i32),
+                MenuRow::Separator { .. } => None,
+            })
+            .collect();
+        x.dedup();
+        x.sort_unstable();
+        x.dedup();
+        x.len()
+    };
+    assert_eq!(colonnes(&haut), 1, "un ecran qui le tient : une colonne");
+    assert!(colonnes(&range) > 1, "trop haut : des colonnes");
+    let (_, my, _, mh) = range.rect;
+    assert!(my >= 0.0 && my + mh <= bas.1, "le menu tient dans l'ecran");
+    // Chaque groupe tient dans une colonne ici : aucune colonne ne commence au milieu d'un
+    // groupe. Le début d'un groupe, c'est la première entrée, ou celle qui suit un filet.
+    let mut debuts = Vec::new();
+    let mut apres_un_filet = true;
+    for r in &haut.rows {
+        match r {
+            MenuRow::Item { action, .. } if apres_un_filet => {
+                debuts.push(*action);
+                apres_un_filet = false;
+            }
+            MenuRow::Item { .. } => {}
+            MenuRow::Separator { .. } => apres_un_filet = true,
+        }
+    }
+    let mut vues = std::collections::HashSet::new();
+    for r in &range.rows {
+        if let MenuRow::Item { action, rect, .. } = r {
+            if vues.insert(rect.0 as i32) {
+                assert!(
+                    debuts.contains(action),
+                    "{action:?} commence une colonne au milieu de son groupe"
+                );
+            }
+        }
+    }
+    // Un filet sépare deux groupes d'une même colonne : jamais il ne la commence ni ne la finit.
+    let x_de = |r: &MenuRow| match r {
+        MenuRow::Item { rect, .. } => rect.0,
+        MenuRow::Separator { x, .. } => *x,
+    };
+    for (i, r) in range.rows.iter().enumerate() {
+        if let MenuRow::Separator { x, .. } = r {
+            let avant = i.checked_sub(1).map(|j| &range.rows[j]);
+            let apres = range.rows.get(i + 1);
+            assert!(
+                avant.is_some_and(|a| x_de(a) == *x) && apres.is_some_and(|b| x_de(b) == *x),
+                "un filet au bord de sa colonne : {r:?}"
+            );
+        }
+    }
+    let rects: Vec<_> = range
+        .rows
+        .iter()
+        .filter_map(|r| match r {
+            MenuRow::Item { rect, .. } => Some(*rect),
+            MenuRow::Separator { .. } => None,
+        })
+        .collect();
+    for (i, a) in rects.iter().enumerate() {
+        assert!(a.1 + a.3 <= bas.1 + 0.5, "{a:?} sort par le bas");
+        for b in &rects[i + 1..] {
+            let disjoints = a.0 + a.2 <= b.0 + 0.5
+                || b.0 + b.2 <= a.0 + 0.5
+                || a.1 + a.3 <= b.1 + 0.5
+                || b.1 + b.3 <= a.1 + 0.5;
+            assert!(disjoints, "{a:?} chevauche {b:?}");
+        }
+    }
 }

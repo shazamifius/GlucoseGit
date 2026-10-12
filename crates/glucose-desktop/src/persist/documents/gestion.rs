@@ -96,7 +96,7 @@ impl GlucoseApp {
     /// Le nom à donner, dans un champ que le clavier remplit — tout sélectionné, comme partout :
     /// la première lettre tapée remplace l'ancien nom. `pourquoi` dit, au-dessus du champ, ce
     /// qui n'allait pas dans le nom d'avant.
-    fn demander_un_nom(&mut self, chemin: PathBuf, nom: String, pourquoi: String) {
+    pub(crate) fn demander_un_nom(&mut self, chemin: PathBuf, nom: String, pourquoi: String) {
         let selection = Selection::all(&nom);
         let question = Question {
             titre: "Renommer".into(),

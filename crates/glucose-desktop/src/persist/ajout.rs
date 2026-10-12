@@ -24,8 +24,13 @@ use std::io::Read;
 use std::path::Path;
 
 impl GlucoseApp {
-    /// Le geste du menu : choisir un document, puis l'ajouter.
+    /// Le geste du menu : choisir un document, puis l'ajouter — par le sélecteur de fichiers au
+    /// bureau ; au téléphone, qui n'en a pas, dans la liste des documents rangés (ACCES-1).
     pub(crate) fn choisir_un_document_a_ajouter(&mut self) {
+        if self.ui.documents_ranges {
+            self.montrer_les_documents_a_ajouter();
+            return;
+        }
         let demande = super::choix::Demande::AjouterUnDocument;
         let fichier = super::commands::un_document();
         self.demander_un_fichier(fichier, crate::dialogue::Mode::Un, demande);

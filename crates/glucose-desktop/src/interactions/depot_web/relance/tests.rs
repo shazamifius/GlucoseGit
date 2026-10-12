@@ -82,7 +82,7 @@ fn entrees(app: &GlucoseApp) -> Vec<MenuAction> {
             .iter()
             .filter_map(|r| match r {
                 MenuRow::Item { action, .. } => Some(*action),
-                MenuRow::Separator(_) => None,
+                MenuRow::Separator { .. } => None,
             })
             .collect()
     })

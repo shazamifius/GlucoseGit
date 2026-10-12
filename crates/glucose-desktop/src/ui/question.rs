@@ -84,6 +84,15 @@ pub enum Suite {
     Laisser(crate::persist::close::Ensuite),
     /// Une version plus récente : oui, elle se télécharge (fiche 48).
     MiseAJour(crate::mise_a_jour::Proposition),
+    /// « Signets… » : voler vers l'un, ou en poser un ici (ACCES-1).
+    Signets,
+    /// Les neuf signets pris : celui qui prend la vue d'ici.
+    RemplacerUnSignet,
+    /// « Importer un document… » au téléphone : l'un de ces documents rangés, ajouté en
+    /// onglets (ACCES-1).
+    Ajouter(Vec<std::path::PathBuf>),
+    /// Exporter sans sélecteur : le format, puis la feuille de partage (PARTAGE-2).
+    Exporter,
 }
 
 /// **Un champ de texte** dans une question — le nom d'un document qu'on renomme

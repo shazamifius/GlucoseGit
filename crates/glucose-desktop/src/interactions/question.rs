@@ -153,6 +153,14 @@ impl GlucoseApp {
             Suite::Fermer(apres) => self.repondre_a_la_fermeture(reponse, apres),
             Suite::Laisser(ensuite) => self.repondre_au_depart(reponse, ensuite),
             Suite::MiseAJour(proposition) if oui => self.preparer_la_mise_a_jour(proposition),
+            Suite::Signets => self.suivre_les_signets(reponse),
+            Suite::Exporter => self.exporter_au_format(reponse),
+            Suite::RemplacerUnSignet => self.remplacer_le_signet(reponse),
+            Suite::Ajouter(chemins) => {
+                if let Some(chemin) = reponse_choisie(reponse).and_then(|i| chemins.get(i)) {
+                    self.ajouter_un_document(chemin);
+                }
+            }
             Suite::NouveauDocument | Suite::MiseAJour(_) => {}
         }
     }

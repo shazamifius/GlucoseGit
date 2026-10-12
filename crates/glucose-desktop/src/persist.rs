@@ -35,6 +35,7 @@ pub mod frappe;
 pub mod import;
 pub mod nouveau;
 pub mod objets;
+mod partages;
 pub mod recuperation;
 pub mod reprise;
 pub mod scribe;

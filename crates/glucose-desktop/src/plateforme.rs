@@ -39,6 +39,7 @@ pub mod marges;
 pub mod moisson;
 pub mod offre;
 pub mod partage;
+pub mod partager;
 pub mod presse_papiers;
 pub mod priorite;
 pub mod rapatrier;

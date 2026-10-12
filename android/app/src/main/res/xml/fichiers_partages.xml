@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ce que la feuille de partage peut offrir (PARTAGE-2, fiche 63) : le seul dossier où Glucose
+     écrit ce qu'il partage, dans son dossier privé (`getFilesDir()/glucose`, celui que
+     `glucose-android` lui donne). Ses documents, à côté, ne sont jamais atteignables. -->
+<paths>
+    <files-path name="partages" path="glucose/partages/" />
+</paths>

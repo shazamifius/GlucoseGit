@@ -31,6 +31,15 @@ export const TYPES = {
     p99_us: "entier",
     pire_us: "entier",
   },
+  // **Où part le temps d'un épisode trop lent** (POSTES-1, fiche 63) : un poste de rendu, par
+  // son nom fixé à la compilation, et ce qu'il a coûté pendant l'épisode.
+  poste: {
+    instant_ms: "entier",
+    geste: "geste",
+    nom: "poste",
+    median_us: "entier",
+    p99_us: "entier",
+  },
   machine: { instant_ms: "entier", batterie_pct: "entier?", en_charge: "booleen?" },
   pire: { instant_ms: "entier", duree_us: "entier", geste: "geste" },
   pave: { instant_ms: "entier", quoi: "quoi", valeur: "entier" },
@@ -75,6 +84,16 @@ export const NOMS = {
     "statut_en_construction", "statut_actif", "statut_desactive", "statut_en_cours",
     "statut_inertie", "statut_pret", "statut_suspendu", "statut_inconnu",
   ],
+  // Les postes de rendu, tels que `perf::stage` les marque dans le code de Glucose (POSTES-1) :
+  // une épreuve de Glucose (`cliquets_suite`) vérifie que chaque marque est ici.
+  poste: [
+    "acquerir", "agrandir", "annotations", "ariane", "atelier", "bande", "blit", "clear",
+    "composants", "cull", "docks", "effacer", "encoder", "etages", "fleches", "folders", "grid",
+    "grille", "halos", "hues", "images", "index", "lueurs", "membranes", "minimap",
+    "occlusion", "ornements", "poses", "present", "reclamer", "recolte", "region", "releve",
+    "relever", "reperes", "report", "soumettre", "teintes", "tempo", "textures", "tuile", "ui",
+    "vignettes", "zones",
+  ],
   // Le moteur et le genre d'une carte, tels que `wgpu` les distingue.
   moteur: ["vulkan", "gl", "dx12", "metal", "webgpu", "aucun"],
   genre: ["integree", "dediee", "virtuelle", "processeur", "autre"],
@@ -100,6 +119,7 @@ function conforme(sorte, v) {
     case "booleen":
       return typeof v === "boolean";
     case "geste":
+    case "poste":
     case "fin":
     case "quoi":
     case "moteur":

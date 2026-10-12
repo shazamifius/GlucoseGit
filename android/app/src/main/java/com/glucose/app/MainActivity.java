@@ -1,6 +1,7 @@
 package com.glucose.app;
 
 import android.app.PendingIntent;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInstaller;
@@ -19,6 +20,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.core.content.IntentCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
@@ -113,6 +115,32 @@ public class MainActivity extends GameActivity {
             etat.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
             etat.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
         };
+    }
+
+    /**
+     * **La feuille de partage** (PARTAGE-2, fiche 63) : un fichier que Glucose vient d'écrire —
+     * un export, une image enregistrée — offert aux autres applications (Fichiers, la galerie,
+     * Discord, Drive), comme Procreate et Concepts exportent. Le fichier vit dans le dossier
+     * privé de Glucose ; `FileProvider` en donne une adresse que l'application choisie a le
+     * droit de lire, et rien d'autre. Appelé par Rust, du fil de Glucose.
+     */
+    public void partagerUnFichier(String chemin, String type) {
+        runOnUiThread(() -> {
+            try {
+                Uri adresse = FileProvider.getUriForFile(
+                        this, getPackageName() + ".fichiers", new File(chemin));
+                Intent envoi = new Intent(Intent.ACTION_SEND)
+                        .setType(type)
+                        .putExtra(Intent.EXTRA_STREAM, adresse)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                // Le droit de lire passe par le `ClipData` depuis Android 10 : sans lui, la
+                // feuille montre l'aperçu, et l'application choisie reçoit une adresse fermée.
+                envoi.setClipData(ClipData.newRawUri(null, adresse));
+                startActivity(Intent.createChooser(envoi, null));
+            } catch (Exception e) {
+                android.util.Log.e("Glucose", "partage impossible : " + e);
+            }
+        });
     }
 
     /** **L'appui long a pris** (fiche 57) : le doigt le sent, comme partout sous Android — et

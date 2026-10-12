@@ -104,10 +104,13 @@ impl GlucoseApp {
             chemin.set_extension(extension);
         }
         let message = match ecrire_l_image(&chemin, octets) {
-            Ok(()) => format!(
-                "Image enregistrée — {}",
-                chemin.file_name().and_then(|n| n.to_str()).unwrap_or("")
-            ),
+            Ok(()) => {
+                self.offrir_si_partage(&chemin);
+                format!(
+                    "Image enregistrée — {}",
+                    chemin.file_name().and_then(|n| n.to_str()).unwrap_or("")
+                )
+            }
             Err(e) => e,
         };
         self.dire_l_image(message);
@@ -138,6 +141,12 @@ impl GlucoseApp {
             .and_then(|s| s.to_str())
             .unwrap_or("image")
             .to_string();
+        // Sans sélecteur — au téléphone —, l'image part par la feuille de partage (PARTAGE-2).
+        if crate::plateforme::partager::disponible() {
+            let chemin = self.a_partager(&format!("{base}.{extension}"));
+            self.ecrire_l_image_choisie(chemin, &octets, extension);
+            return None;
+        }
         let fichier = crate::dialogue::fichier()
             .filtre(nom, &[extension])
             .nom(format!("{base}.{extension}"));

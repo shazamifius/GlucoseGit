@@ -76,6 +76,9 @@ impl super::GlucoseApp {
     pub fn habiter(&mut self, dossier: &std::path::Path) {
         self.disque.brouillons = dossier.join("brouillons");
         self.disque.documents = dossier.join("documents");
+        // Le seul dossier que la feuille de partage offre (PARTAGE-2) : `fichiers_partages.xml`
+        // le nomme sous Android, et rien d'autre de ce dossier n'est atteignable.
+        self.disque.partages = dossier.join("partages");
         // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
         self.renderer
             .magasin
