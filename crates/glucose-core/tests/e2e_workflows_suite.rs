@@ -425,10 +425,12 @@ fn test_workflow_presets() {
         created_at: 0,
     });
 
-    store.apply_preset_to_board("main", Some("P1"));
-    assert_eq!(store.active_board().unwrap().zones.len(), 1);
+    store.poser_un_gabarit("main", ("P1", &["X"]), (0.0, 0.0));
+    let zones = &store.active_board().unwrap().zones;
+    assert_eq!(zones.len(), 1);
+    assert_eq!(zones[0].slot_id, "P1/X", "la zone nomme son gabarit");
 
-    store.apply_preset_to_board("main", None);
+    store.retirer_le_gabarit("main");
     assert_eq!(store.active_board().unwrap().zones.len(), 0);
 }
 

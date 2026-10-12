@@ -63,6 +63,7 @@ pub(super) fn presenter(
         couches::Temps {
             fond: &p.fond,
             lueurs: &p.lueurs,
+            zones: &p.zones,
             membranes: &p.membranes,
             fleches: &p.fleches,
             lisere: &p.lisere,
@@ -159,6 +160,7 @@ fn preparer_la_scene(
     p.fond.preparer(&p.queue, ecran, confie.fond);
     p.lueurs
         .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
+    p.zones.preparer(&p.device, &p.queue, ecran, &confie.zones);
     p.membranes
         .preparer(&p.device, &p.queue, ecran, &confie.membranes);
     p.fleches

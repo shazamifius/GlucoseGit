@@ -75,6 +75,8 @@ pub struct GpuPresenter {
     fond: super::fond_gpu::FondGpu,
     /// Les lueurs des cartes (fiche 21, etape 3).
     lueurs: super::lueurs_gpu::Lueurs,
+    /// Le corps des zones d'un gabarit (PRESET-1).
+    zones: super::zones_gpu::Zones,
     /// La forme des membranes (MEMB-FORME-1).
     membranes: super::membranes_gpu::Membranes,
     /// Le champ des flèches (FLECHE-2).
@@ -204,6 +206,7 @@ impl GpuPresenter {
         let couches = super::couches::Couches::nouvelles(&device, config.format);
         let fond = super::fond_gpu::FondGpu::nouveau(&device, config.format);
         let lueurs = super::lueurs_gpu::Lueurs::nouvelles(&device, config.format);
+        let zones = super::zones_gpu::Zones::nouvelles(&device, config.format);
         let membranes = super::membranes_gpu::Membranes::nouvelles(&device, config.format);
         let fleches = super::fleches_gpu::FlechesGpu::nouvelles(&device, config.format);
         let lisere = super::lisere_gpu::LisereGpu::nouveau(&device, config.format);
@@ -213,6 +216,7 @@ impl GpuPresenter {
             couches,
             fond,
             lueurs,
+            zones,
             membranes,
             fleches,
             lisere,

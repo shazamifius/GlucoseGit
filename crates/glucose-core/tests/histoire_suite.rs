@@ -105,7 +105,7 @@ fn test_l_histoire_relue_redonne_le_document_apres_chaque_geste() {
     let b2 = store.add_board("Annexe");
     verifier(&mut store, "renommer et ajouter un tableau");
     store.add_image(&b2, image("z", 0.0));
-    store.set_board_zones(&b, vec![BoardZone::new("slot", 0.0, 0.0, 10.0, 10.0)]);
+    store.poser_les_zones(&b, vec![BoardZone::new("slot", 0.0, 0.0, 10.0, 10.0)]);
     store.set_project_name("renommé");
     verifier(&mut store, "zones, nom, image sur l'annexe");
     store

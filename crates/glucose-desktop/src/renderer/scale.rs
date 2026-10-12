@@ -165,7 +165,7 @@ fn remplir(
 }
 
 /// Le même rectangle, ramené sur la grille de pixels, ou `None` s'il n'a pas de sens.
-fn on_pixel_grid(r: tiny_skia::Rect) -> Option<tiny_skia::Rect> {
+pub(crate) fn on_pixel_grid(r: tiny_skia::Rect) -> Option<tiny_skia::Rect> {
     tiny_skia::Rect::from_xywh(
         r.x().round(),
         r.y().round(),

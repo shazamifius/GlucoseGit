@@ -57,6 +57,12 @@ pub(super) fn dessiner_sous_les_photos(
 ) -> bool {
     if cadrage.couche.porte_le_fond() {
         grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
+        // 3 bis. Le corps des zones d'un gabarit, sous tout le contenu — le premier rang de
+        // Tauri (PRESET-1). Sur la voie graphique, la carte pose les mêmes rectangles au même
+        // rang, avant ses membranes.
+        let ecran = (pixmap.width() as f32, pixmap.height() as f32);
+        super::zone::remplir(pixmap, &super::zone::rectangles(store, pass, ecran));
+        crate::perf::stage("zones");
     }
     // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
     // carte sinon (MEMB-FORME-1) ; leurs titres, poignées et réglettes, ici sur les deux voies.
@@ -66,12 +72,14 @@ pub(super) fn dessiner_sous_les_photos(
         scene::draw_membrane_ornaments(kit, pixmap, store, pass)
     };
     crate::perf::stage("membranes");
+    // 4 ter. Le nom et la phrase des zones, sur les deux voies — comme les titres des membranes.
+    let zones = super::zone::ecrire_les_textes(kit, pixmap, store, pass);
     // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
     // conteneurs et sous leur contenu.
     let dossiers = folder::draw_folders(kit, pixmap, store, pass);
     crate::perf::stage("folders");
     // Le fond couvre tout : quand il est là, la couche porte forcément de l'encre.
-    cadrage.couche.porte_le_fond() || membranes || dossiers
+    cadrage.couche.porte_le_fond() || zones || membranes || dossiers
 }
 
 /// **Ce qui passe sur les photos** : les ornements, les annotations, les repères du geste.
@@ -478,6 +486,7 @@ impl Renderer {
         let lueurs = lueurs_a_poser(&mut self.hue_cache, store, (pass, overlay.designees), ecran);
         crate::perf::stage("lueurs");
         let membranes = scene::formes_des_membranes(store, pass, taille);
+        let zones = super::zone::rectangles(store, pass, ecran);
         crate::perf::stage("membranes");
         let fleches = super::arrow::fleches_a_poser(
             &mut self.hue_cache,
@@ -519,21 +528,18 @@ impl Renderer {
         Confie {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
             lueurs,
+            zones,
             membranes,
             fleches,
             photos,
             niveaux,
             replis,
             cartes,
-            // Les panneaux sont a la peinture, comme le releve : la chrome se pose apres.
-            panneaux: Vec::new(),
             composants,
-            // Le releve appartient a la peinture : la chrome se dessine APRES le renderer,
-            // donc rien de juste ne peut etre dit ici.
-            bandes_du_dessus: crate::present::bandes::Bandes::default(),
-            bandes_du_dessous: crate::present::bandes::Bandes::default(),
-            lisere: None,
             dessous_porte_quelque_chose: true,
+            // Les panneaux, le releve des bandes et le lisere appartiennent a la peinture : la
+            // chrome se dessine APRES le renderer, donc rien de juste ne peut en etre dit ici.
+            ..Confie::default()
         }
     }
 }

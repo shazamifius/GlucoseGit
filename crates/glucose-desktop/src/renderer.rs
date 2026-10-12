@@ -50,6 +50,7 @@ pub mod scene;
 pub mod tuiles;
 pub mod vignette;
 pub mod wrap;
+pub mod zone;
 
 use crate::params::{Pointer, SceneOverlay, ViewPass};
 use crate::theme::Theme;

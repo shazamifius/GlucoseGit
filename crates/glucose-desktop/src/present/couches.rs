@@ -352,6 +352,8 @@ impl Couches {
 pub struct Temps<'a> {
     pub fond: &'a super::fond_gpu::FondGpu,
     pub lueurs: &'a super::lueurs_gpu::Lueurs,
+    /// Le corps des zones d'un gabarit, juste après le fond (PRESET-1).
+    pub zones: &'a super::zones_gpu::Zones,
     pub membranes: &'a super::membranes_gpu::Membranes,
     pub fleches: &'a super::fleches_gpu::FlechesGpu,
     pub lisere: &'a super::lisere_gpu::LisereGpu,
@@ -404,6 +406,9 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
         multiview_mask: None,
     });
     temps.fond.poser(&mut passe);
+    // Le corps des zones d'un gabarit : le premier rang du monde, sous les membranes, comme
+    // le processeur le peint juste après le fond (PRESET-1).
+    temps.zones.poser(&mut passe);
     // La forme des membranes, sous leurs titres qui sont dans la couche du dessous.
     temps.membranes.poser(&mut passe);
     temps

@@ -1192,3 +1192,42 @@ fn test_panneaux_1_un_panneau_se_pose_pareil_sur_les_deux_voies() {
         "les deux voies divergent : pire {pire}, {larges} canaux au-dela de {ECART_COURANT}"
     );
 }
+
+/// **PRESET-1 — les zones d'un gabarit se posent pareil sur les deux voies** : sous tout le
+/// contenu, par la couche du dessous que la carte pose sous ses photos. Et elles se voient —
+/// une épreuve qui compare deux voies passerait aussi le jour où aucune ne les dessinerait.
+#[test]
+fn test_preset_1_les_zones_se_posent_pareil_sur_les_deux_voies() {
+    let taille = synth::WITNESS_SIZE;
+    let sans = synth::witness_selected();
+    let mut store = sans.clone();
+    let board = store.project.active_board_id.clone();
+    let gabarit = glucose_core::gabarits::integre("props").expect("un gabarit intégré");
+    let categories: Vec<&str> = gabarit.categories.iter().map(|c| c.id).collect();
+    let vp = store.viewport();
+    let centre = (
+        (f64::from(taille.0) / 2.0 - vp.x) / vp.scale,
+        (f64::from(taille.1) / 2.0 - vp.y) / vp.scale,
+    );
+    store.poser_un_gabarit(&board, (gabarit.id, &categories), centre);
+
+    let processeur = par_le_processeur(taille, &store);
+    assert!(
+        banc_gpu::pire_ecart(&processeur, &par_le_processeur(taille, &sans)) > 0,
+        "les zones se voient"
+    );
+    let Some(carte) = par_la_carte(taille, &store) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux"
+    );
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    assert!(
+        larges * 1000 <= processeur.data().len() * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux"
+    );
+}
