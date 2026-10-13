@@ -286,3 +286,30 @@ passait était la garde redondante, retirée (§ 10). **Rien n'est jugé à son 
 * **Sinon** : installer `Glucose.apk`, ouvrir Glucose une dizaine de secondes, le fermer, le
   rouvrir une fois — les sessions d'avant partent, et le tableau de bord dira si le redémarrage
   est tombé pendant Glucose.
+
+## 13. Ses réponses, à la fin de la session (13/10 au soir)
+
+* **Les huit propositions du § 9 : toutes validées** (« c'est vraiment juste parfait, je valide
+  intégralement les 8 propositions »).
+* **Le téléphone : c'est bien Glucose qui a fait tomber le système.** Mot pour mot ou presque :
+  *« aucun bouton ne répondait, même le bouton éteindre, et à un moment il a redémarré tout
+  seul »* ; *« mon téléphone n'a jamais fait ça sur aucune application, et c'est au moment où des
+  lag spikes ont commencé à se faire ressentir dans le logiciel »*. Un système entier figé, le
+  bouton d'alimentation compris, puis un redémarrage seul : c'est la surveillance du noyau qui
+  abat un système bloqué — un pilote graphique pris, ou une mémoire épuisée au point que plus
+  rien ne tourne. **Les saccades qui montent avant** penchent vers la mémoire (un système qui
+  manque de mémoire ralentit de plus en plus avant de se figer) ; rien n'est prouvé tant que le
+  téléphone n'a pas été lu par le câble. Sous Android, Glucose ne lit aucun budget de mémoire
+  (la sonde ne parle qu'à DXGI) et n'écoute pas `onTrimMemory`, le signal par lequel Android
+  demande de rendre de la mémoire : **c'est le premier chantier de la session suivante**
+  (SUITE § 0 octies).
+* **Le fantôme du Storyboard et de la membrane** : *« la preview se met au milieu de la souris,
+  alors que lorsqu'on trace le rectangle, ça se met en haut à gauche de la souris — il faudrait
+  absolument que ça se mette toujours en haut à gauche de la souris ; de même pour la
+  membrane »*. Aujourd'hui, la grille armée se **centre** sur le curseur (`disposition_au_clic`,
+  héritée de Tauri), et le tracé part du curseur. **À faire, pas fait** (sa demande : le confier à
+  la session suivante) : au survol et au clic, le coin haut gauche du fantôme sous le curseur,
+  comme le tracé — pour le Storyboard, et vérifier la membrane et le dossier (leur fantôme a
+  déjà son coin au curseur, mais l'aimant peut le décaler : regarder ce qu'il voit).
+* **La session s'arrête ici, à sa demande** : une passation, et un programme pour les sessions
+  suivantes (SUITE § 0 octies).

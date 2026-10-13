@@ -137,6 +137,10 @@
   téléphone **toute session paraissait interrompue** — Android tue Glucose sans qu'il écrive sa
   fin ; **réparé** (BOITE-ANDROID : passer derrière s'écrit, le serveur redéployé et essayé en
   ligne) ; **un APK neuf**, signé de sa clé, est sur son Bureau (`Glucose.apk`, `022e40d2…`).
+  **Sa parole, en fin de session** : le téléphone, **c'est Glucose** — tout le système figé, même
+  le bouton d'alimentation, après des saccades qui montaient, puis un redémarrage seul ; les huit
+  propositions du Storyboard validées ; le fantôme toujours en haut à gauche du curseur. Le
+  programme : SUITE § 0 octies, **ANDROID-MEMOIRE d'abord**.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera

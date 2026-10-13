@@ -20,7 +20,27 @@
 
 ---
 
-## 0 septies. Le téléphone, le Storyboard tracé — **d'abord** (fiche 65)
+## 0 octies. Le programme — **d'abord** (sa parole du 13/10 au soir, fiche 65 § 13)
+
+Ses mots : les huit propositions du Storyboard **validées** ; **le téléphone, c'est bien Glucose
+qui a figé tout le système** (même le bouton d'alimentation), après des saccades qui montaient,
+puis un redémarrage seul — jamais vu avec une autre application ; et **le fantôme toujours en
+haut à gauche du curseur**. Dans cet ordre :
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **P0 — ANDROID-MEMOIRE : Glucose ne doit jamais figer un téléphone.** D'abord **lire** : le téléphone branché (débogage USB) — `adb shell getprop sys.boot.reason`, `adb shell dumpsys dropbox --print`, `adb logcat -b crash`, puis Glucose ouvert et `adb shell dumpsys meminfo com.glucose.app` pendant qu'on navigue. Puis la recherche (`onTrimMemory`/`ComponentCallbacks2`, `ActivityManager.getMemoryInfo`, `VK_EXT_memory_budget`, ce que font Chrome et les moteurs de jeu sur Android), et **la mémoire par étages sous Android** : un budget lu du système, relu en continu, `onTrimMemory` qui fait rendre les textures, jamais plus que ce que la machine laisse — la charte (« chaque étage borné par ce que la machine laisse **maintenant** »). Les saccades qui précèdent sont un signal à lire (POSTES-1, BOITE-ANDROID) | **son téléphone** : une longue session sans saccade qui monte, ni gel ; ses sessions arrivées et lues (le tableau de bord, et l'écart « redémarré après ») ; une épreuve qui simule la pression mémoire et exige que les textures se rendent |
+| [ ] | **P1 — FANTOME-1 : le fantôme toujours en haut à gauche du curseur**, comme le tracé : la grille armée du Storyboard (aujourd'hui centrée — `disposition_au_clic`) et, à vérifier, la membrane et le dossier (l'aimant peut décaler leur coin). Le clic pose là où le fantôme est | une épreuve à la vraie souris : le coin haut gauche de la première case sous le curseur, au survol et au clic ; **à son écran** |
+| [ ] | **P2 — Les huit propositions du Storyboard, validées** (fiche 65 § 9), dans cet ordre : 1. plusieurs images lâchées remplissent les cases vides à la suite ; 2. un storyboard de la sélection (une case par image, ordre de lecture) ; 3. insérer une case entre deux ; 4. la lecture — une durée par case, l'animatique en plein écran ; 5. plusieurs champs par case (dialogue, action, notes) ; 6. le type de plan ; 7. l'export en planches (PNG, PDF, rangées × colonnes par page) ; 8. plusieurs storyboards par tableau (une séquence chacun : un changement du modèle, schéma 4) | chacun : branché, visible, annulable, enregistré, saboté ; un bouton au PC et au téléphone (INVENTAIRE) ; relire Tauri d'abord |
+| [ ] | **P3 — Ce que son téléphone dira** : POSTES-1 (lire les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles désignent leur coupable | les postes lus, le coupable nommé par la mesure |
+| [ ] | **P4 — « Créer un preset custom »** (INVENTAIRE § 2) | branché, enregistré dans le document, saboté |
+| [ ] | **P5 — L'export SVG complet** (les images et les membranes) | |
+| [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande | la liste de ce qui manque, puis fait |
+| [ ] | **P7 — Les fonctions de Tauri qui n'existent pas encore** (INVENTAIRE § 3), une session chacune environ : **la recherche** (`Ctrl+F`, qui l'attend), les opérateurs des post-it (ET, OU, MAIS, PARCE QUE — ils se dessinent déjà), la couleur des post-it et des domaines (un sélecteur de couleur), filtrer par domaine, les miroirs, la temporalité, l'export HTML, le mode zen, les vidéos, puis — à sa parole — les rideaux, les membranes étirées, Trans-domaines | chacun à son écran |
+| [ ] | **P8 — La 2.0.3-beta.1** : le brouillon (sur `7c60593`) ne porte rien depuis ; en refaire un après une CI, quand il aura jugé le Storyboard et que P0 sera réglé | **sa parole** |
+| [ ] | **P9 — Le Mac publié** ; **Collaborer** (obligatoire, plus tard) ; **l'UX du téléphone**, toute refaite, en dernier | |
+
+## 0 septies. Le téléphone, le Storyboard tracé (fiche 65)
 
 Ses retours du 13/10 après-midi : le téléphone a **redémarré en urgence** ; `Ctrl+F` à la
 recherche, tout cadrer à `Alt+F` ; le Storyboard et la membrane qui ne suivent pas au survol et
@@ -29,7 +49,7 @@ rien ; des propositions pour un outil « pas pratique et incomplet ».
 
 | | chantier | où en est-il |
 |---|---|---|
-| [ ] | **Le téléphone qui redémarre** : le brancher au PC (débogage USB) et lire ce que le système a gardé (`getprop sys.boot.reason`, `dumpsys dropbox`, `logcat -b crash`) — **avant** de le rouvrir ; puis ses deux sessions (2.0.3-dev) arriveront à la télémétrie | **sa main** (fiche 65 § 8) : aucune cause supposée tant qu'on n'a pas lu le téléphone |
+| [ ] | **Le téléphone qui redémarre** — **c'est Glucose** (sa parole : tout le système figé, le bouton d'alimentation compris, après des saccades qui montaient) | programme **P0** (§ 0 octies) |
 | [x] | **Saboter STORYBOARD-1** — 24 sur 25 ; l'aveugle (« poser ne numérote pas ») est gardée par STORYBOARD-2 | fiche 65 § 2 |
 | [~] | **STORYBOARD-2** — la grille dans le document (schéma 3, témoin v2), une suite et une loi, le rectangle tracé, la poignée, la case lâchée qui prend la place, Tab vers la case suivante | **à son écran** (fiche 65 § 12) |
 | [~] | **TRACE-1** — la membrane et le dossier se tracent ; un clic pose comme avant | **à son écran** |
@@ -37,7 +57,7 @@ rien ; des propositions pour un outil « pas pratique et incomplet ».
 | [~] | **`Alt+F`** tout cadrer ; `Ctrl+F` gardé à la recherche | **à son écran** |
 | [~] | **Le tableau de bord de la télémétrie** (sa demande du 13/10) : `outils/telemetrie/tableau.mjs` résume la base, une page privée de son compte la montre — installations, systèmes, cartes par leurs noms, fins | fiche 65 § 8 bis — **à ses yeux** |
 | [~] | **BOITE-ANDROID** : passer derrière s'écrit ; une session tuée en arrière-plan finit ordinairement, et un vrai plantage s'y distingue ; le serveur redéployé | fiche 65 § 8 bis — **à son téléphone**, avec un APK neuf |
-| [ ] | **Les propositions du Storyboard** (fiche 65 § 9) : les images qui remplissent les cases à la suite, un storyboard de la sélection, insérer une case, la lecture, plusieurs champs, le type de plan, l'export en planches, plusieurs storyboards | **ses choix** |
+| [x] | **Les propositions du Storyboard** (fiche 65 § 9) — **toutes validées** (13/10 au soir) | programme P2 (§ 0 octies) |
 
 ## 0 sexies. La chrome, le Storyboard (fiche 64)
 

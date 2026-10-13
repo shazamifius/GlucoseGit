@@ -133,5 +133,5 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Mac** (une version publiée), **iPad** (par le web) | toutes les machines | — | la CI compile le Mac ; l'iPad attend le web |
 | **Le dessin de la sélection** (son choix entre les directions) | sa demande | — | planches à lui montrer |
 | **L'UX du téléphone**, toute refaite : ultra rapide, fluide, pratique | sa demande | — | **en dernier** |
-| **Le Storyboard, plus loin** : plusieurs images qui remplissent les cases vides à la suite ; un storyboard de la sélection ; insérer une case entre deux ; la lecture (durées, animatique) ; plusieurs champs par case ; le type de plan ; l'export en planches ; plusieurs storyboards par tableau | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **ses choix** (fiche 65 § 9) |
+| **Le Storyboard, plus loin** : plusieurs images qui remplissent les cases vides à la suite ; un storyboard de la sélection ; insérer une case entre deux ; la lecture (durées, animatique) ; plusieurs champs par case ; le type de plan ; l'export en planches ; plusieurs storyboards par tableau | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **validées toutes les huit** (13/10) — SUITE P2 |
 | **Le défilement au bord** (« moche, pas fluide ») | son essai | — | à reprendre avec sa chronique |
