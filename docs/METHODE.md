@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 12/10/2026** (fiches 59 à 63). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 13/10/2026** (fiches 59 à 64). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -119,6 +119,12 @@
 | **Un commit pris pendant un sabotage** (l'envoi « urgent ») : le saboteur modifie des fichiers le temps d'une épreuve (fiche 63) | après tout commit qu'on n'a pas fait, vérifier qu'aucune garde sabotée n'y est entrée (`git show HEAD:<fichier>`) et qu'il compile ses épreuves |
 | **Un témoin planté sous un nom de version** que le code a changé : `apercus/v2`, retiré au lancement par la version 3 — la répétition de la bascule rouge sur GitHub seulement (fiche 63) | une épreuve lie le script au nom que le code emploie (`apercu::VERSION`) : elle tombe ici d'abord |
 
+| **Un banc qui recopie ce qu'il éprouve** : `banc_gpu` préparait les passes de la carte de son côté — une passe oubliée dans la vraie présentation ne faisait tomber aucune épreuve (fiche 64) | une seule définition, que le code et le banc appellent (`present/passes.rs`) |
+| **Une affirmation sur sa machine écrite avant la mesure** : « le rail couvre la minimap sur son téléphone » — faux, il s'arrête 500 lignes au-dessus (fiche 64) | mesurer d'abord ; une épreuve qui dépend d'une géométrie **vérifie** cette géométrie, sinon elle devient aveugle en silence |
+| **Une cause devinée deux fois** : la « tolérance de la main », puis rien — c'était la poignée de coin de l'image choisie (fiche 64) | afficher l'état juste après l'appui (`eprintln!` dans l'épreuve), puis le retirer |
+| **Une épreuve qui dépend du temps** : un message naît transparent (fondu), et s'efface déjà sous la charge de la suite entière (fiche 64) | fixer l'horloge de ce qu'on éprouve (une vie longue, une naissance passée) ; une épreuve qui passe seule et tombe dans la suite est souvent celle-là |
+| **Un seuil relatif à ce qui change** : « 5 % de la couche du dessus », et la couche a perdu la chrome (fiche 64) | borner par la grandeur qui sépare les deux fautes (ici la surface de la carte), jamais par une part de quelque chose d'autre |
+
 ## 5. Les pièges pratiques
 
 * **Git Bash mange les barres obliques inverses** dans un heredoc : écrire un script ou un message
@@ -137,6 +143,10 @@
 * **Git Bash exécute ce qu'on met entre accents graves**, même dans une chaîne destinée à
   Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
+* **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`,
+  `storyboard-1.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
+  rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
+  texte).
 * **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,
   `JAVA_HOME=C:/Program Files/Java/jdk-21.0.12`, `ANDROID_HOME=C:/Users/Administrator/Android/Sdk`,
   `GRADLE=C:/Users/Administrator/Android/gradle/gradle-9.8.1/bin/gradle.bat`, et

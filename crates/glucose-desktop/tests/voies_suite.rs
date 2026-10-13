@@ -1239,3 +1239,62 @@ fn test_preset_1_les_zones_se_posent_pareil_sur_les_deux_voies() {
         "l'ecart depasse {ECART_COURANT} sur {larges} canaux"
     );
 }
+
+/// **STORYBOARD-1 — les cases se posent pareil sur les deux voies** : le cadre, son bord, la
+/// bande et le badge en rectangles que la carte pose au premier rang ; le numéro et la
+/// description dans la couche du dessous. Comparées là où elles sont, sans aucun canal au-delà
+/// d'un arrondi : un badge oublié par la carte passerait sous une part tolérée de l'écran.
+#[test]
+fn test_storyboard_1_les_cases_se_posent_pareil_sur_les_deux_voies() {
+    use glucose_core::store::storyboard::{Format, Grille, DESCRIPTION};
+    let taille = synth::WITNESS_SIZE;
+    let sans = synth::witness_selected();
+    let mut store = sans.clone();
+    let board = store.project.active_board_id.clone();
+    let vp = store.viewport();
+    let centre = (
+        (f64::from(taille.0) / 2.0 - vp.x) / vp.scale,
+        (f64::from(taille.1) / 2.0 - vp.y) / vp.scale,
+    );
+    let grille = Grille {
+        format: Format::Cinema,
+        largeur: 260.0,
+        colonnes: 3,
+        ecart: 24.0,
+    };
+    store.poser_le_storyboard(&board, grille, centre);
+    let premiere = store.cases(&board)[0].id.clone();
+    store.update_panel(&board, &premiere, "Plan large, la ville au loin");
+
+    let processeur = par_le_processeur(taille, &store);
+    assert!(
+        banc_gpu::pire_ecart(&processeur, &par_le_processeur(taille, &sans)) > 0,
+        "les cases se voient"
+    );
+    let Some(carte) = par_la_carte(taille, &store) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let largeur = processeur.width() as usize * 4;
+    let mut ecarts = 0;
+    for case in store.cases(&board) {
+        let (x0, y0) = glucose_desktop::canvas::world_to_screen(case.x, case.y, &vp);
+        let (w, h) = (
+            case.width * vp.scale,
+            (case.height + DESCRIPTION) * vp.scale,
+        );
+        let (x0, y0) = (x0.max(0.0) as usize, y0.max(0.0) as usize);
+        let x1 = ((x0 as f64 + w) as usize).min(processeur.width() as usize);
+        let y1 = ((y0 as f64 + h) as usize).min(processeur.height() as usize);
+        for y in y0..y1 {
+            let ligne = y * largeur;
+            ecarts += (ligne + x0 * 4..ligne + x1 * 4)
+                .filter(|&i| processeur.data()[i].abs_diff(carte.data()[i]) > ECART_COURANT)
+                .count();
+        }
+    }
+    assert_eq!(
+        ecarts, 0,
+        "les cases diffèrent entre les deux voies sur {ecarts} canaux"
+    );
+}

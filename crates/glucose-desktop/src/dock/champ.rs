@@ -141,9 +141,9 @@ impl Champ {
             Self::OrdonnerTaille => super::organize::layout_organize_panel(frame, typo).size_rect,
             Self::OrdonnerEcart => super::organize::layout_organize_panel(frame, typo).gap_rect,
             Self::OrdonnerColonnes => super::organize::layout_organize_panel(frame, typo).cols_rect,
-            Self::StoryLargeur => super::storyboard::layout_storyboard_panel(frame).width_input,
-            Self::StoryColonnes => super::storyboard::layout_storyboard_panel(frame).cols_input,
-            Self::StoryEcart => super::storyboard::layout_storyboard_panel(frame).gap_input,
+            Self::StoryLargeur => super::storyboard::champs(frame)[0],
+            Self::StoryColonnes => super::storyboard::champs(frame)[1],
+            Self::StoryEcart => super::storyboard::champs(frame)[2],
         }
     }
 }

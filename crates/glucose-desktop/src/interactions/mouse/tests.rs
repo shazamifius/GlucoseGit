@@ -67,16 +67,18 @@ fn test_the_trans_domain_button_does_nothing() {
     }
 }
 
+/// **STORYBOARD-1, par la vraie souris** : « Activer » ferme le panneau et arme la grille ; un
+/// clic sur le canevas pose deux rangées de cases, centrées sous lui ; un seul `Ctrl+Z` les
+/// retire. Avant, le bouton disait « pas encore disponible » et rien ne naissait.
 #[test]
-fn test_the_storyboard_activate_button_does_not_stay_lit() {
+fn test_storyboard_1_activer_puis_poser_la_grille() {
     let mut app = GlucoseApp::new();
+    app.store.clear_selection();
     click_topbar(&mut app, UiAction::ToggleStoryboard);
     assert!(
         app.dock_manager.is_open(TabId::Storyboard),
         "le panneau s'ouvre"
     );
-
-    // Le bouton « Activer » du panneau, là où il est dessiné.
     let s = crate::theme::clamp_ui_scale(app.ui.scale());
     let frame = compute_panel_layouts(
         &app.dock_manager,
@@ -88,7 +90,12 @@ fn test_the_storyboard_activate_button_does_not_stay_lit() {
     .into_iter()
     .find(|b| b.tab == TabId::Storyboard)
     .expect("le panneau ouvert a un cadre");
-    let layout = storyboard::layout_storyboard_panel(cadre_de(&frame, s));
+    let contenu = storyboard::Contenu::du(&app.store);
+    let layout = storyboard::layout_storyboard_panel(
+        cadre_de(&frame, s),
+        &app.dock_manager.storyboard,
+        &contenu,
+    );
     let (cx, cy) = (
         (layout.activate_button.x + layout.activate_button.w / 2.0) as f64,
         (layout.activate_button.y + layout.activate_button.h / 2.0) as f64,
@@ -96,12 +103,43 @@ fn test_the_storyboard_activate_button_does_not_stay_lit() {
     app.handle_cursor_moved(PhysicalPosition::new(cx, cy));
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
     app.handle_mouse_up(MouseButton::Left);
-
-    assert_eq!(app.ui.toast_message(), Some(NOT_YET_STORYBOARD));
-    assert!(!app.dock_manager.storyboard.active, "rien n'est « activé »");
     assert!(
-        app.store.active_board().unwrap().panels.is_empty(),
-        "et aucun panneau n'est né"
+        !app.dock_manager.is_open(TabId::Storyboard),
+        "le panneau se ferme pour laisser voir le canevas"
+    );
+    assert!(
+        app.ui.placement.storyboard.is_some(),
+        "la grille suit le curseur"
+    );
+    assert!(
+        !app.fantome_du_storyboard().is_empty(),
+        "et son fantôme se voit"
+    );
+
+    let (px, py) = (900.0, 500.0);
+    app.handle_cursor_moved(PhysicalPosition::new(px, py));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    app.handle_mouse_up(MouseButton::Left);
+    let board = app.store.project.active_board_id.clone();
+    let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
+    assert_eq!(cases.len(), 8, "deux rangées de quatre");
+    let vp = app.store.viewport();
+    let (wx, wy) = crate::canvas::screen_to_world(px, py, &vp);
+    let gauche = cases.iter().map(|c| c.x).fold(f64::MAX, f64::min);
+    let droite = cases.iter().map(|c| c.x + c.width).fold(f64::MIN, f64::max);
+    assert!(
+        ((gauche + droite) / 2.0 - wx).abs() < 1e-6,
+        "centrée sous le clic"
+    );
+    assert!(wy > cases[0].y && wy < cases[7].y + cases[7].height, "{wy}");
+    assert!(
+        app.ui.placement.storyboard.is_none(),
+        "posée, elle ne suit plus"
+    );
+    app.annuler();
+    assert!(
+        app.store.cases(&board).is_empty(),
+        "un seul Ctrl+Z la retire"
     );
 }
 

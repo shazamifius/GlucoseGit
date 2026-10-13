@@ -50,6 +50,7 @@ mod navigation;
 mod order;
 mod resize;
 mod selection;
+pub mod storyboard;
 mod textes;
 mod undo;
 pub mod zones;

@@ -67,7 +67,7 @@ pub struct Rectangle {
 }
 
 /// Une boîte à l'écran : gauche, haut, largeur, hauteur, en pixels.
-type Boite = (f32, f32, f32, f32);
+pub(crate) type Boite = (f32, f32, f32, f32);
 
 /// Les zones du tableau actif qui tombent dans l'écran, avec leur boîte à l'écran.
 fn visibles<'a>(
@@ -293,7 +293,17 @@ pub(super) fn orner_la_zone_choisie(
         .filter(|h| h.is_corner())
         .collect();
     crate::renderer::handles::draw_resize_handles(pixmap, theme, scale, b, &coins);
-    let (cx, cy, cw, ch) = croix(b, d);
+    dessiner_la_croix(pixmap, theme, croix(b, d), d);
+}
+
+/// **Une croix qui retire** : un carré du fond des boutons, et une croix claire dedans — celle
+/// d'une zone choisie, et celle d'une case du storyboard (STORYBOARD-1).
+pub(crate) fn dessiner_la_croix(
+    pixmap: &mut PixmapMut,
+    theme: &crate::theme::Theme,
+    (cx, cy, cw, ch): Boite,
+    d: f32,
+) {
     if let Some(r) = Rect::from_xywh(cx, cy, cw, ch) {
         crate::renderer::scale::fill_crisp(pixmap, r, theme.btn_bg);
     }
@@ -323,7 +333,7 @@ pub(super) fn orner_la_zone_choisie(
     }
 }
 
-fn rgba(rgb: u32, alpha: u8) -> Color {
+pub(crate) fn rgba(rgb: u32, alpha: u8) -> Color {
     Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, alpha)
 }
 

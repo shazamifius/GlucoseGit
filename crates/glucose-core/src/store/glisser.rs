@@ -57,16 +57,21 @@ pub struct Glisser {
 }
 
 impl Glisser {
-    /// Relève ce que la sélection emporte et d'où chaque chose part — le seul parcours du
-    /// tableau de tout le geste.
-    fn prendre(store: &Store, board_id: &str, geste: u64, premier: usize) -> Option<Self> {
+    /// Relève ce que `emporte` — une translation nulle de ce qui doit suivre — prend, et d'où
+    /// chaque chose part : le seul parcours du tableau de tout le geste.
+    fn prendre(
+        store: &Store,
+        board_id: &str,
+        (geste, premier): (u64, usize),
+        emporte: Edit,
+    ) -> Option<Self> {
         let Edit::Translation {
             images,
             annotations,
             folders,
             bouts,
             ..
-        } = store.translation_de_la_selection(board_id, (0.0, 0.0))?
+        } = emporte
         else {
             return None;
         };
@@ -158,6 +163,29 @@ impl Store {
             self.move_selected(board_id, total.0, total.1);
             return;
         };
+        let emporte = |store: &Store| store.translation_de_la_selection(board_id, (0.0, 0.0));
+        self.glisser_ce_qui_suit(board_id, (geste, ecrits), total, emporte);
+    }
+
+    /// **Glisse ces images** à `total` de là où le geste les a prises (GLISSER-1) — ce qu'une
+    /// case du storyboard porte quand on la glisse (STORYBOARD-1). Dans un geste ouvert
+    /// seulement : hors geste, rien.
+    pub fn glisser_ces_images(&mut self, board_id: &str, ids: &[String], total: (f64, f64)) {
+        let Some((geste, ecrits)) = self.journal.en_cours().map(|(n, e)| (n, e.len())) else {
+            return;
+        };
+        let emporte = |store: &Store| store.translation_des_images(board_id, ids);
+        self.glisser_ce_qui_suit(board_id, (geste, ecrits), total, emporte);
+    }
+
+    /// Le glisser lui-même, quoi qu'il emporte : `emporte` dit quoi, une fois, au premier pas.
+    fn glisser_ce_qui_suit(
+        &mut self,
+        board_id: &str,
+        (geste, ecrits): (u64, usize),
+        total: (f64, f64),
+        emporte: impl FnOnce(&Store) -> Option<Edit>,
+    ) {
         let suit = self.glisser.as_ref().is_some_and(|g| {
             g.geste == geste && g.board == board_id && g.premier + g.pas == ecrits
         });
@@ -166,7 +194,8 @@ impl Store {
             // translation, et le nouveau part de là où l'ancien a laissé les choses.
             self.clore_le_glisser();
             let ecrits = self.journal.en_cours().map_or(0, |(_, e)| e.len());
-            self.glisser = Glisser::prendre(self, board_id, geste, ecrits);
+            self.glisser =
+                emporte(self).and_then(|e| Glisser::prendre(self, board_id, (geste, ecrits), e));
         }
         let (Some(g), Some(board)) = (
             self.glisser.as_mut(),

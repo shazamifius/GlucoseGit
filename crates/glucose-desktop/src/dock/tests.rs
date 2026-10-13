@@ -323,37 +323,7 @@ fn test_the_pomodoro_counts_down_and_stops_at_zero() {
     assert!(!state.tick(), "à l'arrêt, rien ne change plus");
 }
 
-// ── STORYBOARD & PLUGINS : les façades honnêtes ─────────────────────────────
-
-/// Fiche 09 § 8 — le storyboard ne touche pas au canevas, et ne prétend pas le contraire :
-/// son bouton ne reste pas allumé, et le clic dit pourquoi.
-#[test]
-fn test_the_storyboard_says_it_is_not_ready() {
-    let typo = Typography::new();
-    let store = Store::new("Clic");
-    let mut dock = dock_with(TabId::Storyboard);
-    let frame = frame_of(&dock, TabId::Storyboard, SCREEN);
-    let layout = storyboard::layout_storyboard_panel(frame);
-
-    let result = handle_dock_click(
-        &mut dock,
-        &store,
-        &typo,
-        SCREEN,
-        center(layout.activate_button),
-    );
-    assert_eq!(result, Some(PanelClickResult::StoryboardNotReady));
-    assert!(!dock.storyboard.active, "le bouton ne reste pas allumé");
-
-    let result = handle_dock_click(
-        &mut dock,
-        &store,
-        &typo,
-        SCREEN,
-        center(layout.format_button),
-    );
-    assert_eq!(result, Some(PanelClickResult::StoryboardNotReady));
-}
+// ── PLUGINS : une façade honnête ─────────────────────────────────────────────
 
 /// Fiche 09 § 10.3 — pas de moteur, pas de téléchargement. Les réglages, eux, sont un état
 /// d'interface : ils se cochent.

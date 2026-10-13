@@ -270,6 +270,24 @@ impl Store {
         })
     }
 
+    /// **La translation de ces images**, et d'elles seules — ni les flèches qui les touchent ne
+    /// suivent : leur bout se recalcule à l'image (STORYBOARD-1). Les verrouillées restent.
+    pub(super) fn translation_des_images(&self, board_id: &str, ids: &[String]) -> Option<Edit> {
+        let b = self.project.boards.iter().find(|b| b.id == board_id)?;
+        let images = (0..b.images.len())
+            .filter(|&i| ids.contains(&b.images[i].id) && !b.images[i].locked)
+            .map(|i| i as u32)
+            .collect();
+        Some(Edit::Translation {
+            board: board_id.to_string(),
+            delta: (0.0, 0.0),
+            images,
+            annotations: Vec::new(),
+            folders: Vec::new(),
+            bouts: Vec::new(),
+        })
+    }
+
     pub fn duplicate_selected(&mut self, board_id: &str) {
         if self.selected_image_ids.is_empty() && self.selected_annotation_ids.is_empty() {
             return;

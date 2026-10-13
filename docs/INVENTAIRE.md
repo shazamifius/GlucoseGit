@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 12/10/2026** (fiche 63). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 13/10/2026** (fiches 63 et 64). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -74,6 +74,12 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 |---|---|---|
 | Ordonner (cinq dispositions, huit tris, champs) | panneau Ordonner | 🟡 les champs se glissent, **ne se tapent pas** (le clavier d'Android ne sert pas les champs du dock) |
 | Presets : poser un gabarit, ses zones, « Par slot preset » | panneau Preset | ✅ |
+| **Storyboard** : poser la grille (« Activer », un clic), « Mettre à jour », effacer (×) | panneau Storyboard | ✅ (STORYBOARD-1, fiche 64 — à juger) |
+| Une case : la prendre et la glisser avec ses images | sa bande | ✅ (le doigt sur la bande) |
+| Une case : sa description | deux clics sur sa bande, ou sa ligne dans le panneau | ✅ (la question à champ, le clavier du téléphone) |
+| Une case : la retirer | sa croix, `Suppr`, le × de sa ligne | ✅ (croix, panneau) |
+| Une image dans une case : s'y ajuste | la lâcher dedans | ✅ |
+| Ajouter une case, renuméroter | « + Ajouter », « Re-numéroter les panels » | ✅ |
 | Domaines (créer, éditer, attribuer) | panneau Domaines | 🟡 le nom d'un domaine ne se tape pas (même cause) |
 | Timer Pomodoro | panneau Timer | ✅ |
 
@@ -83,7 +89,6 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 
 | où | quoi | ce qu'il faut | quand |
 |---|---|---|---|
-| bande | **Storyboard** : « Activer » refuse, rien ne se dessine | STORYBOARD-1 | prochain chantier de fonction |
 | Preset | « Créer un preset custom », grisé | les zones du tableau, gardées comme gabarit du document | après le Storyboard |
 | Plugins | « Télécharger » le modèle d'IA | l'IA locale | plus tard |
 | bande | **Collaborer** : dit « pas encore disponible » | la collaboration — obligatoire | plus tard, à sa parole |
@@ -101,7 +106,6 @@ bouton, au PC et au téléphone, le jour où il existe.
 
 | fonction | d'où | où elle se trouvera | où en est-elle |
 |---|---|---|---|
-| **Storyboard** : la grille posée par un fantôme, les cases, une image par case, les descriptions | Tauri | bande, panneau Storyboard | Tauri lu (fiche 62 § 10) |
 | **Preset personnel** | Tauri | panneau Preset | — |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
 | **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | barre d'action, panneau | noyau écrit (`timeline`), à brancher |

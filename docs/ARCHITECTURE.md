@@ -127,6 +127,7 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Les documents du téléphone** | `persist/documents.rs`, `documents/gestion.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste. DOCUMENTS-2 : un appui long dans la liste renomme (par « Enregistrer sous » pour le document ouvert), duplique, supprime |
 | **Les filets** | `persist/frappe.rs`, `reprise.rs`, `recuperation.rs`, `verrou.rs`, `atomic.rs` | le texte en cours de frappe survit à un plantage ; le lancement rouvre le dernier travail ; ce qu'on va recouvrir est mis de côté (FIN-1) ; un seul scribe par fichier ; **un seul endroit** pose un fichier à la place d'un autre (cliquet 11) |
 | **Les gabarits et leurs zones** | `core/gabarits.rs`, `core/store/zones.rs`, `core/layout/zones.rs` | PRESET-1 (fiche 62) : les six gabarits de Tauri ; une zone porte `gabarit/catégorie` ; une image appartient à la zone où est son centre — rien ne s'écrit sur elle ; « Par slot preset » range chaque zone en rangées justifiées, qui tiennent dans la zone |
+| **Le storyboard** | `core/store/storyboard.rs` | STORYBOARD-1 (fiche 64) : la grille centrée sur le clic (`Grille`, `coins_a_poser` — le fantôme et le clic lisent la même), poser ou « Mettre à jour », ajouter, retirer (la suite reste continue), renuméroter dans l'ordre de lecture ; une image lâchée dans une case s'y ajuste ; glisser une case emporte ses images en **deux** éditions (la case réécrite à sa place dans le geste, ses images par `glisser_ces_images`, GLISSER-1). Aucun changement du format : des `Edit::Panel` |
 | **Les couleurs** | `core/couleur.rs` | Oklab et Oklch, les trois tris par la couleur (ORDONNER-2) ; la couleur d'une image est le sommet de sa pyramide (MOYENNE-1) |
 | **Exporter** | `desktop/persist/export.rs`, `export/png.rs`, `renderer/export.rs` | Markdown, SVG, et PNG par bandes de la surface d'un écran, sur un fil à soi (EXPORT-PNG-1) ; ce qui est exporté est une copie (`Store::copie_a_exporter`) |
 | **Glucose Tauri** | `core/persist/tauri.rs`, `desktop/persist/import.rs` | un lecteur d'Automerge écrit ici, sans dépendance, identique à la bibliothèque de référence ; le fichier Tauri n'est jamais réécrit |
@@ -210,11 +211,14 @@ l'écran) ; **la question** (`question.rs`, QUESTION-1, POPUP-1), que Glucose de
 **suite** (`interactions/question.rs` ; la fermeture en a une, `persist::close::Apres`) : elle
 répond au relâchement, sur la réponse pressée, et au clavier (Entrée, Tab, Échap), prend tout
 ce qui la touche, et peut porter un **champ** de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. **Le menu porte chaque commande** (ACCES-1, fiche 63) — ce qu'il propose dans `ui/context_menu/entrees.rs`, sa pose dans `context_menu.rs`, **en colonnes** quand l'écran est trop bas (un groupe reste entier) ; les signets vivent dans `interactions/signets.rs` (le clavier et la question « Signets… » appellent les mêmes gestes). `dock/` : les panneaux (Ordonner,
-Timer, Domaines, Time Machine, Presets ; Storyboard et Plugins sont encore des façades honnêtes),
+Timer, Domaines, Time Machine, Presets, **Storyboard** — sa liste de cases par pages, fiche 64 ;
+Plugins est encore une façade honnête),
 chacun avec son cache ; `dock/clic.rs` aiguille le clic, `dock/champ.rs` porte les **champs de
 nombre** (CHAMP-1 : glisser, ou cliquer et taper — tout le panneau est la règle). Les zones des
 gabarits se prennent par leur bandeau (`interactions/zone.rs`), un gabarit armé suit le curseur
-(`interactions/gabarit.rs`). Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
+(`interactions/gabarit.rs`) ; **les cases du storyboard** se prennent par leur bande, une grille
+armée suit le curseur (`interactions/storyboard.rs`) — leurs rectangles au premier rang avec les
+zones (`renderer/storyboard.rs`, `premier_rang`). Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
 
 ## 7. La plateforme
 

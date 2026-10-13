@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 12/10/2026** (fiches 59 à 63). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 13/10/2026** (fiches 59 à 64). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -20,6 +20,20 @@
 
 ---
 
+## 0 sexies. La chrome, le Storyboard — **d'abord** (fiche 64)
+
+| | chantier | où en est-il |
+|---|---|---|
+| [ ] | **Saboter STORYBOARD-1** : `python -I outils/saboter.py outils/sabotages/storyboard-1.json` — 25 gardes, toutes doivent TOMBER ; une qui passe est une épreuve aveugle à renforcer | **la première chose** ; le code est **envoyé** (sans la CI), éprouvé — pas encore saboté |
+| [~] | **CHROME-1** — la carte pose la chrome ; le rectangle de la vue fidèle à Tauri ; `present/passes.rs` (`6e53d09`, 21 sabotages) | **à son écran** : rien ne doit changer à l'œil, sauf la minimap |
+| [~] | **STORYBOARD-1** — le panneau entier, les cases sur les deux voies, une image ajustée dans sa case, la case glissée avec ses images, décrite, retirée | **à son écran et à son téléphone** |
+| [ ] | **Les postes du téléphone** : qu'il ouvre Glucose une fois au téléphone, puis lire les lignes `poste` (fiche 64 § 1) | sa prochaine ouverture |
+| [ ] | **DESSUS-1** — la couche du dessus balayée en entier à chaque image, même vide (0,7-0,8 ms à 2560 × 1600) : que chaque passe dise ce qu'elle dessine, vérifié contre le balayage en `debug_assert` | **si les postes du téléphone le désignent** (`relever`) |
+| [ ] | **RASTER-1** — les textes rendus sur plusieurs fils (fiche 63 § 7) | idem |
+| [ ] | **Le panneau Storyboard prend toute la hauteur** (comme la Time Machine) : le borner à son contenu demanderait que le dock connaisse le nombre de cases | à juger à son écran |
+| [ ] | **La 2.0.3-beta.1** : le brouillon (sur `7c60593`) ne porte ni CHROME-1 ni STORYBOARD-1 — **sa parole** : publier celui-ci, ou un nouveau après la CI | fiche 64 § 5 |
+| [ ] | **Un tableau de bord de la télémétrie** (les installations, les cartes par leurs noms) — sa demande du 13/10 « voir les statistiques et les PC » | plus tard |
+
 ## 0 quinquies. Le flou, chaque bouton, et la 2.0.3-beta.1 — **d'abord** (fiche 63)
 
 Ses mots, le 12/10 au soir : des textes et des membranes « qui restent ultra floutés, même pour
@@ -29,13 +43,13 @@ chaque fonctionnalité, sur PC ou téléphone » ; « regarde les performances �
 
 | | chantier | où en est-il |
 |---|---|---|
-| [~] | **NETTETE-1** — une image qui n'est pas finie demande la suivante (`c94cc60`) | **à son écran** : zoomer à la molette, s'arrêter entre deux crans |
+| [x] | **NETTETE-1** — une image qui n'est pas finie demande la suivante (`c94cc60`) | **jugé** (13/10) : « plus du tout de flou, très clean » |
 | [~] | **ACCES-1** — chaque commande dans le clic droit, au PC et au téléphone ; les signets sans clavier ; le menu en colonnes (`aabd7da`) | **à son écran** |
-| [~] | **PARTAGE-2** — exporter et enregistrer une image au téléphone, par la feuille de partage (`aabd7da`) | **à son téléphone** (l'APK de son Bureau) |
-| [~] | **POSTES-1** — la boîte noire dit quelle étape ralentit un épisode trop lent (`939eab7`, serveur redéployé) | **sa prochaine session au téléphone** le dira |
-| [ ] | **La CI** sur le dernier commit — dix tâches, Linux et les deux Mac : rien ne les a vérifiés depuis le 09/10 | avant la publication — un seul envoi, avec elle |
-| [ ] | **La 2.0.3-beta.1** — notes écrites (`outils/publication/notes.md`), version de travail en 2.0.3-dev ; Actions → Publier, `2.0.3-beta.1`, brouillon coché ; **son essai à l'écran**, puis son clic « Publish release » | après la CI |
-| [ ] | **CHROME-1** — la bande, le rail, la minimap posés par la carte (la couche du dessus repart entière à chaque image : 2,4 à 8 Mo au téléphone) | **après les postes de son téléphone** : ils diront sa part |
+| [x] | **PARTAGE-2** — exporter et enregistrer une image au téléphone, par la feuille de partage (`aabd7da`) | **jugé** (13/10) : « a l'air de parfaitement fonctionner » |
+| [~] | **POSTES-1** — la boîte noire dit quelle étape ralentit un épisode trop lent (`939eab7`, serveur redéployé) | la session de son essai partira à sa **prochaine ouverture** au téléphone (fiche 64 § 1) |
+| [x] | **La CI** sur `7c60593` — **dix vertes** (exécution 38306469681), Linux et les deux Mac compris | 13/10 |
+| [~] | **La 2.0.3-beta.1** — **le brouillon est prêt** (exécution 38361915501, sur `7c60593`, onze fichiers) ; **son essai**, puis son clic « Publish release » | fiche 64 § 5 : il ne porte pas CHROME-1 ni STORYBOARD-1 |
+| [~] | **CHROME-1** — la bande, le rail, la minimap posés par la carte | **fait** (`6e53d09`, fiche 64 § 2) — à son écran |
 | [ ] | **RASTER-1** — les textes rendus sur plusieurs fils, comme Chromium (chaque fil sa typographie) | idem |
 | [ ] | **Trans-domaines dit « bientôt »** comme Collaborer — le seul bouton qui ne dit pas qu'il ne fait rien | **à sa parole** (fiche 63 § 9) |
 | [ ] | **Mac** : une version publiée, et la mise à jour qui sait la remplacer | chantier à part (§ 3) |
@@ -55,7 +69,7 @@ Rust (c'est elle qui a trouvé le champ Colonnes perdu et le libellé faux d'Ord
 | [~] | **PRESET-1** — six gabarits, zones sur les deux voies, posées par un fantôme, prises par leur bandeau ; « Par slot preset » | `c442ea2` à `367fa73` — **à son écran** |
 | [~] | **CHAMP-1** — les champs de nombre du dock (glisser, ou cliquer et taper) ; « Colonnes » d'Ordonner | `82911ea` — **à son écran** |
 | [x] | **L'envoi** des neuf commits (`64b5922` à `82911ea`, plus la documentation) | **fait le 12/10** (« urgent », `58ad6ea`) ; sa règle désormais : envoyer sans la CI, la CI avec raison |
-| [ ] | **STORYBOARD-1** — le panneau entier : poser la grille par un fantôme, dessiner les cases sur les deux voies, une image posée dans une case s'y ajuste, la description qui se tape, ajouter, retirer, renuméroter, « ✕ » ; les cases prises par leur bandeau | **le prochain** — Tauri lu (fiche 62 § 10) ; recherche internet à faire avant de concevoir |
+| [~] | **STORYBOARD-1** — le panneau entier : poser la grille par un fantôme, dessiner les cases sur les deux voies, une image posée dans une case s'y ajuste, la description qui se tape, ajouter, retirer, renuméroter, « ✕ » ; les cases prises par leur bandeau | **écrit** (fiche 64 § 3) — à saboter, envoyer, puis à son écran |
 | [ ] | **« Créer un preset custom »** — les zones du tableau enregistrées comme gabarit du document (`project.presets` se lit déjà dans le panneau) | après le Storyboard |
 | [ ] | **L'export SVG complet** — les images et les membranes | |
 | [ ] | **Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande | la liste exécutable de ce qui manque |

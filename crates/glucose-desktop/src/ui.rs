@@ -135,6 +135,8 @@ pub struct UiState {
     pub placement: crate::interactions::placement::Placement,
     /// La zone de gabarit choisie, et celle que la main tient (PRESET-1).
     pub zones: crate::interactions::zone::ZonesUi,
+    /// La case du storyboard choisie, et celle que la main tient (STORYBOARD-1).
+    pub storyboard: crate::interactions::storyboard::StoryboardUi,
     /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
     pub ancrage: Option<ancrage::Ancrage>,
     pub current_toast: Option<Toast>,
@@ -209,6 +211,7 @@ impl UiState {
             noeud_pressenti: None,
             placement: Default::default(),
             zones: Default::default(),
+            storyboard: Default::default(),
             ancrage: None,
             current_toast: None,
             context_menu_at: None,

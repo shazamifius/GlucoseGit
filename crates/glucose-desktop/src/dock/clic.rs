@@ -18,8 +18,8 @@ pub enum PanelClickResult {
     Handled,
     /// `Appliquer` du panneau ORDONNER : réarranger les images du tableau.
     ApplyLayout(OrganizeState),
-    /// Le storyboard n'a pas d'effet sur le canevas (fiche 09 § 8).
-    StoryboardNotReady,
+    /// Un geste du panneau STORYBOARD, à faire par `interactions::storyboard` (STORYBOARD-1).
+    Storyboard(storyboard::StoryboardIntent),
     /// Le bouton « Télécharger » du panneau PLUGINS, sans moteur derrière (fiche 09 § 10.3).
     DownloadModel,
     /// Un geste du panneau DOMAINES, à traduire en commande par `interactions::domains`.
@@ -63,17 +63,11 @@ fn click_panel(
             PanelClickResult::Handled
         }
         TabId::Storyboard => {
-            let layout = storyboard::layout_storyboard_panel(frame);
-            match storyboard::click_storyboard_panel(&mut dock.storyboard, &layout, pointer) {
-                storyboard::StoryboardClick::Handled => PanelClickResult::Handled,
-                // Ni le format ni l'activation ne touchent au canevas : le panneau ne doit
-                // pas laisser croire le contraire, et son état revient où il était.
-                storyboard::StoryboardClick::FormatSelected(_)
-                | storyboard::StoryboardClick::ToggleRequested => {
-                    dock.storyboard.active = false;
-                    PanelClickResult::StoryboardNotReady
-                }
-            }
+            let contenu = storyboard::Contenu::du(store);
+            let layout = storyboard::layout_storyboard_panel(frame, &dock.storyboard, &contenu);
+            let ce_qui = (&layout, &contenu);
+            storyboard::click_storyboard_panel(&mut dock.storyboard, ce_qui, pointer)
+                .map_or(PanelClickResult::Handled, PanelClickResult::Storyboard)
         }
         TabId::Plugins => {
             let layout = plugins::layout_plugins_panel(frame);

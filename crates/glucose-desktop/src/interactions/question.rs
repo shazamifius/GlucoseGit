@@ -161,6 +161,12 @@ impl GlucoseApp {
                     self.ajouter_un_document(chemin);
                 }
             }
+            Suite::DecrireLaCase { board, case } => {
+                if let (true, Some(texte)) = (oui, champ) {
+                    self.store.update_panel(&board, &case, texte);
+                    self.mark_dirty();
+                }
+            }
             Suite::NouveauDocument | Suite::MiseAJour(_) => {}
         }
     }

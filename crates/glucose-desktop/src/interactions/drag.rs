@@ -137,6 +137,10 @@ impl GlucoseApp {
             if self.drag_applied_delta != (0.0, 0.0) {
                 let board = self.store.project.active_board_id.clone();
                 self.store.rattacher_la_selection(&board);
+                // Une image lâchée dans une case du storyboard s'y ajuste — dans le même geste,
+                // après les pas du glisser : défaire rend l'ajustement, puis le déplacement.
+                let images = self.store.selected_image_ids.to_vec();
+                self.store.ajuster_dans_les_cases(&board, &images);
             }
             self.store.end_live_edit();
             self.active_guides = SnapGuides::default();

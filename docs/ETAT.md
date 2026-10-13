@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 12/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 13/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
@@ -12,7 +12,8 @@
 > choisie (fiche 61), et celle des boutons qui ne faisaient rien — les tris par la couleur, l'export
 > en image, les Presets et leurs zones, les champs du dock (fiche 62), et celle du flou qui restait
 > et d'un bouton pour chaque fonction — la netteté, les menus, le partage au téléphone, la boîte
-> noire qui dit où part le temps (fiche 63). Ce document dit l'état **vérifié** du projet,
+> noire qui dit où part le temps (fiche 63), et celle de la chrome posée par la carte et du
+> Storyboard (fiche 64). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -112,6 +113,14 @@
   lent (le serveur redéployé, éprouvé en ligne). L'inventaire de chaque fonction et de son
   bouton : [`INVENTAIRE.md`](INVENTAIRE.md). **Envoyé sans la CI** (`aabd7da`, `939eab7`) ;
   **rien n'est jugé à son écran** ; un APK neuf, signé de sa clé, est sur son Bureau.
+* **Fiche 64 — la chrome sur la carte, et le Storyboard** : **NETTETE-1 et PARTAGE-2 jugés**
+  (« plus du tout de flou, très clean » ; l'export au téléphone marche) ; **la CI sur `7c60593` :
+  dix vertes** ; **le brouillon de la 2.0.3-beta.1 est prêt** (sur `7c60593`, sans ce qui suit) ;
+  **CHROME-1** envoyé (`6e53d09`) : la bande, le fil, la minimap et le rail sont des textures que
+  la carte pose — la couche du dessus ne porte plus rien sans sélection (297 / 556 / 1 865 lignes
+  de moins par image) ; le rectangle de la minimap fidèle à Tauri. **STORYBOARD-1 écrit, éprouvé,
+  envoyé sans la CI — NON saboté** — la première chose de la session suivante. Les postes du
+  téléphone ne sont pas arrivés (sa session part à la prochaine ouverture).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -142,7 +151,8 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
+* **Épreuves** : **2 389** sous Windows au 13/10, STORYBOARD-1 compris (fiche 64) ; clippy strict
+  à zéro sous Windows et pour Android. Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
   pas été rejouée depuis la fiche 61, où elle comptait **2 255**) ; clippy strict à zéro sous
   Windows et pour Android. **Tout est envoyé** (12/10 au soir) : la fiche 62 et NETTETE-1 dans
   « urgent » (`58ad6ea`, sa CI : APK, NixOS, paquets Linux et installeur verts ; formatage rouge,

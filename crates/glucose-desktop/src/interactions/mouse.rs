@@ -23,7 +23,6 @@ use winit::event::MouseButton;
 
 /// Ce que disent les boutons dont la fonction n'existe pas encore. Un bouton qui annonce ce
 /// qu'il n'a pas fait est un bouton qui ment ; celui-ci dit ce qu'il en est.
-pub const NOT_YET_STORYBOARD: &str = "Storyboard : pas encore disponible";
 pub const NOT_YET_AI: &str = "IA locale : pas encore disponible";
 
 impl GlucoseApp {
@@ -179,8 +178,9 @@ impl GlucoseApp {
         if self.suivre_l_onglet_tenu() {
             return true;
         }
-        // Une zone de gabarit tenue : elle suit la main (PRESET-1).
-        if self.suivre_la_zone_tenue() {
+        // Une zone de gabarit tenue, une case du storyboard tenue : elles suivent la main
+        // (PRESET-1, STORYBOARD-1).
+        if self.suivre_la_zone_tenue() || self.suivre_la_case_tenue() {
             return true;
         }
         // Un champ de nombre tenu : sa valeur suit la main (CHAMP-1).
@@ -252,8 +252,10 @@ impl GlucoseApp {
             || self.redimensionner_par_le_bord()
             || self.deplacer_la_fenetre_avec_alt()
             || !self.ui.reference && self.click_l_interface(pointer, screen)
-            // Un gabarit qui suit le curseur se pose au premier clic sur le canevas (PRESET-1).
-            || self.poser_le_gabarit_arme();
+            // Un gabarit, une grille de storyboard qui suivent le curseur se posent au premier
+            // clic sur le canevas (PRESET-1, STORYBOARD-1).
+            || self.poser_le_gabarit_arme()
+            || self.poser_le_storyboard_arme();
         if !taken {
             self.click_canvas(screen);
         }
@@ -326,6 +328,7 @@ impl GlucoseApp {
                 self.finish_bend();
                 self.finish_resize();
                 self.lacher_la_zone();
+                self.lacher_la_case();
                 self.finish_item_drag();
                 self.finish_selection_box();
             }

@@ -101,7 +101,8 @@ impl TabId {
         match self {
             Self::Organize => 410.0,
             Self::Pomodoro => 210.0,
-            Self::Storyboard => 340.0,
+            // Toute la hauteur disponible : ses cases s'y listent (STORYBOARD-1).
+            Self::Storyboard => f32::MAX,
             Self::Plugins => 460.0,
             // Celle de ce qu'il peut montrer de plus grand, mesurée sur sa mise en page.
             Self::Preset => preset::hauteur_naturelle(),

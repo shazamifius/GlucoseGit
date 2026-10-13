@@ -60,6 +60,7 @@ impl GlucoseApp {
             || self.begin_arrow_bend(wx, wy)
             || self.begin_resize_at(wx, wy)
             || self.prendre_la_zone_choisie()
+            || self.prendre_la_case_choisie()
         {
             return;
         }
@@ -82,7 +83,8 @@ impl GlucoseApp {
         let Some(top) = self.pick_for_click(wx, wy) else {
             // Le bandeau d'une zone de gabarit la prend ; ailleurs, le vide est au canevas
             // (PRESET-1).
-            if self.prendre_le_bandeau() {
+            // Une case du storyboard passe au-dessus des zones : sa bande d'abord.
+            if self.prendre_la_bande() || self.prendre_le_bandeau() {
                 return;
             }
             self.commit_editing();

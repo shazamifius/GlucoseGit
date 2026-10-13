@@ -61,7 +61,7 @@ pub(super) fn dessiner_sous_les_photos(
         // Tauri (PRESET-1). Sur la voie graphique, la carte pose les mêmes rectangles au même
         // rang, avant ses membranes.
         let ecran = (pixmap.width() as f32, pixmap.height() as f32);
-        super::zone::remplir(pixmap, &super::zone::rectangles(store, pass, ecran));
+        super::zone::remplir(pixmap, &premier_rang(store, pass, ecran));
         crate::perf::stage("zones");
     }
     // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
@@ -72,14 +72,29 @@ pub(super) fn dessiner_sous_les_photos(
         scene::draw_membrane_ornaments(kit, pixmap, store, pass)
     };
     crate::perf::stage("membranes");
-    // 4 ter. Le nom et la phrase des zones, sur les deux voies — comme les titres des membranes.
-    let zones = super::zone::ecrire_les_textes(kit, pixmap, store, pass);
+    // 4 ter. Le nom et la phrase des zones, le numéro et la description des cases du
+    // storyboard, sur les deux voies — comme les titres des membranes.
+    let zones = super::zone::ecrire_les_textes(kit, pixmap, store, pass)
+        | super::storyboard::ecrire_les_textes(kit, pixmap, store, pass);
     // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
     // conteneurs et sous leur contenu.
     let dossiers = folder::draw_folders(kit, pixmap, store, pass);
     crate::perf::stage("folders");
     // Le fond couvre tout : quand il est là, la couche porte forcément de l'encre.
     cadrage.couche.porte_le_fond() || zones || membranes || dossiers
+}
+
+/// **Le premier rang du monde** : le corps des zones d'un gabarit, puis les cases du storyboard
+/// — des rectangles unis, que le processeur remplit et que la carte pose juste après le fond
+/// (PRESET-1, STORYBOARD-1). Une seule liste pour les deux voies.
+fn premier_rang(
+    store: &Store,
+    pass: ViewPass<'_>,
+    ecran: (f32, f32),
+) -> Vec<super::zone::Rectangle> {
+    let mut rang = super::zone::rectangles(store, pass, ecran);
+    rang.extend(super::storyboard::rectangles(store, pass, ecran));
+    rang
 }
 
 /// **Ce qui passe sur les photos** : les ornements, les annotations, les repères du geste.
@@ -141,6 +156,8 @@ pub(super) fn dessiner_sur_les_photos(
     // La zone de gabarit choisie : ses prises, comme celles d'un nœud choisi (PRESET-1).
     let choisie = ui.zones.choisie.as_deref();
     super::zone::orner_la_zone_choisie(pixmap, kit.theme, (store, pass), choisie);
+    let case = ui.storyboard.choisie.as_deref();
+    super::storyboard::orner_la_case_choisie(pixmap, kit.theme, (store, pass), case);
     crate::perf::stage("ornements");
     let taille = (pixmap.width(), pixmap.height());
     dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);
@@ -497,7 +514,7 @@ impl Renderer {
         let lueurs = lueurs_a_poser(&mut self.hue_cache, store, (pass, overlay.designees), ecran);
         crate::perf::stage("lueurs");
         let membranes = scene::formes_des_membranes(store, pass, taille);
-        let zones = super::zone::rectangles(store, pass, ecran);
+        let zones = premier_rang(store, pass, ecran);
         crate::perf::stage("membranes");
         let fleches = super::arrow::fleches_a_poser(
             &mut self.hue_cache,

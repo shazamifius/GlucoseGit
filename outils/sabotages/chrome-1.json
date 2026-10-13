@@ -1,0 +1,317 @@
+[
+ {
+  "nom": "la chrome absente des textures",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/confie.rs",
+  "avant": "            .chain(self.chrome.sous_le_cadre().iter().cloned())\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "chrome_suite",
+   "--test",
+   "voies_suite"
+  ]
+ },
+ {
+  "nom": "le rail compte sous le cadre (ordre inverse)",
+  "fichier": "crates/glucose-desktop/src/ui/chrome.rs",
+  "avant": "                if self.cadre_recu {",
+  "apres": "                if !self.cadre_recu {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "chrome_suite",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "le cadre pose par-dessus le rail",
+  "fichier": "crates/glucose-desktop/src/present/couches.rs",
+  "avant": "    let cadre = retenues.avant(temps.sous_le_cadre);",
+  "apres": "    let cadre = retenues.len();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "chrome_suite"
+  ]
+ },
+ {
+  "nom": "le cadre jamais pose par la carte",
+  "fichier": "crates/glucose-desktop/src/present/couches.rs",
+  "avant": "    temps.cadre.poser(&mut passe);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "chrome_suite"
+  ]
+ },
+ {
+  "nom": "la pose de la chrome non arrondie",
+  "fichier": "crates/glucose-desktop/src/ui/chrome.rs",
+  "avant": "                    y: origine.1.round(),",
+  "apres": "                    y: origine.1,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "chrome_suite"
+  ]
+ },
+ {
+  "nom": "la chrome repeinte dans la couche du dessus",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        let ecran = (taille.0 as f32, taille.1 as f32);\n        let kit = (&self.typography, &self.theme);\n",
+  "apres": "        let ecran = (taille.0 as f32, taille.1 as f32);\n        let kit = (&self.typography, &self.theme);\n        crate::ui::render_ui(dessus, store, ui, kit.0, kit.1, pointer);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "attend_une_decision toujours vrai",
+  "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+  "avant": "        store.compte_de_la_selection() > 0\n",
+  "apres": "        true || store.compte_de_la_selection() > 0\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome",
+   "decision"
+  ]
+ },
+ {
+  "nom": "la garde de la decision retiree",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "    if !ui.attend_une_decision(store) {",
+  "apres": "    if false && !ui.attend_une_decision(store) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "la decision oublie la selection",
+  "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+  "avant": "        store.compte_de_la_selection() > 0\n            ||",
+  "apres": "        false\n            ||",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "decision"
+  ]
+ },
+ {
+  "nom": "la decision oublie l'editeur d'ancres",
+  "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+  "avant": "            || self.ancrage.is_some()\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "decision"
+  ]
+ },
+ {
+  "nom": "la decision oublie le message",
+  "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+  "avant": "            || self.current_toast.is_some()\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "decision"
+  ]
+ },
+ {
+  "nom": "la decision oublie le menu",
+  "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+  "avant": "            || self.context_menu_at.is_some()\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "decision"
+  ]
+ },
+ {
+  "nom": "la decision oublie la question",
+  "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+  "avant": "            || self.question.is_some()",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "decision"
+  ]
+ },
+ {
+  "nom": "le fond de la minimap garde sa cle en changeant",
+  "fichier": "crates/glucose-desktop/src/ui/minimap.rs",
+  "avant": "        let dessins = cache.as_ref().map_or(0, |c| c.dessins) + 1;",
+  "apres": "        let dessins = cache.as_ref().map_or(0, |c| c.dessins);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "le fil ne regarde pas le chemin",
+  "fichier": "crates/glucose-desktop/src/ui/breadcrumb.rs",
+  "avant": "    let cle = (chemin, largeur.to_bits(), top.to_bits(), scale.to_bits());",
+  "apres": "    let _ = chemin;\n    let cle = (Vec::new(), largeur.to_bits(), top.to_bits(), scale.to_bits());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "le fil garde sa cle en redessinant",
+  "fichier": "crates/glucose-desktop/src/ui/breadcrumb.rs",
+  "avant": "    let dessins = cache.as_ref().map_or(0, |c| c.dessins) + 1;",
+  "apres": "    let dessins = cache.as_ref().map_or(0, |c| c.dessins);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "le fil se pose a la racine",
+  "fichier": "crates/glucose-desktop/src/ui/breadcrumb.rs",
+  "avant": "    if store.folder_path().len() < 2 {\n        return None;\n    }\n    let cache = cache.as_ref()?;",
+  "apres": "    let cache = cache.as_ref()?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "les filets du cadre se recouvrent aux coins",
+  "fichier": "crates/glucose-desktop/src/ui/minimap.rs",
+  "avant": "trait_(Rect::from_ltrb(g, h + e, g + e, b - e)),",
+  "apres": "trait_(Rect::from_ltrb(g, h, g + e, b)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "le voile du cadre absent",
+  "fichier": "crates/glucose-desktop/src/ui/minimap.rs",
+  "avant": "            (\n                Rect::from_ltrb(g + e, h + e, d - e, b - e),\n                theme.minimap_viewport_fond,\n            ),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "le trait du cadre a 1,5 point",
+  "fichier": "crates/glucose-desktop/src/ui/minimap.rs",
+  "avant": "    let e = s.round().max(1.0);",
+  "apres": "    let e = (1.5 * s).round().max(1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chrome"
+  ]
+ },
+ {
+  "nom": "la carte ne prepare pas le cadre (Passes)",
+  "fichier": "crates/glucose-desktop/src/present/passes.rs",
+  "avant": "        self.cadre\n            .preparer(peripherique, file, ecran, confie.chrome.cadre());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "chrome_suite"
+  ]
+ }
+]

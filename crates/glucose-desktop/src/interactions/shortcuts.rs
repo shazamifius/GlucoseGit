@@ -173,7 +173,7 @@ impl GlucoseApp {
             return;
         }
         // Un gabarit qui suit le curseur attend encore qu'on le pose : Échap y renonce.
-        if self.renoncer_au_gabarit() {
+        if self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {
             return;
         }
         // Échap rend toujours l'outil Sélection, comme dans Glucose Tauri : c'est la
@@ -442,7 +442,7 @@ impl GlucoseApp {
     /// qui avait quelque chose à dire (fiche 52).
     pub(crate) fn delete_selection(&mut self) {
         // Une zone de gabarit choisie se retire seule : les nœuds ne sont pas choisis avec elle.
-        if self.retirer_la_zone_choisie() {
+        if self.retirer_la_zone_choisie() || self.retirer_la_case_choisie() {
             return;
         }
         let board = self.store.project.active_board_id.clone();

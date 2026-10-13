@@ -35,6 +35,9 @@ pub struct Placement {
     pub fantome: Option<Fantome>,
     /// Le gabarit choisi dans le panneau des Presets, qui suit le curseur jusqu'au clic.
     pub gabarit: Option<String>,
+    /// La grille du storyboard armée dans son panneau, qui suit le curseur jusqu'au clic
+    /// (STORYBOARD-1).
+    pub storyboard: Option<glucose_core::store::storyboard::Grille>,
 }
 
 impl GlucoseApp {

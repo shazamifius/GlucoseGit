@@ -3,7 +3,7 @@
 
 use crate::app::GlucoseApp;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult};
-use crate::interactions::mouse::{NOT_YET_AI, NOT_YET_STORYBOARD};
+use crate::interactions::mouse::NOT_YET_AI;
 use crate::params::{Pointer, ScreenFrame};
 
 impl GlucoseApp {
@@ -61,9 +61,7 @@ impl GlucoseApp {
             PanelClickResult::Domain(intent) => self.apply_domain_intent(intent),
             PanelClickResult::Temps(intent) => self.agir_dans_le_temps(intent),
             PanelClickResult::Gabarit(intent) => self.suivre_le_panneau_des_presets(intent),
-            // Fiche 09 § 8 : le storyboard n'a pas d'effet sur le canevas. Le panneau ne doit
-            // pas laisser croire le contraire.
-            PanelClickResult::StoryboardNotReady => self.ui.show_toast(NOT_YET_STORYBOARD),
+            PanelClickResult::Storyboard(intent) => self.suivre_le_panneau_du_storyboard(intent),
             // Fiche 09 § 10.3 : pas de moteur, pas de téléchargement.
             PanelClickResult::DownloadModel => self.ui.show_toast(NOT_YET_AI),
             // Le panneau a déjà changé son propre état — un tri, une densité, le minuteur ;

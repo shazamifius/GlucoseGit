@@ -175,7 +175,7 @@ impl GlucoseApp {
             badges: self.suivre_les_badges(),
             designees: self.suivre_la_designation(),
             fantome: self.fantome_montre(),
-            gabarit: self.fantome_du_gabarit(),
+            gabarit: [self.fantome_du_gabarit(), self.fantome_du_storyboard()].concat(),
         }
     }
 

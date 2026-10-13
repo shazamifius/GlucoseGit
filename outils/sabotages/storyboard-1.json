@@ -1,0 +1,368 @@
+[
+ {
+  "nom": "poser cree toujours deux rangees",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "let nombre = if n == 0 { grille.nombre_initial() } else { n };",
+  "apres": "let nombre = grille.nombre_initial() + 0 * n;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "poser ne numerote pas",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "(case.order, case.x, case.y) = (i as i32, x, y);",
+  "apres": "(case.x, case.y) = (x, y);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "retirer ne renumerote pas",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            .filter(|c| c.id != id)\n            .cloned()\n            .collect();\n        for (i, c) in cases.iter_mut().enumerate() {\n            c.order = i as i32;\n        }",
+  "apres": "            .filter(|c| c.id != id)\n            .cloned()\n            .collect();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "renumeroter ne renumerote pas",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        for (i, c) in rangees.iter_mut().enumerate() {\n            c.order = i as i32;\n        }",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une rangee exige la meme hauteur",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": ".partition(|&i| cases[i].y + cases[i].height / 2.0 <= bas);",
+  "apres": ".partition(|&i| cases[i].y <= cases[premiere].y + 0.0 * bas);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une rangee ne se trie pas de gauche a droite",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        rangee.sort_by(|&a, &b| cases[a].x.total_cmp(&cases[b].x));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une image verrouillee s'ajuste",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "if image.locked || image.width <= 0.0",
+  "apres": "if image.width <= 0.0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "l'image couvre la case au lieu d'y tenir",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "let s = (case.width / image.width).min(case.height / image.height);",
+  "apres": "let s = (case.width / image.width).max(case.height / image.height);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "un glisser reecrit toutes les cases",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "    let memes_rangs =",
+  "apres": "    let memes_rangs = false &&",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la case se reecrit a chaque pas",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "                self.journal\n                    .remplacer_dans_le_geste(rang..rang + 1, Some(edit));",
+  "apres": "                let _ = rang;\n                self.journal.record(edit);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la case n'emporte pas ses images",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        self.glisser_ces_images(board_id, images, total);\n    }",
+  "apres": "        let _ = images;\n    }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une image lachee ne s'ajuste pas",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "                self.store.ajuster_dans_les_cases(&board, &images);\n",
+  "apres": "                let _ = images;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la bande ne prend pas la case",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "if self.prendre_la_bande() || self.prendre_le_bandeau() {",
+  "apres": "if self.prendre_le_bandeau() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la croix de la case ne prend rien",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "            || self.prendre_la_case_choisie()\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la grille armee ne se pose pas",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "            || self.poser_le_storyboard_arme();",
+  "apres": ";",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "deux clics ne decrivent pas",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        if rang >= 2 {",
+  "apres": "        if rang >= 3 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "Echap ne renonce pas a la grille",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "if self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {",
+  "apres": "if self.renoncer_au_gabarit() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "Suppr ne retire pas la case",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "if self.retirer_la_zone_choisie() || self.retirer_la_case_choisie() {",
+  "apres": "if self.retirer_la_zone_choisie() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la case tenue ne suit pas la main",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "if self.suivre_la_zone_tenue() || self.suivre_la_case_tenue() {",
+  "apres": "if self.suivre_la_zone_tenue() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la case tenue ne se lache pas",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "                self.lacher_la_case();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "les cases hors du premier rang",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "    rang.extend(super::storyboard::rectangles(store, pass, ecran));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la case choisie sans contour",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "    super::storyboard::orner_la_case_choisie(pixmap, kit.theme, (store, pass), case);\n",
+  "apres": "    let _ = case;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la description ne s'ecrit pas",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "                    self.store.update_panel(&board, &case, texte);\n",
+  "apres": "                    let _ = (&board, &case, texte);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "armer ne ferme pas le panneau",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            self.dock_manager.toggle_tab(crate::dock::TabId::Storyboard);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "les textes des cases ne s'ecrivent pas",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        | super::storyboard::ecrire_les_textes(kit, pixmap, store, pass);",
+  "apres": ";",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ }
+]

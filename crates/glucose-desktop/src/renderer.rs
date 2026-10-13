@@ -47,6 +47,7 @@ pub mod predicate;
 pub mod richtext;
 pub mod scale;
 pub mod scene;
+pub mod storyboard;
 pub mod tuiles;
 pub mod vignette;
 pub mod wrap;
