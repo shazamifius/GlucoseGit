@@ -139,7 +139,7 @@ async function main() {
         s.redemarre && suivante.demarrage != null
           ? Math.round((suivante.demarrage - s.derniereTrace) / 60000)
           : null;
-      if (s.fin && s.fin !== "propre") {
+      if (s.fin && s.fin !== "propre" && s.fin !== "arriere_plan") {
         fins.push({
           installation: id.slice(0, 8),
           jour: s.recue,
@@ -166,8 +166,10 @@ async function main() {
       premiere: liste.map((s) => s.recue).sort()[0],
       derniere: liste.map((s) => s.recue).sort().at(-1),
       version: derniere.version,
-      fins_propres: liste.filter((s) => s.fin === "propre").length,
-      fins_anormales: liste.filter((s) => s.fin && s.fin !== "propre").length,
+      fins_propres: liste.filter((s) => s.fin === "propre" || s.fin === "arriere_plan").length,
+      fins_anormales: liste.filter(
+        (s) => s.fin && s.fin !== "propre" && s.fin !== "arriere_plan",
+      ).length,
       redemarrages: liste.filter((s) => s.redemarre).length,
       image_typique_ms: ms(typique(deplacer)),
       pire_image_ms: ms(pire),

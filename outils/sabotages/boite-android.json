@@ -1,0 +1,44 @@
+[
+ {
+  "nom": "l'arriere-plan ne change pas la fin",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "        fin = Fin::ArrierePlan;",
+  "apres": "        fin = Fin::Interrompue;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "vie", "boite_noire"]
+ },
+ {
+  "nom": "revenir au premier plan ne compte pas",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "            Some(\"premier_plan\") => en_arriere_plan = false,",
+  "apres": "            Some(\"premier_plan\") => {}",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "vie", "boite_noire"]
+ },
+ {
+  "nom": "l'arriere-plan n'est pas une fin ordinaire",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "        matches!(self, Fin::Propre | Fin::ArrierePlan)",
+  "apres": "        matches!(self, Fin::Propre)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "vie", "boite_noire"]
+ },
+ {
+  "nom": "le rangement garde ce qui a fini en arriere-plan",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "        if b.is_none_or(|b| b.fin.est_ordinaire()) {",
+  "apres": "        if b.is_none_or(|b| b.fin == Fin::Propre) {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "vie", "boite_noire"]
+ },
+ {
+  "nom": "passer derriere ne s'ecrit pas",
+  "fichier": "crates/glucose-desktop/src/app/vie.rs",
+  "avant": "        self.chronique.noter_le_plan(true);",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "vie", "boite_noire"]
+ },
+ {
+  "nom": "passer derriere n'attend pas le disque",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "            self.envoyer(Enregistrement::ArrierePlan { instant_ms });\n            self.synchroniser();",
+  "apres": "            self.envoyer(Enregistrement::ArrierePlan { instant_ms });",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "vie", "boite_noire"]
+ }
+]

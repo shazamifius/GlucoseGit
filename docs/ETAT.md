@@ -134,8 +134,9 @@
   **CHAMP-QUESTION-1** (« Décrire » écrit enfin au clavier) ; **`Alt+F`** tout cadrer. Éprouvé,
   saboté, **rien n'est jugé à son écran**. **Le tableau de bord de la télémétrie** existe (une
   page privée de son compte, refaite par `outils/telemetrie/tableau.mjs`) ; il a montré qu'au
-  téléphone **toute session paraît interrompue** — Android tue Glucose sans qu'il écrive sa fin
-  (BOITE-ANDROID, à réparer).
+  téléphone **toute session paraissait interrompue** — Android tue Glucose sans qu'il écrive sa
+  fin ; **réparé** (BOITE-ANDROID : passer derrière s'écrit, le serveur redéployé et essayé en
+  ligne) — il faut un APK neuf pour que le téléphone le porte.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -166,8 +167,8 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 422** sous Windows au 13/10 au soir, STORYBOARD-2 compris (fiche 65 ; 57
-  sabotages, 57 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389
+* **Épreuves** : **2 426** sous Windows au 13/10 au soir, STORYBOARD-2 et BOITE-ANDROID compris
+  (fiche 65 ; 63 sabotages, 63 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389
   (fiche 64). Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
   pas été rejouée depuis la fiche 61, où elle comptait **2 255**) ; clippy strict à zéro sous
   Windows et pour Android. **Tout est envoyé** (12/10 au soir) : la fiche 62 et NETTETE-1 dans

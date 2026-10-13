@@ -62,3 +62,20 @@ test("un identifiant est 32 chiffres hexadecimaux, rien d'autre", () => {
   assert.equal(identifiant("x".repeat(32)), false);
   assert.equal(identifiant(undefined), false);
 });
+
+test("une session d'Android passe en arriere-plan, et sa fin s'y dit (BOITE-ANDROID)", () => {
+  const android = SESSION
+    .replace('"fin":"propre"', '"fin":"arriere_plan"')
+    .replace(
+      '{"type":"fin","instant_ms":1200}',
+      [
+        '{"type":"arriere_plan","instant_ms":1100}',
+        '{"type":"premier_plan","instant_ms":1150}',
+        '{"type":"arriere_plan","instant_ms":1190}',
+      ].join(String.fromCharCode(10)),
+    );
+  const v = validerSession(android);
+  assert.equal(v.ok, true, v.raison);
+  const inconnue = SESSION.replace('"fin":"propre"', '"fin":"en_vacances"');
+  assert.equal(validerSession(inconnue).ok, false);
+});

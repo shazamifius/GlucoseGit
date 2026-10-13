@@ -200,10 +200,23 @@ sessions dont on connaît la fin sont « interrompues » (14 sur 14). Lu dans le
 fin ne s'écrit qu'à la sortie de la boucle (`exiting`), et Android tue l'application en
 arrière-plan sans jamais l'appeler. Un vrai plantage s'y confond donc avec une fermeture
 ordinaire — seul le champ « appareil redémarré » y distingue encore quelque chose (vrai une
-fois, le 09/10 : l'appareil a redémarré entre deux sessions, sans qu'on sache pourquoi). La
-réparation (BOITE-ANDROID) : noter le passage en arrière-plan (`Suspended`), pour qu'une mort
-en arrière-plan se lise comme une fin ordinaire — un nom de plus dans la liste fermée du
-serveur.
+fois, le 09/10 : l'appareil a redémarré entre deux sessions, sans qu'on sache pourquoi).
+
+**BOITE-ANDROID — réparé** : passer derrière une autre application (`Suspended`) écrit une ligne
+`arriere_plan` — **sur le disque avant le retour de l'appel**, puisque le système peut tuer
+Glucose l'instant d'après — et revenir écrit `premier_plan`. Une session qui finit derrière, sans
+ligne de fin, se lit **fermée en arrière-plan** (`Fin::ArrierePlan`) : une fin ordinaire, comme une
+fermeture propre (`Fin::est_ordinaire`), que le rangement efface et qui ne déclenche pas la
+recherche d'une mise à jour « avant tout ». Revenue au premier plan puis arrêtée sans rien dire,
+elle reste interrompue — et c'est alors une vraie faute à lire. Le serveur connaît les deux
+lignes et la fin neuve (redéployé, version `fc12be37` ; essayé en ligne : une session d'Android
+entre, une fin inconnue est refusée, l'essai s'efface et la base relue n'en garde rien) ; la
+page publique le dit ; le tableau de bord ne compte plus une telle fin parmi les mauvaises.
+Éprouvé : quatre épreuves, dont une par l'application qui passe derrière ; **6 sabotages, 6
+chutes** (`outils/sabotages/boite-android.json` — celui de l'attente du disque dépend de l'ordre
+des fils : il est tombé, mais une course peut le laisser passer). Ce qui n'est pas gardé : la
+décision du démarrage (« a mal fini ») ne se joue qu'en lançant l'application ; elle lit la même
+`est_ordinaire`, qui l'est.
 
 ## 9. Propositions pour le Storyboard — à sa parole
 

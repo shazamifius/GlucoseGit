@@ -27,6 +27,8 @@ impl GlucoseApp {
         if let Some(presenter) = self.presenter.as_mut() {
             presenter.lacher_la_surface();
         }
+        // Le système peut maintenant tuer Glucose sans prévenir : la boîte noire le sait.
+        self.chronique.noter_le_plan(true);
         println!("[Glucose] vie : en arriere-plan, la surface est rendue au systeme");
     }
 
@@ -39,6 +41,7 @@ impl GlucoseApp {
         let Some(window) = self.window.clone() else {
             return;
         };
+        self.chronique.noter_le_plan(false);
         let debut = std::time::Instant::now();
         let rendue = match self.presenter.as_mut() {
             Some(presenter) => presenter.retrouver_la_surface(&window),
@@ -140,5 +143,27 @@ mod tests {
             app.en_arriere_plan(),
             "plus rien ne se dessine en arrière-plan"
         );
+    }
+
+    /// **BOITE-ANDROID** (fiche 65) : passer derrière s'écrit dans la boîte noire, sur le disque
+    /// au retour de l'appel — le système peut tuer Glucose l'instant d'après, et la session doit
+    /// alors se lire fermée en arrière-plan, pas interrompue.
+    #[test]
+    fn test_boite_android_passer_derriere_s_ecrit_dans_la_boite_noire() {
+        use crate::boite_noire::bilan::{bilan, Fin};
+        let d = crate::epreuve::Dossier::nouveau("vie-boite-noire");
+        let mut app = GlucoseApp::new();
+        app.chronique.ouvrir_la_boite_noire(&d);
+        app.presenter = Some(Box::new(Temoin(Arc::new(AtomicUsize::new(0)), true)));
+        app.suspendre();
+        let chemin = app
+            .chronique
+            .boite_noire()
+            .expect("la boîte noire ouverte")
+            .chemin()
+            .to_path_buf();
+        let texte = std::fs::read_to_string(chemin).expect("la session");
+        let session = bilan(&texte, None).expect("une session");
+        assert_eq!(session.fin, Fin::ArrierePlan, "{texte}");
     }
 }

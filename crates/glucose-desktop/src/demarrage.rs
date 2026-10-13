@@ -3,7 +3,6 @@
 //! reste est ici, une seule fois.
 
 use crate::app::GlucoseApp;
-use crate::boite_noire::bilan::Fin;
 use crate::mise_a_jour::cycle;
 use crate::mise_a_jour::installation::Installation;
 use std::path::Path;
@@ -49,7 +48,7 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     // un téléphone) ne cherche aucune mise à jour. Après une session qui a mal fini, elle se
     // cherche AVANT tout ce qui peut tomber — la carte graphique, le document (fiche 48).
     let installation = Installation::de_ce_programme();
-    let a_mal_fini = precedente.is_some_and(|p| p.fin != Fin::Propre);
+    let a_mal_fini = precedente.is_some_and(|p| !p.fin.est_ordinaire());
     if let (true, Some(i)) = (a_mal_fini, &installation) {
         if app.mettre_a_jour_avant_tout(&installeurs, i) {
             app.chronique.clore_la_boite_noire();

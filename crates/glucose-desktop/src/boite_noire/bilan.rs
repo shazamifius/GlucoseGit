@@ -33,6 +33,10 @@ pub enum Fin {
     Plantee,
     /// Arrêtée sans rien dire, et le système l'a fermée gelée.
     Gelee,
+    /// **Fermée par le système pendant qu'elle était en arrière-plan** (BOITE-ANDROID, fiche
+    /// 65) : la fin ordinaire d'une application de téléphone, que rien ne prévient. Sans elle,
+    /// toute session d'Android paraissait interrompue, et un vrai plantage s'y confondait.
+    ArrierePlan,
 }
 
 impl Fin {
@@ -43,7 +47,14 @@ impl Fin {
             Fin::Interrompue => "interrompue",
             Fin::Plantee => "plantee",
             Fin::Gelee => "gelee",
+            Fin::ArrierePlan => "arriere_plan",
         }
+    }
+
+    /// **Une fin ordinaire** : fermée par l'utilisateur, ou par le système en arrière-plan.
+    /// Aucune faute à chercher, rien à garder.
+    pub fn est_ordinaire(self) -> bool {
+        matches!(self, Fin::Propre | Fin::ArrierePlan)
     }
 }
 
@@ -70,6 +81,9 @@ impl Bilan {
             Fin::Propre => format!("fermée proprement, après {min} min {s} s"),
             Fin::Panique => format!("tombée sur une panique, après {min} min {s} s"),
             Fin::Interrompue => format!("arrêtée sans rien dire, après {min} min {s} s"),
+            Fin::ArrierePlan => {
+                format!("fermée par le système en arrière-plan, après {min} min {s} s")
+            }
             Fin::Plantee | Fin::Gelee => match &self.plantage {
                 Some(p) => format!("{}, après {min} min {s} s", p.dire()),
                 None => format!("arrêtée sans rien dire, après {min} min {s} s"),
@@ -97,6 +111,7 @@ pub fn bilan(texte: &str, demarrage_appareil_ms: Option<u64>) -> Option<Bilan> {
     let mut epoque = None;
     let mut dernier = 0u64;
     let mut fin = Fin::Interrompue;
+    let mut en_arriere_plan = false;
     let mut machine = EtatMachine::default();
     for ligne in texte.lines() {
         // Une ligne coupée par la fin brutale ne se lit pas : c'est justement cette fin-là
@@ -118,8 +133,13 @@ pub fn bilan(texte: &str, demarrage_appareil_ms: Option<u64>) -> Option<Bilan> {
             // la session.
             Some("panique") if v.booleen("principal") == Some(true) => fin = Fin::Panique,
             Some("fin") => fin = Fin::Propre,
+            Some("arriere_plan") => en_arriere_plan = true,
+            Some("premier_plan") => en_arriere_plan = false,
             _ => {}
         }
+    }
+    if fin == Fin::Interrompue && en_arriere_plan {
+        fin = Fin::ArrierePlan;
     }
     let derniere_trace = epoque? + dernier;
     Some(Bilan {
@@ -183,7 +203,7 @@ pub fn ranger(
         let b = std::fs::read_to_string(p)
             .ok()
             .and_then(|t| bilan(&t, demarrage_appareil_ms));
-        if b.is_none_or(|b| b.fin == Fin::Propre) {
+        if b.is_none_or(|b| b.fin.est_ordinaire()) {
             let _ = std::fs::remove_file(p);
         }
     }

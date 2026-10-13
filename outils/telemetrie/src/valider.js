@@ -44,6 +44,10 @@ export const TYPES = {
   pire: { instant_ms: "entier", duree_us: "entier", geste: "geste" },
   pave: { instant_ms: "entier", quoi: "quoi", valeur: "entier" },
   fin: { instant_ms: "entier" },
+  // **Glucose passe en arrière-plan, ou en revient** (BOITE-ANDROID, fiche 65) : sous Android,
+  // le système le tue sans prévenir — une session qui finit derrière a fini ordinairement.
+  arriere_plan: { instant_ms: "entier" },
+  premier_plan: { instant_ms: "entier" },
   // La carte graphique, par ses numéros et des noms fermés — jamais le nom que donne son pilote
   // (fiche 60) : le fabricant et le modèle sont les identifiants PCI ou Khronos.
   carte: {
@@ -78,7 +82,7 @@ export const NOMS = {
     "repos", "deplacer la vue", "zoomer", "glisser un noeud", "redimensionner", "dessiner",
     "selectionner", "editer du texte", "decoder des images", "animer la camera",
   ],
-  fin: ["propre", "panique", "interrompue", "plantee", "gelee"],
+  fin: ["propre", "panique", "interrompue", "plantee", "gelee", "arriere_plan"],
   quoi: [
     "contact", "cadre_refuse", "interaction_debut", "interaction_fin",
     "statut_en_construction", "statut_actif", "statut_desactive", "statut_en_cours",

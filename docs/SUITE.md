@@ -36,7 +36,7 @@ rien ; des propositions pour un outil « pas pratique et incomplet ».
 | [~] | **CHAMP-QUESTION-1** — le champ d'une question écrit au clavier du PC (accents compris) | **à son écran** : « Décrire » |
 | [~] | **`Alt+F`** tout cadrer ; `Ctrl+F` gardé à la recherche | **à son écran** |
 | [~] | **Le tableau de bord de la télémétrie** (sa demande du 13/10) : `outils/telemetrie/tableau.mjs` résume la base, une page privée de son compte la montre — installations, systèmes, cartes par leurs noms, fins | fiche 65 § 8 bis — **à ses yeux** |
-| [ ] | **BOITE-ANDROID** : au téléphone, toute session paraît « interrompue » (Android tue l'application sans `exiting`) — noter le passage en arrière-plan, pour qu'un vrai plantage s'y distingue | fiche 65 § 8 bis ; avant de lire les postes du téléphone |
+| [~] | **BOITE-ANDROID** : passer derrière s'écrit ; une session tuée en arrière-plan finit ordinairement, et un vrai plantage s'y distingue ; le serveur redéployé | fiche 65 § 8 bis — **à son téléphone**, avec un APK neuf |
 | [ ] | **Les propositions du Storyboard** (fiche 65 § 9) : les images qui remplissent les cases à la suite, un storyboard de la sélection, insérer une case, la lecture, plusieurs champs, le type de plan, l'export en planches, plusieurs storyboards | **ses choix** |
 
 ## 0 sexies. La chrome, le Storyboard (fiche 64)

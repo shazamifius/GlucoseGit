@@ -66,6 +66,12 @@ pub enum Enregistrement {
     Carte { instant_ms: u64, carte: Carte },
     /// **Une étape du dessin qui a ralenti un épisode** (POSTES-1, fiche 63).
     Poste(Poste),
+    /// **Glucose passe derrière une autre application** (BOITE-ANDROID, fiche 65) : sous
+    /// Android, le système peut alors le tuer sans prévenir — une session qui finit là a fini
+    /// comme finit une application de téléphone, et non par une faute.
+    ArrierePlan { instant_ms: u64 },
+    /// Glucose revient au premier plan.
+    PremierPlan { instant_ms: u64 },
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
 }
@@ -201,6 +207,8 @@ impl Enregistrement {
             Self::Pave { .. } => "pave",
             Self::Carte { .. } => "carte",
             Self::Poste(_) => "poste",
+            Self::ArrierePlan { .. } => "arriere_plan",
+            Self::PremierPlan { .. } => "premier_plan",
             Self::Fin { .. } => "fin",
         }
     }
@@ -224,19 +232,7 @@ impl Enregistrement {
     fn champs(&self) -> Vec<(&'static str, Champ)> {
         use Champ::{Booleen, Entier, Nom};
         match *self {
-            Self::Debut {
-                epoque_ms,
-                version,
-                systeme,
-                architecture,
-                demarrage_appareil_ms,
-            } => vec![
-                ("epoque_ms", Entier(epoque_ms)),
-                ("version", Nom(version)),
-                ("systeme", Nom(systeme)),
-                ("architecture", Nom(architecture)),
-                ("demarrage_appareil_ms", demarrage_appareil_ms.into()),
-            ],
+            Self::Debut { .. } => self.champs_du_debut(),
             Self::Precedente {
                 instant_ms,
                 fin,
@@ -298,8 +294,35 @@ impl Enregistrement {
             ],
             Self::Carte { instant_ms, carte } => carte.champs(instant_ms),
             Self::Poste(poste) => poste.champs(),
-            Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
+            Self::ArrierePlan { instant_ms }
+            | Self::PremierPlan { instant_ms }
+            | Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
         }
+    }
+}
+
+impl Enregistrement {
+    /// Les champs du début d'une session : ce qui tourne, quand, et depuis quand l'appareil est
+    /// allumé.
+    fn champs_du_debut(&self) -> Vec<(&'static str, Champ)> {
+        use Champ::{Entier, Nom};
+        let Self::Debut {
+            epoque_ms,
+            version,
+            systeme,
+            architecture,
+            demarrage_appareil_ms,
+        } = *self
+        else {
+            return Vec::new();
+        };
+        vec![
+            ("epoque_ms", Entier(epoque_ms)),
+            ("version", Nom(version)),
+            ("systeme", Nom(systeme)),
+            ("architecture", Nom(architecture)),
+            ("demarrage_appareil_ms", demarrage_appareil_ms.into()),
+        ]
     }
 }
 

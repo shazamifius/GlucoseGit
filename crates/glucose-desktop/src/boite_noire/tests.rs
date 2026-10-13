@@ -297,6 +297,8 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         "carte",
         "panique",
         "plantage",
+        "arriere_plan",
+        "premier_plan",
     ];
     let gestes = Geste::TOUS.map(Geste::nom);
     let moteurs = [
@@ -322,6 +324,7 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         Fin::Interrompue,
         Fin::Plantee,
         Fin::Gelee,
+        Fin::ArrierePlan,
     ]
     .map(Fin::nom);
     let noms = types
@@ -669,4 +672,72 @@ fn test_postes_1_la_chronique_transmet_les_postes() {
     assert_eq!(postes.len(), 1, "le poste qui porte l'excès");
     assert_eq!(postes[0].texte("nom"), Some("textures"));
     assert_eq!(postes[0].entier("median_us"), Some(20_000));
+}
+
+// ── BOITE-ANDROID : la session qu'Android ferme en arrière-plan (fiche 65) ──────────────────
+
+/// **Une session qui finit derrière une autre application a fini ordinairement** : Android
+/// tue Glucose sans prévenir ; revenue au premier plan avant de s'arrêter, elle est
+/// interrompue comme avant. Ni l'une ni l'autre n'a de ligne de fin.
+#[test]
+fn test_boite_android_une_session_tuee_en_arriere_plan_finit_ordinairement() {
+    let debut = "{\"type\":\"debut\",\"epoque_ms\":10}\n";
+    let derriere = "{\"type\":\"arriere_plan\",\"instant_ms\":50}\n";
+    let devant = "{\"type\":\"premier_plan\",\"instant_ms\":90}\n";
+    let tuee = bilan::bilan(&format!("{debut}{derriere}"), None).expect("session");
+    assert_eq!(tuee.fin, Fin::ArrierePlan);
+    assert!(tuee.fin.est_ordinaire());
+    assert!(tuee.dire().contains("en arrière-plan"), "{}", tuee.dire());
+    let revenue = bilan::bilan(&format!("{debut}{derriere}{devant}"), None).expect("session");
+    assert_eq!(
+        revenue.fin,
+        Fin::Interrompue,
+        "elle s'est arrêtée au premier plan"
+    );
+    assert!(!revenue.fin.est_ordinaire());
+    // À l'envers : sans la ligne d'arrière-plan, la même session paraissait interrompue.
+    let sans = bilan::bilan(debut, None).expect("session");
+    assert_eq!(sans.fin, Fin::Interrompue);
+}
+
+/// **Passer derrière est sur le disque aussitôt** : le système peut tuer Glucose l'instant
+/// d'après — la ligne se lit sans rien attendre d'autre.
+#[test]
+fn test_boite_android_l_arriere_plan_est_ecrit_aussitot() {
+    let d = Dossier::nouveau("arriere-plan");
+    let (b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
+    b.plan(true);
+    let texte = lire(b.chemin());
+    assert_eq!(lignes_du_type(&texte, "arriere_plan").len(), 1);
+    let bilan = bilan::bilan(&texte, None).expect("une session");
+    assert_eq!(bilan.fin, Fin::ArrierePlan);
+    b.plan(false);
+    b.synchroniser();
+    let revenue = lire(b.chemin());
+    assert_eq!(lignes_du_type(&revenue, "premier_plan").len(), 1);
+}
+
+/// **Une session fermée en arrière-plan se range comme une fin ordinaire** : racontée au
+/// lancement qui la suit, puis effacée — elle n'a rien à apprendre.
+#[test]
+fn test_boite_android_le_rangement_traite_l_arriere_plan_comme_ordinaire() {
+    let d = Dossier::nouveau("ranger-arriere-plan");
+    std::fs::create_dir_all(boite(&d)).expect("boîte");
+    let ecrire = |nom: &str, texte: &str| {
+        let p = boite(&d).join(nom);
+        std::fs::write(&p, texte).expect("écrite");
+        p
+    };
+    let debut = |ms: u64| format!("{{\"type\":\"debut\",\"epoque_ms\":{ms}}}\n");
+    let derriere = "{\"type\":\"arriere_plan\",\"instant_ms\":9}\n";
+    let nom = |ms: u64| super::fichiers::nom_de_session(ms, 1);
+    let ancienne = ecrire(&nom(1_000), &format!("{}{derriere}", debut(1_000)));
+    let derniere = ecrire(&nom(2_000), &format!("{}{derriere}", debut(2_000)));
+    let precedente = bilan::ranger(&boite(&d), None, |_| {
+        panic!("une session fermée en arrière-plan ne demande rien au système")
+    })
+    .expect("la dernière");
+    assert_eq!(precedente.fin, Fin::ArrierePlan);
+    assert!(!ancienne.exists(), "rien à apprendre : effacée");
+    assert!(derniere.exists(), "c'est elle qu'on raconte");
 }

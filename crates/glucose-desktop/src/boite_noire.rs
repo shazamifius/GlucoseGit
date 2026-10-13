@@ -263,6 +263,19 @@ impl BoiteNoire {
         });
     }
 
+    /// **Glucose passe en arrière-plan, ou en revient** (BOITE-ANDROID, fiche 65). Passer
+    /// derrière attend que la ligne soit sur le disque : le système peut tuer l'application
+    /// l'instant d'après, sans rien dire.
+    pub fn plan(&self, arriere: bool) {
+        let instant_ms = self.instant_ms();
+        if arriere {
+            self.envoyer(Enregistrement::ArrierePlan { instant_ms });
+            self.synchroniser();
+        } else {
+            self.envoyer(Enregistrement::PremierPlan { instant_ms });
+        }
+    }
+
     /// Attend que tout ce qui a été confié soit sur le disque.
     pub fn synchroniser(&self) {
         let (reponse, attente) = channel();
@@ -389,6 +402,13 @@ impl Chronique {
                 eprintln!("[Glucose] boîte noire non ouverte : {e}");
                 None
             }
+        }
+    }
+
+    /// Glucose passe en arrière-plan, ou en revient — pour la boîte noire si elle est ouverte.
+    pub fn noter_le_plan(&self, arriere: bool) {
+        if let Some(b) = &self.boite {
+            b.plan(arriere);
         }
     }
 

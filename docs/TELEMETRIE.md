@@ -26,8 +26,9 @@ précédentes. On y trouve :
   (Vulkan, GL…), si elle est intégrée ou dédiée, et la plus grande image qu'elle accepte —,
   jamais par le nom que donne son pilote ;
 * l'état de la batterie, quand l'appareil en a une ;
-* comment la session a fini : fermée normalement, plantée (et dans quel module du système), ou
-  gelée ;
+* comment la session a fini : fermée normalement, plantée (et dans quel module du système),
+  gelée, ou — au téléphone — fermée par le système pendant que Glucose était en arrière-plan ;
+* au téléphone, les instants où Glucose passe derrière une autre application et en revient ;
 * l'état du pavé tactile, pour comprendre une panne de navigation.
 
 Un identifiant tiré au hasard relie les sessions d'une même installation. Il ne dit rien de
