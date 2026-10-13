@@ -37,7 +37,7 @@ haut à gauche du curseur**. Dans cet ordre :
 | [ ] | **P5 — L'export SVG complet** (les images et les membranes) | |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande | la liste de ce qui manque, puis fait |
 | [ ] | **P7 — Les fonctions de Tauri qui n'existent pas encore** (INVENTAIRE § 3), une session chacune environ : **la recherche** (`Ctrl+F`, qui l'attend), les opérateurs des post-it (ET, OU, MAIS, PARCE QUE — ils se dessinent déjà), la couleur des post-it et des domaines (un sélecteur de couleur), filtrer par domaine, les miroirs, la temporalité, l'export HTML, le mode zen, les vidéos, puis — à sa parole — les rideaux, les membranes étirées, Trans-domaines | chacun à son écran |
-| [ ] | **P8 — La 2.0.3-beta.1** : le brouillon (sur `7c60593`) ne porte rien depuis ; en refaire un après une CI, quand il aura jugé le Storyboard et que P0 sera réglé | **sa parole** |
+| [~] | **P8 — La 2.0.3-beta.2** : à sa demande du 13/10 au soir, la CI et le brouillon (Actions → Publier) sur tout ce qui est envoyé ; les notes dans `outils/publication/notes.md` (dont une prudence au téléphone) ; le clic « Publish release » est le sien. Le brouillon de la 2.0.3-beta.1 (sur `7c60593`) est périmé | **son clic** |
 | [ ] | **P9 — Le Mac publié** ; **Collaborer** (obligatoire, plus tard) ; **l'UX du téléphone**, toute refaite, en dernier | |
 
 ## 0 septies. Le téléphone, le Storyboard tracé (fiche 65)
