@@ -136,7 +136,7 @@
   page privée de son compte, refaite par `outils/telemetrie/tableau.mjs`) ; il a montré qu'au
   téléphone **toute session paraissait interrompue** — Android tue Glucose sans qu'il écrive sa
   fin ; **réparé** (BOITE-ANDROID : passer derrière s'écrit, le serveur redéployé et essayé en
-  ligne) — il faut un APK neuf pour que le téléphone le porte.
+  ligne) ; **un APK neuf**, signé de sa clé, est sur son Bureau (`Glucose.apk`, `022e40d2…`).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera

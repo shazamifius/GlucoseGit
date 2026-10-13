@@ -277,3 +277,12 @@ passait était la garde redondante, retirée (§ 10). **Rien n'est jugé à son 
   lâcher ailleurs : les autres se décalent.
 * **La membrane et le dossier** : l'outil, puis glisser un rectangle.
 * **`Alt+F`** : tout cadrer.
+
+**Au téléphone** — un APK neuf, signé de sa clé (`3f2af005…`), est sur son Bureau
+(`Glucose.apk`, `022e40d2…`) : CHROME-1, le Storyboard tracé, BOITE-ANDROID.
+
+* **D'abord, si possible** : le téléphone branché au PC, le débogage USB allumé — je lis pourquoi
+  il a redémarré, et j'installe l'APK moi-même.
+* **Sinon** : installer `Glucose.apk`, ouvrir Glucose une dizaine de secondes, le fermer, le
+  rouvrir une fois — les sessions d'avant partent, et le tableau de bord dira si le redémarrage
+  est tombé pendant Glucose.
