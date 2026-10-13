@@ -35,9 +35,11 @@ fn test_un_document_v1_se_lit_encore_et_ses_images_sont_entieres() {
         "le temoin est bien un v1"
     );
 
-    // La fixture d'aujourd'hui, ramenée à ce qu'elle était en v1 : sans recadrage.
+    // La fixture d'aujourd'hui, ramenée à ce qu'elle était en v1 : sans recadrage, et sans
+    // grille de storyboard (schéma 3).
     let mut attendu = rich_project();
     for board in &mut attendu.boards {
+        board.storyboard = None;
         for img in &mut board.images {
             img.crop = glucose_core::types::Recadrage::ENTIER;
         }
@@ -54,16 +56,53 @@ fn test_un_document_v1_se_lit_encore_et_ses_images_sont_entieres() {
     assert_eq!(remonte.project, relu.project);
 }
 
-/// **La version se lit dans le manifeste, jamais dans les octets** : relire un v2 en croyant
-/// que c'est un v1 échoue, au lieu de rendre un document à moitié juste.
+/// **Un document au schéma v2 se lit encore, et ses tableaux n'ont pas de grille de
+/// storyboard** (STORYBOARD-2).
+///
+/// Le témoin a été écrit par la build de `58ff58c`, la dernière à produire du v2, depuis la
+/// même fixture — avant qu'une grille n'y soit posée ; comme celui du v1, il n'est pas
+/// régénérable par cette build.
 #[test]
-fn test_lire_un_v2_comme_un_v1_echoue_au_lieu_de_deviner() {
-    let nu = persist::encode_document(&rich_project());
-    assert!(
-        persist::decode_document_v(&nu, 1).is_err(),
-        "les octets du recadrage ne peuvent pas passer pour la suite du document"
+fn test_un_document_v2_se_lit_encore_sans_grille_de_storyboard() {
+    let temoin = include_bytes!("persist_fixture/riche-v2.glucose");
+    let relu = persist::decode(temoin).expect("un document v2 doit se lire");
+    assert_eq!(
+        relu.manifest.document_version, 2,
+        "le témoin est bien un v2"
     );
-    assert!(persist::decode_document_v(&nu, 2).is_ok());
+
+    let mut attendu = rich_project();
+    for board in &mut attendu.boards {
+        board.storyboard = None;
+    }
+    assert_eq!(
+        relu.project, attendu,
+        "tout ce qui existait en v2 revient à l'identique, sans grille"
+    );
+    assert!(
+        rich_project().boards.iter().any(|b| b.storyboard.is_some()),
+        "la fixture d'aujourd'hui porte une grille : sans elle, l'épreuve ne verrait rien"
+    );
+
+    let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
+    let remonte = persist::decode(&reecrit).expect("le document migré se relit");
+    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(remonte.project, relu.project);
+}
+
+/// **La version se lit dans le manifeste, jamais dans les octets** : relire un document en
+/// croyant qu'il est d'un schéma plus ancien échoue, au lieu de rendre un document à moitié
+/// juste.
+#[test]
+fn test_lire_un_schema_comme_un_plus_ancien_echoue_au_lieu_de_deviner() {
+    let nu = persist::encode_document(&rich_project());
+    for ancien in 1..persist::DOCUMENT_VERSION {
+        assert!(
+            persist::decode_document_v(&nu, ancien).is_err(),
+            "les octets d'aujourd'hui ne peuvent pas passer pour un v{ancien}"
+        );
+    }
+    assert!(persist::decode_document_v(&nu, persist::DOCUMENT_VERSION).is_ok());
 }
 
 #[test]

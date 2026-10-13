@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 13/10/2026** (fiches 59 à 64). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 13/10/2026** (fiches 59 à 65). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -124,6 +124,10 @@
 | **Une cause devinée deux fois** : la « tolérance de la main », puis rien — c'était la poignée de coin de l'image choisie (fiche 64) | afficher l'état juste après l'appui (`eprintln!` dans l'épreuve), puis le retirer |
 | **Une épreuve qui dépend du temps** : un message naît transparent (fondu), et s'efface déjà sous la charge de la suite entière (fiche 64) | fixer l'horloge de ce qu'on éprouve (une vie longue, une naissance passée) ; une épreuve qui passe seule et tombe dans la suite est souvent celle-là |
 | **Un seuil relatif à ce qui change** : « 5 % de la couche du dessus », et la couche a perdu la chrome (fiche 64) | borner par la grandeur qui sépare les deux fautes (ici la surface de la carte), jamais par une part de quelque chose d'autre |
+| **Une épreuve d'interaction qui écrit l'état au lieu de faire le geste** : le champ « Décrire » rempli à la main (`champ.texte = …`) — il n'écrivait rien au clavier ; le fantôme de la grille calculé — il ne se redessinait pas au survol (fiche 65) | passer par le geste réel : la touche frappée (avec son texte composé), la souris qui bouge **et l'image redemandée** (`prendre_la_salissure`) |
+| **Une partie entière posée sur un bord exact** : « les cases qui tiennent » — sept rangées au format Scope donnent 6,999999999999999, et saisir une poignée pile au coin aurait retiré une rangée (fiche 65) | choisir une loi sans bord à l'état de repos (l'étendue la plus proche : `round`) ; l'éprouver sur des étendues exactes, à tous les formats |
+| **Qui possède quoi, décidé au moment où deux boîtes se recouvrent** : la case lâchée recouvrait une voisine, et l'image partait avec la mauvaise (fiche 65) | ce qu'une main porte se décide au début du geste et se garde jusqu'au bout |
+| **Une condition lue à la place d'une autre** : j'ai cru qu'un glisser ne se refermait que si ses pas étaient les derniers écrits (`==`, la condition pour le *continuer*) ; celle qui le *referme* dit `<=` — ma garde en plus était redondante, et le sabotage l'a montrée aveugle (fiche 65) | lire la fonction même qu'on croit protéger ; une garde dont le sabotage ne fait rien tomber se retire, elle ne se « renforce » pas d'une épreuve inventée |
 
 ## 5. Les pièges pratiques
 
@@ -144,7 +148,7 @@
   Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`,
-  `storyboard-1.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
+  `storyboard-1.json`, `storyboard-2.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
   texte).
 * **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,
@@ -185,6 +189,11 @@
   `attach vdisk readonly`, `compact vdisk`, `detach vdisk`) — le disque en mode normal, pas
   « clairsemé », que `diskpart` refuse (fiche 61 : 58 Go ramenés à 33).
 * **Le Mac ne se compile pas ici** : seule la CI le fait.
+* **Un témoin de format s'écrit par la build d'avant** (fiche 65, `riche-v2.glucose`) : un
+  arbre de travail détaché au dernier commit qui produit ce schéma (`git worktree add --detach
+  <scratchpad>/vN HEAD`), une épreuve jetable qui y écrit la fixture, sa propre cible
+  (`CARGO_TARGET_DIR`), puis `git worktree remove --force`. Un témoin écrit par la build du
+  jour ne prouverait que sa propre idée de l'ancien schéma.
 * **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le
   fichier, le dossier seul échoue sur ce Node. **Cloudflare refuse un client sans en-tête
   d'identité** (erreur 1010) : un essai en ligne donne un `user-agent`, s'efface ensuite

@@ -1,0 +1,529 @@
+[
+ {
+  "nom": "la partie entiere au lieu de la plus proche",
+  "fichier": "crates/glucose-core/src/types/storyboard.rs",
+  "avant": "((l + self.ecart) / pas).round().max(1.0) as usize",
+  "apres": "((l + self.ecart) / pas).floor().max(1.0) as usize",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "tracer plus petit retire ce qui porte quelque chose",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "let nombre = (colonnes * rangees).max(self.cases_a_garder(board_id));",
+  "apres": "let nombre = colonnes * rangees;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "une image ne compte pas pour garder sa case",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "                    || !self.images_de_la_case(board_id, &c.id).is_empty()",
+  "apres": "                    || false",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "le trace vers le haut ne finit pas au depart",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "let vers = |d: f64, p: f64, l: f64| if p < d { d - l } else { d };",
+  "apres": "let vers = |d: f64, _p: f64, _l: f64| d;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "ranger ne numerote pas",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "                    order: i as i32,\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "les images ne suivent pas leur case",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            suivre_le_cadre(image, &suite[rang], &neuves[rang]);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la similitude oublie l'echelle",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "    let k = (neuf.width / ancien.width).min(neuf.height / ancien.height);",
+  "apres": "    let k = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la case tenue perd ses images",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            Some((id, emportees)) if emportees.contains(&image.id) => {",
+  "apres": "            Some((id, emportees)) if emportees.contains(&image.id) && id.is_empty() => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la grille ne s'enregistre pas",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        let grille = b.storyboard.replace(d.grille);",
+  "apres": "        let grille = b.storyboard;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "retirer la derniere case garde la grille",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        if suite.is_empty() {\n            self.effacer_le_storyboard(board_id);\n            return;\n        }",
+  "apres": "        if suite.is_empty() {\n            self.remplacer_les_cases(board_id, Vec::new());\n            return;\n        }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la place sous un point deborde de la rangee",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "(rangee * colonnes + colonne.min(colonnes - 1))",
+  "apres": "(rangee * colonnes + colonne)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "un v2 lu comme s'il portait une grille",
+  "fichier": "crates/glucose-core/src/persist/document.rs",
+  "avant": "        storyboard: if version < crate::persist::STORYBOARD_DEPUIS {",
+  "apres": "        storyboard: if version < 2 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la grille relue echange largeur et ecart",
+  "fichier": "crates/glucose-core/src/persist/document.rs",
+  "avant": "        largeur: r.f64()?,\n        colonnes: r.uvarint()? as usize,\n        ecart: r.f64()?,",
+  "apres": "        ecart: r.f64()?,\n        colonnes: r.uvarint()? as usize,\n        largeur: r.f64()?,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "l'histoire n'ecrit que l'avant de la grille",
+  "fichier": "crates/glucose-core/src/persist/histoire/geste.rs",
+  "avant": "            w.opt(whole.after.as_ref(), write_grille);",
+  "apres": "            w.opt(whole.before.as_ref(), write_grille);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "le journal n'applique pas la grille",
+  "fichier": "crates/glucose-core/src/store/journal/edit.rs",
+  "avant": "                board.storyboard = whole.after;",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "le lecteur de Tauri ignore la grille",
+  "fichier": "crates/glucose-core/src/persist/tauri/projet.rs",
+  "avant": "    board.storyboard = b.champ(\"storyboard\").and_then(|s| grille(s, r));",
+  "apres": "    board.storyboard = b.champ(\"storyboard\").and(None);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la grille armee ne redemande pas d'image",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        if self.ui.placement.storyboard.is_some() {\n            self.mark_dirty();\n        }",
+  "apres": "        if self.ui.placement.storyboard.is_some() {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "la membrane ne se trace pas",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "            ActiveTool::Membrane | ActiveTool::Folder\n        ) || self.ui.placement.storyboard.is_some();",
+  "apres": "            ActiveTool::Folder\n        ) || self.ui.placement.storyboard.is_some();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le tremblement trace",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "if trace.point.is_none() && ecart <= tremblement {",
+  "apres": "if trace.point.is_none() && ecart < 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le rectangle trace pose a la taille de naissance",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "            self.poser_le_contenant(rectangle);",
+  "apres": "            self.place_with_tool(rectangle.0, rectangle.1);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "Echap ne renonce pas au trace",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "if self.renoncer_au_trace() || self.renoncer_au_gabarit()",
+  "apres": "if self.renoncer_au_gabarit()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le rectangle se dessine sous une membrane",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "        self.ui.placement.storyboard?;\n        let vp",
+  "apres": "        let vp",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "la case lachee ne prend pas la place",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            self.store\n                .deplacer_la_case(&board, tenue_par, rang, tenue.suite.origine);",
+  "apres": "            let _ = (tenue_par, rang);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le fantome ne montre pas la place visee",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            return vec![place];",
+  "apres": "            let _ = place;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "la poignee ne se prend pas",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "            || self.prendre_la_poignee_du_storyboard()\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "la poignee oublie l'ecart de la main",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            decalage: (coin.0 - main.0, coin.1 - main.1),",
+  "apres": "            decalage: (0.0, 0.0),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le champ de la question n'ecrit rien",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "        if appuyee && self.frapper_dans_la_question(touche, texte) {",
+  "apres": "        if appuyee && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le champ ignore le texte compose",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "        if appuyee && self.frapper_dans_la_question(touche, texte) {",
+  "apres": "        if appuyee && self.frapper_dans_la_question(touche, None) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "Alt+F cadre la selection",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "                self.cadrer(!self.modifiers.alt_key());",
+  "apres": "                self.cadrer(true);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "les champs du panneau ecrasent ce qu'on regle",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard.rs",
+  "avant": "        if grille == self.vue {\n            return;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "la peinture ne synchronise pas le panneau",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "        self.dock_manager.storyboard.suivre(grille);",
+  "apres": "        let _ = grille;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le dossier trace prend sa taille de naissance",
+  "fichier": "crates/glucose-desktop/src/interactions/tools.rs",
+  "avant": "        (folder.x, folder.y, folder.width, folder.height) = (wx, wy, w, h);",
+  "apres": "        (folder.x, folder.y, folder.width, folder.height) = (wx, wy, w * 0.0 + 320.0, h * 0.0 + 240.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "Tab ne passe pas a la case voisine",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "if appuyee && tab && self.decrire_la_voisine(self.modifiers.shift_key()) {",
+  "apres": "if appuyee && tab && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "trace",
+   "question",
+   "shortcuts",
+   "dock"
+  ]
+ },
+ {
+  "nom": "le lecteur de Tauri echange largeur et ecart",
+  "fichier": "crates/glucose-core/src/persist/tauri/projet.rs",
+  "avant": "        largeur: s.nombre(\"panelWidth\").unwrap_or(tauri.largeur),",
+  "apres": "        largeur: s.nombre(\"gap\").unwrap_or(tauri.largeur),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ }
+]

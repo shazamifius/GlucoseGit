@@ -102,6 +102,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 62 | [Les boutons qui ne faisaient rien](62-LES-BOUTONS-QUI-NE-FAISAIENT-RIEN.md) | ses réponses (tous les boutons obligatoires ; Collaborer obligatoire, plus tard ; l'UX du téléphone à refaire, en dernier) ; **les tris par la couleur** (Oklab, la moyenne exacte de la pyramide) ; **l'export PNG** par bandes ; **les Presets** : six gabarits, zones sur les deux voies, posées par un fantôme, prises par leur bandeau ; **« Par slot preset »** en rangées justifiées qui tiennent dans leur zone ; **les champs de nombre** du dock (glisser ou taper) ; l'inventaire de ce qui reste en façade ; le Storyboard de Tauri lu — **§ 9 : ce qui attend sa parole** |
 | 64 | [La chrome sur la carte, et le Storyboard](64-LA-CHROME-SUR-LA-CARTE-ET-LE-STORYBOARD.md) | NETTETE-1 et PARTAGE-2 jugés ; la CI dix vertes ; le brouillon de la 2.0.3-beta.1 ; **CHROME-1** (la chrome en textures posées par la carte, le rectangle de la minimap fidèle à Tauri, `present/passes.rs`) ; **STORYBOARD-1** (écrit, non saboté) ; où vivent les données de la télémétrie — **§ 5 : ce qui attend sa parole** |
 | 63 | [Le flou qui restait, et chaque bouton](63-LE-FLOU-QUI-RESTAIT-ET-CHAQUE-BOUTON.md) | **NETTETE-1** (la dernière image d'un geste, la finesse qui remonte, les textures reportées : une image qui n'est pas finie demande la suivante — lu dans Chromium) ; **ACCES-1** (un bouton pour chaque fonction : annuler, rétablir, cadrer, signets, enregistrer, exporter dans le clic droit ; le menu en colonnes) ; **PARTAGE-2** (exporter et enregistrer une image au téléphone, par la feuille de partage) ; **POSTES-1** (la boîte noire dit où part le temps d'un épisode trop lent) ; la télémétrie du téléphone lue, un nouvel utilisateur ; la répétition de la bascule réparée ; l'inventaire ([`INVENTAIRE`](../INVENTAIRE.md)) — **§ 9 : ce qui attend sa parole** |
+| 65 | [Le storyboard tracé, le champ qui écrit, le téléphone qui redémarre](65-LE-STORYBOARD-TRACE.md) | ses retours (le téléphone redémarre ; `Alt+F` ; le survol ; « Décrire ») ; STORYBOARD-1 saboté ; **TRACE-1** (un clic pose, un glisser trace — tldraw) ; **STORYBOARD-2** (la grille dans le document, schéma 3 et son témoin v2 ; une suite, une loi ; le rectangle, la poignée, la case lâchée, Tab) ; **CHAMP-QUESTION-1** ; les propositions — **§ 11 : ce qui attend sa parole** |
 
 ## Les décisions — **foi**
 
@@ -119,4 +120,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb` ·
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png`.
 
-La prochaine fiche porte le numéro **65**.
+La prochaine fiche porte le numéro **66**.

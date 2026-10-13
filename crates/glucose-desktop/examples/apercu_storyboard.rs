@@ -72,6 +72,37 @@ fn main() {
     app.ui.placement.storyboard = Some(grille());
     app.mouse_pos = (800.0, 500.0);
     ecrire(&mut app, &format!("{dossier}/storyboard-fantome.png"));
+    trace_et_case_tenue(&dossier);
+}
+
+/// Le rectangle qu'on trace sous la grille armée (TRACE-1), puis une case tenue au-dessus de
+/// la place où elle tombera (STORYBOARD-2) — à la vraie souris.
+fn trace_et_case_tenue(dossier: &str) {
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    let (mut app, board) = application();
+    app.ui.placement.storyboard = Some(grille());
+    app.handle_cursor_moved(PhysicalPosition::new(180.0, 160.0));
+    app.handle_mouse_down(MouseButton::Left, ECRAN.0 as f32, ECRAN.1 as f32);
+    app.handle_cursor_moved(PhysicalPosition::new(1250.0, 720.0));
+    ecrire(&mut app, &format!("{dossier}/storyboard-trace.png"));
+    app.handle_mouse_up(MouseButton::Left);
+    let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
+    let c = &cases[0];
+    let image = BoardImage::new("photo", c.x + 20.0, c.y + 20.0, 400.0, 300.0);
+    app.store.add_image(&board, image);
+    app.store
+        .ajuster_dans_les_cases(&board, &["photo".to_string()]);
+    app.store.clear_selection();
+    let bande = (c.x + c.width - 60.0, c.y + c.height + 20.0);
+    app.handle_cursor_moved(PhysicalPosition::new(bande.0, bande.1));
+    app.handle_mouse_down(MouseButton::Left, ECRAN.0 as f32, ECRAN.1 as f32);
+    let vers = (
+        bande.0 + cases[5].x - c.x - 40.0,
+        bande.1 + cases[5].y - c.y + 25.0,
+    );
+    app.handle_cursor_moved(PhysicalPosition::new(vers.0, vers.1));
+    ecrire(&mut app, &format!("{dossier}/storyboard-case-tenue.png"));
 }
 
 fn ecrire(app: &mut GlucoseApp, chemin: &str) {

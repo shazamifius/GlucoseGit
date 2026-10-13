@@ -101,7 +101,7 @@ pub enum MenuAction {
     /// Le dernier geste défait, puis refait — `Ctrl+Z`, `Ctrl+Y` (ACCES-1).
     Annuler,
     Retablir,
-    /// Le vol qui montre tout le tableau, ou la sélection (`Ctrl+F`, `F`).
+    /// Le vol qui montre tout le tableau, ou la sélection (`Alt+F`, `F`).
     ToutCadrer,
     CadrerLaSelection,
     /// Les signets de vue : y voler, en poser un (fiche 53 ; ACCES-1).

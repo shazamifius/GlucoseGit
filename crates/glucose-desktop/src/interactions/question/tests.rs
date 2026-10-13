@@ -36,9 +36,9 @@ pub(crate) fn repondre(app: &mut GlucoseApp, r: Reponse) {
 /// relâchement va à la question si elle est encore là — une réponse l'a peut-être retirée.
 fn frapper(app: &mut GlucoseApp, touche: NamedKey) -> bool {
     let touche = Key::Named(touche);
-    let prise = app.touche_de_la_question(&touche, true);
+    let prise = app.touche_de_la_question(&touche, true, None);
     let encore = app.ui.question.is_some();
-    assert_eq!(app.touche_de_la_question(&touche, false), encore);
+    assert_eq!(app.touche_de_la_question(&touche, false, None), encore);
     prise
 }
 

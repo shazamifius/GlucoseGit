@@ -57,7 +57,7 @@ fn glisser(app: &mut GlucoseApp, de: (f64, f64), a: (f64, f64)) {
 
 fn taper(app: &mut GlucoseApp, texte: &str) {
     for c in texte.chars() {
-        assert!(app.prendre_la_touche(&Key::Character(c.to_string().into()), true));
+        assert!(app.prendre_la_touche(&Key::Character(c.to_string().into()), true, None));
     }
 }
 
@@ -105,7 +105,7 @@ fn test_champ_1_ordonner_range_avec_la_valeur_tapee() {
     let taille = centre(champ(&app, Champ::OrdonnerTaille));
     glisser(&mut app, taille, taille);
     taper(&mut app, "100");
-    assert!(app.prendre_la_touche(&Key::Named(NamedKey::Enter), true));
+    assert!(app.prendre_la_touche(&Key::Named(NamedKey::Enter), true, None));
     let appliquer = centre(a_l_ecran(&app, |l| l.apply_rect));
     glisser(&mut app, appliquer, appliquer);
     let hauteurs: Vec<f64> = app

@@ -38,6 +38,9 @@ pub struct Placement {
     /// La grille du storyboard armée dans son panneau, qui suit le curseur jusqu'au clic
     /// (STORYBOARD-1).
     pub storyboard: Option<glucose_core::store::storyboard::Grille>,
+    /// Le rectangle que la main trace sous une membrane, un dossier ou la grille armée
+    /// (TRACE-1).
+    pub trace: Option<super::trace::Trace>,
 }
 
 impl GlucoseApp {

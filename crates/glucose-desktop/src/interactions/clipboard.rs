@@ -343,7 +343,7 @@ impl GlucoseApp {
     /// Un seul site pour un seul message : trois endroits disaient la même phrase d'échec,
     /// donc trois endroits à relire le jour où elle change. Un échec du presse-papiers ne se
     /// voit nulle part — c'est le cas où un toast a vraiment quelque chose à apprendre.
-    fn ecrire_presse_papiers(&mut self, texte: String) -> bool {
+    pub(crate) fn ecrire_presse_papiers(&mut self, texte: String) -> bool {
         match presse_papiers::ouvrir().and_then(|mut c| c.ecrire(texte)) {
             Ok(()) => true,
             Err(err) => {

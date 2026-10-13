@@ -41,16 +41,25 @@ pub struct StoryboardState {
     pub gap: f64,
     /// La page de la liste des cases qu'on regarde.
     pub page: usize,
+    /// La grille du storyboard du document, telle que les champs l'ont vue en dernier
+    /// (STORYBOARD-2).
+    pub vue: Option<Grille>,
 }
 
 impl Default for StoryboardState {
+    /// La grille de Tauri quand rien n'est réglé — définie une fois, dans le noyau.
     fn default() -> Self {
+        let tauri = Grille::default();
         Self {
-            format_idx: 0,
-            panel_width: 280.0,
-            cols: 4,
-            gap: 24.0,
+            format_idx: Format::TOUS
+                .iter()
+                .position(|f| *f == tauri.format)
+                .unwrap_or(0),
+            panel_width: tauri.largeur,
+            cols: tauri.colonnes,
+            gap: tauri.ecart,
             page: 0,
+            vue: None,
         }
     }
 }
@@ -58,6 +67,23 @@ impl Default for StoryboardState {
 impl StoryboardState {
     pub fn format_label(&self) -> &'static str {
         FORMATS[self.format_idx.min(FORMATS.len() - 1)]
+    }
+
+    /// **Les champs suivent la grille du document quand elle change** — un rectangle tracé, un
+    /// autre tableau, un `Ctrl+Z` (STORYBOARD-2) ; entre deux changements, ce qu'on y règle
+    /// reste, pour le prochain « Mettre à jour ».
+    pub fn suivre(&mut self, grille: Option<Grille>) {
+        if grille == self.vue {
+            return;
+        }
+        self.vue = grille;
+        if let Some(g) = grille {
+            self.format_idx = Format::TOUS
+                .iter()
+                .position(|f| *f == g.format)
+                .unwrap_or(0);
+            (self.panel_width, self.cols, self.gap) = (g.largeur, g.colonnes, g.ecart);
+        }
     }
 
     /// **La grille que ces réglages décrivent.**
@@ -110,6 +136,8 @@ pub struct StoryboardPanelLayout {
     /// Les cellules de l'aperçu, et le numéro de chacune.
     pub cells: Vec<WidgetRect>,
     pub activate_button: WidgetRect,
+    /// Où s'écrit l'aide du geste, sous le bouton : un clic pose, un glisser trace (TRACE-1).
+    pub aide: (f32, f32),
     /// La croix qui efface le storyboard, quand il y en a un.
     pub effacer: Option<WidgetRect>,
     /// Le haut de la liste et « + Ajouter », quand il y a des cases.
@@ -183,6 +211,7 @@ pub fn layout_storyboard_panel(
     );
     let effacer =
         (n > 0).then(|| WidgetRect::new(px + pw - pad_x - croix_w, boutons_y, croix_w, 28.0 * s));
+    let aide = (px + pad_x, boutons_y + 34.0 * s);
     let mut layout = StoryboardPanelLayout {
         format_button,
         width_input,
@@ -190,6 +219,7 @@ pub fn layout_storyboard_panel(
         gap_input,
         cells,
         activate_button,
+        aide,
         effacer,
         liste: None,
         lignes: Vec::new(),
@@ -197,7 +227,7 @@ pub fn layout_storyboard_panel(
         renumeroter: None,
     };
     if n > 0 {
-        let haut = boutons_y + 28.0 * s + 14.0 * s;
+        let haut = aide.1 + 12.0 * s + 14.0 * s;
         poser_la_liste(&mut layout, (frame, haut), state, n);
     }
     layout

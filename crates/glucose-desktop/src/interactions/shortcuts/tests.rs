@@ -806,7 +806,7 @@ fn test_pousser_hors_d_une_membrane_la_libere() {
     assert_eq!(membre(&app).as_deref(), Some("M"), "un Ctrl+Z la rend");
 }
 
-// ── `F` et `Ctrl+F` : cadrer la sélection, ou tout (fiche 53 § 8) ─────────────────────────
+// ── `F` et `Alt+F` : cadrer la sélection, ou tout (fiche 53 § 8 ; fiche 65) ───────────────
 
 /// Deux images loin l'une de l'autre, la seconde seule choisie.
 fn deux_images_loin() -> GlucoseApp {
@@ -853,11 +853,14 @@ fn test_f_sans_selection_cadre_tout() {
     assert_eq!(app.vol.cible(), Some(cadrage(&app, tout)));
 }
 
-/// **`Ctrl+F` cadre tout, même quand quelque chose est choisi.**
+/// **`Alt+F` cadre tout, même quand quelque chose est choisi** ; **`Ctrl+F` ne cadre plus
+/// rien** : il est gardé à la recherche, comme dans Tauri (sa décision du 13/10, fiche 65).
 #[test]
-fn test_ctrl_f_cadre_tout_meme_avec_une_selection() {
+fn test_alt_f_cadre_tout_et_ctrl_f_est_garde_a_la_recherche() {
     let mut app = deux_images_loin();
     touche(&mut app, "f", ModifiersState::CONTROL);
+    assert_eq!(app.vol.cible(), None, "Ctrl+F ne vole nulle part");
+    touche(&mut app, "f", ModifiersState::ALT);
     let board = app.store.project.active_board_id.clone();
     let tout = app.store.content_bounds(&board).expect("du contenu");
     assert_eq!(app.vol.cible(), Some(cadrage(&app, tout)));

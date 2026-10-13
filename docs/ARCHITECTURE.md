@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 13/10/2026** (fiches 51 à 64 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 13/10/2026** (fiches 51 à 65 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -99,6 +99,10 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
   pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6) ; la première
   copie qui arrive se pose tout de suite, et l'original prend sa place (`depot_web/apercu.rs`).
+* **Tracer un rectangle** (TRACE-1, `interactions/trace.rs`, fiche 65) : sous l'outil Membrane
+  ou Dossier et sous la grille armée du Storyboard, l'appui ne pose rien ; un clic (la main
+  dans le tremblement d'un double-clic) pose comme avant, un glisser trace la taille — la loi
+  de tldraw. La poignée du storyboard est un tracé parti du coin de sa première case.
 * **Le canevas défile au bord** (DEFILE-1, `bord.rs`, fiche 59) : un nœud, un coin ou un
   rectangle de sélection tenu dans la bande du bord — la cible d'un doigt — fait avancer la vue
   à chaque image (`bouger_la_camera`, une raison de réveil à lui), d'autant plus vite qu'il s'y
@@ -127,7 +131,7 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Les documents du téléphone** | `persist/documents.rs`, `documents/gestion.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste. DOCUMENTS-2 : un appui long dans la liste renomme (par « Enregistrer sous » pour le document ouvert), duplique, supprime |
 | **Les filets** | `persist/frappe.rs`, `reprise.rs`, `recuperation.rs`, `verrou.rs`, `atomic.rs` | le texte en cours de frappe survit à un plantage ; le lancement rouvre le dernier travail ; ce qu'on va recouvrir est mis de côté (FIN-1) ; un seul scribe par fichier ; **un seul endroit** pose un fichier à la place d'un autre (cliquet 11) |
 | **Les gabarits et leurs zones** | `core/gabarits.rs`, `core/store/zones.rs`, `core/layout/zones.rs` | PRESET-1 (fiche 62) : les six gabarits de Tauri ; une zone porte `gabarit/catégorie` ; une image appartient à la zone où est son centre — rien ne s'écrit sur elle ; « Par slot preset » range chaque zone en rangées justifiées, qui tiennent dans la zone |
-| **Le storyboard** | `core/store/storyboard.rs` | STORYBOARD-1 (fiche 64) : la grille centrée sur le clic (`Grille`, `coins_a_poser` — le fantôme et le clic lisent la même), poser ou « Mettre à jour », ajouter, retirer (la suite reste continue), renuméroter dans l'ordre de lecture ; une image lâchée dans une case s'y ajuste ; glisser une case emporte ses images en **deux** éditions (la case réécrite à sa place dans le geste, ses images par `glisser_ces_images`, GLISSER-1). Aucun changement du format : des `Edit::Panel` |
+| **Le storyboard** | `core/types/storyboard.rs`, `core/store/storyboard.rs` | STORYBOARD-1 et 2 (fiches 64, 65) : **une suite** de cases et **sa grille, enregistrée dans le tableau** (`Board::storyboard`, schéma 3, `Edit::Storyboard`) ; **une seule loi** place une case (`Grille::coin` : la case `i` à la colonne `i mod c`) ; chaque geste — poser d'un clic, tracer un rectangle (les colonnes et rangées dont l'étendue est la plus proche, `tient_dans`), tirer la poignée, ajouter, retirer, lâcher une case à une autre place — donne une `Disposition`, et `Store::ranger` seul en tire chaque case, numérotée dans l'ordre, et ses images, qui suivent par la similitude de l'ancien cadre au nouveau ; une case qui porte quelque chose ne se retire jamais d'un tracé. Une image lâchée dans une case s'y ajuste ; une case glissée emporte ses images (GLISSER-1, refermé avant le rangement) |
 | **Les couleurs** | `core/couleur.rs` | Oklab et Oklch, les trois tris par la couleur (ORDONNER-2) ; la couleur d'une image est le sommet de sa pyramide (MOYENNE-1) |
 | **Exporter** | `desktop/persist/export.rs`, `export/png.rs`, `renderer/export.rs` | Markdown, SVG, et PNG par bandes de la surface d'un écran, sur un fil à soi (EXPORT-PNG-1) ; ce qui est exporté est une copie (`Store::copie_a_exporter`) |
 | **Glucose Tauri** | `core/persist/tauri.rs`, `desktop/persist/import.rs` | un lecteur d'Automerge écrit ici, sans dépendance, identique à la bibliothèque de référence ; le fichier Tauri n'est jamais réécrit |

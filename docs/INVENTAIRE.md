@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 13/10/2026** (fiches 63 et 64). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 13/10/2026** (fiches 63 à 65). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -40,7 +40,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | fonction | au PC | au téléphone |
 |---|---|---|
 | Se déplacer, zoomer | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
-| Tout cadrer | **menu du vide** (ACCES-1), `Ctrl+F` | ✅ menu |
+| Tout cadrer | **menu du vide** (ACCES-1), **`Alt+F`** (`Ctrl+F` jusqu'au 13/10, rendu à la recherche — fiche 65) | ✅ menu |
 | Cadrer la sélection | **menu de la sélection** (ACCES-1), `F` | ✅ menu |
 | Signets de vue (poser, y voler, remplacer) | **menu du vide « Signets… »** (ACCES-1), `Ctrl+1…9`, `1…9` | ✅ menu |
 | Minimap | la minimap | ✅ |
@@ -53,6 +53,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | fonction | au PC | au téléphone |
 |---|---|---|
 | Poser texte, post-it, flèche, dossier, membrane | la bande, `T` `N` `A` `M` | ✅ rail |
+| **Tracer** une membrane ou un dossier à la taille voulue (un clic : sa taille de naissance) | l'outil, puis glisser un rectangle (TRACE-1, fiche 65) | ✅ (le doigt glisse) |
 | Ajouter des images | bouton Images, menu du vide, `Ctrl+I`, glisser-déposer, coller | ✅ rail, menu (sélecteur de photos), « Partager » vers Glucose |
 | Copier, couper, coller, dupliquer | menu, `Ctrl+C` `X` `V` `D` | 🟡 dans Glucose seulement : le presse-papiers d'Android n'est pas encore pris |
 | Copier vers Discord, un navigateur, Paint | `Ctrl+C`, glisser | ❌ Android (le presse-papiers du système) |
@@ -75,6 +76,10 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Ordonner (cinq dispositions, huit tris, champs) | panneau Ordonner | 🟡 les champs se glissent, **ne se tapent pas** (le clavier d'Android ne sert pas les champs du dock) |
 | Presets : poser un gabarit, ses zones, « Par slot preset » | panneau Preset | ✅ |
 | **Storyboard** : poser la grille (« Activer », un clic), « Mettre à jour », effacer (×) | panneau Storyboard | ✅ (STORYBOARD-1, fiche 64 — à juger) |
+| Storyboard : **tracer un rectangle** que les cases remplissent | « Activer », puis glisser (STORYBOARD-2, fiche 65) | ✅ |
+| Storyboard : **le retracer** — des cases en plus ou en moins, celles qui portent quelque chose gardées | la **poignée** au coin bas droit, une case choisie ; ou « Mettre à jour », puis glisser | ✅ |
+| Une case : **la lâcher à une autre place** — les autres se décalent, chacune avec ses images | sa bande, glissée | ✅ |
+| Une case : **passer à la suivante en la décrivant** | `Tab` dans la description (`Maj+Tab` : la précédente) | — (pas de touche Tab au doigt) |
 | Une case : la prendre et la glisser avec ses images | sa bande | ✅ (le doigt sur la bande) |
 | Une case : sa description | deux clics sur sa bande, ou sa ligne dans le panneau | ✅ (la question à champ, le clavier du téléphone) |
 | Une case : la retirer | sa croix, `Suppr`, le × de sa ligne | ✅ (croix, panneau) |
@@ -109,7 +114,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Preset personnel** | Tauri | panneau Preset | — |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
 | **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | barre d'action, panneau | noyau écrit (`timeline`), à brancher |
-| **Recherche** dans tout le document | Tauri (`Ctrl+F`) | bande, menu | à concevoir — `Ctrl+F` sert aujourd'hui à tout cadrer : **à lui dire** |
+| **Recherche** dans tout le document | Tauri (`Ctrl+F`) | bande, menu, **`Ctrl+F`** (sa décision du 13/10 : tout cadrer passe à `Alt+F`) | à concevoir — `Ctrl+F` lui est gardé |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it | **se dessinent déjà**, aucun geste ne les pose |
@@ -128,4 +133,5 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Mac** (une version publiée), **iPad** (par le web) | toutes les machines | — | la CI compile le Mac ; l'iPad attend le web |
 | **Le dessin de la sélection** (son choix entre les directions) | sa demande | — | planches à lui montrer |
 | **L'UX du téléphone**, toute refaite : ultra rapide, fluide, pratique | sa demande | — | **en dernier** |
+| **Le Storyboard, plus loin** : plusieurs images qui remplissent les cases vides à la suite ; un storyboard de la sélection ; insérer une case entre deux ; la lecture (durées, animatique) ; plusieurs champs par case ; le type de plan ; l'export en planches ; plusieurs storyboards par tableau | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **ses choix** (fiche 65 § 9) |
 | **Le défilement au bord** (« moche, pas fluide ») | son essai | — | à reprendre avec sa chronique |

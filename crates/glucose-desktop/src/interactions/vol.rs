@@ -300,7 +300,7 @@ pub fn cadrage_du_contenu(contenu: Rect, ecran: ScreenSize, bandeau: f64) -> Vie
 }
 
 impl crate::app::GlucoseApp {
-    /// Cadre la vue sur tout le contenu du tableau — `Ctrl+F`, et `F` quand rien n'est choisi.
+    /// Cadre la vue sur tout le contenu du tableau — `Alt+F`, et `F` quand rien n'est choisi.
     ///
     /// Un vol, pas un saut : d'où l'on revient fait partie de ce qu'on apprend en appuyant.
     pub fn cadrer_sur_le_contenu(&mut self, ecran: ScreenSize, bandeau: f64) {

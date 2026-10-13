@@ -61,6 +61,7 @@ impl GlucoseApp {
             || self.begin_resize_at(wx, wy)
             || self.prendre_la_zone_choisie()
             || self.prendre_la_case_choisie()
+            || self.prendre_la_poignee_du_storyboard()
         {
             return;
         }

@@ -1,7 +1,8 @@
-//! **Le storyboard sur le canevas** (STORYBOARD-1, fiche 64) : la grille armée suit le curseur
-//! et se pose d'un clic, comme un gabarit (PRESET-1) ; une case se prend par sa **bande** — la
-//! description sous son cadre —, se glisse avec les images qu'elle porte, se décrit d'un double
-//! clic, se retire par sa croix ou `Suppr`.
+//! **Le storyboard sur le canevas** (STORYBOARD-1, fiche 64 ; STORYBOARD-2, fiche 65) : la
+//! grille armée suit le curseur, se pose d'un clic ou **se trace** en rectangle (TRACE-1) ; une
+//! case se prend par sa **bande** — la description sous son cadre —, se glisse avec les images
+//! qu'elle porte et **prend la place où on la lâche** (les autres glissent d'un cran), se
+//! décrit d'un double clic, se retire par sa croix ou `Suppr`.
 //!
 //! # Par sa bande, et non par son cadre
 //!
@@ -12,7 +13,7 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use glucose_core::geometry::Rect;
-use glucose_core::store::storyboard::{Grille, DESCRIPTION};
+use glucose_core::store::storyboard::{Disposition, Grille, DESCRIPTION};
 
 /// La case tenue : laquelle, son coin et le point du monde au départ, et les images qu'elle
 /// emporte.
@@ -23,6 +24,9 @@ pub struct Tenue {
     pointeur: (f64, f64),
     /// Les images qu'elle porte, qui la suivent.
     portees: Vec<String>,
+    /// Le storyboard au départ du geste : sa grille, le coin de sa première place, son nombre
+    /// de cases — la case qu'on tient a pu être la première.
+    suite: Disposition,
 }
 
 /// Ce que l'interface sait du storyboard : la case choisie, la case tenue.
@@ -72,38 +76,41 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    /// Le coin de chaque case que la grille armée poserait sous le curseur.
-    fn grille_sous_le_curseur(&self) -> Option<(Grille, Vec<(f64, f64)>)> {
+    /// **Ce que la grille armée poserait** : ce que le tracé en cours dirait au relâchement —
+    /// ou, sans tracé, le clic sous le curseur.
+    fn disposition_armee(&self) -> Option<Disposition> {
+        if let Some(trace) = &self.ui.placement.trace {
+            return self.disposition_du_storyboard_trace(trace);
+        }
         let grille = self.ui.placement.storyboard?;
         let board = &self.store.project.active_board_id;
         let centre = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
-        Some((grille, self.store.coins_a_poser(board, grille, centre)))
+        Some(self.store.disposition_au_clic(board, grille, centre))
     }
 
-    /// **Le fantôme de la grille armée**, une boîte par case — son cadre et sa bande —, en
-    /// unités du monde.
+    /// **Le fantôme du storyboard**, une boîte par case — son cadre et sa bande —, en unités du
+    /// monde : la grille armée, ou la place où la case tenue tomberait.
     pub(crate) fn fantome_du_storyboard(&self) -> Vec<Rect> {
-        let Some((grille, coins)) = self.grille_sous_le_curseur() else {
+        if let Some(place) = self.place_de_la_case_tenue() {
+            return vec![place];
+        }
+        let Some(d) = self.disposition_armee() else {
             return Vec::new();
         };
-        let hauteur = grille.hauteur() + DESCRIPTION;
-        coins
+        let bande = DESCRIPTION;
+        d.cadres()
             .into_iter()
-            .map(|(x, y)| Rect::new(x, y, grille.largeur, hauteur))
+            .map(|(x, y, l, h)| Rect::new(x, y, l, h + bande))
             .collect()
     }
 
-    /// **Pose la grille armée là où son fantôme est**, s'il y en a une : le clic est pris. Un
-    /// seul `Ctrl+Z` la retire.
-    pub(crate) fn poser_le_storyboard_arme(&mut self) -> bool {
-        let Some(grille) = self.ui.placement.storyboard.take() else {
-            return false;
-        };
-        let centre = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
-        let board = self.store.project.active_board_id.clone();
-        self.store.poser_le_storyboard(&board, grille, centre);
-        self.mark_dirty();
-        true
+    /// **La souris bouge sous la grille armée** : son fantôme la suit, donc une image est à
+    /// refaire — sans quoi il resterait où il était jusqu'au prochain dessin (son retour du
+    /// 13/10 : « l'outil storyboard ne fonctionne pas au survol »).
+    pub(crate) fn suivre_la_grille_armee(&mut self) {
+        if self.ui.placement.storyboard.is_some() {
+            self.mark_dirty();
+        }
     }
 
     /// **Renonce à la grille armée** — Échap. Rend vrai s'il y en avait une.
@@ -143,6 +150,42 @@ impl GlucoseApp {
         self.retirer_la_case_choisie()
     }
 
+    /// **La poignée du storyboard** : au coin bas droit de sa boîte, quand une de ses cases est
+    /// choisie — son coin dans le monde, et la prise de la main autour, celle des poignées des
+    /// nœuds (`handle_slop_world`).
+    fn poignee_du_storyboard(&self) -> Option<(Disposition, (f64, f64), f64)> {
+        self.ui.storyboard.choisie.as_ref()?;
+        let board = &self.store.project.active_board_id;
+        let d = self.store.disposition_actuelle(board, Grille::default())?;
+        let (x, y, w, h) = d.boite();
+        let zoom = self.store.viewport().scale;
+        let prise = glucose_core::hit_priority::handle_slop_world(zoom, w, h)?;
+        Some((d, (x + w, y + h), prise))
+    }
+
+    /// **Tirer la poignée retrace le storyboard** (STORYBOARD-2) : c'est un tracé parti du
+    /// coin de sa première case, dont la main tient le coin opposé — les cases apparaissent et
+    /// disparaissent sous elle, celles qui portent quelque chose restent. Le clic est pris.
+    pub(crate) fn prendre_la_poignee_du_storyboard(&mut self) -> bool {
+        let Some((d, coin, prise)) = self.poignee_du_storyboard() else {
+            return false;
+        };
+        let main = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
+        if (main.0 - coin.0).abs() > prise || (main.1 - coin.1).abs() > prise {
+            return false;
+        }
+        let vp = self.store.viewport();
+        self.ui.placement.storyboard = Some(d.grille);
+        self.ui.placement.trace = Some(crate::interactions::trace::Trace {
+            depart: d.origine,
+            depart_ecran: crate::canvas::world_to_screen(d.origine.0, d.origine.1, &vp),
+            point: Some(coin),
+            decalage: (coin.0 - main.0, coin.1 - main.1),
+        });
+        self.mark_dirty();
+        true
+    }
+
     /// **Dans le vide : la bande d'une case la choisit et la prend** ; un second clic sur la
     /// même bande la décrit. Ailleurs, la case choisie ne l'est plus.
     pub(crate) fn prendre_la_bande(&mut self) -> bool {
@@ -167,12 +210,16 @@ impl GlucoseApp {
             self.decrire_la_case(&case.id);
             return true;
         }
+        let Some(suite) = self.store.disposition_actuelle(&board, Grille::default()) else {
+            return false;
+        };
         self.store.begin_live_edit();
         self.ui.storyboard.tenue = Some(Tenue {
             portees: self.store.images_de_la_case(&board, &case.id),
             case: case.id,
             depart: (case.x, case.y),
             pointeur: point,
+            suite,
         });
         self.mark_dirty();
         true
@@ -194,11 +241,43 @@ impl GlucoseApp {
         true
     }
 
-    /// **Le geste finit** : une seule entrée du journal, ou aucune si rien n'a bougé.
+    /// **La place où la case tenue tomberait** : celle sous le centre de son cadre, en boîte du
+    /// monde — cadre et bande.
+    fn place_de_la_case_tenue(&self) -> Option<Rect> {
+        let tenue = self.ui.storyboard.tenue.as_ref()?;
+        let rang = self.rang_de_la_case_tenue(tenue)?;
+        let (x, y) = tenue.suite.grille.coin(tenue.suite.origine, rang);
+        let g = tenue.suite.grille;
+        Some(Rect::new(x, y, g.largeur, g.hauteur() + DESCRIPTION))
+    }
+
+    /// Le rang de la place sous le centre du cadre de la case tenue.
+    fn rang_de_la_case_tenue(&self, tenue: &Tenue) -> Option<usize> {
+        let board = &self.store.project.active_board_id;
+        let case = self
+            .store
+            .cases(board)
+            .into_iter()
+            .find(|c| c.id == tenue.case)?;
+        let centre = (case.x + case.width / 2.0, case.y + case.height / 2.0);
+        Some(tenue.suite.rang_sous(centre))
+    }
+
+    /// **Le geste finit : la case prend la place où on la lâche**, les autres glissent d'un
+    /// cran, chacune avec ses images — une seule entrée du journal, ou aucune si elle revient
+    /// à sa place.
     pub(crate) fn lacher_la_case(&mut self) {
-        if self.ui.storyboard.tenue.take().is_some() {
-            self.store.end_live_edit();
+        let Some(tenue) = self.ui.storyboard.tenue.take() else {
+            return;
+        };
+        if let Some(rang) = self.rang_de_la_case_tenue(&tenue) {
+            let board = self.store.project.active_board_id.clone();
+            let tenue_par = (tenue.case.as_str(), tenue.portees.as_slice());
+            self.store
+                .deplacer_la_case(&board, tenue_par, rang, tenue.suite.origine);
         }
+        self.store.end_live_edit();
+        self.mark_dirty();
     }
 
     /// **Retire la case choisie** — sa croix, ou la touche Suppr. Rend vrai s'il y en avait une.
@@ -208,6 +287,31 @@ impl GlucoseApp {
         };
         let board = self.store.project.active_board_id.clone();
         self.store.retirer_la_case(&board, &id);
+        self.mark_dirty();
+        true
+    }
+
+    /// **Tab dans la description d'une case** : elle s'enregistre, et la suivante se décrit —
+    /// Maj+Tab, la précédente. Légender un storyboard d'une traite, comme dans Boords ou un
+    /// tableur (fiche 65 § 9). Après la dernière, la question se referme. Rend vrai si la
+    /// question posée décrivait une case.
+    pub(crate) fn decrire_la_voisine(&mut self, arriere: bool) -> bool {
+        use crate::ui::question::{Reponse, Suite};
+        let Some((_, Suite::DecrireLaCase { board, case })) = &self.ui.question else {
+            return false;
+        };
+        let cases = self.store.cases(board);
+        let rang = cases.iter().position(|c| c.id == *case);
+        let voisine = match (rang, arriere) {
+            (Some(r), true) => r.checked_sub(1),
+            (Some(r), false) => Some(r + 1),
+            (None, _) => None,
+        };
+        let voisine = voisine.and_then(|r| cases.get(r)).map(|c| c.id.clone());
+        self.repondre_a_la_question(Some(Reponse::Oui));
+        if let Some(id) = voisine {
+            self.decrire_la_case(&id);
+        }
         self.mark_dirty();
         true
     }

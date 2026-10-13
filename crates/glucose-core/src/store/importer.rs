@@ -188,6 +188,7 @@ pub(super) fn suivre_dans_le_tableau(r: &Renommage, b: &mut Board) {
         annotations,
         folders,
         panels,
+        storyboard: _,
         zones: _,
         viewport: _,
         bookmarks: _,

@@ -21,6 +21,8 @@ use crate::ui::question::{
 };
 use winit::keyboard::{Key, NamedKey};
 
+mod frappe;
+
 impl GlucoseApp {
     /// **Pose cette question** ; sa réponse déclenchera `suite`.
     pub(crate) fn demander(&mut self, question: Question, suite: Suite) {
@@ -70,9 +72,23 @@ impl GlucoseApp {
 
     /// **Au clavier** (POPUP-1) : Entrée donne la réponse en évidence ; Tab, Maj + Tab et les
     /// flèches la déplacent ; Échap — et le retour d'Android — donne « Annuler », ou retire la
-    /// question sans réponse. Rend `true` tant qu'une question est posée : aucune touche ne
-    /// passe derrière elle, un `Suppr` n'efface rien sous le voile.
-    pub(crate) fn touche_de_la_question(&mut self, touche: &Key, appuyee: bool) -> bool {
+    /// question sans réponse. Une question qui porte un champ y écrit le reste (`texte`, ce que
+    /// la composition du clavier a produit — CHAMP-QUESTION-1). Rend `true` tant qu'une
+    /// question est posée : aucune touche ne passe derrière elle, un `Suppr` n'efface rien
+    /// sous le voile.
+    pub(crate) fn touche_de_la_question(
+        &mut self,
+        touche: &Key,
+        appuyee: bool,
+        texte: Option<&str>,
+    ) -> bool {
+        if appuyee && self.frapper_dans_la_question(touche, texte) {
+            return true;
+        }
+        let tab = matches!(touche, Key::Named(NamedKey::Tab));
+        if appuyee && tab && self.decrire_la_voisine(self.modifiers.shift_key()) {
+            return true;
+        }
         let arriere = self.modifiers.shift_key();
         let Some((question, _)) = &mut self.ui.question else {
             return false;
@@ -123,7 +139,7 @@ impl GlucoseApp {
 
     /// La question se retire ; sa suite part s'il y a une réponse — sans réponse, rien ne
     /// part (VUE-1).
-    fn repondre_a_la_question(&mut self, reponse: Option<Reponse>) {
+    pub(crate) fn repondre_a_la_question(&mut self, reponse: Option<Reponse>) {
         let Some((question, suite)) = self.ui.question.take() else {
             return;
         };

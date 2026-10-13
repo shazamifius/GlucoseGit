@@ -18,8 +18,8 @@ use super::bytes::{Reader, Writer};
 use super::tags::{sort_mode_from_tag, sort_mode_tag};
 use crate::error::CoreResult;
 use crate::types::{
-    Board, BoardZone, CanvasFolder, Domain, DomainAssignment, FolderMirrorSource, Preset,
-    PresetSlot, Project, StoryboardPanel, TemporalAnchor, Viewport,
+    Board, BoardZone, CanvasFolder, Domain, DomainAssignment, FolderMirrorSource, Format, Grille,
+    Preset, PresetSlot, Project, StoryboardPanel, TemporalAnchor, Viewport,
 };
 use std::collections::HashMap;
 
@@ -80,6 +80,7 @@ pub(super) fn write_board(w: &mut Writer, board: &Board) {
         annotations,
         folders,
         panels,
+        storyboard,
         zones,
         name,
         viewport,
@@ -99,9 +100,11 @@ pub(super) fn write_board(w: &mut Writer, board: &Board) {
     write_bookmarks(w, bookmarks);
     w.i64(*created_at);
     w.i64(*updated_at);
+    w.opt(storyboard.as_ref(), write_grille);
 }
 
-/// Lit un tableau du schema `version` -- qui ne sert aujourd'hui qu'a ses images.
+/// Lit un tableau du schema `version` : ses images en dependent (RECADRAGE-1), et la grille
+/// de son storyboard n'existe qu'a partir du schema 3 (STORYBOARD-2).
 pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
     Ok(Board {
         id: r.text()?,
@@ -115,6 +118,11 @@ pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> 
         bookmarks: read_bookmarks(r)?,
         created_at: r.i64()?,
         updated_at: r.i64()?,
+        storyboard: if version < crate::persist::STORYBOARD_DEPUIS {
+            None
+        } else {
+            r.opt(read_grille)?
+        },
     })
 }
 
@@ -260,6 +268,37 @@ pub(super) fn read_panel(r: &mut Reader<'_>) -> CoreResult<StoryboardPanel> {
         y: r.f64()?,
         width: r.f64()?,
         height: r.f64()?,
+    })
+}
+
+/// **La grille d'un storyboard** (STORYBOARD-2) : le format par son rang dans
+/// [`Format::TOUS`] — un numéro qui ne bouge jamais (PERSIST-4) —, la largeur, les colonnes,
+/// l'écart.
+pub(super) fn write_grille(w: &mut Writer, grille: &Grille) {
+    let Grille {
+        format,
+        largeur,
+        colonnes,
+        ecart,
+    } = grille;
+
+    let rang = Format::TOUS.iter().position(|f| f == format).unwrap_or(0);
+    w.u8(rang as u8);
+    w.f64(*largeur);
+    w.uvarint(*colonnes as u64);
+    w.f64(*ecart);
+}
+
+pub(super) fn read_grille(r: &mut Reader<'_>) -> CoreResult<Grille> {
+    let rang = r.u8()?;
+    let format = *Format::TOUS
+        .get(usize::from(rang))
+        .ok_or_else(|| super::tags::unknown("format de storyboard", rang))?;
+    Ok(Grille {
+        format,
+        largeur: r.f64()?,
+        colonnes: r.uvarint()? as usize,
+        ecart: r.f64()?,
     })
 }
 

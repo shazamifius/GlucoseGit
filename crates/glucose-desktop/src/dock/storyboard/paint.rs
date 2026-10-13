@@ -48,6 +48,9 @@ pub fn render_storyboard_panel(
         12.0,
         ButtonLook::default(),
     );
+    // Le geste qui suit « Activer » ne se devine pas : il se dit ici, pas dans un toast, qui
+    // ne dit que ce qui vient d'avoir lieu (cliquet 2).
+    brush.caption(pixmap, layout.aide, "UN CLIC POSE, UN GLISSER TRACE");
     if let Some(croix) = layout.effacer {
         // « × » et non « ✕ » : Inter porte le premier, pas le second (vu sur l'aperçu).
         brush.button(pixmap, croix, "×", 14.0, ButtonLook::default());

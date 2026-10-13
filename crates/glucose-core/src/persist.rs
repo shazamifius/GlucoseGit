@@ -60,7 +60,9 @@ use manifest::{AssetEntry, Manifest};
 /// **Passée à 2 le 22/09/2026** : les images portent leur recadrage (RECADRAGE-1). Un document
 /// v1 reste lisible — ses images sont entières, ce qu'elles étaient avant que le geste
 /// n'existe — et c'est la première migration chaînée que le § 8 annonçait.
-pub const DOCUMENT_VERSION: u16 = 2;
+///
+/// **Passée à 3 le 13/10/2026** : un tableau porte la grille de son storyboard (STORYBOARD-2).
+pub const DOCUMENT_VERSION: u16 = 3;
 
 /// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
 ///
@@ -68,6 +70,8 @@ pub const DOCUMENT_VERSION: u16 = 2;
 /// lecteur ne dit pas de quel champ il parle, et le jour où le schéma monte à 3, personne ne
 /// sait plus lequel des `2` disséminés désignait celui-ci.
 pub const RECADRAGE_DEPUIS: u16 = 2;
+/// Le schéma depuis lequel un tableau porte la grille de son storyboard (STORYBOARD-2).
+pub const STORYBOARD_DEPUIS: u16 = 3;
 /// Plus ancien schéma de document que cette build sait lire.
 pub const MIN_READABLE_DOCUMENT_VERSION: u16 = 1;
 /// Extension de fichier, sans le point.

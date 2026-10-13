@@ -179,7 +179,15 @@ impl GlucoseApp {
         }
     }
 
+    /// Les champs du panneau Storyboard suivent la grille du document (STORYBOARD-2).
+    fn suivre_la_grille_dans_le_panneau(&mut self) {
+        let board = &self.store.project.active_board_id;
+        let grille = self.store.grille_du_storyboard(board);
+        self.dock_manager.storyboard.suivre(grille);
+    }
+
     pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
+        self.suivre_la_grille_dans_le_panneau();
         // La salissure est **consommee** : ce qui est redessine maintenant cesse d'etre sale,
         // et une nouvelle demande arrivee pendant le rendu appartient a l'image suivante.
         let Some(sale) = self.ce_quil_faut_repeindre(tampon_neuf) else {
@@ -194,7 +202,8 @@ impl GlucoseApp {
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
         let dessus = self.ce_qui_se_pose_dessus();
         let overlay = SceneOverlay {
-            selection_box: self.selection_box,
+            // Le rectangle que la main trace sous la grille armée se dessine comme lui (TRACE-1).
+            selection_box: self.selection_box.or(self.rectangle_trace_a_l_ecran()),
             editing: self.editing_session.as_ref(),
             arrivages: &self.depot.en_chemin,
             ..dessus.scene(&self.active_guides)

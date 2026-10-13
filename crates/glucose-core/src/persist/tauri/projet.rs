@@ -14,12 +14,14 @@
 //! le bureau résout sur le disque (`glucose_desktop::tauri::resoudre`).
 
 mod annotations;
+#[cfg(test)]
+mod tests;
 
 use crate::persist::tauri::Valeur;
 use crate::types::{
     AssetRef, Board, BoardImage, BoardZone, CanvasFolder, Domain, DomainAssignment,
-    FolderMirrorSource, FolderSortMode, Preset, PresetSlot, Project, StoryboardPanel,
-    TemporalAnchor, Viewport,
+    FolderMirrorSource, FolderSortMode, Format, Grille, Preset, PresetSlot, Project,
+    StoryboardPanel, TemporalAnchor, Viewport,
 };
 use std::collections::{BTreeMap, HashMap};
 
@@ -44,8 +46,9 @@ pub enum Provenance {
 pub struct Rapport {
     /// Pour chaque image, par son identifiant : d'où viennent ses octets.
     pub provenances: Vec<(String, Provenance)>,
-    /// Ce que le modèle Rust ne porte pas encore, et combien de fois : « réglages de
-    /// storyboard », « image d'un panneau »… Vide pour un document qui passe en entier.
+    /// Ce que le modèle Rust ne porte pas encore, et combien de fois : « image assignée à un
+    /// panneau de storyboard », « preset appliqué à un tableau »… Vide pour un document qui
+    /// passe en entier.
     pub omis: BTreeMap<&'static str, usize>,
 }
 
@@ -132,9 +135,7 @@ fn tableau(b: &Valeur, blobs: &HashMap<String, Vec<u8>>, r: &mut Rapport) -> Boa
             .map(|(k, v)| (k.clone(), vue(v)))
             .collect();
     }
-    if b.champ("storyboard").is_some() {
-        r.omettre("réglages de storyboard d'un tableau");
-    }
+    board.storyboard = b.champ("storyboard").and_then(|s| grille(s, r));
     if b.champ("presetId").is_some() {
         r.omettre("preset appliqué à un tableau");
     }
@@ -279,6 +280,32 @@ fn tri(s: &str) -> Option<FolderSortMode> {
         "modified-desc" => FolderSortMode::ModifiedDesc,
         "modified-asc" => FolderSortMode::ModifiedAsc,
         _ => return None,
+    })
+}
+
+/// **La grille du storyboard de Tauri** (`StoryboardSettings`, STORYBOARD-2) : ce qui manque
+/// prend la valeur de son panneau ; un format qu'il ne connaît pas se dit au rapport plutôt
+/// que de se deviner.
+fn grille(s: &Valeur, r: &mut Rapport) -> Option<Grille> {
+    let format = match s.texte("aspectRatio").unwrap_or("16:9") {
+        "16:9" => Format::Cinema,
+        "4:3" => Format::Classique,
+        "2.35:1" => Format::Scope,
+        "1:1" => Format::Carre,
+        "9:16" => Format::Vertical,
+        _ => {
+            r.omettre("format de storyboard inconnu");
+            return None;
+        }
+    };
+    let tauri = Grille::default();
+    Some(Grille {
+        format,
+        largeur: s.nombre("panelWidth").unwrap_or(tauri.largeur),
+        colonnes: s
+            .entier("cols")
+            .map_or(tauri.colonnes, |c| c.max(1) as usize),
+        ecart: s.nombre("gap").unwrap_or(tauri.ecart),
     })
 }
 

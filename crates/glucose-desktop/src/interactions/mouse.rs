@@ -109,6 +109,7 @@ impl GlucoseApp {
             self.suivre_le_noeud_pressenti();
             self.suivre_le_fantome();
             self.suivre_le_gabarit();
+            self.suivre_la_grille_armee();
         }
 
         self.update_cursor();
@@ -178,9 +179,9 @@ impl GlucoseApp {
         if self.suivre_l_onglet_tenu() {
             return true;
         }
-        // Une zone de gabarit tenue, une case du storyboard tenue : elles suivent la main
-        // (PRESET-1, STORYBOARD-1).
-        if self.suivre_la_zone_tenue() || self.suivre_la_case_tenue() {
+        // Une zone de gabarit tenue, une case du storyboard tenue, un rectangle qu'on trace :
+        // ils suivent la main (PRESET-1, STORYBOARD-1, TRACE-1).
+        if self.suivre_la_zone_tenue() || self.suivre_la_case_tenue() || self.suivre_le_trace() {
             return true;
         }
         // Un champ de nombre tenu : sa valeur suit la main (CHAMP-1).
@@ -252,10 +253,11 @@ impl GlucoseApp {
             || self.redimensionner_par_le_bord()
             || self.deplacer_la_fenetre_avec_alt()
             || !self.ui.reference && self.click_l_interface(pointer, screen)
-            // Un gabarit, une grille de storyboard qui suivent le curseur se posent au premier
-            // clic sur le canevas (PRESET-1, STORYBOARD-1).
+            // Un gabarit qui suit le curseur se pose au premier clic sur le canevas
+            // (PRESET-1) ; la grille du storyboard, une membrane, un dossier commencent un
+            // tracé, que le relâchement pose (TRACE-1).
             || self.poser_le_gabarit_arme()
-            || self.poser_le_storyboard_arme();
+            || self.commencer_un_trace();
         if !taken {
             self.click_canvas(screen);
         }
@@ -313,6 +315,7 @@ impl GlucoseApp {
                 // Le tracé se referme ici, et nulle part ailleurs : c'est le relâchement qui
                 // dit si le geste était un clic ou un glisser (DRAW-1).
                 self.finish_draw();
+                self.finir_le_trace();
                 self.end_text_drag();
                 // Le cycle descend avant que le glisser ne s'efface : c'est ce qui a bougé,
                 // pas la distance parcourue par le curseur, qui dit si on déplaçait un nœud

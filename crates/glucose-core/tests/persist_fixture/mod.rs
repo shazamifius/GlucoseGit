@@ -8,8 +8,9 @@
 use glucose_core::types::{
     Annotation, ArrowPredicate, AssetRef, Board, BoardImage, BoardZone, CanvasFolder,
     CurtainEditable, CurtainNote, CurtainVisibility, Domain, DomainAssignment, FolderMirrorSource,
-    FolderSortMode, MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot, Project, Recadrage,
-    StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor, TextSelection, Viewport,
+    FolderSortMode, Format, Grille, MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot,
+    Project, Recadrage, StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor, TextSelection,
+    Viewport,
 };
 
 fn anchor(start: i64, end: i64, label: &str) -> TemporalAnchor {
@@ -255,6 +256,14 @@ fn main_board() -> Board {
         panel.description = "plan d'ouverture".into();
         panel
     }];
+    // Rien de ce qui est ici n'est la valeur par défaut : un champ lu à la place d'un autre
+    // se verrait (STORYBOARD-2).
+    board.storyboard = Some(Grille {
+        format: Format::Scope,
+        largeur: 320.0,
+        colonnes: 3,
+        ecart: 16.0,
+    });
     board.zones = vec![BoardZone::new("slot-hero", -50.0, -50.0, 400.0, 300.0)];
     board.viewport = Viewport {
         x: -220.5,

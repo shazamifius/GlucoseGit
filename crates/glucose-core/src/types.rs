@@ -56,13 +56,15 @@ mod folder;
 mod image;
 mod project;
 mod recadrage;
+mod storyboard;
 
 pub use annotation::{
     Annotation, ArrowPredicate, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
     MembraneMode, Point2D, StickyOperator, TextAnchor, TextSelection, DEFAULT_OPERATOR_HEIGHT,
 };
-pub use board::{Board, FolderTreeNode, StoryboardPanel, Viewport};
+pub use board::{Board, FolderTreeNode, Viewport};
 pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode};
 pub use image::{AssetRef, BoardImage};
 pub use project::{AssetStore, BoardZone, Preset, PresetSlot, Project};
 pub use recadrage::Recadrage;
+pub use storyboard::{Format, Grille, StoryboardPanel, DESCRIPTION};

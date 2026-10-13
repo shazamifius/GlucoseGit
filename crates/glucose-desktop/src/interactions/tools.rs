@@ -106,21 +106,41 @@ impl GlucoseApp {
             .placement_aimante((wx, wy))
             .map_or((wx, wy), |f| (f.rect.left, f.rect.top));
         self.ui.placement.fantome = None;
+        let (w, h) = NEW_CONTAINER_SIZE;
         match self.ui.active_tool {
             ActiveTool::Select | ActiveTool::Pan => return false,
             ActiveTool::Text => self.place_text_card(wx, wy),
             ActiveTool::Sticky => self.place_sticky(wx, wy),
             ActiveTool::Arrow => self.place_arrow(wx, wy),
-            ActiveTool::Membrane => self.place_membrane(wx, wy),
-            ActiveTool::Folder => self.place_folder(wx, wy),
+            ActiveTool::Membrane | ActiveTool::Folder => {
+                return self.poser_le_contenant((wx, wy, w, h));
+            }
         }
-        // L'outil annonce ce qu'il vient de poser, et il l'annonce **ici**. Chaque fabrique
-        // portait son propre message : quatre sites pour un seul événement.
+        self.annoncer_la_pose();
+        true
+    }
+
+    /// **Pose une membrane ou un dossier sur ce rectangle du monde** — sa taille de naissance
+    /// au clic, celle que la main a tracée sinon (TRACE-1). Rend `false` sous un autre outil.
+    pub(crate) fn poser_le_contenant(&mut self, (x, y, w, h): (f64, f64, f64, f64)) -> bool {
+        match self.ui.active_tool {
+            ActiveTool::Membrane => self.place_membrane((x, y, w, h)),
+            ActiveTool::Folder => self.place_folder((x, y, w, h)),
+            _ => return false,
+        }
+        self.ui.placement.fantome = None;
+        self.annoncer_la_pose();
+        true
+    }
+
+    /// L'outil annonce ce qu'il vient de poser, et il l'annonce **ici**. Chaque fabrique
+    /// portait son propre message : quatre sites pour un seul événement. Puis la main revient
+    /// à la sélection.
+    fn annoncer_la_pose(&mut self) {
         if let Some(pose) = self.ui.active_tool.creation_label() {
             self.ui.show_toast(pose);
         }
         self.ui.active_tool = ActiveTool::Select;
-        true
     }
 
     fn place_text_card(&mut self, wx: f64, wy: f64) {
@@ -249,10 +269,9 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    fn place_membrane(&mut self, wx: f64, wy: f64) {
+    fn place_membrane(&mut self, (wx, wy, w, h): (f64, f64, f64, f64)) {
         let board = self.store.project.active_board_id.clone();
         let id = self.store.generate_id("membrane");
-        let (w, h) = NEW_CONTAINER_SIZE;
         let mut membrane = Annotation::membrane(id, wx, wy, w, h);
         if let Annotation::Membrane { text, .. } = &mut membrane {
             *text = Some(NEW_MEMBRANE.to_string());
@@ -262,12 +281,10 @@ impl GlucoseApp {
 
     /// Le dossier capture ce qui se trouve sous lui : `create_folder` le fait, crée le tableau
     /// enfant, et enregistre le tout comme **un** geste annulable.
-    fn place_folder(&mut self, wx: f64, wy: f64) {
+    fn place_folder(&mut self, (wx, wy, w, h): (f64, f64, f64, f64)) {
         let board = self.store.project.active_board_id.clone();
         let mut folder = CanvasFolder::new(self.store.generate_id("folder"), NEW_FOLDER, "");
-        folder.x = wx;
-        folder.y = wy;
-        (folder.width, folder.height) = NEW_CONTAINER_SIZE;
+        (folder.x, folder.y, folder.width, folder.height) = (wx, wy, w, h);
         self.store.create_folder(&board, folder);
     }
 }

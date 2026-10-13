@@ -14,7 +14,7 @@
 
 use super::{Slot, Whole};
 use crate::types::{
-    Annotation, Board, BoardImage, BoardZone, CanvasFolder, Domain, Preset, Project,
+    Annotation, Board, BoardImage, BoardZone, CanvasFolder, Domain, Grille, Preset, Project,
     StoryboardPanel,
 };
 
@@ -63,6 +63,11 @@ pub enum Edit {
     BoardName {
         board: String,
         whole: Whole<String>,
+    },
+    /// **La grille du storyboard** (STORYBOARD-2), avant et après : posée, changée, retirée.
+    Storyboard {
+        board: String,
+        whole: Whole<Option<Grille>>,
     },
 
     /// Un **déplacement** de sélection : un vecteur, et ce qu'il a emporté (JRN-4).
@@ -140,6 +145,7 @@ impl Edit {
             | Self::Panel { board, .. }
             | Self::Zones { board, .. }
             | Self::BoardName { board, .. }
+            | Self::Storyboard { board, .. }
             | Self::Translation { board, .. } => Some(board),
             Self::Board { .. }
             | Self::Domain { .. }
@@ -161,6 +167,7 @@ impl Edit {
             Self::Preset { slot } => slot.flip(),
             Self::Zones { whole, .. } => whole.flip(),
             Self::BoardName { whole, .. } => whole.flip(),
+            Self::Storyboard { whole, .. } => whole.flip(),
             Self::ProjectName { whole } => whole.flip(),
             Self::ActiveBoard { whole } => whole.flip(),
             Self::BoardOrder { whole } => whole.flip(),
@@ -208,6 +215,10 @@ impl Edit {
                 board.name = whole.after.clone();
                 true
             }
+            Self::Storyboard { whole, .. } => {
+                board.storyboard = whole.after;
+                true
+            }
             Self::Translation {
                 delta,
                 images,
@@ -236,6 +247,7 @@ impl Edit {
             Self::Preset { slot } => slot.is_noop(),
             Self::Zones { whole, .. } => whole.is_noop(),
             Self::BoardName { whole, .. } => whole.is_noop(),
+            Self::Storyboard { whole, .. } => whole.is_noop(),
             Self::ProjectName { whole } => whole.is_noop(),
             Self::ActiveBoard { whole } => whole.is_noop(),
             Self::BoardOrder { whole } => whole.is_noop(),
@@ -276,6 +288,7 @@ impl Edit {
                 (whole.before.len() + whole.after.len()) * std::mem::size_of::<BoardZone>()
             }
             Self::BoardName { whole, .. } => whole.before.len() + whole.after.len(),
+            Self::Storyboard { .. } => 2 * std::mem::size_of::<Option<Grille>>(),
             Self::ProjectName { whole } => whole.before.len() + whole.after.len(),
             Self::ActiveBoard { whole } => whole.before.len() + whole.after.len(),
             Self::BoardOrder { whole } => whole

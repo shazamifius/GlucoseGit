@@ -1,6 +1,6 @@
 //! Le tableau : sa caméra, ses nœuds, ses panneaux de storyboard, ses signets.
 
-use super::{Annotation, BoardImage, BoardZone, CanvasFolder, Id};
+use super::{Annotation, BoardImage, BoardZone, CanvasFolder, Grille, Id, StoryboardPanel};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,31 +72,6 @@ impl Viewport {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct StoryboardPanel {
-    pub id: Id,
-    pub order: i32,
-    pub description: String,
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl StoryboardPanel {
-    pub fn new(id: impl Into<String>, order: i32, x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            id: id.into(),
-            order,
-            description: String::new(),
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct FolderTreeNode {
     pub folder: CanvasFolder,
     pub annotations: Vec<Annotation>,
@@ -112,6 +87,8 @@ pub struct Board {
     pub annotations: Vec<Annotation>,
     pub folders: Vec<CanvasFolder>,
     pub panels: Vec<StoryboardPanel>,
+    /// La grille du storyboard, s'il y en a un (STORYBOARD-2) : ce qui range ses cases.
+    pub storyboard: Option<Grille>,
     pub zones: Vec<BoardZone>,
     pub viewport: Viewport,
     pub bookmarks: HashMap<String, Viewport>,
@@ -128,6 +105,7 @@ impl Board {
             annotations: Vec::new(),
             folders: Vec::new(),
             panels: Vec::new(),
+            storyboard: None,
             zones: Vec::new(),
             viewport: Viewport::default(),
             bookmarks: HashMap::new(),

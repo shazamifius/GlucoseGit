@@ -47,7 +47,7 @@ impl GlucoseApp {
         if self.is_dragging_item {
             return Geste::GlisserUnNoeud;
         }
-        if self.draw_session.is_some() {
+        if self.draw_session.is_some() || self.ui.placement.trace.is_some() {
             return Geste::Dessiner;
         }
         if self.selection_box.is_some() {

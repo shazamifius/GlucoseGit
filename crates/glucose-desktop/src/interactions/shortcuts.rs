@@ -72,7 +72,8 @@ impl GlucoseApp {
     /// quand la touche ne le concerne pas ; aucun ne contient de logique (§ 1.7).
     pub fn handle_key(&mut self, event: &KeyEvent) {
         let appuyee = event.state == winit::event::ElementState::Pressed;
-        if self.prendre_la_touche(&event.logical_key, appuyee) {
+        let texte = event.text.as_ref().map(|t| t.as_str());
+        if self.prendre_la_touche(&event.logical_key, appuyee, texte) {
             return;
         }
         if self.handle_domain_rename_key(event) || self.handle_text_key(event) {
@@ -83,9 +84,15 @@ impl GlucoseApp {
 
     /// **Les preneurs qui passent avant tout**, sans le `KeyEvent` de winit qui ne se
     /// construit pas hors de la boucle : une question, puis les saisies du dock et de la bande.
-    pub(crate) fn prendre_la_touche(&mut self, key: &Key, appuyee: bool) -> bool {
+    /// `texte` est ce que la composition du clavier a produit (un accent de touche morte).
+    pub(crate) fn prendre_la_touche(
+        &mut self,
+        key: &Key,
+        appuyee: bool,
+        texte: Option<&str>,
+    ) -> bool {
         // Une question posée prend tout le clavier : rien ne passe sous son voile (POPUP-1).
-        self.touche_de_la_question(key, appuyee)
+        self.touche_de_la_question(key, appuyee, texte)
             || appuyee
                 && (self.touche_de_l_ancrage(key)
                     || self.frapper_le_nom_du_jalon(key)
@@ -172,8 +179,9 @@ impl GlucoseApp {
             self.mark_dirty();
             return;
         }
-        // Un gabarit qui suit le curseur attend encore qu'on le pose : Échap y renonce.
-        if self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {
+        // Un rectangle qu'on trace, puis un gabarit ou une grille qui suivent le curseur
+        // attendent encore qu'on les pose : Échap y renonce, un à la fois (TRACE-1).
+        if self.renoncer_au_trace() || self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {
             return;
         }
         // Échap rend toujours l'outil Sélection, comme dans Glucose Tauri : c'est la
@@ -303,8 +311,6 @@ impl GlucoseApp {
             "z" | "Z" => self.annuler(),
             "y" | "Y" => self.retablir(),
             "d" | "D" => self.duplicate_selection(),
-            // `Ctrl+F` : tout cadrer ; `F` seul cadre la sélection (fiche 53 § 8).
-            "f" | "F" => self.cadrer(false),
             // `Ctrl+Maj+A` : le premier plan de PureRef, ici tout le mode référence.
             "a" | "A" if self.modifiers.shift_key() => self.basculer_le_mode_reference(),
             "a" | "A" => self.select_all(),
@@ -336,8 +342,10 @@ impl GlucoseApp {
                 return;
             }
             "t" | "T" => ActiveTool::Text,
+            // `Alt+F` tout cadrer, `F` seul la sélection ; `Ctrl+F` est gardé à la recherche,
+            // comme dans Tauri — sa décision du 13/10 (fiche 65).
             "f" | "F" => {
-                self.cadrer(true);
+                self.cadrer(!self.modifiers.alt_key());
                 return;
             }
             "l" | "L" => {
@@ -483,14 +491,16 @@ impl GlucoseApp {
     }
 
     /// Recentre la caméra PureRef sur l'origine, à l'échelle 1.
-    /// **Cadrer** — `F` la sélection (tout, si rien n'est choisi), `Ctrl+F` tout (fiche 53 § 8).
+    /// **Cadrer** — `F` la sélection (tout, si rien n'est choisi), `Alt+F` tout (fiche 53 § 8 ;
+    /// `Ctrl+F` jusqu'au 13/10, rendu à la recherche, fiche 65).
     ///
     /// Au début, `F` posait [`Viewport::default`], c'est-à-dire l'origine du monde à l'échelle
     /// un. L'utilisateur l'a dit sans détour : « ça ne ramène qu'au point 0 de la map, alors
     /// qu'il NE DEVRAIT PAS Y AVOIR DE POINT 0, c'est un canva infini ». Ce que la touche doit
     /// répondre est « où sont mes affaires » — le cadrage du contenu, atteint par un vol pour
     /// qu'on voie d'où l'on vient. Le 07/10, il a demandé que `F` regarde **ce qu'on a choisi**,
-    /// comme le « cadrer la sélection » de Maya et d'Unity, et que tout cadrer passe à `Ctrl+F`.
+    /// comme le « cadrer la sélection » de Maya et d'Unity, et que tout cadrer passe à `Ctrl+F` —
+    /// puis à `Alt+F` le 13/10, `Ctrl+F` revenant à la recherche.
     ///
     /// La taille est celle de la fenêtre, ou celle de sa naissance quand elle n'existe pas : une
     /// épreuve joue la touche sans fenêtre.

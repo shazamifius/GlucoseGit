@@ -124,3 +124,29 @@ fn test_les_cases_se_lisent_par_pages() {
     let bas = derniere.renumeroter.expect("le bouton").y;
     assert!(derniere.lignes.iter().all(|l| l.ligne.y + l.ligne.h <= bas));
 }
+
+/// **Les champs suivent la grille du document quand elle change** — un rectangle tracé à six
+/// colonnes, un autre tableau — et gardent ce qu'on y règle entre deux, pour le prochain
+/// « Mettre à jour » (STORYBOARD-2).
+#[test]
+fn test_storyboard_2_les_champs_suivent_la_grille_du_document() {
+    let mut state = StoryboardState::default();
+    let six = Grille {
+        colonnes: 6,
+        ..Grille::default()
+    };
+    state.suivre(Some(six));
+    assert_eq!(state.cols, 6);
+    state.cols = 3;
+    state.suivre(Some(six));
+    assert_eq!(state.cols, 3, "le même document : ce qu'on a réglé reste");
+    state.suivre(None);
+    assert_eq!(state.cols, 3, "un tableau sans storyboard ne touche à rien");
+    let carre = Grille {
+        colonnes: 5,
+        format: Format::Carre,
+        ..Grille::default()
+    };
+    state.suivre(Some(carre));
+    assert_eq!(state.grille(), carre, "chaque champ, le format compris");
+}

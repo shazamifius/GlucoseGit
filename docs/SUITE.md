@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 13/10/2026** (fiches 59 à 64). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 13/10/2026** (fiches 59 à 65). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -20,19 +20,38 @@
 
 ---
 
-## 0 sexies. La chrome, le Storyboard — **d'abord** (fiche 64)
+## 0 septies. Le téléphone, le Storyboard tracé — **d'abord** (fiche 65)
+
+Ses retours du 13/10 après-midi : le téléphone a **redémarré en urgence** ; `Ctrl+F` à la
+recherche, tout cadrer à `Alt+F` ; le Storyboard et la membrane qui ne suivent pas au survol et
+ne se tracent pas ; le storyboard qui se remplit selon un rectangle ; « Décrire » qui n'écrit
+rien ; des propositions pour un outil « pas pratique et incomplet ».
 
 | | chantier | où en est-il |
 |---|---|---|
-| [ ] | **Saboter STORYBOARD-1** : `python -I outils/saboter.py outils/sabotages/storyboard-1.json` — 25 gardes, toutes doivent TOMBER ; une qui passe est une épreuve aveugle à renforcer | **la première chose** ; le code est **envoyé** (sans la CI), éprouvé — pas encore saboté |
+| [ ] | **Le téléphone qui redémarre** : le brancher au PC (débogage USB) et lire ce que le système a gardé (`getprop sys.boot.reason`, `dumpsys dropbox`, `logcat -b crash`) — **avant** de le rouvrir ; puis ses deux sessions (2.0.3-dev) arriveront à la télémétrie | **sa main** (fiche 65 § 8) : aucune cause supposée tant qu'on n'a pas lu le téléphone |
+| [x] | **Saboter STORYBOARD-1** — 24 sur 25 ; l'aveugle (« poser ne numérote pas ») est gardée par STORYBOARD-2 | fiche 65 § 2 |
+| [~] | **STORYBOARD-2** — la grille dans le document (schéma 3, témoin v2), une suite et une loi, le rectangle tracé, la poignée, la case lâchée qui prend la place, Tab vers la case suivante | **à son écran** (fiche 65 § 12) |
+| [~] | **TRACE-1** — la membrane et le dossier se tracent ; un clic pose comme avant | **à son écran** |
+| [~] | **CHAMP-QUESTION-1** — le champ d'une question écrit au clavier du PC (accents compris) | **à son écran** : « Décrire » |
+| [~] | **`Alt+F`** tout cadrer ; `Ctrl+F` gardé à la recherche | **à son écran** |
+| [~] | **Le tableau de bord de la télémétrie** (sa demande du 13/10) : `outils/telemetrie/tableau.mjs` résume la base, une page privée de son compte la montre — installations, systèmes, cartes par leurs noms, fins | fiche 65 § 8 bis — **à ses yeux** |
+| [ ] | **BOITE-ANDROID** : au téléphone, toute session paraît « interrompue » (Android tue l'application sans `exiting`) — noter le passage en arrière-plan, pour qu'un vrai plantage s'y distingue | fiche 65 § 8 bis ; avant de lire les postes du téléphone |
+| [ ] | **Les propositions du Storyboard** (fiche 65 § 9) : les images qui remplissent les cases à la suite, un storyboard de la sélection, insérer une case, la lecture, plusieurs champs, le type de plan, l'export en planches, plusieurs storyboards | **ses choix** |
+
+## 0 sexies. La chrome, le Storyboard (fiche 64)
+
+| | chantier | où en est-il |
+|---|---|---|
+| [x] | **Saboter STORYBOARD-1** : 24 gardes sur 25 tombent ; l'aveugle est désormais gardée (fiche 65 § 2) | 13/10 |
 | [~] | **CHROME-1** — la carte pose la chrome ; le rectangle de la vue fidèle à Tauri ; `present/passes.rs` (`6e53d09`, 21 sabotages) | **à son écran** : rien ne doit changer à l'œil, sauf la minimap |
-| [~] | **STORYBOARD-1** — le panneau entier, les cases sur les deux voies, une image ajustée dans sa case, la case glissée avec ses images, décrite, retirée | **à son écran et à son téléphone** |
-| [ ] | **Les postes du téléphone** : qu'il ouvre Glucose une fois au téléphone, puis lire les lignes `poste` (fiche 64 § 1) | sa prochaine ouverture |
+| [~] | **STORYBOARD-1** — le panneau entier, les cases sur les deux voies, une image ajustée dans sa case, la case glissée avec ses images, décrite, retirée — **repris par STORYBOARD-2** (§ 0 septies) | **à son écran et à son téléphone** |
+| [ ] | **Les postes du téléphone** : qu'il ouvre Glucose une fois au téléphone, puis lire les lignes `poste` (fiche 64 § 1) | **après** la lecture du téléphone qui a redémarré (§ 0 septies) |
 | [ ] | **DESSUS-1** — la couche du dessus balayée en entier à chaque image, même vide (0,7-0,8 ms à 2560 × 1600) : que chaque passe dise ce qu'elle dessine, vérifié contre le balayage en `debug_assert` | **si les postes du téléphone le désignent** (`relever`) |
 | [ ] | **RASTER-1** — les textes rendus sur plusieurs fils (fiche 63 § 7) | idem |
 | [ ] | **Le panneau Storyboard prend toute la hauteur** (comme la Time Machine) : le borner à son contenu demanderait que le dock connaisse le nombre de cases | à juger à son écran |
 | [ ] | **La 2.0.3-beta.1** : le brouillon (sur `7c60593`) ne porte ni CHROME-1 ni STORYBOARD-1 — **sa parole** : publier celui-ci, ou un nouveau après la CI | fiche 64 § 5 |
-| [ ] | **Un tableau de bord de la télémétrie** (les installations, les cartes par leurs noms) — sa demande du 13/10 « voir les statistiques et les PC » | plus tard |
+| [~] | **Un tableau de bord de la télémétrie** (les installations, les cartes par leurs noms) — sa demande du 13/10 « voir les statistiques et les PC » | **fait** (fiche 65 § 8 bis) |
 
 ## 0 quinquies. Le flou, chaque bouton, et la 2.0.3-beta.1 — **d'abord** (fiche 63)
 

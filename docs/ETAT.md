@@ -13,7 +13,8 @@
 > en image, les Presets et leurs zones, les champs du dock (fiche 62), et celle du flou qui restait
 > et d'un bouton pour chaque fonction — la netteté, les menus, le partage au téléphone, la boîte
 > noire qui dit où part le temps (fiche 63), et celle de la chrome posée par la carte et du
-> Storyboard (fiche 64). Ce document dit l'état **vérifié** du projet,
+> Storyboard (fiche 64), et celle du storyboard tracé, du champ qui écrit et du téléphone qui
+> redémarre (fiche 65). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -121,6 +122,20 @@
   de moins par image) ; le rectangle de la minimap fidèle à Tauri. **STORYBOARD-1 écrit, éprouvé,
   envoyé sans la CI — NON saboté** — la première chose de la session suivante. Les postes du
   téléphone ne sont pas arrivés (sa session part à la prochaine ouverture).
+* **Fiche 65 — le storyboard tracé, le champ qui écrit, le téléphone qui redémarre** : **son
+  téléphone a redémarré en urgence** sous l'APK du 12/10 au soir — aucune session de cet APK
+  n'est arrivée ; **la cause n'est pas connue** (le pilote graphique de sa PowerVR, ou la
+  mémoire : deux pistes, aucune prouvée) — il faut lire le téléphone par le câble avant de le
+  rouvrir. **STORYBOARD-1 saboté** (24 sur 25 ; ses deux défauts vus à l'écran n'étaient gardés
+  par rien). **STORYBOARD-2** : la grille dans le document (**schéma 3** ; un v2 se relit, prouvé
+  sur un témoin écrit par la build d'avant), une suite rangée par une seule loi, **le rectangle
+  tracé** que les cases remplissent, **la poignée** qui le retrace, la case lâchée qui prend la
+  place, **Tab** vers la case suivante ; **TRACE-1** (la membrane et le dossier se tracent) ;
+  **CHAMP-QUESTION-1** (« Décrire » écrit enfin au clavier) ; **`Alt+F`** tout cadrer. Éprouvé,
+  saboté, **rien n'est jugé à son écran**. **Le tableau de bord de la télémétrie** existe (une
+  page privée de son compte, refaite par `outils/telemetrie/tableau.mjs`) ; il a montré qu'au
+  téléphone **toute session paraît interrompue** — Android tue Glucose sans qu'il écrive sa fin
+  (BOITE-ANDROID, à réparer).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -138,21 +153,22 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; **le canevas défile quand on tient un nœud, un coin ou un rectangle de sélection près du bord** (DEFILE-1, fiche 59) ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** : la similitude entière des doigts, sans bascule (fiche 54 § 3 — Windows zoome bien sous le curseur, **vérifié** ; le biais **à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Ctrl+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) ; **au doigt, sur un écran** hors Windows (fiche 54 § 7) |
+| **Naviguer** | canevas infini ; **`Alt+F` tout cadrer** (`Ctrl+F` gardé à la recherche, fiche 65) ; **le canevas défile quand on tient un nœud, un coin ou un rectangle de sélection près du bord** (DEFILE-1, fiche 59) ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** : la similitude entière des doigts, sans bascule (fiche 54 § 3 — Windows zoome bien sous le curseur, **vérifié** ; le biais **à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Alt+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) ; **au doigt, sur un écran** hors Windows (fiche 54 § 7) |
 | **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution, la page demandée **compressée** ; un repli en lien **dit pourquoi**, et se rattrape au clic droit : « Remplacer par l'image ») ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
 | **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). **Sous Linux** (X11, et Wayland par XWayland), le même copier unique, servi par Glucose (fiche 61) — sans le glisser vers une autre application ; sous Mac, le lot seul |
-| **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, aimant aux voisines, placement aimanté dès le premier clic ; **Ordonner** : cinq dispositions, huit tris dont **trois par la couleur** (fiche 62), des champs qui se glissent ou se tapent ; **les Presets** : six gabarits, leurs zones posées, déplacées, redimensionnées, retirées, et « Par slot preset » qui range chaque zone |
+| **Organiser** | membranes qui **possèdent** ce qu'on y dépose — **tracées** d'un glisser, ou posées d'un clic (TRACE-1) ; **le Storyboard** : une suite rangée par sa grille, tracée en rectangle, retracée par sa poignée, ses cases glissées à une autre place, décrites au clavier (fiche 65) ; mode Focus, dossiers, domaines, aimant aux voisines, placement aimanté dès le premier clic ; **Ordonner** : cinq dispositions, huit tris dont **trois par la couleur** (fiche 62), des champs qui se glissent ou se tapent ; **les Presets** : six gabarits, leurs zones posées, déplacées, redimensionnées, retirées, et « Par slot preset » qui range chaque zone |
 | **Exporter** | Markdown, SVG (sans les images ni les membranes), et **PNG** : la sélection ou le tableau, à 100 % (fiche 62) |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
 | **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — la 2.0.2-beta.2 la porte ; pas encore prouvée : il faut qu'une version suivante arrive à un téléphone qui a la beta 2 |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 389** sous Windows au 13/10, STORYBOARD-1 compris (fiche 64) ; clippy strict
-  à zéro sous Windows et pour Android. Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
+* **Épreuves** : **2 422** sous Windows au 13/10 au soir, STORYBOARD-2 compris (fiche 65 ; 57
+  sabotages, 57 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389
+  (fiche 64). Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
   pas été rejouée depuis la fiche 61, où elle comptait **2 255**) ; clippy strict à zéro sous
   Windows et pour Android. **Tout est envoyé** (12/10 au soir) : la fiche 62 et NETTETE-1 dans
   « urgent » (`58ad6ea`, sa CI : APK, NixOS, paquets Linux et installeur verts ; formatage rouge,

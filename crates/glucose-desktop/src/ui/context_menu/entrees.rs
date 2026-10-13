@@ -133,7 +133,7 @@ fn entrees_du_vide() -> Vec<Def> {
         None,
         Some((MenuAction::Paste, "Coller", "Ctrl+V")),
         Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")),
-        Some((MenuAction::ToutCadrer, "Tout cadrer", "Ctrl+F")),
+        Some((MenuAction::ToutCadrer, "Tout cadrer", "Alt+F")),
         Some((MenuAction::Signets, "Signets…", "1…9")),
         None,
         Some((MenuAction::NouveauDocument, "Nouveau document", "Ctrl+N")),

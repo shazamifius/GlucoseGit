@@ -108,6 +108,20 @@ fn test_l_histoire_relue_redonne_le_document_apres_chaque_geste() {
     store.poser_les_zones(&b, vec![BoardZone::new("slot", 0.0, 0.0, 10.0, 10.0)]);
     store.set_project_name("renommé");
     verifier(&mut store, "zones, nom, image sur l'annexe");
+    // STORYBOARD-2 : la grille du storyboard s'écrit avec ses cases, et ses images suivent.
+    let grille = glucose_core::types::Grille::default();
+    let trace = store.disposition_du_trace(&b, grille, ((2000.0, 0.0), (3300.0, 700.0)));
+    store.disposer(&b, trace);
+    let case = store.cases(&b)[1].clone();
+    store.add_image(&b, image("dans-la-case", case.x + 40.0));
+    store.ajuster_dans_les_cases(&b, &["dans-la-case".to_string()]);
+    verifier(&mut store, "tracer un storyboard, une image dans une case");
+    let premiere = store.cases(&b)[0].id.clone();
+    store.retirer_la_case(&b, &premiere);
+    store.ajouter_une_case(&b, grille);
+    verifier(&mut store, "retirer et ajouter une case");
+    store.effacer_le_storyboard(&b);
+    verifier(&mut store, "effacer le storyboard");
     store
         .try_add_domain(Domain {
             id: "d1".into(),

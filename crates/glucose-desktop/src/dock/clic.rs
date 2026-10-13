@@ -63,6 +63,8 @@ fn click_panel(
             PanelClickResult::Handled
         }
         TabId::Storyboard => {
+            let board = &store.project.active_board_id;
+            dock.storyboard.suivre(store.grille_du_storyboard(board));
             let contenu = storyboard::Contenu::du(store);
             let layout = storyboard::layout_storyboard_panel(frame, &dock.storyboard, &contenu);
             let ce_qui = (&layout, &contenu);

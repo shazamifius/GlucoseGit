@@ -20,8 +20,8 @@
 use super::super::annotation::{read_annotation, write_annotation};
 use super::super::bytes::{Reader, Writer};
 use super::super::document::{
-    read_board, read_domain, read_folder, read_panel, read_preset, read_zone, write_board,
-    write_domain, write_folder, write_panel, write_preset, write_zone,
+    read_board, read_domain, read_folder, read_grille, read_panel, read_preset, read_zone,
+    write_board, write_domain, write_folder, write_grille, write_panel, write_preset, write_zone,
 };
 use super::super::image::{read_image, write_image};
 use super::super::tags::unknown;
@@ -41,6 +41,8 @@ const PRESET: u8 = 9;
 const NOM_DU_PROJET: u8 = 10;
 const TABLEAU_ACTIF: u8 = 11;
 const ORDRE_DES_TABLEAUX: u8 = 12;
+/// La grille du storyboard (STORYBOARD-2) : apparue au schéma 3.
+const STORYBOARD: u8 = 13;
 
 /// Un geste tel que l'histoire le garde : quand, par qui, et quoi.
 #[derive(Debug, Clone, PartialEq)]
@@ -103,26 +105,13 @@ fn ecrire_edition(w: &mut Writer, edit: &Edit) {
             w.text(board);
             ecrire_textes(w, whole);
         }
-        Edit::Translation {
-            board,
-            delta,
-            images,
-            annotations,
-            folders,
-            bouts,
-        } => {
-            w.u8(TRANSLATION);
+        Edit::Storyboard { board, whole } => {
+            w.u8(STORYBOARD);
             w.text(board);
-            w.f64(delta.0);
-            w.f64(delta.1);
-            for rangs in [images, annotations, folders] {
-                w.seq(rangs, |ww, r| ww.uvarint(u64::from(*r)));
-            }
-            w.seq(bouts, |ww, (r, b)| {
-                ww.uvarint(u64::from(*r));
-                ww.u8(u8::from(b.origine) | (u8::from(b.cible) << 1));
-            });
+            w.opt(whole.before.as_ref(), write_grille);
+            w.opt(whole.after.as_ref(), write_grille);
         }
+        Edit::Translation { .. } => ecrire_translation(w, edit),
         Edit::Board { slot } => {
             w.u8(TABLEAU);
             ecrire_case(w, slot, write_board);
@@ -150,6 +139,33 @@ fn ecrire_edition(w: &mut Writer, edit: &Edit) {
     }
 }
 
+/// Une translation : son vecteur, ses rangs, ses bouts de flèche — l'inverse de
+/// [`lire_translation`].
+fn ecrire_translation(w: &mut Writer, edit: &Edit) {
+    let Edit::Translation {
+        board,
+        delta,
+        images,
+        annotations,
+        folders,
+        bouts,
+    } = edit
+    else {
+        return;
+    };
+    w.u8(TRANSLATION);
+    w.text(board);
+    w.f64(delta.0);
+    w.f64(delta.1);
+    for rangs in [images, annotations, folders] {
+        w.seq(rangs, |ww, r| ww.uvarint(u64::from(*r)));
+    }
+    w.seq(bouts, |ww, (r, b)| {
+        ww.uvarint(u64::from(*r));
+        ww.u8(u8::from(b.origine) | (u8::from(b.cible) << 1));
+    });
+}
+
 fn lire_edition(r: &mut Reader<'_>, version: u16) -> CoreResult<Edit> {
     Ok(match r.u8()? {
         IMAGE => Edit::Image {
@@ -175,6 +191,10 @@ fn lire_edition(r: &mut Reader<'_>, version: u16) -> CoreResult<Edit> {
         NOM_DU_TABLEAU => Edit::BoardName {
             board: r.text()?,
             whole: lire_textes(r)?,
+        },
+        STORYBOARD => Edit::Storyboard {
+            board: r.text()?,
+            whole: Whole::new(r.opt(read_grille)?, r.opt(read_grille)?),
         },
         TRANSLATION => lire_translation(r)?,
         TABLEAU => Edit::Board {

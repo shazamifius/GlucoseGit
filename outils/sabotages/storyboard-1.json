@@ -14,38 +14,10 @@
   ]
  },
  {
-  "nom": "poser ne numerote pas",
-  "fichier": "crates/glucose-core/src/store/storyboard.rs",
-  "avant": "(case.order, case.x, case.y) = (i as i32, x, y);",
-  "apres": "(case.x, case.y) = (x, y);",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-core",
-   "--",
-   "storyboard"
-  ]
- },
- {
-  "nom": "retirer ne renumerote pas",
-  "fichier": "crates/glucose-core/src/store/storyboard.rs",
-  "avant": "            .filter(|c| c.id != id)\n            .cloned()\n            .collect();\n        for (i, c) in cases.iter_mut().enumerate() {\n            c.order = i as i32;\n        }",
-  "apres": "            .filter(|c| c.id != id)\n            .cloned()\n            .collect();",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-core",
-   "--",
-   "storyboard"
-  ]
- },
- {
   "nom": "renumeroter ne renumerote pas",
   "fichier": "crates/glucose-core/src/store/storyboard.rs",
-  "avant": "        for (i, c) in rangees.iter_mut().enumerate() {\n            c.order = i as i32;\n        }",
-  "apres": "",
+  "avant": "        let suite: Vec<StoryboardPanel> = ordre_de_lecture(&cases)\n            .into_iter()\n            .map(|i| cases[i].clone())\n            .collect();",
+  "apres": "        let suite: Vec<StoryboardPanel> = cases.clone();",
   "cmd": [
    "cargo",
    "test",
@@ -201,7 +173,7 @@
  {
   "nom": "la grille armee ne se pose pas",
   "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
-  "avant": "            || self.poser_le_storyboard_arme();",
+  "avant": "            || self.commencer_un_trace();",
   "apres": ";",
   "cmd": [
    "cargo",
@@ -231,8 +203,8 @@
  {
   "nom": "Echap ne renonce pas a la grille",
   "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
-  "avant": "if self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {",
-  "apres": "if self.renoncer_au_gabarit() {",
+  "avant": "if self.renoncer_au_trace() || self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {",
+  "apres": "if self.renoncer_au_trace() || self.renoncer_au_gabarit() {",
   "cmd": [
    "cargo",
    "test",
@@ -261,8 +233,8 @@
  {
   "nom": "la case tenue ne suit pas la main",
   "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
-  "avant": "if self.suivre_la_zone_tenue() || self.suivre_la_case_tenue() {",
-  "apres": "if self.suivre_la_zone_tenue() {",
+  "avant": "if self.suivre_la_zone_tenue() || self.suivre_la_case_tenue() || self.suivre_le_trace() {",
+  "apres": "if self.suivre_la_zone_tenue() || self.suivre_le_trace() {",
   "cmd": [
    "cargo",
    "test",

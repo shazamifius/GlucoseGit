@@ -243,6 +243,34 @@ pub(super) fn orner_la_case_choisie(
     let d = scale.screen(1.0);
     let boite = croix(b, un(BANDE_HAUTEUR), d);
     super::zone::dessiner_la_croix(pixmap, theme, boite, d);
+    dessiner_la_poignee(pixmap, theme, (store, pass));
+}
+
+/// **La poignée du storyboard** (STORYBOARD-2) : au coin bas droit de sa boîte, celle des nœuds
+/// — on la tire pour le retracer.
+fn dessiner_la_poignee(
+    pixmap: &mut PixmapMut,
+    theme: &crate::theme::Theme,
+    (store, pass): (&Store, ViewPass<'_>),
+) {
+    let Some(board) = store.active_board() else {
+        return;
+    };
+    let grille = glucose_core::store::storyboard::Grille::default();
+    let Some(d) = store.disposition_actuelle(&board.id, grille) else {
+        return;
+    };
+    let (x, y, w, h) = d.boite();
+    let (sx, sy) = world_to_screen(x, y, &pass.vp);
+    let scale = pass.echelle();
+    let boite = (
+        sx as f32,
+        sy as f32,
+        scale.world(w as f32),
+        scale.world(h as f32),
+    );
+    let coin = [glucose_core::resize::Handle::BottomRight];
+    crate::renderer::handles::draw_resize_handles(pixmap, theme, scale, boite, &coin);
 }
 
 #[cfg(test)]
