@@ -214,26 +214,14 @@ pub fn composer_les_cinq_temps(
     (dessous, dessus): (&Pixmap, &Pixmap),
     source: &crate::present::scene_gpu::Source<'_>,
 ) -> Option<Pixmap> {
-    use crate::present::{
-        couches, fleches_gpu, fond_gpu, lisere_gpu, lueurs_gpu, membranes_gpu, scene_gpu, zones_gpu,
-    };
+    use crate::present::{couches, passes, scene_gpu};
     let ecran = (taille.0 as f32, taille.1 as f32);
-    let mut fond = fond_gpu::FondGpu::nouveau(peripherique, FORMAT);
-    let mut lueurs = lueurs_gpu::Lueurs::nouvelles(peripherique, FORMAT);
-    let mut zones = zones_gpu::Zones::nouvelles(peripherique, FORMAT);
-    let mut membranes = membranes_gpu::Membranes::nouvelles(peripherique, FORMAT);
-    let mut fleches = fleches_gpu::FlechesGpu::nouvelles(peripherique, FORMAT);
-    let mut lisere = lisere_gpu::LisereGpu::nouveau(peripherique, FORMAT);
+    let mut passes = passes::Passes::nouvelles(peripherique, FORMAT);
     let mut scene = scene_gpu::SceneGpu::nouvelle(peripherique, FORMAT);
     let mut deux = couches::Couches::nouvelles(peripherique, FORMAT);
     let mut envoi = crate::present::envoi::Envoi::nouveau(peripherique, file);
 
-    fond.preparer(file, ecran, confie.fond);
-    lueurs.preparer(peripherique, file, ecran, &confie.lueurs);
-    zones.preparer(peripherique, file, ecran, &confie.zones);
-    membranes.preparer(peripherique, file, ecran, &confie.membranes);
-    fleches.preparer(peripherique, file, ecran, &confie.fleches);
-    lisere.preparer(file, ecran, confie.lisere);
+    passes.preparer((peripherique, file), ecran, confie);
     let textures = confie.textures();
     scene.ouvrir();
     // Le banc et l'epreuve des deux voies comparent des IMAGES : elles doivent etre
@@ -265,23 +253,8 @@ pub fn composer_les_cinq_temps(
     let cible = cible(peripherique, taille);
     let vue = cible.create_view(&Default::default());
     let mut encodeur = peripherique.create_command_encoder(&Default::default());
-    couches::composer(
-        &mut encodeur,
-        &vue,
-        couches::Temps {
-            fond: &fond,
-            lueurs: &lueurs,
-            zones: &zones,
-            membranes: &membranes,
-            fleches: &fleches,
-            lisere: &lisere,
-            couches: &deux,
-            scene: &scene,
-            retenues: &retenues,
-            photos: confie.photos.len(),
-            sous_le_dessus: confie.sous_le_dessus(),
-        },
-    );
+    let temps = passes.temps((&deux, &scene, &retenues), confie);
+    couches::composer(&mut encodeur, &vue, temps);
     envoi.soumettre();
     file.submit(Some(encodeur.finish()));
     relire(peripherique, file, &cible, taille)

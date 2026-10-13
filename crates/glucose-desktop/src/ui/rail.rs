@@ -216,24 +216,20 @@ type CleDuRail = (Vec<(u32, u32, bool, crate::icons::IconType)>, Boite, u32);
 
 /// Le rail déjà dessiné, et ce qui l'a décidé.
 pub struct RailCache {
-    pixmap: Pixmap,
+    /// Partagé avec la carte, qui le lit sans copie quand le rail change (CHROME-1).
+    pub(super) pixmap: std::rc::Rc<Pixmap>,
     cle: CleDuRail,
     origine: (f32, f32),
     pub(super) dessins: u64,
 }
 
-/// **Dessine le rail**, depuis son cache s'il n'a pas changé : vingt icônes à chaque image
-/// coûteraient deux millisecondes, et le rail ne change qu'au toucher.
-pub(super) fn render_rail(
-    pixmap: &mut PixmapMut,
-    ui: &mut UiState,
-    typo: &Typography,
-    theme: &Theme,
-) {
+/// **Tient le rail à jour**, depuis son cache s'il n'a pas changé : vingt icônes à chaque image
+/// coûteraient deux millisecondes, et le rail ne change qu'au toucher. Le poser revient à la
+/// voie qui l'emploie ([`super::chrome`]).
+pub(super) fn tenir_le_rail(ui: &mut UiState, typo: &Typography, theme: &Theme, ecran: (f32, f32)) {
     if !ui.rail.actif {
         return;
     }
-    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
     let rail = layout_rail(ui, typo, ecran);
     let s = ui.scale();
     let cle = (
@@ -258,15 +254,49 @@ pub(super) fn render_rail(
         dessiner(&mut tampon.as_mut(), &rail, (typo, theme), s, (ox, oy));
         let dessins = ui.rail_cache.as_ref().map_or(0, |c| c.dessins) + 1;
         ui.rail_cache = Some(RailCache {
-            pixmap: tampon,
+            pixmap: std::rc::Rc::new(tampon),
             cle,
             origine: (ox, oy),
             dessins,
         });
     }
-    if let Some(cache) = &ui.rail_cache {
-        crate::composition::poser(pixmap, &cache.pixmap, cache.origine, Melange::Composer);
+}
+
+/// Le rail tenu puis posé, comme la voie processeur le fait — pour les épreuves du cache.
+#[cfg(test)]
+pub(super) fn render_rail(
+    pixmap: &mut PixmapMut,
+    ui: &mut UiState,
+    typo: &Typography,
+    theme: &Theme,
+) {
+    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
+    tenir_le_rail(ui, typo, theme, ecran);
+    if let Some(super::chrome::Morceau::Tampon {
+        pixmap: rail,
+        origine,
+        melange,
+        ..
+    }) = morceau(ui)
+    {
+        crate::composition::poser(pixmap, rail, origine, melange);
     }
+}
+
+/// **Ce que le rail donne à poser**, quand il est là : son tampon, qui se compose — il ne
+/// couvre pas tout ce qu'il occupe.
+pub(super) fn morceau(ui: &UiState) -> Option<super::chrome::Morceau<'_>> {
+    if !ui.rail.actif {
+        return None;
+    }
+    let cache = ui.rail_cache.as_ref()?;
+    Some(super::chrome::Morceau::Tampon {
+        nom: "rail",
+        dessins: cache.dessins,
+        pixmap: &cache.pixmap,
+        origine: cache.origine,
+        melange: Melange::Composer,
+    })
 }
 
 /// Le panneau, ses cases et la languette, dans un tampon dont l'origine est `origine` à l'écran.

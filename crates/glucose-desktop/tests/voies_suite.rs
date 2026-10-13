@@ -291,11 +291,19 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
     // en y retablissant `au_processeur = editing.is_some()`, la couche du dessus passe de
     // 205 918 a 260 930 pixels d'encre -- cinquante-cinq mille de plus, soit exactement une
     // carte repeinte par-dessus celle que la carte graphique pose deja.
+    //
+    // **La borne est la carte elle-meme**, et non une part de la couche : celle-ci portait la
+    // chrome, que la carte pose desormais (CHROME-1) -- 38 250 pixels d'encre au lieu de
+    // 205 918, et les deux mille du curseur depassaient alors les « cinq pour cent » d'avant.
+    // Une carte repeinte ajoute sa surface ; le curseur, un trait. La moitie de la carte les
+    // separe d'un facteur dix de chaque cote.
+    let (_, pose) = confie.cartes.last().expect("la carte en saisie");
+    let carte = (pose.largeur * pose.hauteur) as usize;
     let (avant, apres) = (encre(&sans), encre(&avec));
     assert!(
-        apres <= avant + avant / 20,
-        "la couche du dessus passe de {avant} a {apres} pixels d'encre : le processeur y \
-         repeint la carte que la carte graphique porte deja"
+        apres <= avant + carte / 2,
+        "la couche du dessus passe de {avant} a {apres} pixels d'encre, pour une carte de \
+         {carte} : le processeur y repeint la carte que la carte graphique porte deja"
     );
 }
 

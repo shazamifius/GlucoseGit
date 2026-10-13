@@ -71,18 +71,9 @@ pub struct GpuPresenter {
     scene: super::scene_gpu::SceneGpu,
     /// Les deux couches du processeur, autour des photos.
     couches: super::couches::Couches,
-    /// Le fond du canevas et sa grille (fiche 21, etape 3).
-    fond: super::fond_gpu::FondGpu,
-    /// Les lueurs des cartes (fiche 21, etape 3).
-    lueurs: super::lueurs_gpu::Lueurs,
-    /// Le corps des zones d'un gabarit (PRESET-1).
-    zones: super::zones_gpu::Zones,
-    /// La forme des membranes (MEMB-FORME-1).
-    membranes: super::membranes_gpu::Membranes,
-    /// Le champ des flèches (FLECHE-2).
-    fleches: super::fleches_gpu::FlechesGpu,
-    /// Le liseré du passé de la Time Machine.
-    lisere: super::lisere_gpu::LisereGpu,
+    /// Le fond, les lueurs, les zones, le rectangle de la vue, les membranes, les flèches et le
+    /// liseré : les passes de la carte autour des photos, en un seul endroit (`passes`).
+    passes: super::passes::Passes,
     /// Les bandes de la couche du dessus que la texture détient déjà.
     ///
     /// Cette couche n'a pas d'anneau : sa texture garde son contenu d'une image à l'autre,
@@ -204,22 +195,12 @@ impl GpuPresenter {
         // les photos dans le format de la SURFACE, celui ou tout se compose (fiche 21).
         let scene = super::scene_gpu::SceneGpu::nouvelle(&device, config.format);
         let couches = super::couches::Couches::nouvelles(&device, config.format);
-        let fond = super::fond_gpu::FondGpu::nouveau(&device, config.format);
-        let lueurs = super::lueurs_gpu::Lueurs::nouvelles(&device, config.format);
-        let zones = super::zones_gpu::Zones::nouvelles(&device, config.format);
-        let membranes = super::membranes_gpu::Membranes::nouvelles(&device, config.format);
-        let fleches = super::fleches_gpu::FlechesGpu::nouvelles(&device, config.format);
-        let lisere = super::lisere_gpu::LisereGpu::nouveau(&device, config.format);
+        let passes = super::passes::Passes::nouvelles(&device, config.format);
         let envoi = super::envoi::Envoi::nouveau(&device, &queue);
         Ok(Self {
             scene,
             couches,
-            fond,
-            lueurs,
-            zones,
-            membranes,
-            fleches,
-            lisere,
+            passes,
             surface: Some(surface),
             instance,
             adapter,

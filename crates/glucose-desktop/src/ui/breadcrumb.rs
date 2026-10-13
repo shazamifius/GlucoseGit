@@ -159,6 +159,86 @@ pub fn draw_breadcrumb(
     hauteur
 }
 
+/// Ce dont le fil dépend : le chemin, la largeur de l'écran, où il se pose, l'échelle.
+type CleDuFil = (Vec<String>, u32, u32, u32);
+
+/// **Le fil déjà dessiné** (CHROME-1) : il ne change qu'en entrant dans un dossier ou en en
+/// sortant, et ses lettres coûtaient leur rendu à chaque image.
+///
+/// Le cache n'est jamais vidé : à la racine, le fil ne se pose simplement pas. Son compte de
+/// dessins ne fait donc que monter — c'est lui qui nomme la texture pour la carte, et un nom
+/// qui resservirait pour d'autres pixels lui ferait poser l'ancien fil.
+pub struct ArianeCache {
+    pixmap: std::rc::Rc<tiny_skia::Pixmap>,
+    cle: CleDuFil,
+    /// La ligne d'écran où le tampon commence : le haut du fil, ramené à l'entier inférieur.
+    haut: f32,
+    dessins: u64,
+}
+
+/// **Tient le fil à jour** quand on est dans un dossier.
+///
+/// Le tampon commence à la ligne entière sous le haut du fil, et le dessin garde la fraction :
+/// ses lettres tombent ainsi exactement sur les pixels du dessin direct (la règle des
+/// panneaux, `dock::cache`).
+pub(super) fn tenir_le_fil(
+    store: &Store,
+    (typography, theme): (&Typography, &Theme),
+    (largeur, top, scale): (f32, f32, f32),
+    cache: &mut Option<ArianeCache>,
+) {
+    let chemin = store.folder_path();
+    if chemin.len() < 2 {
+        return;
+    }
+    let cle = (chemin, largeur.to_bits(), top.to_bits(), scale.to_bits());
+    if cache.as_ref().is_some_and(|c| c.cle == cle) {
+        return;
+    }
+    let hauteur = HEIGHT * crate::theme::clamp_ui_scale(scale);
+    let haut = top.floor();
+    let taille = (
+        largeur.ceil().max(1.0) as u32,
+        ((top + hauteur).ceil() - haut).max(1.0) as u32,
+    );
+    let Some(mut tampon) = tiny_skia::Pixmap::new(taille.0, taille.1) else {
+        return;
+    };
+    draw_breadcrumb(
+        &mut tampon.as_mut(),
+        store,
+        typography,
+        theme,
+        top - haut,
+        scale,
+    );
+    let dessins = cache.as_ref().map_or(0, |c| c.dessins) + 1;
+    *cache = Some(ArianeCache {
+        pixmap: std::rc::Rc::new(tampon),
+        cle,
+        haut,
+        dessins,
+    });
+}
+
+/// **Ce que le fil donne à poser**, dans un dossier seulement : son tampon, qui se compose.
+pub(super) fn morceau<'a>(
+    store: &Store,
+    cache: &'a Option<ArianeCache>,
+) -> Option<super::chrome::Morceau<'a>> {
+    if store.folder_path().len() < 2 {
+        return None;
+    }
+    let cache = cache.as_ref()?;
+    Some(super::chrome::Morceau::Tampon {
+        nom: "ariane",
+        dessins: cache.dessins,
+        pixmap: &cache.pixmap,
+        origine: (0.0, cache.haut),
+        melange: glucose_core::report::Melange::Composer,
+    })
+}
+
 /// La couleur des chevrons : plus effacée encore que les segments cliquables, parce qu'ils ne
 /// portent aucune information — ils ponctuent.
 fn separator_color(theme: &Theme) -> Color {

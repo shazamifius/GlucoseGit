@@ -10,8 +10,8 @@
 
 use super::arrow::Contournement;
 use super::{
-    folder, grille, halo, noter_le_cout_de_la_scene, pass, render_ui, scene, Couche, PaintKit,
-    Regard, Renderer, SymbioticHueCache,
+    folder, grille, halo, noter_le_cout_de_la_scene, pass, scene, Couche, PaintKit, Regard,
+    Renderer, SymbioticHueCache,
 };
 use crate::params::ViewPass;
 use crate::params::{Pointer, SceneOverlay};
@@ -461,7 +461,11 @@ impl Renderer {
         };
         self.rendre_la_region(dessus, store, ui, overlay, header_h, sur);
         noter_le_cout_de_la_scene(debut);
-        render_ui(dessus, store, ui, &self.typography, &self.theme, pointer);
+        // **La chrome ne passe plus par la couche du dessus** (CHROME-1) : la carte la pose
+        // d'après ses caches, et la couche ne porte plus que ce qui suit la vue.
+        let ecran = (taille.0 as f32, taille.1 as f32);
+        let kit = (&self.typography, &self.theme);
+        confie.chrome = crate::ui::chrome::ChromeConfiee::de(store, ui, kit, (ecran, pointer));
         self.magasin.fermer();
         confie
     }

@@ -491,17 +491,20 @@ fn confier_les_docks(
     panneaux
 }
 
-/// **Ce qui attend une décision, par-dessus les panneaux** (DECISION-1) : dans la couche du
-/// dessus quand aucun panneau n'est confié à la carte — rien ne coûte de plus —, dans son propre
-/// tampon sinon, que la carte pose après eux.
+/// **Ce qui attend une décision, par-dessus la chrome et les panneaux** (DECISION-1) : dans son
+/// propre tampon, que la carte pose après eux.
+///
+/// Il allait dans la couche du dessus quand aucun panneau n'était ouvert. Depuis que la carte
+/// pose la chrome **après** cette couche (CHROME-1), un menu ouvert près du haut y passerait
+/// sous la bande : il a toujours son tampon. Et quand rien n'attend de décision — le cas
+/// ordinaire, pendant qu'on navigue —, rien ne se peint ni ne se relève.
 fn poser_la_decision(
     (dessus, decision): (&mut Pixmap, &mut super::decision::Decision),
     panneaux: &mut Vec<crate::renderer::voies::APoser>,
     (renderer, store, ui, pointer): (&mut Renderer, &Store, &UiState, Pointer),
 ) {
-    if panneaux.is_empty() {
+    if !ui.attend_une_decision(store) {
         decision.retirer();
-        renderer.poser_ce_qui_attend_une_decision(&mut dessus.as_mut(), store, ui, pointer);
         return;
     }
     let taille = (dessus.width(), dessus.height());

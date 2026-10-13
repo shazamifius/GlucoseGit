@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 12/10/2026** (fiches 51 à 63 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 13/10/2026** (fiches 51 à 64 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -148,7 +148,18 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   les lueurs, les membranes, les flèches et le liseré de la Time Machine sont des nuanceurs qui
   évaluent la même loi que le processeur. Autour des photos, deux couches (`couches.rs`) qui ne
   s'effacent et ne partent que par les **bandes** réellement écrites (`bandes.rs`), envoyées par des
-  tampons qui restent (`envoi.rs`).
+  tampons qui restent (`envoi.rs`). Ces passes de la carte naissent, se préparent et se rangent
+  dans les cinq temps **en un seul endroit** (`present/passes.rs`), que la présentation et le banc
+  des épreuves emploient tous deux : une passe oubliée ne peut plus se cacher derrière une copie.
+* **La chrome est posée par la carte** (CHROME-1, fiche 64) : la bande, le fil d'Ariane, le fond
+  de la minimap et le rail sont des **textures** tenues par leurs caches, que la carte ne reçoit
+  qu'à leur changement (`ui/chrome.rs` : `parcourir` dit l'ordre une fois, la voie processeur
+  compose chaque morceau, `ChromeConfiee` les confie, et leurs pixels se lisent sans copie, par
+  `Rc`) ; le rectangle de la vue sur la minimap est un **nombre** — quatre filets et un voile que
+  la carte pose comme les zones. La couche du dessus ne porte plus que les ornements de la scène :
+  sans rien de choisi, elle est vide (297 lignes de moins par image au PC, 556 à 1 865 au
+  téléphone). Ce qui attend une décision passe toujours dans son tampon, au-dessus de la chrome,
+  et ne se peint que s'il y a quelque chose à décider (`UiState::attend_une_decision`).
 * **La garantie** : les deux voies rendent la même scène, au bit près ou à un écart **mesuré et
   borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat.
 * **La surface qu'Android reprend** (VIE-1, `app/vie.rs`, `present/gpu/vie.rs`) : au
@@ -182,7 +193,8 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
 ## 6. L'interface
 
 **L'ordre des couches, écrit une fois** (DECISION-1, `renderer/decision.rs`, fiche 59) : le
-canevas, la chrome permanente (la bande, le fil d'Ariane, la minimap, le rail), les panneaux,
+canevas, la chrome permanente (la bande, le fil d'Ariane, la minimap, le rail — dans l'ordre de
+`ui::chrome::parcourir`, CHROME-1), les panneaux,
 puis **ce qui attend une décision** (`ui/decision.rs` : la barre d'action, les options de flèche,
 la fenêtre des ancres, le toast, le menu, la question) — l'ordre même où le clic descend. Les
 deux peintres le posent après les panneaux ; sur la voie graphique, avec un panneau ouvert, dans

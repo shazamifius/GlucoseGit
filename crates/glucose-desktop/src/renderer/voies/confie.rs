@@ -40,6 +40,10 @@ pub struct Confie {
     /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
     /// annotations passent au-dessus (COMPOSANT-1).
     pub cartes: Vec<(String, Pose)>,
+    /// **La chrome permanente** — la bande, le fil d'Ariane, la minimap, le rail —, posée par la
+    /// carte **après** la couche du dessus et avant les panneaux (CHROME-1) : des textures
+    /// qu'elle ne reçoit qu'à leur changement, et le rectangle de la vue en filets.
+    pub chrome: crate::ui::chrome::ChromeConfiee,
     /// **Les panneaux du dock**, posés par la carte **après** la couche du dessus (PANNEAUX-1) :
     /// leur clé change à chaque redessin, et leurs pixels viennent du cache des panneaux.
     pub panneaux: Vec<APoser>,
@@ -48,10 +52,11 @@ pub struct Confie {
     pub composants: Vec<crate::renderer::composants::Composant>,
     /// **Les lignes que la couche du dessus porte**, relevées après que tout y a été dessiné.
     ///
-    /// Elles décident de ce qui s'efface et de ce qui part sur le bus (BANDE-1) : la chrome
-    /// et les ornements n'occupent qu'un huitième de l'écran, et le reste n'a aucune raison
-    /// d'être touché. Le relevé appartient à la peinture et non au renderer, parce que la
-    /// chrome se dessine **après** lui — un relevé pris ici manquerait les docks.
+    /// Elles décident de ce qui s'efface et de ce qui part sur le bus (BANDE-1) : depuis que la
+    /// carte pose la chrome (CHROME-1), il n'y reste que les ornements de la scène — rien du
+    /// tout sans sélection ni flèche —, et le reste n'a aucune raison d'être touché. Le relevé
+    /// appartient à la peinture et non au renderer : un panneau qui ne tient pas dans sa
+    /// texture s'y dessine **après** lui, et un relevé pris ici le manquerait.
     pub bandes_du_dessus: crate::present::bandes::Bandes,
     /// **Les lignes que la couche du dessous porte**, relevées de même (BANDE-2).
     ///
@@ -147,6 +152,8 @@ impl Confie {
                     repli: repli.map(Box::new),
                 }
             })
+            .chain(self.chrome.sous_le_cadre().iter().cloned())
+            .chain(self.chrome.sur_le_cadre().iter().cloned())
             .chain(self.panneaux.iter().cloned())
             .collect()
     }
@@ -155,6 +162,13 @@ impl Confie {
     /// cartes. Les panneaux viennent après.
     pub fn sous_le_dessus(&self) -> usize {
         self.photos.len() + self.cartes.len()
+    }
+
+    /// Combien des textures demandées passent **sous le rectangle de la vue** de la minimap :
+    /// celles d'avant la couche du dessus, puis la bande, le fil et le fond de la minimap. Le
+    /// rail, les panneaux et la décision viennent après (CHROME-1).
+    pub fn sous_le_cadre(&self) -> usize {
+        self.sous_le_dessus() + self.chrome.sous_le_cadre().len()
     }
 
     /// Le composant qui porte cette clé, s'il y en a un : c'est lui qui sait se rendre.
@@ -173,6 +187,9 @@ impl Confie {
         cle: &str,
     ) -> Option<crate::present::scene_gpu::Pixels<'a>> {
         use crate::present::scene_gpu::Pixels;
+        if let Some(chrome) = self.chrome.pixels(cle) {
+            return Some(Pixels::Pretes(chrome));
+        }
         if let Some(composant) = self.composant(cle) {
             return composant.rendre(renderer.kit()).map(Pixels::Rendues);
         }

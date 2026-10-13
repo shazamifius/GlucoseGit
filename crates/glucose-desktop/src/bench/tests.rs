@@ -244,7 +244,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// moitié en dessous — sa capture montrait deux formules hautes qui se touchaient. 46 850 pixels
 /// changent : les cartes de formules (806-1729 × 621-900), qui descendent leur formule au milieu
 /// de ses lignes, et une qui gagne une ligne. Regardées avant/après.
-const EMPREINTE_TEMOIN: &str = "651e25cef7fe9a96";
+/// **Puis, le 13/10** (CHROME-1) : le rectangle de la vue sur la minimap, celui de Tauri — un
+/// trait d'un point, au pixel entier, et un voile blanc à 0,04 dedans (`Minimap.tsx`) — au lieu
+/// d'un trait de 1,5 point en demi-teintes. 8 838 pixels changent, tous dans la minimap
+/// (1628-1768 × 788-853). Regardés avant/après, agrandis quatre fois.
+const EMPREINTE_TEMOIN: &str = "ab38c121729dd307";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -332,7 +336,7 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis** (fiche 53 § 10) : les cinq nœuds choisis forment un groupe — un seul cadre et ses
 /// quatre poignées, plus de carrés sur chaque nœud, et « Origine commune » dans la barre.
 /// Regardé.
-const EMPREINTE_TEMOIN_SELECTION: &str = "73dcc921871650a2";
+const EMPREINTE_TEMOIN_SELECTION: &str = "e4e733f9f7d3089a";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -404,7 +408,7 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (fiche 51 § 2) : « Copier » et « Couper » en tête du menu d'une sélection, regardés.
 /// **Puis** (fiche 53 § 10) : le cadre du groupe sous le menu, regardé.
 /// **Puis** (ACCES-1, fiche 63) : « Cadrer la sélection  F » après « Dupliquer », regardé.
-const EMPREINTE_TEMOIN_MENU: &str = "51100ba2f92123e8";
+const EMPREINTE_TEMOIN_MENU: &str = "6b07d5f5934522d0";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -57,23 +57,8 @@ pub(super) fn presenter(
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("glucose-couches"),
         });
-    couches::composer(
-        &mut encodeur,
-        &cible,
-        couches::Temps {
-            fond: &p.fond,
-            lueurs: &p.lueurs,
-            zones: &p.zones,
-            membranes: &p.membranes,
-            fleches: &p.fleches,
-            lisere: &p.lisere,
-            couches: &p.couches,
-            scene: &p.scene,
-            retenues: &retenues,
-            photos: confie.photos.len(),
-            sous_le_dessus: confie.sous_le_dessus(),
-        },
-    );
+    let temps = p.passes.temps((&p.couches, &p.scene, &retenues), confie);
+    couches::composer(&mut encodeur, &cible, temps);
     crate::perf::stage("encoder");
     // Ce qui a été envoyé part d'abord, puis l'image qui s'en sert (ENVOI-1).
     p.envoi.soumettre();
@@ -157,15 +142,7 @@ fn preparer_la_scene(
     let ecran = (dessous.width() as f32, dessous.height() as f32);
     let retenues = p.scene.preparer(&p.device, &p.queue, ecran, &textures);
     let photos = &confie.photos[..];
-    p.fond.preparer(&p.queue, ecran, confie.fond);
-    p.lueurs
-        .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
-    p.zones.preparer(&p.device, &p.queue, ecran, &confie.zones);
-    p.membranes
-        .preparer(&p.device, &p.queue, ecran, &confie.membranes);
-    p.fleches
-        .preparer(&p.device, &p.queue, ecran, &confie.fleches);
-    p.lisere.preparer(&p.queue, ecran, confie.lisere);
+    p.passes.preparer((&p.device, &p.queue), ecran, confie);
     // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
     // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de
     // quads, et ce n'est pas le même chantier que le bus.

@@ -5,11 +5,13 @@
 //! se peignait dans cette couche : il passait donc **sous** les panneaux, et la question du
 //! journal technique se cachait derrière Ordonner et Pomodoro (son téléphone, le 07/10).
 //!
-//! Sans panneau ouvert — l'état du lancement —, rien ne change : ce groupe va dans la couche du
-//! dessus, et ne coûte rien de plus. Avec un panneau, il se peint ici, dans un tampon à lui, et
-//! la carte le pose après les panneaux. Seules les lignes qu'il porte partent, relevées comme
-//! celles de la couche du dessus (BANDE-1) ; et sa clé ne change que si ses pixels changent :
-//! une question immobile ne repart pas sur le bus à chaque image.
+//! Depuis que la carte pose la chrome après la couche du dessus (CHROME-1), ce groupe se peint
+//! toujours ici, dans un tampon à lui, et la carte le pose en dernier — un menu ouvert près du
+//! haut passerait sinon sous la bande. **Rien à décider, rien ne se peint** : pendant qu'on
+//! navigue, ce tampon n'est ni effacé ni relevé (`UiState::attend_une_decision`). Seules les
+//! lignes qu'il porte partent, relevées comme celles de la couche du dessus (BANDE-1) ; et sa
+//! clé ne change que si ses pixels changent : une question immobile ne repart pas sur le bus à
+//! chaque image.
 
 use crate::present::bandes::Bandes;
 use crate::present::scene_gpu::Pose;
@@ -33,6 +35,9 @@ pub struct Decision {
     /// La tranche que la carte pose, et le haut où elle se pose.
     posee: Option<(u32, Pixmap)>,
     generation: usize,
+    /// Combien de fois le tampon a été peint et relevé : ce qui rend sa garde éprouvable — rien
+    /// à décider ne doit rien coûter, et aucune image ne le montrerait.
+    pub(super) releves: u64,
 }
 
 impl Decision {
@@ -58,6 +63,7 @@ impl Decision {
         self.ecrites.effacer(&mut tampon);
         dessiner(&mut tampon.as_mut());
         self.ecrites = Bandes::relever(&tampon);
+        self.releves += 1;
         let pose = self.trancher(&tampon);
         self.tampon = Some(tampon);
         pose

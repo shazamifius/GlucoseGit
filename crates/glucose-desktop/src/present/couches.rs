@@ -354,6 +354,8 @@ pub struct Temps<'a> {
     pub lueurs: &'a super::lueurs_gpu::Lueurs,
     /// Le corps des zones d'un gabarit, juste après le fond (PRESET-1).
     pub zones: &'a super::zones_gpu::Zones,
+    /// Le rectangle de la vue sur la minimap (CHROME-1), entre le fond de la minimap et le rail.
+    pub cadre: &'a super::zones_gpu::Zones,
     pub membranes: &'a super::membranes_gpu::Membranes,
     pub fleches: &'a super::fleches_gpu::FlechesGpu,
     pub lisere: &'a super::lisere_gpu::LisereGpu,
@@ -363,9 +365,12 @@ pub struct Temps<'a> {
     /// Combien des textures demandées sont des photos — les premières : la pose se coupe
     /// après elles pour laisser passer les lueurs (LUEUR-3).
     pub photos: usize,
-    /// Combien passent sous la couche du dessus — photos et cartes : les suivantes sont les
-    /// panneaux, posés après elle (PANNEAUX-1).
+    /// Combien passent sous la couche du dessus — photos et cartes : les suivantes sont la
+    /// chrome et les panneaux, posés après elle (PANNEAUX-1, CHROME-1).
     pub sous_le_dessus: usize,
+    /// Combien passent sous le rectangle de la vue : jusqu'au fond de la minimap. Le rail, les
+    /// panneaux et ce qui attend une décision viennent après (CHROME-1).
+    pub sous_le_cadre: usize,
 }
 
 /// **Encode la passe des cinq temps** : le fond, le dessous, les photos, les lueurs et les
@@ -426,11 +431,15 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
     // poignées qui sont dans la couche du dessus (FLECHE-2).
     temps.fleches.poser(&mut passe);
     temps.couches.poser_le_dessus(&mut passe);
-    // Les panneaux, après tout ce que la couche du dessus porte — comme la chrome au
-    // processeur, qui les y composait en dernier (PANNEAUX-1).
+    // La chrome, après tout ce que la couche du dessus porte — la bande, le fil, le fond de la
+    // minimap, puis le rectangle de la vue, puis le rail (CHROME-1) —, et les panneaux après
+    // elle, comme la voie processeur les compose (PANNEAUX-1).
+    let cadre = retenues.avant(temps.sous_le_cadre);
+    temps.scene.poser(&mut passe, retenues, cartes..cadre);
+    temps.cadre.poser(&mut passe);
     temps
         .scene
-        .poser(&mut passe, retenues, cartes..retenues.len());
+        .poser(&mut passe, retenues, cadre..retenues.len());
     // Le liseré du passé, par-dessus tout : il borde la fenêtre entière, chrome comprise.
     temps.lisere.poser(&mut passe);
 }

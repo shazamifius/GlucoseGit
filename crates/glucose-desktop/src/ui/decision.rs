@@ -16,6 +16,25 @@ use crate::typography::Typography;
 use glucose_core::store::Store;
 use tiny_skia::PixmapMut;
 
+impl UiState {
+    /// **Y a-t-il quelque chose qui attend une décision ?** — la réunion des conditions de
+    /// chaque dessin de ce groupe : une sélection (la barre d'action, et les options de flèche
+    /// qui se posent sur elle), l'éditeur d'ancres, un message, un menu, une question.
+    ///
+    /// Sur la voie graphique, ce groupe se peint dans un tampon à lui, au-dessus de la chrome
+    /// (CHROME-1), qu'il faut relever ligne à ligne : sans rien à décider — le cas ordinaire,
+    /// pendant qu'on navigue —, on ne le peint ni ne le relève. Un dessin ajouté au groupe
+    /// sans sa condition ici ne laisserait aucune trace : il ne paraîtrait pas, et l'épreuve
+    /// `rien_a_decider_ne_dessine_rien` le dit.
+    pub fn attend_une_decision(&self, store: &Store) -> bool {
+        store.compte_de_la_selection() > 0
+            || self.ancrage.is_some()
+            || self.current_toast.is_some()
+            || self.context_menu_at.is_some()
+            || self.question.is_some()
+    }
+}
+
 /// La barre d'action et les options de flèche — ce que la fenêtre des ancres recouvre.
 pub fn poser_les_barres(
     pixmap: &mut PixmapMut,
@@ -105,3 +124,6 @@ fn dessiner_le_menu(
         ui.scale_factor,
     );
 }
+
+#[cfg(test)]
+mod tests;

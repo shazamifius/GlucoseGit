@@ -105,7 +105,8 @@ pub fn survol_de_la_bande(
 
 /// La bande déjà dessinée, et la clé sous laquelle elle l'a été.
 pub struct BandeCache {
-    pub(super) pixmap: Pixmap,
+    /// Partagé avec la carte, qui le lit sans copie quand la bande change (CHROME-1).
+    pub(super) pixmap: std::rc::Rc<Pixmap>,
     cle: BandeKey,
     /// Combien de fois la bande a été **réellement** dessinée depuis le début de la session.
     ///
@@ -116,9 +117,9 @@ pub struct BandeCache {
     pub(super) dessins: u64,
 }
 
-/// Dessine la bande du haut : depuis le cache si rien n'a changé, sinon à neuf.
-pub(super) fn render_bande(
-    pixmap: &mut PixmapMut,
+/// **Tient la bande à jour** : la refait si quelque chose dont elle dépend a changé, et sinon
+/// ne fait rien. La poser revient à la voie qui l'emploie ([`super::chrome`]).
+pub(super) fn tenir_la_bande(
     store: &Store,
     ui: &mut UiState,
     typo: &Typography,
@@ -181,15 +182,42 @@ pub(super) fn render_bande(
         }
         let dessins = ui.bande_cache.as_ref().map_or(0, |c| c.dessins) + 1;
         ui.bande_cache = Some(BandeCache {
-            pixmap: tampon,
+            pixmap: std::rc::Rc::new(tampon),
             cle,
             dessins,
         });
         crate::perf::compteur("bande_dessins", dessins as f64);
     }
+}
+
+/// La bande tenue puis posée, comme la voie processeur le fait — pour les épreuves du cache.
+#[cfg(test)]
+pub(super) fn render_bande(
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    ui: &mut UiState,
+    typo: &Typography,
+    theme: &Theme,
+    largeur: f32,
+    pointer: Pointer,
+) {
+    tenir_la_bande(store, ui, typo, theme, largeur, pointer);
     if let Some(cache) = &ui.bande_cache {
         crate::composition::poser(pixmap, &cache.pixmap, (0.0, 0.0), Melange::Remplacer);
     }
+}
+
+/// **Ce que la bande donne à poser** : son tampon, à l'origine de l'écran, qui remplace — elle
+/// est opaque.
+pub(super) fn morceau(ui: &UiState) -> Option<super::chrome::Morceau<'_>> {
+    let cache = ui.bande_cache.as_ref()?;
+    Some(super::chrome::Morceau::Tampon {
+        nom: "bande",
+        dessins: cache.dessins,
+        pixmap: &cache.pixmap,
+        origine: (0.0, 0.0),
+        melange: Melange::Remplacer,
+    })
 }
 
 /// **La barre du haut, ou rien** quand elle est sur le côté ([`super::rail`]) : la bande n'a

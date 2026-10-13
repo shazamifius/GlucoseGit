@@ -327,20 +327,144 @@ fn test_decision_1_la_carte_pose_la_question_apres_les_panneaux() {
     assert!(voile.alpha() > 0, "rien ne voile le panneau");
 }
 
-/// **Sans panneau, rien ne change** : la question reste dans la couche du dessus, et la carte
-/// ne reçoit aucune texture de plus — c'est l'état du lancement, et il ne coûte rien.
+/// **CHROME-1 — sans panneau, la question passe au-dessus de la chrome.** Elle allait dans la
+/// couche du dessus, que la carte pose désormais **sous** la bande : un menu ouvert près du
+/// haut y aurait disparu. Elle part dans son tampon, posé en dernier, et la couche du dessus
+/// ne la porte plus.
 #[test]
-fn test_decision_1_sans_panneau_la_question_reste_dans_le_dessus() {
+fn test_chrome_1_sans_panneau_la_question_passe_au_dessus_de_la_chrome() {
     let mut app = application();
     sans_panneau(&mut app);
     regarder(&mut app, 0.0);
     let (_, sans) = une_image_et_son_dessus(&mut app);
     poser_la_question(&mut app);
     let (_, avec) = une_image_et_son_dessus(&mut app);
-    assert!(avec.panneaux.is_empty(), "aucune texture de plus");
-    assert!(
-        avec.bandes_du_dessus.lignes() > sans.bandes_du_dessus.lignes(),
+    assert_eq!(
+        avec.bandes_du_dessus, sans.bandes_du_dessus,
         "la couche du dessus porte la question"
+    );
+    let textures = avec.textures();
+    let derniere = textures.last().map(|t| t.identite.as_str());
+    assert_eq!(derniere, Some("decision"), "la question se pose en dernier");
+    assert!(
+        textures.iter().any(|t| t.identite == "chrome:bande"),
+        "la bande est posée par la carte, avant la question"
+    );
+}
+
+/// **CHROME-1 — rien à décider, rien ne se peint** : pendant qu'on navigue, le tampon de la
+/// décision n'est ni effacé ni relevé, et rien ne part. Une question posée le fait travailler.
+#[test]
+fn test_chrome_1_rien_a_decider_ne_coute_rien() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    let avant = app.tampons.decision.releves;
+    for y in [0.0, 40.0, 80.0] {
+        regarder(&mut app, y);
+        let (_, confie) = une_image_et_son_dessus(&mut app);
+        assert!(
+            confie.panneaux.is_empty(),
+            "rien à décider, et une texture part"
+        );
+    }
+    assert_eq!(
+        app.tampons.decision.releves, avant,
+        "le tampon de la décision se relève sans rien à décider"
+    );
+    poser_la_question(&mut app);
+    une_image_et_son_dessus(&mut app);
+    assert_eq!(
+        app.tampons.decision.releves,
+        avant + 1,
+        "la question le fait travailler"
+    );
+}
+
+/// **CHROME-1 — la chrome part sur la carte, et la couche du dessus ne la porte plus.** Rien de
+/// choisi, rien à décider, aucune flèche : elle ne porte plus rien du tout — ni effacée, ni
+/// relevée sur ses lignes, ni envoyée. La bande, elle, se lit par sa clé, telle que son cache
+/// la tient.
+#[test]
+fn test_chrome_1_la_chrome_part_sur_la_carte_et_le_dessus_reste_vide() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    let (dessus, confie) = une_image_et_son_dessus(&mut app);
+    assert!(
+        confie.bandes_du_dessus.vides(),
+        "la couche du dessus porte encore {:?}",
+        confie.bandes_du_dessus
+    );
+    assert!(dessus.pixels().iter().all(|p| p.alpha() == 0));
+    let noms: Vec<&str> = confie
+        .chrome
+        .sous_le_cadre()
+        .iter()
+        .map(|t| t.identite.as_str())
+        .collect();
+    assert_eq!(noms, ["chrome:bande", "chrome:minimap"]);
+    assert!(!confie.chrome.cadre().is_empty(), "le rectangle de la vue");
+    let bande = &confie.chrome.sous_le_cadre()[0];
+    let pixels = confie
+        .chrome
+        .pixels(&bande.cle)
+        .expect("ses pixels, par sa clé");
+    assert_eq!(
+        (pixels.width() as f32, pixels.height() as f32),
+        (bande.pose.largeur, bande.pose.hauteur),
+        "la texture a la taille de sa pose : un texel par pixel"
+    );
+}
+
+/// **CHROME-1 — une chrome immobile garde ses clés** pendant que la vue glisse : la carte ne
+/// la reçoit qu'une fois. Le rectangle de la vue, lui, suit — c'est un nombre, pas une image.
+/// Et un document qui change donne au fond de la minimap une clé neuve.
+#[test]
+fn test_chrome_1_une_chrome_immobile_garde_ses_cles() {
+    let mut app = application();
+    // Un document plus grand que la vue : les bornes de la minimap ne dépendent pas d'elle.
+    let board = app.store.project.active_board_id.clone();
+    let loin = Annotation::membrane("loin", -4000.0, -4000.0, 9000.0, 9000.0);
+    app.store.add_annotation(&board, loin);
+    app.store.clear_selection();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    let (_, premiere) = une_image_et_son_dessus(&mut app);
+    regarder(&mut app, -150.0);
+    let (_, seconde) = une_image_et_son_dessus(&mut app);
+    let cles = |c: &Confie| {
+        let chrome = c
+            .chrome
+            .sous_le_cadre()
+            .iter()
+            .chain(c.chrome.sur_le_cadre());
+        chrome.map(|t| t.cle.clone()).collect::<Vec<_>>()
+    };
+    assert_eq!(
+        cles(&premiere),
+        cles(&seconde),
+        "la vue a glissé, la chrome n'a pas changé"
+    );
+    assert_ne!(
+        premiere.chrome.cadre(),
+        seconde.chrome.cadre(),
+        "le rectangle de la vue suit la vue"
+    );
+    app.store
+        .add_annotation(&board, Annotation::text("t", 0.0, 0.0, "neuf"));
+    app.store.clear_selection();
+    let (_, troisieme) = une_image_et_son_dessus(&mut app);
+    let minimap = |c: &Confie| {
+        let chrome = c.chrome.sous_le_cadre();
+        let fond = chrome.iter().find(|t| t.identite == "chrome:minimap");
+        fond.map(|t| t.cle.clone())
+    };
+    assert!(minimap(&premiere).is_some());
+    assert_ne!(
+        minimap(&premiere),
+        minimap(&troisieme),
+        "le document a changé, et le fond de la minimap garde sa clé"
     );
 }
 

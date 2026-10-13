@@ -48,8 +48,12 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 /// distingue — mais il fallait le mesurer, pas le supposer, et surtout pas écrire « au bit
 /// près » comme je l'avais fait.
 pub struct MinimapCache {
-    pixmap: tiny_skia::Pixmap,
+    /// Partagé avec la carte, qui le lit sans copie quand le fond change (CHROME-1).
+    pixmap: std::rc::Rc<tiny_skia::Pixmap>,
     key: MinimapKey,
+    /// Combien de fois le fond a été **réellement** dessiné : ce qui dit à la carte qu'il a
+    /// changé, et aux épreuves qu'il ne se refait pas pour rien.
+    pub(super) dessins: u64,
 }
 
 /// Ce qui, s'il change, oblige à refaire le fond de la minimap.
@@ -162,23 +166,18 @@ pub fn layout_minimap(
     })
 }
 
-pub fn render_minimap(
-    pixmap: &mut PixmapMut,
+/// **Tient le fond de la minimap à jour**, et dit où elle se pose — ou rien quand il n'y a
+/// pas de minimap. La poser revient à la voie qui l'emploie ([`super::chrome`]).
+pub(super) fn tenir_la_minimap(
     store: &Store,
     theme: &Theme,
     (w, h): (f32, f32),
     (scale, retrait): (f32, (f32, f32)),
     cache: &mut Option<MinimapCache>,
-) {
+) -> Option<MinimapBounds> {
     let s = crate::theme::clamp_ui_scale(scale);
-    let mb = match layout_minimap(store, w, h, s, retrait) {
-        Some(m) => m,
-        None => return,
-    };
-    if store.active_board().is_none() {
-        return;
-    }
-
+    let mb = layout_minimap(store, w, h, s, retrait)?;
+    store.active_board()?;
     let cle = MinimapKey {
         version: store.version,
         size: (mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32),
@@ -190,20 +189,53 @@ pub fn render_minimap(
         ],
     };
     if cache.as_ref().map(|c| c.key) != Some(cle) {
-        *cache = dessine_fond(store, theme, &mb, s).map(|pixmap| MinimapCache { pixmap, key: cle });
+        let dessins = cache.as_ref().map_or(0, |c| c.dessins) + 1;
+        *cache = dessine_fond(store, theme, &mb, s).map(|pixmap| MinimapCache {
+            pixmap: std::rc::Rc::new(pixmap),
+            key: cle,
+            dessins,
+        });
     }
-    if let Some(c) = cache.as_ref() {
-        // Par REPORT-1, comme les panneaux du dock : le fond de la minimap est un tampon posé
-        // à une position entière, exactement le cas où le chemin exact s'applique.
-        crate::composition::poser(
-            pixmap,
-            &c.pixmap,
-            (mb.mm_x, mb.mm_y),
-            glucose_core::report::Melange::Composer,
-        );
-    }
+    Some(mb)
+}
 
-    dessine_camera(pixmap, theme, &mb, s);
+/// La minimap tenue puis posée, comme la voie processeur le fait — pour les épreuves.
+#[cfg(test)]
+pub fn render_minimap(
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    theme: &Theme,
+    (w, h): (f32, f32),
+    (scale, retrait): (f32, (f32, f32)),
+    cache: &mut Option<MinimapCache>,
+) {
+    let Some(mb) = tenir_la_minimap(store, theme, (w, h), (scale, retrait), cache) else {
+        return;
+    };
+    for m in morceaux(cache, theme, (&mb, scale)).into_iter().flatten() {
+        m.poser(pixmap);
+    }
+}
+
+/// **Ce que la minimap donne à poser** : son fond, puis le rectangle de la vue par-dessus.
+///
+/// Par REPORT-1, comme les panneaux du dock : le fond est un tampon posé à une position
+/// entière, exactement le cas où le chemin exact s'applique.
+pub(super) fn morceaux<'a>(
+    cache: &'a Option<MinimapCache>,
+    theme: &Theme,
+    (mb, scale): (&MinimapBounds, f32),
+) -> [Option<super::chrome::Morceau<'a>>; 2] {
+    let fond = cache.as_ref().map(|c| super::chrome::Morceau::Tampon {
+        nom: "minimap",
+        dessins: c.dessins,
+        pixmap: &c.pixmap,
+        origine: (mb.mm_x, mb.mm_y),
+        melange: glucose_core::report::Melange::Composer,
+    });
+    let s = crate::theme::clamp_ui_scale(scale);
+    let cadre = super::chrome::Morceau::Cadre(cadre_de_la_vue(theme, mb, s));
+    [fond, Some(cadre)]
 }
 
 /// Dessine le fond de la minimap — tout sauf le rectangle de caméra — dans un pixmap à part.
@@ -391,30 +423,59 @@ fn dessine_fond(
     Some(vignette)
 }
 
-/// Dessine le rectangle de caméra. Il bouge à chaque déplacement, donc il n'est jamais mis en
-/// cache — mais c'est **un** rectangle, pas un par nœud.
-fn dessine_camera(pixmap: &mut PixmapMut, theme: &Theme, mb: &MinimapBounds, s: f32) {
+/// **Le rectangle de la vue**, en quatre filets et un voile, sur la grille de pixels
+/// (CHROME-1).
+///
+/// Il bouge à chaque déplacement, donc il n'est jamais mis en cache — mais c'est **un**
+/// rectangle, pas un par nœud. Et ce qui bouge à chaque image doit être un **nombre**, pas une
+/// image : la carte le pose d'après ces boîtes, comme Chromium déplace une couche sans la
+/// rastériser à nouveau ; le processeur remplit les mêmes. Une seule définition, donc les
+/// mêmes pixels sur les deux voies.
+///
+/// **Ce que Glucose Tauri traçait** (`Minimap.tsx`) : un trait d'**un** point, blanc à 0,35,
+/// centré sur le bord, puis un voile blanc à 0,04 dedans. Glucose Rust traçait 1,5 point et
+/// avait perdu le voile (fiche 06 § 9 le notait « à vérifier »). Le trait garde un point,
+/// ramené au pixel entier — au moins un ; sa toile de 180 × 120, agrandie par le navigateur, le
+/// rendait flou, Glucose le pose net. Rien ne se recouvre : les couleurs sont translucides, et
+/// un coin peint deux fois serait plus clair que le reste.
+pub(super) fn cadre_de_la_vue(
+    theme: &Theme,
+    mb: &MinimapBounds,
+    s: f32,
+) -> Vec<crate::renderer::zone::Rectangle> {
     let pad = 6.0 * s;
     let cx = mb.mm_x + pad + ((mb.cam_left - mb.min_x) as f32 * mb.scale);
     let cy = mb.mm_y + pad + ((mb.cam_top - mb.min_y) as f32 * mb.scale);
     let cw = (mb.vp_w as f32 * mb.scale).max(4.0 * s);
     let ch = (mb.vp_h as f32 * mb.scale).max(4.0 * s);
-
-    let mut cam_paint = Paint::default();
-    cam_paint.set_color(theme.minimap_viewport);
-    let cam_stroke = Stroke {
-        width: 1.5 * s,
-        ..Default::default()
+    let e = s.round().max(1.0);
+    let (g, h) = ((cx - e / 2.0).round(), (cy - e / 2.0).round());
+    let (d, b) = ((cx + cw + e / 2.0).round(), (cy + ch + e / 2.0).round());
+    let trait_ = |rect| (rect, theme.minimap_viewport);
+    let boites = if d - g <= 2.0 * e || b - h <= 2.0 * e {
+        // Trop petit pour avoir un intérieur : le trait couvre tout.
+        vec![trait_(Rect::from_ltrb(g, h, d, b))]
+    } else {
+        vec![
+            trait_(Rect::from_ltrb(g, h, d, h + e)),
+            trait_(Rect::from_ltrb(g, b - e, d, b)),
+            trait_(Rect::from_ltrb(g, h + e, g + e, b - e)),
+            trait_(Rect::from_ltrb(d - e, h + e, d, b - e)),
+            (
+                Rect::from_ltrb(g + e, h + e, d - e, b - e),
+                theme.minimap_viewport_fond,
+            ),
+        ]
     };
-    let mut cam_pb = PathBuilder::new();
-    cam_pb.move_to(cx, cy);
-    cam_pb.line_to(cx + cw, cy);
-    cam_pb.line_to(cx + cw, cy + ch);
-    cam_pb.line_to(cx, cy + ch);
-    cam_pb.close();
-    if let Some(path) = cam_pb.finish() {
-        pixmap.stroke_path(&path, &cam_paint, &cam_stroke, Transform::identity(), None);
-    }
+    boites
+        .into_iter()
+        .filter_map(|(rect, couleur)| {
+            Some(crate::renderer::zone::Rectangle {
+                rect: rect?,
+                couleur,
+            })
+        })
+        .collect()
 }
 
 /// Le point du monde que la minimap désigne sous `(x, y)`, ou rien si le curseur est ailleurs.

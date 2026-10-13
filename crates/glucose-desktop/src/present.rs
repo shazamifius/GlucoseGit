@@ -71,6 +71,7 @@ pub mod gpu;
 pub mod lisere_gpu;
 pub mod lueurs_gpu;
 pub mod membranes_gpu;
+pub mod passes;
 pub mod scene_gpu;
 pub mod souvenir;
 pub mod zones_gpu;

@@ -13,6 +13,7 @@ pub mod ancrage;
 pub mod bande;
 pub mod boutons;
 pub mod breadcrumb;
+pub mod chrome;
 pub mod context_menu;
 pub mod decision;
 pub mod minimap;
@@ -159,6 +160,8 @@ pub struct UiState {
     pub minimap_cache: Option<MinimapCache>,
     /// La barre et les onglets, déjà dessinés (voir [`bande::BandeCache`]).
     pub bande_cache: Option<bande::BandeCache>,
+    /// Le fil d'Ariane, déjà dessiné (voir [`breadcrumb::ArianeCache`]).
+    pub ariane_cache: Option<breadcrumb::ArianeCache>,
     /// Ce qu'on est en train de faire aux onglets : les renommer, les glisser (BOARDS-1).
     pub onglets: onglets::EtatDesOnglets,
     /// **Le mode référence** (fiche 51 § 5) : plus aucune interface, le canevas partout. Le menu
@@ -216,6 +219,7 @@ impl UiState {
             scale_factor: 1.0,
             minimap_cache: None,
             bande_cache: None,
+            ariane_cache: None,
             onglets: onglets::EtatDesOnglets::default(),
             reference: false,
             rail: rail::Rail::default(),
@@ -286,6 +290,8 @@ impl UiState {
 /// Ce que dit le bouton Collab tant que la collaboration (fiche 09 § 9) n'existe pas.
 pub const NOT_YET_COLLAB: &str = "Collaboration : pas encore disponible";
 
+/// **La chrome permanente, par la voie processeur** : chaque morceau composé dans le tampon,
+/// dans l'ordre que [`chrome::parcourir`] dit — le même que la carte pose (CHROME-1).
 pub fn render_ui(
     pixmap: &mut PixmapMut,
     store: &Store,
@@ -294,65 +300,10 @@ pub fn render_ui(
     theme: &Theme,
     pointer: Pointer,
 ) {
-    let w = pixmap.width() as f32;
-    let h = pixmap.height() as f32;
-
-    // Nettoyage toast expiré
-    if let Some(ref t) = ui.current_toast {
-        if t.is_expired() {
-            ui.current_toast = None;
-        }
-    }
-
-    // 1 et 2. La barre et les onglets : la bande du haut, rendue une fois par changement.
-    //
-    // **Refaite, ou seulement recomposee ?** Le poste `bande` vaut 0,22 ms en median et
-    // 6,95 ms sur une image de zoom du terrain : un ecart de trente qui ne peut venir que
-    // d'un redessin. Reste a savoir combien souvent -- et la duree seule ne le dit pas.
-    if ui.reference {
-        // Le mode référence : rien de permanent. Le toast et le menu, qui attendent une
-        // décision, se posent après (`ui::decision`).
-        return;
-    }
-    let dessins_avant = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
-    bande::render_bande(pixmap, store, ui, typo, theme, w, pointer);
-    let dessins_apres = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
-    crate::perf::compteur(
-        "bande_refaite",
-        f64::from(u8::from(dessins_apres != dessins_avant)),
-    );
-    crate::perf::stage("bande");
-
-    // 2 bis. Fil d'Ariane des dossiers — seulement quand on est entré quelque part.
-    breadcrumb::draw_breadcrumb(
-        pixmap,
-        store,
-        typo,
-        theme,
-        ui.header_height(),
-        ui.scale_factor,
-    );
-    // **Le fil d'Ariane a sa marque, et il ne l'avait pas.** `minimap` mesurait depuis
-    // `bande`, donc le fil d'Ariane tombait dedans -- QUATRIEME marque de ce dépôt à
-    // absorber ce qui la précède, après `occlusion` (fiche 19 § 4.4), `recolte` (fiche 22
-    // § 5.4) et `blit` (fiche 23 § 2). Les trois premières ont chacune désigné le mauvais
-    // coupable pendant plusieurs sessions.
-    crate::perf::stage("ariane");
-
-    // 3. Minimap (en bas à droite)
-    let echelle_ui = ui.scale_factor;
-    let retrait = (ui.marges.droite, ui.marges.sous());
-    minimap::render_minimap(
-        pixmap,
-        store,
-        theme,
-        (w, h),
-        (echelle_ui, retrait),
-        &mut ui.minimap_cache,
-    );
-
-    rail::render_rail(pixmap, ui, typo, theme);
-    crate::perf::stage("minimap");
+    let taille = (pixmap.width() as f32, pixmap.height() as f32);
+    chrome::parcourir(store, ui, (typo, theme), (taille, pointer), |morceau| {
+        morceau.poser(pixmap)
+    });
 }
 
 /// Détecte si un clic souris se situe sur l'interface et retourne l'action associée

@@ -57,8 +57,9 @@ const TEINTE_DU_FILET: u8 = 204;
 /// La couleur de la phrase.
 const PHRASE: u32 = 0x555555;
 
-/// **Un rectangle du corps d'une zone**, sur la grille de pixels, et sa couleur : ce que les
-/// deux voies posent, l'une en le remplissant, l'autre par la carte.
+/// **Un rectangle uni**, sur la grille de pixels, et sa couleur — le corps d'une zone, ou un
+/// filet du rectangle de la vue sur la minimap (CHROME-1) : ce que les deux voies posent,
+/// l'une en le remplissant, l'autre par la carte.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rectangle {
     pub rect: Rect,

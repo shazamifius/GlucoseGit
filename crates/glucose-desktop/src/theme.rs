@@ -199,6 +199,8 @@ pub struct Theme {
     pub minimap_border: Color,
     /// Liseré du cadre de caméra : blanc à 0,35.
     pub minimap_viewport: Color,
+    /// Le voile dans le cadre de caméra : blanc à 0,04 (`Minimap.tsx` de Tauri, CHROME-1).
+    pub minimap_viewport_fond: Color,
     /// Un nœud ordinaire dans la minimap.
     pub minimap_element: Color,
 
@@ -356,6 +358,7 @@ impl Theme {
             minimap_bg: hexa(0x0d0d0d, 235),
             minimap_border: hex(0x2a2a2a),
             minimap_viewport: hexa(0xffffff, 89),
+            minimap_viewport_fond: hexa(0xffffff, 10),
             minimap_element: hex(0x2a2a2a),
 
             toast_bg: hexa(0x1a1a1a, 247),
@@ -551,6 +554,11 @@ mod tests {
             "cadre de caméra à 0,35"
         );
         assert_eq!(
+            rgba(t.minimap_viewport_fond),
+            (255, 255, 255, 10),
+            "voile du cadre de caméra à 0,04"
+        );
+        assert_eq!(
             rgba(t.minimap_element),
             (0x2a, 0x2a, 0x2a, 255),
             "image ordinaire"
@@ -592,6 +600,7 @@ mod tests {
             ("minimap_bg", t.minimap_bg),
             ("minimap_border", t.minimap_border),
             ("minimap_viewport", t.minimap_viewport),
+            ("minimap_viewport_fond", t.minimap_viewport_fond),
             ("minimap_element", t.minimap_element),
             ("toast_bg", t.toast_bg),
             ("toast_border", t.toast_border),
