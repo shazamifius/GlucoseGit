@@ -408,7 +408,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (fiche 51 § 2) : « Copier » et « Couper » en tête du menu d'une sélection, regardés.
 /// **Puis** (fiche 53 § 10) : le cadre du groupe sous le menu, regardé.
 /// **Puis** (ACCES-1, fiche 63) : « Cadrer la sélection  F » après « Dupliquer », regardé.
-const EMPREINTE_TEMOIN_MENU: &str = "6b07d5f5934522d0";
+/// **Puis** (P2, proposition 2, fiche 66) : « Storyboard de la sélection » après « Retirer les
+/// bordures », regardé.
+const EMPREINTE_TEMOIN_MENU: &str = "a2ef02e70e63277a";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

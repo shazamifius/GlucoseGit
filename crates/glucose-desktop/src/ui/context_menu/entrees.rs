@@ -113,6 +113,12 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "Retirer les bordures",
             "Ctrl+B",
         )));
+        // Une case par image choisie (P2, proposition 2, fiche 66).
+        defs.push(Some((
+            MenuAction::StoryboardDeLaSelection,
+            "Storyboard de la sélection",
+            "",
+        )));
     }
     defs.push(None);
     defs.push(Some((MenuAction::ToFront, "Au premier plan", "Ctrl+]")));

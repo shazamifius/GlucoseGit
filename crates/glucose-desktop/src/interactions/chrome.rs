@@ -124,6 +124,7 @@ impl GlucoseApp {
             MenuAction::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
             MenuAction::ToggleLock => self.toggle_lock(),
             MenuAction::TrimBorders => self.retirer_les_bordures_de_la_selection(),
+            MenuAction::StoryboardDeLaSelection => self.storyboard_de_la_selection(),
             MenuAction::ToFront => {
                 self.store.move_selection_in_stack(&board, StackMove::Front);
             }

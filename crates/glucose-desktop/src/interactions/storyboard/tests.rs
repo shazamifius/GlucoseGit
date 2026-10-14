@@ -475,3 +475,84 @@ fn test_p2_1_trois_images_glissees_remplissent_trois_cases() {
     let rendue = app.store.image(&board, "c").expect("l'image");
     assert_eq!((rendue.x, rendue.y), (1220.0, 840.0), "un Ctrl+Z rend tout");
 }
+
+/// **P2, proposition 2 — « Storyboard de la sélection », par le vrai clic droit** (fiche 66) :
+/// deux images choisies, un clic droit sur l'une, l'entrée du menu ; le storyboard existant
+/// s'allonge de deux cases, chacune prenant une image, dans l'ordre de lecture.
+#[test]
+fn test_p2_2_le_storyboard_de_la_selection_par_le_menu() {
+    let (mut app, board) = app();
+    for (id, x) in [("a", 1150.0), ("b", 1300.0)] {
+        let img = BoardImage::new(id, x, 800.0, 100.0, 100.0);
+        app.store.add_image(&board, img);
+    }
+    app.store.clear_selection();
+    app.store.select_image("b".to_string(), false);
+    app.store.select_image("a".to_string(), true);
+    app.ui.current_toast = None;
+    app.handle_cursor_moved(PhysicalPosition::new(1150.0, 800.0));
+    app.handle_mouse_down(MouseButton::Right, ECRAN.0, ECRAN.1);
+    app.handle_mouse_up(MouseButton::Right);
+    let menu = crate::ui::context_menu::layout_context_menu(
+        &app.store,
+        &app.renderer.typography,
+        (app.ui.context_menu_at.expect("un menu ouvert"), None),
+        ECRAN,
+        app.ui.scale_factor,
+        false,
+    )
+    .expect("un menu");
+    let rect = menu
+        .rows
+        .iter()
+        .find_map(|r| match r {
+            crate::ui::context_menu::MenuRow::Item { label, rect, .. }
+                if *label == "Storyboard de la sélection" =>
+            {
+                Some(*rect)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("l'entrée manque au menu : {:?}", menu.rows));
+    let centre = (rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0);
+    app.handle_cursor_moved(PhysicalPosition::new(
+        f64::from(centre.0),
+        f64::from(centre.1),
+    ));
+    app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
+    app.handle_mouse_up(MouseButton::Left);
+    let cases = app.store.cases(&board);
+    assert_eq!(cases.len(), 10, "deux cases de plus");
+    let dans = |id: &str| {
+        let i = app.store.image(&board, id).expect("l'image");
+        cases.iter().position(|c| c.contient((i.x, i.y)))
+    };
+    assert_eq!(
+        (dans("a"), dans("b")),
+        (Some(8), Some(9)),
+        "l'ordre de lecture"
+    );
+}
+
+/// **Sans storyboard, celui de la sélection naît à sa place** : sa première case par son coin,
+/// au coin haut gauche de la sélection (P2, proposition 2, fiche 66).
+#[test]
+fn test_p2_2_sans_storyboard_il_nait_au_coin_de_la_selection() {
+    let (mut app, board) = app();
+    app.store.effacer_le_storyboard(&board);
+    for (id, x) in [("a", 1150.0), ("b", 1300.0)] {
+        let img = BoardImage::new(id, x, 800.0, 100.0, 100.0);
+        app.store.add_image(&board, img);
+    }
+    app.store.clear_selection();
+    app.store.select_image("a".to_string(), false);
+    app.store.select_image("b".to_string(), true);
+    app.storyboard_de_la_selection();
+    let cases = app.store.cases(&board);
+    assert_eq!(cases.len(), 2);
+    assert_eq!(
+        (cases[0].x, cases[0].y),
+        (1100.0, 750.0),
+        "au coin de la sélection"
+    );
+}

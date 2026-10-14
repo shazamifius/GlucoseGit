@@ -81,6 +81,8 @@ pub enum MenuAction {
     ToggleLock,
     /// Retirer les bandes unies des images sélectionnées (BORDURES-1).
     TrimBorders,
+    /// Une case par image choisie, dans l'ordre de lecture (P2, proposition 2, fiche 66).
+    StoryboardDeLaSelection,
     ToFront,
     ToBack,
     Delete,

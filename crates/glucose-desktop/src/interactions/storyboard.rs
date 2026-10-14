@@ -114,6 +114,22 @@ impl GlucoseApp {
         }
     }
 
+    /// **Un storyboard de la sélection** (P2, proposition 2, fiche 66) : une case par image
+    /// choisie, dans l'ordre de lecture ; sans storyboard, il naît là où était la sélection, à
+    /// la grille que le panneau règle — sinon ses cases s'ajoutent à la suite. Un geste.
+    pub(crate) fn storyboard_de_la_selection(&mut self) {
+        let board = self.store.project.active_board_id.clone();
+        let Some(bornes) = self.store.selection_bounds(&board) else {
+            return;
+        };
+        let grille = self.dock_manager.storyboard.grille();
+        let coin = (bornes.left, bornes.top);
+        if self.store.storyboard_de_la_selection(&board, grille, coin) > 0 {
+            self.ui.storyboard.choisie = None;
+            self.mark_dirty();
+        }
+    }
+
     /// **Renonce à la grille armée** — Échap. Rend vrai s'il y en avait une.
     pub(crate) fn renoncer_au_storyboard(&mut self) -> bool {
         if self.ui.placement.storyboard.take().is_none() {

@@ -730,3 +730,74 @@ fn test_p2_1_le_lacher_ne_se_bloque_pas_lui_meme() {
         .collect();
     assert_eq!(rangs, vec![Some(0), Some(1), Some(2)]);
 }
+
+// ── P2, proposition 2 : un storyboard de la sélection (fiche 66) ────────────────────────────
+
+fn choisir(store: &mut Store, ids: &[&str]) {
+    store.clear_selection();
+    for (rang, id) in ids.iter().enumerate() {
+        store.select_image((*id).to_string(), rang > 0);
+    }
+}
+
+/// **Sans storyboard, il naît de la sélection** : une case par image, sa première par son coin
+/// là où était la sélection, les images dans l'ordre où on les lit — pas dans celui où on les a
+/// choisies ; un seul `Ctrl+Z` rend tout.
+#[test]
+fn test_p2_2_sans_storyboard_il_nait_de_la_selection() {
+    let (mut store, board) = tableau();
+    for (id, x) in [("a", 500.0), ("b", 1000.0), ("c", 1500.0)] {
+        store.add_image(&board, image(id, (x, 300.0)));
+    }
+    choisir(&mut store, &["c", "a", "b"]);
+    store.journal.clear();
+    assert_eq!(
+        store.storyboard_de_la_selection(&board, carree(), (300.0, 100.0)),
+        3
+    );
+    let cases = store.cases(&board);
+    assert_eq!(cases.len(), 3, "une case par image");
+    assert_eq!((cases[0].x, cases[0].y), (300.0, 100.0), "par son coin");
+    let rangs: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|id| rang_de(&store, &board, id))
+        .collect();
+    assert_eq!(rangs, vec![Some(0), Some(1), Some(2)], "l'ordre de lecture");
+    store.undo();
+    assert!(store.cases(&board).is_empty(), "un seul Ctrl+Z");
+    let a = store.image(&board, "a").expect("a");
+    assert_eq!((a.x, a.y, a.width), (500.0, 300.0, 400.0));
+}
+
+/// **Avec un storyboard, ses cases s'ajoutent à la suite**, et la sélection y entre.
+#[test]
+fn test_p2_2_avec_un_storyboard_les_cases_s_ajoutent_a_la_suite() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    for (id, x) in [("a", 3000.0), ("b", 3500.0)] {
+        store.add_image(&board, image(id, (x, 3000.0)));
+    }
+    choisir(&mut store, &["a", "b"]);
+    store.storyboard_de_la_selection(&board, carree(), (9999.0, 9999.0));
+    assert_eq!(store.cases(&board).len(), 10);
+    assert_eq!(rang_de(&store, &board, "a"), Some(8));
+    assert_eq!(rang_de(&store, &board, "b"), Some(9));
+}
+
+/// **Une image verrouillée reste dehors** : elle ne bouge pas, et n'a pas de case.
+#[test]
+fn test_p2_2_une_image_verrouillee_reste_dehors() {
+    let (mut store, board) = tableau();
+    let mut fermee = image("fermee", (500.0, 300.0));
+    fermee.locked = true;
+    store.add_image(&board, fermee);
+    store.add_image(&board, image("libre", (1000.0, 300.0)));
+    choisir(&mut store, &["fermee", "libre"]);
+    assert_eq!(
+        store.storyboard_de_la_selection(&board, carree(), (0.0, 0.0)),
+        1
+    );
+    assert_eq!(store.cases(&board).len(), 1);
+    let f = store.image(&board, "fermee").expect("fermée");
+    assert_eq!((f.x, f.y), (500.0, 300.0));
+}

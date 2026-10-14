@@ -175,6 +175,18 @@ Tauri gardait une image par case (`imageId`) mais n'en remplissait aucune.
   une image du lâcher qui déborde déjà sur la case suivante), le dépôt de vrais PNG, et trois
   images glissées à la vraie souris ; sabotages : § 9.
 
+## 6 quater. P2, proposition 2 — un storyboard de la sélection
+
+Choisir des images, puis **« Storyboard de la sélection »** au clic droit (au téléphone : l'appui
+long sur la sélection) : une case par image, dans **l'ordre de lecture** — pas celui du choix.
+Sans storyboard, il naît **à la place de la sélection**, sa première case par son coin au coin
+haut gauche de la sélection, à la grille que règle le panneau ; avec un storyboard, ses cases
+s'ajoutent à la suite (un tableau n'en porte qu'un, jusqu'à la proposition 8). Une image
+verrouillée reste dehors. Un geste, un `Ctrl+Z` (`Store::storyboard_de_la_selection`, dans
+`remplir.rs`, qui partage avec la proposition 1 le relevé des images et l'ajustement dans une
+case). L'entrée du menu se range après « Retirer les bordures » : l'image témoin du menu a
+changé de cette seule ligne, regardée.
+
 ## 7. Ce qui reste — et ce qui déclare P0 fini
 
 1. **Lire le téléphone par le câble** : `bash outils/android/lire_le_telephone.sh <dossier>` —
@@ -208,7 +220,7 @@ Tauri gardait une image par case (`imageId`) mais n'en remplissait aucune.
 
 ## 9. Ce qui est prouvé
 
-Les épreuves de MEMOIRE-1, 2 et 3, de FANTOME-1 et de P2.1 ; **46 sabotages, 46 chutes** — 3 pour FANTOME-1 (`outils/sabotages/fantome-1.json`), 8 pour P2.1 (`p2-1.json`), et : 17 pour MEMOIRE-1 et 2
+Les épreuves de MEMOIRE-1, 2 et 3, de FANTOME-1 et de P2.1 ; **52 sabotages, 52 chutes** — 3 pour FANTOME-1 (`outils/sabotages/fantome-1.json`), 8 pour P2.1 (`p2-1.json`), 6 pour P2.2 (`p2-2.json`), et : 17 pour MEMOIRE-1 et 2
 (`outils/sabotages/memoire.json` — le dix-huitième visait la ligne redondante, retirée), 18 pour
 MEMOIRE-3 et le `LISEZ-MOI` (`outils/sabotages/memoire-3.json`). Clippy strict sous Windows et
 pour Android ; le serveur, ses sept épreuves et deux essais en ligne. **Ce qui n'est gardé que

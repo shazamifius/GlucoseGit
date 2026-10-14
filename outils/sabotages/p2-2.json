@@ -1,0 +1,44 @@
+[
+ {
+  "nom": "les cases neuves ecrasent les premieres",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "        let premiere = d.nombre;",
+  "apres": "        let premiere = 0;",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "-p", "glucose-desktop", "--lib", "--", "p2_2"]
+ },
+ {
+  "nom": "l'ordre de la selection au lieu de l'ordre de lecture",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "        for (k, rang) in ordre_de_lecture(&boites).into_iter().enumerate() {",
+  "apres": "        for (k, rang) in (0..boites.len()).enumerate() {",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "p2_2"]
+ },
+ {
+  "nom": "le storyboard naît ailleurs qu'au coin",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "                origine: coin,",
+  "apres": "                origine: (0.0, 0.0),",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "-p", "glucose-desktop", "--lib", "--", "p2_2"]
+ },
+ {
+  "nom": "plusieurs gestes au lieu d'un",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "            self.begin_live_edit();",
+  "apres": "            let _ = 0;",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "p2_2"]
+ },
+ {
+  "nom": "l'entree du menu ne fait rien",
+  "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+  "avant": "            MenuAction::StoryboardDeLaSelection => self.storyboard_de_la_selection(),",
+  "apres": "            MenuAction::StoryboardDeLaSelection => {}",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "p2_2"]
+ },
+ {
+  "nom": "le bureau donne un autre coin que celui de la selection",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        let coin = (bornes.left, bornes.top);",
+  "apres": "        let coin = (bornes.left + bornes.width, bornes.top);",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "p2_2"]
+ }
+]

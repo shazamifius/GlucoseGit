@@ -18,9 +18,15 @@
 //! déjà arrivée, elle passe à la **case vide suivante** dans la suite — une case dont aucune
 //! image n'est d'ailleurs que de ce lâcher —, et quand il n'en reste plus, le storyboard
 //! s'allonge d'une case. Une image lâchée seule fait donc exactement ce qu'elle faisait.
+//!
+//! # Un storyboard de la sélection (proposition 2)
+//!
+//! Choisir des images, puis « Storyboard de la sélection » au clic droit : une case par image,
+//! dans le même ordre de lecture. Sans storyboard, il naît là où était la sélection ; avec un,
+//! ses cases s'ajoutent à la suite — un tableau n'en porte qu'un, jusqu'à la proposition 8.
 
 use super::super::Store;
-use super::{ordre_de_lecture, Boite, Grille};
+use super::{ordre_de_lecture, Boite, Disposition, Grille};
 use std::collections::HashSet;
 
 impl Store {
@@ -28,17 +34,7 @@ impl Store {
     /// verrouillée dont le centre tombe dans le cadre d'une case y est contenue, centrée, à ses
     /// proportions — une par case, à la suite. Dans le geste ouvert, s'il y en a un.
     pub fn ajuster_dans_les_cases(&mut self, board_id: &str, ids: &[String]) {
-        let lacher: Vec<(String, Boite)> = ids
-            .iter()
-            .filter_map(|id| {
-                let i = self.image(board_id, id)?;
-                let ajustable = !i.locked && i.width > 0.0 && i.height > 0.0;
-                ajustable.then(|| {
-                    let boite = (i.x - i.width / 2.0, i.y - i.height / 2.0, i.width, i.height);
-                    (id.clone(), boite)
-                })
-            })
-            .collect();
+        let lacher = self.boites_ajustables(board_id, ids);
         let boites: Vec<Boite> = lacher.iter().map(|(_, b)| *b).collect();
         let du_lacher: HashSet<&str> = lacher.iter().map(|(id, _)| id.as_str()).collect();
         let mut remplies: HashSet<String> = HashSet::new();
@@ -62,6 +58,63 @@ impl Store {
             self.ajuster_dans_la_case(board_id, id, &case);
             remplies.insert(case);
         }
+    }
+
+    /// **Un storyboard de la sélection** (P2, proposition 2, fiche 66) : une case par image
+    /// choisie, dans l'ordre de lecture. Sans storyboard, il naît là où était la sélection — sa
+    /// première case par son coin en `coin`, à la grille `reglee` ; sinon, ses cases s'ajoutent
+    /// à la suite. Un geste. Rend combien d'images y sont entrées.
+    pub fn storyboard_de_la_selection(
+        &mut self,
+        board_id: &str,
+        reglee: Grille,
+        coin: (f64, f64),
+    ) -> usize {
+        let ids = self.selected_image_ids.to_vec();
+        let images = self.boites_ajustables(board_id, &ids);
+        if images.is_empty() {
+            return 0;
+        }
+        let boites: Vec<Boite> = images.iter().map(|(_, b)| *b).collect();
+        let ouvert = self.in_live_edit();
+        if !ouvert {
+            self.begin_live_edit();
+        }
+        let mut d = self
+            .disposition_actuelle(board_id, reglee)
+            .unwrap_or(Disposition {
+                grille: reglee,
+                origine: coin,
+                nombre: 0,
+            });
+        let premiere = d.nombre;
+        d.nombre += images.len();
+        self.disposer(board_id, d);
+        let cases: Vec<String> = self.cases(board_id).iter().map(|c| c.id.clone()).collect();
+        for (k, rang) in ordre_de_lecture(&boites).into_iter().enumerate() {
+            if let Some(case) = cases.get(premiere + k) {
+                self.ajuster_dans_la_case(board_id, &images[rang].0, case);
+            }
+        }
+        if !ouvert {
+            self.end_live_edit();
+        }
+        images.len()
+    }
+
+    /// Les images de `ids` qu'une case peut prendre — ni verrouillées, ni vides —, et leur
+    /// boîte.
+    fn boites_ajustables(&self, board_id: &str, ids: &[String]) -> Vec<(String, Boite)> {
+        ids.iter()
+            .filter_map(|id| {
+                let i = self.image(board_id, id)?;
+                let ajustable = !i.locked && i.width > 0.0 && i.height > 0.0;
+                ajustable.then(|| {
+                    let boite = (i.x - i.width / 2.0, i.y - i.height / 2.0, i.width, i.height);
+                    (id.clone(), boite)
+                })
+            })
+            .collect()
     }
 
     /// **La première case vide après `apres`** dans la suite : aucune image ne la remplit déjà
