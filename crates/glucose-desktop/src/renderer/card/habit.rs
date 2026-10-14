@@ -123,7 +123,7 @@ pub(super) fn draw_card_brume(
 }
 
 /// L'opacité de la brume sous le texte, sur 255 : les 3 % de Tauri.
-const BRUME: u8 = 8;
+pub(super) const BRUME: u8 = 8;
 
 /// **La forme d'une carte à l'écran** : son rectangle aux coins de `rayon`, posé sur la grille
 /// de ses glyphes.

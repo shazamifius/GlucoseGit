@@ -87,7 +87,7 @@ pub(super) fn dessiner_sous_les_photos(
 /// **Le premier rang du monde** : le corps des zones d'un gabarit, puis les cases du storyboard
 /// — des rectangles unis, que le processeur remplit et que la carte pose juste après le fond
 /// (PRESET-1, STORYBOARD-1). Une seule liste pour les deux voies.
-fn premier_rang(
+pub(super) fn premier_rang(
     store: &Store,
     pass: ViewPass<'_>,
     ecran: (f32, f32),

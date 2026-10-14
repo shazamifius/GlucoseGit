@@ -234,5 +234,38 @@ fn fill_rounded(pixmap: &mut PixmapMut, rect: Rect, radius: f32, color: tiny_ski
     );
 }
 
+/// **Le libellé d'une flèche en SVG** (P5, fiche 69) : la sœur de [`draw_arrow_label`] — sa
+/// pastille et son texte, à la même place.
+pub(super) fn etiquette_en_svg(
+    ctx: &Pass<'_>,
+    svg: &mut super::svg::Svg,
+    ((wx, wy), encre): ((f64, f64), tiny_skia::Color),
+    arrow: &Annotation,
+    lifted: bool,
+) {
+    let Some((text, _)) = shown_text(arrow, None) else {
+        return;
+    };
+    let (typography, theme, scale) = (ctx.typography, ctx.theme, ctx.scale);
+    let leve = if lifted { LABEL_LIFT } else { 0.0 };
+    let (sx, sy) = world_to_screen(wx, wy - leve, &ctx.vp);
+    let (cx, cy) = (sx as f32, sy as f32);
+    let size = scale.world(LABEL_CORPS);
+    let (text_w, text_h) = typography.measure_text(text, size, Face::Regular);
+    let pad = scale.world(LABEL_PAD_X);
+    let half_h = scale.world(LABEL_HALF_H);
+    let half_w = text_w / 2.0 + pad;
+    let fond = super::svg::couleur(theme.arrow_label_bg);
+    let boite = (cx - half_w, cy - half_h, half_w * 2.0, half_h * 2.0);
+    svg.rectangle(boite, scale.world(LABEL_RADIUS), (&fond.0, fond.1));
+    let style = TextStyle {
+        size,
+        color: encre,
+        face: Face::Regular,
+    };
+    let at = (cx - text_w / 2.0, cy - text_h / 2.0);
+    svg.texte(at, text, &super::richtext::draw::style_svg(style));
+}
+
 #[cfg(test)]
 mod tests;

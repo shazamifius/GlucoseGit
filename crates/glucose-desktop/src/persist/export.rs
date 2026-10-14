@@ -83,7 +83,8 @@ impl Format {
         match self {
             Self::Png => None,
             Self::Markdown => Some(glucose_core::export::to_markdown(tableau)),
-            Self::Svg => Some(glucose_core::export::to_svg(tableau)),
+            // Le SVG se peint, par les sœurs vectorielles du rendu (fiche 69).
+            Self::Svg => None,
         }
     }
 }
@@ -158,12 +159,14 @@ impl GlucoseApp {
                 path: chemin.display().to_string(),
                 reason: "aucun tableau ouvert".into(),
             })?;
-        let texte = format
-            .rendre(tableau)
-            .ok_or_else(|| DesktopError::SaveFailed {
-                path: chemin.display().to_string(),
-                reason: "une image se dessine, elle ne s'écrit pas en texte".into(),
-            })?;
+        let texte = match format {
+            Format::Svg => self.rendre_le_svg(),
+            _ => format.rendre(tableau),
+        }
+        .ok_or_else(|| DesktopError::SaveFailed {
+            path: chemin.display().to_string(),
+            reason: "rien à écrire : ce tableau est vide, ou se dessine en pixels".into(),
+        })?;
         write_atomic(chemin, texte.as_bytes())?;
         Ok(texte.len())
     }
@@ -180,6 +183,7 @@ fn nom_du_fichier(chemin: &Path) -> String {
 pub mod pdf;
 pub mod planches;
 pub mod png;
+pub mod svg;
 
 #[cfg(test)]
 mod tests;

@@ -70,6 +70,7 @@ use crate::typography::Typography;
 mod dessus;
 mod habit;
 mod ornament;
+pub(in crate::renderer) mod svg;
 mod texte_seul;
 use crate::theme::Theme;
 use dessus::dessiner_les_ornements;

@@ -236,5 +236,62 @@ pub(crate) fn draw_sigil(
     );
 }
 
+/// **Le badge d'une relation en SVG** (P5, fiche 69) : la sœur de [`draw_arrow_predicate`] —
+/// la pastille, son cercle, et le sigle, déjà défini en traits dans un carré unité.
+pub(super) fn predicat_en_svg(
+    ctx: &Pass<'_>,
+    svg: &mut super::svg::Svg,
+    (wx, wy): (f64, f64),
+    arrow: &Annotation,
+) {
+    use super::svg::{couleur, n};
+    let Annotation::Arrow {
+        predicate: Some(predicate),
+        ..
+    } = arrow
+    else {
+        return;
+    };
+    let (sx, sy) = world_to_screen(wx, wy, &ctx.vp);
+    let (cx, cy, r) = (sx as f32, sy as f32, ctx.scale.world(BADGE_RAYON));
+    let (teinte, _) = couleur(ctx.theme.predicate_color(*predicate));
+    let (fond, opacite) = couleur(ctx.theme.arrow_badge_bg);
+    svg.poser(&format!(
+        r#"<circle cx="{}" cy="{}" r="{}" fill="{fond}" fill-opacity="{}" stroke="{teinte}" stroke-width="{}"/>"#,
+        n(cx), n(cy), n(r), n(opacite), n(ctx.scale.screen(BADGE_STROKE_PX))
+    ));
+    let etendue = r * SIGIL_EXTENT;
+    let mut d = String::new();
+    for trait_ in sigil_of(*predicate) {
+        match trait_ {
+            Stroke2D::Line(points) => {
+                for (i, (px, py)) in points.iter().enumerate() {
+                    let commande = if i == 0 { "M" } else { "L" };
+                    d.push_str(&format!(
+                        "{commande} {} {} ",
+                        n(cx + px * etendue),
+                        n(cy + py * etendue)
+                    ));
+                }
+            }
+            Stroke2D::Circle(rc) => {
+                let rc = rc * etendue;
+                d.push_str(&format!(
+                    "M {} {} a {r} {r} 0 1 0 {} 0 a {r} {r} 0 1 0 {} 0 ",
+                    n(cx - rc),
+                    n(cy),
+                    n(2.0 * rc),
+                    n(-2.0 * rc),
+                    r = n(rc)
+                ));
+            }
+        }
+    }
+    svg.poser(&format!(
+        r#"<path d="{}" fill="none" stroke="{teinte}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,
+        d.trim_end(), n(etendue * SIGIL_STROKE)
+    ));
+}
+
 #[cfg(test)]
 mod tests;

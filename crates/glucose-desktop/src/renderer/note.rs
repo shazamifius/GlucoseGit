@@ -52,6 +52,8 @@ const PILL_FONT: f32 = 13.0;
 /// Le fond de la pilule : la couleur de l'opérateur à `0x20` — `${color}20` dans la référence.
 const PILL_FILL_ALPHA: u8 = 0x20;
 
+pub(in crate::renderer) mod svg;
+
 /// Mise en page d'un pense-bête. **En unités monde tant que `scaled` n'a pas été appelée.**
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StickyLayout {

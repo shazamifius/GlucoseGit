@@ -86,10 +86,10 @@ fn chaque_format_rend_sa_propre_forme() {
         "le markdown n'est pas du svg : {markdown}"
     );
 
-    let svg = Format::Svg.rendre(&board).expect("un format de texte");
+    // L'image et l'image vectorielle se peignent, par le rendu (fiche 69) : `rendre` ne les
+    // écrit pas — voir `svg/tests.rs`.
     assert_eq!(Format::Png.rendre(&board), None, "une image se dessine");
-    assert!(svg.starts_with("<?xml"), "un svg commence par son prologue");
-    assert!(svg.contains("<svg"), "et porte sa balise racine");
+    assert_eq!(Format::Svg.rendre(&board), None, "une image vectorielle aussi");
 }
 
 /// **Le chemin complet, jusqu'au disque** — tout sauf le dialogue natif.

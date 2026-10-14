@@ -253,6 +253,52 @@ pub(super) fn formes_des_membranes(
     formes
 }
 
+/// **Les membranes en SVG** (P5, fiche 69) : la sœur de [`draw_membranes`] — leurs formes
+/// telles que la loi les décrit, puis leurs titres. Les couches portent la même teinte : la
+/// composition du lecteur rend exactement l'opacité que la loi calcule (MEMB-FORME-1). Le bord
+/// part, comme le `<rect>` du SVG, du haut juste après le coin haut gauche, dans le sens des
+/// aiguilles d'une montre : le pointillé tombe au même endroit.
+pub(super) fn membranes_en_svg(
+    (store, pass, theme): (&Store, ViewPass<'_>, &Theme),
+    taille: (u32, u32),
+    svg: &mut super::svg::Svg,
+) {
+    use super::svg::n;
+    let mut titres = Vec::new();
+    pour_chaque_membrane(store, pass, (taille.0 as f32, taille.1 as f32), |m| {
+        let forme = m.forme();
+        let [r, g, b] = forme.teinte.map(|c| (c * 255.0).round() as u8);
+        let teinte = super::svg::hex((r, g, b));
+        let boite = |a: &Arrondi| (a.gauche, a.haut, a.droite - a.gauche, a.bas - a.haut);
+        for (arrondi, alpha) in forme.remplissages.iter().filter(|(_, a)| *a > 0.0) {
+            svg.rectangle(boite(arrondi), arrondi.rayon, (&teinte, *alpha));
+        }
+        let bord = forme.bord;
+        let (x, y, l, h) = boite(&bord.forme);
+        let tirets = bord.pointille.map_or(String::new(), |p| {
+            let t = n(p.tiret);
+            format!(r#" stroke-dasharray="{t} {t}" stroke-linecap="round""#)
+        });
+        svg.poser(&format!(
+            r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="none" stroke="{teinte}" stroke-opacity="{}" stroke-width="{}"{tirets}/>"#,
+            n(x), n(y), n(l), n(h), n(bord.forme.rayon), n(bord.alpha), n(bord.demi_largeur * 2.0)
+        ));
+        if let Some(texte) = m.text.filter(|t| !t.is_empty() && m.scale.draws_detail()) {
+            let (sx, sy) = m.coin;
+            let at = (sx + m.layout.label_dx, sy - m.layout.label_dy);
+            titres.push((texte.to_string(), at, m.layout.label_font, (r, g, b)));
+        }
+    });
+    // Les titres au-dessus de toutes les formes, comme au canevas ; leur contour est le fond.
+    let fond = super::svg::couleur(theme.bg_canvas).0;
+    for (texte, (x, y), corps, teinte) in titres {
+        svg.poser(&format!(
+            r#"<text x="{}" y="{}" font-size="{}" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="700" fill="{}" stroke="{fond}" stroke-width="2" paint-order="stroke" stroke-linejoin="round" xml:space="preserve">{}</text>"#,
+            n(x), n(y + corps), n(corps), super::svg::hex(teinte), super::svg::echapper(&texte)
+        ));
+    }
+}
+
 /// **Les membranes entières, au processeur** : leurs formes, puis leurs ornements. Rend vrai
 /// si au moins une membrane a reçu de l'encre.
 ///

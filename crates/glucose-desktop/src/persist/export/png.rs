@@ -54,8 +54,8 @@ pub const ECHELLE: f64 = 1.0;
 /// Ce qu'un export dessine : un document réduit à ce qu'on exporte, la vue qui place son contenu
 /// dans l'image, et la taille de l'image.
 pub struct Scene {
-    store: Store,
-    vue: Viewport,
+    pub(super) store: Store,
+    pub(super) vue: Viewport,
     pub largeur: u32,
     pub hauteur: u32,
 }
@@ -250,7 +250,7 @@ fn en_rvb(pixmap: &tiny_skia::Pixmap) -> Vec<u8> {
 impl GlucoseApp {
     /// **Exporte en image** la sélection, ou le tableau, à `chemin` — sur un fil à soi ; la
     /// boucle relève où il en est ([`Self::suivre_l_export`]).
-    pub(crate) fn exporter_en_image(&mut self, chemin: PathBuf) {
+    pub fn exporter_en_image(&mut self, chemin: PathBuf) {
         if self.un_export_attend() {
             return;
         }

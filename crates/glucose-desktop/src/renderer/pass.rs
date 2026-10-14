@@ -314,3 +314,5 @@ fn draw_arrow_node(
         super::predicate::draw_arrow_predicate(ctx, pixmap, centre, ann, 1.0 - efface);
     }
 }
+
+pub(in crate::renderer) mod svg;

@@ -1,5 +1,6 @@
-//! Moteurs d'exportation (SVG, Markdown) en 100% Rust Standard Library (0 dépendance).
-//! Ports stricts de toMarkdown.ts, scene.ts et toSvg.ts.
+//! Moteur d'exportation en Markdown, en 100% Rust Standard Library (0 dépendance).
+//! Port de toMarkdown.ts et scene.ts. Le SVG, lui, est écrit par les sœurs vectorielles des
+//! dessins du bureau (fiche 69) : il montre ce que le canevas montre.
 
 use crate::types::{Annotation, Board, Project};
 
@@ -86,18 +87,6 @@ pub struct ExportScene {
 }
 
 pub const SCENE_BG: &str = "#0d0d0d";
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SvgOptions {
-    pub transparent: bool,
-}
-
-pub fn html_escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-}
 
 /// Titre d'affichage d'une carte : 1er titre `#`/`##`/`###`, sinon 1re ligne.
 pub fn card_title(text: &str) -> String {
@@ -419,77 +408,8 @@ pub fn project_to_markdown(project: &Project) -> String {
     scene_to_markdown(&scene)
 }
 
-pub fn scene_to_svg(scene: &ExportScene, opts: &SvgOptions) -> String {
-    let mut arrow_defs = Vec::new();
-    let mut arrow_bodies = Vec::new();
-
-    for a in &scene.arrows {
-        if a.points.len() >= 2 {
-            let grad_id = format!("grad-{}", a.id);
-            arrow_defs.push(format!(
-                r##"<linearGradient id="{}" gradientUnits="userSpaceOnUse" x1="{}" y1="{}" x2="{}" y2="{}"><stop offset="0" stop-color="{}"/><stop offset="1" stop-color="{}"/></linearGradient>"##,
-                grad_id, a.points[0].x, a.points[0].y, a.points[1].x, a.points[1].y, a.col_start, a.col_end
-            ));
-            let d = format!(
-                "M {} {} L {} {}",
-                a.points[0].x, a.points[0].y, a.points[1].x, a.points[1].y
-            );
-            arrow_bodies.push(format!(
-                r##"<path d="{}" fill="none" stroke="url(#{})" stroke-width="{}"/>"##,
-                d, grad_id, a.stroke_width
-            ));
-        }
-    }
-
-    let defs = arrow_defs.join("\n");
-    let bg = if opts.transparent {
-        String::new()
-    } else {
-        format!(
-            r##"<rect x="{}" y="{}" width="{}" height="{}" fill="{}"/>"##,
-            scene.bbox.left, scene.bbox.top, scene.width, scene.height, scene.background
-        )
-    };
-
-    let mut cards_svg = Vec::new();
-    for c in &scene.cards {
-        cards_svg.push(format!(
-            r##"<g class="card"><rect x="{}" y="{}" width="{}" height="{}" rx="12" fill="{}" fill-opacity="0.1"/><text x="{}" y="{}" fill="{}" font-size="14">{}</text></g>"##,
-            c.x, c.y, c.w, c.h, c.aura_color,
-            c.x + 12.0, c.y + 24.0, c.text_color, html_escape(&c.text)
-        ));
-    }
-
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="{}" height="{}" viewBox="{} {} {} {}">
-<defs>{}</defs>
-{}
-{}
-{}
-</svg>"#,
-        scene.width.round(),
-        scene.height.round(),
-        scene.bbox.left,
-        scene.bbox.top,
-        scene.width,
-        scene.height,
-        defs,
-        bg,
-        cards_svg.join("\n"),
-        arrow_bodies.join("\n")
-    )
-}
-
 pub fn to_markdown(board: &Board) -> String {
     let mut p = Project::new("Export");
     p.boards = vec![board.clone()];
     project_to_markdown(&p)
-}
-
-pub fn to_svg(board: &Board) -> String {
-    let mut p = Project::new("Export");
-    p.boards = vec![board.clone()];
-    let scene = build_scene(&p);
-    scene_to_svg(&scene, &SvgOptions::default())
 }

@@ -176,6 +176,11 @@
   ses rangées déduites du format A (√2), en images ou en **PDF écrit à la main**, rendu au
   pixel près par MuPDF et PDFium. **Les huit propositions du Storyboard sont écrites** ; rien
   n'est jugé à son écran ; trois questions de ressenti (fiche 68 § 6 bis, SUITE P2).
+* **Fiche 69 — l'export SVG (P5), commencé** : une sœur vectorielle pour chaque dessin du
+  rendu, branchée sur « Exporter » ; ni regardé, ni saboté. **Un APK neuf** sur son Bureau
+  (`Glucose.apk`, `e5d5832b…`, signé `3f2af005…`) porte P0, FANTOME-1 et les huit propositions
+  du Storyboard. La télémétrie, relue le 15/10 : 59 sessions, 5 installations ; **rien du
+  téléphone depuis le 13/10** (la session du gel est toujours sur lui).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera

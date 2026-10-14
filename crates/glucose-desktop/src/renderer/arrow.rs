@@ -233,6 +233,80 @@ pub(super) fn fleches_a_poser(
         .collect()
 }
 
+/// **Une flèche en SVG** (P5, fiche 69) : la sœur de [`draw_arrow`] — le tracé même que le
+/// clic vise, morceau par morceau (`L`, `C`) ; le dégradé de ses trois teintes le long de son
+/// axe ; le halo et l'âme aux épaisseurs et opacités de [`aspect`] ; les disques de ses bouts.
+pub(crate) fn fleche_en_svg(
+    fleche: &Fleche,
+    (vp, scale): (&Viewport, WorldScale),
+    svg: &mut super::svg::Svg,
+) {
+    use super::svg::{hex, n};
+    let (Some(premier), Some(dernier)) = (fleche.morceaux.first(), fleche.morceaux.last()) else {
+        return;
+    };
+    let ecran = |p: (f64, f64)| {
+        let (x, y) = world_to_screen(p.0, p.1, vp);
+        (x as f32, y as f32)
+    };
+    let mut d = String::new();
+    let (x0, y0) = ecran(premier.depart());
+    d.push_str(&format!("M {} {}", n(x0), n(y0)));
+    for m in &fleche.morceaux {
+        match *m {
+            Morceau::Droit { a, .. } => {
+                let (x, y) = ecran(a);
+                d.push_str(&format!(" L {} {}", n(x), n(y)));
+            }
+            Morceau::Courbe { c1, c2, a, .. } => {
+                let [p1, p2, p3] = [ecran(c1), ecran(c2), ecran(a)];
+                d.push_str(&format!(
+                    " C {} {} {} {} {} {}",
+                    n(p1.0),
+                    n(p1.1),
+                    n(p2.0),
+                    n(p2.1),
+                    n(p3.0),
+                    n(p3.1)
+                ));
+            }
+        }
+    }
+    let (debut, fin) = (ecran(premier.depart()), ecran(dernier.arrivee()));
+    let t = fleche.teintes;
+    let degrade = svg.nom("degrade");
+    svg.definir(&format!(
+        r#"<linearGradient id="{degrade}" gradientUnits="userSpaceOnUse" x1="{}" y1="{}" x2="{}" y2="{}"><stop offset="0" stop-color="{}"/><stop offset="0.5" stop-color="{}"/><stop offset="1" stop-color="{}"/></linearGradient>"#,
+        n(debut.0), n(debut.1), n(fin.0), n(fin.1), hex(t.depart), hex(t.milieu), hex(t.arrivee)
+    ));
+    let sw = fleche.epaisseur;
+    let (halo, opacite_du_halo) = aspect::halo(sw, false);
+    for (largeur, opacite) in [
+        (scale.screen(halo as f32), opacite_du_halo),
+        (scale.screen(sw as f32), aspect::OPACITE_DU_TRAIT),
+    ] {
+        svg.poser(&format!(
+            r#"<path d="{d}" fill="none" stroke="url(#{degrade})" stroke-width="{}" stroke-opacity="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,
+            n(largeur), n(opacite)
+        ));
+    }
+    let disque = |svg: &mut super::svg::Svg, centre: (f32, f32), contour| {
+        svg.poser(&format!(
+            r#"<circle cx="{}" cy="{}" r="{}" fill="{}" stroke="{}" stroke-width="{}"/>"#,
+            n(centre.0),
+            n(centre.1),
+            n(scale.world((sw * aspect::POINTE) as f32)),
+            hex(aspect::FOND_DE_LA_POINTE),
+            hex(contour),
+            n(scale.screen(aspect::CONTOUR as f32))
+        ));
+    };
+    if fleche.double_sens {
+        disque(svg, debut, t.depart);
+    }
+    disque(svg, fin, t.arrivee);
+}
+
 mod itineraires;
 mod noeuds;
 pub use itineraires::{Epoque, Itineraires};

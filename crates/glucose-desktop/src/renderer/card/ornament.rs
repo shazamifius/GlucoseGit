@@ -238,3 +238,79 @@ fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint
         );
     }
 }
+
+// ── La sœur vectorielle (P5, fiche 69) ──────────────────────────────────────
+
+/// **Les ornements d'une ligne en SVG** : la sœur de [`draw_ornament`], aux mêmes places, à la
+/// même encre. Une formule s'écrit par sa source, à l'encre du texte : le moteur de formules
+/// ne livre encore que des pixels (fiche 69).
+pub(super) fn ornement_en_svg(
+    ctx: &Pass,
+    svg: &mut crate::renderer::svg::Svg,
+    (left, text_x, y): (f32, f32, f32),
+    layout: &CardLayout,
+    (line, card): (&VisualLine, &TextCard),
+) -> bool {
+    let t = card.tint;
+    let teinte = crate::renderer::svg::hex(t);
+    let alpha = f32::from(ORNAMENT_ALPHA) / 255.0;
+    match line.kind {
+        BlockKind::Bullet if line.first => svg.poser(&format!(
+            r#"<circle cx="{}" cy="{}" r="{}" fill="{teinte}" fill-opacity="{}"/>"#,
+            crate::renderer::svg::n(left + layout.bullet_offset),
+            crate::renderer::svg::n(y + layout.font * BULLET_BASELINE),
+            crate::renderer::svg::n(layout.bullet),
+            crate::renderer::svg::n(alpha)
+        )),
+        BlockKind::Ordered(n) if line.first => {
+            let mut buf = [0u8; ORDINAL_MAX];
+            let label = ordinal_label(n, &mut buf);
+            let (w, _) = ctx
+                .typography
+                .measure_text(label, layout.font, Face::Regular);
+            let gap = ctx.typography.advance(' ', layout.font, Face::Regular);
+            let style = TextStyle {
+                size: layout.font,
+                color: Color::from_rgba8(t.0, t.1, t.2, ORNAMENT_ALPHA),
+                face: Face::Regular,
+            };
+            let at = (left + layout.indent - w - gap, y);
+            svg.texte(
+                at,
+                label,
+                &crate::renderer::richtext::draw::style_svg(style),
+            );
+        }
+        BlockKind::Quote => {
+            svg.rectangle(
+                (left, y, layout.border * 2.0, layout.line_height),
+                0.0,
+                (&teinte, alpha),
+            );
+        }
+        BlockKind::Rule | BlockKind::TableRule => {
+            let largeur = layout.width - layout.pad_x * 2.0;
+            let haut = y + (layout.line_height - layout.border) / 2.0;
+            svg.rectangle((left, haut, largeur, layout.border), 0.0, (&teinte, alpha));
+            return true;
+        }
+        BlockKind::Math { .. } => {
+            if line.first {
+                let source = &card.body[line.start..line.end];
+                let style = TextStyle {
+                    size: layout.font,
+                    color: ink_of(line.kind, ctx.theme),
+                    face: Face::Regular,
+                };
+                svg.texte(
+                    (text_x, y),
+                    source,
+                    &crate::renderer::richtext::draw::style_svg(style),
+                );
+            }
+            return true;
+        }
+        _ => {}
+    }
+    false
+}

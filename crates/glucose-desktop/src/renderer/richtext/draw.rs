@@ -229,3 +229,77 @@ fn draw_strikethrough(
     paint.set_color(color);
     pixmap.fill_rect(rect, &paint, Transform::identity(), None);
 }
+
+// ── La sœur vectorielle (P5, fiche 69) ──────────────────────────────────────
+
+/// **Une ligne en SVG** : la sœur de [`draw_line`] — les mêmes taquets, le même fond d'un
+/// `` `code` ``, le même trait d'un lien et d'un barré, lus dans la police ; chaque fragment
+/// posé à l'abscisse que la mesure d'Inter lui donne. Rend l'abscisse où la plume s'arrête.
+pub(crate) fn ligne_en_svg(
+    ctx: &Pass,
+    svg: &mut crate::renderer::svg::Svg,
+    at: (f32, f32),
+    (layout, line): (&TextLayout, &VisualLine),
+    (font, ink): (f32, Ink),
+    source: &str,
+) -> f32 {
+    let mut x = at.0;
+    let plate = line.kind == BlockKind::Code;
+    for fragment in layout.fragments_of(line) {
+        if fragment.tab >= 0.0 {
+            x = at.0 + fragment.tab * font;
+        }
+        let slice = &source[fragment.start..fragment.end];
+        let style = fragment_style(fragment, font, ink);
+        let (largeur, _) = ctx.typography.measure_text(slice, font, style.face);
+        let couleur = crate::renderer::svg::couleur(ctx.theme.code_bg);
+        if fragment.emphasis.code() && !plate {
+            if let Some(lm) = ctx
+                .typography
+                .font(style.face)
+                .horizontal_line_metrics(font)
+            {
+                let (pad_x, pad_y) = (font * CODE_PAD_X, font * CODE_PAD_Y);
+                let haut = at.1 + font - lm.ascent - pad_y;
+                let boite = (
+                    x - pad_x,
+                    haut,
+                    largeur + pad_x * 2.0,
+                    lm.ascent - lm.descent + pad_y * 2.0,
+                );
+                svg.rectangle(boite, font * CODE_RADIUS, (&couleur.0, couleur.1));
+            }
+        }
+        svg.texte((x, at.1), slice, &style_svg(style));
+        let fin = x + largeur;
+        let encre = crate::renderer::svg::couleur(style.color);
+        let epaisseur = (font * STRIKE_WIDTH).max(1.0);
+        if fragment.emphasis.link() {
+            let metrics = ctx
+                .typography
+                .font(style.face)
+                .horizontal_line_metrics(font);
+            let creux = metrics.map_or(font * STRIKE_WIDTH * 2.0, |m| -m.descent / 2.0);
+            let trait_ = (x, at.1 + font + creux, fin - x, epaisseur);
+            svg.rectangle(trait_, 0.0, (&encre.0, encre.1));
+        }
+        if fragment.emphasis.strike() {
+            let x_height = ctx.typography.font(style.face).metrics('x', font).height as f32;
+            let trait_ = (x, at.1 + font - x_height / 2.0, fin - x, epaisseur);
+            svg.rectangle(trait_, 0.0, (&encre.0, encre.1));
+        }
+        x = fin;
+    }
+    x
+}
+
+/// Un style de la typographie, dit au peintre vectoriel.
+pub(crate) fn style_svg(style: crate::typography::TextStyle) -> crate::renderer::svg::StyleDeTexte {
+    crate::renderer::svg::StyleDeTexte {
+        corps: style.size,
+        gras: matches!(style.face, Face::Bold | Face::BoldItalic),
+        italique: matches!(style.face, Face::Italic | Face::BoldItalic),
+        fixe: style.face == Face::Mono,
+        couleur: style.color,
+    }
+}

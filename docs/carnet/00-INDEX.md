@@ -123,4 +123,6 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb` ·
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png`.
 
-La prochaine fiche porte le numéro **69**.
+| 69 | [L'export SVG — commencé](69-L-EXPORT-SVG-COMMENCE.md) | P5 : une sœur vectorielle pour chaque dessin du rendu, dans le cadre de l'export PNG ; écrit, compile, **ni regardé ni saboté** — **§ 3 : ce qui reste, dans l'ordre** |
+
+La prochaine fiche porte le numéro **70**.

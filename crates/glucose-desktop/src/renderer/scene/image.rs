@@ -567,6 +567,7 @@ fn reporter_les_parts(
 
 pub(in crate::renderer) mod ornement;
 mod prevision;
+pub(in crate::renderer) mod svg;
 
 #[cfg(test)]
 mod tests;
