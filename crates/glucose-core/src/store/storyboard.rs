@@ -241,6 +241,28 @@ impl Store {
         self.cases(board_id).last().map(|c| c.id.clone())
     }
 
+    /// **Insère une case vide à la place `rang`** (P2, proposition 3, fiche 66) : celles qui
+    /// suivent glissent d'un cran, chacune avec ses images. Aucune loi neuve : une case ajoutée
+    /// au bout, puis lâchée à sa place — les deux gestes qui existent —, en un seul geste.
+    /// Rend la case neuve.
+    pub fn inserer_une_case(&mut self, board_id: &str, rang: usize) -> Option<String> {
+        let origine = self
+            .disposition_actuelle(board_id, Grille::default())?
+            .origine;
+        let ouvert = self.in_live_edit();
+        if !ouvert {
+            self.begin_live_edit();
+        }
+        let neuve = self.ajouter_une_case(board_id, Grille::default());
+        if let Some(id) = &neuve {
+            self.deplacer_la_case(board_id, (id, &[]), rang, origine);
+        }
+        if !ouvert {
+            self.end_live_edit();
+        }
+        neuve
+    }
+
     /// **Retire une case** : les suivantes avancent d'une place, leurs images avec elles, et la
     /// suite reste continue. Retirer la dernière retire le storyboard. Un geste.
     pub fn retirer_la_case(&mut self, board_id: &str, id: &str) {

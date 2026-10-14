@@ -189,6 +189,18 @@ pub(crate) fn croix((x, y, w, h): Boite, bande: f32, densite: f32) -> Boite {
     )
 }
 
+/// **Les deux « + » de la case choisie, à l'écran** (P2, proposition 3, fiche 66) : au milieu de
+/// ses bords gauche et droit — insérer une case avant elle, ou après. De la taille de sa croix ;
+/// la seule géométrie, que le dessin et le clic lisent (loi L4).
+pub(crate) fn plus((x, y, w, h): Boite, densite: f32) -> [Boite; 2] {
+    let cote = CROIX.0 * densite;
+    let haut = y + (h - cote) / 2.0;
+    [
+        (x - cote / 2.0, haut, cote, cote),
+        (x + w - cote / 2.0, haut, cote, cote),
+    ]
+}
+
 /// **La boîte d'une case à l'écran**, cadre seul — pour qui doit la toucher.
 pub(crate) fn boite_a_l_ecran(case: &StoryboardPanel, vp: &glucose_core::types::Viewport) -> Boite {
     let (sx, sy) = world_to_screen(case.x, case.y, vp);
@@ -243,6 +255,9 @@ pub(super) fn orner_la_case_choisie(
     let d = scale.screen(1.0);
     let boite = croix(b, un(BANDE_HAUTEUR), d);
     super::zone::dessiner_la_croix(pixmap, theme, boite, d);
+    for bouton in plus(b, d) {
+        super::zone::dessiner_le_plus(pixmap, theme, bouton, d);
+    }
     dessiner_la_poignee(pixmap, theme, (store, pass));
 }
 

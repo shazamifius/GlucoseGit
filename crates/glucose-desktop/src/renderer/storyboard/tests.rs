@@ -145,4 +145,27 @@ fn test_la_case_choisie_porte_son_contour() {
     let avec = rgb(&rendre_avec(Some(case.id.clone())), au_contour);
     assert!(sans.0 < 0x40, "sans choix, le canevas : {sans:?}");
     assert!(avec.0 > 0xa0, "choisie, le contour blanc : {avec:?}");
+    // P2, proposition 3 (fiche 66) : ses deux « + », au milieu de ses bords — le croisement de
+    // leurs traits, clair, là où la géométrie que le clic lit les place.
+    let boite = super::boite_a_l_ecran(&case, &store.viewport());
+    let [gauche, droite] = super::plus(boite, UiState::new().scale());
+    let milieu_de = |(x, y, w, h): (f32, f32, f32, f32)| (x + w / 2.0, y + h / 2.0);
+    let mi_hauteur = boite.1 + boite.3 / 2.0;
+    assert_eq!(
+        milieu_de(gauche),
+        (boite.0, mi_hauteur),
+        "au milieu du bord gauche"
+    );
+    assert_eq!(
+        milieu_de(droite),
+        (boite.0 + boite.2, mi_hauteur),
+        "et du droit"
+    );
+    for (x, y, w, h) in [gauche, droite] {
+        let milieu = (f64::from(x + w / 2.0), f64::from(y + h / 2.0));
+        let sans = rgb(&rendre_avec(None), milieu);
+        let avec = rgb(&rendre_avec(Some(case.id.clone())), milieu);
+        assert!(sans.0 < 0x40, "sans choix, pas de « + » : {sans:?}");
+        assert!(avec.0 > 0xa0, "choisie, le « + » : {avec:?}");
+    }
 }

@@ -801,3 +801,53 @@ fn test_p2_2_une_image_verrouillee_reste_dehors() {
     let f = store.image(&board, "fermee").expect("fermée");
     assert_eq!((f.x, f.y), (500.0, 300.0));
 }
+
+// ── P2, proposition 3 : insérer une case entre deux (fiche 66) ───────────────────────────────
+
+/// **Insérer une case entre deux** : elle naît vide à sa place, les suivantes glissent d'un cran
+/// avec leurs images — celles d'avant ne bougent pas —, et un seul `Ctrl+Z` rend tout.
+#[test]
+fn test_p2_3_inserer_entre_deux_decale_les_suivantes_avec_leurs_images() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    for (id, rang) in [("avant", 1), ("apres", 2), ("loin", 5)] {
+        let [centre, ..] = cascade(&store, &board, rang);
+        lacher(&mut store, &board, &[(id, centre)]);
+    }
+    let avant: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    store.journal.clear();
+    let neuve = store.inserer_une_case(&board, 2).expect("une case neuve");
+    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    assert_eq!(cases.len(), 9);
+    assert_eq!(cases[2].id, neuve, "à sa place");
+    assert!(store.images_de_la_case(&board, &neuve).is_empty(), "vide");
+    assert_eq!(
+        rang_de(&store, &board, "avant"),
+        Some(1),
+        "celles d'avant restent"
+    );
+    assert_eq!(
+        rang_de(&store, &board, "apres"),
+        Some(3),
+        "les suivantes glissent"
+    );
+    assert_eq!(rang_de(&store, &board, "loin"), Some(6));
+    assert_eq!(cases[3].id, avant[2].id, "avec leur case");
+    store.undo();
+    assert_eq!(store.cases(&board).len(), 8, "un seul Ctrl+Z");
+    assert_eq!(rang_de(&store, &board, "apres"), Some(2));
+}
+
+/// **Au début, comme au bout** : la place 0 décale tout, la dernière place n'en décale aucune.
+#[test]
+fn test_p2_3_inserer_au_debut_et_au_bout() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    let premiere = store.cases(&board)[0].id.clone();
+    let tete = store.inserer_une_case(&board, 0).expect("une case");
+    assert_eq!(store.cases(&board)[0].id, tete);
+    assert_eq!(store.cases(&board)[1].id, premiere);
+    let bout = store.inserer_une_case(&board, 9).expect("une case");
+    assert_eq!(store.cases(&board).last().map(|c| c.id.clone()), Some(bout));
+    assert_eq!(store.cases(&board).len(), 10);
+}

@@ -188,8 +188,8 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 456** sous Windows au 14/10, MEMOIRE-1 à 3, FANTOME-1, P2.1 et P2.2 compris (fiche 66 ; 52 sabotages
-  de plus, 52 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 426** au
+* **Épreuves** : **2 459** sous Windows au 14/10, MEMOIRE-1 à 3, FANTOME-1 et P2.1 à P2.3 compris (fiche 66 ; 59 sabotages
+  de plus, 59 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 426** au
   13/10 au soir, STORYBOARD-2 et BOITE-ANDROID compris
   (fiche 65 ; 63 sabotages, 63 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389
   (fiche 64). Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a

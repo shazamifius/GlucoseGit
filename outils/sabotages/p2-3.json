@@ -1,0 +1,51 @@
+[
+ {
+  "nom": "la case inseree reste au bout",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            self.deplacer_la_case(board_id, (id, &[]), rang, origine);",
+  "apres": "            let _ = (id, rang, origine);",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "-p", "glucose-desktop", "--lib", "--", "p2_3"]
+ },
+ {
+  "nom": "inserer fait deux gestes",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        let ouvert = self.in_live_edit();\n        if !ouvert {\n            self.begin_live_edit();\n        }\n        let neuve = self.ajouter_une_case(board_id, Grille::default());",
+  "apres": "        let ouvert = true;\n        let neuve = self.ajouter_une_case(board_id, Grille::default());",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "-p", "glucose-desktop", "--lib", "--", "p2_3"]
+ },
+ {
+  "nom": "le plus de droite insere avant",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            .inserer_une_case(&board, rang + usize::from(apres));",
+  "apres": "            .inserer_une_case(&board, rang + usize::from(!apres && false));",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "p2_3"]
+ },
+ {
+  "nom": "les deux plus intervertis",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            return self.inserer_a_cote(&id, cote == 1);",
+  "apres": "            return self.inserer_a_cote(&id, cote == 0);",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "p2_3"]
+ },
+ {
+  "nom": "la case neuve n'est pas choisie",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        self.ui.storyboard.choisie = neuve;",
+  "apres": "        let _ = neuve;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "p2_3"]
+ },
+ {
+  "nom": "le plus de droite hors du bord",
+  "fichier": "crates/glucose-desktop/src/renderer/storyboard.rs",
+  "avant": "        (x + w - cote / 2.0, haut, cote, cote),",
+  "apres": "        (x + w + cote, haut, cote, cote),",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "la_case_choisie_porte"]
+ },
+ {
+  "nom": "les plus ne se dessinent pas",
+  "fichier": "crates/glucose-desktop/src/renderer/storyboard.rs",
+  "avant": "        super::zone::dessiner_le_plus(pixmap, theme, bouton, d);",
+  "apres": "        let _ = bouton;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "la_case_choisie_porte"]
+ }
+]

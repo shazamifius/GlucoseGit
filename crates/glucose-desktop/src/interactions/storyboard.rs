@@ -139,8 +139,9 @@ impl GlucoseApp {
         true
     }
 
-    /// **La croix de la case choisie** passe avant les nœuds, comme les prises d'un nœud
-    /// choisi : elle retire la case.
+    /// **Les boutons de la case choisie** passent avant les nœuds, comme les prises d'un nœud
+    /// choisi : ses deux « + » insèrent une case avant ou après elle (P2, proposition 3), sa
+    /// croix la retire.
     pub(crate) fn prendre_la_case_choisie(&mut self) -> bool {
         let Some(id) = self.ui.storyboard.choisie.clone() else {
             return false;
@@ -159,12 +160,37 @@ impl GlucoseApp {
         let vp = self.store.viewport();
         let boite = crate::renderer::storyboard::boite_a_l_ecran(&case, &vp);
         let bande = DESCRIPTION as f32 * vp.scale as f32;
-        let (cx, cy, cw, ch) = crate::renderer::storyboard::croix(boite, bande, self.ui.scale());
         let (px, py) = (self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
-        if !((cx..=cx + cw).contains(&px) && (cy..=cy + ch).contains(&py)) {
+        let dessous = |(bx, by, bw, bh): crate::renderer::zone::Boite| {
+            (bx..=bx + bw).contains(&px) && (by..=by + bh).contains(&py)
+        };
+        let plus = crate::renderer::storyboard::plus(boite, self.ui.scale());
+        if let Some(cote) = plus.into_iter().position(dessous) {
+            return self.inserer_a_cote(&id, cote == 1);
+        }
+        if !dessous(crate::renderer::storyboard::croix(
+            boite,
+            bande,
+            self.ui.scale(),
+        )) {
             return false;
         }
         self.retirer_la_case_choisie()
+    }
+
+    /// **Insère une case vide avant ou après celle-ci** (P2, proposition 3, fiche 66), et la
+    /// choisit : on la décrit, ou on y lâche une image, aussitôt.
+    fn inserer_a_cote(&mut self, id: &str, apres: bool) -> bool {
+        let board = self.store.project.active_board_id.clone();
+        let Some(rang) = self.store.cases(&board).iter().position(|c| c.id == id) else {
+            return false;
+        };
+        let neuve = self
+            .store
+            .inserer_une_case(&board, rang + usize::from(apres));
+        self.ui.storyboard.choisie = neuve;
+        self.mark_dirty();
+        true
     }
 
     /// **La poignée du storyboard** : au coin bas droit de sa boîte, quand une de ses cases est

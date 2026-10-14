@@ -556,3 +556,45 @@ fn test_p2_2_sans_storyboard_il_nait_au_coin_de_la_selection() {
         "au coin de la sélection"
     );
 }
+
+/// Un clic au milieu du « + » de cette case — 0 à gauche, 1 à droite —, par la géométrie même
+/// que le dessin emploie.
+fn cliquer_le_plus(app: &mut GlucoseApp, case: &StoryboardPanel, cote: usize) {
+    let vp = app.store.viewport();
+    let boite = crate::renderer::storyboard::boite_a_l_ecran(case, &vp);
+    let (x, y, w, h) = crate::renderer::storyboard::plus(boite, app.ui.scale())[cote];
+    let milieu = (f64::from(x + w / 2.0), f64::from(y + h / 2.0));
+    glisser(app, milieu, milieu);
+}
+
+/// **P2, proposition 3 — les « + » de la case choisie insèrent une case**, à la vraie souris
+/// (fiche 66) : choisie par sa bande, le « + » de droite en insère une après elle, qui devient
+/// la choisie ; le « + » de gauche de celle-ci en insère une avant elle. Un `Ctrl+Z` par clic.
+#[test]
+fn test_p2_3_les_plus_de_la_case_choisie_inserent_une_case() {
+    let (mut app, board) = app();
+    let deuxieme = app.store.cases(&board)[1].clone();
+    let bande = dans_la_bande(&deuxieme);
+    glisser(&mut app, bande, bande);
+    assert_eq!(
+        app.ui.storyboard.choisie.as_deref(),
+        Some(deuxieme.id.as_str()),
+        "choisie par sa bande"
+    );
+    cliquer_le_plus(&mut app, &deuxieme, 1);
+    let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    assert_eq!(cases.len(), 9, "une case de plus");
+    assert_eq!(cases[1].id, deuxieme.id, "elle reste à sa place");
+    let neuve = cases[2].clone();
+    assert_eq!(
+        app.ui.storyboard.choisie.as_deref(),
+        Some(neuve.id.as_str()),
+        "la neuve, juste après, est choisie"
+    );
+    cliquer_le_plus(&mut app, &neuve, 0);
+    let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    assert_eq!(cases.len(), 10);
+    assert_eq!(cases[3].id, neuve.id, "avant elle : elle glisse d'un cran");
+    assert!(app.store.undo());
+    assert_eq!(app.store.cases(&board).len(), 9, "un Ctrl+Z par clic");
+}

@@ -301,18 +301,50 @@ pub(super) fn orner_la_zone_choisie(
 pub(crate) fn dessiner_la_croix(
     pixmap: &mut PixmapMut,
     theme: &crate::theme::Theme,
-    (cx, cy, cw, ch): Boite,
+    boite: Boite,
     d: f32,
+) {
+    let (cx, cy, cw, ch) = boite;
+    let m = cw * 0.3;
+    let traits = [
+        (cx + m, cy + m, cx + cw - m, cy + ch - m),
+        (cx + cw - m, cy + m, cx + m, cy + ch - m),
+    ];
+    dessiner_un_bouton(pixmap, theme, boite, (traits, d));
+}
+
+/// **Un « + » qui insère** : le bouton de la croix, et un plus dedans — une case du storyboard
+/// avant ou après la choisie (P2, proposition 3, fiche 66).
+pub(crate) fn dessiner_le_plus(
+    pixmap: &mut PixmapMut,
+    theme: &crate::theme::Theme,
+    boite: Boite,
+    d: f32,
+) {
+    let (cx, cy, cw, ch) = boite;
+    let m = cw * 0.25;
+    let traits = [
+        (cx + m, cy + ch / 2.0, cx + cw - m, cy + ch / 2.0),
+        (cx + cw / 2.0, cy + m, cx + cw / 2.0, cy + ch - m),
+    ];
+    dessiner_un_bouton(pixmap, theme, boite, (traits, d));
+}
+
+/// Un carré du fond des boutons, et deux traits clairs dedans.
+fn dessiner_un_bouton(
+    pixmap: &mut PixmapMut,
+    theme: &crate::theme::Theme,
+    (cx, cy, cw, ch): Boite,
+    (traits, d): ([(f32, f32, f32, f32); 2], f32),
 ) {
     if let Some(r) = Rect::from_xywh(cx, cy, cw, ch) {
         crate::renderer::scale::fill_crisp(pixmap, r, theme.btn_bg);
     }
     let mut trait_ = tiny_skia::PathBuilder::new();
-    let m = cw * 0.3;
-    trait_.move_to(cx + m, cy + m);
-    trait_.line_to(cx + cw - m, cy + ch - m);
-    trait_.move_to(cx + cw - m, cy + m);
-    trait_.line_to(cx + m, cy + ch - m);
+    for (x0, y0, x1, y1) in traits {
+        trait_.move_to(x0, y0);
+        trait_.line_to(x1, y1);
+    }
     if let Some(chemin) = trait_.finish() {
         let mut paint = tiny_skia::Paint {
             anti_alias: true,

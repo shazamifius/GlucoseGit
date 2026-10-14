@@ -187,6 +187,20 @@ verrouillée reste dehors. Un geste, un `Ctrl+Z` (`Store::storyboard_de_la_selec
 case). L'entrée du menu se range après « Retirer les bordures » : l'image témoin du menu a
 changé de cette seule ligne, regardée.
 
+## 6 quinquies. P2, proposition 3 — insérer une case entre deux
+
+Boords montre un « + » entre deux cadres au survol. Ici, la case **choisie** (un clic sur sa
+bande) porte, en plus de sa croix, **deux « + » au milieu de ses bords gauche et droit** :
+insérer une case vide avant elle, ou après — la neuve devient la choisie, prête à être décrite ou
+à recevoir une image. Les suivantes glissent d'un cran **avec leurs images**.
+
+**Aucune loi neuve** : `Store::inserer_une_case` ajoute une case au bout, puis la lâche à sa
+place — `deplacer_la_case`, le geste même d'une case glissée, où la case tenue ne capture aucune
+image et où les autres suivent la leur —, en un seul geste. Le « + » se dessine comme la croix :
+le bouton des zones a été factorisé (`dessiner_un_bouton`, deux traits), que la croix et le « + »
+emploient. Une seule géométrie (`renderer::storyboard::plus`) pour le dessin et le clic (loi L4),
+et une épreuve vérifie qu'elle tombe au milieu des bords. **Regardé** sur l'aperçu, agrandi.
+
 ## 7. Ce qui reste — et ce qui déclare P0 fini
 
 1. **Lire le téléphone par le câble** : `bash outils/android/lire_le_telephone.sh <dossier>` —
@@ -200,6 +214,31 @@ changé de cette seule ligne, regardée.
    lues.
 4. Plus tard, si le téléphone le désigne : le budget de la carte par `VK_EXT_memory_budget` hors
    de Windows (la sonde l'ignore encore), et décoder à la taille affichée.
+
+## 7 bis. La suite de P2 — le schéma 4, conçu, pas écrit
+
+Les propositions 4 (la lecture : une durée par case, l'animatique), 5 (plusieurs champs par
+case) et 6 (le type de plan) **changent toutes le modèle**, donc le format. Ma conception, à
+remettre en question :
+
+* **Un seul schéma 4** pour les trois, un seul témoin écrit par la build d'avant (METHODE § 5) ;
+  la proposition 8 (plusieurs storyboards par tableau) refond la structure et aura le sien.
+* `StoryboardPanel` gagne : `duree_ms: Option<u32>` — `None` dit « la durée du storyboard »,
+  2 000 ms par défaut, celle de Storyboarder (`defaultBoardTiming: 2000`, lu dans son
+  `src/js/prefs.js` ; une case n'a une durée à elle que si on la règle, `src/js/models/board.js`) ;
+  `dialogue`, `action`, `notes` (la description reste la légende) ; `plan: Option<Plan>`,
+  l'échelle des plans du cinéma français (très gros plan, gros plan, rapproché poitrine,
+  rapproché taille, américain, moyen, d'ensemble, général) — Storyboarder en a onze, de
+  l'« extrêmement près » au « plan de situation »
+  (`src/js/shot-generator/utils/cameraUtils.js`).
+* **La lecture** : l'animatique est le canevas lui-même, cadré case après case, la chrome
+  cachée (comme le mode référence), la description en sous-titre, une coupe à chaque durée ;
+  Échap en sort, les flèches avancent. Aucun second moteur de rendu.
+* **Les champs** se règlent dans une section « La case choisie » du panneau : un champ de
+  question par texte, un champ de nombre (CHAMP-1) pour la durée, un sélecteur qui tourne pour
+  le plan (comme le format).
+* Krita (Storyboard Docker) : une durée en secondes et en images, des champs de commentaire
+  qu'on nomme et qu'on cache, l'export PDF/SVG en rangées × colonnes par page — la proposition 7.
 
 ## 8. Les erreurs de la session — ce que j'ai cru et que la vérification a démenti
 
@@ -218,12 +257,33 @@ changé de cette seule ligne, regardée.
 * **Un `\n` mangé par Git Bash**, encore, dans un script Python passé par un *heredoc* :
   corrigé à l'outil d'édition.
 
+## 8 bis. La fin de la session
+
+Sa demande, le 14/10 : la session devient trop longue — une passation. Tout est validé et
+envoyé (`ec622e1`, `e1a8b77`, `1f190a0`, `c9e9fc0`, et le dernier commit de P2.3), sans la CI.
+**L'APK de son Bureau** (`Glucose.apk`, `2f86257a…`, signé `3f2af005…`) porte P0, pas
+FANTOME-1 ni P2 : à reconstruire avant de le poser sur son téléphone, si P2 doit y être.
+
 ## 9. Ce qui est prouvé
 
-Les épreuves de MEMOIRE-1, 2 et 3, de FANTOME-1 et de P2.1 ; **52 sabotages, 52 chutes** — 3 pour FANTOME-1 (`outils/sabotages/fantome-1.json`), 8 pour P2.1 (`p2-1.json`), 6 pour P2.2 (`p2-2.json`), et : 17 pour MEMOIRE-1 et 2
+Les épreuves de MEMOIRE-1, 2 et 3, de FANTOME-1 et de P2.1 ; **59 sabotages, 59 chutes** — 3 pour FANTOME-1 (`outils/sabotages/fantome-1.json`), 8 pour P2.1 (`p2-1.json`), 6 pour P2.2 (`p2-2.json`), 7 pour P2.3 (`p2-3.json`), et : 17 pour MEMOIRE-1 et 2
 (`outils/sabotages/memoire.json` — le dix-huitième visait la ligne redondante, retirée), 18 pour
 MEMOIRE-3 et le `LISEZ-MOI` (`outils/sabotages/memoire-3.json`). Clippy strict sous Windows et
 pour Android ; le serveur, ses sept épreuves et deux essais en ligne. **Ce qui n'est gardé que
 par une mesure** : que le décodage sur place ne tienne rien de plus que la pyramide — c'est
 `bench_decodage` qui le dit, pas une épreuve (un pic de mémoire ne se mesure pas au milieu de la
 suite, où seize épreuves tournent ensemble). **Rien n'est jugé sur son téléphone.**
+
+## 10. À essayer
+
+**Au PC** — `cargo run --release > sortie-66.txt 2>&1` :
+
+* **Le Storyboard** : « Activer » — le fantôme de la grille a désormais son coin haut gauche
+  sous la souris, et le clic pose là ; glisser plusieurs images ensemble sur une case : une par
+  case, à la suite ; choisir des images, clic droit → « Storyboard de la sélection » ; choisir
+  une case (un clic sur sa bande) → ses deux « + » insèrent une case avant ou après.
+
+**Au téléphone** :
+
+* Le brancher au PC par le câble, le débogage USB accepté, **sans ouvrir Glucose** : la session
+  suivante lit tout (`bash outils/android/lire_le_telephone.sh <dossier>`), puis installe l'APK.

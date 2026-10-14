@@ -87,6 +87,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | **Un storyboard de la sélection** : une case par image choisie, dans l'ordre de lecture — sans storyboard, il naît à la place de la sélection ; sinon ses cases s'ajoutent à la suite (P2, fiche 66) | menu de la sélection, « Storyboard de la sélection » | ✅ menu (appui long sur la sélection) |
 | **Plusieurs images** lâchées sur une case : une par case vide, à la suite, dans l'ordre de lecture — le storyboard s'allonge s'il le faut (P2, fiche 66) | les glisser ensemble, ou déposer des fichiers dessus | ✅ (les images choisies, glissées au doigt) |
 | Ajouter une case, renuméroter | « + Ajouter », « Re-numéroter les panels » | ✅ |
+| **Insérer une case entre deux** — les suivantes glissent d'un cran avec leurs images (P2, fiche 66) | les deux « + » de la case choisie, au milieu de ses bords : avant, après | ✅ (les mêmes, au doigt) |
 | Domaines (créer, éditer, attribuer) | panneau Domaines | 🟡 le nom d'un domaine ne se tape pas (même cause) |
 | Timer Pomodoro | panneau Timer | ✅ |
 
@@ -135,5 +136,5 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Mac** (une version publiée), **iPad** (par le web) | toutes les machines | — | la CI compile le Mac ; l'iPad attend le web |
 | **Le dessin de la sélection** (son choix entre les directions) | sa demande | — | planches à lui montrer |
 | **L'UX du téléphone**, toute refaite : ultra rapide, fluide, pratique | sa demande | — | **en dernier** |
-| **Le Storyboard, plus loin** : ~~plusieurs images qui remplissent les cases vides à la suite~~ (fait, fiche 66) ; ~~un storyboard de la sélection~~ (fait, fiche 66) ; insérer une case entre deux ; la lecture (durées, animatique) ; plusieurs champs par case ; le type de plan ; l'export en planches ; plusieurs storyboards par tableau | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **validées toutes les huit** (13/10) — SUITE P2 |
+| **Le Storyboard, plus loin** : ~~plusieurs images qui remplissent les cases vides à la suite~~ (fait, fiche 66) ; ~~un storyboard de la sélection~~ (fait, fiche 66) ; ~~insérer une case entre deux~~ (fait, fiche 66) ; la lecture (durées, animatique) ; plusieurs champs par case ; le type de plan ; l'export en planches ; plusieurs storyboards par tableau | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **validées toutes les huit** (13/10) — SUITE P2 |
 | **Le défilement au bord** (« moche, pas fluide ») | son essai | — | à reprendre avec sa chronique |
