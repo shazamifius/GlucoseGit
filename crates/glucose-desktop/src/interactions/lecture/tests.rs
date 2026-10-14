@@ -4,6 +4,7 @@
 use super::{vue_sur_la_case, Temps};
 use crate::app::GlucoseApp;
 use crate::canvas::world_to_screen;
+use crate::interactions::pave::Mouvement;
 use glucose_core::store::storyboard::Grille;
 use glucose_core::types::Viewport;
 use winit::dpi::PhysicalPosition;
@@ -242,4 +243,68 @@ fn test_la_boucle_dort_jusqu_a_la_coupe() {
     touche(&mut app, NamedKey::Space);
     app.attente_de_la_lecture();
     assert_eq!(app.attente_de_la_lecture(), None);
+}
+
+/// La vue qui cadre la première case dans un écran de 400 × 800.
+fn sur_la_premiere(app: &GlucoseApp, board: &str) -> Viewport {
+    let c = app.store.cases(board)[0].clone();
+    vue_sur_la_case((c.x, c.y, c.width, c.height), (0.0, 0.0, 400.0, 800.0))
+}
+
+/// **Pendant une lecture, la caméra est la sienne** (fiche 68) : deux doigts qui pincent — au
+/// téléphone, ou au pavé — ne la décadrent pas ; et **rien ne reste dû** : Échap rend la vue
+/// d'avant, exactement, au lieu de la faire partir de tout ce qu'on a pincé.
+#[test]
+fn test_les_doigts_ne_decadrent_pas_la_lecture_et_rien_ne_reste_du() {
+    let (mut app, board, _) = app();
+    let avant = app.store.viewport();
+    app.lire_le_storyboard(None);
+    app.toucher.attendre(Mouvement {
+        echelle: 1.5,
+        decalage: (120.0, -40.0),
+    });
+    app.bouger_la_camera(400, 800);
+    assert_eq!(app.store.viewport(), sur_la_premiere(&app, &board));
+    touche(&mut app, NamedKey::Escape);
+    app.bouger_la_camera(400, 800);
+    assert_eq!(app.store.viewport(), avant, "la vue d'avant, et rien de dû");
+}
+
+/// **Ce qui était dû avant la lecture ne part pas à sa fin**, ni ce que la molette demande
+/// pendant (fiche 68).
+#[test]
+fn test_ce_qu_on_demande_avant_ou_pendant_ne_part_pas_a_la_fin() {
+    let (mut app, board, _) = app();
+    let avant = app.store.viewport();
+    app.elan.placer_pan(400.0, 120.0);
+    app.lire_le_storyboard(None);
+    app.bouger_la_camera(400, 800);
+    assert_eq!(app.store.viewport(), sur_la_premiere(&app, &board));
+    app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, 3.0));
+    app.bouger_la_camera(400, 800);
+    assert_eq!(app.store.viewport(), sur_la_premiere(&app, &board));
+    touche(&mut app, NamedKey::Escape);
+    app.bouger_la_camera(400, 800);
+    assert_eq!(app.store.viewport(), avant, "la vue d'avant, et rien de dû");
+}
+
+/// **Un vol en route ne reprend pas à la fin** (fiche 68) : `F`, un signet, la minimap lancés
+/// juste avant « ▶ Lire » — la lecture le pose, et Échap rend la vue d'avant, immobile.
+#[test]
+fn test_un_vol_en_route_ne_reprend_pas_a_la_fin() {
+    let (mut app, _, _) = app();
+    let avant = app.store.viewport();
+    app.vol.voler_vers(Viewport {
+        x: 5000.0,
+        y: -800.0,
+        scale: 2.0,
+    });
+    app.lire_le_storyboard(None);
+    app.bouger_la_camera(400, 800);
+    touche(&mut app, NamedKey::Escape);
+    // L'horloge d'une épreuve n'avance pas : un vol vivant ne déplacerait rien ici, mais
+    // partirait à la première vraie image. C'est donc son état qui se lit.
+    assert!(!app.vol.en_cours(), "le vol est posé");
+    app.bouger_la_camera(400, 800);
+    assert_eq!(app.store.viewport(), avant, "la vue d'avant, immobile");
 }

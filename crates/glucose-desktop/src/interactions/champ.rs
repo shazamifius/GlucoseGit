@@ -39,11 +39,9 @@ impl GlucoseApp {
     /// **Les durées du panneau vont au document** (fiche 67) : la durée par case, puis celle de
     /// la case choisie, quand leur champ ne les tient plus et qu'elles diffèrent de ce que le
     /// document dit — un geste chacune. Tenues, elles attendent qu'on les lâche : un glisser
-    /// est un seul `Ctrl+Z`.
+    /// est un seul `Ctrl+Z` — seuls la frappe, sa validation et le lâcher appellent ceci, et
+    /// jamais le glisser (fiche 68 : une garde de l'état « tenu » ici ne servait à rien).
     fn pousser_les_durees(&mut self) {
-        if matches!(self.dock_manager.champ, Some(Saisie::Tenu { .. })) {
-            return;
-        }
         let panneau = &self.dock_manager.storyboard;
         let Some(lecture) = &panneau.contenu.lecture else {
             return;

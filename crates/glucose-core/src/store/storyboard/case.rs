@@ -3,7 +3,9 @@
 //! le nom de chaque champ.
 //!
 //! Chaque réglage est **un geste**, un `Ctrl+Z`. Un réglage qui ne change rien n'écrit rien :
-//! la case est comparée avant et après, et seule une différence entre au journal.
+//! ici, on photographie avant et après ; c'est le journal qui jette ce qui n'a pas changé
+//! (`Journal::record`), une fois pour tous — une seconde comparaison ici serait une garde
+//! qu'aucune épreuve ne peut faire tomber (fiche 68).
 //!
 //! # Les champs sont ceux du storyboard
 //!
@@ -113,7 +115,7 @@ impl Store {
         self.record_as_one_gesture(edits);
     }
 
-    /// Change le storyboard par `f`, et rend ce qui entre au journal — rien s'il ne change pas.
+    /// Change le storyboard par `f`, et rend son avant et son après.
     fn regler(&mut self, board_id: &str, f: impl FnOnce(&mut Storyboard)) -> Vec<Edit> {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return Vec::new();
@@ -123,9 +125,6 @@ impl Store {
         };
         let avant = storyboard.clone();
         f(storyboard);
-        if *storyboard == avant {
-            return Vec::new();
-        }
         vec![Edit::Storyboard {
             board: board_id.to_string(),
             whole: Whole::new(Some(avant), Some(storyboard.clone())),
@@ -138,7 +137,7 @@ impl Store {
         self.record_as_one_gesture(edits);
     }
 
-    /// Change les cases par `f`, et rend ce qui entre au journal : chaque case qui a changé.
+    /// Change les cases par `f`, et rend l'avant et l'après de chacune.
     fn changer(&mut self, board_id: &str, mut f: impl FnMut(&mut StoryboardPanel)) -> Vec<Edit> {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return Vec::new();
@@ -147,12 +146,10 @@ impl Store {
         for (i, case) in b.panels.iter_mut().enumerate() {
             let avant = case.clone();
             f(case);
-            if *case != avant {
-                edits.push(Edit::Panel {
-                    board: board_id.to_string(),
-                    slot: Slot::changed(i, avant, case.clone()),
-                });
-            }
+            edits.push(Edit::Panel {
+                board: board_id.to_string(),
+                slot: Slot::changed(i, avant, case.clone()),
+            });
         }
         edits
     }

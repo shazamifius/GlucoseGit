@@ -181,3 +181,30 @@ fn test_le_document_dit_ce_qu_il_pese() {
     // Tronc 22 + intervalle 8 + dix octets de texte = 40 par nœud.
     assert_eq!(d.bytes(), 100 * 40);
 }
+
+/// **Le poids compte les tables** (fiche 68) : une ligne posée dans une table éparse pèse ce que
+/// la table annonce — son identifiant et sa valeur —, et le document le dit. L'épreuve d'au-dessus
+/// ne posait que du texte : le compte des tables pouvait tomber à zéro sans qu'elle le voie. Elle
+/// pose ici trois tables, dont `crop`, celle que la liste écrite deux fois avait perdue.
+#[test]
+fn test_le_poids_du_document_compte_ses_tables() {
+    let ligne = |valeur: usize| std::mem::size_of::<NodeId>() + valeur;
+    let mut d = Doc::with_capacity(10);
+    let ids: Vec<NodeId> = (0..10)
+        .map(|i| d.spawn(Kind::Image, boite(i * 10, 0, 10, 10), NodeId::NONE))
+        .collect();
+    let mut attendu = d.bytes();
+    for &id in &ids {
+        d.rotation.set(id, 90.0);
+    }
+    attendu += 10 * ligne(std::mem::size_of::<f32>());
+    assert_eq!(d.bytes(), attendu, "la rotation");
+    for &id in &ids[..3] {
+        d.crop.set(id, crate::types::Recadrage::default());
+    }
+    attendu += 3 * ligne(std::mem::size_of::<crate::types::Recadrage>());
+    assert_eq!(d.bytes(), attendu, "le recadrage");
+    d.case.set(ids[0], CaseTrait::default());
+    attendu += ligne(std::mem::size_of::<CaseTrait>());
+    assert_eq!(d.bytes(), attendu, "la case");
+}

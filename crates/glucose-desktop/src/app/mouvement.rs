@@ -47,8 +47,9 @@ impl GlucoseApp {
     /// ce que la main tient suit la vue qui a bougé, d'où que vienne le mouvement.
     pub fn bouger_la_camera(&mut self, largeur: u32, hauteur: u32) {
         // Pendant une lecture, la caméra est la sienne : la case montrée, à la taille de
-        // l'écran — qui peut changer (fiche 67).
+        // l'écran — qui peut changer (fiche 67) ; et ce qu'on lui demande se perd (fiche 68).
         if self.cadrer_la_lecture(largeur, hauteur) {
+            self.oublier_ce_qu_on_demande_a_la_camera();
             return;
         }
         let avant = self.store.viewport();

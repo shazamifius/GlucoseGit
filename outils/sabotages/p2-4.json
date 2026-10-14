@@ -101,36 +101,6 @@
   ]
  },
  {
-  "nom": "le storyboard ecrit sans changement",
-  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
-  "avant": "        if *storyboard == avant {",
-  "apres": "        if false {",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-core",
-   "--lib",
-   "--",
-   "storyboard"
-  ]
- },
- {
-  "nom": "une case ecrite sans changement",
-  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
-  "avant": "            if *case != avant {",
-  "apres": "            if true {",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-core",
-   "--lib",
-   "--",
-   "storyboard"
-  ]
- },
- {
   "nom": "retirer le champ garde les textes",
   "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
   "avant": "                c.textes.remove(rang);",
@@ -268,10 +238,10 @@
   ]
  },
  {
-  "nom": "une duree tenue part au document",
+  "nom": "un glisser pousse les durees a chaque pas",
   "fichier": "crates/glucose-desktop/src/interactions/champ.rs",
-  "avant": "        if matches!(self.dock_manager.champ, Some(Saisie::Tenu { .. })) {",
-  "apres": "        if false {",
+  "avant": "        let tenu = self.dock_manager.glisser_le_champ(x);\n        if tenu {\n",
+  "apres": "        let tenu = self.dock_manager.glisser_le_champ(x);\n        if tenu {\n            self.pousser_les_durees();\n",
   "cmd": [
    "cargo",
    "test",
@@ -279,8 +249,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "ecrire",
-   "champ"
+   "ecrire"
   ]
  },
  {
@@ -359,7 +328,6 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "ecrire",
    "champ"
   ]
  },
@@ -488,21 +456,6 @@
   "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
   "avant": "        if self.cadrer_la_lecture(largeur, hauteur) {",
   "apres": "        if self.cadrer_la_lecture(largeur, hauteur) && false {",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "lecture"
-  ]
- },
- {
-  "nom": "la molette passe en lecture",
-  "fichier": "crates/glucose-desktop/src/interactions/pan_zoom.rs",
-  "avant": "        if self.ui.question.is_some() || self.ui.lecture.is_some() {",
-  "apres": "        if self.ui.question.is_some() {",
   "cmd": [
    "cargo",
    "test",
@@ -694,6 +647,66 @@
    "--",
    "ecrire",
    "champ"
+  ]
+ },
+ {
+  "nom": "la lecture n oublie rien",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "            self.oublier_ce_qu_on_demande_a_la_camera();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la lecture garde ce qui est du a l elan",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        self.elan = Default::default();\n        self.toucher.attente = None;\n",
+  "apres": "        self.toucher.attente = None;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la lecture garde ce que les doigts demandent",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        self.toucher.attente = None;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la lecture laisse un vol en route",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        self.toucher.attente = None;\n        self.vol.poser();\n",
+  "apres": "        self.toucher.attente = None;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
   ]
  }
 ]

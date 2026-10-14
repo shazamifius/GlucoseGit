@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 14/10/2026** (fiches 51 à 66 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 14/10/2026** (fiches 51 à 68 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -107,6 +107,13 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   haut gauche de la première case — ou de la membrane, du dossier — est sous la main, là d'où
   un glisser tracerait ; Tauri centrait la grille, et le fantôme sautait d'une demi-grille dès
   que la main glissait.
+* **L'animatique** (`interactions/lecture.rs`, `renderer/lecture.rs`, fiche 67) : « ▶ Lire »
+  **cadre le canevas lui-même** sur une case après l'autre — aucun second moteur, les images à
+  leur netteté par les deux voies —, voile de noir ce qui n'est pas elle, pose ses textes en
+  sous-titre, et **coupe** à chaque durée ; entre deux coupes, la boucle dort
+  (`Raison::Animation`). La lecture prend toute la main, comme une question. L'interface se
+  cache par **un seul prédicat**, `UiState::sans_interface()` (le mode référence, ou une
+  lecture), que la bande, les panneaux, les clics et le dessin lisent.
 * **Le canevas défile au bord** (DEFILE-1, `bord.rs`, fiche 59) : un nœud, un coin ou un
   rectangle de sélection tenu dans la bande du bord — la cible d'un doigt — fait avancer la vue
   à chaque image (`bouger_la_camera`, une raison de réveil à lui), d'autant plus vite qu'il s'y
@@ -135,7 +142,8 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Les documents du téléphone** | `persist/documents.rs`, `documents/gestion.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste. DOCUMENTS-2 : un appui long dans la liste renomme (par « Enregistrer sous » pour le document ouvert), duplique, supprime |
 | **Les filets** | `persist/frappe.rs`, `reprise.rs`, `recuperation.rs`, `verrou.rs`, `atomic.rs` | le texte en cours de frappe survit à un plantage ; le lancement rouvre le dernier travail ; ce qu'on va recouvrir est mis de côté (FIN-1) ; un seul scribe par fichier ; **un seul endroit** pose un fichier à la place d'un autre (cliquet 11) |
 | **Les gabarits et leurs zones** | `core/gabarits.rs`, `core/store/zones.rs`, `core/layout/zones.rs` | PRESET-1 (fiche 62) : les six gabarits de Tauri ; une zone porte `gabarit/catégorie` ; une image appartient à la zone où est son centre — rien ne s'écrit sur elle ; « Par slot preset » range chaque zone en rangées justifiées, qui tiennent dans la zone |
-| **Le storyboard** | `core/types/storyboard.rs`, `core/store/storyboard.rs` | STORYBOARD-1 et 2 (fiches 64, 65) : **une suite** de cases et **sa grille, enregistrée dans le tableau** (`Board::storyboard`, schéma 3, `Edit::Storyboard`) ; **une seule loi** place une case (`Grille::coin` : la case `i` à la colonne `i mod c`) ; chaque geste — poser d'un clic, tracer un rectangle (les colonnes et rangées dont l'étendue est la plus proche, `tient_dans`), tirer la poignée, ajouter, retirer, lâcher une case à une autre place — donne une `Disposition`, et `Store::ranger` seul en tire chaque case, numérotée dans l'ordre, et ses images, qui suivent par la similitude de l'ancien cadre au nouveau ; une case qui porte quelque chose ne se retire jamais d'un tracé. Une image lâchée dans une case s'y ajuste ; une case glissée emporte ses images (GLISSER-1, refermé avant le rangement) |
+| **Le storyboard** | `core/types/storyboard.rs`, `core/store/storyboard.rs` | STORYBOARD-1 et 2 (fiches 64, 65) : **une suite** de cases et **sa grille, enregistrée dans le tableau** (`Board::storyboard`, schéma 3, `Edit::Storyboard`) ; **une seule loi** place une case (`Grille::coin` : la case `i` à la colonne `i mod c`) ; chaque geste — poser d'un clic, tracer un rectangle (les colonnes et rangées dont l'étendue est la plus proche, `tient_dans`), tirer la poignée, ajouter, retirer, lâcher une case à une autre place — donne une `Disposition`, et `Store::ranger` seul en tire chaque case, numérotée dans l'ordre, et ses images, qui suivent par la similitude de l'ancien cadre au nouveau ; une case qui porte quelque chose ne se retire jamais d'un tracé. Une image lâchée dans une case s'y ajuste ; une case glissée emporte ses images (GLISSER-1, refermé avant le rangement). **Schéma 4** (fiche 67, `persist/storyboard.rs`) : une case porte sa durée, son plan et le texte de chaque champ ; le storyboard, la durée d'une case qui n'a pas la sienne (`Storyboard::duree`, la seule loi) et **le nom de ses champs** — une donnée, comme les légendes de Toon Boom. Chaque réglage est un geste (`store/storyboard/case.rs`) ; c'est le journal qui jette ce qui ne change rien |
+| **L'arène** | `core/arena/` | la fondation des 10⁷ nœuds, en attente de branchement : un tronc de champs contigus (22 octets par nœud) et des **tables éparses** pour ce qui est propre à un genre ; `NodeId` est un indice. **Une seule liste de ses tables**, `Doc::tables()`, tenue par une déstructuration exhaustive — une table oubliée ne compile pas —, que le poids (`Doc::bytes`) et la vérification (DOC-1) lisent tous deux (fiche 67 : la liste écrite deux fois avait perdu `crop`) |
 | **Les couleurs** | `core/couleur.rs` | Oklab et Oklch, les trois tris par la couleur (ORDONNER-2) ; la couleur d'une image est le sommet de sa pyramide (MOYENNE-1) |
 | **Exporter** | `desktop/persist/export.rs`, `export/png.rs`, `renderer/export.rs` | Markdown, SVG, et PNG par bandes de la surface d'un écran, sur un fil à soi (EXPORT-PNG-1) ; ce qui est exporté est une copie (`Store::copie_a_exporter`) |
 | **Glucose Tauri** | `core/persist/tauri.rs`, `desktop/persist/import.rs` | un lecteur d'Automerge écrit ici, sans dépendance, identique à la bibliothèque de référence ; le fichier Tauri n'est jamais réécrit |
@@ -231,7 +239,12 @@ l'écran) ; **la question** (`question.rs`, QUESTION-1, POPUP-1), que Glucose de
 répond au relâchement, sur la réponse pressée, et au clavier (Entrée, Tab, Échap), prend tout
 ce qui la touche, et peut porter un **champ** de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. **Le menu porte chaque commande** (ACCES-1, fiche 63) — ce qu'il propose dans `ui/context_menu/entrees.rs`, sa pose dans `context_menu.rs`, **en colonnes** quand l'écran est trop bas (un groupe reste entier) ; les signets vivent dans `interactions/signets.rs` (le clavier et la question « Signets… » appellent les mêmes gestes). `dock/` : les panneaux (Ordonner,
 Timer, Domaines, Time Machine, Presets, **Storyboard** — sa liste de cases par pages, fiche 64 ;
-Plugins est encore une façade honnête),
+Plugins est encore une façade honnête). **Le panneau du storyboard est un miroir** du document
+(`StoryboardState::suivre`, fiche 67), recopié à chaque image : son dessin, son clic et ses
+champs lisent ce miroir et lui seul (L4) ; une durée qu'on tient reste à la main jusqu'au lâcher
+(un glisser, un `Ctrl+Z`), et après avoir écrit, le panneau **relit aussitôt la source** — un
+`Ctrl+Z` avant l'image suivante ne laisse pas la valeur défaite dans le champ. Les durées se
+règlent **en rapport** (une règle logarithmique, deux chiffres significatifs) ;
 chacun avec son cache ; `dock/clic.rs` aiguille le clic, `dock/champ.rs` porte les **champs de
 nombre** (CHAMP-1 : glisser, ou cliquer et taper — tout le panneau est la règle). Les zones des
 gabarits se prennent par leur bandeau (`interactions/zone.rs`), un gabarit armé suit le curseur

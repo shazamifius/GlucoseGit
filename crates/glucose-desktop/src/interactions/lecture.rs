@@ -98,8 +98,6 @@ impl GlucoseApp {
             .and_then(|id| cases.iter().position(|c| c.id == id))
             .unwrap_or(0);
         self.ui.context_menu_at = None;
-        self.vol.poser();
-        self.elan = Default::default();
         self.ui.lecture = Some(Lecture {
             board,
             rang,
@@ -116,9 +114,19 @@ impl GlucoseApp {
         let Some(lecture) = self.ui.lecture.take() else {
             return;
         };
-        self.elan = Default::default();
         self.store.set_viewport(&lecture.board, lecture.vue_d_avant);
         self.mark_dirty();
+    }
+
+    /// **Pendant une lecture, ce qu'on demande à la caméra se perd** (fiche 68) — l'élan qu'on
+    /// avait lancé, ce que la molette, le pavé ou deux doigts demandent, un vol en route. Rien
+    /// ne reste dû : sans quoi la vue d'avant, à peine rendue, partirait de tout ce qu'on a
+    /// pincé pendant la lecture. Une seule règle, à chaque image, au lieu d'une garde à chaque
+    /// entrée.
+    pub(crate) fn oublier_ce_qu_on_demande_a_la_camera(&mut self) {
+        self.elan = Default::default();
+        self.toucher.attente = None;
+        self.vol.poser();
     }
 
     /// **Passe de `pas` cases** : la suivante commence maintenant. Au-delà de la dernière, la

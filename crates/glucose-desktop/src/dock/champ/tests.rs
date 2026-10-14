@@ -216,3 +216,42 @@ fn test_un_cran_de_fleche() {
     assert_eq!(c.cran(60_000.0, 1.0), 60_000.0, "borné");
     assert_eq!(Champ::StoryLargeur.cran(280.0, 1.0), 290.0);
 }
+
+/// **Tab ne passe jamais à un champ absent** (fiche 68) : sans case choisie, la durée d'une
+/// case n'est pas dans le panneau — Tab, depuis la durée par case, revient à la largeur ; une
+/// case choisie, il va à sa durée. Sans cette règle, la frappe s'ouvrirait sur un champ qu'on
+/// ne voit pas, et taper réglerait une case qui n'existe pas.
+#[test]
+fn test_tab_ne_passe_jamais_a_un_champ_absent() {
+    use crate::dock::storyboard::lecture::{Choisie, Lecture};
+    let tab_depuis_la_duree_par_case = |case: Option<Choisie>| {
+        let mut d = dock();
+        d.storyboard.contenu.lecture = Some(Lecture {
+            champs: Vec::new(),
+            duree_ms: 2000,
+            case,
+        });
+        d.tenir_le_champ(Champ::StoryDuree, cadre(), (0.0, 8.0));
+        d.lacher_le_champ();
+        d.frapper_le_champ(&Key::Named(NamedKey::Tab));
+        d.champ.as_ref().map(Saisie::champ)
+    };
+    assert_eq!(
+        tab_depuis_la_duree_par_case(None),
+        Some(Champ::StoryLargeur),
+        "sans case choisie, la durée d'une case n'est pas là"
+    );
+    let choisie = Choisie {
+        id: "case-1".to_string(),
+        numero: 1,
+        description: String::new(),
+        textes: Vec::new(),
+        plan: None,
+        duree_ms: None,
+    };
+    assert_eq!(
+        tab_depuis_la_duree_par_case(Some(choisie)),
+        Some(Champ::CaseDuree),
+        "une case choisie : sa durée suit"
+    );
+}
