@@ -1,6 +1,6 @@
 //! Le tableau : sa caméra, ses nœuds, ses panneaux de storyboard, ses signets.
 
-use super::{Annotation, BoardImage, BoardZone, CanvasFolder, Grille, Id, StoryboardPanel};
+use super::{Annotation, BoardImage, BoardZone, CanvasFolder, Id, Storyboard, StoryboardPanel};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -87,8 +87,9 @@ pub struct Board {
     pub annotations: Vec<Annotation>,
     pub folders: Vec<CanvasFolder>,
     pub panels: Vec<StoryboardPanel>,
-    /// La grille du storyboard, s'il y en a un (STORYBOARD-2) : ce qui range ses cases.
-    pub storyboard: Option<Grille>,
+    /// Le storyboard du tableau, s'il y en a un : sa grille (STORYBOARD-2), la durée et les
+    /// champs de ses cases (schéma 4, fiche 67).
+    pub storyboard: Option<Storyboard>,
     pub zones: Vec<BoardZone>,
     pub viewport: Viewport,
     pub bookmarks: HashMap<String, Viewport>,

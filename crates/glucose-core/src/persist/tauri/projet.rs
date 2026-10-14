@@ -20,7 +20,7 @@ mod tests;
 use crate::persist::tauri::Valeur;
 use crate::types::{
     AssetRef, Board, BoardImage, BoardZone, CanvasFolder, Domain, DomainAssignment,
-    FolderMirrorSource, FolderSortMode, Format, Grille, Preset, PresetSlot, Project,
+    FolderMirrorSource, FolderSortMode, Format, Grille, Preset, PresetSlot, Project, Storyboard,
     StoryboardPanel, TemporalAnchor, Viewport,
 };
 use std::collections::{BTreeMap, HashMap};
@@ -135,7 +135,10 @@ fn tableau(b: &Valeur, blobs: &HashMap<String, Vec<u8>>, r: &mut Rapport) -> Boa
             .map(|(k, v)| (k.clone(), vue(v)))
             .collect();
     }
-    board.storyboard = b.champ("storyboard").and_then(|s| grille(s, r));
+    board.storyboard = b
+        .champ("storyboard")
+        .and_then(|s| grille(s, r))
+        .map(Storyboard::neuf);
     if b.champ("presetId").is_some() {
         r.omettre("preset appliqué à un tableau");
     }

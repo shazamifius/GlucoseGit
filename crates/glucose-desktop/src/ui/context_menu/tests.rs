@@ -399,3 +399,25 @@ fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
         }
     }
 }
+
+/// **« Lire le storyboard » n'existe que s'il y a des cases à lire** (fiche 67), juste après
+/// les signets — au clic droit comme au doigt.
+#[test]
+fn test_lire_le_storyboard_n_existe_que_s_il_y_a_des_cases() {
+    let mut store = store_with(0, 0, false);
+    assert!(!actions(&menu(&store, (100.0, 100.0))).contains(&MenuAction::LireLeStoryboard));
+    let board = store.project.active_board_id.clone();
+    let grille = glucose_core::store::storyboard::Grille::default();
+    store.poser_le_storyboard(&board, grille, (0.0, 0.0));
+    store.clear_selection();
+    let offertes = actions(&menu(&store, (100.0, 100.0)));
+    let signets = offertes.iter().position(|a| *a == MenuAction::Signets);
+    let lire = offertes
+        .iter()
+        .position(|a| *a == MenuAction::LireLeStoryboard);
+    assert_eq!(
+        lire,
+        signets.map(|s| s + 1),
+        "après les signets : {offertes:?}"
+    );
+}

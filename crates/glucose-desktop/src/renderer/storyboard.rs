@@ -136,7 +136,8 @@ pub(super) fn ecrire_les_textes(
     !cases.is_empty()
 }
 
-/// Le numéro centré dans son badge, la description à sa droite, coupée à la largeur restante.
+/// Le numéro centré dans son badge, le sigle du plan s'il est dit, la description à leur droite,
+/// coupée à la largeur restante.
 fn ecrire(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
@@ -162,7 +163,14 @@ fn ecrire(
         by + (bh - corps) / 2.0,
         style(NUMERO, Face::Bold),
     );
-    let gauche = bx + bw + un(MARGE * 1.5);
+    let mut gauche = bx + bw + un(MARGE * 1.5);
+    // Le plan, par son sigle, avant la légende — là où une planche l'écrit (fiche 67).
+    if let Some(plan) = case.plan {
+        let sigle = plan.noms().1;
+        let haut = by + (bh - corps) / 2.0;
+        typo.draw_text(pixmap, sigle, gauche, haut, style(NUMERO, Face::Bold));
+        gauche += typo.measure_text(sigle, corps, Face::Bold).0 + un(MARGE * 1.5);
+    }
     let largeur = (x + w - un(MARGE) - gauche).max(0.0);
     let avance = |_: usize, c: char| typo.advance(c, corps, Face::Regular);
     let mut ligne = by + (bh - corps) / 2.0;

@@ -181,6 +181,17 @@ pub struct Doc {
     pub curtains: Sparse<Vec<MembraneCurtain>>,
     /// La source d'un dossier miroir du système de fichiers.
     pub folder_mirror: Sparse<FolderMirrorSource>,
+    /// **Ce qu'une case de storyboard porte pour la lecture** (fiche 67) — éparse : une case
+    /// qui n'a ni durée à elle, ni plan, ni texte n'a pas de ligne ici.
+    pub case: Sparse<CaseTrait>,
+}
+
+/// La durée, le plan et les champs d'une case de storyboard (schéma 4, fiche 67).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CaseTrait {
+    pub duree_ms: Option<u32>,
+    pub plan: Option<crate::types::Plan>,
+    pub textes: Vec<String>,
 }
 
 impl Doc {
@@ -265,27 +276,66 @@ impl Doc {
         self.nodes.slots() * Arena::BYTES_PER_NODE
             + self.text.slots() * TextArena::BYTES_PER_NODE
             + self.text.bytes_used()
-            + self.color.bytes()
-            + self.background.bytes()
-            + self.color_literal.bytes()
-            + self.background_literal.bytes()
-            + self.font_size.bytes()
-            + self.rotation.bytes()
-            + self.cursor.bytes()
-            + self.source_file.bytes()
-            + self.mirror_of.bytes()
-            + self.temporal.bytes()
-            + self.domains.bytes()
-            + self.operator.bytes()
-            + self.membrane_mode.bytes()
-            + self.arrow.bytes()
-            + self.image.bytes()
-            + self.original.bytes()
-            + self.folder.bytes()
-            + self.order.bytes()
-            + self.asset.bytes()
-            + self.curtains.bytes()
-            + self.folder_mirror.bytes()
+            + self.tables().iter().map(|(_, t)| t.octets()).sum::<usize>()
+    }
+
+    /// **Chaque table éparse, une fois, par son nom** — la liste que le compte des octets et la
+    /// vérification (DOC-1) lisent tous deux. `Doc` y est déstructuré champ par champ : une
+    /// table ajoutée et oubliée ici ne compile pas. Écrite deux fois à la main, la liste avait
+    /// perdu `crop` des deux côtés (RECADRAGE-1), et personne ne l'avait vu.
+    pub fn tables(&self) -> [(&'static str, &dyn super::sparse::Eparse); 23] {
+        let Doc {
+            nodes: _,
+            text: _,
+            color,
+            background,
+            color_literal,
+            background_literal,
+            font_size,
+            rotation,
+            cursor,
+            source_file,
+            mirror_of,
+            temporal,
+            domains,
+            operator,
+            membrane_mode,
+            arrow,
+            image,
+            original,
+            crop,
+            folder,
+            order,
+            asset,
+            curtains,
+            folder_mirror,
+            case,
+        } = self;
+        [
+            ("color", color),
+            ("background", background),
+            ("color_literal", color_literal),
+            ("background_literal", background_literal),
+            ("font_size", font_size),
+            ("rotation", rotation),
+            ("cursor", cursor),
+            ("source_file", source_file),
+            ("mirror_of", mirror_of),
+            ("temporal", temporal),
+            ("domains", domains),
+            ("operator", operator),
+            ("membrane_mode", membrane_mode),
+            ("arrow", arrow),
+            ("image", image),
+            ("original", original),
+            ("crop", crop),
+            ("folder", folder),
+            ("order", order),
+            ("asset", asset),
+            ("curtains", curtains),
+            ("folder_mirror", folder_mirror),
+            ("case", case),
+        ]
     }
 
     /// Supprime un nœud. Ses attributs sont conservés : annuler la suppression doit rendre le
@@ -300,61 +350,17 @@ impl Doc {
         self.nodes.check()?;
         self.text.check()?;
 
-        let mut erreur = None;
-        let mut verifier = |nom: &str, ids: Vec<NodeId>| {
-            if erreur.is_some() {
-                return;
+        for (nom, table) in self.tables() {
+            if let Some(id) = table
+                .proprietaires()
+                .into_iter()
+                .find(|&id| !self.nodes.holds(id))
+            {
+                return Err(format!(
+                    "DOC-1 : la table {nom} désigne le nœud {} qui n'existe pas",
+                    id.index()
+                ));
             }
-            for id in ids {
-                if !self.nodes.holds(id) {
-                    erreur = Some(format!(
-                        "DOC-1 : la table {nom} désigne le nœud {} qui n'existe pas",
-                        id.index()
-                    ));
-                    return;
-                }
-            }
-        };
-        verifier("color", self.color.iter().map(|(i, _)| i).collect());
-        verifier(
-            "background",
-            self.background.iter().map(|(i, _)| i).collect(),
-        );
-        verifier(
-            "color_literal",
-            self.color_literal.iter().map(|(i, _)| i).collect(),
-        );
-        verifier(
-            "background_literal",
-            self.background_literal.iter().map(|(i, _)| i).collect(),
-        );
-        verifier("font_size", self.font_size.iter().map(|(i, _)| i).collect());
-        verifier("rotation", self.rotation.iter().map(|(i, _)| i).collect());
-        verifier("cursor", self.cursor.iter().map(|(i, _)| i).collect());
-        verifier(
-            "source_file",
-            self.source_file.iter().map(|(i, _)| i).collect(),
-        );
-        verifier("temporal", self.temporal.iter().map(|(i, _)| i).collect());
-        verifier("domains", self.domains.iter().map(|(i, _)| i).collect());
-        verifier("operator", self.operator.iter().map(|(i, _)| i).collect());
-        verifier(
-            "membrane_mode",
-            self.membrane_mode.iter().map(|(i, _)| i).collect(),
-        );
-        verifier("arrow", self.arrow.iter().map(|(i, _)| i).collect());
-        verifier("image", self.image.iter().map(|(i, _)| i).collect());
-        verifier("original", self.original.iter().map(|(i, _)| i).collect());
-        verifier("folder", self.folder.iter().map(|(i, _)| i).collect());
-        verifier("order", self.order.iter().map(|(i, _)| i).collect());
-        verifier("asset", self.asset.iter().map(|(i, _)| i).collect());
-        verifier("curtains", self.curtains.iter().map(|(i, _)| i).collect());
-        verifier(
-            "folder_mirror",
-            self.folder_mirror.iter().map(|(i, _)| i).collect(),
-        );
-        if let Some(e) = erreur {
-            return Err(e);
         }
 
         // Les miroirs désignent des nœuds, et une table de références qui pointe dans le vide

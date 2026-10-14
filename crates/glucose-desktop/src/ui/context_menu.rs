@@ -83,6 +83,8 @@ pub enum MenuAction {
     TrimBorders,
     /// Une case par image choisie, dans l'ordre de lecture (P2, proposition 2, fiche 66).
     StoryboardDeLaSelection,
+    /// Lire le storyboard en plein écran, depuis la case choisie (fiche 67).
+    LireLeStoryboard,
     ToFront,
     ToBack,
     Delete,

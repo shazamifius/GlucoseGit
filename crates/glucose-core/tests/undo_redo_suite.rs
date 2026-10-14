@@ -396,7 +396,12 @@ fn test_panel_roundtrip() {
     store.add_panel("main", panel);
     assert_eq!(store.active_board().unwrap().panels.len(), 1);
 
-    store.update_panel("main", "p1", "description x");
+    store.ecrire_dans_la_case(
+        "main",
+        "p1",
+        glucose_core::store::storyboard::Texte::Description,
+        "description x",
+    );
     assert_eq!(
         store.active_board().unwrap().panels[0].description,
         "description x"

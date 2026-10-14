@@ -93,8 +93,14 @@ pub enum Suite {
     Ajouter(Vec<std::path::PathBuf>),
     /// Exporter sans sélecteur : le format, puis la feuille de partage (PARTAGE-2).
     Exporter,
-    /// La description d'une case du storyboard, écrite dans le champ (STORYBOARD-1).
-    DecrireLaCase { board: String, case: String },
+    /// L'un des textes d'une case du storyboard, écrit dans le champ (STORYBOARD-1, fiche 67).
+    EcrireLaCase {
+        board: String,
+        case: String,
+        texte: glucose_core::store::storyboard::Texte,
+    },
+    /// Le nom d'un champ du storyboard — son rang, ou `None` pour en ajouter un (fiche 67).
+    NommerLeChamp { board: String, rang: Option<usize> },
 }
 
 /// **Un champ de texte** dans une question — le nom d'un document qu'on renomme

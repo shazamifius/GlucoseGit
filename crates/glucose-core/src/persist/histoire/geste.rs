@@ -20,8 +20,9 @@
 use super::super::annotation::{read_annotation, write_annotation};
 use super::super::bytes::{Reader, Writer};
 use super::super::document::{
-    read_board, read_domain, read_folder, read_grille, read_panel, read_preset, read_zone,
-    write_board, write_domain, write_folder, write_grille, write_panel, write_preset, write_zone,
+    read_board, read_domain, read_folder, read_panel, read_preset, read_storyboard, read_zone,
+    write_board, write_domain, write_folder, write_panel, write_preset, write_storyboard,
+    write_zone,
 };
 use super::super::image::{read_image, write_image};
 use super::super::tags::unknown;
@@ -41,7 +42,7 @@ const PRESET: u8 = 9;
 const NOM_DU_PROJET: u8 = 10;
 const TABLEAU_ACTIF: u8 = 11;
 const ORDRE_DES_TABLEAUX: u8 = 12;
-/// La grille du storyboard (STORYBOARD-2) : apparue au schéma 3.
+/// Le storyboard (STORYBOARD-2) : apparu au schéma 3, sa durée et ses champs au schéma 4.
 const STORYBOARD: u8 = 13;
 
 /// Un geste tel que l'histoire le garde : quand, par qui, et quoi.
@@ -108,8 +109,8 @@ fn ecrire_edition(w: &mut Writer, edit: &Edit) {
         Edit::Storyboard { board, whole } => {
             w.u8(STORYBOARD);
             w.text(board);
-            w.opt(whole.before.as_ref(), write_grille);
-            w.opt(whole.after.as_ref(), write_grille);
+            w.opt(whole.before.as_ref(), write_storyboard);
+            w.opt(whole.after.as_ref(), write_storyboard);
         }
         Edit::Translation { .. } => ecrire_translation(w, edit),
         Edit::Board { slot } => {
@@ -182,7 +183,7 @@ fn lire_edition(r: &mut Reader<'_>, version: u16) -> CoreResult<Edit> {
         },
         PANNEAU => Edit::Panel {
             board: r.text()?,
-            slot: lire_case(r, read_panel)?,
+            slot: lire_case(r, |rr| read_panel(rr, version))?,
         },
         ZONES => Edit::Zones {
             board: r.text()?,
@@ -194,7 +195,10 @@ fn lire_edition(r: &mut Reader<'_>, version: u16) -> CoreResult<Edit> {
         },
         STORYBOARD => Edit::Storyboard {
             board: r.text()?,
-            whole: Whole::new(r.opt(read_grille)?, r.opt(read_grille)?),
+            whole: Whole::new(
+                r.opt(|rr| read_storyboard(rr, version))?,
+                r.opt(|rr| read_storyboard(rr, version))?,
+            ),
         },
         TRANSLATION => lire_translation(r)?,
         TABLEAU => Edit::Board {

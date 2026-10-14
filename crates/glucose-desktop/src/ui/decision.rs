@@ -42,7 +42,7 @@ pub fn poser_les_barres(
     ui: &UiState,
     (typo, theme): (&Typography, &Theme),
 ) {
-    if ui.reference {
+    if ui.sans_interface() {
         return;
     }
     let (w, h) = (pixmap.width() as f32, pixmap.height() as f32);

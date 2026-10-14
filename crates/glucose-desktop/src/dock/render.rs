@@ -260,7 +260,7 @@ fn draw_content(
             pomodoro::paint::render_pomodoro_panel(pixmap, brush, frame, &dock.pomodoro);
         }
         TabId::Storyboard => {
-            storyboard::paint::render_storyboard_panel(pixmap, brush, frame, (dock, store));
+            storyboard::paint::render_storyboard_panel(pixmap, brush, frame, dock);
         }
         TabId::Plugins => {
             plugins::paint::render_plugins_panel(pixmap, brush, frame, &dock.plugins);

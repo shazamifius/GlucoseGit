@@ -177,11 +177,14 @@ impl GlucoseApp {
                     self.ajouter_un_document(chemin);
                 }
             }
-            Suite::DecrireLaCase { board, case } => {
-                if let (true, Some(texte)) = (oui, champ) {
-                    self.store.update_panel(&board, &case, texte);
+            Suite::EcrireLaCase { board, case, texte } => {
+                if let (true, Some(ecrit)) = (oui, champ) {
+                    self.store.ecrire_dans_la_case(&board, &case, texte, &ecrit);
                     self.mark_dirty();
                 }
+            }
+            Suite::NommerLeChamp { board, rang } => {
+                self.repondre_au_champ((&board, rang), reponse, champ);
             }
             Suite::NouveauDocument | Suite::MiseAJour(_) => {}
         }

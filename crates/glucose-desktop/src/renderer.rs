@@ -37,6 +37,7 @@ pub mod grille;
 pub mod halo;
 pub mod handles;
 pub mod hue;
+pub mod lecture;
 pub mod magasin;
 pub mod math;
 pub mod note;

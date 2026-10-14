@@ -158,6 +158,13 @@
   curseur par le coin de sa première case, comme le tracé ; la membrane et le dossier
   l'étaient déjà. P1 a révélé **GLISSER-2** : défaire un glisser rend une image à deux ulps de
   son départ — invisible, mais une épreuve de la fiche 65 le promettait exact.
+* **Fiche 67 — la lecture du storyboard (P2.4 à 6)** : le **schéma 4** (une case porte sa
+  durée, son plan, les textes des champs du storyboard ; le storyboard, la durée par case et le
+  nom de ses champs ; témoins v3 écrits par `ea8a690`) ; **l'animatique** (« ▶ Lire » : la case
+  plein écran, le reste voilé de noir, ses textes en sous-titre, une coupe à chaque durée) ; le
+  panneau « CASE n » ; le sigle du plan sous la case ; « Lire le storyboard » au menu. Éprouvé,
+  **sabotage à finir** (deux gardes aveugles trouvées), **rien n'est jugé à son écran**, rien
+  n'est envoyé dans une build qu'il ait lancée.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera

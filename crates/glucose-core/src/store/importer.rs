@@ -211,6 +211,9 @@ pub(super) fn suivre_dans_le_tableau(r: &Renommage, b: &mut Board) {
             y: _,
             width: _,
             height: _,
+            duree_ms: _,
+            plan: _,
+            textes: _,
         } = p;
     });
 }

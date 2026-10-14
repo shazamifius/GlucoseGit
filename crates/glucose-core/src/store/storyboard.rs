@@ -39,7 +39,7 @@ use super::journal::{Edit, Slot, Whole};
 use super::Store;
 use crate::types::{BoardImage, StoryboardPanel};
 
-pub use crate::types::{Format, Grille, DESCRIPTION};
+pub use crate::types::{Format, Grille, Plan, Storyboard, DESCRIPTION};
 
 /// **Où vont les cases** : la grille qui les range, le coin de la première, et combien.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -132,23 +132,29 @@ impl Store {
         cases
     }
 
-    /// La grille du storyboard de ce tableau, s'il en a une.
-    pub fn grille_du_storyboard(&self, board_id: &str) -> Option<Grille> {
+    /// Le storyboard de ce tableau, s'il en a un.
+    pub fn storyboard(&self, board_id: &str) -> Option<&Storyboard> {
         self.project
             .boards
             .iter()
             .find(|b| b.id == board_id)?
             .storyboard
+            .as_ref()
+    }
+
+    /// La grille du storyboard de ce tableau, s'il en a une.
+    pub fn grille_du_storyboard(&self, board_id: &str) -> Option<Grille> {
+        self.storyboard(board_id).map(|s| s.grille)
     }
 
     /// **Combien de cases un rangement doit garder** : jusqu'à la dernière qui porte quelque
-    /// chose — une description, ou une image. Zéro si aucune.
+    /// chose — ce qu'on y a écrit ou choisi ([`StoryboardPanel::porte_quelque_chose`]), ou une
+    /// image. Zéro si aucune.
     pub fn cases_a_garder(&self, board_id: &str) -> usize {
         self.cases(board_id)
             .iter()
             .rposition(|c| {
-                !c.description.trim().is_empty()
-                    || !self.images_de_la_case(board_id, &c.id).is_empty()
+                c.porte_quelque_chose() || !self.images_de_la_case(board_id, &c.id).is_empty()
             })
             .map_or(0, |rang| rang + 1)
     }
@@ -402,10 +408,18 @@ impl Store {
         }
         let avant = std::mem::replace(&mut b.panels, neuves);
         edits.extend(diff_des_cases(board_id, &avant, &b.panels));
-        let grille = b.storyboard.replace(d.grille);
+        // La grille change ; la durée et les champs restent ceux du storyboard.
+        let regle = match &b.storyboard {
+            Some(s) => Storyboard {
+                grille: d.grille,
+                ..s.clone()
+            },
+            None => Storyboard::neuf(d.grille),
+        };
+        let avant = b.storyboard.replace(regle.clone());
         edits.push(Edit::Storyboard {
             board: board_id.to_string(),
-            whole: Whole::new(grille, Some(d.grille)),
+            whole: Whole::new(avant, Some(regle)),
         });
         self.record_as_one_gesture(edits);
     }
@@ -537,7 +551,10 @@ fn diff_des_cases(board: &str, avant: &[StoryboardPanel], apres: &[StoryboardPan
     retraits.chain(ajouts).collect()
 }
 
+mod case;
 mod remplir;
+
+pub use case::Texte;
 
 #[cfg(test)]
 mod tests;

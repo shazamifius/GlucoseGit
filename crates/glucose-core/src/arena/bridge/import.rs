@@ -369,6 +369,20 @@ impl Bridge {
         let id = self.intern(&p.id, Kind::Panel, bx, Flags::default());
         self.doc.text.set(id, &p.description);
         self.doc.order.set(id, p.order);
+        let StoryboardPanel {
+            duree_ms,
+            plan,
+            textes,
+            ..
+        } = p;
+        if duree_ms.is_some() || plan.is_some() || !textes.is_empty() {
+            let case = crate::arena::doc::CaseTrait {
+                duree_ms: *duree_ms,
+                plan: *plan,
+                textes: textes.clone(),
+            };
+            self.doc.case.set(id, case);
+        }
         id
     }
 

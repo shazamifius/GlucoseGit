@@ -137,6 +137,8 @@ pub struct UiState {
     pub zones: crate::interactions::zone::ZonesUi,
     /// La case du storyboard choisie, et celle que la main tient (STORYBOARD-1).
     pub storyboard: crate::interactions::storyboard::StoryboardUi,
+    /// **L'animatique en cours**, s'il y en a une (fiche 67).
+    pub lecture: Option<crate::interactions::lecture::Lecture>,
     /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
     pub ancrage: Option<ancrage::Ancrage>,
     pub current_toast: Option<Toast>,
@@ -212,6 +214,7 @@ impl UiState {
             placement: Default::default(),
             zones: Default::default(),
             storyboard: Default::default(),
+            lecture: None,
             ancrage: None,
             current_toast: None,
             context_menu_at: None,
@@ -268,11 +271,19 @@ impl UiState {
         self.topbar_height() + self.tabs_height()
     }
 
-    /// La bande existe-t-elle ? Zéro en mode référence : tout ce qui se mesure sur elle — le
+    /// **L'interface est-elle cachée ?** En mode référence (fiche 51 § 5), et pendant une
+    /// lecture (fiche 67) : ni bande, ni panneaux, ni barre d'action — le canevas seul. Un seul
+    /// prédicat, que la bande, les panneaux, les clics et le dessin lisent.
+    #[inline]
+    pub fn sans_interface(&self) -> bool {
+        self.reference || self.lecture.is_some()
+    }
+
+    /// La bande existe-t-elle ? Zéro sans interface : tout ce qui se mesure sur elle — le
     /// canevas, les clics, les panneaux — la voit disparaître d'un même nombre.
     #[inline]
     fn chrome(&self) -> f32 {
-        if self.reference {
+        if self.sans_interface() {
             0.0
         } else {
             1.0
@@ -319,7 +330,7 @@ pub fn handle_ui_click(
     ui: &mut UiState,
     typo: &Typography,
 ) -> Option<UiAction> {
-    if ui.reference {
+    if ui.sans_interface() {
         return None;
     }
     let topbar_h = ui.topbar_height();

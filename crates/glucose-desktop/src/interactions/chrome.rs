@@ -125,6 +125,10 @@ impl GlucoseApp {
             MenuAction::ToggleLock => self.toggle_lock(),
             MenuAction::TrimBorders => self.retirer_les_bordures_de_la_selection(),
             MenuAction::StoryboardDeLaSelection => self.storyboard_de_la_selection(),
+            MenuAction::LireLeStoryboard => {
+                let depuis = self.ui.storyboard.choisie.clone();
+                self.lire_le_storyboard(depuis.as_deref());
+            }
             MenuAction::ToFront => {
                 self.store.move_selection_in_stack(&board, StackMove::Front);
             }

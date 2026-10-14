@@ -317,7 +317,12 @@ fn test_tracer_plus_petit_garde_ce_qui_porte_quelque_chose() {
     store.disposer(&board, d);
     assert_eq!(store.cases(&board).len(), 8);
     let cinquieme = store.cases(&board)[4].id.clone();
-    store.update_panel(&board, &cinquieme, "le héros entre");
+    store.ecrire_dans_la_case(
+        &board,
+        &cinquieme,
+        super::Texte::Description,
+        "le héros entre",
+    );
     let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (230.0, 170.0)));
     assert_eq!(d.grille.colonnes, 2);
     assert_eq!(

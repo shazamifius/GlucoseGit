@@ -40,7 +40,7 @@ pub(super) fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
     if store.compte_de_la_selection() > 0 {
         defs.extend(entrees_de_selection(store)?);
     } else {
-        defs.extend(entrees_du_vide());
+        defs.extend(entrees_du_vide(store));
     }
     Some(defs)
 }
@@ -129,7 +129,7 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
 }
 
 /// Les entrées d'un menu ouvert sur le vide : ce qu'on y apporte, et le document.
-fn entrees_du_vide() -> Vec<Def> {
+fn entrees_du_vide(store: &Store) -> Vec<Def> {
     let mut defs: Vec<Def> = vec![
         Some((
             MenuAction::AjouterDesImages,
@@ -141,6 +141,16 @@ fn entrees_du_vide() -> Vec<Def> {
         Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")),
         Some((MenuAction::ToutCadrer, "Tout cadrer", "Alt+F")),
         Some((MenuAction::Signets, "Signets…", "1…9")),
+    ];
+    // L'animatique, quand le tableau a des cases à lire (fiche 67).
+    if !store.cases(&store.project.active_board_id).is_empty() {
+        defs.push(Some((
+            MenuAction::LireLeStoryboard,
+            "Lire le storyboard",
+            "",
+        )));
+    }
+    defs.extend([
         None,
         Some((MenuAction::NouveauDocument, "Nouveau document", "Ctrl+N")),
         Some((
@@ -155,7 +165,7 @@ fn entrees_du_vide() -> Vec<Def> {
             "Ctrl+Maj+S",
         )),
         Some((MenuAction::Exporter, "Exporter…", "Ctrl+E")),
-    ];
+    ]);
     // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
     if !cfg!(target_os = "android") {
         defs.push(Some((

@@ -134,6 +134,10 @@
 | **Une épreuve qui bloque au lieu de tomber** : si la règle d'admission cassait, l'épreuve attendait sans fin, et le saboteur avec elle (fiche 66) | ce qui peut attendre s'éprouve dans un fil, avec un délai : une règle cassée fait tomber, jamais bloquer |
 | **Une durée de vie tenue par un nom** : `let _admis = porte.entrer(…)` garde le jeton, `let _ = …` le lâche aussitôt — aucune épreuve ne voit la différence (fiche 66) | que le type l'interdise : `porte.pendant(octets, || travail)` tient le jeton exactement le temps du travail |
 | **Une épreuve qui passe par la chance de ses données** : « défaire rend l'image exacte » tenait pour une grille centrée, et tombait pour la même grille posée par son coin — l'annulation soustrait ce que faire a ajouté (fiche 66, GLISSER-2) | une promesse au bit près s'éprouve sur des données qui l'exercent (plusieurs, choisies pour arrondir) ; si elle ne tient pas en général, l'épreuve dit ce qui est vrai, sans tolérance inventée, et le défaut devient un chantier |
+| **Une règle de glisser choisie sur le papier** : la durée d'une case, linéaire à 100 ms le pas, montait de 2 à 14 s en 60 pixels (fiche 67) | demander comment la grandeur se **perçoit** : une durée en rapport — règle logarithmique, arrondi à deux chiffres significatifs, plus de pas à choisir |
+| **Un miroir qui compare au « dernier vu »** : le document A → B → A entre deux images, et le champ du panneau gardait B (fiche 67) | après avoir écrit, relire tout de suite la source ; l'épreuve défait avant toute image |
+| **Une liste tenue à la main en deux endroits** : les tables de l'arène, pesées et vérifiées, avaient perdu `crop` des deux côtés (fiche 67) | une seule liste, tenue par une déstructuration exhaustive : un oubli ne compile pas |
+| **Une épreuve qui ne peint pas entre deux gestes** : à l'écran, le panneau se resynchronise à chaque image (fiche 67) | peindre (`une_image_sans_fenetre`) entre deux mouvements, comme la vraie boucle |
 | **Une liste d'épreuve écrite à la main** : l'épreuve du `LISEZ-MOI` comptait onze sortes de lignes ; BOITE-ANDROID en a ajouté deux sans les y mettre, et rien n'est tombé (fiche 66) | lier l'épreuve à la source de vérité — ici la liste fermée du serveur, qui est ce qui part —, jamais à un nombre recopié |
 
 ## 5. Les pièges pratiques
@@ -155,7 +159,7 @@
   Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`,
-  `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
+  `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
   texte).
 * **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,
@@ -205,6 +209,9 @@
   <dossier>` — la raison du dernier redémarrage, les morts de Glucose qu'Android a notées
   (`exit-info`), la boîte des incidents, les journaux, la mémoire, le pilote, et un rapport de
   bogue complet. Rien n'est écrit sur le téléphone, et Glucose n'y est pas ouvert.
+* **Le pilote Vulkan du téléphone** : `adb shell cmd gpu vkjson` (dans `lire_le_telephone.sh`,
+  `vulkan.json`) dit ses extensions — `VK_EXT_memory_budget` y est-il ? vulkan.gpuinfo.org ne
+  répond pas hors de son navigateur (fiche 67).
 * **Le jeton de `wrangler` expire** : une erreur 7403 (« account not authorized ») sur une
   requête à la base se règle par `npx wrangler whoami`, qui le rafraîchit.
 * **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le

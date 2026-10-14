@@ -96,7 +96,7 @@ pub fn parcourir(
     }
     // Le mode référence : rien de permanent. Le toast et le menu, qui attendent une décision,
     // se posent après (`ui::decision`).
-    if ui.reference {
+    if ui.sans_interface() {
         return;
     }
     let (w, _) = taille;

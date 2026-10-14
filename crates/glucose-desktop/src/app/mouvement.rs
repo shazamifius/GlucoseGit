@@ -46,6 +46,11 @@ impl GlucoseApp {
     /// **Un nœud tenu près du bord fait défiler la vue** (DEFILE-1), du pas même de l'image ; et
     /// ce que la main tient suit la vue qui a bougé, d'où que vienne le mouvement.
     pub fn bouger_la_camera(&mut self, largeur: u32, hauteur: u32) {
+        // Pendant une lecture, la caméra est la sienne : la case montrée, à la taille de
+        // l'écran — qui peut changer (fiche 67).
+        if self.cadrer_la_lecture(largeur, hauteur) {
+            return;
+        }
         let avant = self.store.viewport();
         self.suivre_le_pave();
         let pas = self.horloge.pas().as_secs_f64();

@@ -1,0 +1,699 @@
+[
+ {
+  "nom": "une case v3 lue au schema 4",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    if version >= ANIMATIQUE_DEPUIS {\n        panel.duree_ms",
+  "apres": "    if version + 1 >= ANIMATIQUE_DEPUIS {\n        panel.duree_ms",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "un storyboard v3 lu au schema 4",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    if version >= ANIMATIQUE_DEPUIS {\n        storyboard.duree_ms",
+  "apres": "    if version + 1 >= ANIMATIQUE_DEPUIS {\n        storyboard.duree_ms",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "le plan ecrit au rang zero",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    w.opt(*plan, |w, p| w.u8(rang(&Plan::TOUS, p)));",
+  "apres": "    w.opt(*plan, |w, _| w.u8(0));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "les textes ecrits vides",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    w.seq(textes, |w, t| w.text(t));",
+  "apres": "    w.seq(textes, |w, _| w.text(\"\"));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "la duree ignore celle de la case",
+  "fichier": "crates/glucose-core/src/types/storyboard.rs",
+  "avant": "        case.duree_ms.unwrap_or(self.duree_ms)",
+  "apres": "        self.duree_ms + 0 * case.duree_ms.unwrap_or(0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "un vide reste au bout",
+  "fichier": "crates/glucose-core/src/types/storyboard.rs",
+  "avant": "        while self.textes.last().is_some_and(String::is_empty) {",
+  "apres": "        while self.textes.last().is_some_and(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "le plan ne garde pas la case",
+  "fichier": "crates/glucose-core/src/types/storyboard.rs",
+  "avant": "            || self.plan.is_some()",
+  "apres": "            || false",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "le storyboard ecrit sans changement",
+  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
+  "avant": "        if *storyboard == avant {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une case ecrite sans changement",
+  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
+  "avant": "            if *case != avant {",
+  "apres": "            if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "retirer le champ garde les textes",
+  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
+  "avant": "                c.textes.remove(rang);",
+  "apres": "                let _ = rang;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une duree nulle",
+  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
+  "avant": "                c.duree_ms = duree_ms.map(|ms| ms.max(1));",
+  "apres": "                c.duree_ms = duree_ms;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une duree par case nulle",
+  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
+  "avant": "s.duree_ms = duree_ms.max(1));",
+  "apres": "s.duree_ms = duree_ms);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "ranger oublie la duree et les champs",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "                ..s.clone()",
+  "apres": "                ..Storyboard::neuf(d.grille)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "l arene perd la lecture d une case",
+  "fichier": "crates/glucose-core/src/arena/bridge/import.rs",
+  "avant": "        if duree_ms.is_some() || plan.is_some() || !textes.is_empty() {",
+  "apres": "        if false && (duree_ms.is_some() || plan.is_some() || !textes.is_empty()) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "arena"
+  ]
+ },
+ {
+  "nom": "l arene ne verifie plus ses tables",
+  "fichier": "crates/glucose-core/src/arena/doc.rs",
+  "avant": "                .find(|&id| !self.nodes.holds(id))",
+  "apres": "                .find(|_| false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "arena"
+  ]
+ },
+ {
+  "nom": "l arene ne pese plus ses tables",
+  "fichier": "crates/glucose-core/src/arena/doc.rs",
+  "avant": "            + self.tables().iter().map(|(_, t)| t.octets()).sum::<usize>()",
+  "apres": "            + 0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "arena"
+  ]
+ },
+ {
+  "nom": "le panneau reprend la duree tenue",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard.rs",
+  "avant": "        if vue == self.vue_durees {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "le panneau ne relit pas ce qu il a ecrit",
+  "fichier": "crates/glucose-desktop/src/interactions/champ.rs",
+  "avant": "        self.dock_manager.storyboard.suivre(&self.store, choisie);",
+  "apres": "        let _ = choisie;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "une duree tenue part au document",
+  "fichier": "crates/glucose-desktop/src/interactions/champ.rs",
+  "avant": "        if matches!(self.dock_manager.champ, Some(Saisie::Tenu { .. })) {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "une regle lineaire",
+  "fichier": "crates/glucose-desktop/src/dock/champ.rs",
+  "avant": "            depart.1 * (b.max / b.min).powf(part)",
+  "apres": "            depart.1 + part * (b.max - b.min)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "trois chiffres significatifs",
+  "fichier": "crates/glucose-desktop/src/dock/champ.rs",
+  "avant": "v.log10().floor() as i32 - (n - 1)",
+  "apres": "v.log10().floor() as i32 - n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "des millisecondes tapees",
+  "fichier": "crates/glucose-desktop/src/dock/champ.rs",
+  "avant": "Some(if self.est_une_duree() { v * 1000.0 } else { v })",
+  "apres": "Some(v)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "la virgule refusee",
+  "fichier": "crates/glucose-desktop/src/dock/champ.rs",
+  "avant": "matches!(c, ',' | '.')",
+  "apres": "matches!(c, '.')",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "la duree de la case sans case choisie",
+  "fichier": "crates/glucose-desktop/src/dock/champ.rs",
+  "avant": "            Self::CaseDuree => lecture.is_some_and(|l| l.case.is_some()),",
+  "apres": "            Self::CaseDuree => lecture.is_some(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "le nom d un champ s ecrit",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard/lecture.rs",
+  "avant": "        Texte::Champ(rang) if hit(rangee.nom) =>",
+  "apres": "        Texte::Champ(rang) if false && hit(rangee.nom) =>",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dock::storyboard"
+  ]
+ },
+ {
+  "nom": "rendre la duree ne repond pas",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard/lecture.rs",
+  "avant": "    if case.rendre.is_some_and(hit) {",
+  "apres": "    if case.rendre.is_some_and(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dock::storyboard"
+  ]
+ },
+ {
+  "nom": "le plan ne tourne pas",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard/lecture.rs",
+  "avant": "Some(StoryboardIntent::Plan(c.id.clone(), Plan::suivant(c.plan)))",
+  "apres": "Some(StoryboardIntent::Plan(c.id.clone(), c.plan))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dock::storyboard"
+  ]
+ },
+ {
+  "nom": "pas de coupe",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        if reste > 0 {",
+  "apres": "        if reste > i64::MIN {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la vue d avant perdue",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        self.store.set_viewport(&lecture.board, lecture.vue_d_avant);",
+  "apres": "        let _ = &lecture.vue_d_avant;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la lecture ne finit pas",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        if vise >= nombre as isize {",
+  "apres": "        if vise > nombre as isize {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "espace ne suspend pas",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "            lecture.temps = lecture.temps.basculer(maintenant);",
+  "apres": "            let _ = maintenant;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "le tiers gauche avance",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        } else if p.x < w / 3.0 {",
+  "apres": "        } else if p.x < 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la camera libre en lecture",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        if self.cadrer_la_lecture(largeur, hauteur) {",
+  "apres": "        if self.cadrer_la_lecture(largeur, hauteur) && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la molette passe en lecture",
+  "fichier": "crates/glucose-desktop/src/interactions/pan_zoom.rs",
+  "avant": "        if self.ui.question.is_some() || self.ui.lecture.is_some() {",
+  "apres": "        if self.ui.question.is_some() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "le clavier passe en lecture",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "        self.touche_de_la_lecture(key, appuyee)\n",
+  "apres": "        false && self.touche_de_la_lecture(key, appuyee)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "les boutons passent en lecture",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "        if self.bouton_pendant_la_lecture(button) {",
+  "apres": "        if false && self.bouton_pendant_la_lecture(button) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la bande reste en lecture",
+  "fichier": "crates/glucose-desktop/src/ui.rs",
+  "avant": "        if self.sans_interface() {",
+  "apres": "        if self.reference {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "les prises restent en lecture",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "    if ui.lecture.is_none() {",
+  "apres": "    if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "pas de voile en bas",
+  "fichier": "crates/glucose-desktop/src/renderer/lecture.rs",
+  "avant": "        (0.0, y + ch, w, h - y - ch),",
+  "apres": "        (0.0, y + ch, 0.0, 0.0),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "les champs vides sous-titres",
+  "fichier": "crates/glucose-desktop/src/renderer/lecture.rs",
+  "avant": "        (!texte.is_empty()).then(",
+  "apres": "        true.then(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "le reveil ignore la lecture",
+  "fichier": "crates/glucose-desktop/src/app/reveil.rs",
+  "avant": "            (Raison::Animation, Self::attente_de_la_lecture),",
+  "apres": "            (Raison::Animation, Self::attente_de_la_designation),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "lire sans cases au menu",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    if !store.cases(&store.project.active_board_id).is_empty() {",
+  "apres": "    if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "context_menu"
+  ]
+ },
+ {
+  "nom": "pas de sigle du plan",
+  "fichier": "crates/glucose-desktop/src/renderer/storyboard.rs",
+  "avant": "    if let Some(plan) = case.plan {",
+  "apres": "    if let Some(plan) = case.plan.filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::storyboard"
+  ]
+ },
+ {
+  "nom": "tab passe a la description",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard/ecrire.rs",
+  "avant": "            self.ecrire_la_case(&id, texte);",
+  "apres": "            self.ecrire_la_case(&id, Texte::Description);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "un nom vide nomme",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard/ecrire.rs",
+  "avant": "        let nom = nom.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());",
+  "apres": "        let nom = nom.map(|n| n.trim().to_string());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ },
+ {
+  "nom": "retirer ne retire pas",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard/ecrire.rs",
+  "avant": "            (Reponse::Non, Some(r), _) => self.store.retirer_le_champ(board, r),",
+  "apres": "            (Reponse::Non, Some(_), _) => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ecrire",
+   "champ"
+  ]
+ }
+]

@@ -97,7 +97,12 @@ fn test_la_description_s_ecrit_dans_la_bande() {
     let board = store.project.active_board_id.clone();
     let case = store.cases(&board)[0].clone();
     let sans = rendre(&store);
-    store.update_panel(&board, &case.id, "Plan large");
+    store.ecrire_dans_la_case(
+        &board,
+        &case.id,
+        glucose_core::store::storyboard::Texte::Description,
+        "Plan large",
+    );
     let avec = rendre(&store);
     let mut changes = Vec::new();
     for y in 0..ECRAN.1 {
@@ -168,4 +173,40 @@ fn test_la_case_choisie_porte_son_contour() {
         assert!(sans.0 < 0x40, "sans choix, pas de « + » : {sans:?}");
         assert!(avec.0 > 0xa0, "choisie, le « + » : {avec:?}");
     }
+}
+
+/// **Le plan s'écrit par son sigle, dans la bande, après le numéro** (fiche 67) — et la
+/// description passe après lui au lieu de le recouvrir.
+#[test]
+fn test_le_plan_s_ecrit_par_son_sigle_apres_le_numero() {
+    let mut store = document();
+    let board = store.project.active_board_id.clone();
+    let case = store.cases(&board)[0].clone();
+    let encre = |image: &Pixmap| {
+        // Juste après le badge (4 + 24), sur la hauteur du badge.
+        (0..24)
+            .flat_map(|dx| (0..18).map(move |dy| (dx, dy)))
+            .filter(|&(dx, dy)| {
+                let at = (
+                    case.x + 34.0 + f64::from(dx),
+                    case.y + case.height + 4.0 + f64::from(dy),
+                );
+                rgb(image, at).0 > 0x50
+            })
+            .count()
+    };
+    let sans = rendre(&store);
+    assert_eq!(
+        encre(&sans),
+        0,
+        "sans plan ni description : la bande est vide là"
+    );
+    let plan = Some(glucose_core::store::storyboard::Plan::TresGros);
+    store.choisir_le_plan(&board, &case.id, plan);
+    let avec = rendre(&store);
+    assert!(
+        encre(&avec) > 5,
+        "« TGP » s'écrit : {} pixels",
+        encre(&avec)
+    );
 }

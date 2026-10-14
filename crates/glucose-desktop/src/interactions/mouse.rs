@@ -212,6 +212,10 @@ impl GlucoseApp {
 
     /// Enfoncement d'un bouton de la souris.
     pub fn handle_mouse_down(&mut self, button: MouseButton, screen_w: f32, screen_h: f32) {
+        // La lecture prend toute la main (fiche 67).
+        if self.bouton_pendant_la_lecture(button) {
+            return;
+        }
         // Un onglet qu'on renomme se valide dès qu'on clique ailleurs que dans son champ — le
         // champ de Glucose Tauri validait en perdant le focus.
         if self.ui.onglets.renomme.is_some() && !self.clic_dans_le_champ_de_l_onglet() {
@@ -252,7 +256,7 @@ impl GlucoseApp {
             || self.click_skips_flight()
             || self.redimensionner_par_le_bord()
             || self.deplacer_la_fenetre_avec_alt()
-            || !self.ui.reference && self.click_l_interface(pointer, screen)
+            || !self.ui.sans_interface() && self.click_l_interface(pointer, screen)
             // Un gabarit qui suit le curseur se pose au premier clic sur le canevas
             // (PRESET-1) ; la grille du storyboard, une membrane, un dossier commencent un
             // tracé, que le relâchement pose (TRACE-1).

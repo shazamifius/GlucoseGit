@@ -67,4 +67,7 @@ pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode};
 pub use image::{AssetRef, BoardImage};
 pub use project::{AssetStore, BoardZone, Preset, PresetSlot, Project};
 pub use recadrage::Recadrage;
-pub use storyboard::{Format, Grille, StoryboardPanel, DESCRIPTION};
+pub use storyboard::{
+    champs_de_naissance, Format, Grille, Plan, Storyboard, StoryboardPanel, DESCRIPTION,
+    DUREE_DE_NAISSANCE_MS,
+};

@@ -389,23 +389,6 @@ impl Store {
     }
 
     /// **Site migre vers le journal.**
-    pub fn update_panel(&mut self, board_id: &str, id: &str, description: impl Into<String>) {
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
-            return;
-        };
-        let Some(i) = b.panels.iter().position(|p| p.id == id) else {
-            return;
-        };
-        let before = b.panels[i].clone();
-        b.panels[i].description = description.into();
-        let after = b.panels[i].clone();
-        self.record_edit(Edit::Panel {
-            board: board_id.to_string(),
-            slot: Slot::changed(i, before, after),
-        });
-    }
-
-    /// **Site migre vers le journal.**
     pub fn remove_panel(&mut self, board_id: &str, id: &str) {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;

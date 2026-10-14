@@ -179,11 +179,11 @@ impl GlucoseApp {
         }
     }
 
-    /// Les champs du panneau Storyboard suivent la grille du document (STORYBOARD-2).
+    /// Le panneau Storyboard suit le document : ses cases, la case choisie, et ses champs quand
+    /// le document les change (STORYBOARD-2, fiche 67).
     fn suivre_la_grille_dans_le_panneau(&mut self) {
-        let board = &self.store.project.active_board_id;
-        let grille = self.store.grille_du_storyboard(board);
-        self.dock_manager.storyboard.suivre(grille);
+        let choisie = self.ui.storyboard.choisie.as_deref();
+        self.dock_manager.storyboard.suivre(&self.store, choisie);
     }
 
     pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
@@ -475,7 +475,7 @@ fn confier_les_docks(
     // du processeur. Elle les posait quand même : visibles, et morts, puisque leurs clics, eux,
     // partaient avec le mode — son essai du 07/10, Ordonner et la Time Machine par-dessus sa
     // référence. Ils reviennent tels quels quand le mode se défait.
-    if ui.reference {
+    if ui.sans_interface() {
         return Vec::new();
     }
     let avant = dock_cache.rendus();
@@ -562,8 +562,8 @@ fn peindre_tout(
         header_h: ui.header_height(),
         scale: echelle,
     };
-    // Le mode référence n'a pas de panneaux (fiche 51 § 5).
-    if !ui.reference {
+    // Le mode référence et la lecture n'ont pas de panneaux (fiche 51 § 5, fiche 67).
+    if !ui.sans_interface() {
         let pass = passe_des_panneaux(renderer, ecran, pointer, dock_cache);
         render_docks(&mut vue, dock_manager, store, &pass);
     }

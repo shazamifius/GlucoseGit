@@ -213,13 +213,18 @@ fn lettre(c: &str) -> Key {
 fn test_storyboard_1_deux_clics_decrivent_la_case_au_clavier() {
     let (mut app, board) = app();
     let case = premiere(&app, &board);
-    app.store.update_panel(&board, &case.id, "ancien");
+    app.store.ecrire_dans_la_case(
+        &board,
+        &case.id,
+        glucose_core::store::storyboard::Texte::Description,
+        "ancien",
+    );
     app.store.journal.clear();
     let point = dans_la_bande(&case);
     for _ in 0..2 {
         glisser(&mut app, point, point);
     }
-    let Some((_, Suite::DecrireLaCase { case: id, .. })) = &app.ui.question else {
+    let Some((_, Suite::EcrireLaCase { case: id, .. })) = &app.ui.question else {
         panic!("la description se demande");
     };
     assert_eq!(id, &case.id);
@@ -357,7 +362,12 @@ fn test_storyboard_2_tirer_la_poignee_retrace_le_storyboard() {
 fn test_storyboard_2_la_poignee_garde_les_cases_decrites() {
     let (mut app, board) = app();
     let huitieme = app.store.cases(&board)[7].id.clone();
-    app.store.update_panel(&board, &huitieme, "la fin");
+    app.store.ecrire_dans_la_case(
+        &board,
+        &huitieme,
+        glucose_core::store::storyboard::Texte::Description,
+        "la fin",
+    );
     choisir_la_premiere(&mut app, &board);
     let coin = coin_du_storyboard(&app, &board);
     let pas = grille().pas().0;
@@ -413,7 +423,7 @@ fn test_storyboard_2_tab_passe_a_la_case_suivante() {
     frapper(&mut app, Key::Named(NamedKey::Tab), None);
     let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
     assert_eq!(cases[0].description, "a", "la première est écrite");
-    let Some((_, Suite::DecrireLaCase { case, .. })) = &app.ui.question else {
+    let Some((_, Suite::EcrireLaCase { case, .. })) = &app.ui.question else {
         panic!("la suivante se demande");
     };
     assert_eq!(case, &cases[1].id);
@@ -421,7 +431,7 @@ fn test_storyboard_2_tab_passe_a_la_case_suivante() {
     app.modifiers = winit::keyboard::ModifiersState::SHIFT;
     frapper(&mut app, Key::Named(NamedKey::Tab), None);
     app.modifiers = winit::keyboard::ModifiersState::empty();
-    let Some((question, Suite::DecrireLaCase { case, .. })) = &app.ui.question else {
+    let Some((question, Suite::EcrireLaCase { case, .. })) = &app.ui.question else {
         panic!("la précédente se demande");
     };
     assert_eq!(case, &cases[0].id);

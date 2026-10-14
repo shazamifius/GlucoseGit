@@ -12,10 +12,13 @@
 
 use super::WidgetRect;
 use crate::params::{Pointer, ScaledRect};
-use glucose_core::store::storyboard::{Format, Grille};
+use glucose_core::store::storyboard::{Format, Grille, Plan, Texte};
 use glucose_core::store::Store;
 
+pub mod lecture;
 pub mod paint;
+
+pub use lecture::Lecture;
 
 /// Les cinq cadrages de la référence (fiche 10 § 5.3), dans l'ordre de [`Format::TOUS`].
 pub const FORMATS: [&str; 5] = [
@@ -44,6 +47,16 @@ pub struct StoryboardState {
     /// La grille du storyboard du document, telle que les champs l'ont vue en dernier
     /// (STORYBOARD-2).
     pub vue: Option<Grille>,
+    /// **Ce que le document dit**, recopié à chaque image (fiche 67) : le panneau, son clic et
+    /// ses champs lisent ce miroir, et lui seul — la loi L4.
+    pub contenu: Contenu,
+    /// **La durée d'une case pour tout le storyboard, et celle de la case choisie**, en
+    /// millisecondes : ce que leurs champs règlent (CHAMP-1), poussé au document quand on les
+    /// lâche ou qu'on valide la frappe.
+    pub duree_ms: f64,
+    pub duree_case: f64,
+    /// Ces deux durées, telles que le document les disait en dernier.
+    vue_durees: Option<(u32, Option<(String, u32)>)>,
 }
 
 impl Default for StoryboardState {
@@ -60,6 +73,10 @@ impl Default for StoryboardState {
             gap: tauri.ecart,
             page: 0,
             vue: None,
+            contenu: Contenu::default(),
+            duree_ms: f64::from(glucose_core::types::DUREE_DE_NAISSANCE_MS),
+            duree_case: f64::from(glucose_core::types::DUREE_DE_NAISSANCE_MS),
+            vue_durees: None,
         }
     }
 }
@@ -69,10 +86,40 @@ impl StoryboardState {
         FORMATS[self.format_idx.min(FORMATS.len() - 1)]
     }
 
+    /// **Le panneau suit le document** à chaque image : ses cases, son storyboard, la case
+    /// `choisie` ; et ses champs, la grille et les durées **quand le document les change**.
+    pub fn suivre(&mut self, store: &Store, choisie: Option<&str>) {
+        self.contenu = Contenu::du(store, choisie);
+        self.suivre_la_grille(store.grille_du_storyboard(&store.project.active_board_id));
+        self.suivre_les_durees();
+    }
+
+    /// **Les durées suivent le document quand il les change** — un `Ctrl+Z`, une autre case
+    /// choisie ; entre deux, ce que la main règle reste, jusqu'à ce qu'elle le lâche.
+    fn suivre_les_durees(&mut self) {
+        let Some(l) = &self.contenu.lecture else {
+            self.vue_durees = None;
+            return;
+        };
+        let case = l
+            .case
+            .as_ref()
+            .map(|c| (c.id.clone(), c.duree_ms.unwrap_or(l.duree_ms)));
+        let vue = Some((l.duree_ms, case));
+        if vue == self.vue_durees {
+            return;
+        }
+        if let Some((defaut, case)) = &vue {
+            self.duree_ms = f64::from(*defaut);
+            self.duree_case = case.as_ref().map_or(self.duree_ms, |(_, d)| f64::from(*d));
+        }
+        self.vue_durees = vue;
+    }
+
     /// **Les champs suivent la grille du document quand elle change** — un rectangle tracé, un
     /// autre tableau, un `Ctrl+Z` (STORYBOARD-2) ; entre deux changements, ce qu'on y règle
     /// reste, pour le prochain « Mettre à jour ».
-    pub fn suivre(&mut self, grille: Option<Grille>) {
+    pub fn suivre_la_grille(&mut self, grille: Option<Grille>) {
         if grille == self.vue {
             return;
         }
@@ -98,14 +145,15 @@ impl StoryboardState {
 }
 
 /// **Les cases du tableau actif**, telles que le panneau les montre : l'identifiant, le numéro,
-/// la description.
+/// la description ; et ce que le storyboard dit pour la lecture (fiche 67).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Contenu {
     pub cases: Vec<(String, i32, String)>,
+    pub lecture: Option<Lecture>,
 }
 
 impl Contenu {
-    pub fn du(store: &Store) -> Self {
+    pub fn du(store: &Store, choisie: Option<&str>) -> Self {
         let board = &store.project.active_board_id;
         Self {
             cases: store
@@ -113,6 +161,7 @@ impl Contenu {
                 .into_iter()
                 .map(|c| (c.id.clone(), c.order, c.description.clone()))
                 .collect(),
+            lecture: Lecture::du(store, choisie),
         }
     }
 }
@@ -140,6 +189,8 @@ pub struct StoryboardPanelLayout {
     pub aide: (f32, f32),
     /// La croix qui efface le storyboard, quand il y en a un.
     pub effacer: Option<WidgetRect>,
+    /// « ▶ Lire », la durée par case et la case choisie, quand il y a un storyboard (fiche 67).
+    pub lecture: Option<lecture::LectureLayout>,
     /// Le haut de la liste et « + Ajouter », quand il y a des cases.
     pub liste: Option<(f32, WidgetRect)>,
     pub lignes: Vec<Ligne>,
@@ -221,13 +272,19 @@ pub fn layout_storyboard_panel(
         activate_button,
         aide,
         effacer,
+        lecture: None,
         liste: None,
         lignes: Vec::new(),
         pages: None,
         renumeroter: None,
     };
+    let mut haut = aide.1 + 12.0 * s + 14.0 * s;
+    if let Some(l) = &contenu.lecture {
+        let (lecture, bas) = lecture::poser(frame, haut - 8.0 * s, l);
+        layout.lecture = Some(lecture);
+        haut = bas + 24.0 * s;
+    }
     if n > 0 {
-        let haut = aide.1 + 12.0 * s + 14.0 * s;
         poser_la_liste(&mut layout, (frame, haut), state, n);
     }
     layout
@@ -298,8 +355,16 @@ pub enum StoryboardIntent {
     Effacer,
     /// Ajouter une case à la suite.
     Ajouter(Grille),
-    /// Écrire la description de cette case.
-    Decrire(String),
+    /// Écrire l'un des textes de cette case (fiche 67).
+    Ecrire(String, Texte),
+    /// Lire le storyboard en plein écran, depuis cette case — ou la première (fiche 67).
+    Lire(Option<String>),
+    /// Rendre cette case à la durée du storyboard.
+    RendreLaDuree(String),
+    /// Dire ce plan pour cette case.
+    Plan(String, Option<Plan>),
+    /// Renommer, ou retirer, le champ de ce rang — ou en ajouter un.
+    NommerLeChamp(Option<usize>),
     /// Retirer cette case.
     Retirer(String),
     /// Renuméroter les cases dans l'ordre de lecture.
@@ -339,12 +404,17 @@ pub fn click_storyboard_panel(
     if layout.renumeroter.is_some_and(hit) {
         return Some(StoryboardIntent::Renumeroter);
     }
+    if let (Some(l), Some(lecture)) = (&layout.lecture, &contenu.lecture) {
+        if let Some(demande) = lecture::cliquer(l, lecture, pointer) {
+            return Some(demande);
+        }
+    }
     let ligne = layout.lignes.iter().find(|l| hit(l.ligne))?;
     let id = contenu.cases.get(ligne.rang)?.0.clone();
     if hit(ligne.retirer) {
         return Some(StoryboardIntent::Retirer(id));
     }
-    Some(StoryboardIntent::Decrire(id))
+    Some(StoryboardIntent::Ecrire(id, Texte::Description))
 }
 
 #[cfg(test)]

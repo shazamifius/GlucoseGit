@@ -297,6 +297,7 @@ impl Bridge {
             Fx::ZERO,
             Fx::ZERO,
         ));
+        let case = self.doc.case.get(id).cloned().unwrap_or_default();
         StoryboardPanel {
             id: self.name_of(id).to_string(),
             order: self.doc.order.get(id).copied().unwrap_or(0),
@@ -305,6 +306,9 @@ impl Bridge {
             y: bx.y.to_f64(),
             width: bx.w.to_f64(),
             height: bx.h.to_f64(),
+            duree_ms: case.duree_ms,
+            plan: case.plan,
+            textes: case.textes,
         }
     }
 }

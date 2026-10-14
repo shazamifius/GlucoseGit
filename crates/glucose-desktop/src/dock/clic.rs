@@ -63,9 +63,8 @@ fn click_panel(
             PanelClickResult::Handled
         }
         TabId::Storyboard => {
-            let board = &store.project.active_board_id;
-            dock.storyboard.suivre(store.grille_du_storyboard(board));
-            let contenu = storyboard::Contenu::du(store);
+            // Le panneau lit son miroir, tel que l'image d'avant l'a montré (fiche 67).
+            let contenu = dock.storyboard.contenu.clone();
             let layout = storyboard::layout_storyboard_panel(frame, &dock.storyboard, &contenu);
             let ce_qui = (&layout, &contenu);
             storyboard::click_storyboard_panel(&mut dock.storyboard, ce_qui, pointer)

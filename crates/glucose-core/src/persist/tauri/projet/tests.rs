@@ -22,7 +22,11 @@ fn test_la_grille_du_storyboard_de_tauri_se_lit() {
         colonnes: 3,
         ecart: 16.0,
     };
-    assert_eq!(p.boards[0].storyboard, Some(attendue));
+    assert_eq!(
+        p.boards[0].storyboard,
+        Some(crate::types::Storyboard::neuf(attendue)),
+        "la grille de Tauri, aux réglages de naissance"
+    );
     assert!(r.omis.is_empty(), "rien d'omis : {:?}", r.omis);
 }
 

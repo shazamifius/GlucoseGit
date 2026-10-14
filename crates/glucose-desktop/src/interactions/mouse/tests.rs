@@ -90,7 +90,7 @@ fn test_storyboard_1_activer_puis_poser_la_grille() {
     .into_iter()
     .find(|b| b.tab == TabId::Storyboard)
     .expect("le panneau ouvert a un cadre");
-    let contenu = storyboard::Contenu::du(&app.store);
+    let contenu = storyboard::Contenu::du(&app.store, None);
     let layout = storyboard::layout_storyboard_panel(
         cadre_de(&frame, s),
         &app.dock_manager.storyboard,

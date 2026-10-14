@@ -134,3 +134,85 @@ fn test_champ_1_les_colonnes_et_le_libelle_suivent_la_disposition() {
     assert_eq!(Champ::OrdonnerTaille.libelle(&d), "LARGEUR");
     assert_eq!(Champ::OrdonnerColonnes.montre(0.0), "auto");
 }
+
+/// **Une durée se lit et se tape en secondes** : « 2,5 s », la virgule ou le point ; elle se
+/// garde en millisecondes.
+#[test]
+fn test_une_duree_se_lit_et_se_tape_en_secondes() {
+    let c = Champ::CaseDuree;
+    assert_eq!(c.montre(2000.0), "2,0 s");
+    assert_eq!(c.montre(250.0), "0,25 s");
+    assert_eq!(c.montre(14_000.0), "14,0 s");
+    assert_eq!(c.a_taper(2500.0), "2,5");
+    assert_eq!(c.lu("2,5"), Some(2500.0));
+    assert_eq!(c.lu("0.04"), Some(40.0));
+    assert_eq!(c.lu("deux"), None);
+    assert!(c.admet(',') && c.admet('.') && c.admet('7') && !c.admet('a'));
+    assert!(
+        !Champ::StoryLargeur.admet(','),
+        "la virgule n'est qu'aux durées"
+    );
+    assert_eq!(
+        Champ::StoryLargeur.lu("280"),
+        Some(280.0),
+        "le reste se lit tel quel"
+    );
+}
+
+/// **Deux chiffres significatifs** : la même finesse relative partout, sans pas choisi.
+#[test]
+fn test_une_duree_s_arrondit_a_deux_chiffres_significatifs() {
+    for (v, attendu) in [
+        (2487.0, 2500.0),
+        (2449.0, 2400.0),
+        (131.0, 130.0),
+        (14_400.0, 14_000.0),
+        (99.6, 100.0),
+    ] {
+        assert_eq!(significatifs(v, 2), attendu, "{v}");
+    }
+    let mut d = dock();
+    Champ::CaseDuree.ecrire(&mut d, 2487.0);
+    assert_eq!(d.storyboard.duree_case, 2500.0);
+    Champ::CaseDuree.ecrire(&mut d, 20.0);
+    assert_eq!(d.storyboard.duree_case, 100.0, "bornée en bas");
+}
+
+/// **La règle d'une durée est un rapport** : tout le panneau, du min au max multiplie par
+/// `max/min` ; la moitié du panneau, par sa racine ; revenir au point d'appui rend la valeur
+/// de départ. À l'envers : la règle linéaire, à cent millisecondes le pas, montait de 2 à 14 s
+/// en soixante pixels d'un panneau de 260.
+#[test]
+fn test_la_regle_d_une_duree_est_logarithmique() {
+    let mut d = dock();
+    d.storyboard.duree_case = 1000.0;
+    let regle = cadre();
+    d.tenir_le_champ(Champ::CaseDuree, regle, (100.0, 0.0));
+    let b = Champ::CaseDuree.bornes();
+    d.glisser_le_champ(100.0 + regle.w / 2.0);
+    let attendu = significatifs(1000.0 * (b.max / b.min).sqrt(), 2);
+    assert_eq!(
+        d.storyboard.duree_case, attendu,
+        "un demi-panneau : la racine du rapport"
+    );
+    d.glisser_le_champ(100.0);
+    assert_eq!(d.storyboard.duree_case, 1000.0, "revenue au départ");
+    d.glisser_le_champ(100.0 + 60.0 * regle.w / 260.0);
+    assert!(
+        d.storyboard.duree_case < 5000.0,
+        "soixante pixels ne mènent plus à 14 s : {}",
+        d.storyboard.duree_case
+    );
+}
+
+/// **Une flèche, un cran** : un dixième de plus ou de moins pour une durée, arrondi — chaque
+/// cran bouge ; un pas pour le reste.
+#[test]
+fn test_un_cran_de_fleche() {
+    let c = Champ::CaseDuree;
+    assert_eq!(c.cran(2000.0, 1.0), 2200.0);
+    assert_eq!(c.cran(2000.0, -1.0), 1800.0);
+    assert_eq!(c.cran(1000.0, -1.0), 910.0);
+    assert_eq!(c.cran(60_000.0, 1.0), 60_000.0, "borné");
+    assert_eq!(Champ::StoryLargeur.cran(280.0, 1.0), 290.0);
+}

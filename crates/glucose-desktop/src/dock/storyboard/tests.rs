@@ -27,6 +27,7 @@ fn contenu(n: usize) -> Contenu {
         cases: (0..n)
             .map(|i| (format!("case-{i}"), i as i32, format!("plan {i}")))
             .collect(),
+        lecture: None,
     }
 }
 
@@ -84,7 +85,10 @@ fn test_chaque_bouton_dit_sa_demande() {
     let deuxieme = &layout.lignes[1];
     assert_eq!(
         cliquer(au_centre(deuxieme.description)),
-        Some(StoryboardIntent::Decrire("case-1".into()))
+        Some(StoryboardIntent::Ecrire(
+            "case-1".into(),
+            Texte::Description
+        ))
     );
     assert_eq!(
         cliquer(au_centre(deuxieme.retirer)),
@@ -135,18 +139,18 @@ fn test_storyboard_2_les_champs_suivent_la_grille_du_document() {
         colonnes: 6,
         ..Grille::default()
     };
-    state.suivre(Some(six));
+    state.suivre_la_grille(Some(six));
     assert_eq!(state.cols, 6);
     state.cols = 3;
-    state.suivre(Some(six));
+    state.suivre_la_grille(Some(six));
     assert_eq!(state.cols, 3, "le même document : ce qu'on a réglé reste");
-    state.suivre(None);
+    state.suivre_la_grille(None);
     assert_eq!(state.cols, 3, "un tableau sans storyboard ne touche à rien");
     let carre = Grille {
         colonnes: 5,
         format: Format::Carre,
         ..Grille::default()
     };
-    state.suivre(Some(carre));
+    state.suivre_la_grille(Some(carre));
     assert_eq!(state.grille(), carre, "chaque champ, le format compris");
 }

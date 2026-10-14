@@ -215,8 +215,9 @@ pub fn source_continue(delta: MouseScrollDelta) -> bool {
 impl GlucoseApp {
     /// Gère les événements de molette et gestes tactiles.
     pub fn handle_mouse_wheel(&mut self, delta: MouseScrollDelta) {
-        // Le canevas, sous le voile d'une question, attend sa réponse (POPUP-1).
-        if self.ui.question.is_some() {
+        // Le canevas, sous le voile d'une question, attend sa réponse (POPUP-1) ; pendant une
+        // lecture, c'est elle qui tient la caméra (fiche 67).
+        if self.ui.question.is_some() || self.ui.lecture.is_some() {
             return;
         }
         // La fenêtre de l'éditeur du texte lié prend la molette : elle fait défiler son texte,

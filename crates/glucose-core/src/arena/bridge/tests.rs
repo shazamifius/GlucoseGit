@@ -225,7 +225,14 @@ fn tableau_complet() -> Board {
         y: 0.0,
         width: 320.0,
         height: 180.0,
+        duree_ms: Some(2_400),
+        plan: Some(crate::types::Plan::Americain),
+        textes: vec![String::new(), "il se retourne".into()],
     });
+    // Une case qui ne porte rien de la lecture n'a pas de ligne dans la table éparse : elle
+    // doit revenir telle quelle, sans rien gagner.
+    b.panels
+        .push(StoryboardPanel::new("pan-2", 4, 344.0, 0.0, 320.0, 180.0));
     b
 }
 

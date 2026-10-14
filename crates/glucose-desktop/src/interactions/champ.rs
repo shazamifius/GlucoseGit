@@ -31,8 +31,42 @@ impl GlucoseApp {
         };
         if self.champ_sous_le_pointeur(screen) != Some(tape) {
             self.dock_manager.valider_le_champ();
+            self.pousser_les_durees();
             self.mark_dirty();
         }
+    }
+
+    /// **Les durées du panneau vont au document** (fiche 67) : la durée par case, puis celle de
+    /// la case choisie, quand leur champ ne les tient plus et qu'elles diffèrent de ce que le
+    /// document dit — un geste chacune. Tenues, elles attendent qu'on les lâche : un glisser
+    /// est un seul `Ctrl+Z`.
+    fn pousser_les_durees(&mut self) {
+        if matches!(self.dock_manager.champ, Some(Saisie::Tenu { .. })) {
+            return;
+        }
+        let panneau = &self.dock_manager.storyboard;
+        let Some(lecture) = &panneau.contenu.lecture else {
+            return;
+        };
+        let board = self.store.project.active_board_id.clone();
+        let defaut = panneau.duree_ms.round() as u32;
+        let case = lecture.case.as_ref().map(|c| {
+            let vue = c.duree_ms.unwrap_or(lecture.duree_ms);
+            (c.id.clone(), vue, panneau.duree_case.round() as u32)
+        });
+        if defaut != lecture.duree_ms {
+            self.store.regler_la_duree_du_storyboard(&board, defaut);
+        }
+        if let Some((id, vue, reglee)) = case {
+            if reglee != vue {
+                self.store.regler_la_duree(&board, &id, Some(reglee));
+            }
+        }
+        // **Ce qui vient d'être écrit est ce que le document dit** : le panneau le relit tout
+        // de suite. Sans cela, un `Ctrl+Z` avant l'image suivante rendrait au document l'état
+        // que le panneau avait vu en dernier, et son champ garderait la valeur défaite.
+        let choisie = self.ui.storyboard.choisie.as_deref();
+        self.dock_manager.storyboard.suivre(&self.store, choisie);
     }
 
     /// **L'appui prend le champ sous lui** ; dans le champ qu'on tape, il ne fait rien.
@@ -63,6 +97,7 @@ impl GlucoseApp {
     pub(crate) fn lacher_le_champ(&mut self) -> bool {
         let tenu = self.dock_manager.lacher_le_champ();
         if tenu {
+            self.pousser_les_durees();
             self.update_cursor();
             self.mark_dirty();
         }
@@ -73,6 +108,7 @@ impl GlucoseApp {
     pub(crate) fn frapper_dans_le_champ(&mut self, key: &Key) -> bool {
         let pris = self.dock_manager.frapper_le_champ(key);
         if pris {
+            self.pousser_les_durees();
             self.mark_dirty();
         }
         pris

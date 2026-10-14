@@ -46,6 +46,7 @@ pub mod tauri;
 mod annotation;
 mod document;
 mod image;
+mod storyboard;
 mod tags;
 
 use crate::error::{CoreError, CoreResult};
@@ -62,7 +63,10 @@ use manifest::{AssetEntry, Manifest};
 /// n'existe — et c'est la première migration chaînée que le § 8 annonçait.
 ///
 /// **Passée à 3 le 13/10/2026** : un tableau porte la grille de son storyboard (STORYBOARD-2).
-pub const DOCUMENT_VERSION: u16 = 3;
+///
+/// **Passée à 4 le 14/10/2026** : une case porte sa durée, son plan et ses champs ; le
+/// storyboard, la durée d'une case et le nom de ses champs (fiche 67).
+pub const DOCUMENT_VERSION: u16 = 4;
 
 /// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
 ///
@@ -72,6 +76,8 @@ pub const DOCUMENT_VERSION: u16 = 3;
 pub const RECADRAGE_DEPUIS: u16 = 2;
 /// Le schéma depuis lequel un tableau porte la grille de son storyboard (STORYBOARD-2).
 pub const STORYBOARD_DEPUIS: u16 = 3;
+/// Le schéma depuis lequel une case porte sa durée, son plan et ses champs (fiche 67).
+pub const ANIMATIQUE_DEPUIS: u16 = 4;
 /// Plus ancien schéma de document que cette build sait lire.
 pub const MIN_READABLE_DOCUMENT_VERSION: u16 = 1;
 /// Extension de fichier, sans le point.

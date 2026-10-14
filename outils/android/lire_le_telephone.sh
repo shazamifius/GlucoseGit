@@ -33,6 +33,9 @@ lire meminfo-systeme.txt shell cat /proc/meminfo
 lire meminfo-glucose.txt shell dumpsys meminfo "$PAQUET"
 lire memoire-du-systeme.txt shell dumpsys meminfo
 lire carte-graphique.txt shell 'dumpsys gpu; getprop ro.hardware.vulkan; getprop ro.hardware.egl; getprop ro.gfx.driver.0'
+# Le pilote Vulkan tel qu'il se décrit, extensions comprises : VK_EXT_memory_budget y est-il ?
+# (fiche 67 — vulkan.gpuinfo.org ne le dit pas hors de son navigateur ; le téléphone, si.)
+lire vulkan.json shell cmd gpu vkjson
 lire lmkd.txt shell 'getprop | grep -i -e lmk -e zram -e swap; cat /proc/pressure/memory'
 echo "rapport de bogue complet (deux à cinq minutes)..."
 "$ADB" bugreport "$SORTIE/rapport.zip" > "$SORTIE/rapport.txt" 2>&1

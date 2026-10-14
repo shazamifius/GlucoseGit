@@ -1,24 +1,25 @@
 //! Le dessin du panneau STORYBOARD — les couleurs et les mots de `StoryboardControls.tsx`.
 
-use super::{layout_storyboard_panel, Contenu, Ligne, StoryboardState};
+use super::lecture::{CaseLayout, Lecture, LectureLayout};
+use super::{layout_storyboard_panel, Contenu, Ligne};
 use crate::dock::champ::Champ;
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::dock::DockManager;
 use crate::dock::WidgetRect;
 use crate::params::ScaledRect;
 use crate::typography::Face;
-use glucose_core::store::Store;
+use glucose_core::store::storyboard::Texte;
 use tiny_skia::{Color, PixmapMut};
 
 pub fn render_storyboard_panel(
     pixmap: &mut PixmapMut,
     brush: &Brush,
     frame: ScaledRect,
-    (dock, store): (&DockManager, &Store),
+    dock: &DockManager,
 ) {
     let state = &dock.storyboard;
-    let contenu = Contenu::du(store);
-    let layout = layout_storyboard_panel(frame, state, &contenu);
+    let contenu = &state.contenu;
+    let layout = layout_storyboard_panel(frame, state, contenu);
     brush.title(pixmap, frame, "STORYBOARD");
 
     let x = frame.x + brush.px(14.0);
@@ -27,7 +28,7 @@ pub fn render_storyboard_panel(
         (x, layout.format_button.y - brush.px(14.0)),
         "FORMAT",
     );
-    draw_format(pixmap, brush, layout.format_button, state);
+    draw_selecteur(pixmap, brush, layout.format_button, state.format_label());
     for (champ, rect) in [
         (Champ::StoryLargeur, layout.width_input),
         (Champ::StoryColonnes, layout.cols_input),
@@ -55,7 +56,82 @@ pub fn render_storyboard_panel(
         // « × » et non « ✕ » : Inter porte le premier, pas le second (vu sur l'aperçu).
         brush.button(pixmap, croix, "×", 14.0, ButtonLook::default());
     }
-    draw_list(pixmap, brush, (&layout, &contenu));
+    if let (Some(l), Some(lecture)) = (&layout.lecture, &contenu.lecture) {
+        peindre_la_lecture(pixmap, brush, dock, (l, lecture));
+    }
+    draw_list(pixmap, brush, (&layout, contenu));
+}
+
+/// **La lecture** (fiche 67) : « ▶ Lire » et la durée par case ; puis la case choisie.
+fn peindre_la_lecture(
+    pixmap: &mut PixmapMut,
+    brush: &Brush,
+    dock: &DockManager,
+    (layout, lecture): (&LectureLayout, &Lecture),
+) {
+    brush.button(pixmap, layout.lire, "▶ Lire", 12.0, ButtonLook::default());
+    crate::dock::champ::paint::peindre(pixmap, brush, dock, Champ::StoryDuree, layout.duree);
+    if let (Some(case), Some(c)) = (&layout.case, &lecture.case) {
+        let titre = format!("CASE {}", c.numero);
+        brush.caption(pixmap, case.titre, &titre);
+        crate::dock::champ::paint::peindre(pixmap, brush, dock, Champ::CaseDuree, case.duree);
+        if let Some(rendre) = case.rendre {
+            brush.button(pixmap, rendre, "↺", 12.0, ButtonLook::default());
+        }
+        peindre_la_case(pixmap, brush, (case, c), lecture);
+    }
+}
+
+/// Le plan de la case, puis une rangée par texte : le nom à gauche, ce qu'elle dit à droite.
+fn peindre_la_case(
+    pixmap: &mut PixmapMut,
+    brush: &Brush,
+    (case, c): (&CaseLayout, &super::lecture::Choisie),
+    lecture: &Lecture,
+) {
+    let theme = brush.theme;
+    let au_dessus = (case.plan.x, case.plan.y - brush.px(12.0));
+    brush.text(pixmap, "PLAN", au_dessus, 9.0, theme.text_muted, Face::Bold);
+    draw_selecteur(pixmap, brush, case.plan, c.plan.map_or("—", |p| p.noms().0));
+    let milieu = |r: WidgetRect| r.y + (r.h - brush.px(11.0)) / 2.0;
+    for rangee in &case.textes {
+        let (nom, ecrit) = match rangee.texte {
+            Texte::Description => ("Description", c.description.as_str()),
+            Texte::Champ(i) => (
+                lecture.champs.get(i).map_or("", String::as_str),
+                c.textes.get(i).map_or("", String::as_str),
+            ),
+        };
+        let renommable = matches!(rangee.texte, Texte::Champ(_)) && brush.hovered(rangee.nom);
+        let couleur_nom = if renommable {
+            theme.text_primary
+        } else {
+            gris(0x66)
+        };
+        let court = tronquer(brush, nom, rangee.nom.w, 10.0);
+        let at = (rangee.nom.x, milieu(rangee.nom));
+        brush.text(pixmap, &court, at, 10.0, couleur_nom, Face::Bold);
+        brush.fill(pixmap, rangee.ecrit, brush.px(3.0), gris(0x16));
+        let (texte, couleur) = if ecrit.is_empty() {
+            ("…", gris(0x33))
+        } else {
+            (ecrit, gris(0x88))
+        };
+        let couleur = if brush.hovered(rangee.ecrit) {
+            theme.text_primary
+        } else {
+            couleur
+        };
+        let largeur = rangee.ecrit.w - brush.px(12.0);
+        let court = tronquer(brush, texte, largeur, 11.0);
+        let at = (rangee.ecrit.x + brush.px(6.0), milieu(rangee.ecrit));
+        brush.text(pixmap, &court, at, 11.0, couleur, Face::Regular);
+    }
+    let look = ButtonLook {
+        quiet: true,
+        ..ButtonLook::default()
+    };
+    brush.button(pixmap, case.ajouter_un_champ, "+ Champ", 10.0, look);
 }
 
 /// La liste des cases : son titre, « + Ajouter », les pages, chaque case, « Re-numéroter ».
@@ -137,8 +213,8 @@ fn gris(v: u8) -> Color {
     Color::from_rgba8(v, v, v, 255)
 }
 
-/// Le sélecteur de format : un champ avec un chevron.
-fn draw_format(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect, state: &StoryboardState) {
+/// **Un sélecteur qui tourne** — le format, le plan : un champ avec un chevron.
+fn draw_selecteur(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect, libelle: &str) {
     let theme = brush.theme;
     let bg = if brush.hovered(rect) {
         theme.bg_hover
@@ -148,14 +224,7 @@ fn draw_format(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect, state: &
     brush.fill(pixmap, rect, brush.px(4.0), bg);
     brush.stroke(pixmap, rect, brush.px(4.0), theme.btn_border, brush.px(1.0));
     let at = (rect.x + brush.px(8.0), rect.y + brush.px(6.0));
-    brush.text(
-        pixmap,
-        state.format_label(),
-        at,
-        11.0,
-        theme.text_primary,
-        Face::Regular,
-    );
+    brush.text(pixmap, libelle, at, 11.0, theme.text_primary, Face::Regular);
     let chevron = (rect.x + rect.w - brush.px(16.0), rect.y + brush.px(4.0));
     brush.text(pixmap, "˅", chevron, 12.0, theme.text_muted, Face::Regular);
 }

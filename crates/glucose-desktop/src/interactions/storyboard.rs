@@ -64,7 +64,11 @@ impl GlucoseApp {
             I::Ajouter(grille) => {
                 self.store.ajouter_une_case(&board, grille);
             }
-            I::Decrire(id) => self.decrire_la_case(&id),
+            I::Ecrire(id, texte) => self.ecrire_la_case(&id, texte),
+            I::Lire(depuis) => self.lire_le_storyboard(depuis.as_deref()),
+            I::RendreLaDuree(id) => self.store.regler_la_duree(&board, &id, None),
+            I::Plan(id, plan) => self.store.choisir_le_plan(&board, &id, plan),
+            I::NommerLeChamp(rang) => self.nommer_le_champ(rang),
             I::Retirer(id) => {
                 if self.ui.storyboard.choisie.as_deref() == Some(id.as_str()) {
                     self.ui.storyboard.choisie = None;
@@ -333,70 +337,9 @@ impl GlucoseApp {
         self.mark_dirty();
         true
     }
-
-    /// **Tab dans la description d'une case** : elle s'enregistre, et la suivante se décrit —
-    /// Maj+Tab, la précédente. Légender un storyboard d'une traite, comme dans Boords ou un
-    /// tableur (fiche 65 § 9). Après la dernière, la question se referme. Rend vrai si la
-    /// question posée décrivait une case.
-    pub(crate) fn decrire_la_voisine(&mut self, arriere: bool) -> bool {
-        use crate::ui::question::{Reponse, Suite};
-        let Some((_, Suite::DecrireLaCase { board, case })) = &self.ui.question else {
-            return false;
-        };
-        let cases = self.store.cases(board);
-        let rang = cases.iter().position(|c| c.id == *case);
-        let voisine = match (rang, arriere) {
-            (Some(r), true) => r.checked_sub(1),
-            (Some(r), false) => Some(r + 1),
-            (None, _) => None,
-        };
-        let voisine = voisine.and_then(|r| cases.get(r)).map(|c| c.id.clone());
-        self.repondre_a_la_question(Some(Reponse::Oui));
-        if let Some(id) = voisine {
-            self.decrire_la_case(&id);
-        }
-        self.mark_dirty();
-        true
-    }
-
-    /// **Décrit une case** : une question dessinée, un champ que le clavier remplit — au
-    /// téléphone aussi, par le miroir (CLAVIER-1). Tout est choisi : la première lettre tapée
-    /// remplace l'ancienne description.
-    pub(crate) fn decrire_la_case(&mut self, id: &str) {
-        use crate::ui::question::{Champ, Question, Reponse, Suite};
-        let board = self.store.project.active_board_id.clone();
-        let Some(case) = self
-            .store
-            .cases(&board)
-            .into_iter()
-            .find(|c| c.id == id)
-            .cloned()
-        else {
-            return;
-        };
-        let texte = case.description.clone();
-        let question = Question {
-            titre: format!("Case {}", case.order + 1),
-            texte: "Ce qui s'y passe : l'action, le son, une note.".into(),
-            champ: Some(Champ {
-                selection: glucose_core::text::Selection::all(&texte),
-                texte,
-            }),
-            choix: vec![
-                ("Décrire".into(), Reponse::Oui),
-                ("Annuler".into(), Reponse::Annuler),
-            ],
-            ..Default::default()
-        };
-        self.demander(
-            question,
-            Suite::DecrireLaCase {
-                board,
-                case: case.id,
-            },
-        );
-    }
 }
+
+mod ecrire;
 
 #[cfg(test)]
 mod tests;

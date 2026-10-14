@@ -67,6 +67,24 @@ impl<V> Default for Sparse<V> {
     }
 }
 
+/// **Ce que toute table éparse dit d'elle**, quoi qu'elle porte : ce qu'elle pèse, et les
+/// nœuds qui y ont une ligne. Ce qui permet au document d'en tenir **une seule liste**
+/// (`Doc::tables`), que le compte des octets et la vérification lisent tous deux.
+pub trait Eparse {
+    fn octets(&self) -> usize;
+    fn proprietaires(&self) -> Vec<NodeId>;
+}
+
+impl<V> Eparse for Sparse<V> {
+    fn octets(&self) -> usize {
+        self.bytes()
+    }
+
+    fn proprietaires(&self) -> Vec<NodeId> {
+        self.iter().map(|(id, _)| id).collect()
+    }
+}
+
 impl<V> Sparse<V> {
     /// Une table vide.
     pub fn new() -> Self {

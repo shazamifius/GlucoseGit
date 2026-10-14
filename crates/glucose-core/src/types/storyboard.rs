@@ -9,6 +9,16 @@
 //! Elle revient au tableau (schéma 3), et **une seule loi** ([`Grille::coin`]) dit où va chaque
 //! case : la case de rang `i` est à la colonne `i mod c`, à la rangée `i div c`.
 
+//!
+//! # Ce qu'une case dit en plus de son image (schéma 4, fiche 67)
+//!
+//! Sa **durée** pour la lecture, ses **champs** de texte, son **plan**. La durée d'une case
+//! est la sienne si on l'a réglée, sinon celle du storyboard ([`Storyboard::duree`]) — la loi
+//! de Storyboarder (`boardDuration` : `board.duration`, sinon `scene.defaultBoardTiming`), en
+//! une seule fonction : la sienne se contredit (sa frise prend `0` pour « par défaut », son
+//! modèle non). Les champs sont **ceux du storyboard**, nommés une fois pour toutes ses cases,
+//! comme les légendes de Toon Boom et les commentaires de Krita.
+
 use super::Id;
 
 /// La hauteur de la description sous chaque case, en unités du monde — celle de Glucose Tauri
@@ -24,6 +34,14 @@ pub struct StoryboardPanel {
     pub y: f64,
     pub width: f64,
     pub height: f64,
+    /// **Sa durée à la lecture**, en millisecondes — `None` : celle du storyboard.
+    pub duree_ms: Option<u32>,
+    /// **Son plan**, s'il est dit.
+    pub plan: Option<Plan>,
+    /// **Le texte de chaque champ du storyboard**, au rang du champ ([`Storyboard::champs`]).
+    /// Jamais plus long que les champs, et sans texte vide au bout : deux cases qui disent la
+    /// même chose sont égales ([`StoryboardPanel::ecrire`]).
+    pub textes: Vec<String>,
 }
 
 impl StoryboardPanel {
@@ -36,12 +54,136 @@ impl StoryboardPanel {
             y,
             width,
             height,
+            duree_ms: None,
+            plan: None,
+            textes: Vec::new(),
         }
     }
 
     /// Le cadre contient-il ce point ? La bande de description, sous lui, n'en est pas.
     pub fn contient(&self, (x, y): (f64, f64)) -> bool {
         (self.x..=self.x + self.width).contains(&x) && (self.y..=self.y + self.height).contains(&y)
+    }
+
+    /// Le texte du champ de rang `champ` — vide s'il n'en a pas.
+    pub fn texte(&self, champ: usize) -> &str {
+        self.textes.get(champ).map_or("", String::as_str)
+    }
+
+    /// **Écrit le texte du champ de rang `champ`**, et garde la forme unique : les rangs d'avant
+    /// comblés de vide, aucun vide au bout.
+    pub fn ecrire(&mut self, champ: usize, texte: &str) {
+        if self.textes.len() <= champ {
+            self.textes.resize(champ + 1, String::new());
+        }
+        self.textes[champ] = texte.to_string();
+        while self.textes.last().is_some_and(String::is_empty) {
+            self.textes.pop();
+        }
+    }
+
+    /// **La case porte-t-elle quelque chose qu'on a écrit ou choisi** — une description, un
+    /// texte, un plan, une durée à elle ? Les images se comptent à part : elles sont au tableau.
+    pub fn porte_quelque_chose(&self) -> bool {
+        !self.description.trim().is_empty()
+            || self.textes.iter().any(|t| !t.trim().is_empty())
+            || self.plan.is_some()
+            || self.duree_ms.is_some()
+    }
+}
+
+/// **L'échelle des plans**, du plus large au plus serré — celle du cinéma français.
+/// Storyboarder en compte onze, de l'« extrêmement près » au plan de situation
+/// (`shot-generator/utils/cameraUtils.js`) ; l'échelle française en nomme huit, chacune par ce
+/// que le cadre garde du corps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Plan {
+    General,
+    Ensemble,
+    Moyen,
+    Americain,
+    RapprocheTaille,
+    RapprochePoitrine,
+    Gros,
+    TresGros,
+}
+
+impl Plan {
+    /// Dans l'ordre de l'échelle. **Le rang d'un plan ici est son numéro dans le fichier**
+    /// (PERSIST-4) : on peut en ajouter au bout, jamais en déplacer un.
+    pub const TOUS: [Plan; 8] = [
+        Plan::General,
+        Plan::Ensemble,
+        Plan::Moyen,
+        Plan::Americain,
+        Plan::RapprocheTaille,
+        Plan::RapprochePoitrine,
+        Plan::Gros,
+        Plan::TresGros,
+    ];
+
+    /// Son nom, et son sigle — celui qu'on écrit sous une case.
+    pub fn noms(self) -> (&'static str, &'static str) {
+        match self {
+            Self::General => ("Plan général", "PG"),
+            Self::Ensemble => ("Plan d'ensemble", "PE"),
+            Self::Moyen => ("Plan moyen", "PM"),
+            Self::Americain => ("Plan américain", "PA"),
+            Self::RapprocheTaille => ("Plan rapproché taille", "PRT"),
+            Self::RapprochePoitrine => ("Plan rapproché poitrine", "PRP"),
+            Self::Gros => ("Gros plan", "GP"),
+            Self::TresGros => ("Très gros plan", "TGP"),
+        }
+    }
+
+    /// **Le plan d'après, en tournant** : aucun, puis chaque plan, puis aucun — le sélecteur
+    /// qui tourne, comme le format.
+    pub fn suivant(plan: Option<Plan>) -> Option<Plan> {
+        match plan {
+            None => Some(Self::TOUS[0]),
+            Some(p) => {
+                let rang = Self::TOUS.iter().position(|q| *q == p).unwrap_or(0);
+                Self::TOUS.get(rang + 1).copied()
+            }
+        }
+    }
+}
+
+/// **Un storyboard** (schéma 4) : la grille qui range ses cases, la durée d'une case qui n'a pas
+/// la sienne, et les champs que chaque case remplit.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Storyboard {
+    pub grille: Grille,
+    /// La durée d'une case, en millisecondes, quand elle n'a pas la sienne.
+    pub duree_ms: u32,
+    /// Le nom de chaque champ, dans l'ordre où les cases les montrent.
+    pub champs: Vec<String>,
+}
+
+/// La durée d'une case qu'on n'a pas réglée, à la naissance d'un storyboard : deux secondes,
+/// celle de Storyboarder (`defaultBoardTiming: 2000`, `src/js/prefs.js`). Réglable ensuite,
+/// pour tout le storyboard.
+pub const DUREE_DE_NAISSANCE_MS: u32 = 2000;
+
+/// Les champs d'un storyboard à sa naissance : ceux de Storyboarder (`dialogue`, `action`,
+/// `notes`). Toon Boom y ajoute « Slugging », le minutage écrit : ici, la durée est un nombre.
+pub fn champs_de_naissance() -> Vec<String> {
+    ["Dialogue", "Action", "Notes"].map(String::from).to_vec()
+}
+
+impl Storyboard {
+    /// Un storyboard neuf rangé par cette grille.
+    pub fn neuf(grille: Grille) -> Self {
+        Self {
+            grille,
+            duree_ms: DUREE_DE_NAISSANCE_MS,
+            champs: champs_de_naissance(),
+        }
+    }
+
+    /// **La durée de cette case** : la sienne, sinon celle du storyboard — la seule loi.
+    pub fn duree(&self, case: &StoryboardPanel) -> u32 {
+        case.duree_ms.unwrap_or(self.duree_ms)
     }
 }
 

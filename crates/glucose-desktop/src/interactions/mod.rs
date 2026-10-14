@@ -18,6 +18,7 @@ pub mod drag;
 pub mod drop;
 pub mod elan;
 pub mod gabarit;
+pub mod lecture;
 pub mod links;
 pub mod mouse;
 pub mod onglets;

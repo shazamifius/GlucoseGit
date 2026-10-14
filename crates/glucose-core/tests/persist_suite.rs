@@ -9,7 +9,8 @@ mod persist_fixture;
 use glucose_core::persist;
 use glucose_core::types::{
     Annotation, ArrowPredicate, AssetStore, Board, CurtainEditable, CurtainVisibility,
-    FolderSortMode, MembraneMode, Project, StickyOperator, Viewport,
+    FolderSortMode, Grille, MembraneMode, Project, StickyOperator, Storyboard, StoryboardPanel,
+    Viewport,
 };
 use persist_fixture::rich_project;
 
@@ -35,9 +36,9 @@ fn test_un_document_v1_se_lit_encore_et_ses_images_sont_entieres() {
         "le temoin est bien un v1"
     );
 
-    // La fixture d'aujourd'hui, ramenée à ce qu'elle était en v1 : sans recadrage, et sans
-    // grille de storyboard (schéma 3).
-    let mut attendu = rich_project();
+    // La fixture d'aujourd'hui, ramenée à ce qu'elle était en v1 : sans recadrage, sans
+    // grille de storyboard (schéma 3), et des cases sans durée, plan ni champs (schéma 4).
+    let mut attendu = sans_la_lecture(rich_project());
     for board in &mut attendu.boards {
         board.storyboard = None;
         for img in &mut board.images {
@@ -71,7 +72,7 @@ fn test_un_document_v2_se_lit_encore_sans_grille_de_storyboard() {
         "le témoin est bien un v2"
     );
 
-    let mut attendu = rich_project();
+    let mut attendu = sans_la_lecture(rich_project());
     for board in &mut attendu.boards {
         board.storyboard = None;
     }
@@ -88,6 +89,97 @@ fn test_un_document_v2_se_lit_encore_sans_grille_de_storyboard() {
     let remonte = persist::decode(&reecrit).expect("le document migré se relit");
     assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
     assert_eq!(remonte.project, relu.project);
+}
+
+/// **La fixture ramenée à ce qu'un schéma d'avant le 4 pouvait dire** : ses cases sans durée,
+/// sans plan, sans champs (fiche 67).
+fn sans_la_lecture(mut p: Project) -> Project {
+    for board in &mut p.boards {
+        for case in &mut board.panels {
+            (case.duree_ms, case.plan, case.textes) = (None, None, Vec::new());
+        }
+    }
+    p
+}
+
+/// **Un document au schéma v3 se lit encore** : son storyboard garde sa grille et prend les
+/// réglages de naissance — deux secondes par case, Dialogue, Action, Notes —, ses cases n'ont
+/// ni durée à elles, ni plan, ni texte (fiche 67).
+///
+/// Le témoin a été écrit par la build de `ea8a690`, la dernière à produire du v3, depuis la
+/// même fixture — avant que les cases ne portent leur lecture.
+#[test]
+fn test_un_document_v3_se_lit_encore_aux_reglages_de_naissance() {
+    let temoin = include_bytes!("persist_fixture/riche-v3.glucose");
+    let relu = persist::decode(temoin).expect("un document v3 doit se lire");
+    assert_eq!(
+        relu.manifest.document_version, 3,
+        "le témoin est bien un v3"
+    );
+
+    let mut attendu = sans_la_lecture(rich_project());
+    for board in &mut attendu.boards {
+        board.storyboard = board.storyboard.take().map(|s| Storyboard::neuf(s.grille));
+    }
+    assert_eq!(
+        relu.project, attendu,
+        "tout ce qui existait en v3 revient à l'identique, aux réglages de naissance"
+    );
+    let aujourd_hui = rich_project();
+    let board = &aujourd_hui.boards[0];
+    assert!(
+        board
+            .panels
+            .iter()
+            .any(StoryboardPanel::porte_quelque_chose)
+            && board
+                .storyboard
+                .as_ref()
+                .is_some_and(|s| *s != Storyboard::neuf(s.grille)),
+        "la fixture d'aujourd'hui porte une lecture : sans elle, l'épreuve ne verrait rien"
+    );
+
+    let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
+    let remonte = persist::decode(&reecrit).expect("le document migré se relit");
+    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(remonte.project, relu.project);
+}
+
+/// **Un geste de l'histoire écrit au schéma v3 se relit** : chaque entrée garde son schéma, et
+/// celles d'un document d'avant le 4 portent des cases et un storyboard au v3.
+///
+/// Le témoin a été écrit par la build de `ea8a690` : un storyboard posé (sa grille, huit cases
+/// insérées), puis la deuxième case décrite — tous les gestes du storyboard qu'un v3 écrivait.
+#[test]
+fn test_un_geste_v3_du_storyboard_se_relit() {
+    use glucose_core::store::journal::Edit;
+    let temoin = include_bytes!("persist_fixture/storyboard-v3.geste");
+    let geste = persist::histoire::lire_geste(temoin).expect("un geste v3 doit se lire");
+    let (mut cases, mut storyboards) = (Vec::new(), Vec::new());
+    for edit in &geste.transaction.edits {
+        match edit {
+            Edit::Panel { slot, .. } => cases.extend(slot.after.as_deref().cloned()),
+            Edit::Storyboard { whole, .. } => storyboards.push(whole.after.clone()),
+            autre => panic!("le témoin ne porte que des cases et un storyboard : {autre:?}"),
+        }
+    }
+    assert_eq!(cases.len(), 9, "huit cases posées, puis une décrite");
+    assert!(cases
+        .iter()
+        .all(|c| c.duree_ms.is_none() && c.plan.is_none() && c.textes.is_empty()));
+    assert_eq!(cases[8].description, "une case décrite");
+    assert_eq!(
+        storyboards,
+        vec![Some(Storyboard::neuf(Grille::default()))],
+        "la grille de Tauri, aux réglages de naissance"
+    );
+
+    // Réécrit par cette build, il passe au schéma du jour sans rien perdre.
+    let reecrit = persist::histoire::contenu_geste(&geste);
+    assert_eq!(
+        persist::histoire::lire_geste(&reecrit).expect("relu"),
+        geste
+    );
 }
 
 /// **La version se lit dans le manifeste, jamais dans les octets** : relire un document en

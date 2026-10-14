@@ -55,7 +55,12 @@ fn main() {
         "Gros plan : la clé",
     ];
     for (case, texte) in cases.iter().zip(textes) {
-        app.store.update_panel(&board, &case.id, texte);
+        app.store.ecrire_dans_la_case(
+            &board,
+            &case.id,
+            glucose_core::store::storyboard::Texte::Description,
+            texte,
+        );
     }
     for (i, (w, h)) in [(400.0, 300.0), (300.0, 420.0)].into_iter().enumerate() {
         let c = &cases[i];
@@ -64,6 +69,21 @@ fn main() {
         app.store.add_image(&board, image);
         app.store.ajuster_dans_les_cases(&board, &[id]);
     }
+    // Ce qu'une case dit pour la lecture (fiche 67) : un plan, un dialogue, une durée à elle.
+    use glucose_core::store::storyboard::{Plan, Texte};
+    app.store
+        .choisir_le_plan(&board, &cases[0].id, Some(Plan::General));
+    app.store
+        .choisir_le_plan(&board, &cases[2].id, Some(Plan::Gros));
+    app.store.ecrire_dans_la_case(
+        &board,
+        &cases[2].id,
+        Texte::Champ(0),
+        "« Tu l'as gardée ? »",
+    );
+    app.store
+        .ecrire_dans_la_case(&board, &cases[2].id, Texte::Champ(2), "lumière froide");
+    app.store.regler_la_duree(&board, &cases[2].id, Some(3500));
     app.store.clear_selection();
     app.ui.storyboard.choisie = Some(cases[2].id.clone());
     app.dock_manager.toggle_tab(TabId::Storyboard);

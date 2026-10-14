@@ -91,8 +91,10 @@ impl GlucoseApp {
         appuyee: bool,
         texte: Option<&str>,
     ) -> bool {
-        // Une question posée prend tout le clavier : rien ne passe sous son voile (POPUP-1).
-        self.touche_de_la_question(key, appuyee, texte)
+        // Une question posée prend tout le clavier : rien ne passe sous son voile (POPUP-1). Une
+        // lecture aussi (fiche 67).
+        self.touche_de_la_lecture(key, appuyee)
+            || self.touche_de_la_question(key, appuyee, texte)
             || appuyee
                 && (self.touche_de_l_ancrage(key)
                     || self.frapper_le_nom_du_jalon(key)

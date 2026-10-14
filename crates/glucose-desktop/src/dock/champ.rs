@@ -1,5 +1,20 @@
 //! **Les champs de nombre du dock** (CHAMP-1) : la taille, l'espacement et les colonnes
-//! d'Ordonner ; la largeur, les colonnes et l'espacement du Storyboard.
+//! d'Ordonner ; la largeur, les colonnes et l'espacement du Storyboard ; la durée d'une case,
+//! pour tout le storyboard et pour la case choisie (fiche 67).
+//!
+//! # Une durée se dit en secondes
+//!
+//! Elle se garde en millisecondes — au document, comme Storyboarder —, mais se lit « 2,5 s » et
+//! se tape en secondes, la virgule ou le point : personne ne pense une case en millisecondes.
+//!
+//! # Une durée se règle en rapport
+//!
+//! Passer d'une demi-seconde à une seconde se sent autant que de cinq à dix : une durée se
+//! perçoit en **rapport**, pas en écart. Sa règle est donc **logarithmique** — chaque pixel du
+//! glisser la multiplie par le même facteur, `(max/min)^(1/largeur)` —, et elle s'arrondit à
+//! **deux chiffres significatifs** (0,25 s ; 2,5 s ; 14 s) : la même finesse relative partout,
+//! et aucun pas à choisir. Une règle linéaire, à cent millisecondes le pas, faisait passer une
+//! case de 2 à 14 s en soixante pixels.
 //!
 //! Ils étaient dessinés et ne répondaient à rien : un clic dessus ne faisait rien, et Ordonner
 //! rangeait toujours à 280 et 16. Glucose Tauri en faisait des `<input type="number">`.
@@ -36,6 +51,10 @@ pub enum Champ {
     StoryLargeur,
     StoryColonnes,
     StoryEcart,
+    /// La durée d'une case qui n'a pas la sienne, pour tout le storyboard.
+    StoryDuree,
+    /// La durée de la case choisie.
+    CaseDuree,
 }
 
 /// Les bornes d'un champ et son pas — ceux de Glucose Tauri.
@@ -47,19 +66,25 @@ pub struct Bornes {
 }
 
 impl Champ {
-    pub const TOUS: [Self; 6] = [
+    pub const TOUS: [Self; 8] = [
         Self::OrdonnerTaille,
         Self::OrdonnerEcart,
         Self::OrdonnerColonnes,
         Self::StoryLargeur,
         Self::StoryColonnes,
         Self::StoryEcart,
+        Self::StoryDuree,
+        Self::CaseDuree,
     ];
 
     pub fn panneau(self) -> TabId {
         match self {
             Self::OrdonnerTaille | Self::OrdonnerEcart | Self::OrdonnerColonnes => TabId::Organize,
-            Self::StoryLargeur | Self::StoryColonnes | Self::StoryEcart => TabId::Storyboard,
+            Self::StoryLargeur
+            | Self::StoryColonnes
+            | Self::StoryEcart
+            | Self::StoryDuree
+            | Self::CaseDuree => TabId::Storyboard,
         }
     }
 
@@ -71,15 +96,58 @@ impl Champ {
             Self::StoryLargeur => (80.0, 800.0, 10.0),
             Self::StoryColonnes => (1.0, 12.0, 1.0),
             Self::StoryEcart => (0.0, 100.0, 4.0),
+            // Un dixième de seconde à une minute ; le pas d'une durée est un rapport, pas un
+            // écart : il ne sert pas (voir `logarithmique`).
+            Self::StoryDuree | Self::CaseDuree => (100.0, 60_000.0, 0.0),
         };
         Bornes { min, max, pas }
     }
 
     /// **Le champ est-il là ?** Les colonnes d'Ordonner ne comptent que pour la grille et la
-    /// mosaïque : ailleurs, le champ n'existe pas — un champ sans effet mentirait.
+    /// mosaïque, la durée par case que s'il y a un storyboard, celle d'une case que si une est
+    /// choisie : ailleurs, le champ n'existe pas — un champ sans effet mentirait.
     pub fn present(self, dock: &DockManager) -> bool {
-        self != Self::OrdonnerColonnes
-            || matches!(dock.organize.layout, LayoutMode::Grid | LayoutMode::Masonry)
+        let lecture = dock.storyboard.contenu.lecture.as_ref();
+        match self {
+            Self::OrdonnerColonnes => {
+                matches!(dock.organize.layout, LayoutMode::Grid | LayoutMode::Masonry)
+            }
+            Self::StoryDuree => lecture.is_some(),
+            Self::CaseDuree => lecture.is_some_and(|l| l.case.is_some()),
+            _ => true,
+        }
+    }
+
+    /// Une durée, qui se lit et se tape en secondes.
+    fn est_une_duree(self) -> bool {
+        matches!(self, Self::StoryDuree | Self::CaseDuree)
+    }
+
+    /// **Une règle en rapport** : les durées (voir l'en-tête).
+    pub fn logarithmique(self) -> bool {
+        self.est_une_duree()
+    }
+
+    /// **La valeur arrondie** à ce que le champ montre : une durée à deux chiffres
+    /// significatifs, le reste à l'unité.
+    fn arrondir(self, v: f64) -> f64 {
+        if self.logarithmique() {
+            significatifs(v, 2)
+        } else {
+            v.round()
+        }
+    }
+
+    /// **La valeur d'un cran** — une flèche du clavier : un pas de plus, ou un dixième de plus
+    /// pour une règle en rapport.
+    pub fn cran(self, v: f64, signe: f64) -> f64 {
+        let b = self.bornes();
+        let v = if self.logarithmique() {
+            self.arrondir(v * 1.1_f64.powf(signe))
+        } else {
+            v + signe * b.pas
+        };
+        v.clamp(b.min, b.max)
     }
 
     /// Ce que le champ dit au-dessus de lui. La taille d'Ordonner est la **hauteur** d'une
@@ -93,6 +161,8 @@ impl Champ {
             Self::OrdonnerEcart | Self::StoryEcart => "ESPACEMENT",
             Self::OrdonnerColonnes | Self::StoryColonnes => "COLONNES",
             Self::StoryLargeur => "LARGEUR",
+            Self::StoryDuree => "DURÉE PAR CASE",
+            Self::CaseDuree => "DURÉE",
         }
     }
 
@@ -104,6 +174,8 @@ impl Champ {
             Self::StoryLargeur => dock.storyboard.panel_width,
             Self::StoryColonnes => dock.storyboard.cols as f64,
             Self::StoryEcart => dock.storyboard.gap,
+            Self::StoryDuree => dock.storyboard.duree_ms,
+            Self::CaseDuree => dock.storyboard.duree_case,
         }
     }
 
@@ -111,7 +183,7 @@ impl Champ {
     pub fn ecrire(self, dock: &mut DockManager, v: f64) {
         let b = self.bornes();
         let v = if v.is_finite() {
-            v.round()
+            self.arrondir(v)
         } else {
             self.lire(dock)
         };
@@ -123,20 +195,51 @@ impl Champ {
             Self::StoryLargeur => dock.storyboard.panel_width = v,
             Self::StoryColonnes => dock.storyboard.cols = v as usize,
             Self::StoryEcart => dock.storyboard.gap = v,
+            Self::StoryDuree => dock.storyboard.duree_ms = v,
+            Self::CaseDuree => dock.storyboard.duree_case = v,
         }
     }
 
-    /// La valeur telle qu'on la lit : `auto` pour des colonnes qui se comptent seules.
+    /// La valeur telle qu'on la lit : `auto` pour des colonnes qui se comptent seules, une
+    /// durée en secondes.
     pub fn montre(self, v: f64) -> String {
         if self == Self::OrdonnerColonnes && v == 0.0 {
             "auto".to_string()
+        } else if self.est_une_duree() {
+            format!("{} s", secondes(v))
         } else {
             format!("{}", v as i64)
         }
     }
 
+    /// La valeur telle qu'on la tape : un entier, ou des secondes.
+    pub fn a_taper(self, v: f64) -> String {
+        if self.est_une_duree() {
+            secondes(v)
+        } else {
+            format!("{}", v as i64)
+        }
+    }
+
+    /// **Ce qu'on a tapé**, en valeur du champ — des secondes pour une durée, la virgule ou le
+    /// point ; `None` si ce n'est pas un nombre.
+    pub fn lu(self, texte: &str) -> Option<f64> {
+        let v = texte.trim().replace(',', ".").parse::<f64>().ok()?;
+        Some(if self.est_une_duree() { v * 1000.0 } else { v })
+    }
+
+    /// Ce caractère peut-il s'écrire dans ce champ ? Des chiffres, et la virgule d'une durée.
+    fn admet(self, c: char) -> bool {
+        c.is_ascii_digit() || (self.est_une_duree() && matches!(c, ',' | '.'))
+    }
+
     /// Le rectangle du champ dans le cadre de son panneau — la géométrie du panneau, la seule.
-    pub fn rect(self, frame: ScaledRect, typo: &Typography) -> WidgetRect {
+    pub fn rect(self, frame: ScaledRect, typo: &Typography, dock: &DockManager) -> WidgetRect {
+        let lecture = || {
+            let s = &dock.storyboard;
+            super::storyboard::layout_storyboard_panel(frame, s, &s.contenu).lecture
+        };
+        let absent = WidgetRect::new(0.0, 0.0, 0.0, 0.0);
         match self {
             Self::OrdonnerTaille => super::organize::layout_organize_panel(frame, typo).size_rect,
             Self::OrdonnerEcart => super::organize::layout_organize_panel(frame, typo).gap_rect,
@@ -144,6 +247,8 @@ impl Champ {
             Self::StoryLargeur => super::storyboard::champs(frame)[0],
             Self::StoryColonnes => super::storyboard::champs(frame)[1],
             Self::StoryEcart => super::storyboard::champs(frame)[2],
+            Self::StoryDuree => lecture().map_or(absent, |l| l.duree),
+            Self::CaseDuree => lecture().and_then(|l| l.case).map_or(absent, |c| c.duree),
         }
     }
 }
@@ -189,7 +294,7 @@ pub fn champ_sous(
     Champ::TOUS
         .into_iter()
         .filter(|c| c.panneau() == tab && c.present(dock))
-        .find(|c| c.rect(frame, typo).contains(p.x, p.y))
+        .find(|c| c.rect(frame, typo, dock).contains(p.x, p.y))
         .map(|c| (c, frame))
 }
 
@@ -227,8 +332,13 @@ impl DockManager {
         }
         let (champ, depart, regle) = (*champ, *depart, *regle);
         let b = champ.bornes();
-        let pas = (f64::from((x - depart.0) / regle) * (b.max - b.min) / b.pas).round();
-        champ.ecrire(self, depart.1 + pas * b.pas);
+        let part = f64::from((x - depart.0) / regle);
+        let v = if champ.logarithmique() {
+            depart.1 * (b.max / b.min).powf(part)
+        } else {
+            depart.1 + (part * (b.max - b.min) / b.pas).round() * b.pas
+        };
+        champ.ecrire(self, v);
         true
     }
 
@@ -240,7 +350,7 @@ impl DockManager {
         };
         self.champ = (!bouge).then(|| Saisie::Frappe {
             champ,
-            entree: TextEntry::new(format!("{}", champ.lire(self) as i64)),
+            entree: TextEntry::new(champ.a_taper(champ.lire(self))),
             entiere: true,
         });
         true
@@ -250,7 +360,7 @@ impl DockManager {
     /// laisse la valeur d'avant.
     pub fn valider_le_champ(&mut self) {
         if let Some(Saisie::Frappe { champ, entree, .. }) = self.champ.take() {
-            if let Ok(v) = entree.text().trim().parse::<f64>() {
+            if let Some(v) = champ.lu(entree.text()) {
                 champ.ecrire(self, v);
             }
         }
@@ -289,21 +399,20 @@ impl DockManager {
                 } else {
                     -1.0
                 };
-                let tape = entree.text().trim().parse::<f64>().ok();
-                let b = champ.bornes();
-                let v = (tape.unwrap_or(champ.lire(self)) + signe * b.pas).clamp(b.min, b.max);
+                let tape = champ.lu(entree.text());
+                let v = champ.cran(tape.unwrap_or(champ.lire(self)), signe);
                 if let Some(Saisie::Frappe {
                     entree, entiere, ..
                 }) = self.champ.as_mut()
                 {
-                    (*entree, *entiere) = (TextEntry::new(format!("{}", v as i64)), true);
+                    (*entree, *entiere) = (TextEntry::new(champ.a_taper(v)), true);
                 }
             }
             // Une valeur choisie entière s'efface, ou se remplace, d'une touche.
             Key::Named(NamedKey::Backspace | NamedKey::Delete) if *entiere => {
                 (*entree, *entiere) = (TextEntry::default(), false);
             }
-            Key::Character(t) if t.chars().all(|c| c.is_ascii_digit()) => {
+            Key::Character(t) if t.chars().all(|c| champ.admet(c)) => {
                 if std::mem::take(entiere) {
                     *entree = TextEntry::default();
                 }
@@ -327,7 +436,7 @@ impl DockManager {
         if let Some(c) = suivant {
             self.champ = Some(Saisie::Frappe {
                 champ: c,
-                entree: TextEntry::new(format!("{}", c.lire(self) as i64)),
+                entree: TextEntry::new(c.a_taper(c.lire(self))),
                 entiere: true,
             });
         }
@@ -337,6 +446,27 @@ impl DockManager {
     pub fn saisie_du(&self, tab: TabId) -> Option<Saisie> {
         self.champ.clone().filter(|s| s.champ().panneau() == tab)
     }
+}
+
+/// **`v` arrondi à `n` chiffres significatifs** — zéro, et ce qui n'est pas positif, restent.
+fn significatifs(v: f64, n: i32) -> f64 {
+    if v <= 0.0 {
+        return v;
+    }
+    let echelle = 10f64.powi(v.log10().floor() as i32 - (n - 1));
+    (v / echelle).round() * echelle
+}
+
+/// **Des millisecondes, en secondes** : au moins un chiffre après la virgule, jamais un zéro
+/// de trop — « 2,0 », « 2,5 », « 2,04 ».
+fn secondes(ms: f64) -> String {
+    let ms = ms.round() as i64;
+    let (entier, reste) = (ms / 1000, ms % 1000);
+    let mut fraction = format!("{reste:03}");
+    while fraction.len() > 1 && fraction.ends_with('0') {
+        fraction.pop();
+    }
+    format!("{entier},{fraction}")
 }
 
 #[cfg(test)]

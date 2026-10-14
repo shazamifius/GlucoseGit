@@ -768,7 +768,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "fill_annotation",
         111,
     ),
-    ("crates/glucose-core/src/arena/doc.rs", "check", 100),
     ("crates/glucose-core/src/export.rs", "build_scene", 169),
     (
         "crates/glucose-core/src/export.rs",

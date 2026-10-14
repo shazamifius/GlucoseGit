@@ -15,11 +15,12 @@
 //! permettra plus tard de sauter l'écriture d'une section inchangée.
 
 use super::bytes::{Reader, Writer};
+pub(super) use super::storyboard::{read_panel, read_storyboard, write_panel, write_storyboard};
 use super::tags::{sort_mode_from_tag, sort_mode_tag};
 use crate::error::CoreResult;
 use crate::types::{
-    Board, BoardZone, CanvasFolder, Domain, DomainAssignment, FolderMirrorSource, Format, Grille,
-    Preset, PresetSlot, Project, StoryboardPanel, TemporalAnchor, Viewport,
+    Board, BoardZone, CanvasFolder, Domain, DomainAssignment, FolderMirrorSource, Preset,
+    PresetSlot, Project, TemporalAnchor, Viewport,
 };
 use std::collections::HashMap;
 
@@ -100,11 +101,12 @@ pub(super) fn write_board(w: &mut Writer, board: &Board) {
     write_bookmarks(w, bookmarks);
     w.i64(*created_at);
     w.i64(*updated_at);
-    w.opt(storyboard.as_ref(), write_grille);
+    w.opt(storyboard.as_ref(), write_storyboard);
 }
 
-/// Lit un tableau du schema `version` : ses images en dependent (RECADRAGE-1), et la grille
-/// de son storyboard n'existe qu'a partir du schema 3 (STORYBOARD-2).
+/// Lit un tableau du schema `version` : ses images en dependent (RECADRAGE-1), la grille de
+/// son storyboard n'existe qu'a partir du schema 3 (STORYBOARD-2), et ses cases en dependent
+/// (schema 4, fiche 67).
 pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
     Ok(Board {
         id: r.text()?,
@@ -112,7 +114,7 @@ pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> 
         images: r.seq(|rr| super::image::read_image(rr, version))?,
         annotations: r.seq(super::annotation::read_annotation)?,
         folders: r.seq(read_folder)?,
-        panels: r.seq(read_panel)?,
+        panels: r.seq(|rr| read_panel(rr, version))?,
         zones: r.seq(read_zone)?,
         viewport: read_viewport(r)?,
         bookmarks: read_bookmarks(r)?,
@@ -121,7 +123,7 @@ pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> 
         storyboard: if version < crate::persist::STORYBOARD_DEPUIS {
             None
         } else {
-            r.opt(read_grille)?
+            r.opt(|rr| read_storyboard(rr, version))?
         },
     })
 }
@@ -237,70 +239,7 @@ fn read_mirror_source(r: &mut Reader<'_>) -> CoreResult<FolderMirrorSource> {
     })
 }
 
-// ── Storyboard et zones ─────────────────────────────────────────────────────
-
-pub(super) fn write_panel(w: &mut Writer, panel: &StoryboardPanel) {
-    let StoryboardPanel {
-        id,
-        order,
-        description,
-        x,
-        y,
-        width,
-        height,
-    } = panel;
-
-    w.text(id);
-    w.i32(*order);
-    w.text(description);
-    w.f64(*x);
-    w.f64(*y);
-    w.f64(*width);
-    w.f64(*height);
-}
-
-pub(super) fn read_panel(r: &mut Reader<'_>) -> CoreResult<StoryboardPanel> {
-    Ok(StoryboardPanel {
-        id: r.text()?,
-        order: r.i32()?,
-        description: r.text()?,
-        x: r.f64()?,
-        y: r.f64()?,
-        width: r.f64()?,
-        height: r.f64()?,
-    })
-}
-
-/// **La grille d'un storyboard** (STORYBOARD-2) : le format par son rang dans
-/// [`Format::TOUS`] — un numéro qui ne bouge jamais (PERSIST-4) —, la largeur, les colonnes,
-/// l'écart.
-pub(super) fn write_grille(w: &mut Writer, grille: &Grille) {
-    let Grille {
-        format,
-        largeur,
-        colonnes,
-        ecart,
-    } = grille;
-
-    let rang = Format::TOUS.iter().position(|f| f == format).unwrap_or(0);
-    w.u8(rang as u8);
-    w.f64(*largeur);
-    w.uvarint(*colonnes as u64);
-    w.f64(*ecart);
-}
-
-pub(super) fn read_grille(r: &mut Reader<'_>) -> CoreResult<Grille> {
-    let rang = r.u8()?;
-    let format = *Format::TOUS
-        .get(usize::from(rang))
-        .ok_or_else(|| super::tags::unknown("format de storyboard", rang))?;
-    Ok(Grille {
-        format,
-        largeur: r.f64()?,
-        colonnes: r.uvarint()? as usize,
-        ecart: r.f64()?,
-    })
-}
+// ── Zones ───────────────────────────────────────────────────────────────────
 
 pub(super) fn write_zone(w: &mut Writer, zone: &BoardZone) {
     let BoardZone {

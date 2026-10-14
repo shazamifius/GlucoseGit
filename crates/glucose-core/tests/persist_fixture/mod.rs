@@ -8,9 +8,9 @@
 use glucose_core::types::{
     Annotation, ArrowPredicate, AssetRef, Board, BoardImage, BoardZone, CanvasFolder,
     CurtainEditable, CurtainNote, CurtainVisibility, Domain, DomainAssignment, FolderMirrorSource,
-    FolderSortMode, Format, Grille, MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot,
-    Project, Recadrage, StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor, TextSelection,
-    Viewport,
+    FolderSortMode, Format, Grille, MembraneCurtain, MembraneMode, Plan, Point2D, Preset,
+    PresetSlot, Project, Recadrage, StickyOperator, Storyboard, StoryboardPanel, TemporalAnchor,
+    TextAnchor, TextSelection, Viewport,
 };
 
 fn anchor(start: i64, end: i64, label: &str) -> TemporalAnchor {
@@ -254,15 +254,28 @@ fn main_board() -> Board {
     board.panels = vec![{
         let mut panel = StoryboardPanel::new("panel-1", 3, 0.0, 0.0, 320.0, 180.0);
         panel.description = "plan d'ouverture".into();
+        // Schéma 4 (fiche 67) : une durée à elle, un plan, un champ vide entre deux écrits.
+        panel.duree_ms = Some(3_250);
+        panel.plan = Some(Plan::RapprochePoitrine);
+        panel.textes = vec!["« Qui est là ? »".into(), String::new(), "pluie".into()];
         panel
     }];
     // Rien de ce qui est ici n'est la valeur par défaut : un champ lu à la place d'un autre
-    // se verrait (STORYBOARD-2).
-    board.storyboard = Some(Grille {
-        format: Format::Scope,
-        largeur: 320.0,
-        colonnes: 3,
-        ecart: 16.0,
+    // se verrait (STORYBOARD-2, schéma 4).
+    board.storyboard = Some(Storyboard {
+        grille: Grille {
+            format: Format::Scope,
+            largeur: 320.0,
+            colonnes: 3,
+            ecart: 16.0,
+        },
+        duree_ms: 1_500,
+        champs: vec![
+            "Dialogue".into(),
+            "Caméra".into(),
+            "Son".into(),
+            "Lumière".into(),
+        ],
     });
     board.zones = vec![BoardZone::new("slot-hero", -50.0, -50.0, 400.0, 300.0)];
     board.viewport = Viewport {

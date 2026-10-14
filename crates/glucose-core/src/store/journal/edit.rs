@@ -14,7 +14,7 @@
 
 use super::{Slot, Whole};
 use crate::types::{
-    Annotation, Board, BoardImage, BoardZone, CanvasFolder, Domain, Grille, Preset, Project,
+    Annotation, Board, BoardImage, BoardZone, CanvasFolder, Domain, Preset, Project, Storyboard,
     StoryboardPanel,
 };
 
@@ -64,10 +64,10 @@ pub enum Edit {
         board: String,
         whole: Whole<String>,
     },
-    /// **La grille du storyboard** (STORYBOARD-2), avant et après : posée, changée, retirée.
+    /// **Le storyboard** (STORYBOARD-2, schéma 4), avant et après : posé, réglé, retiré.
     Storyboard {
         board: String,
-        whole: Whole<Option<Grille>>,
+        whole: Whole<Option<Storyboard>>,
     },
 
     /// Un **déplacement** de sélection : un vecteur, et ce qu'il a emporté (JRN-4).
@@ -216,7 +216,7 @@ impl Edit {
                 true
             }
             Self::Storyboard { whole, .. } => {
-                board.storyboard = whole.after;
+                board.storyboard = whole.after.clone();
                 true
             }
             Self::Translation {
@@ -288,7 +288,14 @@ impl Edit {
                 (whole.before.len() + whole.after.len()) * std::mem::size_of::<BoardZone>()
             }
             Self::BoardName { whole, .. } => whole.before.len() + whole.after.len(),
-            Self::Storyboard { .. } => 2 * std::mem::size_of::<Option<Grille>>(),
+            Self::Storyboard { whole, .. } => [&whole.before, &whole.after]
+                .into_iter()
+                .flatten()
+                .map(|s| {
+                    std::mem::size_of::<Storyboard>()
+                        + s.champs.iter().map(String::len).sum::<usize>()
+                })
+                .sum(),
             Self::ProjectName { whole } => whole.before.len() + whole.after.len(),
             Self::ActiveBoard { whole } => whole.before.len() + whole.after.len(),
             Self::BoardOrder { whole } => whole
