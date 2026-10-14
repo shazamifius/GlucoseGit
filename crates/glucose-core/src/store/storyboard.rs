@@ -93,21 +93,25 @@ fn suivre_le_cadre(image: &mut BoardImage, ancien: &StoryboardPanel, neuf: &Stor
     image.height *= k;
 }
 
-/// **L'ordre de lecture** de ces cases : par rangée, de haut en bas, puis de gauche à droite.
+/// Une boîte : sa gauche, son haut, sa largeur, sa hauteur.
+pub type Boite = (f64, f64, f64, f64);
+
+/// **L'ordre de lecture** de ces boîtes — des cases, ou des images qu'on lâche : par rangée, de
+/// haut en bas, puis de gauche à droite. Une seule loi pour tout ce qui se lit (P2, fiche 66).
 ///
-/// Une rangée commence à la plus haute des cases restantes, et prend toutes celles dont le
+/// Une rangée commence à la plus haute des boîtes restantes, et prend toutes celles dont le
 /// milieu tombe dans sa hauteur : une case glissée un peu plus bas que ses voisines reste dans
 /// leur rangée. Rend les rangs dans la liste, dans l'ordre.
-pub fn ordre_de_lecture(cases: &[StoryboardPanel]) -> Vec<usize> {
-    let mut restantes: Vec<usize> = (0..cases.len()).collect();
-    restantes.sort_by(|&a, &b| cases[a].y.total_cmp(&cases[b].y));
-    let mut ordre = Vec::with_capacity(cases.len());
+pub fn ordre_de_lecture(boites: &[Boite]) -> Vec<usize> {
+    let mut restantes: Vec<usize> = (0..boites.len()).collect();
+    restantes.sort_by(|&a, &b| boites[a].1.total_cmp(&boites[b].1));
+    let mut ordre = Vec::with_capacity(boites.len());
     while let Some(&premiere) = restantes.first() {
-        let bas = cases[premiere].y + cases[premiere].height;
+        let bas = boites[premiere].1 + boites[premiere].3;
         let (mut rangee, reste): (Vec<usize>, Vec<usize>) = restantes
             .into_iter()
-            .partition(|&i| cases[i].y + cases[i].height / 2.0 <= bas);
-        rangee.sort_by(|&a, &b| cases[a].x.total_cmp(&cases[b].x));
+            .partition(|&i| boites[i].1 + boites[i].3 / 2.0 <= bas);
+        rangee.sort_by(|&a, &b| boites[a].0.total_cmp(&boites[b].0));
         ordre.extend(rangee);
         restantes = reste;
     }
@@ -305,7 +309,11 @@ impl Store {
             return;
         };
         let cases: Vec<StoryboardPanel> = self.cases(board_id).into_iter().cloned().collect();
-        let suite: Vec<StoryboardPanel> = ordre_de_lecture(&cases)
+        let boites: Vec<Boite> = cases
+            .iter()
+            .map(|c| (c.x, c.y, c.width, c.height))
+            .collect();
+        let suite: Vec<StoryboardPanel> = ordre_de_lecture(&boites)
             .into_iter()
             .map(|i| cases[i].clone())
             .collect();
@@ -463,29 +471,6 @@ impl Store {
             .find(|c| c.contient(point))
     }
 
-    /// **Les images posées dans une case s'y ajustent** : parmi `ids`, chaque image non
-    /// verrouillée dont le centre tombe dans le cadre d'une case y est contenue, centrée, à ses
-    /// proportions. Dans le geste ouvert, s'il y en a un.
-    pub fn ajuster_dans_les_cases(&mut self, board_id: &str, ids: &[String]) {
-        for id in ids {
-            let Some(image) = self.image(board_id, id) else {
-                continue;
-            };
-            if image.locked || image.width <= 0.0 || image.height <= 0.0 {
-                continue;
-            }
-            let Some(case) = self.case_sous(board_id, (image.x, image.y)).cloned() else {
-                continue;
-            };
-            let s = (case.width / image.width).min(case.height / image.height);
-            self.update_image(board_id, id, |img| {
-                (img.width, img.height) = (img.width * s, img.height * s);
-                img.x = case.x + case.width / 2.0;
-                img.y = case.y + case.height / 2.0;
-            });
-        }
-    }
-
     /// **Remplace les cases du tableau**, et consigne chaque case qui change, entre, ou part —
     /// le tout en un geste.
     fn remplacer_les_cases(&mut self, board_id: &str, neuves: Vec<StoryboardPanel>) {
@@ -529,6 +514,8 @@ fn diff_des_cases(board: &str, avant: &[StoryboardPanel], apres: &[StoryboardPan
     });
     retraits.chain(ajouts).collect()
 }
+
+mod remplir;
 
 #[cfg(test)]
 mod tests;

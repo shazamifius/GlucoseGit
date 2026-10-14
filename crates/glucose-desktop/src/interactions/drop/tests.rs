@@ -524,3 +524,42 @@ fn test_une_image_livree_se_scelle_dans_le_document() {
         .expect("une image");
     assert!(app.disque.objets.est_scellee(&cle));
 }
+
+/// **P2, proposition 1 — un lot déposé sur une case du storyboard en remplit une par image**,
+/// à la suite, dans le geste du dépôt : un seul `Ctrl+Z` le défait (fiche 66). De vrais PNG,
+/// par le chemin de tout dépôt (`deposer`, au point du monde où la main a lâché).
+#[test]
+fn test_p2_1_un_lot_depose_sur_le_storyboard_remplit_ses_cases() {
+    let bac = Bac::neuf("storyboard");
+    let lot: Vec<PathBuf> = ["a.png", "b.png", "c.png"]
+        .iter()
+        .map(|n| bac.png(n))
+        .collect();
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    let grille = glucose_core::store::storyboard::Grille::default();
+    app.store.poser_le_storyboard(&board, grille, (0.0, 0.0));
+    app.store.journal.clear();
+    let premiere = app.store.cases(&board)[0].clone();
+    let lacher = (premiere.x + 10.0, premiere.y + 10.0);
+    app.deposer(&lot, Vec::new(), &[], lacher, None);
+    let mut rangs: Vec<Option<usize>> = app
+        .store
+        .ids_des_images(&board)
+        .iter()
+        .map(|id| {
+            let i = app.store.image(&board, id)?;
+            app.store
+                .cases(&board)
+                .iter()
+                .position(|c| c.contient((i.x, i.y)))
+        })
+        .collect();
+    rangs.sort();
+    assert_eq!(rangs, vec![Some(0), Some(1), Some(2)], "une image par case");
+    app.store.undo();
+    assert!(
+        app.store.ids_des_images(&board).is_empty(),
+        "un seul Ctrl+Z"
+    );
+}

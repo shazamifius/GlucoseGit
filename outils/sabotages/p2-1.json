@@ -1,0 +1,124 @@
+[
+ {
+  "nom": "toutes les images s'empilent dans la case sous elles",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "            let case = if remplies.contains(&sous) {",
+  "apres": "            let case = if remplies.is_empty() && remplies.contains(&sous) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "l'ordre de la liste au lieu de l'ordre de lecture",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "        for rang in ordre_de_lecture(&boites) {",
+  "apres": "        for rang in 0..boites.len() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "une case deja remplie par le lacher passe pour vide",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "                !remplies.contains(&c.id)",
+  "apres": "                !remplies.is_empty()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "une image du lacher bloque la case qu'elle va quitter",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "                        .all(|i| du_lacher.contains(i.as_str()))",
+  "apres": "                        .all(|_| false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "le storyboard ne s'allonge pas",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "                    None => match self.ajouter_une_case(board_id, Grille::default()) {",
+  "apres": "                    None => match None::<String> {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "une case remplie ne se retient pas",
+  "fichier": "crates/glucose-core/src/store/storyboard/remplir.rs",
+  "avant": "            remplies.insert(case);",
+  "apres": "            let _ = case;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "le depot ne remplit pas le storyboard",
+  "fichier": "crates/glucose-desktop/src/interactions/drop.rs",
+  "avant": "        self.store.ajuster_dans_les_cases(&board, &neuves);",
+  "apres": "        let _ = &neuves;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p2_1"
+  ]
+ },
+ {
+  "nom": "une rangee de lecture prend tout",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            .partition(|&i| boites[i].1 + boites[i].3 / 2.0 <= bas);",
+  "apres": "            .partition(|&i| boites[i].1 <= f64::MAX + bas);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard"
+  ]
+ }
+]

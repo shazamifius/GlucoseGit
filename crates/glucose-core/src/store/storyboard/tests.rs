@@ -591,3 +591,142 @@ fn test_une_etendue_exacte_redonne_ses_cases() {
     let pas = scope.pas().1;
     assert_eq!(((7.0 * pas - 24.0 + 24.0) / pas).floor(), 6.0);
 }
+
+// ── P2, proposition 1 : plusieurs images lâchées remplissent les cases vides (fiche 66) ─────
+
+/// Lâche ces images, chacune à son centre, en un geste — comme le dépôt d'un lot.
+fn lacher(store: &mut Store, board: &str, centres: &[(&str, (f64, f64))]) {
+    store.begin_live_edit();
+    for (id, centre) in centres {
+        store.add_image(board, image(id, *centre));
+    }
+    let ids: Vec<String> = centres.iter().map(|(id, _)| id.to_string()).collect();
+    store.ajuster_dans_les_cases(board, &ids);
+    store.end_live_edit();
+}
+
+/// Le rang, dans la suite, de la case où cette image est posée.
+fn rang_de(store: &Store, board: &str, id: &str) -> Option<usize> {
+    let i = store.image(board, id)?;
+    store
+        .cases(board)
+        .iter()
+        .position(|c| c.contient((i.x, i.y)))
+}
+
+/// Le milieu du cadre de la case de ce rang, et trois points en cascade à partir de lui — ce
+/// que pose un dépôt de trois fichiers.
+fn cascade(store: &Store, board: &str, rang: usize) -> [(f64, f64); 3] {
+    let c = store.cases(board)[rang].clone();
+    let m = (c.x + c.width / 2.0, c.y + c.height / 2.0);
+    [m, (m.0 + 24.0, m.1 + 24.0), (m.0 + 48.0, m.1 + 48.0)]
+}
+
+/// **Trois images lâchées sur une case vide en remplissent trois à la suite**, dans l'ordre de
+/// lecture — et un seul `Ctrl+Z` défait tout le lâcher. À l'envers, la loi d'avant les aurait
+/// empilées toutes les trois dans la première case.
+#[test]
+fn test_p2_1_un_lot_lache_sur_une_case_remplit_la_suite() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    store.journal.clear();
+    let [a, b, c] = cascade(&store, &board, 0);
+    lacher(&mut store, &board, &[("a", a), ("b", b), ("c", c)]);
+    let rangs: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|id| rang_de(&store, &board, id))
+        .collect();
+    assert_eq!(rangs, vec![Some(0), Some(1), Some(2)]);
+    assert_eq!(store.cases(&board).len(), 8, "aucune case ajoutée");
+    store.undo();
+    assert!(store.image(&board, "a").is_none(), "un seul geste");
+    assert!(!store.can_undo());
+}
+
+/// **Une case qui porte déjà une image est sautée** — elle n'est pas vide.
+#[test]
+fn test_p2_1_une_case_occupee_est_sautee() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    let [deja, ..] = cascade(&store, &board, 1);
+    lacher(&mut store, &board, &[("deja", deja)]);
+    let [a, b, c] = cascade(&store, &board, 0);
+    lacher(&mut store, &board, &[("a", a), ("b", b), ("c", c)]);
+    let rangs: Vec<_> = ["deja", "a", "b", "c"]
+        .iter()
+        .map(|id| rang_de(&store, &board, id))
+        .collect();
+    assert_eq!(rangs, vec![Some(1), Some(0), Some(2), Some(3)]);
+}
+
+/// **Quand il ne reste plus de case vide, le storyboard s'allonge**, dans le même geste.
+#[test]
+fn test_p2_1_le_storyboard_s_allonge_s_il_le_faut() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    store.journal.clear();
+    let [a, b, c] = cascade(&store, &board, 6);
+    lacher(&mut store, &board, &[("a", a), ("b", b), ("c", c)]);
+    assert_eq!(store.cases(&board).len(), 9, "une case de plus");
+    let rangs: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|id| rang_de(&store, &board, id))
+        .collect();
+    assert_eq!(rangs, vec![Some(6), Some(7), Some(8)]);
+    store.undo();
+    assert_eq!(
+        store.cases(&board).len(),
+        8,
+        "défaire retire aussi la case ajoutée"
+    );
+    assert!(store.image(&board, "c").is_none());
+}
+
+/// **Une image lâchée seule fait ce qu'elle faisait** : dans la case sous elle, même occupée.
+#[test]
+fn test_p2_1_une_image_seule_va_dans_la_case_sous_elle() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    let [deja, ..] = cascade(&store, &board, 1);
+    lacher(&mut store, &board, &[("deja", deja)]);
+    let [seule, ..] = cascade(&store, &board, 1);
+    lacher(&mut store, &board, &[("seule", seule)]);
+    assert_eq!(rang_de(&store, &board, "seule"), Some(1));
+}
+
+/// **L'ordre de lecture décide, pas l'ordre de la liste** : les mêmes trois images, données à
+/// l'envers, remplissent les cases dans l'ordre où on les lit.
+#[test]
+fn test_p2_1_l_ordre_de_lecture_decide() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    let [a, b, c] = cascade(&store, &board, 0);
+    lacher(&mut store, &board, &[("c", c), ("b", b), ("a", a)]);
+    let rangs: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|id| rang_de(&store, &board, id))
+        .collect();
+    assert_eq!(rangs, vec![Some(0), Some(1), Some(2)]);
+}
+
+/// **Une image du lâcher qui déborde déjà sur la case suivante ne la bloque pas** : elle s'en
+/// va à son tour, donc la case est vide pour celle qui la précède dans la lecture.
+#[test]
+fn test_p2_1_le_lacher_ne_se_bloque_pas_lui_meme() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let milieu = |c: &StoryboardPanel| (c.x + c.width / 2.0, c.y + c.height / 2.0);
+    let (m0, m1) = (milieu(&cases[0]), milieu(&cases[1]));
+    // a et b au-dessus de la première case, c déjà au-dessus de la deuxième.
+    lacher(
+        &mut store,
+        &board,
+        &[("a", m0), ("b", (m0.0 + 40.0, m0.1)), ("c", m1)],
+    );
+    let rangs: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|id| rang_de(&store, &board, id))
+        .collect();
+    assert_eq!(rangs, vec![Some(0), Some(1), Some(2)]);
+}

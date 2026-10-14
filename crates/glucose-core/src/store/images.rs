@@ -75,9 +75,6 @@ impl Store {
 
     /// Modifie une image en place.
     ///
-    /// **Site migré vers le journal.** C'est le chemin le plus chaud du store : déplacer,
-    /// redimensionner, verrouiller, réassigner un domaine passent tous par ici. L'entrée
-    /// d'annulation porte l'image avant et après, indépendamment de la taille du document.
     /// Une image de ce tableau, par son identifiant.
     pub fn image(&self, board_id: &str, id: &str) -> Option<&BoardImage> {
         self.project
@@ -89,6 +86,19 @@ impl Store {
             .find(|i| i.id == id)
     }
 
+    /// Les identifiants des images de ce tableau, dans l'ordre où elles sont posées.
+    pub fn ids_des_images(&self, board_id: &str) -> Vec<String> {
+        self.project
+            .boards
+            .iter()
+            .find(|b| b.id == board_id)
+            .map(|b| b.images.iter().map(|i| i.id.clone()).collect())
+            .unwrap_or_default()
+    }
+
+    /// **Site migré vers le journal.** C'est le chemin le plus chaud du store : déplacer,
+    /// redimensionner, verrouiller, réassigner un domaine passent tous par ici. L'entrée
+    /// d'annulation porte l'image avant et après, indépendamment de la taille du document.
     pub fn update_image<F: FnOnce(&mut BoardImage)>(&mut self, board_id: &str, id: &str, f: F) {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;

@@ -282,8 +282,18 @@ impl GlucoseApp {
         let des_liens = !lot.liens.is_empty();
         self.store.begin_live_edit();
         let avant = self.depot.posees.len();
+        let deja = self.store.ids_des_images(&board);
         let placed = self.poser_le_lot(&board, lot, origine);
         let posees = self.depot.posees.split_off(avant);
+        // Lâché sur un storyboard, le lot le remplit, une image par case vide (P2, fiche 66) —
+        // dans le même geste, qu'un seul `Ctrl+Z` défait.
+        let neuves: Vec<String> = self
+            .store
+            .ids_des_images(&board)
+            .into_iter()
+            .filter(|id| !deja.contains(id))
+            .collect();
+        self.store.ajuster_dans_les_cases(&board, &neuves);
         self.store.end_live_edit();
 
         // **Un** compte-rendu pour le lot, échecs compris. Déposer huit fichiers ne doit pas

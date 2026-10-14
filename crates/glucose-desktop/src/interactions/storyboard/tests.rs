@@ -441,3 +441,37 @@ fn test_storyboard_2_tab_passe_a_la_case_suivante() {
         "après la dernière, la question se referme"
     );
 }
+
+/// **P2, proposition 1 — trois images glissées ensemble sur une case en remplissent trois**, à
+/// la vraie souris (fiche 66) : choisies, prises par l'une d'elles, lâchées sur la première
+/// case ; elles s'y rangent une par case, dans l'ordre de lecture, et un `Ctrl+Z` rend tout.
+#[test]
+fn test_p2_1_trois_images_glissees_remplissent_trois_cases() {
+    let (mut app, board) = app();
+    for (rang, id) in ["a", "b", "c"].iter().enumerate() {
+        let d = 10.0 * rang as f64;
+        let img = BoardImage::new(*id, 1200.0 + d, 820.0 + d, 100.0, 100.0);
+        app.store.add_image(&board, img);
+    }
+    app.store.clear_selection();
+    for (rang, id) in ["a", "b", "c"].iter().enumerate() {
+        app.store.select_image((*id).to_string(), rang > 0);
+    }
+    app.store.journal.clear();
+    let case = premiere(&app, &board);
+    glisser(&mut app, (1200.0, 820.0), (case.x + 30.0, case.y + 30.0));
+    let rangs: Vec<Option<usize>> = ["a", "b", "c"]
+        .iter()
+        .map(|id| {
+            let i = app.store.image(&board, id)?;
+            app.store
+                .cases(&board)
+                .iter()
+                .position(|c| c.contient((i.x, i.y)))
+        })
+        .collect();
+    assert_eq!(rangs, vec![Some(0), Some(1), Some(2)], "une par case");
+    assert!(app.store.undo());
+    let rendue = app.store.image(&board, "c").expect("l'image");
+    assert_eq!((rendue.x, rendue.y), (1220.0, 840.0), "un Ctrl+Z rend tout");
+}

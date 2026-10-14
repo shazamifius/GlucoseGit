@@ -154,6 +154,27 @@ ce que l'œil voit — l'image dans sa case —, sans tolérance choisie. **Une 
 images** demanderait au journal leurs départs eux-mêmes : une édition neuve, donc un format neuf
 (GLISSER-2, SUITE).
 
+## 6 ter. P2, proposition 1 — plusieurs images lâchées remplissent les cases vides
+
+Validée le 13/10 : *« en lâcher dix sur la première case les range une par case, et le
+storyboard s'allonge s'il le faut »*. Boords fait d'un lot d'images une case par image, dans
+l'ordre du choix ([sa documentation](https://boords.com/docs/adding-your-own-images)) ; Glucose
+Tauri gardait une image par case (`imageId`) mais n'en remplissait aucune.
+
+* **Une seule loi** (`store/storyboard/remplir.rs`) : les images d'un même lâcher, prises **dans
+  l'ordre de lecture** de leurs boîtes — la loi même qui renumérote les cases, généralisée aux
+  boîtes (`ordre_de_lecture`) —, vont chacune dans la case sous leur centre ; si une image du
+  même lâcher y est déjà arrivée, elle passe à la **case vide suivante** — une case dont aucune
+  image n'est d'ailleurs que de ce lâcher —, et le storyboard s'allonge d'une case quand il n'en
+  reste plus. Une image lâchée seule fait exactement ce qu'elle faisait.
+* **Deux chemins, la même loi** : glisser plusieurs images du canevas (`drag.rs`, comme avant),
+  et **déposer des fichiers** — qui ne s'ajustaient pas du tout dans les cases jusqu'ici
+  (`drop.rs` relève les images que le lot a posées). Dans le geste du dépôt ou du glisser : un
+  seul `Ctrl+Z`.
+* **Éprouvé** : six épreuves du noyau (dont l'ordre de lecture contre l'ordre de la liste, et
+  une image du lâcher qui déborde déjà sur la case suivante), le dépôt de vrais PNG, et trois
+  images glissées à la vraie souris ; sabotages : § 9.
+
 ## 7. Ce qui reste — et ce qui déclare P0 fini
 
 1. **Lire le téléphone par le câble** : `bash outils/android/lire_le_telephone.sh <dossier>` —
@@ -187,7 +208,7 @@ images** demanderait au journal leurs départs eux-mêmes : une édition neuve, 
 
 ## 9. Ce qui est prouvé
 
-Les épreuves de MEMOIRE-1, 2 et 3 ; **35 sabotages, 35 chutes** : 17 pour MEMOIRE-1 et 2
+Les épreuves de MEMOIRE-1, 2 et 3, de FANTOME-1 et de P2.1 ; **46 sabotages, 46 chutes** — 3 pour FANTOME-1 (`outils/sabotages/fantome-1.json`), 8 pour P2.1 (`p2-1.json`), et : 17 pour MEMOIRE-1 et 2
 (`outils/sabotages/memoire.json` — le dix-huitième visait la ligne redondante, retirée), 18 pour
 MEMOIRE-3 et le `LISEZ-MOI` (`outils/sabotages/memoire-3.json`). Clippy strict sous Windows et
 pour Android ; le serveur, ses sept épreuves et deux essais en ligne. **Ce qui n'est gardé que
