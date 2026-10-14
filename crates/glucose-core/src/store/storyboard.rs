@@ -35,7 +35,7 @@
 //! l'ancien cadre dans le nouveau** — contenu, centré ([`suivre_le_cadre`]) : à taille égale,
 //! une translation ; à taille changée, la composition de la case est gardée.
 
-use super::journal::{Edit, Slot, Whole};
+use super::journal::{Edit, Slot};
 use super::Store;
 use crate::types::{BoardImage, StoryboardPanel};
 
@@ -78,6 +78,38 @@ impl Disposition {
         let rangee = ((y - self.origine.1) / pas_y).floor().max(0.0) as usize;
         (rangee * colonnes + colonne.min(colonnes - 1)).min(self.nombre.saturating_sub(1))
     }
+
+    /// **Les planches de ce storyboard** (P2, proposition 7, fiche 68) : des rectangles du
+    /// monde de même taille, l'un sous l'autre — la planche `p` porte les rangées
+    /// `[p·R, (p+1)·R)`, toutes les colonnes de la grille, cadres et bandes, bordées d'un écart
+    /// tout autour : la marge d'une planche est l'espace entre deux cases.
+    ///
+    /// **`R` se déduit du format A** (ISO 216) : une feuille dont le grand côté vaut √2 fois le
+    /// petit, la seule qui garde sa proportion pliée en deux. La planche à l'italienne de `C`
+    /// colonnes mesure `C·p_x + e` de large ; `R` est le nombre de rangées dont la hauteur
+    /// `R·p_y + e` est la plus proche de cette largeur sur √2 — au moins une, au plus les
+    /// rangées du storyboard : plus court qu'une feuille, il tient sur une planche à sa mesure.
+    /// Aucun nombre choisi : imprimée, une planche remplit sa feuille, A4 comme A3.
+    pub fn planches(&self) -> Vec<Boite> {
+        let (pas_x, pas_y) = self.grille.pas();
+        let e = self.grille.ecart;
+        let colonnes = self.grille.colonnes();
+        let largeur = colonnes as f64 * pas_x + e;
+        let rangees = self.nombre.max(1).div_ceil(colonnes);
+        let format_a = ((largeur / std::f64::consts::SQRT_2 - e) / pas_y)
+            .round()
+            .max(1.0) as usize;
+        // Un storyboard plus court qu'une feuille ne garde pas de rangées vides (vu sur
+        // l'aperçu : deux rangées, une planche de quatre).
+        let par_planche = format_a.min(rangees);
+        let hauteur = par_planche as f64 * pas_y + e;
+        (0..rangees.div_ceil(par_planche))
+            .map(|p| {
+                let y = self.origine.1 + (p * par_planche) as f64 * pas_y - e;
+                (self.origine.0 - e, y, largeur, hauteur)
+            })
+            .collect()
+    }
 }
 
 /// **Où une image d'une case va quand sa case bouge** : la similitude qui envoie l'ancien
@@ -119,39 +151,63 @@ pub fn ordre_de_lecture(boites: &[Boite]) -> Vec<usize> {
 }
 
 impl Store {
-    /// Les cases de ce tableau, dans l'ordre de leurs numéros.
-    pub fn cases(&self, board_id: &str) -> Vec<&StoryboardPanel> {
-        let mut cases: Vec<&StoryboardPanel> = self
-            .project
+    /// **Les storyboards de ce tableau**, dans l'ordre où ils sont nés (fiche 68).
+    pub fn storyboards(&self, board_id: &str) -> &[Storyboard] {
+        self.project
             .boards
             .iter()
             .find(|b| b.id == board_id)
-            .map(|b| b.panels.iter().collect())
-            .unwrap_or_default();
+            .map_or(&[], |b| b.storyboards.as_slice())
+    }
+
+    /// Ce storyboard de ce tableau, s'il existe.
+    pub fn storyboard(&self, board_id: &str, sb: &str) -> Option<&Storyboard> {
+        self.storyboards(board_id).iter().find(|s| s.id == sb)
+    }
+
+    /// **Le storyboard de cette case.**
+    pub fn storyboard_de_la_case(&self, board_id: &str, case: &str) -> Option<&Storyboard> {
+        let c = self
+            .toutes_les_cases(board_id)
+            .iter()
+            .find(|c| c.id == case)?;
+        self.storyboard(board_id, &c.storyboard)
+    }
+
+    /// **Toutes les cases du tableau**, de tous ses storyboards — ce que le dessin et le clic
+    /// parcourent.
+    pub fn toutes_les_cases(&self, board_id: &str) -> &[StoryboardPanel] {
+        self.project
+            .boards
+            .iter()
+            .find(|b| b.id == board_id)
+            .map_or(&[], |b| b.panels.as_slice())
+    }
+
+    /// Les cases de ce storyboard, dans l'ordre de leurs numéros.
+    pub fn cases(&self, board_id: &str, sb: &str) -> Vec<&StoryboardPanel> {
+        let mut cases: Vec<&StoryboardPanel> = self
+            .toutes_les_cases(board_id)
+            .iter()
+            .filter(|c| c.storyboard == sb)
+            .collect();
         cases.sort_by_key(|c| c.order);
         cases
     }
 
-    /// Le storyboard de ce tableau, s'il en a un.
-    pub fn storyboard(&self, board_id: &str) -> Option<&Storyboard> {
-        self.project
-            .boards
-            .iter()
-            .find(|b| b.id == board_id)?
-            .storyboard
-            .as_ref()
-    }
-
-    /// La grille du storyboard de ce tableau, s'il en a une.
-    pub fn grille_du_storyboard(&self, board_id: &str) -> Option<Grille> {
-        self.storyboard(board_id).map(|s| s.grille)
+    /// La grille de ce storyboard, s'il existe.
+    pub fn grille_du_storyboard(&self, board_id: &str, sb: &str) -> Option<Grille> {
+        self.storyboard(board_id, sb).map(|s| s.grille)
     }
 
     /// **Combien de cases un rangement doit garder** : jusqu'à la dernière qui porte quelque
     /// chose — ce qu'on y a écrit ou choisi ([`StoryboardPanel::porte_quelque_chose`]), ou une
-    /// image. Zéro si aucune.
-    pub fn cases_a_garder(&self, board_id: &str) -> usize {
-        self.cases(board_id)
+    /// image. Zéro si aucune, ou pour un storyboard qui n'existe pas encore.
+    pub fn cases_a_garder(&self, board_id: &str, sb: Option<&str>) -> usize {
+        let Some(sb) = sb else {
+            return 0;
+        };
+        self.cases(board_id, sb)
             .iter()
             .rposition(|c| {
                 c.porte_quelque_chose() || !self.images_de_la_case(board_id, &c.id).is_empty()
@@ -159,21 +215,22 @@ impl Store {
             .map_or(0, |rang| rang + 1)
     }
 
-    /// **La disposition du storyboard tel qu'il est** : sa grille (ou `reglee`, pour des cases
-    /// d'avant qu'elle ne s'enregistre), le coin de sa première case, son nombre de cases.
-    pub fn disposition_actuelle(&self, board_id: &str, reglee: Grille) -> Option<Disposition> {
-        let cases = self.cases(board_id);
+    /// **La disposition de ce storyboard tel qu'il est** : sa grille, le coin de sa première
+    /// case, son nombre de cases.
+    pub fn disposition_actuelle(&self, board_id: &str, sb: &str) -> Option<Disposition> {
+        let grille = self.grille_du_storyboard(board_id, sb)?;
+        let cases = self.cases(board_id, sb);
         let premiere = cases.first()?;
         Some(Disposition {
-            grille: self.grille_du_storyboard(board_id).unwrap_or(reglee),
+            grille,
             origine: (premiere.x, premiere.y),
             nombre: cases.len(),
         })
     }
 
-    /// **La disposition d'un clic** : deux rangées sur un tableau qui n'en a pas, sinon autant
-    /// que de cases — le « Mettre à jour » de Tauri —, **le coin haut gauche de la première sous
-    /// le clic** (FANTOME-1, fiche 66).
+    /// **La disposition d'un clic** : deux rangées pour un storyboard qui naît (`cible` vide),
+    /// sinon autant que les cases de la cible — le « Mettre à jour » de Tauri —, **le coin haut
+    /// gauche de la première sous le clic** (FANTOME-1, fiche 66).
     ///
     /// Tauri centrait la grille sur le clic, et le tracé, lui, part du point d'appui : le
     /// fantôme qu'on survolait sautait d'une demi-grille dès que la main commençait à glisser.
@@ -181,11 +238,11 @@ impl Store {
     /// qui pose et le glisser qui commence partent désormais du même point.
     pub fn disposition_au_clic(
         &self,
-        board_id: &str,
+        (board_id, cible): (&str, Option<&str>),
         grille: Grille,
         coin: (f64, f64),
     ) -> Disposition {
-        let n = self.cases(board_id).len();
+        let n = cible.map_or(0, |sb| self.cases(board_id, sb).len());
         let nombre = if n == 0 { grille.nombre_initial() } else { n };
         Disposition {
             grille,
@@ -196,17 +253,18 @@ impl Store {
 
     /// **La disposition d'un rectangle tracé de `depart` à `point`** : les colonnes et les
     /// rangées les plus proches de lui, ancrées au coin d'où la main est partie ; jamais moins
-    /// de cases que [`Self::cases_a_garder`] — la grille s'allonge plutôt.
+    /// de cases que la cible n'en doit garder ([`Self::cases_a_garder`]) — la grille s'allonge
+    /// plutôt.
     pub fn disposition_du_trace(
         &self,
-        board_id: &str,
+        (board_id, cible): (&str, Option<&str>),
         reglee: Grille,
         (depart, point): ((f64, f64), (f64, f64)),
     ) -> Disposition {
         let taille = ((point.0 - depart.0).abs(), (point.1 - depart.1).abs());
         let (colonnes, rangees) = reglee.tient_dans(taille);
         let grille = Grille { colonnes, ..reglee };
-        let nombre = (colonnes * rangees).max(self.cases_a_garder(board_id));
+        let nombre = (colonnes * rangees).max(self.cases_a_garder(board_id, cible));
         let (largeur, hauteur) = grille.etendue(nombre);
         let vers = |d: f64, p: f64, l: f64| if p < d { d - l } else { d };
         Disposition {
@@ -219,47 +277,63 @@ impl Store {
         }
     }
 
-    /// **Range le storyboard à cette disposition** : ses cases dans leur ordre, les neuves à la
-    /// suite, celles de trop retirées — un geste.
-    pub fn disposer(&mut self, board_id: &str, d: Disposition) {
-        let mut suite: Vec<StoryboardPanel> = self.cases(board_id).into_iter().cloned().collect();
+    /// **Range la cible à cette disposition** — ou, sans cible, **fait naître un storyboard**
+    /// (fiche 68) : ses cases dans leur ordre, les neuves à la suite, celles de trop retirées.
+    /// Un geste. Rend le storyboard rangé.
+    pub fn disposer(
+        &mut self,
+        (board_id, cible): (&str, Option<&str>),
+        d: Disposition,
+    ) -> Option<String> {
+        self.project.boards.iter().find(|b| b.id == board_id)?;
+        let sb = match cible {
+            Some(sb) => sb.to_string(),
+            None => self.generate_id("storyboard"),
+        };
+        let mut suite: Vec<StoryboardPanel> =
+            self.cases(board_id, &sb).into_iter().cloned().collect();
         suite.truncate(d.nombre);
         while suite.len() < d.nombre {
             let id = self.generate_id("case");
-            let (x, y) = d.grille.coin(d.origine, suite.len());
-            let hauteur = d.grille.hauteur();
-            suite.push(StoryboardPanel::new(id, 0, x, y, d.grille.largeur, hauteur));
+            let coin = d.grille.coin(d.origine, suite.len());
+            let taille = (d.grille.largeur, d.grille.hauteur());
+            suite.push(StoryboardPanel::new(id, sb.as_str(), 0, coin, taille));
         }
-        self.ranger(board_id, d, suite, None);
+        self.ranger((board_id, &sb), d, suite, None);
+        Some(sb)
     }
 
-    /// **Pose le storyboard d'un clic, sa première case au `coin`** ([`Self::disposition_au_clic`]).
-    pub fn poser_le_storyboard(&mut self, board_id: &str, grille: Grille, coin: (f64, f64)) {
-        let d = self.disposition_au_clic(board_id, grille, coin);
-        self.disposer(board_id, d);
+    /// **Pose un storyboard neuf d'un clic, sa première case au `coin`** — à côté de ceux qui
+    /// sont déjà là (fiche 68). Rend le storyboard posé.
+    pub fn poser_le_storyboard(
+        &mut self,
+        board_id: &str,
+        grille: Grille,
+        coin: (f64, f64),
+    ) -> Option<String> {
+        let d = self.disposition_au_clic((board_id, None), grille, coin);
+        self.disposer((board_id, None), d)
     }
 
-    /// **Ajoute une case après la dernière** — le « + Ajouter » de Tauri. Sans storyboard, rien.
-    pub fn ajouter_une_case(&mut self, board_id: &str, reglee: Grille) -> Option<String> {
-        let mut d = self.disposition_actuelle(board_id, reglee)?;
+    /// **Ajoute une case après la dernière de ce storyboard** — le « + Ajouter » de Tauri.
+    pub fn ajouter_une_case(&mut self, board_id: &str, sb: &str) -> Option<String> {
+        let mut d = self.disposition_actuelle(board_id, sb)?;
         d.nombre += 1;
-        self.disposer(board_id, d);
-        self.cases(board_id).last().map(|c| c.id.clone())
+        self.disposer((board_id, Some(sb)), d);
+        self.cases(board_id, sb).last().map(|c| c.id.clone())
     }
 
-    /// **Insère une case vide à la place `rang`** (P2, proposition 3, fiche 66) : celles qui
-    /// suivent glissent d'un cran, chacune avec ses images. Aucune loi neuve : une case ajoutée
-    /// au bout, puis lâchée à sa place — les deux gestes qui existent —, en un seul geste.
-    /// Rend la case neuve.
-    pub fn inserer_une_case(&mut self, board_id: &str, rang: usize) -> Option<String> {
-        let origine = self
-            .disposition_actuelle(board_id, Grille::default())?
-            .origine;
+    /// **Insère une case vide à la place `rang` de ce storyboard** (P2, proposition 3, fiche
+    /// 66) : celles qui suivent glissent d'un cran, chacune avec ses images. Aucune loi neuve :
+    /// une case ajoutée au bout, puis lâchée à sa place — les deux gestes qui existent —, en un
+    /// seul geste. Rend la case neuve.
+    pub fn inserer_une_case(&mut self, board_id: &str, sb: &str, rang: usize) -> Option<String> {
+        let origine = self.disposition_actuelle(board_id, sb)?.origine;
         let ouvert = self.in_live_edit();
         if !ouvert {
             self.begin_live_edit();
         }
-        let neuve = self.ajouter_une_case(board_id, Grille::default());
+        let neuve = self.ajouter_une_case(board_id, sb);
         if let Some(id) = &neuve {
             self.deplacer_la_case(board_id, (id, &[]), rang, origine);
         }
@@ -269,31 +343,38 @@ impl Store {
         neuve
     }
 
-    /// **Retire une case** : les suivantes avancent d'une place, leurs images avec elles, et la
-    /// suite reste continue. Retirer la dernière retire le storyboard. Un geste.
+    /// **Retire une case** : les suivantes de son storyboard avancent d'une place, leurs images
+    /// avec elles, et la suite reste continue. Retirer la dernière retire le storyboard. Un
+    /// geste.
     pub fn retirer_la_case(&mut self, board_id: &str, id: &str) {
-        let Some(mut d) = self.disposition_actuelle(board_id, Grille::default()) else {
+        let Some(sb) = self
+            .storyboard_de_la_case(board_id, id)
+            .map(|s| s.id.clone())
+        else {
+            return;
+        };
+        let Some(mut d) = self.disposition_actuelle(board_id, &sb) else {
             return;
         };
         let suite: Vec<StoryboardPanel> = self
-            .cases(board_id)
+            .cases(board_id, &sb)
             .into_iter()
             .filter(|c| c.id != id)
             .cloned()
             .collect();
         if suite.is_empty() {
-            self.effacer_le_storyboard(board_id);
+            self.effacer_le_storyboard(board_id, &sb);
             return;
         }
         d.nombre = suite.len();
-        self.ranger(board_id, d, suite, None);
+        self.ranger((board_id, &sb), d, suite, None);
     }
 
-    /// **Déplace une case à la place `rang`** : celles d'entre les deux places glissent d'un
-    /// cran, et chacune emporte ses images. `origine` est le coin de la première place au début
-    /// du geste — la case qu'on tient a pu être celle-là ; `portees`, les images qu'elle
-    /// emportait au départ — lâchée sur une autre case, elle la recouvre, et ce qu'elle porte
-    /// ne se lit plus à la place. Dans le geste ouvert, s'il y en a un.
+    /// **Déplace une case à la place `rang` de son storyboard** : celles d'entre les deux places
+    /// glissent d'un cran, et chacune emporte ses images. `origine` est le coin de la première
+    /// place au début du geste — la case qu'on tient a pu être celle-là ; `portees`, les images
+    /// qu'elle emportait au départ — lâchée sur une autre case, elle la recouvre, et ce qu'elle
+    /// porte ne se lit plus à la place. Dans le geste ouvert, s'il y en a un.
     pub fn deplacer_la_case(
         &mut self,
         board_id: &str,
@@ -301,42 +382,52 @@ impl Store {
         rang: usize,
         origine: (f64, f64),
     ) {
-        let Some(mut d) = self.disposition_actuelle(board_id, Grille::default()) else {
+        let Some(sb) = self
+            .storyboard_de_la_case(board_id, id)
+            .map(|s| s.id.clone())
+        else {
             return;
         };
-        let mut suite: Vec<StoryboardPanel> = self.cases(board_id).into_iter().cloned().collect();
+        let Some(mut d) = self.disposition_actuelle(board_id, &sb) else {
+            return;
+        };
+        let mut suite: Vec<StoryboardPanel> =
+            self.cases(board_id, &sb).into_iter().cloned().collect();
         let Some(depuis) = suite.iter().position(|c| c.id == id) else {
             return;
         };
         let tenue = suite.remove(depuis);
         suite.insert(rang.min(suite.len()), tenue);
         d.origine = origine;
-        self.ranger(board_id, d, suite, Some((id, portees)));
+        self.ranger((board_id, &sb), d, suite, Some((id, portees)));
     }
 
-    /// **Efface le storyboard** : toutes les cases et sa grille, en un geste. Les images restent.
-    pub fn effacer_le_storyboard(&mut self, board_id: &str) {
+    /// **Efface ce storyboard** : toutes ses cases, puis lui, en un geste. Les images restent,
+    /// et les autres storyboards aussi.
+    pub fn effacer_le_storyboard(&mut self, board_id: &str, sb: &str) {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;
         };
-        let avant = std::mem::take(&mut b.panels);
-        let grille = b.storyboard.take();
-        let mut edits = diff_des_cases(board_id, &avant, &[]);
+        let Some(i) = b.storyboards.iter().position(|s| s.id == sb) else {
+            return;
+        };
+        let mut edits = ranger::remplacer_la_suite(board_id, &mut b.panels, sb, Vec::new());
+        let parti = b.storyboards.remove(i);
         edits.push(Edit::Storyboard {
             board: board_id.to_string(),
-            whole: Whole::new(grille, None),
+            slot: Slot::removed(i, parti),
         });
         self.record_as_one_gesture(edits);
     }
 
-    /// **Renumérote les cases dans l'ordre de lecture**, et les range à leur nouvelle place
-    /// ([`ordre_de_lecture`]) — ce qui remet en suite un storyboard venu d'ailleurs, aux cases
-    /// éparses. Sur une suite déjà rangée, rien ne change. Un geste.
-    pub fn renumeroter_les_cases(&mut self, board_id: &str) {
-        let Some(mut d) = self.disposition_actuelle(board_id, Grille::default()) else {
+    /// **Renumérote les cases de ce storyboard dans l'ordre de lecture**, et les range à leur
+    /// nouvelle place ([`ordre_de_lecture`]) — ce qui remet en suite un storyboard venu
+    /// d'ailleurs, aux cases éparses. Sur une suite déjà rangée, rien ne change. Un geste.
+    pub fn renumeroter_les_cases(&mut self, board_id: &str, sb: &str) {
+        let Some(mut d) = self.disposition_actuelle(board_id, sb) else {
             return;
         };
-        let cases: Vec<StoryboardPanel> = self.cases(board_id).into_iter().cloned().collect();
+        let cases: Vec<StoryboardPanel> = self.cases(board_id, sb).into_iter().cloned().collect();
         let boites: Vec<Boite> = cases
             .iter()
             .map(|c| (c.x, c.y, c.width, c.height))
@@ -346,91 +437,7 @@ impl Store {
             .map(|i| cases[i].clone())
             .collect();
         d.origine = (suite[0].x, suite[0].y);
-        self.ranger(board_id, d, suite, None);
-    }
-
-    /// **La suite, rangée à la disposition** : chaque case à sa place et à sa taille, numérotée
-    /// de un en un ; ses images la suivent ([`suivre_le_cadre`]) ; la grille s'enregistre. Ce
-    /// qui change entre au journal en un geste — dans le geste ouvert, s'il y en a un.
-    ///
-    /// `tenue` : la case qu'une main a portée, et les images qu'elle emportait — les siennes,
-    /// quoi qu'elle recouvre ; les autres images cherchent leur case sans elle.
-    fn ranger(
-        &mut self,
-        board_id: &str,
-        d: Disposition,
-        suite: Vec<StoryboardPanel>,
-        tenue: Option<(&str, &[String])>,
-    ) {
-        let neuves: Vec<StoryboardPanel> = suite
-            .iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let (x, y) = d.grille.coin(d.origine, i);
-                let (width, height) = (d.grille.largeur, d.grille.hauteur());
-                StoryboardPanel {
-                    order: i as i32,
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..c.clone()
-                }
-            })
-            .collect();
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
-            return;
-        };
-        // Chaque image suit la première case de la suite où son centre est posé — lue à sa
-        // place d'avant, une seule fois —, sauf celles que la case tenue emportait.
-        let case_de = |image: &BoardImage| match tenue {
-            Some((id, emportees)) if emportees.contains(&image.id) => {
-                suite.iter().position(|c| c.id == id)
-            }
-            _ => suite.iter().position(|c| {
-                tenue.is_none_or(|(id, _)| c.id != id) && c.contient((image.x, image.y))
-            }),
-        };
-        let mut edits = Vec::new();
-        for (k, image) in b.images.iter_mut().enumerate() {
-            let Some(rang) = case_de(image) else {
-                continue;
-            };
-            if image.locked {
-                continue;
-            }
-            let avant = image.clone();
-            suivre_le_cadre(image, &suite[rang], &neuves[rang]);
-            edits.push(Edit::Image {
-                board: board_id.to_string(),
-                slot: Slot::changed(k, avant, image.clone()),
-            });
-        }
-        let avant = std::mem::replace(&mut b.panels, neuves);
-        edits.extend(diff_des_cases(board_id, &avant, &b.panels));
-        // La grille change ; la durée et les champs restent ceux du storyboard.
-        let regle = match &b.storyboard {
-            Some(s) => Storyboard {
-                grille: d.grille,
-                ..s.clone()
-            },
-            None => Storyboard::neuf(d.grille),
-        };
-        let avant = b.storyboard.replace(regle.clone());
-        edits.push(Edit::Storyboard {
-            board: board_id.to_string(),
-            whole: Whole::new(avant, Some(regle)),
-        });
-        self.record_as_one_gesture(edits);
-    }
-
-    /// **Pose cette case à ce coin** — pendant un glisser, dans le geste ouvert.
-    pub fn placer_la_case(&mut self, board_id: &str, id: &str, (x, y): (f64, f64)) {
-        let mut cases: Vec<StoryboardPanel> = self.cases(board_id).into_iter().cloned().collect();
-        if let Some(c) = cases.iter_mut().find(|c| c.id == id) {
-            (c.x, c.y) = (x, y);
-        }
-        self.remplacer_les_cases(board_id, cases);
+        self.ranger((board_id, sb), d, suite, None);
     }
 
     /// **Glisse une case et les images qu'elle porte** à `total` de leur départ, dans le geste
@@ -501,57 +508,15 @@ impl Store {
     /// **La case dont le cadre contient ce point** — la plus haute, la dernière posée, si deux se
     /// recouvrent. La description, sous le cadre, n'en est pas.
     pub fn case_sous(&self, board_id: &str, point: (f64, f64)) -> Option<&StoryboardPanel> {
-        self.cases(board_id)
-            .into_iter()
+        self.toutes_les_cases(board_id)
+            .iter()
             .rev()
             .find(|c| c.contient(point))
     }
-
-    /// **Remplace les cases du tableau**, et consigne chaque case qui change, entre, ou part —
-    /// le tout en un geste.
-    fn remplacer_les_cases(&mut self, board_id: &str, neuves: Vec<StoryboardPanel>) {
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
-            return;
-        };
-        let avant = std::mem::replace(&mut b.panels, neuves);
-        let apres = b.panels.clone();
-        let edits = diff_des_cases(board_id, &avant, &apres);
-        self.record_as_one_gesture(edits);
-    }
-}
-
-/// **Ce qui change d'une liste de cases à l'autre**, en éditions qui se rejouent dans l'ordre.
-///
-/// Quand la liste garde ses cases aux mêmes rangs — un glisser, une description, un rangement —
-/// seules celles qui changent sont consignées : un glisser n'écrit pas toutes les cases à chaque
-/// image. Sinon, on retire l'ancien de la fin vers le début, puis on insère le neuf.
-fn diff_des_cases(board: &str, avant: &[StoryboardPanel], apres: &[StoryboardPanel]) -> Vec<Edit> {
-    let memes_rangs =
-        avant.len() == apres.len() && avant.iter().zip(apres).all(|(a, b)| a.id == b.id);
-    if memes_rangs {
-        return avant
-            .iter()
-            .zip(apres)
-            .enumerate()
-            .filter(|(_, (a, b))| a != b)
-            .map(|(i, (a, b))| Edit::Panel {
-                board: board.to_string(),
-                slot: Slot::changed(i, a.clone(), b.clone()),
-            })
-            .collect();
-    }
-    let retraits = avant.iter().enumerate().rev().map(|(i, c)| Edit::Panel {
-        board: board.to_string(),
-        slot: Slot::removed(i, c.clone()),
-    });
-    let ajouts = apres.iter().enumerate().map(|(i, c)| Edit::Panel {
-        board: board.to_string(),
-        slot: Slot::inserted(i, c.clone()),
-    });
-    retraits.chain(ajouts).collect()
 }
 
 mod case;
+mod ranger;
 mod remplir;
 
 pub use case::Texte;

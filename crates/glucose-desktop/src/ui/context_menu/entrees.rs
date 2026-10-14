@@ -143,10 +143,19 @@ fn entrees_du_vide(store: &Store) -> Vec<Def> {
         Some((MenuAction::Signets, "Signets…", "1…9")),
     ];
     // L'animatique, quand le tableau a des cases à lire (fiche 67).
-    if !store.cases(&store.project.active_board_id).is_empty() {
+    if !store
+        .toutes_les_cases(&store.project.active_board_id)
+        .is_empty()
+    {
         defs.push(Some((
             MenuAction::LireLeStoryboard,
             "Lire le storyboard",
+            "",
+        )));
+        // Ses planches, PDF ou images (P2.7, fiche 68).
+        defs.push(Some((
+            MenuAction::ExporterLesPlanches,
+            "Exporter en planches…",
             "",
         )));
     }

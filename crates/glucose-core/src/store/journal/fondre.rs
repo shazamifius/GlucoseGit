@@ -131,8 +131,8 @@ impl Edit {
             (E::BoardName { board: a, whole: s }, E::BoardName { board: b, whole: t }) => {
                 sur_un_tableau!(BoardName, whole, a, s, b, t)
             }
-            (E::Storyboard { board: a, whole: s }, E::Storyboard { board: b, whole: t }) => {
-                sur_un_tableau!(Storyboard, whole, a, s, b, t)
+            (E::Storyboard { board: a, slot: s }, E::Storyboard { board: b, slot: t }) => {
+                sur_un_tableau!(Storyboard, slot, a, s, b, t)
             }
             (E::Board { slot: s }, E::Board { slot: t }) => sur_le_projet!(Board, slot, s, t),
             (E::Domain { slot: s }, E::Domain { slot: t }) => sur_le_projet!(Domain, slot, s, t),

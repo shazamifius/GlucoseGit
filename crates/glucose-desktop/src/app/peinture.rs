@@ -182,8 +182,9 @@ impl GlucoseApp {
     /// Le panneau Storyboard suit le document : ses cases, la case choisie, et ses champs quand
     /// le document les change (STORYBOARD-2, fiche 67).
     fn suivre_la_grille_dans_le_panneau(&mut self) {
-        let choisie = self.ui.storyboard.choisie.as_deref();
-        self.dock_manager.storyboard.suivre(&self.store, choisie);
+        self.dock_manager
+            .storyboard
+            .suivre(&self.store, &self.ui.storyboard);
     }
 
     pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {

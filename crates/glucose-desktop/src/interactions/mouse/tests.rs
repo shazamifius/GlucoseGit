@@ -90,7 +90,7 @@ fn test_storyboard_1_activer_puis_poser_la_grille() {
     .into_iter()
     .find(|b| b.tab == TabId::Storyboard)
     .expect("le panneau ouvert a un cadre");
-    let contenu = storyboard::Contenu::du(&app.store, None);
+    let contenu = storyboard::Contenu::du(&app.store, &app.ui.storyboard);
     let layout = storyboard::layout_storyboard_panel(
         cadre_de(&frame, s),
         &app.dock_manager.storyboard,
@@ -131,7 +131,10 @@ fn test_storyboard_1_activer_puis_poser_la_grille() {
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
     app.handle_mouse_up(MouseButton::Left);
     let board = app.store.project.active_board_id.clone();
-    let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<_> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     assert_eq!(cases.len(), 8, "deux rangées de quatre");
     assert_eq!(
         (cases[0].x, cases[0].y),
@@ -144,7 +147,7 @@ fn test_storyboard_1_activer_puis_poser_la_grille() {
     );
     app.annuler();
     assert!(
-        app.store.cases(&board).is_empty(),
+        crate::epreuve::les_cases(&app.store, &board).is_empty(),
         "un seul Ctrl+Z la retire"
     );
 }

@@ -46,7 +46,7 @@ fn app() -> (GlucoseApp, String) {
 }
 
 fn premiere(app: &GlucoseApp, board: &str) -> StoryboardPanel {
-    app.store.cases(board)[0].clone()
+    crate::epreuve::les_cases(&app.store, board)[0].clone()
 }
 
 /// Un point de la bande de cette case, sous son cadre.
@@ -67,7 +67,10 @@ fn glisser(app: &mut GlucoseApp, de: (f64, f64), a: (f64, f64)) {
 #[test]
 fn test_storyboard_2_la_case_lachee_prend_la_place_sous_elle() {
     let (mut app, board) = app();
-    let avant: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let avant: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     let case = avant[0].clone();
     let centre = (case.x + case.width / 2.0, case.y + case.height / 2.0);
     app.store.add_image(
@@ -83,7 +86,7 @@ fn test_storyboard_2_la_case_lachee_prend_la_place_sous_elle() {
     // Deux places à droite : le centre de son cadre passe dans la troisième case.
     let deux_places = avant[2].x - case.x;
     glisser(&mut app, de, (de.0 + deux_places, de.1 + 10.0));
-    let apres = app.store.cases(&board);
+    let apres = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(apres[2].id, case.id, "elle est troisième");
     assert_eq!(
         (apres[2].x, apres[2].y),
@@ -116,7 +119,10 @@ fn test_storyboard_2_une_case_glissee_de_peu_revient() {
 #[test]
 fn test_storyboard_2_le_fantome_montre_la_place_visee() {
     let (mut app, board) = app();
-    let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     let de = dans_la_bande(&cases[0]);
     app.mouse_pos = de;
     app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
@@ -142,7 +148,10 @@ fn test_storyboard_2_le_fantome_montre_la_place_visee() {
 #[test]
 fn test_storyboard_2_la_grille_armee_se_redessine_au_survol() {
     let (mut app, board) = app();
-    app.store.effacer_le_storyboard(&board);
+    app.store.effacer_le_storyboard(
+        &board,
+        &crate::epreuve::seul_storyboard(&app.store, &board).unwrap(),
+    );
     let bouger = |app: &mut GlucoseApp, x: f64| {
         let _ = app.prendre_la_salissure();
         app.handle_cursor_moved(PhysicalPosition::new(x, 500.0));
@@ -277,7 +286,7 @@ fn test_storyboard_1_la_croix_et_suppr_retirent_la_case() {
     let (cx, cy, cw, ch) = crate::renderer::storyboard::croix(boite, bande, app.ui.scale());
     let croix = (f64::from(cx + cw / 2.0), f64::from(cy + ch / 2.0));
     glisser(&mut app, croix, croix);
-    let cases = app.store.cases(&board);
+    let cases = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(cases.len(), 7, "la croix l'a retirée");
     assert_eq!(cases[0].order, 0, "la suivante prend son numéro");
 
@@ -285,14 +294,21 @@ fn test_storyboard_1_la_croix_et_suppr_retirent_la_case() {
     let point = dans_la_bande(&seconde);
     glisser(&mut app, point, point);
     app.handle_shortcut_input(&Key::Named(NamedKey::Delete), ElementState::Pressed);
-    assert_eq!(app.store.cases(&board).len(), 6, "Suppr aussi");
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board).len(),
+        6,
+        "Suppr aussi"
+    );
 }
 
 /// **`Échap` renonce à la grille armée** ; armée, elle montre une boîte par case.
 #[test]
 fn test_storyboard_1_echap_renonce_a_la_grille_armee() {
     let (mut app, board) = app();
-    app.store.effacer_le_storyboard(&board);
+    app.store.effacer_le_storyboard(
+        &board,
+        &crate::epreuve::seul_storyboard(&app.store, &board).unwrap(),
+    );
     app.ui.placement.storyboard = Some(grille());
     assert_eq!(app.fantome_du_storyboard().len(), 8);
     app.handle_shortcut_input(&Key::Named(NamedKey::Escape), ElementState::Pressed);
@@ -304,7 +320,10 @@ fn test_storyboard_1_echap_renonce_a_la_grille_armee() {
 fn coin_du_storyboard(app: &GlucoseApp, board: &str) -> (f64, f64) {
     let d = app
         .store
-        .disposition_actuelle(board, grille())
+        .disposition_actuelle(
+            board,
+            &crate::epreuve::seul_storyboard(&app.store, board).unwrap(),
+        )
         .expect("un storyboard");
     let (x, y, w, h) = d.boite();
     (x + w, y + h)
@@ -322,10 +341,16 @@ fn choisir_la_premiere(app: &mut GlucoseApp, board: &str) {
 fn test_storyboard_2_saisir_la_poignee_ne_change_rien() {
     let (mut app, board) = app();
     choisir_la_premiere(&mut app, &board);
-    let avant: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let avant: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     let coin = coin_du_storyboard(&app, &board);
     glisser(&mut app, coin, coin);
-    let apres: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let apres: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     assert_eq!(apres, avant);
     assert!(!app.store.can_undo());
 }
@@ -347,13 +372,15 @@ fn test_storyboard_2_tirer_la_poignee_retrace_le_storyboard() {
         "le fantôme montre six cases"
     );
     app.handle_mouse_up(MouseButton::Left);
-    assert_eq!(app.store.cases(&board).len(), 6);
+    assert_eq!(crate::epreuve::les_cases(&app.store, &board).len(), 6);
     assert_eq!(
-        app.store.grille_du_storyboard(&board).map(|g| g.colonnes),
+        crate::epreuve::seul_storyboard(&app.store, &board)
+            .and_then(|sb| app.store.grille_du_storyboard(&board, &sb))
+            .map(|g| g.colonnes),
         Some(3)
     );
     assert!(app.store.undo());
-    assert_eq!(app.store.cases(&board).len(), 8);
+    assert_eq!(crate::epreuve::les_cases(&app.store, &board).len(), 8);
 }
 
 /// **Tirée vers l'intérieur, la poignée ne retire jamais une case qui porte quelque chose** :
@@ -361,7 +388,7 @@ fn test_storyboard_2_tirer_la_poignee_retrace_le_storyboard() {
 #[test]
 fn test_storyboard_2_la_poignee_garde_les_cases_decrites() {
     let (mut app, board) = app();
-    let huitieme = app.store.cases(&board)[7].id.clone();
+    let huitieme = crate::epreuve::les_cases(&app.store, &board)[7].id.clone();
     app.store.ecrire_dans_la_case(
         &board,
         &huitieme,
@@ -372,7 +399,7 @@ fn test_storyboard_2_la_poignee_garde_les_cases_decrites() {
     let coin = coin_du_storyboard(&app, &board);
     let pas = grille().pas().0;
     glisser(&mut app, coin, (coin.0 - pas, coin.1));
-    let cases = app.store.cases(&board);
+    let cases = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(cases.len(), 8, "la huitième est décrite");
     assert_eq!(cases[7].description, "la fin");
     assert_eq!(
@@ -421,7 +448,10 @@ fn test_storyboard_2_tab_passe_a_la_case_suivante() {
     }
     frapper(&mut app, lettre("a"), Some("a"));
     frapper(&mut app, Key::Named(NamedKey::Tab), None);
-    let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     assert_eq!(cases[0].description, "a", "la première est écrite");
     let Some((_, Suite::EcrireLaCase { case, .. })) = &app.ui.question else {
         panic!("la suivante se demande");
@@ -436,10 +466,11 @@ fn test_storyboard_2_tab_passe_a_la_case_suivante() {
     };
     assert_eq!(case, &cases[0].id);
     assert_eq!(question.champ.as_ref().map(|c| c.texte.as_str()), Some("a"));
-    assert_eq!(app.store.cases(&board)[1].description, "b");
-    let derniere = app
-        .store
-        .cases(&board)
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board)[1].description,
+        "b"
+    );
+    let derniere = crate::epreuve::les_cases(&app.store, &board)
         .last()
         .map(|c| c.id.clone())
         .expect("la dernière");
@@ -474,8 +505,7 @@ fn test_p2_1_trois_images_glissees_remplissent_trois_cases() {
         .iter()
         .map(|id| {
             let i = app.store.image(&board, id)?;
-            app.store
-                .cases(&board)
+            crate::epreuve::les_cases(&app.store, &board)
                 .iter()
                 .position(|c| c.contient((i.x, i.y)))
         })
@@ -531,15 +561,19 @@ fn test_p2_2_le_storyboard_de_la_selection_par_le_menu() {
     ));
     app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
     app.handle_mouse_up(MouseButton::Left);
-    let cases = app.store.cases(&board);
-    assert_eq!(cases.len(), 10, "deux cases de plus");
+    // Un storyboard naît, à côté de celui qui était là, et devient le courant (fiche 68).
+    assert_eq!(app.store.storyboards(&board).len(), 2);
+    let ne = app.storyboard_courant().expect("le courant");
+    assert_ne!(ne, app.store.storyboards(&board)[0].id, "le neuf");
+    let cases = app.store.cases(&board, &ne);
+    assert_eq!(cases.len(), 2, "une case par image");
     let dans = |id: &str| {
         let i = app.store.image(&board, id).expect("l'image");
         cases.iter().position(|c| c.contient((i.x, i.y)))
     };
     assert_eq!(
         (dans("a"), dans("b")),
-        (Some(8), Some(9)),
+        (Some(0), Some(1)),
         "l'ordre de lecture"
     );
 }
@@ -549,7 +583,10 @@ fn test_p2_2_le_storyboard_de_la_selection_par_le_menu() {
 #[test]
 fn test_p2_2_sans_storyboard_il_nait_au_coin_de_la_selection() {
     let (mut app, board) = app();
-    app.store.effacer_le_storyboard(&board);
+    app.store.effacer_le_storyboard(
+        &board,
+        &crate::epreuve::seul_storyboard(&app.store, &board).unwrap(),
+    );
     for (id, x) in [("a", 1150.0), ("b", 1300.0)] {
         let img = BoardImage::new(id, x, 800.0, 100.0, 100.0);
         app.store.add_image(&board, img);
@@ -558,7 +595,7 @@ fn test_p2_2_sans_storyboard_il_nait_au_coin_de_la_selection() {
     app.store.select_image("a".to_string(), false);
     app.store.select_image("b".to_string(), true);
     app.storyboard_de_la_selection();
-    let cases = app.store.cases(&board);
+    let cases = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(cases.len(), 2);
     assert_eq!(
         (cases[0].x, cases[0].y),
@@ -583,7 +620,7 @@ fn cliquer_le_plus(app: &mut GlucoseApp, case: &StoryboardPanel, cote: usize) {
 #[test]
 fn test_p2_3_les_plus_de_la_case_choisie_inserent_une_case() {
     let (mut app, board) = app();
-    let deuxieme = app.store.cases(&board)[1].clone();
+    let deuxieme = crate::epreuve::les_cases(&app.store, &board)[1].clone();
     let bande = dans_la_bande(&deuxieme);
     glisser(&mut app, bande, bande);
     assert_eq!(
@@ -592,7 +629,10 @@ fn test_p2_3_les_plus_de_la_case_choisie_inserent_une_case() {
         "choisie par sa bande"
     );
     cliquer_le_plus(&mut app, &deuxieme, 1);
-    let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     assert_eq!(cases.len(), 9, "une case de plus");
     assert_eq!(cases[1].id, deuxieme.id, "elle reste à sa place");
     let neuve = cases[2].clone();
@@ -602,9 +642,16 @@ fn test_p2_3_les_plus_de_la_case_choisie_inserent_une_case() {
         "la neuve, juste après, est choisie"
     );
     cliquer_le_plus(&mut app, &neuve, 0);
-    let cases: Vec<StoryboardPanel> = app.store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = crate::epreuve::les_cases(&app.store, &board)
+        .into_iter()
+        .cloned()
+        .collect();
     assert_eq!(cases.len(), 10);
     assert_eq!(cases[3].id, neuve.id, "avant elle : elle glisse d'un cran");
     assert!(app.store.undo());
-    assert_eq!(app.store.cases(&board).len(), 9, "un Ctrl+Z par clic");
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board).len(),
+        9,
+        "un Ctrl+Z par clic"
+    );
 }

@@ -420,4 +420,13 @@ fn test_lire_le_storyboard_n_existe_que_s_il_y_a_des_cases() {
         signets.map(|s| s + 1),
         "après les signets : {offertes:?}"
     );
+    // Ses planches, juste après (P2.7, fiche 68) — et pas sans cases.
+    let planches = offertes
+        .iter()
+        .position(|a| *a == MenuAction::ExporterLesPlanches);
+    assert_eq!(
+        planches,
+        lire.map(|l| l + 1),
+        "après la lecture : {offertes:?}"
+    );
 }

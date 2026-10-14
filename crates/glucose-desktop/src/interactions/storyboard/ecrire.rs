@@ -15,7 +15,13 @@ impl GlucoseApp {
             return false;
         };
         let texte = *texte;
-        let cases = self.store.cases(board);
+        // La voisine dans le storyboard de la case : la suite d'une séquence (fiche 68).
+        let sb = self
+            .store
+            .storyboard_de_la_case(board, case)
+            .map(|s| s.id.clone())
+            .unwrap_or_default();
+        let cases = self.store.cases(board, &sb);
         let rang = cases.iter().position(|c| c.id == *case);
         let voisine = match (rang, arriere) {
             (Some(r), true) => r.checked_sub(1),
@@ -42,8 +48,8 @@ impl GlucoseApp {
         let board = self.store.project.active_board_id.clone();
         let Some(case) = self
             .store
-            .cases(&board)
-            .into_iter()
+            .toutes_les_cases(&board)
+            .iter()
             .find(|c| c.id == id)
             .cloned()
         else {
@@ -57,7 +63,7 @@ impl GlucoseApp {
             Texte::Champ(rang) => {
                 let Some(nom) = self
                     .store
-                    .storyboard(&board)
+                    .storyboard(&board, &case.storyboard)
                     .and_then(|s| s.champs.get(rang))
                 else {
                     return;
@@ -87,11 +93,14 @@ impl GlucoseApp {
         self.demander(question, suite);
     }
 
-    /// **Nomme un champ du storyboard** — `rang` : le renommer, ou le retirer ; `None` : en
-    /// ajouter un. Retirer efface son texte de chaque case : la question le dit.
+    /// **Nomme un champ du storyboard courant** — `rang` : le renommer, ou le retirer ; `None` :
+    /// en ajouter un. Retirer efface son texte de chaque case : la question le dit.
     pub(crate) fn nommer_le_champ(&mut self, rang: Option<usize>) {
         let board = self.store.project.active_board_id.clone();
-        let Some(storyboard) = self.store.storyboard(&board) else {
+        let Some(sb) = self.storyboard_courant() else {
+            return;
+        };
+        let Some(storyboard) = self.store.storyboard(&board, &sb) else {
             return;
         };
         let nom = rang
@@ -125,22 +134,29 @@ impl GlucoseApp {
             choix,
             ..Default::default()
         };
-        self.demander(question, Suite::NommerLeChamp { board, rang });
+        let suite = Suite::NommerLeChamp {
+            board,
+            storyboard: sb,
+            rang,
+        };
+        self.demander(question, suite);
     }
 
     /// **La réponse à « nommer un champ »** : un nom vide ne nomme rien.
     pub(crate) fn repondre_au_champ(
         &mut self,
-        (board, rang): (&str, Option<usize>),
+        (board, sb, rang): (&str, &str, Option<usize>),
         reponse: Reponse,
         nom: Option<String>,
     ) {
         let nom = nom.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
         match (reponse, rang, nom) {
-            (Reponse::Non, Some(r), _) => self.store.retirer_le_champ(board, r),
-            (Reponse::Oui, Some(r), Some(nom)) => self.store.nommer_le_champ(board, r, &nom),
+            (Reponse::Non, Some(r), _) => self.store.retirer_le_champ((board, sb), r),
+            (Reponse::Oui, Some(r), Some(nom)) => {
+                self.store.nommer_le_champ((board, sb), r, &nom);
+            }
             (Reponse::Oui, None, Some(nom)) => {
-                self.store.ajouter_un_champ(board, &nom);
+                self.store.ajouter_un_champ((board, sb), &nom);
             }
             _ => return,
         }

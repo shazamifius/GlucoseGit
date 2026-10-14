@@ -9,7 +9,7 @@
 
 use glucose_core::store::{DomainPatch, Store};
 use glucose_core::types::{
-    Annotation, BoardImage, CanvasFolder, Domain, FolderTreeNode, Preset, StoryboardPanel, Viewport,
+    Annotation, BoardImage, CanvasFolder, Domain, FolderTreeNode, Grille, Preset, Viewport,
 };
 
 fn mk_text(id: &str, text: &str) -> Annotation {
@@ -392,13 +392,13 @@ fn test_arrow_cascade_delete_roundtrip() {
 #[test]
 fn test_panel_roundtrip() {
     let mut store = Store::new("test");
-    let panel = StoryboardPanel::new("p1", 0, 0.0, 0.0, 320.0, 180.0);
-    store.add_panel("main", panel);
-    assert_eq!(store.active_board().unwrap().panels.len(), 1);
+    store.poser_le_storyboard("main", Grille::default(), (0.0, 0.0));
+    assert_eq!(store.active_board().unwrap().panels.len(), 8);
+    let p1 = store.active_board().unwrap().panels[0].id.clone();
 
     store.ecrire_dans_la_case(
         "main",
-        "p1",
+        &p1,
         glucose_core::store::storyboard::Texte::Description,
         "description x",
     );

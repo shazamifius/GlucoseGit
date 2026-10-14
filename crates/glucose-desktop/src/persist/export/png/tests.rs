@@ -90,7 +90,20 @@ fn test_export_png_1_la_selection_seule_dans_sa_disposition() {
         let mut d = glucose_core::types::CanvasFolder::new("d", "Hors du choix", "b-d");
         (d.x, d.y, d.width, d.height) = (95.0, -10.0, 20.0, 20.0);
         b.folders.push(d);
+        // Une zone de gabarit entre le vert et le bleu (fiche 68).
+        b.zones.push(glucose_core::types::BoardZone::new(
+            "z", 205.0, -45.0, 40.0, 90.0,
+        ));
     }
+    // Une case de storyboard entre le rouge et le vert : ni elle, ni la zone n'y sont.
+    let board = app.store.project.active_board_id.clone();
+    let etroite = glucose_core::store::storyboard::Grille {
+        largeur: 40.0,
+        colonnes: 1,
+        ..Default::default()
+    };
+    app.store
+        .poser_le_storyboard(&board, etroite, (55.0, -40.0));
     app.store.selected_image_ids = vec!["rouge".into(), "bleu".into()];
     let scene = preparer(&app.store).expect("une sélection");
     assert_eq!((scene.largeur, scene.hauteur), (400, 100), "bord à bord");
@@ -193,11 +206,16 @@ fn test_export_png_1_les_bandes_se_recousent_sans_couture() {
             atelier: app.renderer.magasin.atelier.a_partager(),
         };
         let chemin = dossier.join(nom);
-        let en_cours = lancer(scene, peintre, chemin.clone(), surface, None);
+        let ici = chemin.clone();
+        let en_cours = lancer_le_travail(None, move |rangees: &mut dyn FnMut(u32)| {
+            ecrire(scene, peintre, &ici, surface, rangees)
+        });
         let debut = Instant::now();
         let fini = loop {
             assert!(debut.elapsed() < Duration::from_secs(120), "ne finit pas");
-            if let Some(Nouvelle::Fini(f)) = en_cours.nouvelles().into_iter().last() {
+            if let Some(Nouvelle::Fini(f)) =
+                en_cours.try_iter().collect::<Vec<_>>().into_iter().last()
+            {
                 break f;
             }
             std::thread::sleep(Duration::from_millis(5));

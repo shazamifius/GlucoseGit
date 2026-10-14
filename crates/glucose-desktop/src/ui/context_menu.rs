@@ -85,6 +85,8 @@ pub enum MenuAction {
     StoryboardDeLaSelection,
     /// Lire le storyboard en plein écran, depuis la case choisie (fiche 67).
     LireLeStoryboard,
+    /// Exporter le storyboard courant en planches, PDF ou images (P2.7, fiche 68).
+    ExporterLesPlanches,
     ToFront,
     ToBack,
     Delete,

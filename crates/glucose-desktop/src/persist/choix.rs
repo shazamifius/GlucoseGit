@@ -25,6 +25,8 @@ pub enum Demande {
     EnregistrerLImage(Vec<u8>, &'static str),
     /// Exporter le tableau ici.
     Exporter,
+    /// Exporter le storyboard courant en planches ici — un PDF, ou des images (fiche 68).
+    Planches,
 }
 
 impl GlucoseApp {
@@ -53,6 +55,7 @@ impl GlucoseApp {
                 self.ecrire_l_image_choisie(premier, &octets, extension);
             }
             Demande::Exporter => self.exporter_vers(premier),
+            Demande::Planches => self.exporter_les_planches_vers(premier),
         }
         self.mark_dirty();
     }

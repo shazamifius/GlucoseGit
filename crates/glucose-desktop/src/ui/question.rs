@@ -99,8 +99,13 @@ pub enum Suite {
         case: String,
         texte: glucose_core::store::storyboard::Texte,
     },
-    /// Le nom d'un champ du storyboard — son rang, ou `None` pour en ajouter un (fiche 67).
-    NommerLeChamp { board: String, rang: Option<usize> },
+    /// Le nom d'un champ de ce storyboard — son rang, ou `None` pour en ajouter un (fiches 67
+    /// et 68).
+    NommerLeChamp {
+        board: String,
+        storyboard: String,
+        rang: Option<usize>,
+    },
 }
 
 /// **Un champ de texte** dans une question — le nom d'un document qu'on renomme

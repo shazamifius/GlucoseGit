@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 14/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 15/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
@@ -14,7 +14,8 @@
 > et d'un bouton pour chaque fonction — la netteté, les menus, le partage au téléphone, la boîte
 > noire qui dit où part le temps (fiche 63), et celle de la chrome posée par la carte et du
 > Storyboard (fiche 64), et celle du storyboard tracé, du champ qui écrit et du téléphone qui
-> redémarre (fiche 65), et celle de la mémoire du téléphone (fiche 66). Ce document dit l'état
+> redémarre (fiche 65), et celle de la mémoire du téléphone (fiche 66), et celles de la lecture du
+> storyboard (fiche 67), de plusieurs storyboards et des planches (fiche 68). Ce document dit l'état
 > **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
@@ -164,7 +165,17 @@
   plein écran, le reste voilé de noir, ses textes en sous-titre, une coupe à chaque durée) ; le
   panneau « CASE n » ; le sigle du plan sous la case ; « Lire le storyboard » au menu. Éprouvé,
   **sabotage à finir** (deux gardes aveugles trouvées), **rien n'est jugé à son écran**, rien
-  n'est envoyé dans une build qu'il ait lancée.
+  n'est envoyé dans une build qu'il ait lancée. **Il l'a pourtant lancée** (le 14/10 à 17 h 13,
+  trois minutes, son document a changé) : d'où le schéma 5 de la fiche 68, qui relit le 4.
+* **Fiche 68 — plusieurs storyboards, et les planches** : la fiche 67 finie (47 sabotages, 47
+  chutes ; la caméra de la lecture en une seule règle — un pincement pendant une lecture
+  restait dû et faisait sauter la vue à la fin) ; **P2.8** — un tableau porte plusieurs
+  storyboards, chaque case nomme le sien (**schéma 5**, témoins v4 écrits par `5bb82ec`),
+  SEQUENCE-1, le storyboard courant, « ‹ 2 / 3 › » et « + Nouveau » dans le panneau ; **P2.7** —
+  « Exporter en planches… » (panneau, menu du vide) : la planche est le rectangle du canevas,
+  ses rangées déduites du format A (√2), en images ou en **PDF écrit à la main**, rendu au
+  pixel près par MuPDF et PDFium. **Les huit propositions du Storyboard sont écrites** ; rien
+  n'est jugé à son écran ; trois questions de ressenti (fiche 68 § 6 bis, SUITE P2).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -188,14 +199,15 @@
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
 | **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). **Sous Linux** (X11, et Wayland par XWayland), le même copier unique, servi par Glucose (fiche 61) — sans le glisser vers une autre application ; sous Mac, le lot seul |
-| **Organiser** | membranes qui **possèdent** ce qu'on y dépose — **tracées** d'un glisser, ou posées d'un clic (TRACE-1) ; **le Storyboard** : une suite rangée par sa grille, tracée en rectangle, retracée par sa poignée, ses cases glissées à une autre place, décrites au clavier (fiche 65) ; mode Focus, dossiers, domaines, aimant aux voisines, placement aimanté dès le premier clic ; **Ordonner** : cinq dispositions, huit tris dont **trois par la couleur** (fiche 62), des champs qui se glissent ou se tapent ; **les Presets** : six gabarits, leurs zones posées, déplacées, redimensionnées, retirées, et « Par slot preset » qui range chaque zone |
-| **Exporter** | Markdown, SVG (sans les images ni les membranes), et **PNG** : la sélection ou le tableau, à 100 % (fiche 62) |
+| **Organiser** | membranes qui **possèdent** ce qu'on y dépose — **tracées** d'un glisser, ou posées d'un clic (TRACE-1) ; **le Storyboard** : une suite rangée par sa grille, tracée en rectangle, retracée par sa poignée, ses cases glissées à une autre place, décrites au clavier (fiche 65) ; lues en animatique, une durée, un plan et des champs par case (fiche 67) ; **plusieurs par tableau**, et leurs planches (fiche 68) ; mode Focus, dossiers, domaines, aimant aux voisines, placement aimanté dès le premier clic ; **Ordonner** : cinq dispositions, huit tris dont **trois par la couleur** (fiche 62), des champs qui se glissent ou se tapent ; **les Presets** : six gabarits, leurs zones posées, déplacées, redimensionnées, retirées, et « Par slot preset » qui range chaque zone |
+| **Exporter** | Markdown, SVG (sans les images ni les membranes), et **PNG** : la sélection ou le tableau, à 100 % (fiche 62) ; **les planches d'un storyboard**, en PNG ou en PDF (fiche 68) |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
 | **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — la 2.0.2-beta.2 la porte ; pas encore prouvée : il faut qu'une version suivante arrive à un téléphone qui a la beta 2 |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 459** sous Windows au 14/10, MEMOIRE-1 à 3, FANTOME-1 et P2.1 à P2.3 compris (fiche 66 ; 59 sabotages
+* **Épreuves** : **2 526** sous Windows au 15/10 (fiche 68 ; sabotages `p2-4`, `p2-8`,
+  `p2-7`) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 459** sous Windows au 14/10, MEMOIRE-1 à 3, FANTOME-1 et P2.1 à P2.3 compris (fiche 66 ; 59 sabotages
   de plus, 59 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 426** au
   13/10 au soir, STORYBOARD-2 et BOITE-ANDROID compris
   (fiche 65 ; 63 sabotages, 63 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389

@@ -540,7 +540,7 @@ fn test_p2_1_un_lot_depose_sur_le_storyboard_remplit_ses_cases() {
     let grille = glucose_core::store::storyboard::Grille::default();
     app.store.poser_le_storyboard(&board, grille, (0.0, 0.0));
     app.store.journal.clear();
-    let premiere = app.store.cases(&board)[0].clone();
+    let premiere = crate::epreuve::les_cases(&app.store, &board)[0].clone();
     let lacher = (premiere.x + 10.0, premiere.y + 10.0);
     app.deposer(&lot, Vec::new(), &[], lacher, None);
     let mut rangs: Vec<Option<usize>> = app
@@ -549,8 +549,7 @@ fn test_p2_1_un_lot_depose_sur_le_storyboard_remplit_ses_cases() {
         .iter()
         .map(|id| {
             let i = app.store.image(&board, id)?;
-            app.store
-                .cases(&board)
+            crate::epreuve::les_cases(&app.store, &board)
                 .iter()
                 .position(|c| c.contient((i.x, i.y)))
         })

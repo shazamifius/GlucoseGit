@@ -28,6 +28,7 @@ use super::super::image::{read_image, write_image};
 use super::super::tags::unknown;
 use crate::error::CoreResult;
 use crate::store::journal::{Bouts, Edit, Slot, Transaction, Whole};
+use crate::types::Storyboard;
 
 const IMAGE: u8 = 0;
 const ANNOTATION: u8 = 1;
@@ -106,11 +107,10 @@ fn ecrire_edition(w: &mut Writer, edit: &Edit) {
             w.text(board);
             ecrire_textes(w, whole);
         }
-        Edit::Storyboard { board, whole } => {
+        Edit::Storyboard { board, slot } => {
             w.u8(STORYBOARD);
             w.text(board);
-            w.opt(whole.before.as_ref(), write_storyboard);
-            w.opt(whole.after.as_ref(), write_storyboard);
+            ecrire_case(w, slot, write_storyboard);
         }
         Edit::Translation { .. } => ecrire_translation(w, edit),
         Edit::Board { slot } => {
@@ -195,10 +195,7 @@ fn lire_edition(r: &mut Reader<'_>, version: u16) -> CoreResult<Edit> {
         },
         STORYBOARD => Edit::Storyboard {
             board: r.text()?,
-            whole: Whole::new(
-                r.opt(|rr| read_storyboard(rr, version))?,
-                r.opt(|rr| read_storyboard(rr, version))?,
-            ),
+            slot: lire_le_storyboard(r, version)?,
         },
         TRANSLATION => lire_translation(r)?,
         TABLEAU => Edit::Board {
@@ -258,6 +255,21 @@ fn ecrire_case<T>(w: &mut Writer, slot: &Slot<T>, ecrire: fn(&mut Writer, &T)) {
     w.uvarint(slot.index as u64);
     w.opt(slot.before.as_deref(), ecrire);
     w.opt(slot.after.as_deref(), ecrire);
+}
+
+/// **Un storyboard au journal** : une case de la liste du tableau. Aux schémas 3 et 4, un
+/// tableau n'en portait qu'un, et le geste ne disait que son avant et son après — c'est la case
+/// de rang 0, sans son rang écrit (fiche 68).
+fn lire_le_storyboard(r: &mut Reader<'_>, version: u16) -> CoreResult<Slot<Storyboard>> {
+    let lire = |rr: &mut Reader<'_>| read_storyboard(rr, version);
+    if version >= crate::persist::SEQUENCES_DEPUIS {
+        return lire_case(r, lire);
+    }
+    Ok(Slot {
+        index: 0,
+        before: r.opt(lire)?.map(Box::new),
+        after: r.opt(lire)?.map(Box::new),
+    })
 }
 
 fn lire_case<T>(

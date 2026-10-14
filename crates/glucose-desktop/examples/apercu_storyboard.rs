@@ -46,9 +46,20 @@ fn main() {
     let (mut app, board) = application();
     // La grille centrée en (980, 420), comme avant FANTOME-1 : son coin s'en déduit.
     let (l, h) = grille().etendue(grille().nombre_initial());
+    let sb = app
+        .store
+        .poser_le_storyboard(&board, grille(), (980.0 - l / 2.0, 420.0 - h / 2.0))
+        .expect("posé");
+    // Un second storyboard, une autre séquence, plus bas (fiche 68) : le panneau dit « 1 / 2 ».
+    let verticale = Grille {
+        format: Format::Vertical,
+        largeur: 90.0,
+        colonnes: 6,
+        ecart: 16.0,
+    };
     app.store
-        .poser_le_storyboard(&board, grille(), (980.0 - l / 2.0, 420.0 - h / 2.0));
-    let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
+        .poser_le_storyboard(&board, verticale, (980.0 - l / 2.0, 420.0 + h / 2.0 + 60.0));
+    let cases: Vec<_> = app.store.cases(&board, &sb).into_iter().cloned().collect();
     let textes = [
         "Plan large, la ville au loin",
         "Elle ouvre la porte",
@@ -88,6 +99,16 @@ fn main() {
     app.ui.storyboard.choisie = Some(cases[2].id.clone());
     app.dock_manager.toggle_tab(TabId::Storyboard);
     ecrire(&mut app, &format!("{dossier}/storyboard.png"));
+    // Ses planches, en PDF et en images (P2.7, fiche 68) : à ouvrir dans plusieurs lecteurs.
+    for nom in ["planches.pdf", "planches.png"] {
+        app.exporter_les_planches_vers(format!("{dossier}/{nom}").into());
+        while app.exporte_encore() {
+            app.suivre_l_export();
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let dit = app.ui.current_toast.as_ref().map(|t| t.message.clone());
+        println!("{nom} : {}", dit.unwrap_or_default());
+    }
 
     // La grille armée, qui suit le curseur sur un tableau sans cases.
     let (mut app, _) = application();
@@ -109,7 +130,8 @@ fn trace_et_case_tenue(dossier: &str) {
     app.handle_cursor_moved(PhysicalPosition::new(1250.0, 720.0));
     ecrire(&mut app, &format!("{dossier}/storyboard-trace.png"));
     app.handle_mouse_up(MouseButton::Left);
-    let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
+    let sb = app.store.storyboards(&board)[0].id.clone();
+    let cases: Vec<_> = app.store.cases(&board, &sb).into_iter().cloned().collect();
     let c = &cases[0];
     let image = BoardImage::new("photo", c.x + 20.0, c.y + 20.0, 400.0, 300.0);
     app.store.add_image(&board, image);

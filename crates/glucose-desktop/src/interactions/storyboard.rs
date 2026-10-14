@@ -4,6 +4,13 @@
 //! qu'elle porte et **prend la place où on la lâche** (les autres glissent d'un cran), se
 //! décrit d'un double clic, se retire par sa croix ou `Suppr`.
 //!
+//! # Le storyboard courant (fiche 68)
+//!
+//! Un tableau porte plusieurs storyboards. Le panneau, la lecture, « + Ajouter », le menu
+//! agissent sur **le courant** ([`storyboard_courant`]) : le dernier qu'on a touché — une case
+//! choisie le règle — ou posé, s'il est encore là ; sinon le premier du tableau. Une seule
+//! règle, que l'application et le panneau lisent.
+//!
 //! # Par sa bande, et non par son cadre
 //!
 //! Le cadre d'une case est fait pour recevoir une image : le prendre volerait le clic à l'image
@@ -14,6 +21,7 @@ use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use glucose_core::geometry::Rect;
 use glucose_core::store::storyboard::{Disposition, Grille, DESCRIPTION};
+use glucose_core::store::Store;
 
 /// La case tenue : laquelle, son coin et le point du monde au départ, et les images qu'elle
 /// emporte.
@@ -29,22 +37,45 @@ pub struct Tenue {
     suite: Disposition,
 }
 
-/// Ce que l'interface sait du storyboard : la case choisie, la case tenue.
+/// Ce que l'interface sait du storyboard : la case choisie, la case tenue, et le storyboard
+/// qu'on a touché ou posé en dernier (fiche 68).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StoryboardUi {
     pub choisie: Option<String>,
     pub tenue: Option<Tenue>,
+    pub courant: Option<String>,
+}
+
+/// **Le storyboard courant du tableau** (fiche 68) : le dernier touché ou posé, s'il est encore
+/// là ; sinon le premier. Aucun sur un tableau sans storyboard.
+///
+/// Une seule source : choisir une case le règle (`prendre_la_bande`), et poser un storyboard
+/// neuf rend la case choisie — la case choisie est donc toujours du courant. Lire d'abord la
+/// case choisie aurait fait deux sources, qui divergeaient après « + Nouveau ».
+pub fn storyboard_courant(store: &Store, board: &str, ui: &StoryboardUi) -> Option<String> {
+    ui.courant
+        .as_deref()
+        .and_then(|sb| store.storyboard(board, sb))
+        .or_else(|| store.storyboards(board).first())
+        .map(|s| s.id.clone())
 }
 
 impl GlucoseApp {
-    /// **Arme la grille** : elle suit le curseur jusqu'au clic qui la pose. Le panneau se
-    /// ferme, comme celui des Presets, pour laisser voir le canevas où elle va se poser — au
-    /// téléphone, il le couvrirait.
-    fn armer_le_storyboard(&mut self, grille: Grille) {
+    /// **Le storyboard courant** du tableau actif ([`storyboard_courant`]).
+    pub(crate) fn storyboard_courant(&self) -> Option<String> {
+        let board = &self.store.project.active_board_id;
+        storyboard_courant(&self.store, board, &self.ui.storyboard)
+    }
+
+    /// **Arme la grille** : elle suit le curseur jusqu'au clic qui la pose — un storyboard qui
+    /// naît, ou la `cible` rangée de nouveau. Le panneau se ferme, comme celui des Presets, pour
+    /// laisser voir le canevas où elle va se poser — au téléphone, il le couvrirait.
+    fn armer_le_storyboard(&mut self, grille: Grille, cible: Option<String>) {
         if self.dock_manager.is_open(crate::dock::TabId::Storyboard) {
             self.dock_manager.toggle_tab(crate::dock::TabId::Storyboard);
         }
         self.ui.placement.storyboard = Some(grille);
+        self.ui.placement.cible = cible;
         self.mark_dirty();
     }
 
@@ -55,14 +86,21 @@ impl GlucoseApp {
     ) {
         use crate::dock::storyboard::StoryboardIntent as I;
         let board = self.store.project.active_board_id.clone();
+        let courant = self.storyboard_courant();
         match intent {
-            I::Armer(grille) => self.armer_le_storyboard(grille),
+            I::Armer(grille) => self.armer_le_storyboard(grille, None),
+            I::MettreAJour(grille) => self.armer_le_storyboard(grille, courant),
+            I::Changer(pas) => self.changer_de_storyboard(pas),
             I::Effacer => {
-                self.store.effacer_le_storyboard(&board);
+                if let Some(sb) = courant {
+                    self.store.effacer_le_storyboard(&board, &sb);
+                }
                 self.ui.storyboard.choisie = None;
             }
-            I::Ajouter(grille) => {
-                self.store.ajouter_une_case(&board, grille);
+            I::Ajouter => {
+                if let Some(sb) = courant {
+                    self.store.ajouter_une_case(&board, &sb);
+                }
             }
             I::Ecrire(id, texte) => self.ecrire_la_case(&id, texte),
             I::Lire(depuis) => self.lire_le_storyboard(depuis.as_deref()),
@@ -75,9 +113,29 @@ impl GlucoseApp {
                 }
                 self.store.retirer_la_case(&board, &id);
             }
-            I::Renumeroter => self.store.renumeroter_les_cases(&board),
+            I::Planches => self.exporter_les_planches(),
+            I::Renumeroter => {
+                if let Some(sb) = courant {
+                    self.store.renumeroter_les_cases(&board, &sb);
+                }
+            }
         }
         self.mark_dirty();
+    }
+
+    /// **Passe au storyboard voisin** dans le panneau (‹ ›), en tournant : il devient le
+    /// courant, et la case choisie — qui le désignerait à sa place — ne l'est plus.
+    fn changer_de_storyboard(&mut self, pas: isize) {
+        let board = self.store.project.active_board_id.clone();
+        let courant = self.storyboard_courant();
+        let tous = self.store.storyboards(&board);
+        let Some(ici) = courant.and_then(|sb| tous.iter().position(|s| s.id == sb)) else {
+            return;
+        };
+        let n = tous.len() as isize;
+        let voisin = tous[(ici as isize + pas).rem_euclid(n) as usize].id.clone();
+        self.ui.storyboard.choisie = None;
+        self.ui.storyboard.courant = Some(voisin);
     }
 
     /// **Ce que la grille armée poserait** : ce que le tracé en cours dirait au relâchement —
@@ -90,7 +148,8 @@ impl GlucoseApp {
         let grille = self.ui.placement.storyboard?;
         let board = &self.store.project.active_board_id;
         let coin = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
-        Some(self.store.disposition_au_clic(board, grille, coin))
+        let cible = self.ui.placement.cible.as_deref();
+        Some(self.store.disposition_au_clic((board, cible), grille, coin))
     }
 
     /// **Le fantôme du storyboard**, une boîte par case — son cadre et sa bande —, en unités du
@@ -119,8 +178,8 @@ impl GlucoseApp {
     }
 
     /// **Un storyboard de la sélection** (P2, proposition 2, fiche 66) : une case par image
-    /// choisie, dans l'ordre de lecture ; sans storyboard, il naît là où était la sélection, à
-    /// la grille que le panneau règle — sinon ses cases s'ajoutent à la suite. Un geste.
+    /// choisie, dans l'ordre de lecture ; il naît là où était la sélection, à la grille que le
+    /// panneau règle, et devient le courant (fiche 68). Un geste.
     pub(crate) fn storyboard_de_la_selection(&mut self) {
         let board = self.store.project.active_board_id.clone();
         let Some(bornes) = self.store.selection_bounds(&board) else {
@@ -128,8 +187,9 @@ impl GlucoseApp {
         };
         let grille = self.dock_manager.storyboard.grille();
         let coin = (bornes.left, bornes.top);
-        if self.store.storyboard_de_la_selection(&board, grille, coin) > 0 {
+        if let Some((ne, _)) = self.store.storyboard_de_la_selection(&board, grille, coin) {
             self.ui.storyboard.choisie = None;
+            self.ui.storyboard.courant = Some(ne);
             self.mark_dirty();
         }
     }
@@ -153,8 +213,8 @@ impl GlucoseApp {
         let board = self.store.project.active_board_id.clone();
         let Some(case) = self
             .store
-            .cases(&board)
-            .into_iter()
+            .toutes_les_cases(&board)
+            .iter()
             .find(|c| c.id == id)
             .cloned()
         else {
@@ -186,35 +246,48 @@ impl GlucoseApp {
     /// choisit : on la décrit, ou on y lâche une image, aussitôt.
     fn inserer_a_cote(&mut self, id: &str, apres: bool) -> bool {
         let board = self.store.project.active_board_id.clone();
-        let Some(rang) = self.store.cases(&board).iter().position(|c| c.id == id) else {
+        let Some(sb) = self
+            .store
+            .storyboard_de_la_case(&board, id)
+            .map(|s| s.id.clone())
+        else {
+            return false;
+        };
+        let Some(rang) = self
+            .store
+            .cases(&board, &sb)
+            .iter()
+            .position(|c| c.id == id)
+        else {
             return false;
         };
         let neuve = self
             .store
-            .inserer_une_case(&board, rang + usize::from(apres));
+            .inserer_une_case(&board, &sb, rang + usize::from(apres));
         self.ui.storyboard.choisie = neuve;
         self.mark_dirty();
         true
     }
 
     /// **La poignée du storyboard** : au coin bas droit de sa boîte, quand une de ses cases est
-    /// choisie — son coin dans le monde, et la prise de la main autour, celle des poignées des
-    /// nœuds (`handle_slop_world`).
-    fn poignee_du_storyboard(&self) -> Option<(Disposition, (f64, f64), f64)> {
-        self.ui.storyboard.choisie.as_ref()?;
+    /// choisie — son storyboard, son coin dans le monde, et la prise de la main autour, celle
+    /// des poignées des nœuds (`handle_slop_world`).
+    fn poignee_du_storyboard(&self) -> Option<(String, Disposition, (f64, f64), f64)> {
+        let choisie = self.ui.storyboard.choisie.as_deref()?;
         let board = &self.store.project.active_board_id;
-        let d = self.store.disposition_actuelle(board, Grille::default())?;
+        let sb = self.store.storyboard_de_la_case(board, choisie)?.id.clone();
+        let d = self.store.disposition_actuelle(board, &sb)?;
         let (x, y, w, h) = d.boite();
         let zoom = self.store.viewport().scale;
         let prise = glucose_core::hit_priority::handle_slop_world(zoom, w, h)?;
-        Some((d, (x + w, y + h), prise))
+        Some((sb, d, (x + w, y + h), prise))
     }
 
     /// **Tirer la poignée retrace le storyboard** (STORYBOARD-2) : c'est un tracé parti du
     /// coin de sa première case, dont la main tient le coin opposé — les cases apparaissent et
     /// disparaissent sous elle, celles qui portent quelque chose restent. Le clic est pris.
     pub(crate) fn prendre_la_poignee_du_storyboard(&mut self) -> bool {
-        let Some((d, coin, prise)) = self.poignee_du_storyboard() else {
+        let Some((sb, d, coin, prise)) = self.poignee_du_storyboard() else {
             return false;
         };
         let main = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
@@ -223,6 +296,7 @@ impl GlucoseApp {
         }
         let vp = self.store.viewport();
         self.ui.placement.storyboard = Some(d.grille);
+        self.ui.placement.cible = Some(sb);
         self.ui.placement.trace = Some(crate::interactions::trace::Trace {
             depart: d.origine,
             depart_ecran: crate::canvas::world_to_screen(d.origine.0, d.origine.1, &vp),
@@ -238,7 +312,7 @@ impl GlucoseApp {
     pub(crate) fn prendre_la_bande(&mut self) -> bool {
         let board = self.store.project.active_board_id.clone();
         let point = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
-        let case = self.store.cases(&board).into_iter().rev().find(|c| {
+        let case = self.store.toutes_les_cases(&board).iter().rev().find(|c| {
             let bas = c.y + c.height;
             (c.x..=c.x + c.width).contains(&point.0) && (bas..=bas + DESCRIPTION).contains(&point.1)
         });
@@ -252,12 +326,13 @@ impl GlucoseApp {
         let rang = self.click_count_at(&cle);
         self.remember_click(cle, rang);
         self.ui.storyboard.choisie = Some(case.id.clone());
+        self.ui.storyboard.courant = Some(case.storyboard.clone());
         self.store.clear_selection();
         if rang >= 2 {
             self.decrire_la_case(&case.id);
             return true;
         }
-        let Some(suite) = self.store.disposition_actuelle(&board, Grille::default()) else {
+        let Some(suite) = self.store.disposition_actuelle(&board, &case.storyboard) else {
             return false;
         };
         self.store.begin_live_edit();
@@ -303,8 +378,8 @@ impl GlucoseApp {
         let board = &self.store.project.active_board_id;
         let case = self
             .store
-            .cases(board)
-            .into_iter()
+            .toutes_les_cases(board)
+            .iter()
             .find(|c| c.id == tenue.case)?;
         let centre = (case.x + case.width / 2.0, case.y + case.height / 2.0);
         Some(tenue.suite.rang_sous(centre))
@@ -343,3 +418,5 @@ mod ecrire;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_sequences;

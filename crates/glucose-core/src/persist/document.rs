@@ -15,7 +15,9 @@
 //! permettra plus tard de sauter l'écriture d'une section inchangée.
 
 use super::bytes::{Reader, Writer};
-pub(super) use super::storyboard::{read_panel, read_storyboard, write_panel, write_storyboard};
+pub(super) use super::storyboard::{
+    read_panel, read_storyboard, read_storyboards, write_panel, write_storyboard, write_storyboards,
+};
 use super::tags::{sort_mode_from_tag, sort_mode_tag};
 use crate::error::CoreResult;
 use crate::types::{
@@ -81,7 +83,7 @@ pub(super) fn write_board(w: &mut Writer, board: &Board) {
         annotations,
         folders,
         panels,
-        storyboard,
+        storyboards,
         zones,
         name,
         viewport,
@@ -101,14 +103,15 @@ pub(super) fn write_board(w: &mut Writer, board: &Board) {
     write_bookmarks(w, bookmarks);
     w.i64(*created_at);
     w.i64(*updated_at);
-    w.opt(storyboard.as_ref(), write_storyboard);
+    write_storyboards(w, storyboards);
 }
 
 /// Lit un tableau du schema `version` : ses images en dependent (RECADRAGE-1), la grille de
-/// son storyboard n'existe qu'a partir du schema 3 (STORYBOARD-2), et ses cases en dependent
-/// (schema 4, fiche 67).
+/// son storyboard n'existe qu'a partir du schema 3 (STORYBOARD-2), ses cases en dependent
+/// (schema 4, fiche 67), et ses storyboards sont plusieurs depuis le 5 (fiche 68) — ramenes a
+/// SEQUENCE-1 par la seule regle qui le fait (`rattacher`).
 pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
-    Ok(Board {
+    let mut board = Board {
         id: r.text()?,
         name: r.text()?,
         images: r.seq(|rr| super::image::read_image(rr, version))?,
@@ -120,12 +123,10 @@ pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> 
         bookmarks: read_bookmarks(r)?,
         created_at: r.i64()?,
         updated_at: r.i64()?,
-        storyboard: if version < crate::persist::STORYBOARD_DEPUIS {
-            None
-        } else {
-            r.opt(|rr| read_storyboard(rr, version))?
-        },
-    })
+        storyboards: read_storyboards(r, version)?,
+    };
+    crate::types::rattacher(&mut board.panels, &mut board.storyboards);
+    Ok(board)
 }
 
 // ── Caméra et signets ───────────────────────────────────────────────────────

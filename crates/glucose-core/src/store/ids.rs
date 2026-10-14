@@ -50,6 +50,9 @@ fn max_numeric_suffix(project: &Project) -> u64 {
         for p in &b.panels {
             consider(&p.id);
         }
+        for s in &b.storyboards {
+            consider(&s.id);
+        }
     }
     for p in &project.presets {
         consider(&p.id);

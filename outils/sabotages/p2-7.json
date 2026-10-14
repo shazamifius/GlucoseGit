@@ -1,0 +1,339 @@
+[
+ {
+  "nom": "ID-1 oublie les storyboards",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        for s in &b.storyboards {\n            consider(&s.id);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "les planches oublient le format A",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        let format_a = ((largeur / std::f64::consts::SQRT_2 - e) / pas_y)",
+  "apres": "        let format_a = ((largeur - e) / pas_y)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une planche garde ses rangees vides",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        let par_planche = format_a.min(rangees);",
+  "apres": "        let par_planche = format_a;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "une planche sans marge",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "                (self.origine.0 - e, y, largeur, hauteur)",
+  "apres": "                (self.origine.0, y, largeur, hauteur)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "les planches se chevauchent",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "                let y = self.origine.1 + (p * par_planche) as f64 * pas_y - e;",
+  "apres": "                let y = self.origine.1 + (p * par_planche) as f64 * pas_y * 0.5 - e;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la copie garde les autres storyboards",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "            b.panels.retain(|c| c.storyboard == sb);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la copie garde les images d a cote",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "            b.images.retain(|i| dans((i.x, i.y)));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la copie perd les textes des cases",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "                a.rect().is_some_and(|r| {",
+  "apres": "                a.rect().is_none() && a.rect().is_some_and(|r| {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "p2_7",
+   "storyboard"
+  ]
+ },
+ {
+  "nom": "la selection exportee garde les cases",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "                b.panels.clear();\n                b.storyboards.clear();\n                b.zones.clear();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "les planches exportent tout le tableau",
+  "fichier": "crates/glucose-desktop/src/persist/export/planches.rs",
+  "avant": "        store: store.copie_du_storyboard(sb),",
+  "apres": "        store: store.copie_a_exporter(false),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la vue d une planche a l envers",
+  "fichier": "crates/glucose-desktop/src/persist/export/planches.rs",
+  "avant": "            x: -x * ECHELLE,",
+  "apres": "            x: x * ECHELLE,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "une planche unique numerotee",
+  "fichier": "crates/glucose-desktop/src/persist/export/planches.rs",
+  "avant": "    if nombre <= 1 {",
+  "apres": "    if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "un seul bloc idat garde",
+  "fichier": "crates/glucose-desktop/src/persist/export/pdf.rs",
+  "avant": "            b\"IDAT\" => idat.extend_from_slice(donnees),",
+  "apres": "            b\"IDAT\" => idat = donnees.to_vec(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "un png avec alpha passe",
+  "fichier": "crates/glucose-desktop/src/persist/export/pdf.rs",
+  "avant": "                if donnees.get(8..13) != Some(&[8, 2, 0, 0, 0][..]) {",
+  "apres": "                if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "la table decalee",
+  "fichier": "crates/glucose-desktop/src/persist/export/pdf.rs",
+  "avant": "        positions.push(self.ecrits);",
+  "apres": "        positions.push(self.ecrits + 1);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "une page en pixels et non en points",
+  "fichier": "crates/glucose-desktop/src/persist/export/pdf.rs",
+  "avant": "    f64::from(pixels) * 0.75",
+  "apres": "    f64::from(pixels)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "le predicteur change",
+  "fichier": "crates/glucose-desktop/src/persist/export/pdf.rs",
+  "avant": "/DecodeParms << /Predictor 15 /Colors 3",
+  "apres": "/DecodeParms << /Predictor 2 /Colors 3",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "le panneau ne demande pas les planches",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard/lecture.rs",
+  "avant": "    if hit(layout.planches) {\n        return Some(StoryboardIntent::Planches);\n    }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ },
+ {
+  "nom": "le menu sans les planches",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "        defs.push(Some((\n            MenuAction::ExporterLesPlanches,",
+  "apres": "        drop(Some((\n            MenuAction::ExporterLesPlanches,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "export",
+   "pdf",
+   "planches",
+   "context_menu",
+   "lecture"
+  ]
+ }
+]

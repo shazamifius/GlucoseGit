@@ -183,8 +183,12 @@ impl GlucoseApp {
                     self.mark_dirty();
                 }
             }
-            Suite::NommerLeChamp { board, rang } => {
-                self.repondre_au_champ((&board, rang), reponse, champ);
+            Suite::NommerLeChamp {
+                board,
+                storyboard,
+                rang,
+            } => {
+                self.repondre_au_champ((&board, &storyboard, rang), reponse, champ);
             }
             Suite::NouveauDocument | Suite::MiseAJour(_) => {}
         }

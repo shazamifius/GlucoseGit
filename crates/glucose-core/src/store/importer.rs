@@ -188,7 +188,9 @@ pub(super) fn suivre_dans_le_tableau(r: &Renommage, b: &mut Board) {
         annotations,
         folders,
         panels,
-        storyboard: _,
+        // Un storyboard n'est nommé que dans son tableau, où ses cases le désignent : il
+        // voyage avec elles sans changer de nom (fiche 68).
+        storyboards: _,
         zones: _,
         viewport: _,
         bookmarks: _,
@@ -205,6 +207,7 @@ pub(super) fn suivre_dans_le_tableau(r: &Renommage, b: &mut Board) {
     panels.iter_mut().for_each(|p| {
         let StoryboardPanel {
             id: _,
+            storyboard: _,
             order: _,
             description: _,
             x: _,

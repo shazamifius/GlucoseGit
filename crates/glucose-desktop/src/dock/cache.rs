@@ -53,7 +53,7 @@ enum EtatPanneau {
     /// Ordonner et le Storyboard montrent aussi le champ qu'on tient ou qu'on tape (CHAMP-1).
     Organize(OrganizeState, Option<Saisie>),
     Pomodoro(PomodoroState),
-    Storyboard(StoryboardState, Option<Saisie>),
+    Storyboard(Box<StoryboardState>, Option<Saisie>),
     Plugins(plugins::PluginsState),
     /// Le panneau des Presets ne tient aucun état : tout ce qu'il montre se lit dans le
     /// document, dont la version est déjà dans la clé.
@@ -67,7 +67,9 @@ impl EtatPanneau {
         match tab {
             TabId::Organize => Self::Organize(dock.organize.clone(), dock.saisie_du(tab)),
             TabId::Pomodoro => Self::Pomodoro(dock.pomodoro.clone()),
-            TabId::Storyboard => Self::Storyboard(dock.storyboard.clone(), dock.saisie_du(tab)),
+            TabId::Storyboard => {
+                Self::Storyboard(Box::new(dock.storyboard.clone()), dock.saisie_du(tab))
+            }
             TabId::Plugins => Self::Plugins(dock.plugins.clone()),
             TabId::Preset => Self::Preset,
             TabId::Domains => Self::Domains(dock.domains.clone()),

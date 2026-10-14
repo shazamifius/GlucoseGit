@@ -219,6 +219,7 @@ fn tableau_complet() -> Board {
 
     b.panels.push(StoryboardPanel {
         id: "pan-1".into(),
+        storyboard: "sequence-1".into(),
         order: 3,
         description: "Un panneau".into(),
         x: 0.0,
@@ -229,10 +230,15 @@ fn tableau_complet() -> Board {
         plan: Some(crate::types::Plan::Americain),
         textes: vec![String::new(), "il se retourne".into()],
     });
-    // Une case qui ne porte rien de la lecture n'a pas de ligne dans la table éparse : elle
-    // doit revenir telle quelle, sans rien gagner.
-    b.panels
-        .push(StoryboardPanel::new("pan-2", 4, 344.0, 0.0, 320.0, 180.0));
+    // Une case qui ne porte rien de la lecture, d'un autre storyboard : elle doit revenir
+    // telle quelle, sans rien gagner, et dans le sien (fiche 68).
+    b.panels.push(StoryboardPanel::new(
+        "pan-2",
+        "sequence-2",
+        4,
+        (344.0, 0.0),
+        (320.0, 180.0),
+    ));
     b
 }
 

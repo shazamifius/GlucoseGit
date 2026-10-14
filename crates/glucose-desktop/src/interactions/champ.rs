@@ -53,7 +53,8 @@ impl GlucoseApp {
             (c.id.clone(), vue, panneau.duree_case.round() as u32)
         });
         if defaut != lecture.duree_ms {
-            self.store.regler_la_duree_du_storyboard(&board, defaut);
+            let sb = (board.as_str(), lecture.storyboard.as_str());
+            self.store.regler_la_duree_du_storyboard(sb, defaut);
         }
         if let Some((id, vue, reglee)) = case {
             if reglee != vue {
@@ -63,8 +64,9 @@ impl GlucoseApp {
         // **Ce qui vient d'être écrit est ce que le document dit** : le panneau le relit tout
         // de suite. Sans cela, un `Ctrl+Z` avant l'image suivante rendrait au document l'état
         // que le panneau avait vu en dernier, et son champ garderait la valeur défaite.
-        let choisie = self.ui.storyboard.choisie.as_deref();
-        self.dock_manager.storyboard.suivre(&self.store, choisie);
+        self.dock_manager
+            .storyboard
+            .suivre(&self.store, &self.ui.storyboard);
     }
 
     /// **L'appui prend le champ sous lui** ; dans le champ qu'on tape, il ne fait rien.

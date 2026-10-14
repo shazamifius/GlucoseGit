@@ -105,6 +105,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 65 | [Le storyboard tracé, le champ qui écrit, le téléphone qui redémarre](65-LE-STORYBOARD-TRACE.md) | ses retours (le téléphone redémarre ; `Alt+F` ; le survol ; « Décrire ») ; STORYBOARD-1 saboté ; **TRACE-1** (un clic pose, un glisser trace — tldraw) ; **STORYBOARD-2** (la grille dans le document, schéma 3 et son témoin v2 ; une suite, une loi ; le rectangle, la poignée, la case lâchée, Tab) ; **CHAMP-QUESTION-1** ; les propositions — **§ 11 : ce qui attend sa parole** |
 | 66 | [La mémoire du téléphone](66-LA-MEMOIRE-DU-TELEPHONE.md) | P0 côté code : la recherche (Android 14 ne dit plus rien à l'application qu'on regarde ; le seuil du système à ~216 Mo ; la Memory Advice de Google) ; quatre trous sous Android ; **MEMOIRE-1** (la mémoire mesurée, une ligne `memoire` par record) ; **MEMOIRE-2** (`onTrimMemory` : la carte rend, le magasin offre) ; **MEMOIRE-3** (l'admission des décodages, le décodage sur place : 445 → 254 Mo mesurés) ; **FANTOME-1** (le fantôme part du curseur) et GLISSER-2 trouvé (défaire un glisser n'est pas exact au bit près) — **§ 7 : ce qui reste, le téléphone** |
 | 67 | [La lecture du storyboard](67-LA-LECTURE-DU-STORYBOARD.md) | P2.4 à 6 en un seul **schéma 4** (la durée, les champs du storyboard, le plan ; témoins v3 de `ea8a690`) ; **l'animatique** (le canevas cadré case après case, le voile, les sous-titres, la coupe) ; le panneau en miroir ; une durée réglée en rapport (règle logarithmique) ; l'arène tient une seule liste de ses tables — **§ 6 : deux gardes aveugles à trancher** |
+| 68 | [Plusieurs storyboards, et les planches](68-PLUSIEURS-STORYBOARDS.md) | les gardes de la fiche 67 tranchées, la caméra de la lecture en une seule règle (un pincement restait dû) ; il avait lancé la build du schéma 4 : **schéma 5**, témoins v4 de `5bb82ec` ; **P2.8** — la case qui sait son storyboard (remis en question contre Storyboarder), SEQUENCE-1, le storyboard courant, « ‹ 2 / 3 › », « + Nouveau » ; **P2.7** — la planche est le canevas, ses rangées déduites du format A, le PDF écrit à la main (img2pdf), rendu au pixel près par MuPDF et PDFium — **§ 9 : à essayer** |
 
 ## Les décisions — **foi**
 
@@ -122,4 +123,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb` ·
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png`.
 
-La prochaine fiche porte le numéro **68**.
+La prochaine fiche porte le numéro **69**.

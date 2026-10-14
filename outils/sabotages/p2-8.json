@@ -1,0 +1,393 @@
+[
+ {
+  "nom": "une case orpheline reste orpheline",
+  "fichier": "crates/glucose-core/src/types/storyboard.rs",
+  "avant": "        if !storyboards.iter().any(|s| s.id == case.storyboard) {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "un storyboard vide reste",
+  "fichier": "crates/glucose-core/src/types/storyboard.rs",
+  "avant": "    storyboards.retain(|s| cases.iter().any(|c| c.storyboard == s.id));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "la lecture du tableau ne rattache pas",
+  "fichier": "crates/glucose-core/src/persist/document.rs",
+  "avant": "    crate::types::rattacher(&mut board.panels, &mut board.storyboards);\n    Ok(board)",
+  "apres": "    Ok(board)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "tauri ne rattache pas",
+  "fichier": "crates/glucose-core/src/persist/tauri/projet.rs",
+  "avant": "    crate::types::rattacher(&mut board.panels, &mut board.storyboards);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "tauri"
+  ]
+ },
+ {
+  "nom": "la case v5 ne lit pas son storyboard",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    if version >= SEQUENCES_DEPUIS {\n        panel.storyboard = r.text()?;",
+  "apres": "    if version > SEQUENCES_DEPUIS {\n        panel.storyboard = r.text()?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "le storyboard v5 ne lit pas son nom",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    if version >= SEQUENCES_DEPUIS {\n        storyboard.id = r.text()?;",
+  "apres": "    if version > SEQUENCES_DEPUIS {\n        storyboard.id = r.text()?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "un v4 lu comme une liste",
+  "fichier": "crates/glucose-core/src/persist/storyboard.rs",
+  "avant": "    } else if version >= super::STORYBOARD_DEPUIS {",
+  "apres": "    } else if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "un geste v4 lu avec son rang",
+  "fichier": "crates/glucose-core/src/persist/histoire/geste.rs",
+  "avant": "    if version >= crate::persist::SEQUENCES_DEPUIS {\n        return lire_case(r, lire);",
+  "apres": "    if version >= 4 {\n        return lire_case(r, lire);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "persist_suite"
+  ]
+ },
+ {
+  "nom": "ranger touche les autres storyboards",
+  "fichier": "crates/glucose-core/src/store/storyboard/ranger.rs",
+  "avant": "        .filter(|&i| panels[i].storyboard == sb)",
+  "apres": "        .filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "poser reprend toujours le meme storyboard",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            None => self.generate_id(\"storyboard\"),",
+  "apres": "            None => \"storyboard\".to_string(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "la derniere case retiree laisse le storyboard",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        if suite.is_empty() {\n            self.effacer_le_storyboard(board_id, &sb);\n            return;\n        }",
+  "apres": "        if suite.is_empty() {\n            return;\n        }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "effacer laisse les cases",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "        let mut edits = ranger::remplacer_la_suite(board_id, &mut b.panels, sb, Vec::new());",
+  "apres": "        let mut edits = Vec::new();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "les cases de tous les storyboards",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            .filter(|c| c.storyboard == sb)",
+  "apres": "            .filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "retirer un champ touche l autre storyboard",
+  "fichier": "crates/glucose-core/src/store/storyboard/case.rs",
+  "avant": "            if c.storyboard == sb && rang < c.textes.len() {",
+  "apres": "            if rang < c.textes.len() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "ID-1 oublie les storyboards",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        for s in &b.storyboards {\n            consider(&s.id);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "storyboard",
+   "sequence",
+   "arena"
+  ]
+ },
+ {
+  "nom": "le courant oublie le dernier touche",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "    ui.courant\n        .as_deref()\n        .and_then(|sb| store.storyboard(board, sb))\n        .or_else(",
+  "apres": "    None.or_else(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "choisir une case ne fait pas le courant",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        self.ui.storyboard.courant = Some(case.storyboard.clone());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "un neuf garde la case de l autre",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "                if cible.is_none() {\n                    self.ui.storyboard.choisie = None;\n                }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "le trace ne fait pas le courant",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "                self.ui.storyboard.courant = range;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "mettre a jour fait naitre",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "            I::MettreAJour(grille) => self.armer_le_storyboard(grille, courant),",
+  "apres": "            I::MettreAJour(grille) => self.armer_le_storyboard(grille, None),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "les fleches ne tournent pas",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        let voisin = tous[(ici as isize + pas).rem_euclid(n) as usize].id.clone();",
+  "apres": "        let voisin = tous[(ici as isize + pas).clamp(0, n - 1) as usize].id.clone();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "la poignee retrace un autre",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        self.ui.placement.cible = Some(sb);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "la lecture lit le courant et non la case",
+  "fichier": "crates/glucose-desktop/src/interactions/lecture.rs",
+  "avant": "        let de_la_case = depuis.and_then(|id| self.store.storyboard_de_la_case(&board, id));",
+  "apres": "        let de_la_case: Option<&glucose_core::types::Storyboard> = None;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ },
+ {
+  "nom": "le panneau montre le premier",
+  "fichier": "crates/glucose-desktop/src/dock/storyboard.rs",
+  "avant": "        let Some(sb) = storyboard_courant(store, board, ui) else {",
+  "apres": "        let Some(sb) = store.storyboards(board).first().map(|s| s.id.clone()) else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "storyboard",
+   "lecture",
+   "p2_8"
+  ]
+ }
+]

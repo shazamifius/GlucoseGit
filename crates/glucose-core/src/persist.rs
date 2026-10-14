@@ -66,7 +66,11 @@ use manifest::{AssetEntry, Manifest};
 ///
 /// **Passée à 4 le 14/10/2026** : une case porte sa durée, son plan et ses champs ; le
 /// storyboard, la durée d'une case et le nom de ses champs (fiche 67).
-pub const DOCUMENT_VERSION: u16 = 4;
+///
+/// **Passée à 5 le 14/10/2026** : un tableau porte plusieurs storyboards, et chaque case nomme
+/// le sien (fiche 68). Le schéma 4 n'a vécu qu'une après-midi, mais une build l'a écrit chez
+/// lui : il se relit, et son témoin est écrit par cette build-là.
+pub const DOCUMENT_VERSION: u16 = 5;
 
 /// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
 ///
@@ -78,6 +82,8 @@ pub const RECADRAGE_DEPUIS: u16 = 2;
 pub const STORYBOARD_DEPUIS: u16 = 3;
 /// Le schéma depuis lequel une case porte sa durée, son plan et ses champs (fiche 67).
 pub const ANIMATIQUE_DEPUIS: u16 = 4;
+/// Le schéma depuis lequel un tableau porte plusieurs storyboards (fiche 68).
+pub const SEQUENCES_DEPUIS: u16 = 5;
 /// Plus ancien schéma de document que cette build sait lire.
 pub const MIN_READABLE_DOCUMENT_VERSION: u16 = 1;
 /// Extension de fichier, sans le point.

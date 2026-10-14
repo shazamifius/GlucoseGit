@@ -28,6 +28,7 @@ fn contenu(propre: bool) -> Contenu {
             .map(|i| (format!("case-{i}"), i, String::new()))
             .collect(),
         lecture: Some(Lecture {
+            storyboard: "storyboard-1".into(),
             champs: vec!["Dialogue".into(), "Action".into(), "Notes".into()],
             duree_ms: 2000,
             case: Some(Choisie {
@@ -39,6 +40,7 @@ fn contenu(propre: bool) -> Contenu {
                 duree_ms: propre.then_some(800),
             }),
         }),
+        sequences: None,
     }
 }
 
@@ -58,6 +60,7 @@ fn test_chaque_bouton_de_la_lecture_dit_sa_demande() {
         cliquer(l.lire),
         Some(StoryboardIntent::Lire(Some("case-1".into())))
     );
+    assert_eq!(cliquer(l.planches), Some(StoryboardIntent::Planches));
     let rendre = case.rendre.expect("elle a sa durée : « ↺ »");
     assert_eq!(
         cliquer(rendre),

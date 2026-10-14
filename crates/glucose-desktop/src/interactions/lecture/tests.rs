@@ -23,9 +23,7 @@ fn app() -> (GlucoseApp, String, Vec<String>) {
         scale: 0.4,
     };
     app.store.set_viewport(&board, vue);
-    let ids = app
-        .store
-        .cases(&board)
+    let ids = crate::epreuve::les_cases(&app.store, &board)
         .iter()
         .map(|c| c.id.clone())
         .collect();
@@ -102,13 +100,19 @@ fn test_la_case_remplit_l_ecran_a_ses_proportions() {
 fn test_la_lecture_coupe_a_chaque_duree_puis_rend_la_vue() {
     let (mut app, board, ids) = app();
     let avant = app.store.viewport();
-    app.store.regler_la_duree_du_storyboard(&board, 1000);
+    app.store.regler_la_duree_du_storyboard(
+        (
+            &board,
+            &crate::epreuve::seul_storyboard(&app.store, &board).unwrap(),
+        ),
+        1000,
+    );
     app.store.regler_la_duree(&board, &ids[7], Some(300));
     app.lire_le_storyboard(Some(&ids[6]));
     assert_eq!(rang(&app), Some(6));
     assert!(app.ui.sans_interface() && app.ui.header_height() == 0.0);
     let (w, h) = app.taille_de_la_fenetre();
-    let septieme = app.store.cases(&board)[6].clone();
+    let septieme = crate::epreuve::les_cases(&app.store, &board)[6].clone();
     let attendue = vue_sur_la_case(
         (septieme.x, septieme.y, septieme.width, septieme.height),
         (0.0, 0.0, f64::from(w), f64::from(h)),
@@ -212,7 +216,11 @@ fn test_la_lecture_prend_toute_la_main() {
     assert_eq!(app.store.viewport(), cadree, "la molette ne bouge rien");
     assert!(app.prendre_la_touche(&Key::Named(NamedKey::Delete), true, None));
     assert!(app.prendre_la_touche(&Key::Character("t".into()), true, Some("t")));
-    assert_eq!(app.store.cases(&board).len(), 8, "Suppr n'a rien retiré");
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board).len(),
+        8,
+        "Suppr n'a rien retiré"
+    );
 }
 
 /// **Une fenêtre qui change de taille recadre la case** à l'image suivante.
@@ -221,7 +229,7 @@ fn test_la_case_suit_la_taille_de_l_ecran() {
     let (mut app, board, _) = app();
     app.lire_le_storyboard(None);
     app.bouger_la_camera(400, 800);
-    let premiere = app.store.cases(&board)[0].clone();
+    let premiere = crate::epreuve::les_cases(&app.store, &board)[0].clone();
     let attendue = vue_sur_la_case(
         (premiere.x, premiere.y, premiere.width, premiere.height),
         (0.0, 0.0, 400.0, 800.0),
@@ -247,7 +255,7 @@ fn test_la_boucle_dort_jusqu_a_la_coupe() {
 
 /// La vue qui cadre la première case dans un écran de 400 × 800.
 fn sur_la_premiere(app: &GlucoseApp, board: &str) -> Viewport {
-    let c = app.store.cases(board)[0].clone();
+    let c = crate::epreuve::les_cases(&app.store, board)[0].clone();
     vue_sur_la_case((c.x, c.y, c.width, c.height), (0.0, 0.0, 400.0, 800.0))
 }
 

@@ -17,10 +17,10 @@ fn document() -> (Store, String) {
     let mut store = Store::new("Projet");
     let board = store.project.active_board_id.clone();
     store.poser_le_storyboard(&board, Grille::default(), (0.0, 0.0));
-    let id = store.cases(&board)[1].id.clone();
+    let id = crate::epreuve::les_cases(&store, &board)[1].id.clone();
     store.ecrire_dans_la_case(&board, &id, Texte::Description, "La ville, au loin");
     store.ecrire_dans_la_case(&board, &id, Texte::Champ(0), "Il est tard.");
-    let c = store.cases(&board)[1].clone();
+    let c = crate::epreuve::les_cases(&store, &board)[1].clone();
     let ecran = (0.0, 0.0, f64::from(ECRAN.0), f64::from(ECRAN.1));
     store.set_viewport(
         &board,
@@ -49,9 +49,10 @@ fn rgb(image: &Pixmap, (x, y): (u32, u32)) -> (u8, u8, u8) {
     (p.red(), p.green(), p.blue())
 }
 
-fn lecture(board: &str, rang: usize) -> Lecture {
+fn lecture((store, board): (&Store, &str), rang: usize) -> Lecture {
     Lecture {
         board: board.to_string(),
+        storyboard: crate::epreuve::seul_storyboard(store, board).expect("un storyboard"),
         rang,
         temps: Temps::Depuis(0),
         vue_d_avant: glucose_core::types::Viewport::default(),
@@ -62,14 +63,19 @@ fn lecture(board: &str, rang: usize) -> Lecture {
 #[test]
 fn test_les_sous_titres_disent_la_description_puis_les_champs() {
     let (store, board) = document();
-    let s = store.storyboard(&board).expect("posé");
-    let case = store.cases(&board)[1];
+    let s = store
+        .storyboard(
+            &board,
+            &crate::epreuve::seul_storyboard(&store, &board).unwrap(),
+        )
+        .expect("posé");
+    let case = crate::epreuve::les_cases(&store, &board)[1];
     assert_eq!(
         sous_titres(case, s),
         ["La ville, au loin", "Dialogue : Il est tard."]
     );
-    let vide = Storyboard::neuf(Grille::default());
-    assert!(sous_titres(store.cases(&board)[0], &vide).is_empty());
+    let vide = Storyboard::neuf("vide", Grille::default());
+    assert!(sous_titres(crate::epreuve::les_cases(&store, &board)[0], &vide).is_empty());
 }
 
 /// **Hors de la case, tout est noir ; la case reste ce qu'elle est** — et sans lecture, le même
@@ -88,7 +94,7 @@ fn test_la_lecture_voile_tout_ce_qui_n_est_pas_la_case() {
     );
 
     let mut ui = UiState::new();
-    ui.lecture = Some(lecture(&board, 1));
+    ui.lecture = Some(lecture((&store, &board), 1));
     let image = rendre(&store, &mut ui);
     assert_eq!(rgb(&image, bande_du_haut), (0, 0, 0), "le voile");
     assert_eq!(rgb(&image, (1430, 880)), (0, 0, 0), "en bas aussi");
@@ -105,7 +111,7 @@ fn test_la_lecture_voile_tout_ce_qui_n_est_pas_la_case() {
 fn test_les_sous_titres_s_ecrivent_au_bas_de_la_case() {
     let (store, board) = document();
     let mut ui = UiState::new();
-    ui.lecture = Some(lecture(&board, 1));
+    ui.lecture = Some(lecture((&store, &board), 1));
     let image = rendre(&store, &mut ui);
     // La case va de 45 à 855 en hauteur ; ses sous-titres tiennent dans son dernier quart.
     let clairs = (650..855)
@@ -125,7 +131,7 @@ fn test_les_sous_titres_s_ecrivent_au_bas_de_la_case() {
 #[test]
 fn test_la_lecture_cache_les_prises_de_la_case_choisie() {
     let (store, board) = document();
-    let case = store.cases(&board)[1].clone();
+    let case = crate::epreuve::les_cases(&store, &board)[1].clone();
     let vp = store.viewport();
     let (x, y, _, h) = crate::renderer::storyboard::boite_a_l_ecran(&case, &vp);
     // Le « + » de gauche, à moitié dans le cadre : sa moitié intérieure.
@@ -139,7 +145,7 @@ fn test_la_lecture_cache_les_prises_de_la_case_choisie() {
         (0x1a, 0x1a, 0x1a),
         "sans lecture, le « + » se voit"
     );
-    ui.lecture = Some(lecture(&board, 1));
+    ui.lecture = Some(lecture((&store, &board), 1));
     let avec = rendre(&store, &mut ui);
     assert_eq!(
         rgb(&avec, ou),

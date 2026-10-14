@@ -31,6 +31,8 @@ use winit::keyboard::{Key, NamedKey};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lecture {
     pub board: String,
+    /// Le storyboard qu'elle lit (fiche 68).
+    pub storyboard: String,
     /// Le rang de la case montrée, dans l'ordre des numéros.
     pub rang: usize,
     pub temps: Temps,
@@ -87,10 +89,18 @@ pub fn vue_sur_la_case(cadre: (f64, f64, f64, f64), ecran: (f64, f64, f64, f64))
 }
 
 impl GlucoseApp {
-    /// **Lit le storyboard depuis cette case**, ou la première. Sans case, rien.
+    /// **Lit le storyboard de cette case, depuis elle** — ou le storyboard courant depuis sa
+    /// première (fiche 68). Sans case, rien.
     pub(crate) fn lire_le_storyboard(&mut self, depuis: Option<&str>) {
         let board = self.store.project.active_board_id.clone();
-        let cases = self.store.cases(&board);
+        let de_la_case = depuis.and_then(|id| self.store.storyboard_de_la_case(&board, id));
+        let Some(storyboard) = de_la_case
+            .map(|s| s.id.clone())
+            .or_else(|| self.storyboard_courant())
+        else {
+            return;
+        };
+        let cases = self.store.cases(&board, &storyboard);
         if cases.is_empty() {
             return;
         }
@@ -100,6 +110,7 @@ impl GlucoseApp {
         self.ui.context_menu_at = None;
         self.ui.lecture = Some(Lecture {
             board,
+            storyboard,
             rang,
             temps: Temps::Depuis(self.now_ms()),
             vue_d_avant: self.store.viewport(),
@@ -136,7 +147,7 @@ impl GlucoseApp {
         let Some(lecture) = self.ui.lecture.as_mut() else {
             return;
         };
-        let nombre = self.store.cases(&lecture.board).len();
+        let nombre = self.store.cases(&lecture.board, &lecture.storyboard).len();
         let vise = lecture.rang as isize + pas;
         if vise >= nombre as isize {
             self.arreter_la_lecture();
@@ -160,7 +171,7 @@ impl GlucoseApp {
         };
         let Some(cadre) = self
             .store
-            .cases(&lecture.board)
+            .cases(&lecture.board, &lecture.storyboard)
             .get(lecture.rang)
             .map(|c| (c.x, c.y, c.width, c.height))
         else {
@@ -198,8 +209,8 @@ impl GlucoseApp {
 
     /// La durée de la case que cette lecture montre.
     fn duree_lue(&self, lecture: &Lecture) -> Option<u32> {
-        let storyboard = self.store.storyboard(&lecture.board)?;
-        let cases = self.store.cases(&lecture.board);
+        let storyboard = self.store.storyboard(&lecture.board, &lecture.storyboard)?;
+        let cases = self.store.cases(&lecture.board, &lecture.storyboard);
         Some(storyboard.duree(cases.get(lecture.rang)?))
     }
 

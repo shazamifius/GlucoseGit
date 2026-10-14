@@ -59,7 +59,7 @@ fn rgb(image: &Pixmap, (x, y): (f64, f64)) -> (u8, u8, u8) {
 fn test_une_case_se_dessine_aux_couleurs_de_tauri() {
     let store = document();
     let board = store.project.active_board_id.clone();
-    let case = store.cases(&board)[1].clone();
+    let case = crate::epreuve::les_cases(&store, &board)[1].clone();
     let image = rendre(&store);
     let milieu = (case.x + case.width / 2.0, case.y + case.height / 2.0);
     assert_eq!(rgb(&image, milieu), (0x1a, 0x1a, 0x1a), "le cadre");
@@ -95,7 +95,7 @@ fn test_une_case_se_dessine_aux_couleurs_de_tauri() {
 fn test_la_description_s_ecrit_dans_la_bande() {
     let mut store = document();
     let board = store.project.active_board_id.clone();
-    let case = store.cases(&board)[0].clone();
+    let case = crate::epreuve::les_cases(&store, &board)[0].clone();
     let sans = rendre(&store);
     store.ecrire_dans_la_case(
         &board,
@@ -129,7 +129,7 @@ fn test_la_description_s_ecrit_dans_la_bande() {
 fn test_la_case_choisie_porte_son_contour() {
     let store = document();
     let board = store.project.active_board_id.clone();
-    let case = store.cases(&board)[1].clone();
+    let case = crate::epreuve::les_cases(&store, &board)[1].clone();
     let rendre_avec = |choisie: Option<String>| {
         let mut image = Pixmap::new(ECRAN.0, ECRAN.1).expect("une image");
         let guides = glucose_core::smart_align::SnapGuides::default();
@@ -181,7 +181,7 @@ fn test_la_case_choisie_porte_son_contour() {
 fn test_le_plan_s_ecrit_par_son_sigle_apres_le_numero() {
     let mut store = document();
     let board = store.project.active_board_id.clone();
-    let case = store.cases(&board)[0].clone();
+    let case = crate::epreuve::les_cases(&store, &board)[0].clone();
     let encre = |image: &Pixmap| {
         // Juste après le badge (4 + 24), sur la hauteur du badge.
         (0..24)

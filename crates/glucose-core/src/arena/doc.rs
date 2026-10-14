@@ -181,14 +181,16 @@ pub struct Doc {
     pub curtains: Sparse<Vec<MembraneCurtain>>,
     /// La source d'un dossier miroir du système de fichiers.
     pub folder_mirror: Sparse<FolderMirrorSource>,
-    /// **Ce qu'une case de storyboard porte pour la lecture** (fiche 67) — éparse : une case
-    /// qui n'a ni durée à elle, ni plan, ni texte n'a pas de ligne ici.
+    /// **Ce qu'une case de storyboard porte** : son storyboard (fiche 68), et sa lecture
+    /// (fiche 67). Chaque case a sa ligne — elle nomme au moins son storyboard.
     pub case: Sparse<CaseTrait>,
 }
 
-/// La durée, le plan et les champs d'une case de storyboard (schéma 4, fiche 67).
+/// Le storyboard d'une case (schéma 5, fiche 68), sa durée, son plan et ses champs (schéma 4,
+/// fiche 67).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CaseTrait {
+    pub storyboard: Box<str>,
     pub duree_ms: Option<u32>,
     pub plan: Option<crate::types::Plan>,
     pub textes: Vec<String>,

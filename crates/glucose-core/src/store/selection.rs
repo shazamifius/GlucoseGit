@@ -115,7 +115,38 @@ impl Store {
                     .retain(|a| choisie(&self.selected_annotation_ids, a.id()));
                 b.folders
                     .retain(|f| self.selected_folder_id.as_deref() == Some(f.id.as_str()));
+                // Les cases d'un storyboard et les zones d'un gabarit ne se choisissent pas :
+                // elles ne sont pas de la sélection, et leurs cadres n'ont rien à faire autour
+                // des images choisies (fiche 68).
+                b.panels.clear();
+                b.storyboards.clear();
+                b.zones.clear();
             }
+        }
+        copie
+    }
+
+    /// **Une copie du storyboard `sb` seul, pour ses planches** (P2.7, fiche 68) : ses cases, et
+    /// ce qui est posé dedans — une image, un texte, un pense-bête, une membrane dont le centre
+    /// tombe dans l'une d'elles, la règle qui fait appartenir une image à sa case. Ni les autres
+    /// storyboards, ni ce qui traîne sous une planche sans être dans une case : une planche ne
+    /// mélange jamais rien.
+    pub fn copie_du_storyboard(&self, sb: &str) -> Store {
+        let mut copie = self.copie_a_exporter(false);
+        if let Some(b) = copie.active_board_mut() {
+            b.panels.retain(|c| c.storyboard == sb);
+            b.storyboards.retain(|s| s.id == sb);
+            let cases = b.panels.clone();
+            let dans = |point: (f64, f64)| cases.iter().any(|c| c.contient(point));
+            b.images.retain(|i| dans((i.x, i.y)));
+            b.annotations.retain(|a| {
+                a.rect().is_some_and(|r| {
+                    let c = r.center();
+                    dans((c.x, c.y))
+                })
+            });
+            b.folders.clear();
+            b.zones.clear();
         }
         copie
     }

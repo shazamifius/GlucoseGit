@@ -251,32 +251,51 @@ fn main_board() -> Board {
         membrane_annotation(),
     ];
     board.folders = folders();
-    board.panels = vec![{
-        let mut panel = StoryboardPanel::new("panel-1", 3, 0.0, 0.0, 320.0, 180.0);
-        panel.description = "plan d'ouverture".into();
-        // Schéma 4 (fiche 67) : une durée à elle, un plan, un champ vide entre deux écrits.
-        panel.duree_ms = Some(3_250);
-        panel.plan = Some(Plan::RapprochePoitrine);
-        panel.textes = vec!["« Qui est là ? »".into(), String::new(), "pluie".into()];
-        panel
-    }];
-    // Rien de ce qui est ici n'est la valeur par défaut : un champ lu à la place d'un autre
-    // se verrait (STORYBOARD-2, schéma 4).
-    board.storyboard = Some(Storyboard {
-        grille: Grille {
-            format: Format::Scope,
-            largeur: 320.0,
-            colonnes: 3,
-            ecart: 16.0,
+    board.panels = vec![
+        {
+            let mut panel =
+                StoryboardPanel::new("panel-1", "sequence-1", 3, (0.0, 0.0), (320.0, 180.0));
+            panel.description = "plan d'ouverture".into();
+            // Schéma 4 (fiche 67) : une durée à elle, un plan, un champ vide entre deux écrits.
+            panel.duree_ms = Some(3_250);
+            panel.plan = Some(Plan::RapprochePoitrine);
+            panel.textes = vec!["« Qui est là ? »".into(), String::new(), "pluie".into()];
+            panel
         },
-        duree_ms: 1_500,
-        champs: vec![
-            "Dialogue".into(),
-            "Caméra".into(),
-            "Son".into(),
-            "Lumière".into(),
-        ],
-    });
+        // Schéma 5 (fiche 68) : une case d'une autre séquence, au même rang que la première.
+        StoryboardPanel::new("panel-2", "sequence-2", 3, (0.0, 900.0), (90.0, 160.0)),
+    ];
+    // Rien de ce qui est ici n'est la valeur par défaut : un champ lu à la place d'un autre
+    // se verrait (STORYBOARD-2, schéma 4) ; deux storyboards, l'un après l'autre (schéma 5).
+    board.storyboards = vec![
+        Storyboard {
+            id: "sequence-1".into(),
+            grille: Grille {
+                format: Format::Scope,
+                largeur: 320.0,
+                colonnes: 3,
+                ecart: 16.0,
+            },
+            duree_ms: 1_500,
+            champs: vec![
+                "Dialogue".into(),
+                "Caméra".into(),
+                "Son".into(),
+                "Lumière".into(),
+            ],
+        },
+        Storyboard {
+            id: "sequence-2".into(),
+            grille: Grille {
+                format: Format::Vertical,
+                largeur: 90.0,
+                colonnes: 5,
+                ecart: 8.0,
+            },
+            duree_ms: 700,
+            champs: vec!["Voix".into()],
+        },
+    ];
     board.zones = vec![BoardZone::new("slot-hero", -50.0, -50.0, 400.0, 300.0)];
     board.viewport = Viewport {
         x: -220.5,

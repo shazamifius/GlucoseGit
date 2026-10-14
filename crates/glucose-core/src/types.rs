@@ -68,6 +68,6 @@ pub use image::{AssetRef, BoardImage};
 pub use project::{AssetStore, BoardZone, Preset, PresetSlot, Project};
 pub use recadrage::Recadrage;
 pub use storyboard::{
-    champs_de_naissance, Format, Grille, Plan, Storyboard, StoryboardPanel, DESCRIPTION,
-    DUREE_DE_NAISSANCE_MS,
+    champs_de_naissance, rattacher, Format, Grille, Plan, Storyboard, StoryboardPanel, DESCRIPTION,
+    DUREE_DE_NAISSANCE_MS, STORYBOARD_D_AVANT,
 };

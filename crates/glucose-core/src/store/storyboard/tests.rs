@@ -13,6 +13,29 @@ fn grille() -> Grille {
     }
 }
 
+/// **Le seul storyboard du tableau** — les épreuves écrites avant la fiche 68 n'en posent
+/// qu'un ; s'il y en avait deux, l'épreuve tomberait plutôt que de choisir.
+fn seul(store: &Store, board: &str) -> Option<String> {
+    match store.storyboards(board) {
+        [] => None,
+        [s] => Some(s.id.clone()),
+        plusieurs => panic!("{} storyboards : l'épreuve en attend un", plusieurs.len()),
+    }
+}
+
+/// Les cases du seul storyboard du tableau.
+fn les_cases<'a>(store: &'a Store, board: &str) -> Vec<&'a StoryboardPanel> {
+    seul(store, board).map_or_else(Vec::new, |sb| store.cases(board, &sb))
+}
+
+/// **« Mettre à jour »** le seul storyboard du tableau : ses cases rangées à cette grille, la
+/// première au `coin` — poser, lui, en ferait naître un autre (fiche 68).
+fn mettre_a_jour(store: &mut Store, board: &str, grille: Grille, coin: (f64, f64)) {
+    let cible = seul(store, board).expect("un storyboard");
+    let d = store.disposition_au_clic((board, Some(&cible)), grille, coin);
+    store.disposer((board, Some(&cible)), d);
+}
+
 fn tableau() -> (Store, String) {
     let store = Store::new("Projet");
     let board = store.project.active_board_id.clone();
@@ -27,7 +50,10 @@ fn tableau() -> (Store, String) {
 fn test_fantome_1_la_grille_part_du_coin_du_clic() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (1000.0, 500.0));
-    let coins: Vec<(f64, f64)> = store.cases(&board).iter().map(|c| (c.x, c.y)).collect();
+    let coins: Vec<(f64, f64)> = les_cases(&store, &board)
+        .iter()
+        .map(|c| (c.x, c.y))
+        .collect();
     assert_eq!(coins.len(), 8);
     assert_eq!(coins[0], (1000.0, 500.0), "la première sous le clic");
     let h = 320.0 * 9.0 / 16.0;
@@ -48,12 +74,15 @@ fn test_fantome_1_la_grille_part_du_coin_du_clic() {
 fn test_poser_puis_mettre_a_jour() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let premieres: Vec<String> = store.cases(&board).iter().map(|c| c.id.clone()).collect();
+    let premieres: Vec<String> = les_cases(&store, &board)
+        .iter()
+        .map(|c| c.id.clone())
+        .collect();
     assert_eq!(premieres.len(), 8, "deux rangées de quatre");
     assert!(store.can_undo());
     store.undo();
     assert!(
-        store.cases(&board).is_empty(),
+        les_cases(&store, &board).is_empty(),
         "un seul Ctrl+Z retire toute la grille"
     );
     store.redo();
@@ -63,8 +92,8 @@ fn test_poser_puis_mettre_a_jour() {
         colonnes: 2,
         ..grille()
     };
-    store.poser_le_storyboard(&board, large, (100.0, 100.0));
-    let cases = store.cases(&board);
+    mettre_a_jour(&mut store, &board, large, (100.0, 100.0));
+    let cases = les_cases(&store, &board);
     let ids: Vec<String> = cases.iter().map(|c| c.id.clone()).collect();
     assert_eq!(
         ids, premieres,
@@ -82,12 +111,42 @@ fn test_poser_puis_mettre_a_jour() {
 fn test_retirer_une_case_garde_la_suite_continue() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let deuxieme = store.cases(&board)[1].id.clone();
+    let deuxieme = les_cases(&store, &board)[1].id.clone();
     store.retirer_la_case(&board, &deuxieme);
-    let ordres: Vec<i32> = store.cases(&board).iter().map(|c| c.order).collect();
+    let ordres: Vec<i32> = les_cases(&store, &board).iter().map(|c| c.order).collect();
     assert_eq!(ordres, (0..7).collect::<Vec<_>>());
     store.undo();
-    assert_eq!(store.cases(&board).len(), 8, "un geste");
+    assert_eq!(les_cases(&store, &board).len(), 8, "un geste");
+}
+
+/// **Poser de nouveau fait naître un second storyboard** (P2, proposition 8, fiche 68) : ses
+/// cases à lui, numérotées de un, à sa grille ; le premier ne bouge pas. Et le retirer en entier
+/// ne touche pas l'autre.
+#[test]
+fn test_poser_de_nouveau_fait_naitre_un_second_storyboard() {
+    let (mut store, board) = tableau();
+    let premier = store
+        .poser_le_storyboard(&board, grille(), (0.0, 0.0))
+        .expect("posé");
+    let avant: Vec<StoryboardPanel> = store.cases(&board, &premier).into_iter().cloned().collect();
+    let second = store
+        .poser_le_storyboard(&board, carree(), (0.0, 2000.0))
+        .expect("posé");
+    assert_ne!(premier, second);
+    let siennes = store.cases(&board, &second);
+    assert_eq!(siennes.len(), 8);
+    assert!(siennes.iter().enumerate().all(|(i, c)| c.order == i as i32));
+    assert_eq!((siennes[0].x, siennes[0].y), (0.0, 2000.0));
+    assert_eq!(store.grille_du_storyboard(&board, &second), Some(carree()));
+    let premier_apres: Vec<StoryboardPanel> =
+        store.cases(&board, &premier).into_iter().cloned().collect();
+    assert_eq!(premier_apres, avant, "le premier ne bouge pas");
+    store.effacer_le_storyboard(&board, &premier);
+    assert_eq!(store.storyboards(&board).len(), 1);
+    assert_eq!(store.cases(&board, &second).len(), 8, "l'autre reste");
+    store.undo();
+    assert_eq!(store.storyboards(&board).len(), 2, "un Ctrl+Z le rend");
+    assert_eq!(store.cases(&board, &premier).len(), 8);
 }
 
 /// **Ajouter une case la pose à la suite, sur la grille de la première.**
@@ -95,12 +154,14 @@ fn test_retirer_une_case_garde_la_suite_continue() {
 fn test_ajouter_une_case_a_la_suite() {
     let (mut store, board) = tableau();
     assert!(
-        store.ajouter_une_case(&board, grille()).is_none(),
+        store.ajouter_une_case(&board, "absent").is_none(),
         "sans storyboard, rien"
     );
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let id = store.ajouter_une_case(&board, grille()).expect("une case");
-    let cases = store.cases(&board);
+    let id = store
+        .ajouter_une_case(&board, &seul(&store, &board).unwrap())
+        .expect("une case");
+    let cases = les_cases(&store, &board);
     let neuve = cases.last().expect("la dernière");
     assert_eq!((neuve.id.as_str(), neuve.order), (id.as_str(), 8));
     assert_eq!(neuve.x, cases[0].x, "la neuvième ouvre la troisième rangée");
@@ -113,34 +174,34 @@ fn test_ajouter_une_case_a_la_suite() {
 fn test_renumeroter_suit_l_ordre_de_lecture() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     // La sixième (deuxième rangée) passe à gauche de la première, un peu plus bas.
+    // Les cases sont éparses comme celles d'un storyboard venu d'ailleurs : écrites dans le
+    // document, sans geste.
+    let poser = |store: &mut Store, id: &str, (x, y): (f64, f64)| {
+        let b = &mut store.project.boards[0];
+        let c = b.panels.iter_mut().find(|c| c.id == id).expect("la case");
+        (c.x, c.y) = (x, y);
+    };
     let sixieme = cases[5].id.clone();
-    store.placer_la_case(&board, &sixieme, (cases[0].x - 400.0, cases[0].y + 30.0));
+    poser(
+        &mut store,
+        &sixieme,
+        (cases[0].x - 400.0, cases[0].y + 30.0),
+    );
     // La deuxième descend d'un rien : elle reste dans la première rangée.
     let deuxieme = cases[1].id.clone();
-    store.placer_la_case(&board, &deuxieme, (cases[1].x, cases[1].y + 20.0));
-    store.renumeroter_les_cases(&board);
-    let ordre: Vec<String> = store.cases(&board).iter().map(|c| c.id.clone()).collect();
+    poser(&mut store, &deuxieme, (cases[1].x, cases[1].y + 20.0));
+    store.renumeroter_les_cases(&board, &seul(&store, &board).unwrap());
+    let ordre: Vec<String> = les_cases(&store, &board)
+        .iter()
+        .map(|c| c.id.clone())
+        .collect();
     assert_eq!(ordre[0], sixieme, "la plus à gauche de la première rangée");
     assert_eq!(ordre[2], deuxieme, "toujours dans la première rangée");
     // L'ancienne loi — l'ordre de création — aurait laissé la sixième sixième.
     let par_creation: Vec<String> = cases.iter().map(|c| c.id.clone()).collect();
     assert_eq!(par_creation[5], sixieme);
-}
-
-/// **Un glisser ne consigne que la case qui bouge.**
-#[test]
-fn test_placer_une_case_ne_consigne_qu_elle() {
-    let (mut store, board) = tableau();
-    store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
-    let edits = diff_des_cases(&board, &cases, &{
-        let mut c = cases.clone();
-        c[3].x += 10.0;
-        c
-    });
-    assert_eq!(edits.len(), 1);
 }
 
 /// Une image de 400 × 400 posée là.
@@ -157,7 +218,7 @@ fn image(id: &str, (x, y): (f64, f64)) -> BoardImage {
 fn test_une_image_posee_dans_une_case_s_y_ajuste() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let case = store.cases(&board)[2].clone();
+    let case = les_cases(&store, &board)[2].clone();
     let dedans = (case.x + 10.0, case.y + 10.0);
     store.add_image(&board, image("dedans", dedans));
     store.add_image(&board, image("dehors", (5000.0, 5000.0)));
@@ -186,11 +247,11 @@ fn test_effacer_le_storyboard() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
     store.add_image(&board, image("i", (0.0, 0.0)));
-    store.effacer_le_storyboard(&board);
-    assert!(store.cases(&board).is_empty());
+    store.effacer_le_storyboard(&board, &seul(&store, &board).unwrap());
+    assert!(les_cases(&store, &board).is_empty());
     assert!(store.image(&board, "i").is_some());
     store.undo();
-    assert_eq!(store.cases(&board).len(), 8);
+    assert_eq!(les_cases(&store, &board).len(), 8);
 }
 
 /// **Glisser une case emporte ses images, en deux éditions** — la case et une translation —
@@ -199,7 +260,7 @@ fn test_effacer_le_storyboard() {
 fn test_glisser_une_case_emporte_ses_images_en_deux_editions() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, grille(), (0.0, 0.0));
-    let case = store.cases(&board)[0].clone();
+    let case = les_cases(&store, &board)[0].clone();
     store.add_image(&board, image("i", (case.x + 50.0, case.y + 50.0)));
     store.ajuster_dans_les_cases(&board, &["i".to_string()]);
     let depart = store.image(&board, "i").expect("l'image").clone();
@@ -212,7 +273,7 @@ fn test_glisser_une_case_emporte_ses_images_en_deux_editions() {
         store.glisser_la_case(&board, (&case.id, (case.x, case.y)), &images, total);
     }
     store.end_live_edit();
-    let deplacee = store.cases(&board)[0].clone();
+    let deplacee = les_cases(&store, &board)[0].clone();
     assert_eq!((deplacee.x, deplacee.y), (case.x + 150.0, case.y + 100.0));
     let suivie = store.image(&board, "i").expect("l'image");
     assert_eq!(
@@ -228,7 +289,7 @@ fn test_glisser_une_case_emporte_ses_images_en_deux_editions() {
         "la case et une translation, pas cent éditions"
     );
     store.undo();
-    assert_eq!(store.cases(&board)[0].x, case.x);
+    assert_eq!(les_cases(&store, &board)[0].x, case.x);
     assert_eq!(store.image(&board, "i").map(|i| i.x), Some(depart.x));
 }
 
@@ -252,17 +313,29 @@ fn carree() -> Grille {
 #[test]
 fn test_un_rectangle_donne_les_cases_les_plus_proches_ancrees_au_depart() {
     let (store, board) = tableau();
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (350.0, 330.0)));
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (350.0, 330.0)),
+    );
     assert_eq!(
         (d.grille.colonnes, d.nombre),
         (3, 6),
         "trois colonnes, deux rangées"
     );
     assert_eq!(d.origine, (0.0, 0.0));
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (420.0, 170.0)));
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (420.0, 170.0)),
+    );
     assert_eq!(d.grille.colonnes, 4, "460 est plus près de 420 que 340");
 
-    let vers_le_haut = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (-350.0, -330.0)));
+    let vers_le_haut = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (-350.0, -330.0)),
+    );
     let (l, h) = vers_le_haut.grille.etendue(vers_le_haut.nombre);
     assert_eq!(
         vers_le_haut.origine,
@@ -270,7 +343,11 @@ fn test_un_rectangle_donne_les_cases_les_plus_proches_ancrees_au_depart() {
         "la grille finit au point de départ"
     );
 
-    let minuscule = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (5.0, 5.0)));
+    let minuscule = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (5.0, 5.0)),
+    );
     assert_eq!(minuscule.nombre, 1, "jamais moins d'une case");
 }
 
@@ -279,16 +356,27 @@ fn test_un_rectangle_donne_les_cases_les_plus_proches_ancrees_au_depart() {
 #[test]
 fn test_tracer_enregistre_la_grille_que_les_gestes_suivants_suivent() {
     let (mut store, board) = tableau();
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (600.0, 170.0)));
-    store.disposer(&board, d);
-    assert_eq!(store.cases(&board).len(), 5, "cinq colonnes, une rangée");
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (600.0, 170.0)),
+    );
+    store.disposer((&board, seul(&store, &board).as_deref()), d);
     assert_eq!(
-        store.grille_du_storyboard(&board).map(|g| g.colonnes),
+        les_cases(&store, &board).len(),
+        5,
+        "cinq colonnes, une rangée"
+    );
+    assert_eq!(
+        seul(&store, &board)
+            .and_then(|sb| store.grille_du_storyboard(&board, &sb))
+            .map(|g| g.colonnes),
         Some(5)
     );
-    let id = store.ajouter_une_case(&board, carree()).expect("une case");
-    let neuve = store
-        .cases(&board)
+    let id = store
+        .ajouter_une_case(&board, &seul(&store, &board).unwrap())
+        .expect("une case");
+    let neuve = les_cases(&store, &board)
         .into_iter()
         .find(|c| c.id == id)
         .cloned()
@@ -300,9 +388,9 @@ fn test_tracer_enregistre_la_grille_que_les_gestes_suivants_suivent() {
     );
     store.undo();
     store.undo();
-    assert!(store.cases(&board).is_empty());
+    assert!(les_cases(&store, &board).is_empty());
     assert_eq!(
-        store.grille_du_storyboard(&board),
+        seul(&store, &board).and_then(|sb| store.grille_du_storyboard(&board, &sb)),
         None,
         "la grille part avec ses cases"
     );
@@ -313,24 +401,32 @@ fn test_tracer_enregistre_la_grille_que_les_gestes_suivants_suivent() {
 #[test]
 fn test_tracer_plus_petit_garde_ce_qui_porte_quelque_chose() {
     let (mut store, board) = tableau();
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (470.0, 330.0)));
-    store.disposer(&board, d);
-    assert_eq!(store.cases(&board).len(), 8);
-    let cinquieme = store.cases(&board)[4].id.clone();
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (470.0, 330.0)),
+    );
+    store.disposer((&board, seul(&store, &board).as_deref()), d);
+    assert_eq!(les_cases(&store, &board).len(), 8);
+    let cinquieme = les_cases(&store, &board)[4].id.clone();
     store.ecrire_dans_la_case(
         &board,
         &cinquieme,
         super::Texte::Description,
         "le héros entre",
     );
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (230.0, 170.0)));
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (230.0, 170.0)),
+    );
     assert_eq!(d.grille.colonnes, 2);
     assert_eq!(
         d.nombre, 5,
         "deux cases tiendraient ; la cinquième est décrite"
     );
-    store.disposer(&board, d);
-    let cases = store.cases(&board);
+    store.disposer((&board, seul(&store, &board).as_deref()), d);
+    let cases = les_cases(&store, &board);
     assert_eq!(cases.len(), 5);
     assert_eq!(cases[4].description, "le héros entre");
     assert_eq!(
@@ -338,9 +434,13 @@ fn test_tracer_plus_petit_garde_ce_qui_porte_quelque_chose() {
         (0.0, 320.0),
         "troisième rangée, à gauche"
     );
-    let plus_grand = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (470.0, 490.0)));
-    store.disposer(&board, plus_grand);
-    assert_eq!(store.cases(&board).len(), 12);
+    let plus_grand = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (470.0, 490.0)),
+    );
+    store.disposer((&board, seul(&store, &board).as_deref()), plus_grand);
+    assert_eq!(les_cases(&store, &board).len(), 12);
 }
 
 /// **Une case qui ne porte qu'une image se garde aussi** : l'image compte comme une
@@ -348,12 +448,23 @@ fn test_tracer_plus_petit_garde_ce_qui_porte_quelque_chose() {
 #[test]
 fn test_une_case_qui_porte_une_image_se_garde() {
     let (mut store, board) = tableau();
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (470.0, 330.0)));
-    store.disposer(&board, d);
-    let septieme = store.cases(&board)[6].clone();
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (470.0, 330.0)),
+    );
+    store.disposer((&board, seul(&store, &board).as_deref()), d);
+    let septieme = les_cases(&store, &board)[6].clone();
     store.add_image(&board, image("i", (septieme.x + 50.0, septieme.y + 50.0)));
-    assert_eq!(store.cases_a_garder(&board), 7);
-    let d = store.disposition_du_trace(&board, carree(), ((0.0, 0.0), (110.0, 110.0)));
+    assert_eq!(
+        store.cases_a_garder(&board, seul(&store, &board).as_deref()),
+        7
+    );
+    let d = store.disposition_du_trace(
+        (&board, seul(&store, &board).as_deref()),
+        carree(),
+        ((0.0, 0.0), (110.0, 110.0)),
+    );
     assert_eq!(d.nombre, 7);
 }
 
@@ -363,12 +474,12 @@ fn test_une_case_qui_porte_une_image_se_garde() {
 fn test_une_image_suit_sa_case_par_une_similitude() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
-    let case = store.cases(&board)[0].clone();
+    let case = les_cases(&store, &board)[0].clone();
     store.add_image(&board, image("i", (case.x + 50.0, case.y + 50.0)));
     store.ajuster_dans_les_cases(&board, &["i".to_string()]);
     let avant = store.image(&board, "i").expect("l'image").clone();
-    store.poser_le_storyboard(&board, carree(), (1000.0, 0.0));
-    let deplacee = store.cases(&board)[0].clone();
+    mettre_a_jour(&mut store, &board, carree(), (1000.0, 0.0));
+    let deplacee = les_cases(&store, &board)[0].clone();
     let apres = store.image(&board, "i").expect("l'image").clone();
     assert_eq!(
         (apres.x - avant.x, apres.y - avant.y, apres.width),
@@ -379,8 +490,8 @@ fn test_une_image_suit_sa_case_par_une_similitude() {
         largeur: 200.0,
         ..carree()
     };
-    store.poser_le_storyboard(&board, double, (1000.0, 0.0));
-    let grande = store.cases(&board)[0].clone();
+    mettre_a_jour(&mut store, &board, double, (1000.0, 0.0));
+    let grande = les_cases(&store, &board)[0].clone();
     let refaite = store.image(&board, "i").expect("l'image");
     assert_eq!(refaite.width, 200.0, "deux fois plus grande, comme sa case");
     assert_eq!(
@@ -396,11 +507,11 @@ fn test_une_image_suit_sa_case_par_une_similitude() {
 fn test_retirer_une_case_fait_avancer_les_suivantes() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     store.add_image(&board, image("i", (cases[2].x + 50.0, cases[2].y + 50.0)));
     store.ajuster_dans_les_cases(&board, &["i".to_string()]);
     store.retirer_la_case(&board, &cases[1].id);
-    let apres: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let apres: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     assert_eq!(
         apres[1].id, cases[2].id,
         "la troisième prend la deuxième place"
@@ -414,7 +525,10 @@ fn test_retirer_une_case_fait_avancer_les_suivantes() {
     for c in apres {
         store.retirer_la_case(&board, &c.id);
     }
-    assert_eq!(store.grille_du_storyboard(&board), None);
+    assert_eq!(
+        seul(&store, &board).and_then(|sb| store.grille_du_storyboard(&board, &sb)),
+        None
+    );
 }
 
 /// **Déplacer une case à une autre place** fait glisser celles d'entre les deux, renumérote
@@ -423,7 +537,7 @@ fn test_retirer_une_case_fait_avancer_les_suivantes() {
 fn test_deplacer_une_case_reordonne_la_suite() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     store.add_image(&board, image("i", (cases[0].x + 50.0, cases[0].y + 50.0)));
     store.ajuster_dans_les_cases(&board, &["i".to_string()]);
     store.journal.prendre_les_ecrits();
@@ -434,7 +548,7 @@ fn test_deplacer_une_case_reordonne_la_suite() {
         5,
         (cases[0].x, cases[0].y),
     );
-    let apres = store.cases(&board);
+    let apres = les_cases(&store, &board);
     let ordre: Vec<&str> = apres.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(ordre[5], cases[0].id, "la première est maintenant sixième");
     assert_eq!(ordre[0], cases[1].id, "la deuxième ouvre la suite");
@@ -490,9 +604,12 @@ fn test_ranger_numerote_dans_l_ordre_de_la_suite() {
     for (i, c) in b.panels.iter_mut().enumerate() {
         c.order = 100 - 7 * i as i32;
     }
-    let attendu: Vec<String> = store.cases(&board).iter().map(|c| c.id.clone()).collect();
-    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
-    let cases = store.cases(&board);
+    let attendu: Vec<String> = les_cases(&store, &board)
+        .iter()
+        .map(|c| c.id.clone())
+        .collect();
+    mettre_a_jour(&mut store, &board, carree(), (0.0, 0.0));
+    let cases = les_cases(&store, &board);
     assert!(cases.iter().enumerate().all(|(i, c)| c.order == i as i32));
     let ids: Vec<String> = cases.iter().map(|c| c.id.clone()).collect();
     assert_eq!(ids, attendu, "la suite d'avant, renumérotée");
@@ -514,7 +631,7 @@ fn test_ranger_numerote_dans_l_ordre_de_la_suite() {
 fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, carree(), (0.3, 0.7));
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     store.add_image(&board, image("i", (cases[0].x + 50.0, cases[0].y + 50.0)));
     store.ajuster_dans_les_cases(&board, &["i".to_string()]);
     let portees = store.images_de_la_case(&board, &cases[0].id);
@@ -531,7 +648,7 @@ fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
         (cases[0].x, cases[0].y),
     );
     store.end_live_edit();
-    let lachee = store.cases(&board)[2].clone();
+    let lachee = les_cases(&store, &board)[2].clone();
     assert_eq!(lachee.id, cases[0].id);
     // Lâchée, elle recouvrait la troisième case : son image reste la sienne quand même.
     let image = store.image(&board, "i").expect("l'image");
@@ -540,7 +657,7 @@ fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
         "l'image suit la case tenue"
     );
     let les_cases = |store: &Store| -> Vec<StoryboardPanel> {
-        store.cases(&board).into_iter().cloned().collect()
+        les_cases(store, &board).into_iter().cloned().collect()
     };
     let ou = |store: &Store| {
         let i = store.image(&board, "i").expect("l'image");
@@ -613,8 +730,7 @@ fn lacher(store: &mut Store, board: &str, centres: &[(&str, (f64, f64))]) {
 /// Le rang, dans la suite, de la case où cette image est posée.
 fn rang_de(store: &Store, board: &str, id: &str) -> Option<usize> {
     let i = store.image(board, id)?;
-    store
-        .cases(board)
+    les_cases(store, board)
         .iter()
         .position(|c| c.contient((i.x, i.y)))
 }
@@ -622,7 +738,7 @@ fn rang_de(store: &Store, board: &str, id: &str) -> Option<usize> {
 /// Le milieu du cadre de la case de ce rang, et trois points en cascade à partir de lui — ce
 /// que pose un dépôt de trois fichiers.
 fn cascade(store: &Store, board: &str, rang: usize) -> [(f64, f64); 3] {
-    let c = store.cases(board)[rang].clone();
+    let c = les_cases(store, board)[rang].clone();
     let m = (c.x + c.width / 2.0, c.y + c.height / 2.0);
     [m, (m.0 + 24.0, m.1 + 24.0), (m.0 + 48.0, m.1 + 48.0)]
 }
@@ -642,7 +758,7 @@ fn test_p2_1_un_lot_lache_sur_une_case_remplit_la_suite() {
         .map(|id| rang_de(&store, &board, id))
         .collect();
     assert_eq!(rangs, vec![Some(0), Some(1), Some(2)]);
-    assert_eq!(store.cases(&board).len(), 8, "aucune case ajoutée");
+    assert_eq!(les_cases(&store, &board).len(), 8, "aucune case ajoutée");
     store.undo();
     assert!(store.image(&board, "a").is_none(), "un seul geste");
     assert!(!store.can_undo());
@@ -672,7 +788,7 @@ fn test_p2_1_le_storyboard_s_allonge_s_il_le_faut() {
     store.journal.clear();
     let [a, b, c] = cascade(&store, &board, 6);
     lacher(&mut store, &board, &[("a", a), ("b", b), ("c", c)]);
-    assert_eq!(store.cases(&board).len(), 9, "une case de plus");
+    assert_eq!(les_cases(&store, &board).len(), 9, "une case de plus");
     let rangs: Vec<_> = ["a", "b", "c"]
         .iter()
         .map(|id| rang_de(&store, &board, id))
@@ -680,7 +796,7 @@ fn test_p2_1_le_storyboard_s_allonge_s_il_le_faut() {
     assert_eq!(rangs, vec![Some(6), Some(7), Some(8)]);
     store.undo();
     assert_eq!(
-        store.cases(&board).len(),
+        les_cases(&store, &board).len(),
         8,
         "défaire retire aussi la case ajoutée"
     );
@@ -720,7 +836,7 @@ fn test_p2_1_l_ordre_de_lecture_decide() {
 fn test_p2_1_le_lacher_ne_se_bloque_pas_lui_meme() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let cases: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     let milieu = |c: &StoryboardPanel| (c.x + c.width / 2.0, c.y + c.height / 2.0);
     let (m0, m1) = (milieu(&cases[0]), milieu(&cases[1]));
     // a et b au-dessus de la première case, c déjà au-dessus de la deuxième.
@@ -757,10 +873,12 @@ fn test_p2_2_sans_storyboard_il_nait_de_la_selection() {
     choisir(&mut store, &["c", "a", "b"]);
     store.journal.clear();
     assert_eq!(
-        store.storyboard_de_la_selection(&board, carree(), (300.0, 100.0)),
-        3
+        store
+            .storyboard_de_la_selection(&board, carree(), (300.0, 100.0))
+            .map(|(_, n)| n),
+        Some(3)
     );
-    let cases = store.cases(&board);
+    let cases = les_cases(&store, &board);
     assert_eq!(cases.len(), 3, "une case par image");
     assert_eq!((cases[0].x, cases[0].y), (300.0, 100.0), "par son coin");
     let rangs: Vec<_> = ["a", "b", "c"]
@@ -769,24 +887,42 @@ fn test_p2_2_sans_storyboard_il_nait_de_la_selection() {
         .collect();
     assert_eq!(rangs, vec![Some(0), Some(1), Some(2)], "l'ordre de lecture");
     store.undo();
-    assert!(store.cases(&board).is_empty(), "un seul Ctrl+Z");
+    assert!(les_cases(&store, &board).is_empty(), "un seul Ctrl+Z");
     let a = store.image(&board, "a").expect("a");
     assert_eq!((a.x, a.y, a.width), (500.0, 300.0, 400.0));
 }
 
-/// **Avec un storyboard, ses cases s'ajoutent à la suite**, et la sélection y entre.
+/// **Avec un storyboard, celui de la sélection naît à côté** (fiche 68) — jusque-là, ses cases
+/// s'ajoutaient à l'unique storyboard du tableau ; l'autre ne bouge pas.
 #[test]
-fn test_p2_2_avec_un_storyboard_les_cases_s_ajoutent_a_la_suite() {
+fn test_p2_2_avec_un_storyboard_celui_de_la_selection_nait_a_cote() {
     let (mut store, board) = tableau();
-    store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
+    let premier = store
+        .poser_le_storyboard(&board, carree(), (0.0, 0.0))
+        .expect("posé");
+    let avant: Vec<StoryboardPanel> = store.cases(&board, &premier).into_iter().cloned().collect();
     for (id, x) in [("a", 3000.0), ("b", 3500.0)] {
         store.add_image(&board, image(id, (x, 3000.0)));
     }
     choisir(&mut store, &["a", "b"]);
-    store.storyboard_de_la_selection(&board, carree(), (9999.0, 9999.0));
-    assert_eq!(store.cases(&board).len(), 10);
-    assert_eq!(rang_de(&store, &board, "a"), Some(8));
-    assert_eq!(rang_de(&store, &board, "b"), Some(9));
+    let (ne, n) = store
+        .storyboard_de_la_selection(&board, carree(), (9999.0, 9999.0))
+        .expect("un storyboard naît");
+    assert_eq!(n, 2);
+    assert_ne!(ne, premier);
+    assert_eq!(store.storyboards(&board).len(), 2);
+    let siennes = store.cases(&board, &ne);
+    assert_eq!(siennes.len(), 2);
+    assert_eq!(
+        (siennes[0].x, siennes[0].y),
+        (9999.0, 9999.0),
+        "là où était la sélection"
+    );
+    let a = store.image(&board, "a").expect("a");
+    assert!(siennes[0].contient((a.x, a.y)), "a dans sa première case");
+    let premier_apres: Vec<StoryboardPanel> =
+        store.cases(&board, &premier).into_iter().cloned().collect();
+    assert_eq!(premier_apres, avant, "l'autre ne bouge pas");
 }
 
 /// **Une image verrouillée reste dehors** : elle ne bouge pas, et n'a pas de case.
@@ -799,10 +935,12 @@ fn test_p2_2_une_image_verrouillee_reste_dehors() {
     store.add_image(&board, image("libre", (1000.0, 300.0)));
     choisir(&mut store, &["fermee", "libre"]);
     assert_eq!(
-        store.storyboard_de_la_selection(&board, carree(), (0.0, 0.0)),
-        1
+        store
+            .storyboard_de_la_selection(&board, carree(), (0.0, 0.0))
+            .map(|(_, n)| n),
+        Some(1)
     );
-    assert_eq!(store.cases(&board).len(), 1);
+    assert_eq!(les_cases(&store, &board).len(), 1);
     let f = store.image(&board, "fermee").expect("fermée");
     assert_eq!((f.x, f.y), (500.0, 300.0));
 }
@@ -819,10 +957,12 @@ fn test_p2_3_inserer_entre_deux_decale_les_suivantes_avec_leurs_images() {
         let [centre, ..] = cascade(&store, &board, rang);
         lacher(&mut store, &board, &[(id, centre)]);
     }
-    let avant: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let avant: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     store.journal.clear();
-    let neuve = store.inserer_une_case(&board, 2).expect("une case neuve");
-    let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
+    let neuve = store
+        .inserer_une_case(&board, &seul(&store, &board).unwrap(), 2)
+        .expect("une case neuve");
+    let cases: Vec<StoryboardPanel> = les_cases(&store, &board).into_iter().cloned().collect();
     assert_eq!(cases.len(), 9);
     assert_eq!(cases[2].id, neuve, "à sa place");
     assert!(store.images_de_la_case(&board, &neuve).is_empty(), "vide");
@@ -839,7 +979,7 @@ fn test_p2_3_inserer_entre_deux_decale_les_suivantes_avec_leurs_images() {
     assert_eq!(rang_de(&store, &board, "loin"), Some(6));
     assert_eq!(cases[3].id, avant[2].id, "avec leur case");
     store.undo();
-    assert_eq!(store.cases(&board).len(), 8, "un seul Ctrl+Z");
+    assert_eq!(les_cases(&store, &board).len(), 8, "un seul Ctrl+Z");
     assert_eq!(rang_de(&store, &board, "apres"), Some(2));
 }
 
@@ -848,11 +988,98 @@ fn test_p2_3_inserer_entre_deux_decale_les_suivantes_avec_leurs_images() {
 fn test_p2_3_inserer_au_debut_et_au_bout() {
     let (mut store, board) = tableau();
     store.poser_le_storyboard(&board, carree(), (0.0, 0.0));
-    let premiere = store.cases(&board)[0].id.clone();
-    let tete = store.inserer_une_case(&board, 0).expect("une case");
-    assert_eq!(store.cases(&board)[0].id, tete);
-    assert_eq!(store.cases(&board)[1].id, premiere);
-    let bout = store.inserer_une_case(&board, 9).expect("une case");
-    assert_eq!(store.cases(&board).last().map(|c| c.id.clone()), Some(bout));
-    assert_eq!(store.cases(&board).len(), 10);
+    let premiere = les_cases(&store, &board)[0].id.clone();
+    let tete = store
+        .inserer_une_case(&board, &seul(&store, &board).unwrap(), 0)
+        .expect("une case");
+    assert_eq!(les_cases(&store, &board)[0].id, tete);
+    assert_eq!(les_cases(&store, &board)[1].id, premiere);
+    let bout = store
+        .inserer_une_case(&board, &seul(&store, &board).unwrap(), 9)
+        .expect("une case");
+    assert_eq!(
+        les_cases(&store, &board).last().map(|c| c.id.clone()),
+        Some(bout)
+    );
+    assert_eq!(les_cases(&store, &board).len(), 10);
+}
+
+/// **P2.7 — les planches** (fiche 68) : chaque case, cadre et bande, tombe entière dans une
+/// planche et une seule, dans l'ordre de lecture ; toutes les planches ont la même taille, la
+/// plus proche du format A à l'italienne ; la marge est l'écart. À l'envers : le nombre de
+/// rangées d'une planche n'est pas un réglage — il change avec le format des cases.
+#[test]
+fn test_p2_7_chaque_case_tombe_dans_une_planche() {
+    for (format, colonnes, nombre) in [
+        (Format::Cinema, 4, 30),
+        (Format::Vertical, 6, 13),
+        (Format::Scope, 2, 1),
+        (Format::Carre, 3, 9),
+    ] {
+        let grille = Grille {
+            format,
+            largeur: 200.0,
+            colonnes,
+            ecart: 18.0,
+        };
+        let d = Disposition {
+            grille,
+            origine: (-300.0, 75.0),
+            nombre,
+        };
+        let planches = d.planches();
+        let (_, _, l, h) = planches[0];
+        assert!(
+            planches.iter().all(|p| (p.2, p.3) == (l, h)),
+            "une seule taille"
+        );
+        let (_, pas_y) = grille.pas();
+        let rangees = nombre.div_ceil(colonnes) as f64;
+        if planches.len() > 1 {
+            assert!(
+                (h - l / std::f64::consts::SQRT_2).abs() <= pas_y / 2.0 || h == pas_y + 18.0,
+                "{format:?} : la hauteur la plus proche de la largeur sur √2 ({l} × {h})"
+            );
+        } else {
+            assert!(
+                h <= rangees * pas_y + 18.0,
+                "{format:?} : une seule planche, sans rangée vide ({h})"
+            );
+        }
+        let mut derniere = 0;
+        for (i, (x, y, w, hc)) in d.cadres().into_iter().enumerate() {
+            let boite = (x, y, w, hc + DESCRIPTION);
+            let dedans: Vec<usize> = (0..planches.len())
+                .filter(|&p| {
+                    let (px, py, pl, ph) = planches[p];
+                    boite.0 >= px
+                        && boite.1 >= py
+                        && boite.0 + boite.2 <= px + pl
+                        && boite.1 + boite.3 <= py + ph
+                })
+                .collect();
+            assert_eq!(dedans.len(), 1, "{format:?} : la case {i} dans une planche");
+            assert!(dedans[0] >= derniere, "dans l'ordre de lecture");
+            derniere = dedans[0];
+        }
+        assert_eq!(derniere, planches.len() - 1, "aucune planche vide au bout");
+        assert_eq!(
+            (planches[0].0, planches[0].1),
+            (-318.0, 57.0),
+            "un écart de marge"
+        );
+    }
+    let rangees = |format| {
+        let grille = Grille {
+            format,
+            ..Grille::default()
+        };
+        let d = Disposition {
+            grille,
+            origine: (0.0, 0.0),
+            nombre: 40,
+        };
+        (d.planches()[0].3 - grille.ecart) / grille.pas().1
+    };
+    assert_ne!(rangees(Format::Cinema), rangees(Format::Vertical));
 }

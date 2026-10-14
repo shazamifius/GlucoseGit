@@ -16,6 +16,8 @@ use glucose_core::store::Store;
 /// d'une case qui n'a pas la sienne, et la case choisie.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lecture {
+    /// Le storyboard que le panneau montre — le courant (fiche 68).
+    pub storyboard: String,
     pub champs: Vec<String>,
     pub duree_ms: u32,
     pub case: Option<Choisie>,
@@ -34,12 +36,13 @@ pub struct Choisie {
 }
 
 impl Lecture {
-    /// Ce que le document dit du storyboard du tableau actif, et de la case `choisie`.
-    pub fn du(store: &Store, choisie: Option<&str>) -> Option<Self> {
+    /// Ce que le document dit de ce storyboard du tableau actif, et de la case `choisie` — si
+    /// elle est à lui.
+    pub fn du(store: &Store, sb: &str, choisie: Option<&str>) -> Option<Self> {
         let board = &store.project.active_board_id;
-        let storyboard = store.storyboard(board)?;
+        let storyboard = store.storyboard(board, sb)?;
         let case = choisie.and_then(|id| {
-            let c = store.cases(board).into_iter().find(|c| c.id == id)?;
+            let c = store.cases(board, sb).into_iter().find(|c| c.id == id)?;
             Some(Choisie {
                 id: c.id.clone(),
                 numero: c.order + 1,
@@ -52,6 +55,7 @@ impl Lecture {
             })
         });
         Some(Self {
+            storyboard: storyboard.id.clone(),
             champs: storyboard.champs.clone(),
             duree_ms: storyboard.duree_ms,
             case,
@@ -88,6 +92,8 @@ pub struct CaseLayout {
 pub struct LectureLayout {
     pub lire: WidgetRect,
     pub duree: WidgetRect,
+    /// « Exporter en planches… » (P2.7, fiche 68).
+    pub planches: WidgetRect,
     pub case: Option<CaseLayout>,
 }
 
@@ -104,13 +110,20 @@ pub fn poser(frame: ScaledRect, haut: f32, lecture: &Lecture) -> (LectureLayout,
     let moitie = (largeur - 6.0 * s) / 2.0;
     let lire = WidgetRect::new(x, y - 2.0 * s, moitie, 24.0 * s);
     let duree = WidgetRect::new(x + moitie + 6.0 * s, y, moitie, 20.0 * s);
-    let mut bas = y + 24.0 * s;
+    let planches = WidgetRect::new(x, y + 28.0 * s, largeur, 24.0 * s);
+    let mut bas = planches.y + planches.h;
     let case = lecture.case.as_ref().map(|c| {
         let (layout, sous) = poser_la_case(frame, bas + 10.0 * s, lecture, c);
         bas = sous;
         layout
     });
-    (LectureLayout { lire, duree, case }, bas)
+    let layout = LectureLayout {
+        lire,
+        duree,
+        planches,
+        case,
+    };
+    (layout, bas)
 }
 
 /// La case choisie : son titre, sa durée, « ↺ », son plan, puis une rangée par texte.
@@ -173,6 +186,9 @@ pub fn cliquer(
     if hit(layout.lire) {
         let depuis = lecture.case.as_ref().map(|c| c.id.clone());
         return Some(StoryboardIntent::Lire(depuis));
+    }
+    if hit(layout.planches) {
+        return Some(StoryboardIntent::Planches);
     }
     let (case, c) = (layout.case.as_ref()?, lecture.case.as_ref()?);
     if case.rendre.is_some_and(hit) {

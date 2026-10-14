@@ -49,7 +49,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 
 /// **À 100 %** : une unité du canevas, un pixel.
-const ECHELLE: f64 = 1.0;
+pub const ECHELLE: f64 = 1.0;
 
 /// Ce qu'un export dessine : un document réduit à ce qu'on exporte, la vue qui place son contenu
 /// dans l'image, et la taille de l'image.
@@ -103,31 +103,42 @@ pub enum Nouvelle {
     Fini(Result<u64, String>),
 }
 
-/// **Un export en cours** : son fichier, sa taille, et ce que son fil dit.
+/// **Un export en cours** : son fichier, combien de rangées il écrira en tout, ce qu'il dira
+/// de lui à la fin — « 1192 × 843 pixels », « 5 planches » —, et ce que son fil dit.
 pub struct EnCours {
     recu: mpsc::Receiver<Nouvelle>,
     pub chemin: PathBuf,
-    pub dimensions: (u32, u32),
+    total: u32,
+    resume: String,
 }
 
 impl EnCours {
+    pub fn new(
+        recu: mpsc::Receiver<Nouvelle>,
+        chemin: PathBuf,
+        (total, resume): (u32, String),
+    ) -> Self {
+        Self {
+            recu,
+            chemin,
+            total,
+            resume,
+        }
+    }
+
     /// Les nouvelles arrivées depuis la dernière fois, sans attendre.
     pub fn nouvelles(&self) -> Vec<Nouvelle> {
         self.recu.try_iter().collect()
     }
 }
 
-/// **Lance l'export** sur un fil à lui ; chaque bande de `surface` pixels au plus.
-pub fn lancer(
-    scene: Scene,
-    peintre: Peintre,
-    chemin: PathBuf,
-    surface: u64,
+/// **Un travail d'export sur un fil à lui** — une image, ou des planches (fiche 68) : il dit
+/// les rangées écrites, puis sa fin, et réveille la boucle à chaque nouvelle.
+pub fn lancer_le_travail(
     reveil: Option<Reveil>,
-) -> EnCours {
+    travail: impl FnOnce(&mut dyn FnMut(u32)) -> std::io::Result<u64> + Send + 'static,
+) -> mpsc::Receiver<Nouvelle> {
     let (envoi, recu) = mpsc::channel();
-    let dimensions = (scene.largeur, scene.hauteur);
-    let ici = chemin.clone();
     let dire = move |nouvelle| {
         let _ = envoi.send(nouvelle);
         if let Some(r) = &reveil {
@@ -138,23 +149,26 @@ pub fn lancer(
         .name("glucose-export".into())
         .spawn(move || {
             let mut rangees = |n| dire(Nouvelle::Rangees(n));
-            let fin = ecrire(scene, peintre, &ici, surface, &mut rangees);
+            let fin = travail(&mut rangees);
             dire(Nouvelle::Fini(fin.map_err(|e| e.to_string())));
         });
     // Un fil que le système refuse dit son échec par le même chemin qu'un export qui échoue.
-    let recu = match fil {
+    match fil {
         Ok(_) => recu,
         Err(e) => {
             let (envoi, recu) = mpsc::channel();
             let _ = envoi.send(Nouvelle::Fini(Err(e.to_string())));
             recu
         }
-    };
-    EnCours {
-        recu,
-        chemin,
-        dimensions,
     }
+}
+
+/// **Le moteur d'un export** : le sien, avec le thème de l'écran et son atelier prêté.
+pub fn moteur(peintre: Peintre) -> Renderer {
+    let mut moteur = Renderer::new();
+    moteur.theme = peintre.theme;
+    moteur.magasin.atelier.partager_avec(peintre.atelier);
+    moteur
 }
 
 /// Dessine la scène bande après bande et l'écrit au fil de l'eau ; rend le poids du fichier.
@@ -171,34 +185,53 @@ fn ecrire(
         largeur,
         hauteur,
     } = scene;
-    let mut moteur = Renderer::new();
-    moteur.theme = peintre.theme;
-    moteur.magasin.atelier.partager_avec(peintre.atelier);
-    let mut ui = UiState::new();
+    let mut moteur = moteur(peintre);
     let bande = (surface / u64::from(largeur)).clamp(1, u64::from(hauteur)) as u32;
     atomic::ecrire_en_flux(chemin, |sortie| {
-        let mut encodeur = png::Encoder::new(sortie, largeur, hauteur);
-        encodeur.set_color(png::ColorType::Rgb);
-        encodeur.set_depth(png::BitDepth::Eight);
-        let mut ecrivain = encodeur.write_header().map_err(std::io::Error::other)?;
-        let mut flux = ecrivain.stream_writer().map_err(std::io::Error::other)?;
-        let mut y = 0;
-        while y < hauteur {
-            let h = bande.min(hauteur - y);
-            let mut pixmap = tiny_skia::Pixmap::new(largeur, h)
-                .ok_or_else(|| std::io::Error::other("une bande trop grande pour la mémoire"))?;
-            let ici = Viewport {
-                y: vue.y - f64::from(y),
-                ..vue
-            };
-            moteur.rendre_pour_l_export(&mut pixmap.as_mut(), &store, &mut ui, ici);
-            flux.write_all(&en_rvb(&pixmap))?;
-            y += h;
-            rangees(y);
-        }
-        flux.finish().map_err(std::io::Error::other)
+        rendre_en_png(
+            &mut moteur,
+            &store,
+            (vue, largeur, hauteur),
+            bande,
+            sortie,
+            rangees,
+        )
     })?;
     Ok(std::fs::metadata(chemin)?.len())
+}
+
+/// **Rend cette vue en PNG, bande après bande, dans `sortie`** — un fichier, ou la mémoire d'une
+/// planche (fiche 68) : rouge, vert, bleu sur huit bits, la forme qu'un PDF pose telle quelle.
+/// `rangees` dit combien de rangées sont écrites.
+pub fn rendre_en_png(
+    moteur: &mut Renderer,
+    store: &Store,
+    (vue, largeur, hauteur): (Viewport, u32, u32),
+    bande: u32,
+    sortie: impl Write,
+    rangees: &mut dyn FnMut(u32),
+) -> std::io::Result<()> {
+    let mut ui = UiState::new();
+    let mut encodeur = png::Encoder::new(sortie, largeur, hauteur);
+    encodeur.set_color(png::ColorType::Rgb);
+    encodeur.set_depth(png::BitDepth::Eight);
+    let mut ecrivain = encodeur.write_header().map_err(std::io::Error::other)?;
+    let mut flux = ecrivain.stream_writer().map_err(std::io::Error::other)?;
+    let mut y = 0;
+    while y < hauteur {
+        let h = bande.min(hauteur - y);
+        let mut pixmap = tiny_skia::Pixmap::new(largeur, h)
+            .ok_or_else(|| std::io::Error::other("une bande trop grande pour la mémoire"))?;
+        let ici = Viewport {
+            y: vue.y - f64::from(y),
+            ..vue
+        };
+        moteur.rendre_pour_l_export(&mut pixmap.as_mut(), store, &mut ui, ici);
+        flux.write_all(&en_rvb(&pixmap))?;
+        y += h;
+        rangees(y);
+    }
+    flux.finish().map_err(std::io::Error::other)
 }
 
 /// Les pixels prémultipliés d'une bande, en rouge, vert, bleu : le fond est opaque, donc
@@ -218,27 +251,56 @@ impl GlucoseApp {
     /// **Exporte en image** la sélection, ou le tableau, à `chemin` — sur un fil à soi ; la
     /// boucle relève où il en est ([`Self::suivre_l_export`]).
     pub(crate) fn exporter_en_image(&mut self, chemin: PathBuf) {
-        if self.attentes.export.is_some() {
-            self.ui.show_toast("Un export en image est déjà en cours");
+        if self.un_export_attend() {
             return;
         }
         let Some(scene) = preparer(&self.store) else {
             self.ui.show_toast("Rien à exporter : ce tableau est vide");
             return;
         };
-        let (l, h) = self.taille_de_la_fenetre();
-        let peintre = Peintre {
+        let resume = format!("{} × {} pixels", scene.largeur, scene.hauteur);
+        let total = scene.hauteur;
+        let (peintre, surface) = (self.peintre_de_l_export(), self.surface_d_une_bande());
+        let ici = chemin.clone();
+        let travail =
+            move |rangees: &mut dyn FnMut(u32)| ecrire(scene, peintre, &ici, surface, rangees);
+        let recu = lancer_le_travail(self.reveil_de_l_export(), travail);
+        self.attentes.export = Some(EnCours::new(recu, chemin, (total, resume)));
+        self.dire_l_avancee(0, total);
+    }
+
+    /// **Un export est-il déjà en cours ?** Il le dit — un seul à la fois, une image ou des
+    /// planches.
+    pub(crate) fn un_export_attend(&mut self) -> bool {
+        let attend = self.attentes.export.is_some();
+        if attend {
+            self.ui.show_toast("Un export est déjà en cours");
+        }
+        attend
+    }
+
+    /// Ce que le moteur d'un export emprunte à celui de l'écran.
+    pub(crate) fn peintre_de_l_export(&self) -> Peintre {
+        Peintre {
             theme: self.renderer.theme.clone(),
             atelier: self.renderer.magasin.atelier.a_partager(),
-        };
-        let reveil = self.lancement.reveil.clone().map(|proxy| -> Reveil {
+        }
+    }
+
+    /// **Une bande d'export a la surface de la fenêtre** : le travail pour lequel le moteur est
+    /// fait.
+    pub(crate) fn surface_d_une_bande(&self) -> u64 {
+        let (l, h) = self.taille_de_la_fenetre();
+        (f64::from(l) * f64::from(h)).max(1.0) as u64
+    }
+
+    /// De quoi réveiller la boucle depuis le fil de l'export.
+    pub(crate) fn reveil_de_l_export(&self) -> Option<Reveil> {
+        self.lancement.reveil.clone().map(|proxy| -> Reveil {
             Arc::new(move || {
                 let _ = proxy.send_event(());
             })
-        });
-        self.dire_l_avancee(0, scene.hauteur);
-        let surface = (f64::from(l) * f64::from(h)).max(1.0) as u64;
-        self.attentes.export = Some(lancer(scene, peintre, chemin, surface, reveil));
+        })
     }
 
     /// Un export en image est-il en cours ?
@@ -252,7 +314,8 @@ impl GlucoseApp {
         let Some(export) = self.attentes.export.as_ref() else {
             return;
         };
-        let (nouvelles, (largeur, hauteur)) = (export.nouvelles(), export.dimensions);
+        let (nouvelles, total) = (export.nouvelles(), export.total);
+        let resume = export.resume.clone();
         let nom = export
             .chemin
             .file_name()
@@ -268,25 +331,24 @@ impl GlucoseApp {
                     }
                     self.ui.show_toast(match fin {
                         Ok(octets) => format!(
-                            "{nom} exporté — {largeur} × {hauteur} pixels, {}",
+                            "{nom} exporté — {resume}, {}",
                             crate::persist::human_size(octets as usize)
                         ),
-                        Err(e) => format!("L'image n'a pas pu s'écrire : {e}"),
+                        Err(e) => format!("L'export n'a pas pu s'écrire : {e}"),
                     });
                     return;
                 }
             }
         }
         if let Some(n) = faites {
-            self.dire_l_avancee(n, hauteur);
+            self.dire_l_avancee(n, total);
         }
     }
 
     /// Où en est l'export : la part des rangées écrites — au départ, zéro.
-    fn dire_l_avancee(&mut self, ecrites: u32, hauteur: u32) {
-        let pourcent = u64::from(ecrites) * 100 / u64::from(hauteur.max(1));
-        self.ui
-            .show_toast(format!("Export en image : {pourcent} %"));
+    pub(crate) fn dire_l_avancee(&mut self, ecrites: u32, total: u32) {
+        let pourcent = u64::from(ecrites) * 100 / u64::from(total.max(1));
+        self.ui.show_toast(format!("Export : {pourcent} %"));
     }
 }
 

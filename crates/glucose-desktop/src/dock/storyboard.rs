@@ -11,6 +11,7 @@
 //! qu'un doigt fait aussi bien qu'une souris.
 
 use super::WidgetRect;
+use crate::interactions::storyboard::{storyboard_courant, StoryboardUi};
 use crate::params::{Pointer, ScaledRect};
 use glucose_core::store::storyboard::{Format, Grille, Plan, Texte};
 use glucose_core::store::Store;
@@ -86,11 +87,18 @@ impl StoryboardState {
         FORMATS[self.format_idx.min(FORMATS.len() - 1)]
     }
 
-    /// **Le panneau suit le document** à chaque image : ses cases, son storyboard, la case
-    /// `choisie` ; et ses champs, la grille et les durées **quand le document les change**.
-    pub fn suivre(&mut self, store: &Store, choisie: Option<&str>) {
-        self.contenu = Contenu::du(store, choisie);
-        self.suivre_la_grille(store.grille_du_storyboard(&store.project.active_board_id));
+    /// **Le panneau suit le document** à chaque image : le storyboard courant (fiche 68), ses
+    /// cases, la case choisie ; et ses champs, la grille et les durées **quand le document les
+    /// change**.
+    pub fn suivre(&mut self, store: &Store, ui: &StoryboardUi) {
+        self.contenu = Contenu::du(store, ui);
+        let board = &store.project.active_board_id;
+        let grille = self
+            .contenu
+            .lecture
+            .as_ref()
+            .and_then(|l| store.grille_du_storyboard(board, &l.storyboard));
+        self.suivre_la_grille(grille);
         self.suivre_les_durees();
     }
 
@@ -144,24 +152,33 @@ impl StoryboardState {
     }
 }
 
-/// **Les cases du tableau actif**, telles que le panneau les montre : l'identifiant, le numéro,
-/// la description ; et ce que le storyboard dit pour la lecture (fiche 67).
+/// **Les cases du storyboard courant**, telles que le panneau les montre : l'identifiant, le
+/// numéro, la description ; ce que le storyboard dit pour la lecture (fiche 67) ; et son rang
+/// parmi les storyboards du tableau, quand il y en a plusieurs (fiche 68).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Contenu {
     pub cases: Vec<(String, i32, String)>,
     pub lecture: Option<Lecture>,
+    /// Le rang du courant, et combien le tableau en porte — `None` s'il en porte un ou aucun.
+    pub sequences: Option<(usize, usize)>,
 }
 
 impl Contenu {
-    pub fn du(store: &Store, choisie: Option<&str>) -> Self {
+    pub fn du(store: &Store, ui: &StoryboardUi) -> Self {
         let board = &store.project.active_board_id;
+        let Some(sb) = storyboard_courant(store, board, ui) else {
+            return Self::default();
+        };
+        let tous = store.storyboards(board);
+        let rang = tous.iter().position(|s| s.id == sb).unwrap_or(0);
         Self {
             cases: store
-                .cases(board)
+                .cases(board, &sb)
                 .into_iter()
                 .map(|c| (c.id.clone(), c.order, c.description.clone()))
                 .collect(),
-            lecture: Lecture::du(store, choisie),
+            lecture: Lecture::du(store, &sb, ui.choisie.as_deref()),
+            sequences: (tous.len() > 1).then_some((rang, tous.len())),
         }
     }
 }
@@ -184,7 +201,13 @@ pub struct StoryboardPanelLayout {
     pub gap_input: WidgetRect,
     /// Les cellules de l'aperçu, et le numéro de chacune.
     pub cells: Vec<WidgetRect>,
+    /// « Activer » — ou, quand un storyboard est là, « Mettre à jour » le courant.
     pub activate_button: WidgetRect,
+    /// « + Nouveau » : un autre storyboard, à côté du courant (fiche 68).
+    pub nouveau: Option<WidgetRect>,
+    /// ‹ et ›, pour passer d'un storyboard à l'autre ; le rang du courant, et combien — quand
+    /// le tableau en porte plusieurs (fiche 68).
+    pub sequences: Option<(WidgetRect, WidgetRect, usize, usize)>,
     /// Où s'écrit l'aide du geste, sous le bouton : un clic pose, un glisser trace (TRACE-1).
     pub aide: (f32, f32),
     /// La croix qui efface le storyboard, quand il y en a un.
@@ -254,15 +277,31 @@ pub fn layout_storyboard_panel(
 
     let boutons_y = bas_apercu + 10.0 * s;
     let croix_w = if n > 0 { 32.0 * s } else { 0.0 };
-    let activate_button = WidgetRect::new(
-        px + pad_x,
-        boutons_y,
-        inner_w - croix_w - if n > 0 { 6.0 * s } else { 0.0 },
-        28.0 * s,
-    );
+    let place = inner_w - croix_w - if n > 0 { 6.0 * s } else { 0.0 };
+    // Un storyboard là : « Mettre à jour » et « + Nouveau » se partagent la place (fiche 68).
+    let largeur = if n > 0 {
+        (place - 6.0 * s) / 2.0
+    } else {
+        place
+    };
+    let activate_button = WidgetRect::new(px + pad_x, boutons_y, largeur, 28.0 * s);
+    let nouveau = (n > 0).then(|| {
+        let x = activate_button.x + largeur + 6.0 * s;
+        WidgetRect::new(x, boutons_y, largeur, 28.0 * s)
+    });
     let effacer =
         (n > 0).then(|| WidgetRect::new(px + pw - pad_x - croix_w, boutons_y, croix_w, 28.0 * s));
     let aide = (px + pad_x, boutons_y + 34.0 * s);
+    let sequences = contenu.sequences.map(|(rang, nombre)| {
+        let suivant = WidgetRect::new(
+            px + pw - pad_x - 18.0 * s,
+            frame.y + 12.0 * s,
+            18.0 * s,
+            18.0 * s,
+        );
+        let precedent = WidgetRect::new(suivant.x - 58.0 * s, suivant.y, 18.0 * s, 18.0 * s);
+        (precedent, suivant, rang, nombre)
+    });
     let mut layout = StoryboardPanelLayout {
         format_button,
         width_input,
@@ -270,6 +309,8 @@ pub fn layout_storyboard_panel(
         gap_input,
         cells,
         activate_button,
+        nouveau,
+        sequences,
         aide,
         effacer,
         lecture: None,
@@ -348,13 +389,17 @@ fn poser_la_liste(
 /// **Ce que le panneau demande** — l'application le fait.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StoryboardIntent {
-    /// Armer la grille : elle suit le curseur jusqu'au clic qui la pose, ou range les cases
-    /// existantes (« Mettre à jour »).
+    /// Armer la grille : elle suit le curseur jusqu'au clic qui pose **un storyboard neuf**
+    /// (« Activer », « + Nouveau » — fiche 68).
     Armer(Grille),
-    /// Effacer le storyboard : toutes les cases.
+    /// Armer la grille pour ranger les cases du storyboard courant (« Mettre à jour »).
+    MettreAJour(Grille),
+    /// Passer au storyboard voisin : −1, ou +1 (fiche 68).
+    Changer(isize),
+    /// Effacer le storyboard courant : toutes ses cases.
     Effacer,
-    /// Ajouter une case à la suite.
-    Ajouter(Grille),
+    /// Ajouter une case à la suite du storyboard courant.
+    Ajouter,
     /// Écrire l'un des textes de cette case (fiche 67).
     Ecrire(String, Texte),
     /// Lire le storyboard en plein écran, depuis cette case — ou la première (fiche 67).
@@ -369,6 +414,8 @@ pub enum StoryboardIntent {
     Retirer(String),
     /// Renuméroter les cases dans l'ordre de lecture.
     Renumeroter,
+    /// Exporter le storyboard courant en planches — PDF ou images (P2.7, fiche 68).
+    Planches,
 }
 
 /// **Le clic dans le panneau** : un réglage change ici, une demande part à l'application.
@@ -383,13 +430,28 @@ pub fn click_storyboard_panel(
         return None;
     }
     if hit(layout.activate_button) {
+        return Some(if contenu.cases.is_empty() {
+            StoryboardIntent::Armer(state.grille())
+        } else {
+            StoryboardIntent::MettreAJour(state.grille())
+        });
+    }
+    if layout.nouveau.is_some_and(hit) {
         return Some(StoryboardIntent::Armer(state.grille()));
+    }
+    if let Some((precedent, suivant, _, _)) = layout.sequences {
+        if hit(precedent) {
+            return Some(StoryboardIntent::Changer(-1));
+        }
+        if hit(suivant) {
+            return Some(StoryboardIntent::Changer(1));
+        }
     }
     if layout.effacer.is_some_and(hit) {
         return Some(StoryboardIntent::Effacer);
     }
     if layout.liste.is_some_and(|(_, ajouter)| hit(ajouter)) {
-        return Some(StoryboardIntent::Ajouter(state.grille()));
+        return Some(StoryboardIntent::Ajouter);
     }
     if let Some((precedente, suivante, page, pages)) = layout.pages {
         if hit(precedente) {

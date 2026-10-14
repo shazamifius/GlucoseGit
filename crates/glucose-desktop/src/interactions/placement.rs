@@ -38,6 +38,9 @@ pub struct Placement {
     /// La grille du storyboard armée dans son panneau, qui suit le curseur jusqu'au clic
     /// (STORYBOARD-1).
     pub storyboard: Option<glucose_core::store::storyboard::Grille>,
+    /// **Le storyboard que la grille armée range** — « Mettre à jour », ou sa poignée ; aucun :
+    /// elle en fait naître un (fiche 68).
+    pub cible: Option<String>,
     /// Le rectangle que la main trace sous une membrane, un dossier ou la grille armée
     /// (TRACE-1).
     pub trace: Option<super::trace::Trace>,

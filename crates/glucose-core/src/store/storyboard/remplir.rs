@@ -22,8 +22,9 @@
 //! # Un storyboard de la sélection (proposition 2)
 //!
 //! Choisir des images, puis « Storyboard de la sélection » au clic droit : une case par image,
-//! dans le même ordre de lecture. Sans storyboard, il naît là où était la sélection ; avec un,
-//! ses cases s'ajoutent à la suite — un tableau n'en porte qu'un, jusqu'à la proposition 8.
+//! dans le même ordre de lecture. **Un storyboard naît** là où était la sélection — à côté de
+//! ceux qui sont déjà là (proposition 8, fiche 68 ; jusque-là, ses cases s'ajoutaient à l'unique
+//! storyboard du tableau).
 
 use super::super::Store;
 use super::{ordre_de_lecture, Boite, Disposition, Grille};
@@ -41,13 +42,16 @@ impl Store {
         for rang in ordre_de_lecture(&boites) {
             let (id, (gauche, haut, largeur, hauteur)) = &lacher[rang];
             let centre = (gauche + largeur / 2.0, haut + hauteur / 2.0);
-            let Some(sous) = self.case_sous(board_id, centre).map(|c| c.id.clone()) else {
+            let Some((sous, sb)) = self
+                .case_sous(board_id, centre)
+                .map(|c| (c.id.clone(), c.storyboard.clone()))
+            else {
                 continue;
             };
             let case = if remplies.contains(&sous) {
-                match self.case_vide_apres(board_id, &sous, (&du_lacher, &remplies)) {
+                match self.case_vide_apres((board_id, &sb), &sous, (&du_lacher, &remplies)) {
                     Some(c) => c,
-                    None => match self.ajouter_une_case(board_id, Grille::default()) {
+                    None => match self.ajouter_une_case(board_id, &sb) {
                         Some(c) => c,
                         None => continue,
                     },
@@ -61,45 +65,45 @@ impl Store {
     }
 
     /// **Un storyboard de la sélection** (P2, proposition 2, fiche 66) : une case par image
-    /// choisie, dans l'ordre de lecture. Sans storyboard, il naît là où était la sélection — sa
-    /// première case par son coin en `coin`, à la grille `reglee` ; sinon, ses cases s'ajoutent
-    /// à la suite. Un geste. Rend combien d'images y sont entrées.
+    /// choisie, dans l'ordre de lecture. Il naît là où était la sélection — sa première case par
+    /// son coin en `coin`, à la grille `reglee` (fiche 68). Un geste. Rend le storyboard né, et
+    /// combien d'images y sont entrées.
     pub fn storyboard_de_la_selection(
         &mut self,
         board_id: &str,
         reglee: Grille,
         coin: (f64, f64),
-    ) -> usize {
+    ) -> Option<(String, usize)> {
         let ids = self.selected_image_ids.to_vec();
         let images = self.boites_ajustables(board_id, &ids);
         if images.is_empty() {
-            return 0;
+            return None;
         }
         let boites: Vec<Boite> = images.iter().map(|(_, b)| *b).collect();
         let ouvert = self.in_live_edit();
         if !ouvert {
             self.begin_live_edit();
         }
-        let mut d = self
-            .disposition_actuelle(board_id, reglee)
-            .unwrap_or(Disposition {
-                grille: reglee,
-                origine: coin,
-                nombre: 0,
-            });
-        let premiere = d.nombre;
-        d.nombre += images.len();
-        self.disposer(board_id, d);
-        let cases: Vec<String> = self.cases(board_id).iter().map(|c| c.id.clone()).collect();
-        for (k, rang) in ordre_de_lecture(&boites).into_iter().enumerate() {
-            if let Some(case) = cases.get(premiere + k) {
+        let d = Disposition {
+            grille: reglee,
+            origine: coin,
+            nombre: images.len(),
+        };
+        let ne = self.disposer((board_id, None), d);
+        if let Some(sb) = &ne {
+            let cases: Vec<String> = self
+                .cases(board_id, sb)
+                .iter()
+                .map(|c| c.id.clone())
+                .collect();
+            for (case, rang) in cases.iter().zip(ordre_de_lecture(&boites)) {
                 self.ajuster_dans_la_case(board_id, &images[rang].0, case);
             }
         }
         if !ouvert {
             self.end_live_edit();
         }
-        images.len()
+        ne.map(|sb| (sb, images.len()))
     }
 
     /// Les images de `ids` qu'une case peut prendre — ni verrouillées, ni vides —, et leur
@@ -117,15 +121,16 @@ impl Store {
             .collect()
     }
 
-    /// **La première case vide après `apres`** dans la suite : aucune image ne la remplit déjà
-    /// pendant ce lâcher, et toutes celles qu'elle porte sont de ce lâcher — elles s'en vont.
+    /// **La première case vide après `apres`** dans la suite de son storyboard : aucune image
+    /// ne la remplit déjà pendant ce lâcher, et toutes celles qu'elle porte sont de ce lâcher —
+    /// elles s'en vont.
     fn case_vide_apres(
         &self,
-        board_id: &str,
+        (board_id, sb): (&str, &str),
         apres: &str,
         (du_lacher, remplies): (&HashSet<&str>, &HashSet<String>),
     ) -> Option<String> {
-        let cases = self.cases(board_id);
+        let cases = self.cases(board_id, sb);
         let depuis = cases.iter().position(|c| c.id == apres)? + 1;
         cases[depuis..]
             .iter()
@@ -142,8 +147,8 @@ impl Store {
     /// Une image contenue dans le cadre de cette case, centrée, à ses proportions.
     fn ajuster_dans_la_case(&mut self, board_id: &str, id: &str, case_id: &str) {
         let Some(case) = self
-            .cases(board_id)
-            .into_iter()
+            .toutes_les_cases(board_id)
+            .iter()
             .find(|c| c.id == case_id)
             .cloned()
         else {

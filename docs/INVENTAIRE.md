@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 14/10/2026** (fiches 63 à 66). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 15/10/2026** (fiches 63 à 68). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -31,6 +31,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Renommer, dupliquer, supprimer un document | l'explorateur du système | ✅ appui long dans la liste |
 | Importer un document en onglets | menu d'un onglet, ou le déposer sur les onglets | ✅ menu d'un onglet (la liste) — **ACCES-1** |
 | Exporter (Markdown, SVG, PNG) | bouton Exporter, **menu du vide**, `Ctrl+E` | ✅ rail, menu : le format se demande, puis **la feuille de partage** (PARTAGE-2) |
+| **Exporter le storyboard en planches** — PDF (une page par planche) ou images ; la planche est ce que le canevas montre, au format A (P2.7, fiche 68) | panneau Storyboard « Exporter en planches… », menu du vide | ✅ les mêmes : un PDF, à la feuille de partage |
 | Time Machine (regarder, restaurer, jalons) | bouton, `Ctrl+H` | ✅ rail |
 | Annuler, rétablir | **menu** (ACCES-1), `Ctrl+Z`, `Ctrl+Y` | ✅ menu, deux et trois doigts |
 | Journal technique, voir ce qui part | menu du vide | ✅ menu (sans « voir ce qui part » : pas d'explorateur) |
@@ -75,7 +76,8 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 |---|---|---|
 | Ordonner (cinq dispositions, huit tris, champs) | panneau Ordonner | 🟡 les champs se glissent, **ne se tapent pas** (le clavier d'Android ne sert pas les champs du dock) |
 | Presets : poser un gabarit, ses zones, « Par slot preset » | panneau Preset | ✅ |
-| **Storyboard** : poser la grille (« Activer », un clic), « Mettre à jour », effacer (×) | panneau Storyboard | ✅ (STORYBOARD-1, fiche 64 — à juger) |
+| **Storyboard** : poser la grille (« Activer », un clic), « Mettre à jour » le storyboard courant, effacer le courant (×) | panneau Storyboard | ✅ (STORYBOARD-1, fiche 64 — à juger) |
+| **Plusieurs storyboards par tableau**, une séquence chacun : « + Nouveau » en pose un autre ; ‹ et › passent de l'un à l'autre (« 2 / 3 ») ; choisir une case fait le sien **courant** — celui que le panneau montre, que « ▶ Lire », « + Ajouter », « Mettre à jour » et × visent (P2.8, fiche 68) | panneau Storyboard, la bande d'une case | ✅ (les mêmes boutons au doigt) |
 | Storyboard : **tracer un rectangle** que les cases remplissent | « Activer », puis glisser (STORYBOARD-2, fiche 65) | ✅ |
 | Storyboard : **le retracer** — des cases en plus ou en moins, celles qui portent quelque chose gardées | la **poignée** au coin bas droit, une case choisie ; ou « Mettre à jour », puis glisser | ✅ |
 | Une case : **la lâcher à une autre place** — les autres se décalent, chacune avec ses images | sa bande, glissée | ✅ |
@@ -84,7 +86,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Une case : sa description | deux clics sur sa bande, ou sa ligne dans le panneau | ✅ (la question à champ, le clavier du téléphone) |
 | Une case : la retirer | sa croix, `Suppr`, le × de sa ligne | ✅ (croix, panneau) |
 | Une image dans une case : s'y ajuste | la lâcher dedans | ✅ |
-| **Un storyboard de la sélection** : une case par image choisie, dans l'ordre de lecture — sans storyboard, il naît à la place de la sélection ; sinon ses cases s'ajoutent à la suite (P2, fiche 66) | menu de la sélection, « Storyboard de la sélection » | ✅ menu (appui long sur la sélection) |
+| **Un storyboard de la sélection** : une case par image choisie, dans l'ordre de lecture — **un storyboard naît** à la place de la sélection, à côté de ceux qui sont là, et devient le courant (P2, fiches 66 et 68) | menu de la sélection, « Storyboard de la sélection » | ✅ menu (appui long sur la sélection) |
 | **Plusieurs images** lâchées sur une case : une par case vide, à la suite, dans l'ordre de lecture — le storyboard s'allonge s'il le faut (P2, fiche 66) | les glisser ensemble, ou déposer des fichiers dessus | ✅ (les images choisies, glissées au doigt) |
 | **La durée d'une case** (la sienne, ou celle du storyboard ; « ↺ » la rend) — en secondes, glissée ou tapée (fiche 67) | panneau Storyboard, « CASE n », DURÉE | 🟡 se glisse ; ne se tape pas (le clavier ne sert pas les champs du dock) |
 | **La durée par case** de tout le storyboard (fiche 67) | panneau, DURÉE PAR CASE | 🟡 idem |
@@ -141,5 +143,5 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Mac** (une version publiée), **iPad** (par le web) | toutes les machines | — | la CI compile le Mac ; l'iPad attend le web |
 | **Le dessin de la sélection** (son choix entre les directions) | sa demande | — | planches à lui montrer |
 | **L'UX du téléphone**, toute refaite : ultra rapide, fluide, pratique | sa demande | — | **en dernier** |
-| **Le Storyboard, plus loin** : ~~plusieurs images qui remplissent les cases vides à la suite~~ (fait, fiche 66) ; ~~un storyboard de la sélection~~ (fait, fiche 66) ; ~~insérer une case entre deux~~ (fait, fiche 66) ; ~~la lecture, les champs, le plan~~ (faits, fiche 67) ; l'export en planches ; plusieurs storyboards par tableau | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **validées toutes les huit** (13/10) — SUITE P2 |
+| **Le Storyboard, plus loin** : ~~plusieurs images qui remplissent les cases vides à la suite~~ (fait, fiche 66) ; ~~un storyboard de la sélection~~ (fait, fiche 66) ; ~~insérer une case entre deux~~ (fait, fiche 66) ; ~~la lecture, les champs, le plan~~ (faits, fiche 67) ; ~~plusieurs storyboards par tableau~~ (fait, fiche 68) ; ~~l'export en planches~~ (fait, fiche 68) — **les huit propositions sont écrites** | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **validées toutes les huit** (13/10) — SUITE P2 |
 | **Le défilement au bord** (« moche, pas fluide ») | son essai | — | à reprendre avec sa chronique |

@@ -21,6 +21,19 @@ pub fn render_storyboard_panel(
     let contenu = &state.contenu;
     let layout = layout_storyboard_panel(frame, state, contenu);
     brush.title(pixmap, frame, "STORYBOARD");
+    // Plusieurs storyboards : le courant, parmi combien, et de quoi passer de l'un à l'autre.
+    if let Some((precedent, suivant, rang, nombre)) = layout.sequences {
+        brush.button(pixmap, precedent, "‹", 12.0, ButtonLook::default());
+        brush.button(pixmap, suivant, "›", 12.0, ButtonLook::default());
+        let texte = format!("{} / {nombre}", rang + 1);
+        let milieu = (precedent.x + precedent.w + suivant.x) / 2.0;
+        let largeur = brush.typo.measure_text(&texte, brush.px(9.5), Face::Bold).0;
+        brush.caption(
+            pixmap,
+            (milieu - largeur / 2.0, precedent.y + brush.px(4.0)),
+            &texte,
+        );
+    }
 
     let x = frame.x + brush.px(14.0);
     brush.caption(
@@ -49,6 +62,9 @@ pub fn render_storyboard_panel(
         12.0,
         ButtonLook::default(),
     );
+    if let Some(nouveau) = layout.nouveau {
+        brush.button(pixmap, nouveau, "+ Nouveau", 12.0, ButtonLook::default());
+    }
     // Le geste qui suit « Activer » ne se devine pas : il se dit ici, pas dans un toast, qui
     // ne dit que ce qui vient d'avoir lieu (cliquet 2).
     brush.caption(pixmap, layout.aide, "UN CLIC POSE, UN GLISSER TRACE");
@@ -70,6 +86,14 @@ fn peindre_la_lecture(
     (layout, lecture): (&LectureLayout, &Lecture),
 ) {
     brush.button(pixmap, layout.lire, "▶ Lire", 12.0, ButtonLook::default());
+    let planches = "Exporter en planches…";
+    brush.button(
+        pixmap,
+        layout.planches,
+        planches,
+        12.0,
+        ButtonLook::default(),
+    );
     crate::dock::champ::paint::peindre(pixmap, brush, dock, Champ::StoryDuree, layout.duree);
     if let (Some(case), Some(c)) = (&layout.case, &lecture.case) {
         let titre = format!("CASE {}", c.numero);

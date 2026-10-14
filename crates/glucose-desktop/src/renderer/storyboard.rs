@@ -62,8 +62,8 @@ fn visibles<'a>(
         top: pass.header_h,
     };
     store
-        .cases(&board.id)
-        .into_iter()
+        .toutes_les_cases(&board.id)
+        .iter()
         .filter_map(|case| {
             let (sx, sy) = world_to_screen(case.x, case.y, &pass.vp);
             let boite = (
@@ -266,21 +266,24 @@ pub(super) fn orner_la_case_choisie(
     for bouton in plus(b, d) {
         super::zone::dessiner_le_plus(pixmap, theme, bouton, d);
     }
-    dessiner_la_poignee(pixmap, theme, (store, pass));
+    dessiner_la_poignee(pixmap, theme, (store, pass), id);
 }
 
-/// **La poignée du storyboard** (STORYBOARD-2) : au coin bas droit de sa boîte, celle des nœuds
-/// — on la tire pour le retracer.
+/// **La poignée du storyboard de la case choisie** (STORYBOARD-2) : au coin bas droit de sa
+/// boîte, celle des nœuds — on la tire pour le retracer.
 fn dessiner_la_poignee(
     pixmap: &mut PixmapMut,
     theme: &crate::theme::Theme,
     (store, pass): (&Store, ViewPass<'_>),
+    choisie: &str,
 ) {
     let Some(board) = store.active_board() else {
         return;
     };
-    let grille = glucose_core::store::storyboard::Grille::default();
-    let Some(d) = store.disposition_actuelle(&board.id, grille) else {
+    let Some(sb) = store.storyboard_de_la_case(&board.id, choisie) else {
+        return;
+    };
+    let Some(d) = store.disposition_actuelle(&board.id, &sb.id) else {
         return;
     };
     let (x, y, w, h) = d.boite();

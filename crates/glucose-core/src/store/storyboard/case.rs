@@ -14,7 +14,7 @@
 //! commentaires de Krita. Une case garde le texte du champ de rang `i` à son rang `i` : retirer
 //! un champ retire ce rang de chaque case **dans le même geste**, et `Ctrl+Z` rend les deux.
 
-use super::super::journal::{Edit, Slot, Whole};
+use super::super::journal::{Edit, Slot};
 use super::super::Store;
 use super::{Plan, Storyboard};
 use crate::types::StoryboardPanel;
@@ -69,15 +69,15 @@ impl Store {
         });
     }
 
-    /// **Règle la durée d'une case qui n'a pas la sienne**, pour tout le storyboard.
-    pub fn regler_la_duree_du_storyboard(&mut self, board_id: &str, duree_ms: u32) {
-        let edits = self.regler(board_id, |s| s.duree_ms = duree_ms.max(1));
+    /// **Règle la durée d'une case qui n'a pas la sienne**, pour tout ce storyboard.
+    pub fn regler_la_duree_du_storyboard(&mut self, (board_id, sb): (&str, &str), duree_ms: u32) {
+        let edits = self.regler((board_id, sb), |s| s.duree_ms = duree_ms.max(1));
         self.record_as_one_gesture(edits);
     }
 
-    /// **Renomme le champ de rang `rang`.**
-    pub fn nommer_le_champ(&mut self, board_id: &str, rang: usize, nom: &str) {
-        let edits = self.regler(board_id, |s| {
+    /// **Renomme le champ de rang `rang`** de ce storyboard.
+    pub fn nommer_le_champ(&mut self, (board_id, sb): (&str, &str), rang: usize, nom: &str) {
+        let edits = self.regler((board_id, sb), |s| {
             if let Some(champ) = s.champs.get_mut(rang) {
                 *champ = nom.to_string();
             }
@@ -85,27 +85,29 @@ impl Store {
         self.record_as_one_gesture(edits);
     }
 
-    /// **Ajoute un champ au bout** : chaque case l'a, vide. Rend son rang.
-    pub fn ajouter_un_champ(&mut self, board_id: &str, nom: &str) -> Option<usize> {
-        let rang = self.storyboard(board_id)?.champs.len();
-        let edits = self.regler(board_id, |s| s.champs.push(nom.to_string()));
+    /// **Ajoute un champ au bout** de ce storyboard : chacune de ses cases l'a, vide. Rend son
+    /// rang.
+    pub fn ajouter_un_champ(&mut self, (board_id, sb): (&str, &str), nom: &str) -> Option<usize> {
+        let rang = self.storyboard(board_id, sb)?.champs.len();
+        let edits = self.regler((board_id, sb), |s| s.champs.push(nom.to_string()));
         self.record_as_one_gesture(edits);
         Some(rang)
     }
 
-    /// **Retire le champ de rang `rang`**, et son texte de chaque case — en un geste.
-    pub fn retirer_le_champ(&mut self, board_id: &str, rang: usize) {
+    /// **Retire le champ de rang `rang`** de ce storyboard, et son texte de chacune de ses
+    /// cases — en un geste.
+    pub fn retirer_le_champ(&mut self, (board_id, sb): (&str, &str), rang: usize) {
         if self
-            .storyboard(board_id)
+            .storyboard(board_id, sb)
             .is_none_or(|s| rang >= s.champs.len())
         {
             return;
         }
-        let mut edits = self.regler(board_id, |s| {
+        let mut edits = self.regler((board_id, sb), |s| {
             s.champs.remove(rang);
         });
         edits.extend(self.changer(board_id, |c| {
-            if rang < c.textes.len() {
+            if c.storyboard == sb && rang < c.textes.len() {
                 c.textes.remove(rang);
                 while c.textes.last().is_some_and(String::is_empty) {
                     c.textes.pop();
@@ -115,19 +117,23 @@ impl Store {
         self.record_as_one_gesture(edits);
     }
 
-    /// Change le storyboard par `f`, et rend son avant et son après.
-    fn regler(&mut self, board_id: &str, f: impl FnOnce(&mut Storyboard)) -> Vec<Edit> {
+    /// Change ce storyboard par `f`, et rend son avant et son après.
+    fn regler(
+        &mut self,
+        (board_id, sb): (&str, &str),
+        f: impl FnOnce(&mut Storyboard),
+    ) -> Vec<Edit> {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return Vec::new();
         };
-        let Some(storyboard) = b.storyboard.as_mut() else {
+        let Some(i) = b.storyboards.iter().position(|s| s.id == sb) else {
             return Vec::new();
         };
-        let avant = storyboard.clone();
-        f(storyboard);
+        let avant = b.storyboards[i].clone();
+        f(&mut b.storyboards[i]);
         vec![Edit::Storyboard {
             board: board_id.to_string(),
-            whole: Whole::new(Some(avant), Some(storyboard.clone())),
+            slot: Slot::changed(i, avant, b.storyboards[i].clone()),
         }]
     }
 

@@ -129,6 +129,7 @@ impl GlucoseApp {
                 let depuis = self.ui.storyboard.choisie.clone();
                 self.lire_le_storyboard(depuis.as_deref());
             }
+            MenuAction::ExporterLesPlanches => self.exporter_les_planches(),
             MenuAction::ToFront => {
                 self.store.move_selection_in_stack(&board, StackMove::Front);
             }

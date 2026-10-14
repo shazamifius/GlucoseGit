@@ -28,6 +28,7 @@ fn contenu(n: usize) -> Contenu {
             .map(|i| (format!("case-{i}"), i as i32, format!("plan {i}")))
             .collect(),
         lecture: None,
+        sequences: None,
     }
 }
 
@@ -79,7 +80,7 @@ fn test_chaque_bouton_dit_sa_demande() {
     let (_, ajouter) = layout.liste.expect("la liste");
     assert!(matches!(
         cliquer(au_centre(ajouter)),
-        Some(StoryboardIntent::Ajouter(_))
+        Some(StoryboardIntent::Ajouter)
     ));
     assert_eq!(layout.lignes.len(), 3);
     let deuxieme = &layout.lignes[1];

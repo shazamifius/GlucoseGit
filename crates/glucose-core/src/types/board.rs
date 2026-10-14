@@ -86,10 +86,11 @@ pub struct Board {
     pub images: Vec<BoardImage>,
     pub annotations: Vec<Annotation>,
     pub folders: Vec<CanvasFolder>,
+    /// Toutes les cases du tableau ; chacune nomme son storyboard (SEQUENCE-1, fiche 68).
     pub panels: Vec<StoryboardPanel>,
-    /// Le storyboard du tableau, s'il y en a un : sa grille (STORYBOARD-2), la durée et les
-    /// champs de ses cases (schéma 4, fiche 67).
-    pub storyboard: Option<Storyboard>,
+    /// **Les storyboards du tableau** — une séquence chacun (schéma 5, fiche 68) : sa grille
+    /// (STORYBOARD-2), la durée et les champs de ses cases (schéma 4, fiche 67).
+    pub storyboards: Vec<Storyboard>,
     pub zones: Vec<BoardZone>,
     pub viewport: Viewport,
     pub bookmarks: HashMap<String, Viewport>,
@@ -106,7 +107,7 @@ impl Board {
             annotations: Vec::new(),
             folders: Vec::new(),
             panels: Vec::new(),
-            storyboard: None,
+            storyboards: Vec::new(),
             zones: Vec::new(),
             viewport: Viewport::default(),
             bookmarks: HashMap::new(),

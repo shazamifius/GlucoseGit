@@ -21,7 +21,7 @@ use crate::persist::tauri::Valeur;
 use crate::types::{
     AssetRef, Board, BoardImage, BoardZone, CanvasFolder, Domain, DomainAssignment,
     FolderMirrorSource, FolderSortMode, Format, Grille, Preset, PresetSlot, Project, Storyboard,
-    StoryboardPanel, TemporalAnchor, Viewport,
+    StoryboardPanel, TemporalAnchor, Viewport, STORYBOARD_D_AVANT,
 };
 use std::collections::{BTreeMap, HashMap};
 
@@ -135,10 +135,15 @@ fn tableau(b: &Valeur, blobs: &HashMap<String, Vec<u8>>, r: &mut Rapport) -> Boa
             .map(|(k, v)| (k.clone(), vue(v)))
             .collect();
     }
-    board.storyboard = b
+    // Tauri ne portait qu'un storyboard par tableau : il prend le nom de celui d'avant le
+    // schéma 5, comme ses cases, et la règle de SEQUENCE-1 fait le reste (fiche 68).
+    board.storyboards = b
         .champ("storyboard")
         .and_then(|s| grille(s, r))
-        .map(Storyboard::neuf);
+        .map(|g| Storyboard::neuf(STORYBOARD_D_AVANT, g))
+        .into_iter()
+        .collect();
+    crate::types::rattacher(&mut board.panels, &mut board.storyboards);
     if b.champ("presetId").is_some() {
         r.omettre("preset appliqué à un tableau");
     }
@@ -318,11 +323,13 @@ fn panneau(p: &Valeur, r: &mut Rapport) -> StoryboardPanel {
     }
     let mut panel = StoryboardPanel::new(
         texte(p, "id"),
+        STORYBOARD_D_AVANT,
         p.entier("order").unwrap_or(0) as i32,
-        p.nombre("x").unwrap_or(0.0),
-        p.nombre("y").unwrap_or(0.0),
-        p.nombre("width").unwrap_or(0.0),
-        p.nombre("height").unwrap_or(0.0),
+        (p.nombre("x").unwrap_or(0.0), p.nombre("y").unwrap_or(0.0)),
+        (
+            p.nombre("width").unwrap_or(0.0),
+            p.nombre("height").unwrap_or(0.0),
+        ),
     );
     panel.description = texte(p, "description");
     panel

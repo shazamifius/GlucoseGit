@@ -300,6 +300,7 @@ impl Bridge {
         let case = self.doc.case.get(id).cloned().unwrap_or_default();
         StoryboardPanel {
             id: self.name_of(id).to_string(),
+            storyboard: case.storyboard.into(),
             order: self.doc.order.get(id).copied().unwrap_or(0),
             description: self.doc.text.get(id).to_string(),
             x: bx.x.to_f64(),

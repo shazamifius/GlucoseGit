@@ -177,6 +177,8 @@ fn nom_du_fichier(chemin: &Path) -> String {
         .to_string()
 }
 
+pub mod pdf;
+pub mod planches;
 pub mod png;
 
 #[cfg(test)]

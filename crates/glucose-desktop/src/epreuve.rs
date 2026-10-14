@@ -48,3 +48,21 @@ impl Drop for Dossier {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
+
+/// **Le seul storyboard de ce tableau** — les épreuves écrites avant la fiche 68 n'en posent
+/// qu'un ; s'il y en avait deux, l'épreuve tomberait plutôt que de choisir.
+pub(crate) fn seul_storyboard(store: &glucose_core::store::Store, board: &str) -> Option<String> {
+    match store.storyboards(board) {
+        [] => None,
+        [s] => Some(s.id.clone()),
+        plusieurs => panic!("{} storyboards : l'épreuve en attend un", plusieurs.len()),
+    }
+}
+
+/// Les cases du seul storyboard de ce tableau.
+pub(crate) fn les_cases<'a>(
+    store: &'a glucose_core::store::Store,
+    board: &str,
+) -> Vec<&'a glucose_core::types::StoryboardPanel> {
+    seul_storyboard(store, board).map_or_else(Vec::new, |sb| store.cases(board, &sb))
+}

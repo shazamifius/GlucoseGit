@@ -108,19 +108,31 @@ fn test_l_histoire_relue_redonne_le_document_apres_chaque_geste() {
     store.poser_les_zones(&b, vec![BoardZone::new("slot", 0.0, 0.0, 10.0, 10.0)]);
     store.set_project_name("renommé");
     verifier(&mut store, "zones, nom, image sur l'annexe");
-    // STORYBOARD-2 : la grille du storyboard s'écrit avec ses cases, et ses images suivent.
+    // STORYBOARD-2 : la grille du storyboard s'écrit avec ses cases, et ses images suivent ;
+    // deux storyboards dans le même tableau, rangés et effacés chacun à part (fiche 68).
     let grille = glucose_core::types::Grille::default();
-    let trace = store.disposition_du_trace(&b, grille, ((2000.0, 0.0), (3300.0, 700.0)));
-    store.disposer(&b, trace);
-    let case = store.cases(&b)[1].clone();
+    let trace = store.disposition_du_trace((&b, None), grille, ((2000.0, 0.0), (3300.0, 700.0)));
+    let sb = store
+        .disposer((&b, None), trace)
+        .expect("un storyboard naît");
+    let autre = store
+        .poser_le_storyboard(&b, grille, (2000.0, 2000.0))
+        .expect("un second");
+    let case = store.cases(&b, &sb)[1].clone();
     store.add_image(&b, image("dans-la-case", case.x + 40.0));
     store.ajuster_dans_les_cases(&b, &["dans-la-case".to_string()]);
-    verifier(&mut store, "tracer un storyboard, une image dans une case");
-    let premiere = store.cases(&b)[0].id.clone();
+    verifier(
+        &mut store,
+        "tracer un storyboard, en poser un autre, une image dans une case",
+    );
+    let premiere = store.cases(&b, &sb)[0].id.clone();
     store.retirer_la_case(&b, &premiere);
-    store.ajouter_une_case(&b, grille);
+    store.ajouter_une_case(&b, &sb);
+    store.ajouter_une_case(&b, &autre);
     verifier(&mut store, "retirer et ajouter une case");
-    store.effacer_le_storyboard(&b);
+    store.effacer_le_storyboard(&b, &sb);
+    verifier(&mut store, "effacer un storyboard, l'autre reste");
+    store.effacer_le_storyboard(&b, &autre);
     verifier(&mut store, "effacer le storyboard");
     store
         .try_add_domain(Domain {

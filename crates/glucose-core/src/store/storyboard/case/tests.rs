@@ -11,8 +11,17 @@ fn storyboard() -> (Store, String, Vec<String>) {
     let mut store = Store::new("Projet");
     let board = store.project.active_board_id.clone();
     store.poser_le_storyboard(&board, Grille::default(), (0.0, 0.0));
-    let ids = store.cases(&board).iter().map(|c| c.id.clone()).collect();
+    let ids = store
+        .cases(&board, &sb(&store, &board))
+        .iter()
+        .map(|c| c.id.clone())
+        .collect();
     (store, board, ids)
+}
+
+/// Le storyboard du tableau — l'épreuve n'en pose qu'un.
+fn sb(store: &Store, board: &str) -> String {
+    store.storyboards(board)[0].id.clone()
 }
 
 /// **Un storyboard naît aux réglages de Storyboarder** : deux secondes par case, et ses trois
@@ -20,7 +29,7 @@ fn storyboard() -> (Store, String, Vec<String>) {
 #[test]
 fn test_un_storyboard_nait_aux_reglages_de_naissance() {
     let (store, board, _) = storyboard();
-    let s = store.storyboard(&board).expect("posé");
+    let s = store.storyboard(&board, &sb(&store, &board)).expect("posé");
     assert_eq!(s.duree_ms, 2000);
     assert_eq!(s.champs, ["Dialogue", "Action", "Notes"]);
 }
@@ -31,9 +40,12 @@ fn test_un_storyboard_nait_aux_reglages_de_naissance() {
 fn test_la_duree_d_une_case_est_la_sienne_sinon_celle_du_storyboard() {
     let (mut store, board, ids) = storyboard();
     store.regler_la_duree(&board, &ids[1], Some(750));
-    store.regler_la_duree_du_storyboard(&board, 4000);
-    let s = store.storyboard(&board).expect("posé").clone();
-    let cases = store.cases(&board);
+    store.regler_la_duree_du_storyboard((&board, &sb(&store, &board)), 4000);
+    let s = store
+        .storyboard(&board, &sb(&store, &board))
+        .expect("posé")
+        .clone();
+    let cases = store.cases(&board, &sb(&store, &board));
     assert_eq!(
         s.duree(cases[0]),
         4000,
@@ -42,7 +54,7 @@ fn test_la_duree_d_une_case_est_la_sienne_sinon_celle_du_storyboard() {
     assert_eq!(s.duree(cases[1]), 750, "la sienne");
 
     store.regler_la_duree(&board, &ids[1], None);
-    let cases = store.cases(&board);
+    let cases = store.cases(&board, &sb(&store, &board));
     assert_eq!(s.duree(cases[1]), 4000, "rendue au storyboard");
 }
 
@@ -52,9 +64,18 @@ fn test_la_duree_d_une_case_est_la_sienne_sinon_celle_du_storyboard() {
 fn test_une_duree_nulle_vaut_une_milliseconde() {
     let (mut store, board, ids) = storyboard();
     store.regler_la_duree(&board, &ids[0], Some(0));
-    store.regler_la_duree_du_storyboard(&board, 0);
-    assert_eq!(store.cases(&board)[0].duree_ms, Some(1));
-    assert_eq!(store.storyboard(&board).expect("posé").duree_ms, 1);
+    store.regler_la_duree_du_storyboard((&board, &sb(&store, &board)), 0);
+    assert_eq!(
+        store.cases(&board, &sb(&store, &board))[0].duree_ms,
+        Some(1)
+    );
+    assert_eq!(
+        store
+            .storyboard(&board, &sb(&store, &board))
+            .expect("posé")
+            .duree_ms,
+        1
+    );
 }
 
 /// **Chaque réglage est un geste, et un réglage qui ne change rien n'en est pas un** : un
@@ -66,14 +87,14 @@ fn test_chaque_reglage_est_un_geste_et_rien_ne_s_ecrit_sans_changement() {
     store.ecrire_dans_la_case(&board, &ids[2], Texte::Champ(1), "il court");
     store.choisir_le_plan(&board, &ids[2], Some(Plan::Gros));
     store.regler_la_duree(&board, &ids[2], Some(1200));
-    store.nommer_le_champ(&board, 0, "Réplique");
+    store.nommer_le_champ((&board, &sb(&store, &board)), 0, "Réplique");
     assert_eq!(store.undo_depth(), depart + 4, "quatre gestes");
 
     store.ecrire_dans_la_case(&board, &ids[2], Texte::Champ(1), "il court");
     store.choisir_le_plan(&board, &ids[2], Some(Plan::Gros));
     store.regler_la_duree(&board, &ids[2], Some(1200));
-    store.nommer_le_champ(&board, 0, "Réplique");
-    store.regler_la_duree_du_storyboard(&board, 2000);
+    store.nommer_le_champ((&board, &sb(&store, &board)), 0, "Réplique");
+    store.regler_la_duree_du_storyboard((&board, &sb(&store, &board)), 2000);
     assert_eq!(
         store.undo_depth(),
         depart + 4,
@@ -82,11 +103,14 @@ fn test_chaque_reglage_est_un_geste_et_rien_ne_s_ecrit_sans_changement() {
 
     assert!(store.undo());
     assert_eq!(
-        store.storyboard(&board).expect("posé").champs[0],
+        store
+            .storyboard(&board, &sb(&store, &board))
+            .expect("posé")
+            .champs[0],
         "Dialogue"
     );
     assert_eq!(
-        store.cases(&board)[2].duree_ms,
+        store.cases(&board, &sb(&store, &board))[2].duree_ms,
         Some(1200),
         "le reste tient"
     );
@@ -98,10 +122,15 @@ fn test_chaque_reglage_est_un_geste_et_rien_ne_s_ecrit_sans_changement() {
 fn test_ecrire_un_champ_garde_la_forme_unique() {
     let (mut store, board, ids) = storyboard();
     store.ecrire_dans_la_case(&board, &ids[0], Texte::Champ(2), "pluie");
-    assert_eq!(store.cases(&board)[0].textes, ["", "", "pluie"]);
+    assert_eq!(
+        store.cases(&board, &sb(&store, &board))[0].textes,
+        ["", "", "pluie"]
+    );
     store.ecrire_dans_la_case(&board, &ids[0], Texte::Champ(2), "");
-    assert!(store.cases(&board)[0].textes.is_empty());
-    assert!(!store.cases(&board)[0].porte_quelque_chose());
+    assert!(store.cases(&board, &sb(&store, &board))[0]
+        .textes
+        .is_empty());
+    assert!(!store.cases(&board, &sb(&store, &board))[0].porte_quelque_chose());
 }
 
 /// **Retirer un champ retire son texte de chaque case, en un geste** — et les textes des champs
@@ -116,13 +145,16 @@ fn test_retirer_un_champ_retire_son_texte_de_chaque_case_en_un_geste() {
     let avant = store.project.clone();
     let depart = store.undo_depth();
 
-    store.retirer_le_champ(&board, 1);
+    store.retirer_le_champ((&board, &sb(&store, &board)), 1);
     assert_eq!(store.undo_depth(), depart + 1, "un geste");
     assert_eq!(
-        store.storyboard(&board).expect("posé").champs,
+        store
+            .storyboard(&board, &sb(&store, &board))
+            .expect("posé")
+            .champs,
         ["Dialogue", "Notes"]
     );
-    let cases = store.cases(&board);
+    let cases = store.cases(&board, &sb(&store, &board));
     assert_eq!(cases[0].textes, ["« Halte ! »"], "le vide au bout s'en va");
     assert_eq!(cases[3].textes, ["", "nuit"], "les Notes suivent leur nom");
 
@@ -134,10 +166,27 @@ fn test_retirer_un_champ_retire_son_texte_de_chaque_case_en_un_geste() {
 #[test]
 fn test_ajouter_un_champ_ne_change_aucune_case() {
     let (mut store, board, _) = storyboard();
-    let cases = store.cases(&board).into_iter().cloned().collect::<Vec<_>>();
-    assert_eq!(store.ajouter_un_champ(&board, "Son"), Some(3));
-    assert_eq!(store.storyboard(&board).expect("posé").champs[3], "Son");
-    let apres: Vec<_> = store.cases(&board).into_iter().cloned().collect();
+    let cases = store
+        .cases(&board, &sb(&store, &board))
+        .into_iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        store.ajouter_un_champ((&board, &sb(&store, &board)), "Son"),
+        Some(3)
+    );
+    assert_eq!(
+        store
+            .storyboard(&board, &sb(&store, &board))
+            .expect("posé")
+            .champs[3],
+        "Son"
+    );
+    let apres: Vec<_> = store
+        .cases(&board, &sb(&store, &board))
+        .into_iter()
+        .cloned()
+        .collect();
     assert_eq!(apres, cases);
 }
 
@@ -153,28 +202,39 @@ fn test_un_trace_garde_la_case_qui_porte_un_plan_ou_un_texte() {
     ] {
         let (mut store, board, ids) = storyboard();
         regler(&mut store, &board, &ids[5]);
-        assert_eq!(store.cases_a_garder(&board), 6, "jusqu'à la sixième");
-        let d = store.disposition_du_trace(&board, Grille::default(), ((0.0, 0.0), (1.0, 1.0)));
+        assert_eq!(
+            store.cases_a_garder(&board, Some(&sb(&store, &board))),
+            6,
+            "jusqu'à la sixième"
+        );
+        let d = store.disposition_du_trace(
+            (&board, Some(&sb(&store, &board))),
+            Grille::default(),
+            ((0.0, 0.0), (1.0, 1.0)),
+        );
         assert_eq!(d.nombre, 6, "le tracé d'une case en garde six");
     }
 }
 
-/// **Poser de nouveau la grille garde la durée et les champs du storyboard** : « Mettre à jour »
+/// **Ranger de nouveau la grille garde la durée et les champs du storyboard** : « Mettre à jour »
 /// ne change que ce qui range les cases.
 #[test]
 fn test_ranger_garde_la_duree_et_les_champs() {
     let (mut store, board, _) = storyboard();
-    store.regler_la_duree_du_storyboard(&board, 900);
-    store.nommer_le_champ(&board, 2, "Son");
+    store.regler_la_duree_du_storyboard((&board, &sb(&store, &board)), 900);
+    store.nommer_le_champ((&board, &sb(&store, &board)), 2, "Son");
     let colonnes = Grille {
         colonnes: 2,
         ..Grille::default()
     };
-    store.poser_le_storyboard(&board, colonnes, (10.0, 10.0));
-    let s = store.storyboard(&board).expect("posé");
+    let cible = sb(&store, &board);
+    let d = store.disposition_au_clic((&board, Some(&cible)), colonnes, (10.0, 10.0));
+    store.disposer((&board, Some(&cible)), d);
+    let s = store.storyboard(&board, &cible).expect("posé");
     assert_eq!(
         *s,
         Storyboard {
+            id: cible.clone(),
             grille: colonnes,
             duree_ms: 900,
             champs: vec!["Dialogue".into(), "Action".into(), "Son".into()],

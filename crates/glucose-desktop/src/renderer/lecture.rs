@@ -52,10 +52,11 @@ pub(super) fn voiler(
     let Some(lecture) = &ui.lecture else {
         return;
     };
-    let cases = store.cases(&lecture.board);
-    let (Some(case), Some(storyboard)) =
-        (cases.get(lecture.rang), store.storyboard(&lecture.board))
-    else {
+    let cases = store.cases(&lecture.board, &lecture.storyboard);
+    let (Some(case), Some(storyboard)) = (
+        cases.get(lecture.rang),
+        store.storyboard(&lecture.board, &lecture.storyboard),
+    ) else {
         return;
     };
     let (w, h) = (pixmap.width() as f32, pixmap.height() as f32);

@@ -227,6 +227,7 @@ fn test_tab_ne_passe_jamais_a_un_champ_absent() {
     let tab_depuis_la_duree_par_case = |case: Option<Choisie>| {
         let mut d = dock();
         d.storyboard.contenu.lecture = Some(Lecture {
+            storyboard: "storyboard-1".into(),
             champs: Vec::new(),
             duree_ms: 2000,
             case,

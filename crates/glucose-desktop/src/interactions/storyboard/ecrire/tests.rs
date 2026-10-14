@@ -19,9 +19,7 @@ fn app() -> (GlucoseApp, String, Vec<String>) {
     let board = app.store.project.active_board_id.clone();
     app.store
         .poser_le_storyboard(&board, Grille::default(), (400.0, 300.0));
-    let ids: Vec<String> = app
-        .store
-        .cases(&board)
+    let ids: Vec<String> = crate::epreuve::les_cases(&app.store, &board)
         .iter()
         .map(|c| c.id.clone())
         .collect();
@@ -86,18 +84,21 @@ fn test_glisser_la_duree_de_la_case_l_ecrit_en_un_geste() {
         "la main la tient"
     );
     assert_eq!(
-        app.store.cases(&board)[0].duree_ms,
+        crate::epreuve::les_cases(&app.store, &board)[0].duree_ms,
         None,
         "tenue, elle attend"
     );
     app.handle_mouse_up(MouseButton::Left);
-    let reglee = app.store.cases(&board)[0]
+    let reglee = crate::epreuve::les_cases(&app.store, &board)[0]
         .duree_ms
         .expect("lâchée, elle est écrite");
     assert!(reglee > 2000, "elle a monté : {reglee}");
     assert_eq!(app.store.undo_depth(), 1, "un geste");
     assert!(app.store.undo());
-    assert_eq!(app.store.cases(&board)[0].duree_ms, None);
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board)[0].duree_ms,
+        None
+    );
     peindre(&mut app);
     assert_eq!(
         app.dock_manager.storyboard.duree_case, 2000.0,
@@ -118,7 +119,10 @@ fn test_taper_une_duree_en_secondes() {
     ));
     taper(&mut app, "2,5");
     entree(&mut app);
-    assert_eq!(app.store.cases(&board)[0].duree_ms, Some(2500));
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board)[0].duree_ms,
+        Some(2500)
+    );
 }
 
 /// **La durée par case règle toutes celles qui n'ont pas la leur** — pas les autres.
@@ -131,8 +135,15 @@ fn test_la_duree_par_case_regle_celles_qui_n_ont_pas_la_leur() {
     glisser(&mut app, p, p);
     taper(&mut app, "1");
     entree(&mut app);
-    let s = app.store.storyboard(&board).expect("posé").clone();
-    let cases = app.store.cases(&board);
+    let s = app
+        .store
+        .storyboard(
+            &board,
+            &crate::epreuve::seul_storyboard(&app.store, &board).unwrap(),
+        )
+        .expect("posé")
+        .clone();
+    let cases = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(s.duree(cases[0]), 1000);
     assert_eq!(s.duree(cases[3]), 700, "elle garde la sienne");
 }
@@ -154,7 +165,10 @@ fn test_rendre_la_duree_par_le_vrai_clic() {
         .expect("« ↺ »");
     let p = centre(rendre);
     glisser(&mut app, p, p);
-    assert_eq!(app.store.cases(&board)[0].duree_ms, None);
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board)[0].duree_ms,
+        None
+    );
 }
 
 /// **Écrire un champ de la case** : sa question porte son nom, ce qu'on tape va à son rang.
@@ -169,7 +183,10 @@ fn test_ecrire_un_champ_par_sa_question() {
     assert_eq!(*texte, Texte::Champ(1));
     taper(&mut app, "il court");
     entree(&mut app);
-    assert_eq!(app.store.cases(&board)[0].textes, ["", "il court"]);
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board)[0].textes,
+        ["", "il court"]
+    );
 }
 
 /// **Nommer un champ : renommer, retirer, ajouter** — et un nom vide ne nomme rien.
@@ -178,7 +195,16 @@ fn test_renommer_retirer_et_ajouter_un_champ() {
     let (mut app, board, ids) = app();
     app.store
         .ecrire_dans_la_case(&board, &ids[0], Texte::Champ(2), "pluie");
-    let champs = |app: &GlucoseApp| app.store.storyboard(&board).expect("posé").champs.clone();
+    let champs = |app: &GlucoseApp| {
+        app.store
+            .storyboard(
+                &board,
+                &crate::epreuve::seul_storyboard(&app.store, &board).unwrap(),
+            )
+            .expect("posé")
+            .champs
+            .clone()
+    };
 
     app.nommer_le_champ(Some(0));
     taper(&mut app, "Réplique");
@@ -189,7 +215,7 @@ fn test_renommer_retirer_et_ajouter_un_champ() {
     app.repondre_a_la_question(Some(crate::ui::question::Reponse::Non));
     assert_eq!(champs(&app), ["Réplique", "Notes"], "retiré");
     assert_eq!(
-        app.store.cases(&board)[0].textes,
+        crate::epreuve::les_cases(&app.store, &board)[0].textes,
         ["", "pluie"],
         "les Notes suivent"
     );
@@ -216,7 +242,10 @@ fn test_lire_par_le_vrai_clic() {
     let p = centre(layout.lecture.expect("la lecture").lire);
     glisser(&mut app, p, p);
     let lecture = app.ui.lecture.as_ref().expect("elle lit");
-    assert_eq!(app.store.cases(&lecture.board)[lecture.rang].id, ids[0]);
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &lecture.board)[lecture.rang].id,
+        ids[0]
+    );
     assert!(app.ui.sans_interface());
 }
 
@@ -231,5 +260,8 @@ fn test_tab_dans_un_champ_passe_au_meme_champ_de_la_suivante() {
         panic!("la suivante se demande");
     };
     assert_eq!((case, *texte), (&ids[1], Texte::Champ(0)));
-    assert_eq!(app.store.cases(&board)[0].textes, ["Halte"]);
+    assert_eq!(
+        crate::epreuve::les_cases(&app.store, &board)[0].textes,
+        ["Halte"]
+    );
 }

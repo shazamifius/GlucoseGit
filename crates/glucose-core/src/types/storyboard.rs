@@ -18,6 +18,17 @@
 //! une seule fonction : la sienne se contredit (sa frise prend `0` pour « par défaut », son
 //! modèle non). Les champs sont **ceux du storyboard**, nommés une fois pour toutes ses cases,
 //! comme les légendes de Toon Boom et les commentaires de Krita.
+//!
+//! # Plusieurs storyboards par tableau (schéma 5, fiche 68)
+//!
+//! Un tableau porte autant de storyboards que de séquences. **Chaque case nomme le sien**
+//! ([`StoryboardPanel::storyboard`]) ; le tableau garde la liste plate de ses cases et celle de
+//! ses storyboards. Storyboarder fait l'inverse — une scène contient ses cases —, mais ici
+//! l'arène des 10⁷ nœuds est plate, et le journal défait une case en ne touchant qu'elle.
+//!
+//! **SEQUENCE-1** : toute case nomme un storyboard de son tableau, et tout storyboard a au
+//! moins une case. Le magasin le tient à chaque geste ; un document d'avant le schéma 5, ou
+//! venu de Glucose Tauri, y est ramené par une seule règle ([`rattacher`]).
 
 use super::Id;
 
@@ -28,6 +39,9 @@ pub const DESCRIPTION: f64 = 40.0;
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoryboardPanel {
     pub id: Id,
+    /// **Le storyboard de la case** — son identifiant dans le tableau (SEQUENCE-1).
+    pub storyboard: Id,
+    /// Son rang dans son storyboard.
     pub order: i32,
     pub description: String,
     pub x: f64,
@@ -45,9 +59,17 @@ pub struct StoryboardPanel {
 }
 
 impl StoryboardPanel {
-    pub fn new(id: impl Into<String>, order: i32, x: f64, y: f64, width: f64, height: f64) -> Self {
+    /// Une case de ce storyboard, à ce rang, à ce cadre.
+    pub fn new(
+        id: impl Into<String>,
+        storyboard: impl Into<String>,
+        order: i32,
+        (x, y): (f64, f64),
+        (width, height): (f64, f64),
+    ) -> Self {
         Self {
             id: id.into(),
+            storyboard: storyboard.into(),
             order,
             description: String::new(),
             x,
@@ -153,6 +175,8 @@ impl Plan {
 /// la sienne, et les champs que chaque case remplit.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Storyboard {
+    /// Son identifiant, que chacune de ses cases nomme (schéma 5, fiche 68).
+    pub id: Id,
     pub grille: Grille,
     /// La durée d'une case, en millisecondes, quand elle n'a pas la sienne.
     pub duree_ms: u32,
@@ -171,10 +195,32 @@ pub fn champs_de_naissance() -> Vec<String> {
     ["Dialogue", "Action", "Notes"].map(String::from).to_vec()
 }
 
+/// **L'identifiant du storyboard d'avant le schéma 5** : un tableau n'en portait qu'un, sans
+/// nom. Ses cases le nomment ainsi à la lecture ([`rattacher`]) — un document relu, ou un
+/// geste de son histoire, désigne toujours le même.
+pub const STORYBOARD_D_AVANT: &str = "storyboard";
+
+/// **Ramène des cases et des storyboards à SEQUENCE-1** — la seule règle, pour un document
+/// d'avant le schéma 5 et pour Glucose Tauri : une case qui ne nomme aucun storyboard présent
+/// va au [`STORYBOARD_D_AVANT`], né à la grille de Tauri s'il n'existe pas ; un storyboard sans
+/// case disparaît — il ne montrerait rien, et rien ne le désignerait.
+pub fn rattacher(cases: &mut [StoryboardPanel], storyboards: &mut Vec<Storyboard>) {
+    for case in cases.iter_mut() {
+        if !storyboards.iter().any(|s| s.id == case.storyboard) {
+            case.storyboard = STORYBOARD_D_AVANT.to_string();
+            if !storyboards.iter().any(|s| s.id == STORYBOARD_D_AVANT) {
+                storyboards.push(Storyboard::neuf(STORYBOARD_D_AVANT, Grille::default()));
+            }
+        }
+    }
+    storyboards.retain(|s| cases.iter().any(|c| c.storyboard == s.id));
+}
+
 impl Storyboard {
     /// Un storyboard neuf rangé par cette grille.
-    pub fn neuf(grille: Grille) -> Self {
+    pub fn neuf(id: impl Into<String>, grille: Grille) -> Self {
         Self {
+            id: id.into(),
             grille,
             duree_ms: DUREE_DE_NAISSANCE_MS,
             champs: champs_de_naissance(),
@@ -301,3 +347,6 @@ impl Grille {
         (nombre(largeur, pas_x), nombre(hauteur, pas_y))
     }
 }
+
+#[cfg(test)]
+mod tests;

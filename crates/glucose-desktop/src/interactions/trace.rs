@@ -106,8 +106,17 @@ impl GlucoseApp {
         };
         if let Some(d) = self.disposition_du_storyboard_trace(&trace) {
             self.ui.placement.storyboard = None;
+            let cible = self.ui.placement.cible.take();
             let board = self.store.project.active_board_id.clone();
-            self.store.disposer(&board, d);
+            // Rangé ou né, il devient le courant (fiche 68) ; un neuf rend la case choisie,
+            // qui est d'un autre — elle est toujours du courant.
+            let range = self.store.disposer((&board, cible.as_deref()), d);
+            if range.is_some() {
+                if cible.is_none() {
+                    self.ui.storyboard.choisie = None;
+                }
+                self.ui.storyboard.courant = range;
+            }
         } else if let Some(rectangle) = trace.rectangle() {
             self.poser_le_contenant(rectangle);
         } else {
@@ -120,12 +129,15 @@ impl GlucoseApp {
     /// celle du rectangle tracé. `None` sans grille armée.
     pub(crate) fn disposition_du_storyboard_trace(&self, trace: &Trace) -> Option<Disposition> {
         let grille = self.ui.placement.storyboard?;
-        let board = &self.store.project.active_board_id;
+        let quoi = (
+            self.store.project.active_board_id.as_str(),
+            self.ui.placement.cible.as_deref(),
+        );
         Some(match trace.point {
             Some(point) => self
                 .store
-                .disposition_du_trace(board, grille, (trace.depart, point)),
-            None => self.store.disposition_au_clic(board, grille, trace.depart),
+                .disposition_du_trace(quoi, grille, (trace.depart, point)),
+            None => self.store.disposition_au_clic(quoi, grille, trace.depart),
         })
     }
 

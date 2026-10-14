@@ -1263,8 +1263,10 @@ fn test_storyboard_1_les_cases_se_posent_pareil_sur_les_deux_voies() {
         ecart: 24.0,
     };
     let (l, h) = grille.etendue(grille.nombre_initial());
-    store.poser_le_storyboard(&board, grille, (centre.0 - l / 2.0, centre.1 - h / 2.0));
-    let premiere = store.cases(&board)[0].id.clone();
+    let sb = store
+        .poser_le_storyboard(&board, grille, (centre.0 - l / 2.0, centre.1 - h / 2.0))
+        .expect("posé");
+    let premiere = store.cases(&board, &sb)[0].id.clone();
     store.ecrire_dans_la_case(
         &board,
         &premiere,
@@ -1283,7 +1285,7 @@ fn test_storyboard_1_les_cases_se_posent_pareil_sur_les_deux_voies() {
     };
     let largeur = processeur.width() as usize * 4;
     let mut ecarts = 0;
-    for case in store.cases(&board) {
+    for case in store.cases(&board, &sb) {
         let (x0, y0) = glucose_desktop::canvas::world_to_screen(case.x, case.y, &vp);
         let (w, h) = (
             case.width * vp.scale,

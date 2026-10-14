@@ -1,9 +1,9 @@
-//! Mutations réversibles portant sur les annotations, leurs miroirs et les panneaux storyboard.
+//! Mutations réversibles portant sur les annotations et leurs miroirs.
 
 use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, ArrowPredicate, Point2D, StoryboardPanel};
+use crate::types::{Annotation, ArrowPredicate, Point2D};
 
 /// Un réglage d'une flèche (FLECHE-3) : ce que la barre d'options d'une flèche propose.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -371,36 +371,6 @@ impl Store {
         y: f64,
     ) -> Option<String> {
         self.try_mirror_annotation(board_id, id, x, y).ok()
-    }
-
-    // ── Storyboard Panels ───────────────────────────────────────────────────
-
-    /// **Site migre vers le journal.**
-    pub fn add_panel(&mut self, board_id: &str, panel: StoryboardPanel) {
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
-            return;
-        };
-        let index = b.panels.len();
-        b.panels.push(panel.clone());
-        self.record_edit(Edit::Panel {
-            board: board_id.to_string(),
-            slot: Slot::inserted(index, panel),
-        });
-    }
-
-    /// **Site migre vers le journal.**
-    pub fn remove_panel(&mut self, board_id: &str, id: &str) {
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
-            return;
-        };
-        let Some(i) = b.panels.iter().position(|p| p.id == id) else {
-            return;
-        };
-        let panel = b.panels.remove(i);
-        self.record_edit(Edit::Panel {
-            board: board_id.to_string(),
-            slot: Slot::removed(i, panel),
-        });
     }
 }
 

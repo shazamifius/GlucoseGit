@@ -188,11 +188,13 @@ fn test_trace_1_tracer_le_storyboard_le_remplit() {
         "le rectangle tracé se dessine"
     );
     relacher(&mut app);
-    let cases = app.store.cases(&board);
+    let cases = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(cases.len(), 10);
     assert_eq!((cases[0].x, cases[0].y), (200.0, 200.0));
     assert_eq!(
-        app.store.grille_du_storyboard(&board).map(|g| g.colonnes),
+        crate::epreuve::seul_storyboard(&app.store, &board)
+            .and_then(|sb| app.store.grille_du_storyboard(&board, &sb))
+            .map(|g| g.colonnes),
         Some(5)
     );
     assert_eq!(app.ui.placement.storyboard, None, "la grille est posée");
@@ -214,7 +216,7 @@ fn test_fantome_1_un_clic_pose_le_storyboard_par_son_coin() {
     app.ui.placement.storyboard = Some(carree());
     appuyer(&mut app, (600.0, 500.0));
     relacher(&mut app);
-    let cases = app.store.cases(&board);
+    let cases = crate::epreuve::les_cases(&app.store, &board);
     assert_eq!(cases.len(), 8, "deux rangées de quatre");
     assert_eq!((cases[0].x, cases[0].y), (600.0, 500.0), "par son coin");
 }
