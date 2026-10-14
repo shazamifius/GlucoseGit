@@ -63,6 +63,7 @@
 //! le magasin relit à la fermeture pour décider quoi tenir, quoi offrir, quoi reprendre — la
 //! pyramide ne décide rien, elle dit ce qu'on lui a demandé.
 
+mod decodage;
 mod niveau;
 mod pixels;
 pub use niveau::{Etat, Retour, Transit};

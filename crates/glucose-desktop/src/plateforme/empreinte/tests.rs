@@ -22,7 +22,24 @@ use super::*;
 
 /// La plateforme de cette machine sait-elle répondre ? Ailleurs, ces preuves n'ont rien à dire.
 fn ici() -> bool {
-    cfg!(any(windows, target_os = "linux"))
+    cfg!(any(windows, target_os = "linux", target_os = "android"))
+}
+
+/// **La mémoire résidente se lit en kibioctets, quelle que soit la taille des pages**
+/// (MEMOIRE-1) : `VmRSS` est écrit par le noyau en `kB`, et un octet de moins par kibioctet
+/// ferait passer un téléphone pour mille fois plus sobre qu'il n'est. Le texte est celui d'un
+/// vrai `/proc/self/status`, raccourci ; un champ voisin au nom proche (`VmRSSx` n'existe pas,
+/// mais `RssAnon` si) ne doit pas être pris à sa place.
+#[test]
+fn test_memoire_1_la_residente_se_lit_en_kibioctets() {
+    let status =
+        "Name:\tglucose\nVmPeak:\t 9000000 kB\nVmRSS:\t  123456 kB\nRssAnon:\t   99999 kB\n";
+    assert_eq!(residente_en_octets(status), Some(123_456 * 1024));
+    assert_eq!(
+        residente_en_octets("Name:\tglucose\n"),
+        None,
+        "sans VmRSS, rien"
+    );
 }
 
 /// **Sur une plateforme qui répond, la mémoire n'est ni nulle ni absurde.**

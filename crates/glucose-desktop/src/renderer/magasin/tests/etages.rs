@@ -359,3 +359,89 @@ fn test_un_apercu_abime_se_refait() {
         "il s'est refait"
     );
 }
+
+/// **MEMOIRE-2 — derrière une autre application, tout s'offre, même ce que l'écran montrait**
+/// (fiche 66) : le système a demandé de la mémoire, et personne ne regarde. Puis le retour
+/// reprend ce que l'écran redemande, au bit près.
+///
+/// À l'envers, l'étagement seul garde tenu le niveau montré : c'est ce que la première
+/// assertion vérifie avant le geste.
+#[test]
+#[cfg_attr(
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
+)]
+fn test_memoire_2_offrir_tout_offre_meme_ce_que_l_ecran_montrait() {
+    let src = grande_photo("etages-offrir-tout.png");
+    let mut magasin = Magasin::nouveau();
+    arrivee(&mut magasin, &src);
+    une_image(&mut magasin, montree_a(100.0, &src));
+    let voulu = magasin.cache[&src].pyramide.rang_pour(100.0);
+    assert_eq!(magasin.cache[&src].pyramide.etat(voulu), Etat::Tenu);
+    let montre = magasin.cache[&src]
+        .pyramide
+        .meilleur_pour(100.0)
+        .map(|(_, p)| p.data().to_vec());
+
+    magasin.offrir_tout();
+    magasin.attendre_le_chantier();
+
+    let p = &magasin.cache[&src].pyramide;
+    for rang in 0..p.niveaux_construits() {
+        if p.offrable(rang) {
+            assert_eq!(p.etat(rang), Etat::Offert, "le niveau de rang {rang}");
+        }
+    }
+
+    // Le retour : la première image reprend ce que l'écran montre.
+    une_image(&mut magasin, montree_a(100.0, &src));
+    une_image(&mut magasin, montree_a(100.0, &src));
+    let p = &magasin.cache[&src].pyramide;
+    assert_eq!(p.etat(voulu), Etat::Tenu, "le niveau montré est revenu");
+    assert!(
+        p.meilleur_pour(100.0).map(|(_, p)| p.data().to_vec()) == montre,
+        "il est revenu intact"
+    );
+}
+
+/// **Au retour, la vue d'ensemble revient d'elle-même** (MEMOIRE-2, ETAGES-1) : une photo que
+/// l'écran ne montre plus n'est réclamée par personne, et pourtant sa vue d'ensemble — offerte
+/// pendant l'arrière-plan — doit être tenue de nouveau, pour qu'un dézoom ne demande rien au
+/// système. C'est la remise « à revoir » de chaque image qui le fait.
+#[test]
+#[cfg_attr(
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
+)]
+fn test_memoire_2_au_retour_la_vue_d_ensemble_revient() {
+    let montree = grande_photo("etages-retour-montree.png");
+    let cachee = grande_photo("etages-retour-cachee.png");
+    let mut magasin = Magasin::nouveau();
+    magasin.echelle_ensemble = 0.25;
+    arrivee(&mut magasin, &montree);
+    arrivee(&mut magasin, &cachee);
+    // Montrée une fois, la cachée a sa vue d'ensemble ; puis l'écran ne montre plus que l'autre.
+    une_image(&mut magasin, |m| {
+        m.reclamer(&cachee, 512.0);
+    });
+    une_image(&mut magasin, montree_a(100.0, &montree));
+    let queue = magasin.cache[&cachee].pyramide.rang_pour(128.0);
+    let ensemble_tenu = |m: &Magasin| {
+        let p = &m.cache[&cachee].pyramide;
+        (queue..p.niveaux_construits())
+            .filter(|&r| p.offrable(r))
+            .all(|r| p.etat(r) == Etat::Tenu)
+    };
+    assert!(
+        ensemble_tenu(&magasin),
+        "avant : la vue d'ensemble est tenue"
+    );
+
+    magasin.offrir_tout();
+    magasin.attendre_le_chantier();
+    assert!(!ensemble_tenu(&magasin), "pendant : elle est offerte");
+
+    une_image(&mut magasin, montree_a(100.0, &montree));
+    une_image(&mut magasin, montree_a(100.0, &montree));
+    assert!(ensemble_tenu(&magasin), "après : elle est revenue");
+}

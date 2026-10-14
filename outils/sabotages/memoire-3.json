@@ -1,0 +1,128 @@
+[
+ {
+  "nom": "un decodage seul n'entre plus",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "            let tient = *en_vol == 0\n",
+  "apres": "            let tient = *en_vol == u64::MAX\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "ce qui est en vol prend tout ce qui reste",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "is_none_or(|m| *en_vol + octets <= m.part_pour_un_cache())",
+  "apres": "is_none_or(|m| *en_vol + octets <= m.disponible)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "sans mesure, rien ne passe a deux",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "is_none_or(|m| *en_vol + octets <= m.part_pour_un_cache())",
+  "apres": "is_some_and(|m| *en_vol + octets <= m.part_pour_un_cache())",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le jeton ne rend rien",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "        *en_vol -= self.octets;",
+  "apres": "        let _ = self.octets;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "la fin d'un decodage ne reveille personne",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "        self.admission.libere.notify_all();",
+  "apres": "        let _ = &self.admission.libere;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "pendant ne passe pas par la porte",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "        let _admis = self.entrer(octets);",
+  "apres": "        let _admis = octets;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "pendant lache le jeton avant le travail",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "        let _admis = self.entrer(octets);",
+  "apres": "        let _ = self.entrer(octets);",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le pic oublie la pyramide",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "        .map(|(l, h)| u64::from(l) * u64::from(h) * 4)",
+  "apres": "        .map(|(l, h)| u64::from(l) * u64::from(h) * 3)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le pic oublie le travail du decodeur",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/admission.rs",
+  "avant": "    encodes + pyramide + u64::from(largeur) * u64::from(hauteur) * 4",
+  "apres": "    encodes + pyramide",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le decodeur passe a cote de la porte",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier.rs",
+  "avant": "    porte.pendant(admission::pic(octets.len() as u64, (l, h)), || {",
+  "apres": "    admission::de_la_machine().pendant(0, || {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "l'etalement va dans le mauvais sens",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "    for i in (0..pixels).rev() {",
+  "apres": "    for i in 0..pixels {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le gris perd sa couleur",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "            1 => [page[s], page[s], page[s], 255],",
+  "apres": "            1 => [page[s], 0, 0, 255],",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le gris perd son alpha",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "            2 => [page[s], page[s], page[s], page[s + 1]],",
+  "apres": "            2 => [page[s], page[s], page[s], 255],",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le rgb devient transparent",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "            3 => [page[s], page[s + 1], page[s + 2], 255],",
+  "apres": "            3 => [page[s], page[s + 1], page[s + 2], 0],",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "sur place, rien n'est premultiplie",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "        super::pixels::premultiplier(&px, &mut page[i * 4..i * 4 + 4]);",
+  "apres": "        page[i * 4..i * 4 + 4].copy_from_slice(&px);",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "seize bits pris pour huit",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "            _ => None,",
+  "apres": "            _ => Some(4),",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memoire_3"]
+ },
+ {
+  "nom": "le lisez-moi oublie un champ de la memoire",
+  "fichier": "crates/glucose-desktop/assets/journal-technique/LISEZ-MOI.txt",
+  "avant": "  decodages_mo             ce que les décodages d'images en cours prennent     40\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "lisez_moi"]
+ },
+ {
+  "nom": "un type que le serveur accepte n'a pas d'exemple",
+  "fichier": "crates/glucose-desktop/src/boite_noire/fichiers/tests.rs",
+  "avant": "        Enregistrement::ArrierePlan { instant_ms: 0 },\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "lisez_moi"]
+ }
+]

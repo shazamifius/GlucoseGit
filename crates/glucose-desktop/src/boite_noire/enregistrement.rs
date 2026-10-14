@@ -72,8 +72,64 @@ pub enum Enregistrement {
     ArrierePlan { instant_ms: u64 },
     /// Glucose revient au premier plan.
     PremierPlan { instant_ms: u64 },
+    /// **Ce que Glucose occupe, et ce que la machine laisse** (MEMOIRE-1, fiche 66) : un record
+    /// — l'empreinte la plus haute de la session, ou ce qui reste le plus bas —, comme
+    /// [`Self::Pire`] pour les images. Son téléphone s'est figé sans qu'aucune ligne ne dise la
+    /// mémoire.
+    Memoire {
+        instant_ms: u64,
+        occupation: Occupation,
+    },
+    /// **Le système demande de rendre de la mémoire** (MEMOIRE-2) : sous Android, `onTrimMemory`
+    /// — dont le niveau se perd en route — et `onLowMemory`.
+    AlerteMemoire { instant_ms: u64, arriere_plan: bool },
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
+}
+
+/// **Ce que Glucose occupe, et ce que la machine laisse**, en mébioctets (MEMOIRE-1).
+///
+/// Chaque grandeur a sa source, et aucune ne se déduit d'une autre : ce que le système compte
+/// pour le processus, ce qu'il dit pouvoir donner encore, et ce que Glucose sait tenir lui-même
+/// — les niveaux d'images tenus et offerts (ETAGES-1), les textures confiées à la carte. Ce qui
+/// ne se lit pas sur cette plateforme est absent, jamais zéro (cliquet 9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Occupation {
+    /// La mémoire résidente du processus, telle que le système la compte.
+    pub processus_mo: Option<u64>,
+    /// Ce que le système peut encore donner sans faire pagner (`MemAvailable` sous Linux et
+    /// Android, ce que lit aussi `ActivityManager.getMemoryInfo`).
+    pub disponible_mo: Option<u64>,
+    /// Les niveaux d'images que Glucose tient en mémoire vive.
+    pub images_mo: u64,
+    /// Ceux qu'il a offerts au système, qui peut les reprendre sans rien demander.
+    pub offerts_mo: u64,
+    /// Ce que les décodages en cours tiendront au plus (MEMOIRE-3) : la mémoire qu'une image
+    /// prend avant d'entrer au magasin.
+    pub decodages_mo: u64,
+    /// Les textures que Glucose a confiées à la carte graphique — sa propre comptabilité, la
+    /// même partout ; absente sur la voie processeur.
+    pub carte_mo: Option<u64>,
+}
+
+impl Occupation {
+    /// Des octets en mébioctets entiers.
+    pub fn mo(octets: u64) -> u64 {
+        octets >> 20
+    }
+
+    fn champs(&self, instant_ms: u64) -> Vec<(&'static str, Champ)> {
+        use Champ::Entier;
+        vec![
+            ("instant_ms", Entier(instant_ms)),
+            ("processus_mo", self.processus_mo.into()),
+            ("disponible_mo", self.disponible_mo.into()),
+            ("images_mo", Entier(self.images_mo)),
+            ("offerts_mo", Entier(self.offerts_mo)),
+            ("decodages_mo", Entier(self.decodages_mo)),
+            ("carte_mo", self.carte_mo.into()),
+        ]
+    }
 }
 
 /// **Une carte graphique, par ses numéros et des noms fermés** (fiche 60) — jamais le nom que
@@ -209,6 +265,8 @@ impl Enregistrement {
             Self::Poste(_) => "poste",
             Self::ArrierePlan { .. } => "arriere_plan",
             Self::PremierPlan { .. } => "premier_plan",
+            Self::Memoire { .. } => "memoire",
+            Self::AlerteMemoire { .. } => "alerte_memoire",
             Self::Fin { .. } => "fin",
         }
     }
@@ -294,6 +352,7 @@ impl Enregistrement {
             ],
             Self::Carte { instant_ms, carte } => carte.champs(instant_ms),
             Self::Poste(poste) => poste.champs(),
+            Self::Memoire { .. } | Self::AlerteMemoire { .. } => self.champs_de_la_memoire(),
             Self::ArrierePlan { instant_ms }
             | Self::PremierPlan { instant_ms }
             | Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
@@ -302,6 +361,25 @@ impl Enregistrement {
 }
 
 impl Enregistrement {
+    /// Les champs des deux lignes de la mémoire (MEMOIRE-1, 2).
+    fn champs_de_la_memoire(&self) -> Vec<(&'static str, Champ)> {
+        use Champ::{Booleen, Entier};
+        match *self {
+            Self::Memoire {
+                instant_ms,
+                occupation,
+            } => occupation.champs(instant_ms),
+            Self::AlerteMemoire {
+                instant_ms,
+                arriere_plan,
+            } => vec![
+                ("instant_ms", Entier(instant_ms)),
+                ("arriere_plan", Booleen(arriere_plan)),
+            ],
+            _ => Vec::new(),
+        }
+    }
+
     /// Les champs du début d'une session : ce qui tourne, quand, et depuis quand l'appareil est
     /// allumé.
     fn champs_du_debut(&self) -> Vec<(&'static str, Champ)> {

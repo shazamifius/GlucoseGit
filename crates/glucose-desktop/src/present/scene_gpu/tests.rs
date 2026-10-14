@@ -982,3 +982,57 @@ fn test_nettete_1_la_cascade_dit_qu_elle_n_a_pas_fini() {
         "le montage : le repli a bien attendu"
     );
 }
+
+/// **MEMOIRE-2 — rendre à la carte ce qui se reconstruit** (fiche 66). Trois photos en cache
+/// avec un budget généreux, une quatrième posée : au premier plan, seule celle que l'écran pose
+/// reste, quel que soit le budget ; derrière une autre application, plus rien. Ce que la carte
+/// détient se compte, avant et après.
+#[test]
+fn test_memoire_2_rendre_garde_l_ecran_au_premier_plan_et_rien_derriere() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let preparee = || {
+        let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+        let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+        for nom in ["a", "b", "c", "d"] {
+            scene.ouvrir();
+            let p = photo(4, [1, 2, 3, 255]);
+            scene.televerser(&peripherique, &mut envoi, (nom, nom), p.as_ref());
+            scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser(nom, pose)]);
+            scene.fermer(u64::MAX);
+        }
+        scene
+    };
+    let mut devant = preparee();
+    assert_eq!(
+        devant.octets(),
+        4 * 4 * 4 * 4,
+        "quatre photos de seize pixels"
+    );
+    devant.rendre(false);
+    assert!(devant.detient("d"), "ce que l'écran pose reste");
+    assert!(
+        !devant.detient("a") && !devant.detient("b") && !devant.detient("c"),
+        "le cache part, quel que soit le budget"
+    );
+    assert_eq!(devant.octets(), 4 * 4 * 4);
+    assert_eq!(devant.octets_en_cache(), 0);
+
+    let mut derriere = preparee();
+    derriere.rendre(true);
+    assert!(!derriere.detient("d"), "personne ne regarde : tout part");
+    assert_eq!(derriere.octets(), 0);
+    assert_eq!(derriere.octets_en_cache(), 0);
+}

@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 13/10/2026** (fiches 51 à 65 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 14/10/2026** (fiches 51 à 66 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -184,7 +184,12 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
 ## 5. Les images et la mémoire
 
 * **L'atelier** (`renderer/atelier.rs`) décode hors de l'image, sur des ouvriers qui **cèdent** au
-  fil qui dessine — et à Blender ou Adobe (CEDER-1).
+  fil qui dessine — et à Blender ou Adobe (CEDER-1). **Un décodage n'entre qu'admis**
+  (MEMOIRE-3, fiche 66, `atelier/admission.rs`) : son pic, lu dans l'en-tête avant de décoder,
+  plus ceux des décodages en vol, tient dans la moitié de ce que la machine laisse maintenant —
+  la porte est celle du processus, et ne s'ouvre que par `pendant(octets, travail)`. Il **décode
+  dans la page du niveau natif** (`photo/decodage.rs`), étalée en RGBA de la fin vers le début :
+  le pic d'une photo est sa pyramide, et rien d'autre (445 → 254 Mo pour 50 Mpx).
 * **Le magasin** (`renderer/magasin.rs`, `photo.rs`) garde pour chaque image une pyramide de
   réductions par deux. Chaque niveau est **tenu**, **offert** au système (il le reprend s'il en a
   besoin, sans rien écrire sur le disque), en chemin ou perdu (ETAGES-1).
@@ -194,6 +199,12 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   au rendu avant chaque image (`EtatDeLaCarte`), et le niveau se réduit jusqu'à tenir.
 * **Le disque** : la vue d'ensemble de chaque image (`renderer/apercu.rs`), nommée par l'empreinte
   de ses octets ; un document s'ouvre déjà montré.
+* **Quand le système demande de la mémoire** (MEMOIRE-2, `app/memoire.rs`) : sous Android,
+  `onTrimMemory` arrive sans son niveau (`memory_warning`) ; au premier plan, la carte rend ce que
+  l'écran ne pose pas ; derrière une autre application, elle rend tout, et le magasin offre au
+  système chacun de ses niveaux (`Magasin::offrir_tout`). Depuis Android 14, une application au
+  premier plan ne reçoit plus aucun niveau de pression : c'est l'admission et la borne du
+  magasin qui la tiennent.
 
 ## 6. L'interface
 
@@ -263,7 +274,11 @@ des plantages de Windows, la batterie.
   que le plancher dit où son temps est parti** (POSTES-1, fiche 63) : une ligne `poste` pour
   chacun des postes sans lesquels son image ordinaire tiendrait dans les 10 ms — leurs noms sont
   les marques de mesure du code, une liste fermée du serveur qu'une épreuve lie au code. Les
-  distributions par geste de la chronique vivent dans `chronique/par_geste.rs`.
+  distributions par geste de la chronique vivent dans `chronique/par_geste.rs`. **La mémoire**
+  (MEMOIRE-1, fiche 66) : une ligne `memoire` à chaque record — l'empreinte la plus haute, ou ce
+  que la machine laisse au plus bas —, relevée au rythme de la veille (`veiller_sur_la_machine`),
+  et une ligne `alerte_memoire` quand le système en demande. Le `LISEZ-MOI.txt` du journal dit
+  chaque champ de chaque type que le serveur accepte — une épreuve les lie.
 * **La boîte noire qui voyage** (`telemetrie.rs`, fiche 54) : **avec l'accord de chacun**, les
   sessions closes partent au lancement, sur un fil à part, vers un Worker de Cloudflare
   (`outils/telemetrie/`, qui n'accepte que les noms de ses listes fermées). Rien ne part tant que

@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 13/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 14/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
@@ -14,7 +14,8 @@
 > et d'un bouton pour chaque fonction — la netteté, les menus, le partage au téléphone, la boîte
 > noire qui dit où part le temps (fiche 63), et celle de la chrome posée par la carte et du
 > Storyboard (fiche 64), et celle du storyboard tracé, du champ qui écrit et du téléphone qui
-> redémarre (fiche 65). Ce document dit l'état **vérifié** du projet,
+> redémarre (fiche 65), et celle de la mémoire du téléphone (fiche 66). Ce document dit l'état
+> **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -22,13 +23,14 @@
 
 ## 1. En une page
 
-* **Glucose Rust est publié.** La **2.0.2-beta.2** est la release « latest » du dépôt depuis le
-  09/10/2026 (construite sur `06f4217`, la fiche 58 — relevé sur GitHub le 09/10 au soir, aucun
-  document ne le disait) : installeur Windows, AppImage, `.deb`, `.rpm`, **l'APK Android**, et
-  `nix run github:shazamifius/GlucoseGit`. La 2.0.2-beta.1 (07/10) et la 2.0.1-beta.1 (30/09) la
-  précèdent. **Les fiches 59 à 63 ne sont dans aucune publication** : la 2.0.2-beta.3 n'a jamais
-  paru ; la suivante est la **2.0.3-beta.1**, prête jusqu'au brouillon (notes écrites, version
-  de travail en 2.0.3-dev) — elle attend la CI, son essai à l'écran, puis son clic.
+* **Glucose Rust est publié.** La **2.0.3-beta.2** est la release « latest » du dépôt depuis le
+  13/10/2026 à 14 h 50 UTC (construite sur `82c774b`, les fiches 64 et 65 ; sa CI, dix vertes,
+  exécution 38412206828 — il l'a publiée, et l'a dit le 14/10) : installeur Windows, AppImage,
+  `.deb`, `.rpm`, **l'APK Android**, et `nix run github:shazamifius/GlucoseGit`. La 2.0.3-beta.1
+  (13/10 au matin), la 2.0.2-beta.2 (09/10), la 2.0.2-beta.1 (07/10) et la 2.0.1-beta.1 (30/09)
+  la précèdent. Au 14/10, son installeur Windows a été téléchargé 3 fois, **son APK aucune** —
+  et cet APK ne porte encore aucun remède au gel du téléphone (fiche 66) : la prochaine version
+  le portera.
 * **Glucose Tauri bascule de lui-même.** Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   trouve la 2.0.1 dans le même `latest.json`, par le popup habituel. Ses documents s'ouvrent dans
   Glucose Rust, et ses données ne sont jamais touchées. Cette bascule a été répétée de bout en bout
@@ -141,6 +143,18 @@
   le bouton d'alimentation, après des saccades qui montaient, puis un redémarrage seul ; les huit
   propositions du Storyboard validées ; le fantôme toujours en haut à gauche du curseur. Le
   programme : SUITE § 0 octies, **ANDROID-MEMOIRE d'abord**.
+* **Fiche 66 — la mémoire du téléphone (P0, côté code)** : quatre trous trouvés sous Android —
+  l'empreinte ne s'y mesurait pas (son `cfg` disait `linux`), le signal `onTrimMemory`
+  arrivait jusqu'à Glucose et n'était écouté par personne, la sonde du budget ne parle qu'à
+  DXGI, et **les décodages n'étaient bornés par rien** (sept à la fois sur son téléphone, trois
+  copies pleine taille chacun). **MEMOIRE-1** : la boîte noire qui voyage écrit la mémoire à
+  chaque record (le serveur redéployé, la page publique et le `LISEZ-MOI` le disent) ;
+  **MEMOIRE-2** : quand Android demande, la carte rend ce qui se reconstruit et le magasin offre
+  tout ; **MEMOIRE-3** : aucun décodage n'entre s'il ne tient pas dans la moitié de ce que la
+  machine laisse, et une photo se décode dans la page de sa pyramide — **445 → 254 Mo mesurés**
+  pour 50 Mpx. Éprouvé et saboté ; **le téléphone n'a pas été branché** : sa lecture par le câble
+  (`outils/android/lire_le_telephone.sh`), un APK neuf et une longue session restent à faire —
+  c'est ce qui déclarera P0 fini.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -171,7 +185,9 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 426** sous Windows au 13/10 au soir, STORYBOARD-2 et BOITE-ANDROID compris
+* **Épreuves** : **2 442** sous Windows au 14/10, MEMOIRE-1 à 3 compris (fiche 66 ; 35 sabotages
+  de plus, 35 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 426** au
+  13/10 au soir, STORYBOARD-2 et BOITE-ANDROID compris
   (fiche 65 ; 63 sabotages, 63 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389
   (fiche 64). Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a
   pas été rejouée depuis la fiche 61, où elle comptait **2 255**) ; clippy strict à zéro sous

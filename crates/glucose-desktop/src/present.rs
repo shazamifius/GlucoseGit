@@ -171,6 +171,16 @@ pub trait Presenter {
         None
     }
 
+    /// **Ce que Glucose a confié à la carte graphique**, en octets (MEMOIRE-1), ou rien pour
+    /// une présentation qui n'y tient rien.
+    fn octets_sur_la_carte(&self) -> Option<u64> {
+        None
+    }
+
+    /// **Rend à la carte ce qui se reconstruit** quand le système le demande (MEMOIRE-2) :
+    /// tout derrière une autre application, et au premier plan tout sauf ce que l'écran pose.
+    fn rendre_la_memoire(&mut self, _arriere_plan: bool) {}
+
     /// Présente la scène en cinq temps. N'est appelée que si [`Presenter::pose_les_photos`].
     ///
     /// L'ordre est tout, et il est celui du modèle : **le fond**, **les lueurs**, la couche du

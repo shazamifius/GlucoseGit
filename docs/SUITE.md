@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 13/10/2026** (fiches 59 à 65). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 14/10/2026** (fiches 59 à 66). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -29,7 +29,8 @@ haut à gauche du curseur**. Dans cet ordre :
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
-| [ ] | **P0 — ANDROID-MEMOIRE : Glucose ne doit jamais figer un téléphone.** D'abord **lire** : le téléphone branché (débogage USB) — `adb shell getprop sys.boot.reason`, `adb shell dumpsys dropbox --print`, `adb logcat -b crash`, puis Glucose ouvert et `adb shell dumpsys meminfo com.glucose.app` pendant qu'on navigue. Puis la recherche (`onTrimMemory`/`ComponentCallbacks2`, `ActivityManager.getMemoryInfo`, `VK_EXT_memory_budget`, ce que font Chrome et les moteurs de jeu sur Android), et **la mémoire par étages sous Android** : un budget lu du système, relu en continu, `onTrimMemory` qui fait rendre les textures, jamais plus que ce que la machine laisse — la charte (« chaque étage borné par ce que la machine laisse **maintenant** »). Les saccades qui précèdent sont un signal à lire (POSTES-1, BOITE-ANDROID) | **son téléphone** : une longue session sans saccade qui monte, ni gel ; ses sessions arrivées et lues (le tableau de bord, et l'écart « redémarré après ») ; une épreuve qui simule la pression mémoire et exige que les textures se rendent |
+| [~] | **P0 — ANDROID-MEMOIRE** — **fait côté code (fiche 66)** : MEMOIRE-1 (la mémoire se mesure sous Android, une ligne `memoire` par record dans la boîte noire qui voyage, le serveur redéployé), MEMOIRE-2 (`onTrimMemory` → la carte rend ce qui se reconstruit, le magasin offre tout derrière une autre application), MEMOIRE-3 (aucun décodage n'entre s'il ne tient pas dans la moitié de ce que la machine laisse ; décodé dans la page de la pyramide : 445 → 254 Mo pour une photo de 50 Mpx). **Reste** : lire le téléphone par le câble (`outils/android/lire_le_telephone.sh`), un APK neuf, et sa longue session | **son téléphone** (ci-dessous) |
+| [ ] | **P0 (le libellé d'origine) — Glucose ne doit jamais figer un téléphone.** D'abord **lire** : le téléphone branché (débogage USB) — `adb shell getprop sys.boot.reason`, `adb shell dumpsys dropbox --print`, `adb logcat -b crash`, puis Glucose ouvert et `adb shell dumpsys meminfo com.glucose.app` pendant qu'on navigue. Puis la recherche (`onTrimMemory`/`ComponentCallbacks2`, `ActivityManager.getMemoryInfo`, `VK_EXT_memory_budget`, ce que font Chrome et les moteurs de jeu sur Android), et **la mémoire par étages sous Android** : un budget lu du système, relu en continu, `onTrimMemory` qui fait rendre les textures, jamais plus que ce que la machine laisse — la charte (« chaque étage borné par ce que la machine laisse **maintenant** »). Les saccades qui précèdent sont un signal à lire (POSTES-1, BOITE-ANDROID) | **son téléphone** : une longue session sans saccade qui monte, ni gel ; ses sessions arrivées et lues (le tableau de bord, et l'écart « redémarré après ») ; une épreuve qui simule la pression mémoire et exige que les textures se rendent |
 | [ ] | **P1 — FANTOME-1 : le fantôme toujours en haut à gauche du curseur**, comme le tracé : la grille armée du Storyboard (aujourd'hui centrée — `disposition_au_clic`) et, à vérifier, la membrane et le dossier (l'aimant peut décaler leur coin). Le clic pose là où le fantôme est | une épreuve à la vraie souris : le coin haut gauche de la première case sous le curseur, au survol et au clic ; **à son écran** |
 | [ ] | **P2 — Les huit propositions du Storyboard, validées** (fiche 65 § 9), dans cet ordre : 1. plusieurs images lâchées remplissent les cases vides à la suite ; 2. un storyboard de la sélection (une case par image, ordre de lecture) ; 3. insérer une case entre deux ; 4. la lecture — une durée par case, l'animatique en plein écran ; 5. plusieurs champs par case (dialogue, action, notes) ; 6. le type de plan ; 7. l'export en planches (PNG, PDF, rangées × colonnes par page) ; 8. plusieurs storyboards par tableau (une séquence chacun : un changement du modèle, schéma 4) | chacun : branché, visible, annulable, enregistré, saboté ; un bouton au PC et au téléphone (INVENTAIRE) ; relire Tauri d'abord |
 | [ ] | **P3 — Ce que son téléphone dira** : POSTES-1 (lire les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles désignent leur coupable | les postes lus, le coupable nommé par la mesure |
@@ -37,7 +38,8 @@ haut à gauche du curseur**. Dans cet ordre :
 | [ ] | **P5 — L'export SVG complet** (les images et les membranes) | |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande | la liste de ce qui manque, puis fait |
 | [ ] | **P7 — Les fonctions de Tauri qui n'existent pas encore** (INVENTAIRE § 3), une session chacune environ : **la recherche** (`Ctrl+F`, qui l'attend), les opérateurs des post-it (ET, OU, MAIS, PARCE QUE — ils se dessinent déjà), la couleur des post-it et des domaines (un sélecteur de couleur), filtrer par domaine, les miroirs, la temporalité, l'export HTML, le mode zen, les vidéos, puis — à sa parole — les rideaux, les membranes étirées, Trans-domaines | chacun à son écran |
-| [~] | **P8 — La 2.0.3-beta.2** : à sa demande du 13/10 au soir, la CI et le brouillon (Actions → Publier) sur tout ce qui est envoyé ; les notes dans `outils/publication/notes.md` (dont une prudence au téléphone) ; le clic « Publish release » est le sien. Le brouillon de la 2.0.3-beta.1 (sur `7c60593`) est périmé | **son clic** |
+| [x] | **P8 — La 2.0.3-beta.2** : **publiée** par lui le 13/10 à 14 h 50 UTC (sur `82c774b`, CI dix vertes) ; il l'a dit le 14/10 | 14/10 |
+| [ ] | **P8 bis — La 2.0.3-beta.3** : P0 (et ce qui suivra), quand son téléphone aura tenu une longue session ; la CI, puis le brouillon ; son clic | après P0 |
 | [ ] | **P9 — Le Mac publié** ; **Collaborer** (obligatoire, plus tard) ; **l'UX du téléphone**, toute refaite, en dernier | |
 
 ## 0 septies. Le téléphone, le Storyboard tracé (fiche 65)
@@ -70,7 +72,7 @@ rien ; des propositions pour un outil « pas pratique et incomplet ».
 | [ ] | **DESSUS-1** — la couche du dessus balayée en entier à chaque image, même vide (0,7-0,8 ms à 2560 × 1600) : que chaque passe dise ce qu'elle dessine, vérifié contre le balayage en `debug_assert` | **si les postes du téléphone le désignent** (`relever`) |
 | [ ] | **RASTER-1** — les textes rendus sur plusieurs fils (fiche 63 § 7) | idem |
 | [ ] | **Le panneau Storyboard prend toute la hauteur** (comme la Time Machine) : le borner à son contenu demanderait que le dock connaisse le nombre de cases | à juger à son écran |
-| [ ] | **La 2.0.3-beta.1** : le brouillon (sur `7c60593`) ne porte ni CHROME-1 ni STORYBOARD-1 — **sa parole** : publier celui-ci, ou un nouveau après la CI | fiche 64 § 5 |
+| [x] | **La 2.0.3-beta.1** : **publiée** par lui (13/10, 8 h 26 UTC, sur `7c60593`) ; la suite est la 2.0.3-beta.2 (§ 0 octies, P8) | 13/10 |
 | [~] | **Un tableau de bord de la télémétrie** (les installations, les cartes par leurs noms) — sa demande du 13/10 « voir les statistiques et les PC » | **fait** (fiche 65 § 8 bis) |
 
 ## 0 quinquies. Le flou, chaque bouton, et la 2.0.3-beta.1 — **d'abord** (fiche 63)
@@ -87,7 +89,7 @@ chaque fonctionnalité, sur PC ou téléphone » ; « regarde les performances �
 | [x] | **PARTAGE-2** — exporter et enregistrer une image au téléphone, par la feuille de partage (`aabd7da`) | **jugé** (13/10) : « a l'air de parfaitement fonctionner » |
 | [~] | **POSTES-1** — la boîte noire dit quelle étape ralentit un épisode trop lent (`939eab7`, serveur redéployé) | la session de son essai partira à sa **prochaine ouverture** au téléphone (fiche 64 § 1) |
 | [x] | **La CI** sur `7c60593` — **dix vertes** (exécution 38306469681), Linux et les deux Mac compris | 13/10 |
-| [~] | **La 2.0.3-beta.1** — **le brouillon est prêt** (exécution 38361915501, sur `7c60593`, onze fichiers) ; **son essai**, puis son clic « Publish release » | fiche 64 § 5 : il ne porte pas CHROME-1 ni STORYBOARD-1 |
+| [x] | **La 2.0.3-beta.1** — **publiée** par lui le 13/10 au matin (sur `7c60593`, onze fichiers) | la 2.0.3-beta.2 suit (§ 0 octies) |
 | [~] | **CHROME-1** — la bande, le rail, la minimap posés par la carte | **fait** (`6e53d09`, fiche 64 § 2) — à son écran |
 | [ ] | **RASTER-1** — les textes rendus sur plusieurs fils, comme Chromium (chaque fil sa typographie) | idem |
 | [ ] | **Trans-domaines dit « bientôt »** comme Collaborer — le seul bouton qui ne dit pas qu'il ne fait rien | **à sa parole** (fiche 63 § 9) |

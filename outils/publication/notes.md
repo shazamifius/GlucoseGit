@@ -1,57 +1,24 @@
 **Glucose {version}** — Glucose, réécrit en Rust.
 
-**Ce qui change dans cette version**
+**Ce qui change depuis la 2.0.3-beta.2**
 
-* **Le Storyboard** : « Activer », puis un clic pose la grille — ou un rectangle tracé à la
-  souris se remplit de cases. Une poignée au coin l'agrandit ou le rétrécit ; une case qui porte
-  une image ou une description n'est jamais retirée. Une image lâchée dans une case s'y ajuste.
-  Une case se prend par sa bande et se lâche à une autre place : les autres se décalent avec
-  leurs images, et les numéros suivent. Deux clics sur la bande pour la décrire, `Tab` pour
-  passer à la suivante.
-* **Les membranes et les dossiers se tracent** : l'outil choisi, un glisser leur donne leur
-  taille ; un simple clic les pose comme avant.
-* **Tout cadrer passe à `Alt+F`** ; `Ctrl+F` est gardé pour la recherche, qui vient. `F` cadre
-  toujours la sélection.
-* **Le texte et les membranes redeviennent nets dès qu'on s'arrête** : à certains niveaux de
-  zoom, des textes restaient flous, parfois par carrés, jusqu'au geste suivant. Glucose finit
-  désormais chaque image avant de s'endormir.
-* **L'interface coûte moins à chaque image** : la bande, le fil d'Ariane, la minimap et le rail
-  sont posés par la carte graphique au lieu d'être redessinés. Le rectangle de la minimap
-  retrouve le trait fin de Glucose Tauri.
-* **Chaque commande a son entrée dans le clic droit** — au téléphone, deux touchers sur le
-  vide : annuler et rétablir, tout cadrer, cadrer la sélection, les **signets** (y aller, en
-  poser un, en remplacer un), enregistrer, enregistrer sous, exporter. Plus rien ne demande un
-  clavier. Sur un petit écran, le menu se range en colonnes au lieu de sortir de l'écran.
-* **Un seul « Copier »**, et une image reste une image : collée dans Discord, un navigateur ou
-  Paint, une image arrive comme une image, plusieurs comme des fichiers. Sous Windows, on peut
-  aussi **glisser** des nœuds vers Discord, Google Docs ou le bureau. Sous Linux, le même
-  copier, et une copie ne disparaît plus quand Glucose la quitte.
-* **Ordonner** : les tris **par la couleur** (couleur, du sombre au clair, du clair au sombre),
-  le champ « Colonnes », et des champs qu'on règle en glissant ou en tapant.
-* **Les Presets** : six gabarits (CharaDesign, Environment, Creature Design, Props & Items,
-  Storyboard, Mood Board) posés où l'on veut ; leurs zones se déplacent et se redimensionnent par
-  leur bandeau ; « Par slot preset » range les images de chaque zone dans la zone.
-* **Exporter en image** : la sélection, ou tout le tableau, en PNG.
-* **La question passe par-dessus les panneaux**, et aucun panneau ne s'ouvre au lancement.
-* **Le canevas défile** quand on tient un nœud près du bord de la fenêtre (une première
-  version).
-* **Au téléphone** : exporter et enregistrer une image passent par le **partage** d'Android
-  (Fichiers, la galerie, une conversation…) ; « Enregistrer » range un travail sans nom,
-  « Enregistrer sous… » le renomme, « Importer un document… » ajoute un autre document en
-  onglets ; un dossier choisi a son menu ; les grandes photos ne dépassent plus ce que la puce
-  graphique accepte.
-* **Le journal technique, si tu l'as accepté**, dit désormais la carte graphique (par ses
-  numéros), quelle étape du dessin a ralenti un geste trop lent, et, au téléphone, quand Glucose
-  passe en arrière-plan — toujours aucun contenu de tes documents. Tout est décrit dans le
-  `LISEZ-MOI.txt` de son dossier.
+* **Au téléphone, Glucose ne prend plus la mémoire sans regarder ce qui reste** : une image ne
+  commence à se décoder que si l'ensemble des décodages en cours tient dans la moitié de ce que
+  l'appareil laisse libre à cet instant ; et une photo décodée occupe jusqu'à 40 % de mémoire de
+  moins pendant son décodage (254 Mo au lieu de 445 pour une photo de 50 mégapixels).
+* **Quand Android demande de la mémoire, Glucose la rend** : derrière une autre application, la
+  carte graphique lâche ses images et le reste est offert au système, qui le reprend s'il en a
+  besoin ; au retour, tout revient de lui-même.
+* **Le journal technique, si tu l'as accepté**, dit désormais la mémoire — ce que Glucose occupe
+  et ce que l'appareil laisse, en mégaoctets, quand c'est un record de la session — et les
+  instants où le système en demande. Toujours aucun contenu de tes documents.
 
 **À savoir avant d'installer**
 
-* **Un document enregistré par cette version ne s'ouvre plus dans une version plus ancienne** de
-  Glucose Rust : il porte la grille de son storyboard. Tous les documents d'avant s'ouvrent.
 * **Au téléphone, une prudence** : sur un téléphone, une longue session a fini par figer tout le
-  système, jusqu'à son redémarrage. La cause est recherchée. Si Glucose se met à saccader de plus
-  en plus, ferme-le.
+  système, jusqu'à son redémarrage. Cette version empêche Glucose de prendre plus de mémoire que
+  l'appareil n'en laisse — la cause la plus probable, **pas encore prouvée**. Si Glucose se met
+  à saccader de plus en plus, ferme-le.
 
 | système | fichier |
 |---|---|

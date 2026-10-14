@@ -28,9 +28,9 @@
 //! # Ce qu'une plateforme sans relevé donne
 //!
 //! Rien, et le rapport ne dit alors rien plutôt que zéro — *« un compteur déclaré et jamais
-//! lu vaut zéro, et un zéro se lit comme une mesure »* (fiche 17 § 3.1, cliquet 9). Windows et
-//! Linux répondent ; macOS demanderait `task_info`, et tant qu'il n'est pas écrit, la section
-//! ne paraît pas.
+//! lu vaut zéro, et un zéro se lit comme une mesure »* (fiche 17 § 3.1, cliquet 9). Windows,
+//! Linux et Android répondent ; macOS demanderait `task_info`, et tant qu'il n'est pas écrit,
+//! la section ne paraît pas.
 
 /// Ce que le système compte pour ce processus, à un instant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,12 +91,32 @@ mod natif {
     }
 }
 
-#[cfg(target_os = "linux")]
+/// **La mémoire résidente que le noyau compte**, en octets, lue dans `/proc/self/status`.
+///
+/// Le noyau l'y écrit en kibioctets (`VmRSS:  123456 kB`) : aucune taille de page à supposer.
+/// L'ancienne lecture prenait `statm`, en pages, et les multipliait par 4 096 — faux d'un
+/// facteur quatre sur un téléphone à pages de seize kibioctets, qu'Android 15 introduit
+/// (MEMOIRE-1, fiche 66). Une fonction pure : l'unité se prouve sur un texte fixé.
+#[cfg(any(target_os = "linux", target_os = "android", test))]
+fn residente_en_octets(status: &str) -> Option<u64> {
+    let kio: u64 = status
+        .lines()
+        .find_map(|l| l.strip_prefix("VmRSS:"))?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()?;
+    Some(kio.saturating_mul(1024))
+}
+
+/// Linux, et Android, qui en a le noyau : sans ce second nom, le téléphone ne mesurait rien
+/// (MEMOIRE-1, fiche 66).
+#[cfg(any(target_os = "linux", target_os = "android"))]
 mod natif {
     use super::Empreinte;
 
     /// Le nombre de tics d'horloge par seconde que `/proc` emploie, et il vaut cent partout où
-    /// Linux tourne sur une machine de bureau.
+    /// Linux tourne — Android compris, dont le noyau est le même.
     ///
     /// Le lire proprement demanderait `sysconf(_SC_CLK_TCK)`, donc `libc`, donc une caisse de
     /// plus pour une constante que le noyau n'a pas changée depuis vingt ans. Si elle devait
@@ -105,9 +125,8 @@ mod natif {
     const TICS_PAR_SECONDE: u64 = 100;
 
     pub fn relever() -> Option<Empreinte> {
-        let pages = std::fs::read_to_string("/proc/self/statm").ok()?;
-        // La deuxième colonne est la résidence, en pages.
-        let resident: u64 = pages.split_whitespace().nth(1)?.parse().ok()?;
+        let status = std::fs::read_to_string("/proc/self/status").ok()?;
+        let memoire_octets = super::residente_en_octets(&status)?;
 
         let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
         // Le nom du processus peut contenir des espaces et des parenthèses : les champs se
@@ -119,13 +138,13 @@ mod natif {
         let utime: u64 = champs.get(11)?.parse().ok()?;
         let stime: u64 = champs.get(12)?.parse().ok()?;
         Some(Empreinte {
-            memoire_octets: resident.saturating_mul(4096),
+            memoire_octets,
             processeur_us: (utime + stime).saturating_mul(1_000_000) / TICS_PAR_SECONDE,
         })
     }
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
 mod natif {
     use super::Empreinte;
 

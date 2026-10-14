@@ -1,0 +1,259 @@
+[
+ {
+  "nom": "la residente lue en kibioctets comme des octets",
+  "fichier": "crates/glucose-desktop/src/plateforme/empreinte.rs",
+  "avant": "    Some(kio.saturating_mul(1024))",
+  "apres": "    Some(kio)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire",
+   "residente"
+  ]
+ },
+ {
+  "nom": "un autre champ pris pour VmRSS",
+  "fichier": "crates/glucose-desktop/src/plateforme/empreinte.rs",
+  "avant": "        .find_map(|l| l.strip_prefix(\"VmRSS:\"))?",
+  "apres": "        .find_map(|l| l.strip_prefix(\"VmPeak:\"))?",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire",
+   "residente"
+  ]
+ },
+ {
+  "nom": "une empreinte egale passe pour un record",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "            .is_some_and(|p| haut.is_none_or(|h| p > h));",
+  "apres": "            .is_some_and(|p| haut.is_none_or(|h| p >= h));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire"
+  ]
+ },
+ {
+  "nom": "ce qui reste egal passe pour un record",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "            .is_some_and(|d| bas.is_none_or(|b| d < b));",
+  "apres": "            .is_some_and(|d| bas.is_none_or(|b| d <= b));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire"
+  ]
+ },
+ {
+  "nom": "le record haut ne se retient pas",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "            self.memoire.0 = occupation.processus_mo;",
+  "apres": "            let _ = occupation.processus_mo;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire"
+  ]
+ },
+ {
+  "nom": "le record bas ne se retient pas",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "            self.memoire.1 = occupation.disponible_mo;",
+  "apres": "            let _ = occupation.disponible_mo;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire"
+  ]
+ },
+ {
+  "nom": "une ligne forcee ne s'ecrit pas",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "        if forcer || plus_haut || plus_bas {",
+  "apres": "        if plus_haut || plus_bas {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire"
+  ]
+ },
+ {
+  "nom": "un champ de la memoire mal nomme pour le serveur",
+  "fichier": "crates/glucose-desktop/src/boite_noire/enregistrement.rs",
+  "avant": "            (\"carte_mo\", self.carte_mo.into()),",
+  "apres": "            (\"carte\", self.carte_mo.into()),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire"
+  ]
+ },
+ {
+  "nom": "la carte compte seulement ses photos",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "        self.photos.values().map(|t| t.octets).sum()",
+  "apres": "        self.photos.values().filter(|t| t.photo).map(|t| t.octets).sum()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "derriere, la carte garde tout",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "            self.photos.clear();",
+  "apres": "            self.fermer(0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "derriere, le cache se croit encore plein",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "            self.en_cache = 0;",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "au premier plan, le cache reste dans son budget",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "            self.fermer(0);",
+  "apres": "            self.fermer(u64::MAX);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "l'alerte ne dit pas l'arriere-plan a la carte",
+  "fichier": "crates/glucose-desktop/src/app/memoire.rs",
+  "avant": "            presenter.rendre_la_memoire(derriere);",
+  "apres": "            presenter.rendre_la_memoire(false);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "derriere, le magasin n'offre rien",
+  "fichier": "crates/glucose-desktop/src/app/memoire.rs",
+  "avant": "            self.renderer.magasin.offrir_tout();",
+  "apres": "            let _ = &self.renderer.magasin;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "l'alerte ne force pas la ligne de memoire",
+  "fichier": "crates/glucose-desktop/src/app/memoire.rs",
+  "avant": "        self.noter_la_memoire(true);",
+  "apres": "        self.noter_la_memoire(false);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "la memoire s'ecrit avant l'alerte",
+  "fichier": "crates/glucose-desktop/src/app/memoire.rs",
+  "avant": "        self.chronique.noter_l_alerte_memoire(derriere);\n        self.noter_la_memoire(true);",
+  "apres": "        self.noter_la_memoire(true);\n        self.chronique.noter_l_alerte_memoire(derriere);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ },
+ {
+  "nom": "offrir tout n'offre rien",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "                let offrable = tenu && entree.pyramide.offrable(rang);",
+  "apres": "                let offrable = tenu && entree.pyramide.offrable(rang) && rang > 99;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memoire_2"
+  ]
+ }
+]

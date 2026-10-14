@@ -155,6 +155,20 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
             median_us: 1,
             p99_us: 1,
         }),
+        Enregistrement::ArrierePlan { instant_ms: 0 },
+        Enregistrement::PremierPlan { instant_ms: 0 },
+        Enregistrement::Memoire {
+            instant_ms: 0,
+            occupation: crate::boite_noire::enregistrement::Occupation {
+                processus_mo: Some(1),
+                carte_mo: Some(1),
+                ..Default::default()
+            },
+        },
+        Enregistrement::AlerteMemoire {
+            instant_ms: 0,
+            arriere_plan: true,
+        },
         Enregistrement::Fin { instant_ms: 0 },
     ];
     let plantage = crate::boite_noire::plantage::Plantage {
@@ -170,8 +184,26 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
     lignes
 }
 
+/// Les types de ligne que le serveur accepte (`outils/telemetrie/src/valider.js`, `TYPES`) :
+/// ce qui part, exactement.
+fn types_du_serveur() -> BTreeSet<String> {
+    let serveur = include_str!("../../../../../outils/telemetrie/src/valider.js");
+    let debut = serveur
+        .find("export const TYPES = {")
+        .expect("la loi des types");
+    let fin = debut + serveur[debut..].find("\n};").expect("sa fin");
+    serveur[debut..fin]
+        .lines()
+        .filter_map(|l| l.strip_prefix("  ")?.split_once(": {"))
+        .map(|(nom, _)| nom.to_string())
+        .filter(|nom| nom.chars().all(|c| c.is_ascii_lowercase() || c == '_'))
+        .collect()
+}
+
 /// **Le lisez-moi n'oublie rien** : chaque sorte de ligne a sa section, et chaque champ de
-/// chacune sa rangée — un champ ajouté demain sans le dire ferait tomber cette épreuve.
+/// chacune sa rangée — un champ ajouté demain sans le dire ferait tomber cette épreuve. Et les
+/// sortes sont **celles que le serveur accepte** : la liste de cette épreuve, écrite à la main,
+/// avait laissé passer les deux lignes de BOITE-ANDROID sans section (fiche 66).
 #[test]
 fn test_le_lisez_moi_dit_chaque_champ_de_chaque_ligne() {
     use glucose_core::persist::tauri::json;
@@ -197,8 +229,12 @@ fn test_le_lisez_moi_dit_chaque_champ_de_chaque_ligne() {
         }
         sortes.insert(sorte);
     }
-    assert_eq!(sortes.len(), 11, "les onze sortes de lignes : {sortes:?}");
-    assert_eq!(sections.len(), 11, "et pas une section de plus");
+    assert_eq!(
+        sortes,
+        types_du_serveur(),
+        "les sortes que le serveur accepte"
+    );
+    assert_eq!(sections.len(), sortes.len(), "et pas une section de plus");
 }
 
 /// **Les répétitions de la bascule plantent leur témoin dans le dossier de Glucose** : le

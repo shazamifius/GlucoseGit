@@ -63,6 +63,9 @@ pub struct BoiteNoire {
     episode: Option<Episode>,
     /// La pire image de la session jusqu'ici.
     pire_us: u32,
+    /// Les records de la mémoire jusqu'ici (MEMOIRE-1) : l'empreinte la plus haute, et ce que
+    /// la machine laissait au plus bas.
+    memoire: (Option<u64>, Option<u64>),
     chemin: PathBuf,
 }
 
@@ -139,6 +142,7 @@ impl BoiteNoire {
             depart,
             episode: None,
             pire_us: 0,
+            memoire: (None, None),
             chemin,
         };
         b.envoyer(Enregistrement::Debut {
@@ -276,6 +280,45 @@ impl BoiteNoire {
         }
     }
 
+    /// **Ce que Glucose occupe, et ce que la machine laisse** (MEMOIRE-1, fiche 66), écrit
+    /// quand c'est un record — l'empreinte la plus haute de la session, ou ce qui reste le plus
+    /// bas —, ou quand on le demande (`forcer`, après une alerte du système).
+    ///
+    /// La règle de [`Enregistrement::Pire`] : aucune période n'est choisie. Une session qui
+    /// tient sa mémoire écrit quelques lignes au début, puis plus rien ; une session qui gonfle
+    /// les écrit marche après marche — exactement ce qu'un téléphone figé n'a pas pu dire.
+    pub fn memoire(&mut self, occupation: enregistrement::Occupation, forcer: bool) {
+        let (haut, bas) = self.memoire;
+        let plus_haut = occupation
+            .processus_mo
+            .is_some_and(|p| haut.is_none_or(|h| p > h));
+        let plus_bas = occupation
+            .disponible_mo
+            .is_some_and(|d| bas.is_none_or(|b| d < b));
+        if plus_haut {
+            self.memoire.0 = occupation.processus_mo;
+        }
+        if plus_bas {
+            self.memoire.1 = occupation.disponible_mo;
+        }
+        if forcer || plus_haut || plus_bas {
+            self.envoyer(Enregistrement::Memoire {
+                instant_ms: self.instant_ms(),
+                occupation,
+            });
+        }
+    }
+
+    /// **Le système demande de rendre de la mémoire** (MEMOIRE-2). Sans attendre le disque :
+    /// derrière une autre application, la ligne `arriere_plan`, elle, l'a attendu — c'est elle
+    /// qui dit comment la session finit.
+    pub fn alerte_memoire(&self, arriere_plan: bool) {
+        self.envoyer(Enregistrement::AlerteMemoire {
+            instant_ms: self.instant_ms(),
+            arriere_plan,
+        });
+    }
+
     /// Attend que tout ce qui a été confié soit sur le disque.
     pub fn synchroniser(&self) {
         let (reponse, attente) = channel();
@@ -409,6 +452,22 @@ impl Chronique {
     pub fn noter_le_plan(&self, arriere: bool) {
         if let Some(b) = &self.boite {
             b.plan(arriere);
+        }
+    }
+
+    /// Ce que Glucose occupe et ce que la machine laisse, pour la boîte noire si elle est
+    /// ouverte (MEMOIRE-1).
+    pub fn noter_la_memoire(&mut self, occupation: enregistrement::Occupation, forcer: bool) {
+        if let Some(b) = self.boite.as_mut() {
+            b.memoire(occupation, forcer);
+        }
+    }
+
+    /// Le système demande de rendre de la mémoire, pour la boîte noire si elle est ouverte
+    /// (MEMOIRE-2).
+    pub fn noter_l_alerte_memoire(&self, arriere_plan: bool) {
+        if let Some(b) = &self.boite {
+            b.alerte_memoire(arriere_plan);
         }
     }
 

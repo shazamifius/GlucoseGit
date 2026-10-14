@@ -29,6 +29,11 @@ précédentes. On y trouve :
 * comment la session a fini : fermée normalement, plantée (et dans quel module du système),
   gelée, ou — au téléphone — fermée par le système pendant que Glucose était en arrière-plan ;
 * au téléphone, les instants où Glucose passe derrière une autre application et en revient ;
+* **la mémoire**, en mégaoctets, quand elle atteint un record de la session : ce que Glucose
+  occupe en tout, ce qu'il tient d'images décodées, ce qu'il en a rendu au système, ce que ses
+  décodages en cours prennent, ce qu'il a confié à la carte graphique — et ce que l'appareil
+  laisse encore de libre ; ainsi que les instants où le système demande de rendre de la
+  mémoire ;
 * l'état du pavé tactile, pour comprendre une panne de navigation.
 
 Un identifiant tiré au hasard relie les sessions d'une même installation. Il ne dit rien de

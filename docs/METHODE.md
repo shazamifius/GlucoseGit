@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 13/10/2026** (fiches 59 à 65). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 14/10/2026** (fiches 59 à 66). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -128,6 +128,12 @@
 | **Une partie entière posée sur un bord exact** : « les cases qui tiennent » — sept rangées au format Scope donnent 6,999999999999999, et saisir une poignée pile au coin aurait retiré une rangée (fiche 65) | choisir une loi sans bord à l'état de repos (l'étendue la plus proche : `round`) ; l'éprouver sur des étendues exactes, à tous les formats |
 | **Qui possède quoi, décidé au moment où deux boîtes se recouvrent** : la case lâchée recouvrait une voisine, et l'image partait avec la mauvaise (fiche 65) | ce qu'une main porte se décide au début du geste et se garde jusqu'au bout |
 | **Une condition lue à la place d'une autre** : j'ai cru qu'un glisser ne se refermait que si ses pas étaient les derniers écrits (`==`, la condition pour le *continuer*) ; celle qui le *referme* dit `<=` — ma garde en plus était redondante, et le sabotage l'a montrée aveugle (fiche 65) | lire la fonction même qu'on croit protéger ; une garde dont le sabotage ne fait rien tomber se retire, elle ne se « renforce » pas d'une épreuve inventée |
+| **Une plateforme que le `cfg` ne nomme pas** : l'empreinte du processus était écrite pour `target_os = "linux"`, et Android est `android` — le téléphone, la machine qui a figé, ne mesurait rien (fiche 66) | à chaque `cfg(target_os = "linux")`, se demander si Android en est ; une mesure absente se dit « absente », et une plateforme qui devrait répondre a son épreuve (`ici()`) |
+| **Un signal du système reçu, et jeté** : `onTrimMemory` arrivait jusqu'à `winit` (`memory_warning`) et aucune ligne n'y répondait (fiche 66) | avant d'écrire un pont vers le système, lire ce que le cadre transmet déjà, et chercher les méthodes de `ApplicationHandler` que l'application n'implémente pas |
+| **Une borne tirée du papier** : « le décodeur garde chaque coefficient sur seize bits, six octets par pixel » — la mesure dit 0 pour un JPEG ordinaire, 3,8 au pire ; la borne comptait 300 Mo de trop (fiche 66) | mesurer la grandeur avant de la borner, chaque chemin dans son propre processus (`bench_decodage`) ; écrire d'où vient chaque terme |
+| **Une épreuve qui bloque au lieu de tomber** : si la règle d'admission cassait, l'épreuve attendait sans fin, et le saboteur avec elle (fiche 66) | ce qui peut attendre s'éprouve dans un fil, avec un délai : une règle cassée fait tomber, jamais bloquer |
+| **Une durée de vie tenue par un nom** : `let _admis = porte.entrer(…)` garde le jeton, `let _ = …` le lâche aussitôt — aucune épreuve ne voit la différence (fiche 66) | que le type l'interdise : `porte.pendant(octets, || travail)` tient le jeton exactement le temps du travail |
+| **Une liste d'épreuve écrite à la main** : l'épreuve du `LISEZ-MOI` comptait onze sortes de lignes ; BOITE-ANDROID en a ajouté deux sans les y mettre, et rien n'est tombé (fiche 66) | lier l'épreuve à la source de vérité — ici la liste fermée du serveur, qui est ce qui part —, jamais à un nombre recopié |
 
 ## 5. Les pièges pratiques
 
@@ -148,7 +154,7 @@
   Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`,
-  `storyboard-1.json`, `storyboard-2.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
+  `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
   texte).
 * **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,
@@ -194,6 +200,12 @@
   <scratchpad>/vN HEAD`), une épreuve jetable qui y écrit la fixture, sa propre cible
   (`CARGO_TARGET_DIR`), puis `git worktree remove --force`. Un témoin écrit par la build du
   jour ne prouverait que sa propre idée de l'ancien schéma.
+* **Lire le téléphone par le câble** (fiche 66) : `bash outils/android/lire_le_telephone.sh
+  <dossier>` — la raison du dernier redémarrage, les morts de Glucose qu'Android a notées
+  (`exit-info`), la boîte des incidents, les journaux, la mémoire, le pilote, et un rapport de
+  bogue complet. Rien n'est écrit sur le téléphone, et Glucose n'y est pas ouvert.
+* **Le jeton de `wrangler` expire** : une erreur 7403 (« account not authorized ») sur une
+  requête à la base se règle par `npx wrangler whoami`, qui le rafraîchit.
 * **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le
   fichier, le dossier seul échoue sur ce Node. **Cloudflare refuse un client sans en-tête
   d'identité** (erreur 1010) : un essai en ligne donne un `user-agent`, s'efface ensuite

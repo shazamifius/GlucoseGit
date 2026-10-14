@@ -495,6 +495,14 @@ impl Presenter for GpuPresenter {
         Some(self.device.limits().max_texture_dimension_2d)
     }
 
+    fn octets_sur_la_carte(&self) -> Option<u64> {
+        Some(self.scene.octets())
+    }
+
+    fn rendre_la_memoire(&mut self, arriere_plan: bool) {
+        self.scene.rendre(arriere_plan);
+    }
+
     fn part_pour_les_photos(&self) -> Option<u64> {
         let m = self.sonde.as_ref()?.lire()?;
         Some(m.part_pour_les_photos(

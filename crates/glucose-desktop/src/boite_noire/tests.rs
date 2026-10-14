@@ -299,6 +299,8 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         "plantage",
         "arriere_plan",
         "premier_plan",
+        "memoire",
+        "alerte_memoire",
     ];
     let gestes = Geste::TOUS.map(Geste::nom);
     let moteurs = [
@@ -740,4 +742,117 @@ fn test_boite_android_le_rangement_traite_l_arriere_plan_comme_ordinaire() {
     assert_eq!(precedente.fin, Fin::ArrierePlan);
     assert!(!ancienne.exists(), "rien à apprendre : effacée");
     assert!(derniere.exists(), "c'est elle qu'on raconte");
+}
+
+// ── MEMOIRE-1 et 2 : ce que Glucose occupe, et ce que la machine laisse (fiche 66) ─────────
+
+fn occupation(processus: u64, disponible: u64) -> super::enregistrement::Occupation {
+    super::enregistrement::Occupation {
+        processus_mo: Some(processus),
+        disponible_mo: Some(disponible),
+        images_mo: 1,
+        offerts_mo: 2,
+        decodages_mo: 4,
+        carte_mo: Some(3),
+    }
+}
+
+/// **Une ligne par record, et quand on la force** : l'empreinte la plus haute de la session,
+/// ce qui reste le plus bas — la règle des images les plus lentes, sans période choisie.
+#[test]
+fn test_memoire_1_une_ligne_par_record_et_quand_on_la_force() {
+    let d = Dossier::nouveau("memoire-records");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
+    b.memoire(occupation(100, 900), false); // la première : deux records
+    b.memoire(occupation(100, 900), false); // rien de neuf
+    b.memoire(occupation(90, 950), false); // moins, et plus de place : rien
+    b.memoire(occupation(120, 950), false); // plus haut
+    b.memoire(occupation(110, 800), false); // plus bas
+    b.memoire(occupation(110, 850), true); // forcée
+    b.synchroniser();
+    let lignes = lignes_du_type(&lire(b.chemin()), "memoire");
+    let vues: Vec<_> = lignes
+        .iter()
+        .map(|l| (l.entier("processus_mo"), l.entier("disponible_mo")))
+        .collect();
+    assert_eq!(
+        vues,
+        vec![
+            (Some(100), Some(900)),
+            (Some(120), Some(950)),
+            (Some(110), Some(800)),
+            (Some(110), Some(850)),
+        ]
+    );
+    assert_eq!(lignes[0].entier("carte_mo"), Some(3));
+    assert_eq!(lignes[0].entier("offerts_mo"), Some(2));
+    assert_eq!(lignes[0].entier("decodages_mo"), Some(4));
+}
+
+/// **Ce qui ne se lit pas est absent, jamais zéro** (cliquet 9) : sans empreinte ni carte, la
+/// ligne dit `null`, et aucun record ne se fonde sur ce qui manque.
+#[test]
+fn test_memoire_1_ce_qui_ne_se_lit_pas_est_absent() {
+    let d = Dossier::nouveau("memoire-absent");
+    let (mut b, _) = BoiteNoire::ouvrir(&d).expect("ouverte");
+    let muette = super::enregistrement::Occupation::default();
+    b.memoire(muette, false);
+    b.memoire(muette, true);
+    b.synchroniser();
+    let texte = lire(b.chemin());
+    let lignes = lignes_du_type(&texte, "memoire");
+    assert_eq!(lignes.len(), 1, "seule la forcée : {texte}");
+    assert!(texte.contains("\"processus_mo\":null"), "{texte}");
+    assert!(texte.contains("\"carte_mo\":null"), "{texte}");
+}
+
+/// Les champs qu'une loi du serveur déclare pour un type : `  nom: { a: "…", b: "…" },`, sur une
+/// ou plusieurs lignes.
+fn champs_du_serveur(serveur: &str, type_: &str) -> Vec<String> {
+    let debut = serveur
+        .find(&format!("  {type_}: {{"))
+        .unwrap_or_else(|| panic!("le serveur ne connaît pas « {type_} »"));
+    let corps = &serveur[debut..];
+    let corps = &corps[corps.find('{').expect("une loi") + 1..corps.find('}').expect("sa fin")];
+    let mut champs: Vec<String> = corps
+        .split(',')
+        .filter_map(|c| c.split(':').next())
+        .map(|c| c.trim().to_string())
+        .filter(|c| !c.is_empty() && !c.starts_with("//"))
+        .collect();
+    champs.sort();
+    champs
+}
+
+/// **Le serveur attend exactement les champs que Glucose écrit** pour les lignes de la mémoire :
+/// un champ de trop ou de moins, et chaque session qui le porte serait refusée en silence
+/// (fiche 54). Les clés sont lues sur de vraies lignes, pas recopiées.
+#[test]
+fn test_memoire_1_le_serveur_attend_les_champs_que_glucose_ecrit() {
+    let serveur = include_str!("../../../../outils/telemetrie/src/valider.js");
+    let lignes = [
+        Enregistrement::Memoire {
+            instant_ms: 1,
+            occupation: occupation(1, 2),
+        },
+        Enregistrement::AlerteMemoire {
+            instant_ms: 1,
+            arriere_plan: true,
+        },
+    ];
+    for e in lignes {
+        let ligne = e.ligne();
+        let v = json::lire(ligne.trim()).expect("du JSON");
+        let mut cles: Vec<String> = ligne
+            .trim()
+            .trim_matches(|c| c == '{' || c == '}')
+            .split(',')
+            .filter_map(|c| c.split(':').next())
+            .map(|c| c.trim_matches('"').to_string())
+            .filter(|c| c != "type")
+            .collect();
+        cles.sort();
+        let nom = v.texte("type").expect("un type").to_string();
+        assert_eq!(cles, champs_du_serveur(serveur, &nom), "la ligne « {nom} »");
+    }
 }

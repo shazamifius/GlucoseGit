@@ -55,7 +55,9 @@ type « precedente » — comment la session d'avant a fini
   champ                    ce qu'il dit                                        exemple
   -----------------------  --------------------------------------------------  -------------
   instant_ms               toujours 0 : écrit à l'ouverture                    0
-  fin                      propre, panique, interrompue, plantee ou gelee      propre
+  fin                      propre, panique, interrompue, plantee, gelee, ou    propre
+                           arriere_plan (au téléphone : fermée par le système
+                           pendant que Glucose était derrière)
   appareil_redemarre       l'appareil a-t-il redémarré depuis ?                false
   duree_ms                 combien de temps elle a duré                        415940
   batterie_pct             sa dernière batterie, en pour cent                  87
@@ -126,6 +128,40 @@ type « carte » — la carte graphique qui dessine, par ses numéros (jamais so
   fabricant                le numéro de son fabricant (PCI ou Khronos)         4318
   modele                   le numéro de son modèle chez lui (0 : inconnu)      10520
   plafond                  la plus grande texture qu'elle accepte, en pixels   16384
+
+type « arriere_plan » — au téléphone, Glucose passe derrière une autre application
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               52100
+
+type « premier_plan » — au téléphone, Glucose revient au premier plan
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               61800
+
+type « memoire » — la mémoire, quand elle bat un record de la session (Glucose n'a jamais
+                   tant occupé, ou l'appareil n'a jamais laissé si peu), ou juste après
+                   une alerte du système ; en mégaoctets
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               12500
+  processus_mo             ce que Glucose occupe en tout (null : inconnu)      412
+  disponible_mo            ce que l'appareil laisse encore de libre            2210
+  images_mo                les images décodées que Glucose tient               180
+  offerts_mo               celles qu'il a rendues au système, qui peut les     96
+                           reprendre sans rien demander
+  decodages_mo             ce que les décodages d'images en cours prennent     40
+  carte_mo                 ce qu'il a confié à la carte graphique              64
+
+type « alerte_memoire » — le système demande de rendre de la mémoire
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               90400
+  arriere_plan             Glucose était-il derrière une autre application ?   true
 
 type « fin » — Glucose s'est fermé normalement (la dernière ligne)
 

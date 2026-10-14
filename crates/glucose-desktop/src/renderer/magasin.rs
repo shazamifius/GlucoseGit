@@ -400,6 +400,33 @@ impl Magasin {
         }
     }
 
+    /// **Offre au système tout ce que le magasin tient** (MEMOIRE-2, fiche 66) — ce que l'écran
+    /// montrait et la vue d'ensemble compris —, quand Glucose est derrière une autre
+    /// application et que le système demande de la mémoire.
+    ///
+    /// Rien n'est jeté : le système reprend ces pages s'il en a besoin, sans rien écrire nulle
+    /// part, et sinon le retour les retrouve intactes (ETAGES-1). Le geste est celui de
+    /// l'étagement — les ouvriers offrent —, et chaque offre qui rentre remet son image à revoir
+    /// ([`Self::rentrer`]) : la première image du retour reprend ce que l'écran et la vue
+    /// d'ensemble demandent.
+    pub fn offrir_tout(&mut self) {
+        let Self { cache, atelier, .. } = self;
+        for (src, entree) in cache.iter_mut() {
+            for rang in 0..entree.pyramide.niveaux_construits() {
+                let tenu = matches!(entree.pyramide.etat(rang), Etat::Tenu);
+                let offrable = tenu && entree.pyramide.offrable(rang);
+                if let Some(transit) = offrable.then(|| entree.pyramide.sortir(rang)).flatten() {
+                    atelier.deplacer(Deplacement {
+                        src: src.clone(),
+                        generation: entree.generation,
+                        rang,
+                        charge: transit,
+                    });
+                }
+            }
+        }
+    }
+
     /// Ramène le cache sous ce que la machine autorise, en rendant d'abord le moins utile.
     ///
     /// # ADAPT-1 — la borne se lit sur la machine, elle ne se choisit pas

@@ -36,6 +36,8 @@
 //! décide pas non plus ce qu'on dessine en attendant. Il répond à une seule question — « ces
 //! octets, décodés, les voici » — et il y répond quand il peut.
 
+pub(crate) mod admission;
+
 use super::apercu::{self, Apercu};
 use super::photo::{Pyramide, Retour, Transit};
 use crate::persist::objets::Parole;
@@ -398,7 +400,7 @@ fn ouvrier(
                 let pyramide = apercus
                     .and_then(|d| apercu::lire(&apercu::chemin(&d, &src, empreinte)?))
                     .and_then(Pyramide::depuis_apercu)
-                    .or_else(|| decoder(&src, objets.as_deref()));
+                    .or_else(|| decoder(&src, objets.as_deref(), admission::de_la_machine()));
                 Fait::Decodee((src, pyramide, debut.elapsed()))
             }
             Travail::Adopter(src, rgba, (l, h), parole) => {
@@ -469,17 +471,35 @@ fn ouvriers() -> usize {
 /// fichier d'origine sinon (HISTOIRE-1). Le format se reconnaît à la **signature** des
 /// octets, jamais à une extension : une clé du document n'en a pas.
 ///
-/// Les pixels vont directement dans les pages de la pyramide ([`Pyramide::depuis_rgba`]) : le
-/// `Pixmap` intermédiaire qu'il y avait ici coûtait une copie de plus par image — dix
-/// mégaoctets pour une épingle.
-fn decoder(src: &str, objets: Option<&crate::persist::objets::Objets>) -> Option<Pyramide> {
+/// **Deux règles de la mémoire** (MEMOIRE-3, fiche 66). Le décodage n'entre qu'admis : ce que
+/// les décodages en vol tiendront ne dépasse jamais la moitié de ce que la machine laisse — son
+/// pic se lit dans l'en-tête, avant de décoder ([`admission`]). Et il écrit directement dans la
+/// page du niveau natif ([`Pyramide::depuis_le_decodeur`]) : ni l'image décodée à part, ni sa
+/// copie en RGBA, deux copies pleine taille de moins. Les couleurs qui ne s'étalent pas sur
+/// place — seize bits, flottants — gardent le chemin d'avant, qui donne les mêmes octets.
+fn decoder(
+    src: &str,
+    objets: Option<&crate::persist::objets::Objets>,
+    porte: &admission::Admission,
+) -> Option<Pyramide> {
+    use image::ImageDecoder;
     let octets = match objets {
         Some(o) => o.lire(src)?,
         None => std::fs::read(src).ok()?,
     };
-    let rgba = image::load_from_memory(&octets).ok()?.to_rgba8();
-    let (w, h) = rgba.dimensions();
-    Pyramide::depuis_rgba(w, h, rgba.as_raw())
+    let decodeur = image::ImageReader::new(std::io::Cursor::new(&octets[..]))
+        .with_guessed_format()
+        .ok()?
+        .into_decoder()
+        .ok()?;
+    let (l, h) = decodeur.dimensions();
+    porte.pendant(admission::pic(octets.len() as u64, (l, h)), || {
+        if Pyramide::octets_par_pixel(decodeur.color_type()).is_some() {
+            return Pyramide::depuis_le_decodeur(decodeur);
+        }
+        let rgba = image::DynamicImage::from_decoder(decodeur).ok()?.to_rgba8();
+        Pyramide::depuis_rgba(l, h, rgba.as_raw())
+    })
 }
 
 /// Les pixels d'une image, encodés en PNG, en mémoire.

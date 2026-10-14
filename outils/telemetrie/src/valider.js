@@ -48,6 +48,20 @@ export const TYPES = {
   // le système le tue sans prévenir — une session qui finit derrière a fini ordinairement.
   arriere_plan: { instant_ms: "entier" },
   premier_plan: { instant_ms: "entier" },
+  // **Ce que Glucose occupe, et ce que la machine laisse** (MEMOIRE-1, fiche 66), en
+  // mébioctets : un record de la session, ou forcé après une alerte du système. Ce qu'une
+  // plateforme ne sait pas lire est `null`.
+  memoire: {
+    instant_ms: "entier",
+    processus_mo: "entier?",
+    disponible_mo: "entier?",
+    images_mo: "entier",
+    offerts_mo: "entier",
+    decodages_mo: "entier",
+    carte_mo: "entier?",
+  },
+  // **Le système demande de rendre de la mémoire** (MEMOIRE-2) : sous Android, onTrimMemory.
+  alerte_memoire: { instant_ms: "entier", arriere_plan: "booleen" },
   // La carte graphique, par ses numéros et des noms fermés — jamais le nom que donne son pilote
   // (fiche 60) : le fabricant et le modèle sont les identifiants PCI ou Khronos.
   carte: {

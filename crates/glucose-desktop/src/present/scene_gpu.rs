@@ -36,6 +36,7 @@
 //! que si un banc la réclame.
 
 mod cascade;
+mod memoire;
 mod pose;
 pub use pose::Pose;
 use pose::OCTETS_POSE;

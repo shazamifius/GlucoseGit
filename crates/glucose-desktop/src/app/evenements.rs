@@ -93,6 +93,13 @@ impl ApplicationHandler for GlucoseApp {
         self.suspendre();
     }
 
+    /// Le système demande de rendre de la mémoire : sous Android, `onTrimMemory` et
+    /// `onLowMemory`, que GameActivity transmet sans leur niveau (MEMOIRE-2, fiche 66). Sur un
+    /// bureau, `winit` ne le dit jamais.
+    fn memory_warning(&mut self, _event_loop: &ActiveEventLoop) {
+        self.rendre_la_memoire();
+    }
+
     fn window_event(
         &mut self,
         _event_loop: &ActiveEventLoop,
@@ -224,21 +231,10 @@ impl GlucoseApp {
             .entracte
             .imputer(std::time::Instant::now(), Poste::Entretien);
 
-        // **Ce que le processus coute a la machine** (EMPREINTE-1). Ici, et non dans la
-        // boucle d'images : au repos il ne s'en rend aucune, donc un releve accroche aux
-        // images ne mesurerait jamais le repos -- precisement le cas qui interesse.
-        let compte = crate::chronique::veille::Compte {
-            sous_la_main: self.provenance.evenements_de_la_main(),
-            rendues: self.chronique.rendues(),
-            par_raison: self.chronique.reveils_par_bit(),
-        };
-        if self
-            .chronique
-            .veille
-            .observer(std::time::Instant::now(), compte)
-        {
-            self.relever_les_etages();
-        }
+        // **Ce que le processus coute a la machine** (EMPREINTE-1, MEMOIRE-1). Ici, et non
+        // dans la boucle d'images : au repos il ne s'en rend aucune, donc un releve accroche
+        // aux images ne mesurerait jamais le repos -- precisement le cas qui interesse.
+        self.veiller_sur_la_machine();
 
         // Hors du rendu, et seulement quand il y a du neuf : une session qui finit mal garde
         // alors la trace de son pire moment (CHRONIQUE-1).

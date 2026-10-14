@@ -7,6 +7,7 @@ mod evenements;
 mod fenetre;
 pub mod focus;
 pub mod lancement;
+mod memoire;
 mod mouvement;
 mod peinture;
 mod presentation;

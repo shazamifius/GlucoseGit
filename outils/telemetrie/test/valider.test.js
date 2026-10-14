@@ -79,3 +79,26 @@ test("une session d'Android passe en arriere-plan, et sa fin s'y dit (BOITE-ANDR
   const inconnue = SESSION.replace('"fin":"propre"', '"fin":"en_vacances"');
   assert.equal(validerSession(inconnue).ok, false);
 });
+
+test("la memoire entre, record ou alerte, et ce qui ne se lit pas est null (MEMOIRE-1, 2)", () => {
+  const memoire = SESSION.replace(
+    '{"type":"fin","instant_ms":1200}',
+    [
+      '{"type":"memoire","instant_ms":1000,"processus_mo":412,"disponible_mo":2210,"images_mo":180,"offerts_mo":96,"decodages_mo":40,"carte_mo":64}',
+      '{"type":"alerte_memoire","instant_ms":1100,"arriere_plan":true}',
+      '{"type":"memoire","instant_ms":1100,"processus_mo":null,"disponible_mo":null,"images_mo":0,"offerts_mo":0,"decodages_mo":0,"carte_mo":null}',
+      '{"type":"fin","instant_ms":1200}',
+    ].join(String.fromCharCode(10)),
+  );
+  const v = validerSession(memoire);
+  assert.equal(v.ok, true, v.raison);
+  const cas = [
+    memoire.replace('"carte_mo":64', '"carte_mo":64,"nom":"Mali"'),
+    memoire.replace('"images_mo":180', '"images_mo":-180'),
+    memoire.replace('"images_mo":180', '"images_mo":null'),
+    memoire.replace('"arriere_plan":true', '"arriere_plan":"oui"'),
+    memoire.replace(',"offerts_mo":96', ""),
+    memoire.replace(',"decodages_mo":40', ""),
+  ];
+  for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
+});

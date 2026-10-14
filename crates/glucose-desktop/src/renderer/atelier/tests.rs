@@ -142,7 +142,8 @@ fn test_un_pixel_opaque_traverse_la_premultiplication_intact() {
     }
     brute.save(&chemin).expect("écriture");
 
-    let pyramide = decoder(&chemin.to_string_lossy(), None).expect("décodage");
+    let pyramide =
+        decoder(&chemin.to_string_lossy(), None, admission::de_la_machine()).expect("décodage");
     let natif = pyramide
         .native()
         .expect("une pyramide neuve tient tous ses niveaux");
@@ -190,7 +191,8 @@ fn test_une_image_collee_s_adopte_et_tient_sa_promesse() {
     let octets = promesse.deja().expect("la promesse est tenue");
     let objets = crate::persist::objets::Objets::nouveau();
     objets.poser(src, crate::persist::objets::Source::Memoire(octets));
-    let relue = decoder(src, Some(&objets)).expect("ses octets se relisent");
+    let relue =
+        decoder(src, Some(&objets), admission::de_la_machine()).expect("ses octets se relisent");
     let (a, b) = (
         adoptee.native().expect("tenu"),
         relue.native().expect("tenu"),
@@ -239,4 +241,52 @@ fn test_une_promesse_passe_devant_les_decodages() {
         "la promesse d'abord"
     );
     assert!(matches!(files.prochain(), Some(Travail::Decoder(..))));
+}
+
+/// **MEMOIRE-3 — le décodage passe par la porte** (fiche 66) : la porte pleine, il attend ;
+/// un autre décodage fini, il entre, et rend une pyramide entière. La porte est une machine qui
+/// laisse mille octets, et un jeton en tient déjà cinq cents — la moitié.
+#[test]
+fn test_memoire_3_un_decodage_attend_que_la_porte_s_ouvre() {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    fn mille() -> Option<crate::memoire::Memoire> {
+        Some(crate::memoire::Memoire {
+            totale: 4_000,
+            disponible: 1_000,
+        })
+    }
+    let porte: &'static admission::Admission =
+        Box::leak(Box::new(admission::Admission::avec(mille)));
+    let chemin = photo_temoin("temoin-porte.png", 32, 24);
+    // Un autre décodage tient la moitié de ce que la machine laisse, jusqu'à ce qu'on le lâche.
+    let (entre, tenu) = channel();
+    let (lacher, attendre) = channel::<()>();
+    let plein = std::thread::spawn(move || {
+        porte.pendant(500, || {
+            let _ = entre.send(());
+            let _ = attendre.recv();
+        });
+    });
+    tenu.recv_timeout(Duration::from_secs(30))
+        .expect("le premier décodage est entré");
+    let (fini, vu) = channel();
+    let ouvrier = std::thread::spawn(move || {
+        let p = decoder(&chemin.to_string_lossy(), None, porte);
+        fini.send(p.map(|p| p.dimensions_natives()))
+            .expect("envoyé");
+    });
+    assert!(
+        vu.recv_timeout(Duration::from_millis(500)).is_err(),
+        "la porte est pleine : il attend"
+    );
+    let _ = lacher.send(());
+    plein.join().expect("le premier a fini");
+    assert_eq!(
+        vu.recv_timeout(Duration::from_secs(30)),
+        Ok(Some((32, 24))),
+        "la porte rouverte, il décode"
+    );
+    ouvrier.join().expect("l'ouvrier a fini");
+    assert_eq!(porte.en_vol(), 0, "son jeton est rendu");
 }
