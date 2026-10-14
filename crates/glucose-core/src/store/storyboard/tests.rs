@@ -19,26 +19,26 @@ fn tableau() -> (Store, String) {
     (store, board)
 }
 
-/// **La grille se centre sur le clic**, case après case dans l'ordre de lecture, au pas de la
-/// largeur et de la hauteur — description comprise — plus l'écart.
+/// **FANTOME-1 — la grille part du coin du clic** (fiche 66) : la première case a son coin
+/// haut gauche sous le clic, les suivantes case après case dans l'ordre de lecture, au pas de
+/// la largeur et de la hauteur — description comprise — plus l'écart. À l'envers : la loi de
+/// Tauri, centrée, aurait mis la première case une demi-grille plus haut et plus à gauche.
 #[test]
-fn test_la_grille_se_centre_sur_le_clic() {
-    let g = grille();
-    let coins = g.coins(8, (1000.0, 500.0));
+fn test_fantome_1_la_grille_part_du_coin_du_clic() {
+    let (mut store, board) = tableau();
+    store.poser_le_storyboard(&board, grille(), (1000.0, 500.0));
+    let coins: Vec<(f64, f64)> = store.cases(&board).iter().map(|c| (c.x, c.y)).collect();
     assert_eq!(coins.len(), 8);
+    assert_eq!(coins[0], (1000.0, 500.0), "la première sous le clic");
     let h = 320.0 * 9.0 / 16.0;
     let (pas_x, pas_y) = (320.0 + 24.0, h + DESCRIPTION + 24.0);
     assert_eq!(coins[1].0 - coins[0].0, pas_x);
-    assert_eq!(
-        coins[4],
-        (coins[0].0, coins[0].1 + pas_y),
-        "la deuxième rangée"
-    );
-    let (gauche, droite) = (coins[0].0, coins[3].0 + 320.0);
-    let (haut, bas) = (coins[0].1, coins[7].1 + h + DESCRIPTION);
-    assert_eq!(
-        ((gauche + droite) / 2.0, (haut + bas) / 2.0),
-        (1000.0, 500.0)
+    assert_eq!(coins[4], (1000.0, 500.0 + pas_y), "la deuxième rangée");
+    let (largeur, hauteur) = grille().etendue(8);
+    assert_ne!(
+        coins[0],
+        (1000.0 - largeur / 2.0, 500.0 - hauteur / 2.0),
+        "plus centrée"
     );
 }
 
@@ -494,8 +494,17 @@ fn test_ranger_numerote_dans_l_ordre_de_la_suite() {
 }
 
 /// **Glisser une case puis la lâcher à une autre place, dans un seul geste** : défaire rend
-/// chaque chose **exactement** à son départ, et refaire exactement à son arrivée — les pas
-/// du glisser se sont refermés en leur translation avant le rangement.
+/// chaque case **exactement** à son départ, et refaire exactement à son arrivée — les pas du
+/// glisser se sont refermés en leur translation avant le rangement.
+///
+/// **L'image reste dans sa case, à l'aller comme au retour** (fiche 66). Cette épreuve
+/// promettait l'image exacte, et ne le tenait que par la chance des coordonnées : la grille
+/// posée par son coin en (0,3 ; 0,7) l'a montrée revenir deux ulps à côté. GLISSER-1 écrit un
+/// **pas**, pas une valeur ; défaire soustrait ce que faire a ajouté, et `(x + d) − d` n'est
+/// pas toujours `x`. Ce que GLISSER-1 garantit — `Échap` rend les départs exacts, le fichier
+/// rejoue l'écran au bit près — tient ; une annulation exacte demanderait au journal les
+/// départs eux-mêmes (GLISSER-2, SUITE). Aucune tolérance n'est choisie ici : l'épreuve dit
+/// ce qui est exact (les cases) et ce que l'œil voit (l'image dans sa case).
 #[test]
 fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
     let (mut store, board) = tableau();
@@ -503,7 +512,6 @@ fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
     let cases: Vec<StoryboardPanel> = store.cases(&board).into_iter().cloned().collect();
     store.add_image(&board, image("i", (cases[0].x + 50.0, cases[0].y + 50.0)));
     store.ajuster_dans_les_cases(&board, &["i".to_string()]);
-    let avant = store.project.clone();
     let portees = store.images_de_la_case(&board, &cases[0].id);
     store.begin_live_edit();
     for pas in 1..=40 {
@@ -518,7 +526,6 @@ fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
         (cases[0].x, cases[0].y),
     );
     store.end_live_edit();
-    let apres = store.project.clone();
     let lachee = store.cases(&board)[2].clone();
     assert_eq!(lachee.id, cases[0].id);
     // Lâchée, elle recouvrait la troisième case : son image reste la sienne quand même.
@@ -527,13 +534,27 @@ fn test_glisser_puis_lacher_une_case_se_defait_exactement() {
         lachee.contient((image.x, image.y)),
         "l'image suit la case tenue"
     );
+    let les_cases = |store: &Store| -> Vec<StoryboardPanel> {
+        store.cases(&board).into_iter().cloned().collect()
+    };
+    let ou = |store: &Store| {
+        let i = store.image(&board, "i").expect("l'image");
+        (i.x, i.y)
+    };
+    let cases_apres = les_cases(&store);
     store.undo();
-    assert!(
-        store.project == avant,
-        "défaire rend chaque chose à son départ exact"
-    );
+    assert_eq!(les_cases(&store), cases, "défaire rend chaque case exacte");
+    assert!(cases[0].contient(ou(&store)), "et l'image dans sa case");
     store.redo();
-    assert!(store.project == apres, "refaire rend l'arrivée exacte");
+    assert_eq!(
+        les_cases(&store),
+        cases_apres,
+        "refaire rend chaque case exacte"
+    );
+    assert!(
+        lachee.contient(ou(&store)),
+        "et l'image dans la case lâchée"
+    );
 }
 
 /// **Une étendue exacte redonne exactement ses cases**, à tous les formats — c'est ce que

@@ -36,8 +36,10 @@ fn app() -> (GlucoseApp, String) {
         scale: 1.0,
     };
     app.store.set_viewport(&board, vue);
+    // La grille centrée sur l'écran, comme avant FANTOME-1 : son coin s'en déduit.
+    let (l, h) = grille().etendue(grille().nombre_initial());
     app.store
-        .poser_le_storyboard(&board, grille(), (720.0, 450.0));
+        .poser_le_storyboard(&board, grille(), (720.0 - l / 2.0, 450.0 - h / 2.0));
     app.store.clear_selection();
     app.store.journal.clear();
     (app, board)

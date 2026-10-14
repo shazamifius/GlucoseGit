@@ -204,18 +204,50 @@ fn test_trace_1_tracer_le_storyboard_le_remplit() {
     );
 }
 
-/// **Un clic sous la grille armée la pose centrée**, comme avant le tracé.
+/// **FANTOME-1 — un clic sous la grille armée la pose par son coin** (fiche 66) : la première
+/// case a son coin haut gauche là où la main a appuyé — le point même d'où un glisser aurait
+/// tracé. Tauri la centrait ; le fantôme sautait alors d'une demi-grille quand la main
+/// commençait à glisser.
 #[test]
-fn test_trace_1_un_clic_pose_le_storyboard_centre() {
+fn test_fantome_1_un_clic_pose_le_storyboard_par_son_coin() {
     let (mut app, board) = app();
     app.ui.placement.storyboard = Some(carree());
     appuyer(&mut app, (600.0, 500.0));
     relacher(&mut app);
     let cases = app.store.cases(&board);
     assert_eq!(cases.len(), 8, "deux rangées de quatre");
-    let gauche = cases[0].x;
-    let droite = cases[3].x + cases[3].width;
-    assert_eq!((gauche + droite) / 2.0, 600.0, "centrée sous le clic");
+    assert_eq!((cases[0].x, cases[0].y), (600.0, 500.0), "par son coin");
+}
+
+/// **FANTOME-1 — la membrane et le dossier aussi** : au survol, le coin haut gauche du fantôme
+/// sous le curseur (loin de tout voisin, l'aimant ne tire rien), et le clic pose là.
+#[test]
+fn test_fantome_1_la_membrane_et_le_dossier_partent_du_curseur() {
+    for outil in [ActiveTool::Membrane, ActiveTool::Folder] {
+        let (mut app, board) = app();
+        app.ui.active_tool = outil;
+        bouger(&mut app, (600.0, 500.0));
+        let fantome = app.fantome_montre().expect("un fantôme");
+        assert_eq!(
+            (fantome.rect.left, fantome.rect.top),
+            (600.0, 500.0),
+            "{outil:?} : au survol"
+        );
+        appuyer(&mut app, (600.0, 500.0));
+        relacher(&mut app);
+        let posee = match outil {
+            ActiveTool::Membrane => membranes(&app).last().map(|m| (m.0, m.1)),
+            _ => app
+                .store
+                .project
+                .boards
+                .iter()
+                .find(|b| b.id == board)
+                .and_then(|b| b.folders.last())
+                .map(|f| (f.x, f.y)),
+        };
+        assert_eq!(posee, Some((600.0, 500.0)), "{outil:?} : le clic pose là");
+    }
 }
 
 /// **Sous une membrane, le rectangle ne se dessine pas en plus** : son fantôme est déjà le

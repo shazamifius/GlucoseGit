@@ -158,12 +158,4 @@ impl Grille {
         let nombre = |l: f64, pas: f64| ((l + self.ecart) / pas).round().max(1.0) as usize;
         (nombre(largeur, pas_x), nombre(hauteur, pas_y))
     }
-
-    /// Le coin de chaque case d'une grille de `nombre` cases centrée sur `centre`, dans
-    /// l'ordre de lecture.
-    pub fn coins(&self, nombre: usize, centre: (f64, f64)) -> Vec<(f64, f64)> {
-        let (largeur, hauteur) = self.etendue(nombre);
-        let origine = (centre.0 - largeur / 2.0, centre.1 - hauteur / 2.0);
-        (0..nombre).map(|i| self.coin(origine, i)).collect()
-    }
 }

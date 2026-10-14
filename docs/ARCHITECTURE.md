@@ -102,7 +102,11 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 * **Tracer un rectangle** (TRACE-1, `interactions/trace.rs`, fiche 65) : sous l'outil Membrane
   ou Dossier et sous la grille armée du Storyboard, l'appui ne pose rien ; un clic (la main
   dans le tremblement d'un double-clic) pose comme avant, un glisser trace la taille — la loi
-  de tldraw. La poignée du storyboard est un tracé parti du coin de sa première case.
+  de tldraw. La poignée du storyboard est un tracé parti du coin de sa première case. **Le
+  fantôme part toujours du curseur** (FANTOME-1, fiche 66) : au survol comme au clic, le coin
+  haut gauche de la première case — ou de la membrane, du dossier — est sous la main, là d'où
+  un glisser tracerait ; Tauri centrait la grille, et le fantôme sautait d'une demi-grille dès
+  que la main glissait.
 * **Le canevas défile au bord** (DEFILE-1, `bord.rs`, fiche 59) : un nœud, un coin ou un
   rectangle de sélection tenu dans la bande du bord — la cible d'un doigt — fait avancer la vue
   à chaque image (`bouger_la_camera`, une raison de réveil à lui), d'autant plus vite qu'il s'y

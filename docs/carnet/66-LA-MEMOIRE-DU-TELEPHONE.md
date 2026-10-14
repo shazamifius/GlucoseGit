@@ -125,6 +125,35 @@ coefficient sur seize bits, six octets par pixel »), comptait 300 Mo de trop po
 plus que sa pyramide. Le pire mesuré est 3,8 octets par pixel ; la borne en compte quatre, et dit
 d'où ils viennent.
 
+## 6 bis. FANTOME-1 — le fantôme part toujours du curseur (P1)
+
+Sa demande du 13/10 : *« la preview se met au milieu de la souris, alors que lorsqu'on trace le
+rectangle, ça se met en haut à gauche — il faudrait absolument que ça se mette toujours en haut
+à gauche de la souris ; de même pour la membrane »*.
+
+* **La grille armée du Storyboard** se centrait sur le curseur (`disposition_au_clic`, héritée de
+  Tauri) ; le tracé, lui, part du point d'appui : le fantôme sautait d'une demi-grille dès que la
+  main glissait. Désormais **la première case a son coin haut gauche sous le curseur**, au survol
+  comme au clic — le point même d'où un glisser tracerait. La loi du centrage (`Grille::coins`)
+  n'était plus appelée que par sa propre épreuve : retirée.
+* **La membrane et le dossier** avaient déjà leur coin au curseur ; l'aimant peut les tirer de
+  quelques pixels vers un voisin, ce qui est voulu (PLACEMENT-1). Une épreuve le garde désormais
+  pour les deux, par le vrai chemin du tracé.
+* **Regardé** : l'aperçu hors écran (`apercu_storyboard`), la place du curseur marquée — le coin
+  de la première case est dessous. **Éprouvé à la vraie souris** (le survol, puis le clic) ;
+  **3 sabotages, 3 chutes** (`outils/sabotages/fantome-1.json`).
+
+**Ce que P1 a révélé — GLISSER-2.** L'épreuve de STORYBOARD-2 « glisser puis lâcher une case se
+défait **exactement** » posait sa grille en (0,3 ; 0,7) pour éprouver les flottants. Posée par son
+coin, l'image revient **deux ulps** à côté après l'annulation. GLISSER-1 n'a jamais promis
+l'annulation exacte : un glisser s'écrit en un **pas**, et défaire soustrait ce que faire a
+ajouté — `(x + d) − d` n'est pas toujours `x`. Ce qu'il garantit tient (`Échap` rend les départs
+exacts, le fichier rejoue l'écran au bit près). L'épreuve promettait plus, et passait par chance
+des coordonnées. Elle dit désormais ce qui est exact — chaque case, à l'aller et au retour — et
+ce que l'œil voit — l'image dans sa case —, sans tolérance choisie. **Une annulation exacte des
+images** demanderait au journal leurs départs eux-mêmes : une édition neuve, donc un format neuf
+(GLISSER-2, SUITE).
+
 ## 7. Ce qui reste — et ce qui déclare P0 fini
 
 1. **Lire le téléphone par le câble** : `bash outils/android/lire_le_telephone.sh <dossier>` —
@@ -151,6 +180,8 @@ d'où ils viennent.
   une fenêtre) : descendue dans la scène, éprouvée sur une vraie carte.
 * **Des épreuves qui auraient bloqué** au lieu de tomber si la règle d'admission cassait :
   réécrites avec un fil et un délai.
+* **Une épreuve qui promettait plus que le système** (fiche 65) : « défaire rend l'image
+  exacte » ne tenait que par la chance des coordonnées — FANTOME-1 l'a montré (§ 6 bis).
 * **Un `\n` mangé par Git Bash**, encore, dans un script Python passé par un *heredoc* :
   corrigé à l'outil d'édition.
 

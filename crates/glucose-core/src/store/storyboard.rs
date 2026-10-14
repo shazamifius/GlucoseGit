@@ -4,7 +4,8 @@
 //!
 //! # Ce que Glucose Tauri faisait, et ce qui lui manquait
 //!
-//! Son panneau posait une grille de `colonnes × 2` cases, centrée là où l'on cliquait, et
+//! Son panneau posait une grille de `colonnes × 2` cases, centrée là où l'on cliquait (Glucose
+//! la pose désormais par son coin haut gauche, FANTOME-1), et
 //! « Mettre à jour » rangeait les cases existantes à la nouvelle grille ; chaque case portait un
 //! numéro et une description. Mais une case ne pouvait **rien contenir** — son `imageId` n'était
 //! jamais écrit —, ni se prendre, ni se déplacer (`StoryboardControls.tsx`, `StoryboardLayer.ts`).
@@ -161,19 +162,24 @@ impl Store {
     }
 
     /// **La disposition d'un clic** : deux rangées sur un tableau qui n'en a pas, sinon autant
-    /// que de cases, centrées sur le clic — le « Mettre à jour » de Tauri.
+    /// que de cases — le « Mettre à jour » de Tauri —, **le coin haut gauche de la première sous
+    /// le clic** (FANTOME-1, fiche 66).
+    ///
+    /// Tauri centrait la grille sur le clic, et le tracé, lui, part du point d'appui : le
+    /// fantôme qu'on survolait sautait d'une demi-grille dès que la main commençait à glisser.
+    /// Sa demande du 13/10 : *« toujours en haut à gauche de la souris »*. Le fantôme, le clic
+    /// qui pose et le glisser qui commence partent désormais du même point.
     pub fn disposition_au_clic(
         &self,
         board_id: &str,
         grille: Grille,
-        centre: (f64, f64),
+        coin: (f64, f64),
     ) -> Disposition {
         let n = self.cases(board_id).len();
         let nombre = if n == 0 { grille.nombre_initial() } else { n };
-        let (largeur, hauteur) = grille.etendue(nombre);
         Disposition {
             grille,
-            origine: (centre.0 - largeur / 2.0, centre.1 - hauteur / 2.0),
+            origine: coin,
             nombre,
         }
     }
@@ -217,9 +223,9 @@ impl Store {
         self.ranger(board_id, d, suite, None);
     }
 
-    /// **Pose le storyboard d'un clic, centré sur `centre`** ([`Self::disposition_au_clic`]).
-    pub fn poser_le_storyboard(&mut self, board_id: &str, grille: Grille, centre: (f64, f64)) {
-        let d = self.disposition_au_clic(board_id, grille, centre);
+    /// **Pose le storyboard d'un clic, sa première case au `coin`** ([`Self::disposition_au_clic`]).
+    pub fn poser_le_storyboard(&mut self, board_id: &str, grille: Grille, coin: (f64, f64)) {
+        let d = self.disposition_au_clic(board_id, grille, coin);
         self.disposer(board_id, d);
     }
 

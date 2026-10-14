@@ -154,7 +154,10 @@
   machine laisse, et une photo se décode dans la page de sa pyramide — **445 → 254 Mo mesurés**
   pour 50 Mpx. Éprouvé et saboté ; **le téléphone n'a pas été branché** : sa lecture par le câble
   (`outils/android/lire_le_telephone.sh`), un APK neuf et une longue session restent à faire —
-  c'est ce qui déclarera P0 fini.
+  c'est ce qui déclarera P0 fini. **FANTOME-1** (P1) : la grille armée du Storyboard part du
+  curseur par le coin de sa première case, comme le tracé ; la membrane et le dossier
+  l'étaient déjà. P1 a révélé **GLISSER-2** : défaire un glisser rend une image à deux ulps de
+  son départ — invisible, mais une épreuve de la fiche 65 le promettait exact.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -185,8 +188,8 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : **2 442** sous Windows au 14/10, MEMOIRE-1 à 3 compris (fiche 66 ; 35 sabotages
-  de plus, 35 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 426** au
+* **Épreuves** : **2 443** sous Windows au 14/10, MEMOIRE-1 à 3 et FANTOME-1 compris (fiche 66 ; 38 sabotages
+  de plus, 38 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : **2 426** au
   13/10 au soir, STORYBOARD-2 et BOITE-ANDROID compris
   (fiche 65 ; 63 sabotages, 63 chutes) ; clippy strict à zéro sous Windows et pour Android. Avant : 2 389
   (fiche 64). Avant : **2 357** sous Windows, toutes vertes (fiche 63 ; la suite Linux de WSL n'a

@@ -77,15 +77,16 @@ impl GlucoseApp {
     }
 
     /// **Ce que la grille armée poserait** : ce que le tracé en cours dirait au relâchement —
-    /// ou, sans tracé, le clic sous le curseur.
+    /// ou, sans tracé, le clic sous le curseur, la première case **par son coin haut gauche**,
+    /// comme le tracé qui en partirait (FANTOME-1, fiche 66).
     fn disposition_armee(&self) -> Option<Disposition> {
         if let Some(trace) = &self.ui.placement.trace {
             return self.disposition_du_storyboard_trace(trace);
         }
         let grille = self.ui.placement.storyboard?;
         let board = &self.store.project.active_board_id;
-        let centre = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
-        Some(self.store.disposition_au_clic(board, grille, centre))
+        let coin = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport());
+        Some(self.store.disposition_au_clic(board, grille, coin))
     }
 
     /// **Le fantôme du storyboard**, une boîte par case — son cadre et sa bande —, en unités du

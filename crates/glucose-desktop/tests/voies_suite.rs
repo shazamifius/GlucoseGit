@@ -1262,7 +1262,8 @@ fn test_storyboard_1_les_cases_se_posent_pareil_sur_les_deux_voies() {
         colonnes: 3,
         ecart: 24.0,
     };
-    store.poser_le_storyboard(&board, grille, centre);
+    let (l, h) = grille.etendue(grille.nombre_initial());
+    store.poser_le_storyboard(&board, grille, (centre.0 - l / 2.0, centre.1 - h / 2.0));
     let premiere = store.cases(&board)[0].id.clone();
     store.update_panel(&board, &premiere, "Plan large, la ville au loin");
 

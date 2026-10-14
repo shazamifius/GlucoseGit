@@ -1,0 +1,23 @@
+[
+ {
+  "nom": "la grille se centre encore sur le clic",
+  "fichier": "crates/glucose-core/src/store/storyboard.rs",
+  "avant": "            origine: coin,",
+  "apres": "            origine: (coin.0 - grille.etendue(nombre).0 / 2.0, coin.1 - grille.etendue(nombre).1 / 2.0),",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "-p", "glucose-desktop", "--lib", "--", "fantome", "storyboard_1_activer"]
+ },
+ {
+  "nom": "le fantome survole a cote du curseur",
+  "fichier": "crates/glucose-desktop/src/interactions/storyboard.rs",
+  "avant": "        Some(self.store.disposition_au_clic(board, grille, coin))",
+  "apres": "        Some(self.store.disposition_au_clic(board, grille, (coin.0, coin.1 + 1.0)))",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "fantome", "storyboard_1_activer"]
+ },
+ {
+  "nom": "le clic pose a cote de l'appui",
+  "fichier": "crates/glucose-desktop/src/interactions/trace.rs",
+  "avant": "            None => self.store.disposition_au_clic(board, grille, trace.depart),",
+  "apres": "            None => self.store.disposition_au_clic(board, grille, (trace.depart.0 + 1.0, trace.depart.1)),",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "fantome", "storyboard_1_activer"]
+ }
+]

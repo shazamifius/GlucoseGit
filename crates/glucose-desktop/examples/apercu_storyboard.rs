@@ -44,8 +44,10 @@ fn application() -> (GlucoseApp, String) {
 fn main() {
     let dossier = std::env::args().nth(1).unwrap_or_else(|| ".".to_string());
     let (mut app, board) = application();
+    // La grille centrée en (980, 420), comme avant FANTOME-1 : son coin s'en déduit.
+    let (l, h) = grille().etendue(grille().nombre_initial());
     app.store
-        .poser_le_storyboard(&board, grille(), (980.0, 420.0));
+        .poser_le_storyboard(&board, grille(), (980.0 - l / 2.0, 420.0 - h / 2.0));
     let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
     let textes = [
         "Plan large, la ville au loin",

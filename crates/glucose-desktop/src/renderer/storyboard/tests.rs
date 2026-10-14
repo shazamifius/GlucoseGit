@@ -27,7 +27,9 @@ fn document() -> Store {
         colonnes: 4,
         ecart: 24.0,
     };
-    store.poser_le_storyboard(&board, grille, (720.0, 480.0));
+    // Centrée sur l'écran, comme avant FANTOME-1 : son coin s'en déduit.
+    let (l, h) = grille.etendue(grille.nombre_initial());
+    store.poser_le_storyboard(&board, grille, (720.0 - l / 2.0, 480.0 - h / 2.0));
     store.clear_selection();
     store
 }

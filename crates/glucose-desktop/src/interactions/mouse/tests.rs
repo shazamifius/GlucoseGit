@@ -116,22 +116,28 @@ fn test_storyboard_1_activer_puis_poser_la_grille() {
         "et son fantôme se voit"
     );
 
+    // FANTOME-1 (fiche 66) : au survol, le coin haut gauche du fantôme est sous le curseur —
+    // comme un tracé qui partirait de là ; et le clic pose la première case exactement là.
     let (px, py) = (900.0, 500.0);
     app.handle_cursor_moved(PhysicalPosition::new(px, py));
+    let vp = app.store.viewport();
+    let (wx, wy) = crate::canvas::screen_to_world(px, py, &vp);
+    let fantome = app.fantome_du_storyboard();
+    assert_eq!(
+        (fantome[0].left, fantome[0].top),
+        (wx, wy),
+        "au survol, le fantôme part du curseur"
+    );
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
     app.handle_mouse_up(MouseButton::Left);
     let board = app.store.project.active_board_id.clone();
     let cases: Vec<_> = app.store.cases(&board).into_iter().cloned().collect();
     assert_eq!(cases.len(), 8, "deux rangées de quatre");
-    let vp = app.store.viewport();
-    let (wx, wy) = crate::canvas::screen_to_world(px, py, &vp);
-    let gauche = cases.iter().map(|c| c.x).fold(f64::MAX, f64::min);
-    let droite = cases.iter().map(|c| c.x + c.width).fold(f64::MIN, f64::max);
-    assert!(
-        ((gauche + droite) / 2.0 - wx).abs() < 1e-6,
-        "centrée sous le clic"
+    assert_eq!(
+        (cases[0].x, cases[0].y),
+        (wx, wy),
+        "le clic pose là où le fantôme était"
     );
-    assert!(wy > cases[0].y && wy < cases[7].y + cases[7].height, "{wy}");
     assert!(
         app.ui.placement.storyboard.is_none(),
         "posée, elle ne suit plus"

@@ -97,8 +97,9 @@ impl GlucoseApp {
         true
     }
 
-    /// **Le relâchement pose** : un clic comme un clic l'a toujours fait — le storyboard centré
-    /// sous lui, la membrane à sa taille de naissance —, un tracé à la taille tracée.
+    /// **Le relâchement pose** : un clic comme un clic l'a toujours fait — le storyboard par le
+    /// coin de sa première case (FANTOME-1), la membrane à sa taille de naissance —, un tracé à
+    /// la taille tracée. Le clic et le tracé partent du même point.
     pub(crate) fn finir_le_trace(&mut self) {
         let Some(trace) = self.ui.placement.trace.take() else {
             return;
