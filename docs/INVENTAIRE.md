@@ -30,7 +30,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Enregistrer sous | **menu du vide** (ACCES-1), `Ctrl+Maj+S` | ✅ menu (un autre nom) |
 | Renommer, dupliquer, supprimer un document | l'explorateur du système | ✅ appui long dans la liste |
 | Importer un document en onglets | menu d'un onglet, ou le déposer sur les onglets | ✅ menu d'un onglet (la liste) — **ACCES-1** |
-| Exporter (Markdown, SVG, PNG) | bouton Exporter, **menu du vide**, `Ctrl+E` | ✅ rail, menu : le format se demande, puis **la feuille de partage** (PARTAGE-2) |
+| Exporter (Markdown, SVG, PNG) — **le SVG porte tout ce que le canevas montre** (photos, membranes, dossiers, formules, zones, cases ; le texte en tracés, lisible par n'importe quel lecteur — fiches 69 à 71) | bouton Exporter, **menu du vide**, `Ctrl+E` | ✅ rail, menu : le format se demande, puis **la feuille de partage** (PARTAGE-2) |
 | **Exporter le storyboard en planches** — PDF (une page par planche) ou images ; la planche est ce que le canevas montre, au format A (P2.7, fiche 68) | panneau Storyboard « Exporter en planches… », menu du vide | ✅ les mêmes : un PDF, à la feuille de partage |
 | Time Machine (regarder, restaurer, jalons) | bouton, `Ctrl+H` | ✅ rail |
 | Annuler, rétablir | **menu** (ACCES-1), `Ctrl+Z`, `Ctrl+Y` | ✅ menu, deux et trois doigts |
@@ -104,11 +104,10 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 
 | où | quoi | ce qu'il faut | quand |
 |---|---|---|---|
-| Preset | « Créer un preset custom », grisé | les zones du tableau, gardées comme gabarit du document | après le Storyboard |
 | Plugins | « Télécharger » le modèle d'IA | l'IA locale | plus tard |
 | bande | **Collaborer** : dit « pas encore disponible » | la collaboration — obligatoire | plus tard, à sa parole |
-| bande | **Trans-domaines** : ne fait rien, **et ne le dit pas** | sa définition, à sa parole (« laisse le bouton ne rien faire », 23/09) | **une question pour lui** : dire « bientôt », comme Collaborer ? |
-| Exporter | le SVG ne porte ni les images ni les membranes | l'export SVG complet | après « preset custom » |
+| bande | **Trans-domaines** : ne fait rien, **et ne le dit pas** | sa définition — de la recherche, son raisonnement sur « domaine » n'est pas fini (15/10) | **dire « bientôt »**, comme Collaborer (fiche 71 : un bouton ne fait jamais semblant) |
+| Preset | « Créer un preset custom » — **un preset est l'interface entière** (disposition, comportement, couleurs, raccourcis, fenêtres : Glucose, PureRef, Figma, Miro — `VISION.md`), pas des zones | la fondation : l'interface devenue donnée | SUITE P4 |
 | le téléphone | les champs de nombre du dock, le nom d'un jalon, celui d'un domaine : on ne peut pas taper | le miroir du clavier (CLAVIER-1) étendu au dock | avec l'UX du téléphone, refaite en dernier |
 | au premier lancement | la carte d'accueil naît **choisie** : le premier clic droit ouvre le menu d'une sélection | à vérifier contre Tauri | relecture des menus |
 
@@ -121,7 +120,8 @@ bouton, au PC et au téléphone, le jour où il existe.
 
 | fonction | d'où | où elle se trouvera | où en est-elle |
 |---|---|---|---|
-| **Preset personnel** | Tauri | panneau Preset | — |
+| **Les presets d'interface** : un preset de Glucose jamais vu, un PureRef, un Figma, un Miro — la disposition, le comportement, les couleurs, les raccourcis, les fenêtres (sa parole du 15/10, `VISION.md`) | sa vision | à concevoir | la fondation d'abord (SUITE P4), sa liste PureRef à venir |
+| **Les choix à l'utilisateur** : planche claire ou sombre, champs sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux (fiche 71) | sa parole | la question d'export, le panneau Storyboard | à faire |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
 | **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | barre d'action, panneau | noyau écrit (`timeline`), à brancher |
 | **Recherche** dans tout le document | Tauri (`Ctrl+F`) | bande, menu, **`Ctrl+F`** (sa décision du 13/10 : tout cadrer passe à `Alt+F`) | à concevoir — `Ctrl+F` lui est gardé |

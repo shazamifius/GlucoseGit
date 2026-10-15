@@ -263,3 +263,31 @@ fn test_dessiner_hors_du_pixmap_ne_deborde_pas() {
         );
     }
 }
+
+/// **En SVG, un filet a l'encre de sa formule** (fiche 70) : la barre d'une fraction est un
+/// rectangle à part, qui doit porter l'opacité de ses glyphes — à demi-opacité, la
+/// superposition ne la voyait pas (fiche 71).
+#[test]
+fn test_un_filet_en_svg_a_l_encre_de_sa_formule() {
+    let r = MathRenderer::new();
+    let mut svg = crate::renderer::svg::Svg::new();
+    let encre = Color::from_rgba8(255, 255, 255, 128);
+    let source = r"\frac{1}{2}";
+    assert!(r.en_svg(
+        &mut svg,
+        source,
+        Mode::Display,
+        plume(10.0, 60.0, 30.0),
+        encre
+    ));
+    let ecrit = svg.finir((100, 100));
+    let filet = ecrit
+        .lines()
+        .find(|l| l.starts_with("<rect"))
+        .expect("le filet de la fraction");
+    let opacite = crate::renderer::svg::n(encre.alpha());
+    assert!(
+        filet.contains(&format!(r#"fill-opacity="{opacite}""#)),
+        "{filet}"
+    );
+}

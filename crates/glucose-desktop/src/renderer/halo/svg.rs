@@ -9,7 +9,7 @@
 //! vite (HALO-1). Sa découpe dans la carte (LUEUR-1) est implicite : la brume de la carte, qui
 //! passe par-dessus, est opaque.
 
-use super::{halo_geometry, Eclat};
+use super::{halo_geometry, portee_du_flou, Eclat};
 use crate::params::ViewPass;
 use crate::renderer::hue::SymbioticHueCache;
 use crate::renderer::svg::{hex, Svg};
@@ -42,6 +42,7 @@ pub(in crate::renderer) fn lueurs_en_svg(
             halo.bottom - halo.top,
         );
         let opacite = f32::from(eclat.alpha()) / 255.0;
-        svg.lueur(boite, rayon, (&hex(rgb), opacite), halo.sigma);
+        let portee = portee_du_flou(halo.sigma, eclat.alpha());
+        svg.lueur(boite, rayon, (&hex(rgb), opacite), (halo.sigma, portee));
     }
 }

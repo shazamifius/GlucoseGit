@@ -1,0 +1,566 @@
+[
+ {
+  "nom": "le SVG oublie ce qui passe sous les photos",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        sous_les_photos_en_svg(kit, &mut svg, (store, pass), taille);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les photos",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::scene::image::svg::images_en_svg(store, pass, &mut svg, octets);\n",
+  "apres": "        let _ = octets;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les lueurs",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::halo::svg::lueurs_en_svg(&mut self.hue_cache, (store, pass), taille, &mut svg);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les annotations",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::pass::svg::annotations_en_svg(\n            &mut self.hue_cache,\n            (kit, store, pass),\n            taille,\n            &mut svg,\n        );\n",
+  "apres": "        let _ = (&mut self.hue_cache, (kit, store, pass), taille);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "les lueurs apres les cartes (LUEUR-3)",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::halo::svg::lueurs_en_svg(&mut self.hue_cache, (store, pass), taille, &mut svg);\n        super::pass::svg::annotations_en_svg(\n            &mut self.hue_cache,\n            (kit, store, pass),\n            taille,\n            &mut svg,\n        );\n",
+  "apres": "        super::pass::svg::annotations_en_svg(\n            &mut self.hue_cache,\n            (kit, store, pass),\n            taille,\n            &mut svg,\n        );\n        super::halo::svg::lueurs_en_svg(&mut self.hue_cache, (store, pass), taille, &mut svg);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les reglettes des photos",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::scene::image::svg::reglettes_des_images_en_svg(quoi, (store, pass), &mut svg);\n",
+  "apres": "        let _ = quoi;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG sans fond",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "    svg.rectangle((0.0, 0.0, ecran.0, ecran.1), 0.0, (&fond, 1.0));\n",
+  "apres": "    let _ = &fond;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie le premier rang (zones, cases)",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::surface::Surface::remplir_net(&mut vecteurs, r.rect, r.couleur);\n",
+  "apres": "        let _ = r;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les membranes",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "    super::scene::membranes_en_svg((kit, store, pass), taille, vecteurs.svg);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les textes des zones",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "    super::zone::textes(&mut vecteurs, (store, pass), ecran);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les textes des cases",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "    super::storyboard::textes(&mut vecteurs, (store, pass), ecran);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le SVG oublie les dossiers",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "    super::folder::dossiers_en_svg(kit, vecteurs.svg, (store, pass), taille);\n",
+  "apres": "    let _ = vecteurs;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "un glyphe a 105 %",
+  "fichier": "crates/glucose-desktop/src/renderer/svg/glyphes.rs",
+  "avant": "        let s = corps * par_unite;\n",
+  "apres": "        let s = corps * par_unite * 1.05;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "une avance a 102 %",
+  "fichier": "crates/glucose-desktop/src/renderer/svg/glyphes.rs",
+  "avant": "            plume += typographie.advance(ch, corps, style.face);\n",
+  "apres": "            plume += typographie.advance(ch, corps, style.face) * 1.02;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "la ligne de base remontee",
+  "fichier": "crates/glucose-desktop/src/renderer/svg/glyphes.rs",
+  "avant": "            self.glyphe(glyphe, (plume, y + corps), corps);\n",
+  "apres": "            self.glyphe(glyphe, (plume, y + corps * 0.85), corps);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le titre d'une membrane sans detourage",
+  "fichier": "crates/glucose-desktop/src/renderer/svg/glyphes.rs",
+  "avant": "        for (dx, dy) in DETOURAGE {\n            self.texte(typographie, (x + dx, y + dy), texte, dessous);\n        }\n",
+  "apres": "        let _ = (DETOURAGE, dessous);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "un filet de formule a demi-opacite",
+  "fichier": "crates/glucose-desktop/src/renderer/math/svg.rs",
+  "avant": "                    svg.rectangle(boite, 0.0, (&c, a));\n",
+  "apres": "                    svg.rectangle(boite, 0.0, (&c, a * 0.5));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "rayon_tenu ne borne plus",
+  "fichier": "crates/glucose-desktop/src/renderer/svg.rs",
+  "avant": "    rayon.min(l / 2.0).min(h / 2.0).max(0.0)\n",
+  "apres": "    rayon.max(0.0)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "remplir_net en SVG sans les pixels entiers",
+  "fichier": "crates/glucose-desktop/src/renderer/surface.rs",
+  "avant": "        if let Some(r) = super::scale::on_pixel_grid(rect) {\n",
+  "apres": "        if let Some(r) = Some(rect) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "remplir_net en SVG tronque (la regle de la fiche 70)",
+  "fichier": "crates/glucose-desktop/src/renderer/surface.rs",
+  "avant": "        if let Some(r) = super::scale::on_pixel_grid(rect) {\n",
+  "apres": "        if let Some(r) = tiny_skia::Rect::from_ltrb(rect.left().trunc(), rect.top().trunc(), rect.right().trunc(), rect.bottom().trunc()) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "la region des flous immense (fiche 70)",
+  "fichier": "crates/glucose-desktop/src/renderer/svg.rs",
+  "avant": "            n(x - portee),\n            n(y - portee),\n            n(l + 2.0 * portee),\n            n(h + 2.0 * portee),\n",
+  "apres": "            n(-100000.0 + 0.0 * portee),\n            n(-100000.0),\n            n(200000.0),\n            n(200000.0),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "la region des flous sans la portee",
+  "fichier": "crates/glucose-desktop/src/renderer/svg.rs",
+  "avant": "            n(x - portee),\n            n(y - portee),\n            n(l + 2.0 * portee),\n            n(h + 2.0 * portee),\n",
+  "apres": "            n(x + 0.0 * portee),\n            n(y),\n            n(l),\n            n(h),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "BORNES-2 oublie les zones",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "            .chain(board.zones.iter().map(|z| z.rect()))\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "store_suite",
+   "--",
+   "bornes"
+  ]
+ },
+ {
+  "nom": "BORNES-2 oublie les cases",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "            .chain(board.panels.iter().map(|c| c.emprise()))\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "store_suite",
+   "--",
+   "bornes"
+  ]
+ },
+ {
+  "nom": "le badge d'un dossier vide",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    if compte > 0 {\n",
+  "apres": "    if compte > 0 || true {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "un dossier vide ne dit rien",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "        dire_qu_il_est_vide(p, at, layout, scale);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le titre du dossier pris pour un haut",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    let haut = at.1 + scale.world(TITLE.1) - corps;\n",
+  "apres": "    let haut = at.1 + scale.world(TITLE.1);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le chiffre du badge pris pour un haut",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    let haut = by + scale.world(BADGE_BASELINE) - corps;\n",
+  "apres": "    let haut = by + scale.world(BADGE_BASELINE);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le chiffre du badge non centre",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    p.ecrire((bx + (bw - large) / 2.0, haut), texte, style);\n",
+  "apres": "    p.ecrire((bx + bw / 2.0 + 0.0 * large, haut), texte, style);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ },
+ {
+  "nom": "le titre du dossier opaque",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "const TITLE_ALPHA: (u8, u8) = (140, 217);\n",
+  "apres": "const TITLE_ALPHA: (u8, u8) = (255, 255);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "p5_",
+   "folder::",
+   "bench::tests",
+   "renderer::svg",
+   "renderer::math"
+  ]
+ }
+]

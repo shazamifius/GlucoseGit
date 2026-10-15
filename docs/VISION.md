@@ -45,6 +45,11 @@ puisse y faire **tout** ce qu'on fait sur du papier, et ce que le papier ne sait
 * **Open source, en Rust**, pour que **n'importe qui puisse forker** et créer sa version de
   Glucose. C'est pour cela que l'arborescence des fichiers est extrêmement minutieuse : elle doit
   se lire par un inconnu.
+* **Glucose devient lui-même un ensemble de dépendances** (sa parole du 15/10) : des briques en
+  Rust, propres, que d'autres prennent pour bâtir leur version — *« qu'il y ait des milliers de
+  forks, adaptés à tout besoin »*. Le noyau sans dépendance (`glucose-core`) est la première ; le
+  rendu, la typographie, les formules, le format en sont d'autres à découper, chacune lisible
+  seule.
 * **Les dépendances : à terme, zéro absolu.** Sa parole du 15/10 précise la charte (« 0 n'est pas
   l'objectif » *aujourd'hui*) : on prend une dépendance quand on ne peut pas faire sans, et on la
   réécrit quand on sait faire mieux nous-mêmes — le chemin va vers zéro, jamais au prix d'une

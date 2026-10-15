@@ -137,6 +137,74 @@ fn test_p5_le_canevas_et_le_svg_se_superposent() {
     assert!(t <= 9.8, "la teinte : {t:.1} (bruit mesuré 6,3)");
 }
 
+/// La valeur de l'attribut `nom` dans un élément.
+fn attribut(element: &str, nom: &str) -> f32 {
+    let debut = element
+        .find(&format!(" {nom}=\""))
+        .unwrap_or_else(|| panic!("{nom} dans {element}"))
+        + nom.len()
+        + 3;
+    let fin = element[debut..].find('"').expect("un attribut fermé") + debut;
+    element[debut..fin].parse().expect("un nombre")
+}
+
+/// **Chaque flou ne travaille que là où sa lueur peut changer un pixel** (fiche 71) : la
+/// région de chaque filtre tient dans le cadre de l'export — la boîte de la lueur élargie de sa
+/// portée, que la marge de l'export (`debord_au_repos`) contient par construction. La fiche 70
+/// déclarait ±100 000 unités pour tous : la superposition passait, et un lecteur floutait un
+/// carré de 200 000 de côté par lueur — 28 s pour `resvg` sur la vitrine.
+#[test]
+fn test_p5_chaque_flou_tient_dans_le_cadre_de_l_export() {
+    let dossier = Dossier::nouveau("export-svg-flous");
+    let app = vitrine_de_l_export(&dossier);
+    let scene = preparer(&app.store).expect("une scène");
+    let (l, h) = (scene.largeur as f32, scene.hauteur as f32);
+    let svg = app.rendre_le_svg().expect("un SVG");
+    let filtres: Vec<&str> = svg
+        .match_indices("<filter ")
+        .map(|(i, _)| &svg[i..i + svg[i..].find('>').expect("un filtre fermé")])
+        .collect();
+    assert!(
+        filtres.len() >= 5,
+        "les lueurs de la vitrine : {}",
+        filtres.len()
+    );
+    for f in filtres {
+        let (x, y) = (attribut(f, "x"), attribut(f, "y"));
+        let (fin_x, fin_y) = (x + attribut(f, "width"), y + attribut(f, "height"));
+        assert!(
+            x >= 0.0 && y >= 0.0 && fin_x <= l && fin_y <= h,
+            "{f} déborde du cadre {l} × {h}"
+        );
+    }
+}
+
+/// **Les textes peu contrastés sont écrits**, et le dossier vide dit quoi faire sans badge
+/// (fiche 71) : le nom d'une zone, bleu sur son bandeau bleu, sa phrase grise, la description
+/// d'une case, « Double-clic pour ouvrir » — la superposition les dilue sous son seuil, et leur
+/// absence ne la faisait pas tomber.
+#[test]
+fn test_p5_les_textes_peu_contrastes_sont_ecrits() {
+    let dossier = Dossier::nouveau("export-svg-textes");
+    let app = vitrine_de_l_export(&dossier);
+    let svg = app.rendre_le_svg().expect("un SVG");
+    for texte in [
+        "RÉFÉRENCE",
+        "SKETCH",
+        "Images de référence, inspirations",
+        "Croquis exploratoires",
+        "Plan large, la ville au loin",
+        "Double-clic pour ouvrir",
+    ] {
+        let ecrit = format!(r#"aria-label="{texte}""#);
+        assert!(svg.contains(&ecrit), "« {texte} » manque au SVG");
+    }
+    assert!(
+        !svg.contains(r#"aria-label="0""#),
+        "un dossier vide n'a pas de badge"
+    );
+}
+
 /// **Une photo porte ses octets d'origine**, en `data:`, découpée à sa boîte ; un tableau vide
 /// n'a rien à écrire.
 #[test]

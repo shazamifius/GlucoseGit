@@ -124,6 +124,7 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [09](decisions/09-LE-PARTAGE-PAR-JNI.md) le partage vers Glucose, par `jni` ·
 [10](decisions/10-LES-EMOJIS-PAR-NOTO-EMOJI.md) les emojis, par Noto Emoji ·
 [11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb` ·
-[12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png`.
+[12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
+[13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
 La prochaine fiche porte le numéro **72**.

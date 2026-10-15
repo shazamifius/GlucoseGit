@@ -248,7 +248,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// trait d'un point, au pixel entier, et un voile blanc à 0,04 dedans (`Minimap.tsx`) — au lieu
 /// d'un trait de 1,5 point en demi-teintes. 8 838 pixels changent, tous dans la minimap
 /// (1628-1768 × 788-853). Regardés avant/après, agrandis quatre fois.
-const EMPREINTE_TEMOIN: &str = "ab38c121729dd307";
+/// **Puis, le 15/10** (fiche 70, le dossier relu contre `FolderSvgLayer.tsx`) : le titre du
+/// dossier à sa ligne de base, à côté de l'icône, et le chiffre du badge dans sa pastille.
+/// 1 633 pixels changent, tous dans le bandeau du dossier (823-1021 × 506-532). Regardés
+/// avant/après, agrandis trois fois (fiche 71).
+const EMPREINTE_TEMOIN: &str = "d8494eafb04137ba";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -336,7 +340,8 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis** (fiche 53 § 10) : les cinq nœuds choisis forment un groupe — un seul cadre et ses
 /// quatre poignées, plus de carrés sur chaque nœud, et « Origine commune » dans la barre.
 /// Regardé.
-const EMPREINTE_TEMOIN_SELECTION: &str = "e4e733f9f7d3089a";
+/// **Puis** (fiche 70) : le bandeau du dossier, 1 608 pixels, rien d'autre — regardé.
+const EMPREINTE_TEMOIN_SELECTION: &str = "68b5d96f03e32122";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -410,7 +415,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (ACCES-1, fiche 63) : « Cadrer la sélection  F » après « Dupliquer », regardé.
 /// **Puis** (P2, proposition 2, fiche 66) : « Storyboard de la sélection » après « Retirer les
 /// bordures », regardé.
-const EMPREINTE_TEMOIN_MENU: &str = "a2ef02e70e63277a";
+/// **Puis** (fiche 70) : le bandeau du dossier sous le menu, 1 324 pixels — regardé.
+const EMPREINTE_TEMOIN_MENU: &str = "16a14b7032a2b54e";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

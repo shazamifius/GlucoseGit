@@ -164,14 +164,14 @@ impl Surface for Vecteurs<'_> {
     }
 
     fn remplir_net(&mut self, rect: Rect, c: Color) {
-        // Les pixels mêmes que `fill_crisp` couvre : de la colonne entière de chaque bord.
-        let entier = |v: f32| v.max(0.0).trunc();
-        let (x0, x1) = (entier(rect.left()), entier(rect.right()));
-        let (y0, y1) = (entier(rect.top()), entier(rect.bottom()));
-        if x0 < x1 && y0 < y1 {
+        // Les pixels mêmes que `fill_crisp` couvre, par **sa** règle (`on_pixel_grid`). La
+        // fiche 70 en écrivait une seconde — tronquer les bords — qui décalait d'un pixel
+        // chaque zone et chaque case du SVG ; la superposition, à un pixel près, ne le voyait
+        // pas (fiche 71).
+        if let Some(r) = super::scale::on_pixel_grid(rect) {
             let (teinte, a) = couleur(c);
             self.svg
-                .rectangle((x0, y0, x1 - x0, y1 - y0), 0.0, (&teinte, a));
+                .rectangle((r.x(), r.y(), r.width(), r.height()), 0.0, (&teinte, a));
         }
     }
 

@@ -28,8 +28,6 @@ pub struct Svg {
     corps: String,
     /// De quoi nommer chaque définition d'un nom à elle.
     suivant: usize,
-    /// Les flous déjà définis, par leur écart-type.
-    flous: Vec<String>,
     /// Les glyphes déjà définis, par leur police et leur indice — `None` pour un glyphe sans
     /// contour (fiche 70, [`glyphes`]).
     glyphes: HashMap<(&'static str, u16), Option<glyphes::Defini>>,
@@ -116,23 +114,28 @@ impl Svg {
 
     /// **Une lueur** : ce rectangle arrondi, de cette teinte, flouté d'une gaussienne
     /// d'écart-type `sigma` — l'ombre de boîte de Glucose Tauri, exactement (HALO-1).
+    ///
+    /// **La région du filtre est la boîte élargie de `portee`** — la distance au-delà de
+    /// laquelle cette lueur ne change plus aucun niveau ([`super::halo::portee_du_flou`],
+    /// HALO-2), propre à chaque lueur. La fiche 70 déclarait ±100 000 unités pour toutes : un
+    /// lecteur floutait un carré de 200 000 de côté par lueur — 28 s pour `resvg` sur la
+    /// vitrine, et autant pour quiconque ouvrait le fichier (fiche 71). Aucune constante.
     pub fn lueur(
         &mut self,
         (x, y, l, h): (f32, f32, f32, f32),
         rayon: f32,
         (teinte, alpha): (&str, f32),
-        sigma: f32,
+        (sigma, portee): (f32, f32),
     ) {
-        let nom = format!("flou-{}", n(sigma).replace('.', "_"));
-        if !self.flous.contains(&nom) {
-            // La région du filtre en unités de l'espace : trois écarts-types de chaque côté,
-            // au-delà desquels la gaussienne ne change plus aucun niveau.
-            self.defs.push_str(&format!(
-                r#"<filter id="{nom}" filterUnits="userSpaceOnUse" x="-100000" y="-100000" width="200000" height="200000"><feGaussianBlur stdDeviation="{}"/></filter>"#,
-                n(sigma)
-            ));
-            self.flous.push(nom.clone());
-        }
+        let nom = self.nom("flou");
+        self.defs.push_str(&format!(
+            r#"<filter id="{nom}" filterUnits="userSpaceOnUse" x="{}" y="{}" width="{}" height="{}"><feGaussianBlur stdDeviation="{}"/></filter>"#,
+            n(x - portee),
+            n(y - portee),
+            n(l + 2.0 * portee),
+            n(h + 2.0 * portee),
+            n(sigma)
+        ));
         self.poser(&format!(
             r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="{teinte}" fill-opacity="{}" filter="url(#{nom})"/>"#,
             n(x), n(y), n(l), n(h), n(rayon_tenu(rayon, (l, h))), n(alpha)

@@ -12,6 +12,25 @@
 * **Le journal technique, si tu l'as accepté**, dit désormais la mémoire — ce que Glucose occupe
   et ce que l'appareil laisse, en mégaoctets, quand c'est un record de la session — et les
   instants où le système en demande. Toujours aucun contenu de tes documents.
+* **Le Storyboard, complet** :
+  * plusieurs images lâchées sur une case remplissent les cases vides à la suite, et le
+    storyboard s'allonge s'il le faut ;
+  * « Storyboard de la sélection » au clic droit : une case par image choisie ;
+  * les deux « + » d'une case choisie insèrent une case avant ou après elle ;
+  * **la lecture** (« ▶ Lire ») : chaque case plein écran, une durée par case, ses textes en
+    sous-titre, ← → pour avancer, Espace pour la pause ;
+  * par case : sa durée, son plan (du plan général au très gros plan), des champs nommés
+    (Dialogue, Action, Notes…) ;
+  * **plusieurs storyboards par tableau** (« + Nouveau », ‹ 2 / 3 ›) ;
+  * **l'export en planches**, en PDF ou en images, au format A.
+* **La grille du Storyboard part du coin de la souris**, comme quand on la trace.
+* **L'export SVG porte tout ce que le canevas montre** : photos, membranes, dossiers, formules,
+  zones et cases, dans le même ordre ; le texte y est en tracés, lisible tel quel par n'importe
+  quel logiciel (navigateur, Inkscape, Illustrator), sans police à installer.
+* **Le dossier, comme dans Glucose Tauri** : son titre et son compteur à leur place, et un dossier
+  vide dit « Double-clic pour ouvrir ».
+* **`Alt+F` cadre aussi un tableau qui ne porte qu'un storyboard ou des zones.**
+* **Le panneau « Presets » s'appelle « Mood board »** : ses six gabarits de zones.
 
 **À savoir avant d'installer**
 
