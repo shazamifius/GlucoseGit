@@ -1,0 +1,33 @@
+[
+ {
+  "nom": "Trans-domaines se tait encore",
+  "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+  "avant": "        UiAction::TransDomain => ui.show_toast(super::NOT_YET_TRANS_DOMAINES),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "trans_domain"
+  ]
+ },
+ {
+  "nom": "la bande dit encore Preset",
+  "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+  "avant": "regle.mesurer(\"Mood board\", regle.compact)",
+  "apres": "regle.mesurer(\"Preset\", regle.compact)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rail",
+   "bench::tests"
+  ]
+ }
+]

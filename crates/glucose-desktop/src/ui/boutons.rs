@@ -259,6 +259,7 @@ pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
             // doit pas le prétendre.
             ui.show_toast(super::NOT_YET_COLLAB);
         }
+        UiAction::TransDomain => ui.show_toast(super::NOT_YET_TRANS_DOMAINES),
         _ => {}
     }
     action
@@ -377,7 +378,7 @@ fn groupe_de_droite(
         (
             UiAction::TogglePreset,
             IconType::Preset,
-            regle.mesurer("Preset", regle.compact),
+            regle.mesurer("Mood board", regle.compact),
         ),
         (
             UiAction::ToggleDomains,

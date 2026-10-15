@@ -46,17 +46,22 @@ fn test_the_collab_button_does_not_claim_to_be_connected() {
     assert_eq!(app.ui.toast_message(), Some(crate::ui::NOT_YET_COLLAB));
 }
 
-/// Trans-domaines n'a pas encore de fonction, et l'utilisateur a demandé qu'il ne fasse rien
-/// (fiche 29 § 3.1) : le clic ne l'allume pas, et aucun message ne prétend le contraire. Le
-/// test passe par la souris, pas par l'état : c'est l'état posé à la main qui a caché, une
-/// session entière, que le bouton ne basculait pas.
+/// Trans-domaines n'a pas encore de fonction — de la recherche, à sa parole du 15/10 : le clic
+/// ne l'allume pas, et **il dit qu'il viendra**, comme Collaborer (fiche 71 ; avant, il se
+/// taisait, fiche 29 § 3.1 — le seul bouton qui ne disait pas qu'il ne faisait rien). Le test
+/// passe par la souris, pas par l'état : c'est l'état posé à la main qui a caché, une session
+/// entière, que le bouton ne basculait pas.
 #[test]
-fn test_the_trans_domain_button_does_nothing() {
+fn test_the_trans_domain_button_says_it_is_coming() {
     let mut app = GlucoseApp::new();
-    let avant = app.ui.toast_message().map(str::to_owned);
     for _ in 0..2 {
+        app.ui.current_toast = None;
         click_topbar(&mut app, UiAction::TransDomain);
-        assert_eq!(app.ui.toast_message(), avant.as_deref(), "aucun message");
+        assert_eq!(
+            app.ui.toast_message(),
+            Some(crate::ui::NOT_YET_TRANS_DOMAINES),
+            "il dit qu'il viendra"
+        );
         let barre = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, 0);
         let bouton = barre
             .buttons

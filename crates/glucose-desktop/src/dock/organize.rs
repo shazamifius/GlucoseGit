@@ -118,7 +118,7 @@ impl LayoutMode {
             Self::Masonry => "Masonry (colonnes)",
             Self::Grid => "Grille alignée",
             Self::SameHeight => "Même hauteur",
-            Self::BySlot => "Par slot preset",
+            Self::BySlot => "Par mood board",
         }
     }
 

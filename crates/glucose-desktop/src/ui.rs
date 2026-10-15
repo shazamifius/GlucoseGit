@@ -304,6 +304,11 @@ impl UiState {
 /// Ce que dit le bouton Collab tant que la collaboration (fiche 09 § 9) n'existe pas.
 pub const NOT_YET_COLLAB: &str = "Collaboration : pas encore disponible";
 
+/// Ce que dit Trans-domaines tant que sa fonction est en recherche (sa parole du 15/10 :
+/// « j'ai une intention, mais je n'ai pas fini mon raisonnement sur ce que j'entends par
+/// domaine ») — un bouton ne fait jamais semblant (R1, fiche 71).
+pub const NOT_YET_TRANS_DOMAINES: &str = "Trans-domaines : bientôt — en recherche";
+
 /// **La chrome permanente, par la voie processeur** : chaque morceau composé dans le tampon,
 /// dans l'ordre que [`chrome::parcourir`] dit — le même que la carte pose (CHROME-1).
 pub fn render_ui(
@@ -485,8 +490,11 @@ mod tests {
             }
         }
 
-        // Mode complet (> 1320px) : les boutons secondaires ont leurs labels
-        let layout_full = layout_topbar(1600.0, &ui, &typo, 2);
+        // Sur son écran (2 560 pixels à 150 % : 1 707 de large), la bande garde tous ses
+        // libellés. La densité se mesure (`layout_topbar`) : le seuil était de 1 594 pixels, il
+        // est de 1 626 depuis « Mood board » (fiche 71). Un bouton qui le ferait replier chez
+        // lui fait tomber cette épreuve — à trancher, pas à repousser.
+        let layout_full = layout_topbar(1707.0, &ui, &typo, 2);
         let plugins_btn = layout_full
             .buttons
             .iter()

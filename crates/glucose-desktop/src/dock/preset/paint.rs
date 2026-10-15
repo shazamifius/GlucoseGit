@@ -1,4 +1,4 @@
-//! Le dessin du panneau PRESETS.
+//! Le dessin du panneau MOOD BOARD (« Presets » dans Glucose Tauri, renommé à sa parole, fiche 71).
 
 use super::{layout_presets_panel, Contenu, PresetRowLayout, SectionSuivie, CREATE_LABEL};
 use crate::dock::paint::{Brush, ButtonLook};
@@ -19,15 +19,15 @@ pub fn render_presets_panel(
 ) {
     let contenu = Contenu::du(store);
     let layout = layout_presets_panel(frame, &contenu);
-    brush.title(pixmap, frame, "PRESETS");
+    brush.title(pixmap, frame, "MOOD BOARD");
     if let (Some(section), Some((nom, pastilles))) = (&layout.suivie, &contenu.suivi) {
         draw_suivi(pixmap, brush, section, (&contenu.tableau, nom, pastilles));
     }
     let legende = if contenu.suivi.is_some() {
-        "CHANGER DE PRESET".to_string()
+        "CHANGER DE MOOD BOARD".to_string()
     } else {
         format!(
-            "CHOISIR UN PRESET POUR « {} »",
+            "CHOISIR UN MOOD BOARD POUR « {} »",
             contenu.tableau.to_uppercase()
         )
     };

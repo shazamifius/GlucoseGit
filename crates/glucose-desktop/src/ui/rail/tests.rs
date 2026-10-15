@@ -232,7 +232,7 @@ fn test_chaque_icone_a_son_nom_sur_son_telephone() {
                 b.label
             );
         }
-        for nom in ["Ordonner", "Storyboard", "Preset"] {
+        for nom in ["Ordonner", "Storyboard", "Mood board"] {
             assert!(noms.contains(&nom), "{nom} manque");
         }
     }

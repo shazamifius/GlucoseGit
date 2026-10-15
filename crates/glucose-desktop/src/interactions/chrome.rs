@@ -268,11 +268,9 @@ impl GlucoseApp {
             UiAction::TogglePlugins => self.dock_manager.toggle_tab(TabId::Plugins),
             UiAction::TogglePreset => self.dock_manager.toggle_tab(TabId::Preset),
             UiAction::ToggleDomains => self.dock_manager.toggle_tab(TabId::Domains),
-            // L'aimant et la collaboration ont déjà basculé leur état dans `handle_ui_click`.
-            UiAction::ToggleMagnet | UiAction::ToggleCollab => {}
-            // Trans-domaines n'a pas encore de fonction : le clic ne fait rien, et aucun message
-            // ne prétend le contraire (fiche 29 § 3.1).
-            UiAction::TransDomain => {}
+            // L'aimant, la collaboration et Trans-domaines ont déjà dit ou basculé ce qu'ils
+            // avaient à dire dans `handle_ui_click`.
+            UiAction::ToggleMagnet | UiAction::ToggleCollab | UiAction::TransDomain => {}
             UiAction::ExportMenu => self.export_board(),
             UiAction::SelectBoard(id) => self.cliquer_un_onglet(id),
             UiAction::CloseBoard(id) => self.fermer_l_onglet(&id),

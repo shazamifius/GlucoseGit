@@ -252,7 +252,9 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// dossier à sa ligne de base, à côté de l'icône, et le chiffre du badge dans sa pastille.
 /// 1 633 pixels changent, tous dans le bandeau du dossier (823-1021 × 506-532). Regardés
 /// avant/après, agrandis trois fois (fiche 71).
-const EMPREINTE_TEMOIN: &str = "d8494eafb04137ba";
+/// **Puis** (fiche 71) : « Preset » devient « Mood board » dans la bande — 2 764 pixels, le
+/// groupe de droite qui glisse (1314-1671 × 19-31). Regardé.
+const EMPREINTE_TEMOIN: &str = "541a45aa34794693";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -341,7 +343,8 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// quatre poignées, plus de carrés sur chaque nœud, et « Origine commune » dans la barre.
 /// Regardé.
 /// **Puis** (fiche 70) : le bandeau du dossier, 1 608 pixels, rien d'autre — regardé.
-const EMPREINTE_TEMOIN_SELECTION: &str = "68b5d96f03e32122";
+/// **Puis** (fiche 71) : « Mood board » dans la bande, 2 764 pixels — regardé.
+const EMPREINTE_TEMOIN_SELECTION: &str = "59a417f6daf87fcb";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -416,7 +419,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (P2, proposition 2, fiche 66) : « Storyboard de la sélection » après « Retirer les
 /// bordures », regardé.
 /// **Puis** (fiche 70) : le bandeau du dossier sous le menu, 1 324 pixels — regardé.
-const EMPREINTE_TEMOIN_MENU: &str = "16a14b7032a2b54e";
+/// **Puis** (fiche 71) : « Mood board » dans la bande, 2 764 pixels — regardé.
+const EMPREINTE_TEMOIN_MENU: &str = "599d9b062fccdafe";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

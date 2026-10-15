@@ -77,7 +77,7 @@ impl TabId {
             Self::Pomodoro => "POMODORO",
             Self::Storyboard => "STORYBOARD",
             Self::Plugins => "PLUGINS",
-            Self::Preset => "PRESETS",
+            Self::Preset => "MOOD BOARD",
             Self::Domains => "DOMAINES",
             Self::Temps => "TIME MACHINE",
         }

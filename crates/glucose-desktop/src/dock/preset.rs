@@ -28,7 +28,7 @@ use glucose_core::store::Store;
 pub mod paint;
 
 /// Le bouton de création, grisé tant que créer un gabarit n'existe pas.
-pub const CREATE_LABEL: &str = "+ Créer un preset custom";
+pub const CREATE_LABEL: &str = "+ Créer un mood board";
 
 /// Combien de pastilles par rangée dans la section du gabarit suivi.
 const PASTILLES_PAR_RANGEE: usize = 3;

@@ -243,7 +243,7 @@ fn test_preset_1_par_slot_preset_range_chaque_zone() {
     );
     let toast = app.ui.current_toast.as_ref().expect("un compte-rendu");
     assert!(
-        toast.message.starts_with("Par slot preset"),
+        toast.message.starts_with("Par mood board"),
         "{}",
         toast.message
     );
