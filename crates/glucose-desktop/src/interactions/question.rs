@@ -180,6 +180,8 @@ impl GlucoseApp {
             Suite::MiseAJour(proposition) if oui => self.preparer_la_mise_a_jour(proposition),
             Suite::Signets => self.suivre_les_signets(reponse),
             Suite::Palette(etat) => self.lancer_depuis_la_palette(&etat, reponse),
+            Suite::Raccourci(commande) => self.suivre_le_raccourci(commande, reponse),
+            Suite::RetablirLesRaccourcis if oui => self.retablir_les_raccourcis(),
             Suite::Exporter => self.exporter_au_format(reponse),
             Suite::RemplacerUnSignet => self.remplacer_le_signet(reponse),
             Suite::Ajouter(chemins) => {
@@ -200,7 +202,7 @@ impl GlucoseApp {
             } => {
                 self.repondre_au_champ((&board, &storyboard, rang), reponse, champ);
             }
-            Suite::NouveauDocument | Suite::MiseAJour(_) => {}
+            Suite::NouveauDocument | Suite::MiseAJour(_) | Suite::RetablirLesRaccourcis => {}
         }
     }
 }

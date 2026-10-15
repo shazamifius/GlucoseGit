@@ -91,6 +91,16 @@ impl Couche {
         t
     }
 
+    /// **Oublie ce que cette couche dit de cet accord** : les couches du dessous reparaissent.
+    pub fn oublier(&mut self, accord: &Accord) {
+        self.liaisons.retain(|(a, _)| a != accord);
+    }
+
+    /// La couche ne dit-elle rien ?
+    pub fn est_vide(&self) -> bool {
+        self.liaisons.is_empty()
+    }
+
     /// Ce que cette couche dit de cet accord : rien (`None`), une liste, ou un retrait (vide).
     pub fn liaison(&self, accord: &Accord) -> Option<&[String]> {
         self.liaisons
@@ -169,5 +179,66 @@ impl Clavier {
             }
         }
         accords
+    }
+
+    // ── Changer ses raccourcis : la couche du dessus, et elle seule (P4, fiche 74) ──────────
+    //
+    // Les trois gestes suivants n'écrivent que dans la **couche du dessus** — celle de
+    // l'utilisateur : ce qu'il change s'y lit, ligne par ligne, et le preset du dessous ne bouge
+    // jamais. L'application pose donc toujours sa couche, même vide, au-dessus des autres.
+
+    /// **Retire `commande` de chaque accord qui y mène** : elle n'a plus de raccourci. Un accord
+    /// qui menait aussi ailleurs y mène encore ; un accord qui ne menait qu'à elle est retiré
+    /// (`-`) — il ne retombe pas sur ce que disait une couche plus basse.
+    pub fn delier(&mut self, commande: &str) {
+        for accord in self.accords_de(commande) {
+            let reste: Vec<String> = self
+                .commandes(&accord)
+                .iter()
+                .filter(|c| *c != commande)
+                .cloned()
+                .collect();
+            if let Some(dessus) = self.couches.last_mut() {
+                let reste: Vec<&str> = reste.iter().map(String::as_str).collect();
+                dessus.lier(accord, &reste);
+            }
+        }
+    }
+
+    /// **`commande` n'a plus que cet accord**, qui ne mène plus qu'à elle. Rend ce que l'accord
+    /// désignait d'autre avant — ce que l'utilisateur doit savoir qu'il vient de remplacer.
+    pub fn lier_seul(&mut self, commande: &str, accord: Accord) -> Vec<String> {
+        let remplacees: Vec<String> = self
+            .commandes(&accord)
+            .iter()
+            .filter(|c| *c != commande)
+            .cloned()
+            .collect();
+        self.delier(commande);
+        if let Some(dessus) = self.couches.last_mut() {
+            dessus.lier(accord, &[commande]);
+        }
+        remplacees
+    }
+
+    /// **Rend à `commande` les raccourcis des couches du dessous** : la couche du dessus oublie
+    /// chaque accord qu'elle a changé et qui touche cette commande — qu'elle l'y ait mené, ou
+    /// qu'en dessous il y menait. Ce que ces accords faisaient d'autre en dessous revient avec eux.
+    pub fn retablir(&mut self, commande: &str) {
+        let Some((dessus, dessous)) = self.couches.split_last_mut() else {
+            return;
+        };
+        let dessous = Clavier::de(dessous.to_vec());
+        let touchent: Vec<Accord> = dessus
+            .accords()
+            .filter(|a| {
+                let mene = |l: &[String]| l.iter().any(|c| c == commande);
+                dessus.liaison(a).is_some_and(mene) || mene(dessous.commandes(a))
+            })
+            .copied()
+            .collect();
+        for accord in &touchent {
+            dessus.oublier(accord);
+        }
     }
 }

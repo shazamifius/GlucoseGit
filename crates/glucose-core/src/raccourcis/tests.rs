@@ -147,3 +147,81 @@ fn test_clavier_la_couche_du_dessus_l_emporte() {
         "la couche du dessus passe avant"
     );
 }
+
+/// Un clavier de deux couches : un preset, et celle de l'utilisateur, vide.
+fn preset_et_utilisateur(preset: &str) -> Clavier {
+    let (dessous, erreurs) = Couche::lire("preset", preset);
+    assert!(erreurs.is_empty(), "{erreurs:?}");
+    Clavier::de(vec![dessous, Couche::nommee("utilisateur")])
+}
+
+fn mene(clavier: &Clavier, accord: &str) -> Vec<String> {
+    clavier.commandes(&a(accord)).to_vec()
+}
+
+/// **Changer un raccourci remplace** : la commande n'a plus que le nouvel accord, l'accord ne
+/// mène plus qu'à elle, et ce qu'il faisait d'autre est rendu — pour être dit. Le preset ne
+/// bouge pas : tout s'écrit dans la couche du dessus.
+#[test]
+fn test_changer_un_raccourci_remplace_et_dit_ce_qu_il_remplace() {
+    let mut c = preset_et_utilisateur(
+        "Ctrl+D  dupliquer\nCtrl+K  dupliquer\nCtrl+J  joindre\n1  relation.1 | signet.aller.1\n",
+    );
+    let preset = c.couches()[0].clone();
+    let remplacees = c.lier_seul("dupliquer", a("Ctrl+J"));
+    assert_eq!(remplacees, vec!["joindre".to_string()]);
+    assert_eq!(c.accords_de("dupliquer"), vec![a("Ctrl+J")]);
+    assert_eq!(mene(&c, "Ctrl+J"), vec!["dupliquer"]);
+    assert!(mene(&c, "Ctrl+D").is_empty() && mene(&c, "Ctrl+K").is_empty());
+    assert!(c.accords_de("joindre").is_empty());
+    assert_eq!(c.couches()[0], preset, "le preset a bougé");
+    // Un accord qui menait à deux commandes : en prendre une en laisse l'autre ailleurs.
+    let remplacees = c.lier_seul("signet.aller.1", a("Ctrl+1"));
+    assert!(remplacees.is_empty());
+    assert_eq!(mene(&c, "1"), vec!["relation.1"]);
+    // La couche de l'utilisateur s'écrit et se relit à l'identique.
+    let ecrite = c.couches()[1].ecrire();
+    let (relue, erreurs) = Couche::lire("utilisateur", &ecrite);
+    assert!(erreurs.is_empty());
+    assert_eq!(relue.ecrire(), ecrite);
+}
+
+/// **Retirer un raccourci** : plus aucun accord ne mène à la commande ; un accord partagé mène
+/// encore à l'autre ; et rien ne retombe sur ce que disait le preset.
+#[test]
+fn test_retirer_un_raccourci() {
+    let mut c = preset_et_utilisateur("Ctrl+D  dupliquer\n1  relation.1 | signet.aller.1\n");
+    c.delier("dupliquer");
+    c.delier("relation.1");
+    assert!(c.accords_de("dupliquer").is_empty());
+    assert!(mene(&c, "Ctrl+D").is_empty());
+    assert_eq!(mene(&c, "1"), vec!["signet.aller.1"]);
+}
+
+/// **Rétablir rend le preset** — à cette commande, et à ce que ses accords faisaient d'autre ;
+/// les autres changements de l'utilisateur restent.
+#[test]
+fn test_retablir_rend_le_preset_a_cette_commande() {
+    let mut c = preset_et_utilisateur(
+        "Ctrl+D  dupliquer\nCtrl+J  joindre\nCtrl+S  enregistrer\n1  relation.1 | signet.aller.1\n",
+    );
+    c.lier_seul("dupliquer", a("Ctrl+J"));
+    c.lier_seul("enregistrer", a("F2"));
+    c.delier("relation.1");
+    c.retablir("dupliquer");
+    assert_eq!(c.accords_de("dupliquer"), vec![a("Ctrl+D")]);
+    assert_eq!(
+        mene(&c, "Ctrl+J"),
+        vec!["joindre"],
+        "Ctrl+J n'est pas rendu"
+    );
+    assert_eq!(
+        c.accords_de("enregistrer"),
+        vec![a("F2")],
+        "un autre changement perdu"
+    );
+    c.retablir("relation.1");
+    assert_eq!(mene(&c, "1"), vec!["relation.1", "signet.aller.1"]);
+    c.retablir("enregistrer");
+    assert!(c.couches()[1].est_vide(), "{}", c.couches()[1].ecrire());
+}

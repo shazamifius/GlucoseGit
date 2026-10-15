@@ -65,15 +65,16 @@ impl GlucoseApp {
             created_at: crate::persist::now_millis(),
         };
         let id = domain.id.clone();
-        match self.store.try_add_domain(domain) {
+        // Créé ou refusé : la même phrase, dite au même endroit (cliquet 2).
+        let dit = match self.store.try_add_domain(domain) {
             Ok(()) => {
                 self.dock_manager.domains.pending_delete = None;
                 self.start_domain_rename(&id);
-                self.ui
-                    .show_toast("Domaine créé — tape son nom, Entrée pour valider");
+                "Domaine créé — tape son nom, Entrée pour valider".to_string()
             }
-            Err(err) => self.ui.show_toast(err.to_string()),
-        }
+            Err(err) => err.to_string(),
+        };
+        self.ui.show_toast(dit);
     }
 
     fn start_domain_rename(&mut self, id: &str) {
@@ -118,13 +119,12 @@ impl GlucoseApp {
             .store
             .domain(id)
             .map_or_else(|| id.to_string(), |d| d.name.clone());
-        match self.store.try_remove_domain(id) {
-            Ok(0) => self.ui.show_toast(format!("Domaine « {label} » supprimé")),
-            Ok(detached) => self.ui.show_toast(format!(
-                "Domaine « {label} » supprimé — retiré de {detached} nœud(s)"
-            )),
-            Err(err) => self.ui.show_toast(err.to_string()),
-        }
+        let dit = match self.store.try_remove_domain(id) {
+            Ok(0) => format!("Domaine « {label} » supprimé"),
+            Ok(detached) => format!("Domaine « {label} » supprimé — retiré de {detached} nœud(s)"),
+            Err(err) => err.to_string(),
+        };
+        self.ui.show_toast(dit);
         self.dock_manager.domains.pending_delete = None;
         if self
             .dock_manager
@@ -167,12 +167,13 @@ impl GlucoseApp {
         self.store.end_live_edit();
 
         let percent = (weight * 100.0).round() as i32;
-        match (done, failure) {
-            (0, Some(err)) => self.ui.show_toast(err.to_string()),
-            (0, None) => {}
-            (n, _) => self
-                .ui
-                .show_toast(format!("Domaine assigné à {n} nœud(s) — {percent} %")),
+        let dit = match (done, failure) {
+            (0, Some(err)) => Some(err.to_string()),
+            (0, None) => None,
+            (n, _) => Some(format!("Domaine assigné à {n} nœud(s) — {percent} %")),
+        };
+        if let Some(dit) = dit {
+            self.ui.show_toast(dit);
         }
     }
 

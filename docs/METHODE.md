@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 15/10/2026** (fiches 59 à 73). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 16/10/2026** (fiches 59 à 74). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -162,6 +162,8 @@
 | **Une garde que la mathématique rend vide** : un `abs` devant une fonction paire (fiche 73) | démontrer la propriété, l'écrire dans la doc de la fonction, l'éprouver au bit près, et retirer la garde |
 | **Une garde qui ne sert qu'à un cas qu'on ne sait pas produire** : comparer le texte derrière une empreinte, pour les seules collisions (fiche 73, la mémoire des mises en page) — aucune épreuve ne peut la voir | changer de structure pour que la garde disparaisse (la table prend le texte pour clé) |
 | **Une optimisation qui écarte ce qui « ne se verra pas »** (LIGNE-1) | l'éprouver par **équivalence** : le résultat avec et sans elle, identique, en balayant les places critiques plus finement que le plus petit débordement mesuré |
+| **Deux messages d'affilée dans un emplacement qui n'en tient qu'un** : la ligne fausse et la commande inconnue d'un même fichier — seul le second se voyait (fiche 74) | ce qui se dit en même temps se dit en **un** message ; l'épreuve demande tout ce qu'il doit dire |
+| **Une épreuve dont la donnée n'exerce pas le cas** : « `Ctrl+  rien` », prise pour une ligne fausse, se lit très bien (fiche 74) | l'épreuve affirme d'abord qu'elle part du cas voulu (« un fichier protégé »), puis le juge |
 | **Une épreuve qui compare deux voies appelant la même fonction** ne voit pas une faute dans cette fonction (`inverse()` dans la loi et dans la carte) | saboter ce que la règle interdit vraiment (ici : que la carte divise elle-même), et voir la fonction contre une voie qui ne l'appelle pas |
 
 ## 5. Les pièges pratiques
@@ -186,7 +188,7 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json`, et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, et
   `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
   sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son

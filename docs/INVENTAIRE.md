@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 15/10/2026** (fiches 63 à 73). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 16/10/2026** (fiches 63 à 74). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -42,6 +42,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 |---|---|---|
 | Se déplacer, zoomer (jusqu'à ×256, fiche 72) — de près, le texte dessiné net par la carte graphique dès la première image (P8, fiche 73) | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
 | **La palette de commandes** — chaque commande cherchée par son nom, lancée par Entrée ; la liste défile (molette, pavé, flèches, « ↑ / ↓ » au doigt) (fiche 72) | **menu du vide**, `Ctrl+Maj+P` | ✅ menu (deux touchers sur le vide) |
+| **Changer un raccourci** — choisir la commande, frapper le nouvel accord ; le retirer, ou rendre celui de Glucose ; « Rétablir tous les raccourcis de Glucose » ; écrits dans `raccourcis.txt`, relus au lancement (fiche 74) | la palette (`Ctrl+Maj+P`, « raccourci ») | ✅ la palette (au doigt : retirer, rétablir ; un accord demande un clavier) |
 | Tout cadrer | **menu du vide** (ACCES-1), **`Alt+F`** (`Ctrl+F` jusqu'au 13/10, rendu à la recherche — fiche 65) | ✅ menu |
 | Cadrer la sélection | **menu de la sélection** (ACCES-1), `F` | ✅ menu |
 | Signets de vue (poser, y voler, remplacer) | **menu du vide « Signets… »** (ACCES-1), `Ctrl+1…9`, `1…9` | ✅ menu |
