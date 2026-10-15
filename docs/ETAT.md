@@ -13,10 +13,11 @@
   (publiée par lui) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
   `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses données ne sont jamais
-  touchées. **La 2.0.3-beta.4 est prête en brouillon** (fiche 72 : CI dix vertes sur `3e1ee42`,
-  le brouillon sur `b6a8ea4`, qui n'ajoute que ses notes) : la télémétrie qui ne perd plus les
-  longues sessions, la raison de mort d'Android, ce que la reprise rouvre, le texte net de près,
-  le zoom ×256. Son APK, signé de sa clé, est zippé sur son Bureau
+  touchées. **La 2.0.3-beta.4 est prête en brouillon** (fiche 72 : CI dix vertes sur `a7893be`,
+  exécution 38769058177 ; le brouillon sur ce commit, publication 38771020014 — un premier
+  brouillon, sur `b6a8ea4`, a été retiré) : la télémétrie qui ne perd plus les longues sessions,
+  la raison de mort d'Android, ce que la reprise rouvre ou saute, LIBERE-1, le texte net de près,
+  le zoom ×256, la palette qui défile. Son APK, signé de sa clé, est zippé sur son Bureau
   (`Glucose-2.0.3-beta.4-telephone.zip`) : **son essai, puis son clic** « Publish release ».
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur

@@ -233,3 +233,12 @@ une signature de 80 octets. La piste de l'améliorateur d'image, pour plus tard.
   `bl_keymap_utils/io.py`.
 * Krita : « Shortcut Settings » (docs.krita.org/Shortcuts).
 * PureRef 2 : pureref.com/blog/pureref2, pureref.com/handbook/shortcuts.
+
+## 11. La beta 4, refaite
+
+Un premier brouillon avait été déposé l'après-midi (sur `b6a8ea4`). LIBERE-1, la reprise enrichie
+et la palette sont venus le soir : ce brouillon, le nôtre, que personne ne voit, a été retiré, et
+la publication relancée après la CI dix vertes de `a7893be` (exécution 38769058177) — le
+brouillon sur `a7893be` (publication 38771020014). L'APK, signé `3f2af005…`, est zippé sur son
+Bureau (`Glucose-2.0.3-beta.4-telephone.zip`). Son essai au téléphone le 16/10, puis son clic.
+
