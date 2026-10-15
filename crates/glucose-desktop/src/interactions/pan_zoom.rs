@@ -221,6 +221,15 @@ impl GlucoseApp {
         // lecture, la molette passe : la lecture tient la caméra, et ce qu'on lui demande se
         // perd (`oublier_ce_qu_on_demande_a_la_camera`, fiche 68).
         if self.ui.question.is_some() {
+            // Sauf la palette, qui défile (fiche 72) : une rangée par cran de molette, ou par
+            // hauteur de rangée que le pavé parcourt.
+            let (_, dy, ligne) = deltas(delta);
+            let rangees = if ligne {
+                -dy
+            } else {
+                -dy / (f64::from(crate::theme::CIBLE_DU_DOIGT) * self.densite())
+            };
+            self.molette_sur_la_palette(rangees as f32);
             return;
         }
         // La fenêtre de l'éditeur du texte lié prend la molette : elle fait défiler son texte,

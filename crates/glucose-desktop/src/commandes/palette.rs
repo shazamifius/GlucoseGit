@@ -7,85 +7,132 @@
 //! Ses réponses suivent le champ **à chaque image** ([`GlucoseApp::suivre_la_palette`]), comme le
 //! panneau du storyboard suit le document : le clavier du PC et celui du téléphone écrivent par
 //! deux chemins, la palette n'en lit qu'un.
+//!
+//! # Tout se voit, en défilant (sa demande du 15/10)
+//!
+//! *« Ce serait bien que dans la palette de commandes on ait ce truc-là de pouvoir scroller et
+//! voir tout. »* La palette montre une **fenêtre** de [`MONTRES`] commandes sur toutes celles
+//! qu'elle trouve ([`Etat`]) : la molette et le pavé la font défiler d'une rangée par cran, les
+//! flèches et Tab déplacent l'évidence et la fenêtre la suit, Page haut et Page bas sautent
+//! d'une fenêtre ; au doigt, deux rangées « ↑ n plus haut » et « ↓ n plus bas » se touchent.
 
 use super::Commande;
 use crate::app::GlucoseApp;
+use crate::persist::documents::MONTRES;
 use crate::ui::question::{Champ, Question, Reponse, Suite};
+
+mod defiler;
+
+/// **L'état de la palette** : le filtre que ses rangées montrent, la première commande de sa
+/// fenêtre, et celle en évidence — des rangs dans toutes les commandes trouvées.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Etat {
+    pub filtre: String,
+    pub debut: usize,
+    pub choisie: usize,
+}
 
 impl GlucoseApp {
     /// **Ouvre la palette**, le champ vide : toutes les commandes, dans l'ordre de la table.
     pub(crate) fn ouvrir_la_palette(&mut self) {
+        let etat = Etat::default();
+        let (choix, focus) = self.rangees_de_la_palette(&etat);
         let question = Question {
             titre: "Palette de commandes".into(),
             texte: "Écris ce que tu cherches ; Entrée lance la commande en évidence.".into(),
-            choix: self.choix_de_la_palette(""),
+            choix,
+            focus,
             champ: Some(Champ::default()),
             ..Default::default()
         };
-        self.demander(question, Suite::Palette(String::new()));
+        self.ui.reste_de_la_molette = 0.0;
+        self.demander(question, Suite::Palette(etat));
     }
 
     /// **La palette suit son champ** : un texte qui a changé depuis l'image d'avant refait ses
-    /// réponses, et l'évidence revient à la première.
+    /// rangées depuis le début, l'évidence sur la première.
     pub(crate) fn suivre_la_palette(&mut self) {
         let ecrit = match &self.ui.question {
-            Some((q, Suite::Palette(filtre))) => {
+            Some((q, Suite::Palette(etat))) => {
                 let ecrit = q
                     .champ
                     .as_ref()
                     .map(|c| c.texte.clone())
                     .unwrap_or_default();
-                if ecrit == *filtre {
+                if ecrit == etat.filtre {
                     return;
                 }
                 ecrit
             }
             _ => return,
         };
-        let choix = self.choix_de_la_palette(&ecrit);
+        self.poser_la_palette(Etat {
+            filtre: ecrit,
+            debut: 0,
+            choisie: 0,
+        });
+    }
+
+    /// **Pose cet état** : ses rangées, son évidence, et lui-même dans la question.
+    pub(super) fn poser_la_palette(&mut self, etat: Etat) {
+        let (choix, focus) = self.rangees_de_la_palette(&etat);
         if let Some((q, suite)) = &mut self.ui.question {
             q.choix = choix;
-            q.focus = 0;
-            *suite = Suite::Palette(ecrit);
+            q.focus = focus;
+            *suite = Suite::Palette(etat);
         }
         self.mark_dirty();
     }
 
-    /// **La réponse de la palette** : la commande trouvée à ce rang pour ce filtre — celui que
-    /// les réponses montraient.
-    pub(crate) fn lancer_depuis_la_palette(&mut self, filtre: &str, reponse: Reponse) {
+    /// **La réponse de la palette** : la commande de ce rang, parmi celles que ce filtre trouve.
+    pub(crate) fn lancer_depuis_la_palette(&mut self, etat: &Etat, reponse: Reponse) {
         if let Reponse::Choix(i) = reponse {
-            if let Some(&commande) = trouvees(filtre).get(i) {
+            if let Some(&commande) = trouvees(&etat.filtre).get(i) {
                 self.executer(commande);
             }
         }
     }
 
-    /// Les réponses de la palette pour ce filtre : chaque commande trouvée et son raccourci.
-    fn choix_de_la_palette(&self, filtre: &str) -> Vec<(String, Reponse)> {
-        trouvees(filtre)
-            .into_iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let accord = self
-                    .ui
-                    .clavier
-                    .accords_de(&c.id())
-                    .first()
-                    .map(|a| a.dire());
-                let libelle = match accord {
-                    Some(a) => format!("{}   {a}", c.nom()),
-                    None => c.nom(),
-                };
-                (libelle, Reponse::Choix(i))
-            })
-            .collect()
+    /// **Les rangées de la palette** et celle en évidence : « ↑ n plus haut » s'il y a des
+    /// commandes au-dessus de la fenêtre, ses commandes avec leur raccourci, « ↓ n plus bas »
+    /// s'il en reste dessous.
+    fn rangees_de_la_palette(&self, etat: &Etat) -> (Vec<(String, Reponse)>, usize) {
+        let toutes = trouvees(&etat.filtre);
+        let fin = (etat.debut + MONTRES).min(toutes.len());
+        let mut rangees = Vec::new();
+        if etat.debut > 0 {
+            let n = etat.debut;
+            rangees.push((
+                format!("↑  {n} plus haut"),
+                Reponse::Defiler(-(MONTRES as isize)),
+            ));
+        }
+        let premiere = rangees.len();
+        for (i, c) in toutes.iter().enumerate().take(fin).skip(etat.debut) {
+            rangees.push((self.libelle(*c), Reponse::Choix(i)));
+        }
+        if fin < toutes.len() {
+            let n = toutes.len() - fin;
+            rangees.push((
+                format!("↓  {n} plus bas"),
+                Reponse::Defiler(MONTRES as isize),
+            ));
+        }
+        let focus = premiere + etat.choisie.saturating_sub(etat.debut);
+        (rangees.clone(), focus.min(rangees.len().saturating_sub(1)))
+    }
+
+    /// Le nom d'une commande, et son raccourci lu dans le clavier.
+    fn libelle(&self, c: Commande) -> String {
+        match self.ui.clavier.accords_de(&c.id()).first() {
+            Some(a) => format!("{}   {}", c.nom(), a.dire()),
+            None => c.nom(),
+        }
     }
 }
 
-/// **Les commandes que ce filtre trouve**, les meilleures d'abord, au plus ce qu'un téléphone
-/// tient debout ([`crate::persist::documents::MONTRES`]). La palette ne se trouve pas
-/// elle-même.
+/// **Toutes les commandes que ce filtre trouve**, les meilleures d'abord. La palette ne se
+/// trouve pas elle-même.
 pub(crate) fn trouvees(filtre: &str) -> Vec<Commande> {
     let mut v: Vec<(u8, usize, Commande)> = Commande::toutes()
         .into_iter()
@@ -94,10 +141,7 @@ pub(crate) fn trouvees(filtre: &str) -> Vec<Commande> {
         .filter_map(|(rang, c)| Some((rang_de(filtre, &c.nom(), &c.id())?, rang, c)))
         .collect();
     v.sort_by_key(|(qualite, rang, _)| (*qualite, *rang));
-    v.into_iter()
-        .take(crate::persist::documents::MONTRES)
-        .map(|(_, _, c)| c)
-        .collect()
+    v.into_iter().map(|(_, _, c)| c).collect()
 }
 
 /// **À quel point ce nom répond au filtre** — 0 s'il commence par lui, 1 si l'un de ses mots

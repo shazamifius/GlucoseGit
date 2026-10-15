@@ -19,6 +19,7 @@ fn android_main(app: AndroidApp) {
     installation::brancher(&app);
     batterie::brancher(&app);
     sortie::brancher(&app);
+    place::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
     glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
         java::Activite::de(&app),
@@ -265,6 +266,41 @@ mod batterie {
                 echelle: lus[1],
                 prise: lus[2],
             })
+        }));
+    }
+}
+
+/// **La place du dossier privé** (REPRISE-1, fiche 72) : `MainActivity.lireLaPlace`, les
+/// octets libres puis le total.
+mod place {
+    use glucose_desktop::plateforme::place::{depuis_le_tableau, installer};
+    use winit::platform::android::activity::AndroidApp;
+
+    pub fn brancher(app: &AndroidApp) {
+        let activite = super::java::Activite::de(app);
+        installer(Box::new(move || {
+            super::java::sur_le_fil(
+                |env| {
+                    let objet = activite.objet(env);
+                    let rendu = env
+                        .call_method(
+                            &objet,
+                            jni::jni_str!("lireLaPlace"),
+                            jni::jni_sig!("()[J"),
+                            &[],
+                        )?
+                        .l()?;
+                    let tableau = env.cast_local::<jni::objects::JLongArray>(rendu)?;
+                    if tableau.is_null() {
+                        return Ok(None);
+                    }
+                    let mut v = vec![0; tableau.len(env)?];
+                    tableau.get_region(env, 0, &mut v)?;
+                    Ok(depuis_le_tableau(&v))
+                },
+                "place",
+            )
+            .flatten()
         }));
     }
 }

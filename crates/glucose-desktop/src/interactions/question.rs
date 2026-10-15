@@ -82,6 +82,10 @@ impl GlucoseApp {
         appuyee: bool,
         texte: Option<&str>,
     ) -> bool {
+        // La palette prend ses flèches et ses pages : sa fenêtre suit l'évidence (fiche 72).
+        if appuyee && self.touche_de_la_palette(touche, self.modifiers.shift_key()) {
+            return true;
+        }
         if appuyee && self.frapper_dans_la_question(touche, texte) {
             return true;
         }
@@ -140,6 +144,11 @@ impl GlucoseApp {
     /// La question se retire ; sa suite part s'il y a une réponse — sans réponse, rien ne
     /// part (VUE-1).
     pub(crate) fn repondre_a_la_question(&mut self, reponse: Option<Reponse>) {
+        // Défiler n'est pas répondre : la question reste posée (la palette, fiche 72).
+        if let Some(Reponse::Defiler(rangees)) = reponse {
+            self.defiler_la_palette(rangees);
+            return;
+        }
         let Some((question, suite)) = self.ui.question.take() else {
             return;
         };
@@ -170,7 +179,7 @@ impl GlucoseApp {
             Suite::Laisser(ensuite) => self.repondre_au_depart(reponse, ensuite),
             Suite::MiseAJour(proposition) if oui => self.preparer_la_mise_a_jour(proposition),
             Suite::Signets => self.suivre_les_signets(reponse),
-            Suite::Palette(filtre) => self.lancer_depuis_la_palette(&filtre, reponse),
+            Suite::Palette(etat) => self.lancer_depuis_la_palette(&etat, reponse),
             Suite::Exporter => self.exporter_au_format(reponse),
             Suite::RemplacerUnSignet => self.remplacer_le_signet(reponse),
             Suite::Ajouter(chemins) => {

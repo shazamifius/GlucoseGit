@@ -41,7 +41,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | fonction | au PC | au téléphone |
 |---|---|---|
 | Se déplacer, zoomer (jusqu'à ×256, fiche 72) | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
-| **La palette de commandes** — chaque commande cherchée par son nom, lancée par Entrée (fiche 72) | **menu du vide**, `Ctrl+Maj+P` | ✅ menu (deux touchers sur le vide) |
+| **La palette de commandes** — chaque commande cherchée par son nom, lancée par Entrée ; la liste défile (molette, pavé, flèches, « ↑ / ↓ » au doigt) (fiche 72) | **menu du vide**, `Ctrl+Maj+P` | ✅ menu (deux touchers sur le vide) |
 | Tout cadrer | **menu du vide** (ACCES-1), **`Alt+F`** (`Ctrl+F` jusqu'au 13/10, rendu à la recherche — fiche 65) | ✅ menu |
 | Cadrer la sélection | **menu de la sélection** (ACCES-1), `F` | ✅ menu |
 | Signets de vue (poser, y voler, remplacer) | **menu du vide « Signets… »** (ACCES-1), `Ctrl+1…9`, `1…9` | ✅ menu |

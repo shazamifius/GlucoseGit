@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.StatFs;
 import android.provider.Settings;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
@@ -117,6 +118,16 @@ public class MainActivity extends GameActivity {
             etat.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
             etat.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
         };
+    }
+
+    /**
+     * **La place du dossier privé de Glucose** (REPRISE-1, fiche 72) : les octets libres, puis
+     * le total — là où ses documents et ses brouillons s'écrivent. Appelé par Rust, au
+     * lancement.
+     */
+    public long[] lireLaPlace() {
+        StatFs place = new StatFs(getFilesDir().getPath());
+        return new long[] {place.getAvailableBytes(), place.getTotalBytes()};
     }
 
     /**

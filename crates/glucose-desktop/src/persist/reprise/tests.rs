@@ -217,5 +217,85 @@ fn test_reprise_1_ce_que_le_lancement_rouvre_s_ecrit() {
         .expect("une ligne reprise");
     assert!(ligne.contains("\"rouvert\":\"brouillon\""), "{ligne}");
     assert!(ligne.contains("\"brouillons\":1"), "{ligne}");
+    assert!(ligne.contains("\"tenus\":0"), "{ligne}");
     assert!(ligne.contains("\"images\":3"), "{ligne}");
+}
+
+/// **LIBERE-1** (fiche 72) : le scénario du téléphone. Un Glucose tient encore son brouillon —
+/// le processus qu'Android vient de tuer n'a pas fini de mourir — quand le nouveau démarre : la
+/// reprise le saute, et le dit (`tenus`). Puis l'ancien le lâche : le travail revient, de
+/// lui-même, dans le document d'accueil resté intact. Sous Windows, le verrou est un mode de
+/// partage qu'on ne peut pas attendre : l'épreuve ne s'y joue pas.
+#[cfg(not(windows))]
+#[test]
+fn test_libere_1_un_brouillon_tenu_au_lancement_revient_quand_on_le_lache() {
+    use crate::persist::disque::tests::png;
+    let d = dossier("reprise-libere");
+    let mut mourant = application(&d);
+    let sources: Vec<_> = (0..3u8)
+        .map(|i| png(&d, &format!("{i}.png"), 40 * i))
+        .collect();
+    mourant.import_image_files(&sources);
+    image_suivante(&mut mourant);
+
+    let mut neuf = application(&d);
+    neuf.chronique.ouvrir_la_boite_noire(&d);
+    neuf.retrouver_le_travail();
+    assert_eq!(
+        neuf.store.project.toutes_les_images().count(),
+        0,
+        "tenu : sauté"
+    );
+    let boite = neuf.chronique.boite_noire().expect("ouverte");
+    boite.synchroniser();
+    let texte = std::fs::read_to_string(boite.chemin()).expect("la session");
+    assert!(texte.contains("\"rouvert\":\"rien\""), "{texte}");
+    assert!(texte.contains("\"tenus\":1"), "{texte}");
+
+    drop(mourant);
+    let fin = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while neuf.store.project.toutes_les_images().count() == 0 && std::time::Instant::now() < fin {
+        neuf.suivre_les_brouillons_liberes();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(
+        neuf.store.project.toutes_les_images().count(),
+        3,
+        "le travail est revenu"
+    );
+    let toast = neuf.ui.toast_message().unwrap_or_default();
+    assert!(toast.starts_with("Ton travail est revenu"), "{toast}");
+}
+
+/// **Libéré trop tard, il ne remplace rien** : le document d'accueil a déjà reçu un geste — le
+/// brouillon attend le prochain lancement, et le dit.
+#[cfg(not(windows))]
+#[test]
+fn test_libere_1_un_brouillon_libere_ne_remplace_pas_un_travail_commence() {
+    let d = dossier("reprise-libere-tard");
+    let mut mourant = application(&d);
+    noter(&mut mourant, "c1", "l'ancien");
+    image_suivante(&mut mourant);
+
+    let mut neuf = application(&d);
+    neuf.retrouver_le_travail();
+    noter(&mut neuf, "c2", "le nouveau, déjà commencé");
+    image_suivante(&mut neuf);
+    let avant = neuf.store.project.clone();
+    drop(mourant);
+    let fin = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let attend = |app: &crate::app::GlucoseApp| {
+        !app.ui
+            .toast_message()
+            .is_some_and(|m| m.contains("prochain lancement"))
+    };
+    while attend(&neuf) && std::time::Instant::now() < fin {
+        neuf.suivre_les_brouillons_liberes();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(neuf.store.project, avant, "rien n'est remplacé");
+    assert!(
+        !attend(&neuf),
+        "le brouillon libéré attend le prochain lancement, et le dit"
+    );
 }

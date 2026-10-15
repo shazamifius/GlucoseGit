@@ -176,7 +176,9 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, et
+  `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
+  sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
   texte).
 * **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,

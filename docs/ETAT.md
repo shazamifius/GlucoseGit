@@ -26,9 +26,12 @@
 * **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est
   pas revenu** (« parfaitement fluide » jusque-là). **Cause inconnue** : aucune session de la
   beta 3 n'est arrivée du téléphone — le serveur refusait toute session de plus de 512 Kio, et le
-  refus était retenu pour toujours (réparé, POIDS-1). La beta 4 dira la raison de mort qu'Android
-  garde (SORTIE-1) et ce que le lancement suivant a rouvert (REPRISE-1). Rien dans le code
-  n'efface un brouillon à la mort : **son tableau est peut-être encore dans le téléphone**.
+  refus était retenu pour toujours (réparé, POIDS-1). Le soir, sa précision : l'application a
+  « juste dépop » et a redémarré seule sur la carte de bienvenue — la reprise n'a rien rouvert.
+  Hypothèses : le brouillon encore tenu par le processus qui mourait (défendu par LIBERE-1), ou
+  le disque plein. La beta 4 dira la raison de mort qu'Android garde (SORTIE-1), ce que le
+  lancement a rouvert ou sauté, et la place du disque (REPRISE-1). Rien dans le code n'efface un
+  brouillon à la mort : **son tableau est peut-être encore dans le téléphone**.
 * **Android** : Glucose tourne sur son **moto g54 5G** (une PowerVR BXM-8-256). **Le 12/10, une
   longue session a figé tout le téléphone**, bouton d'alimentation compris, après des saccades qui
   montaient, puis un redémarrage seul — *« c'est bien Glucose »*. Cause la plus probable : la
@@ -72,12 +75,13 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **2 568 épreuves** sous Windows, toutes vertes (15/10, fiche 72) ; clippy strict à zéro sous
+* **2 573 épreuves** sous Windows, toutes vertes (15/10, fiche 72) ; clippy strict à zéro sous
   Windows et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
   (`outils/sabotages/`, un fichier par chantier) — 30 sur 30 pour l'export SVG (fiche 71) ; à la
-  fiche 72, 25 sur 25 pour le téléphone, 10 sur 10 pour GRAND-1, 2 sur 2 pour le zoom, et P4.
+  fiche 72, 25 sur 25 pour le téléphone, 4 sur 4 pour LIBERE-1 (sous Linux), 10 sur 10 pour
+  GRAND-1, 2 sur 2 pour le zoom, 20 sur 20 pour P4.
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;

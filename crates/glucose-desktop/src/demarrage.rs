@@ -55,10 +55,11 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
             return Ok(());
         }
     }
-    app.retrouver_le_travail();
     // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
-    // Glucose dort (ETAGES-2) — et quand la veille des mises à jour aura du neuf.
+    // Glucose dort (ETAGES-2) — quand la veille des mises à jour aura du neuf, et quand un
+    // brouillon tenu au lancement se libérera (LIBERE-1) : avant la reprise, donc.
     app.lancement.reveil = Some(event_loop.create_proxy());
+    app.retrouver_le_travail();
     // Et quand le système dit ses marges — la barre d'état, le clavier (BORD-1).
     let proxy = event_loop.create_proxy();
     crate::plateforme::marges::brancher(std::sync::Arc::new(move || {

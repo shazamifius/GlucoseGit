@@ -219,6 +219,8 @@ impl GlucoseApp {
         self.relever_les_depots();
         // Où en est l'export en image, qui a réveillé la boucle (EXPORT-PNG-1).
         self.suivre_l_export();
+        // Un brouillon qu'un autre Glucose tenait au lancement s'est libéré (LIBERE-1).
+        self.suivre_les_brouillons_liberes();
         // Les marges du système, puis le clavier du téléphone (BORD-1, CLAVIER-1).
         self.suivre_les_marges();
         self.suivre_le_clavier();

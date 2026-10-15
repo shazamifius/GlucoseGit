@@ -1,0 +1,66 @@
+[
+ {
+  "nom": "le brouillon libere jamais dit",
+  "fichier": "crates/glucose-desktop/src/persist/reprise/liberes.rs",
+  "avant": "            if vers.send(chemin).is_ok() {",
+  "apres": "            if false && vers.send(chemin).is_ok() {",
+  "cmd": [
+   "wsl",
+   "-d",
+   "Glucose-Linux",
+   "-u",
+   "root",
+   "--",
+   "glucose-lancer",
+   "cargo test -p glucose-desktop --lib -- libere_1 reprise"
+  ]
+ },
+ {
+  "nom": "un travail commence remplace",
+  "fichier": "crates/glucose-desktop/src/persist/reprise/liberes.rs",
+  "avant": "        let intact = self.disque.ecriture.is_none() && self.project_path.is_none();",
+  "apres": "        let intact = true;",
+  "cmd": [
+   "wsl",
+   "-d",
+   "Glucose-Linux",
+   "-u",
+   "root",
+   "--",
+   "glucose-lancer",
+   "cargo test -p glucose-desktop --lib -- libere_1 reprise"
+  ]
+ },
+ {
+  "nom": "un brouillon tenu pris pour libre",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "        if brouillon && tenu_ailleurs(&p) {",
+  "apres": "        if false && brouillon && tenu_ailleurs(&p) {",
+  "cmd": [
+   "wsl",
+   "-d",
+   "Glucose-Linux",
+   "-u",
+   "root",
+   "--",
+   "glucose-lancer",
+   "cargo test -p glucose-desktop --lib -- libere_1 reprise"
+  ]
+ },
+ {
+  "nom": "les tenus jamais comptes",
+  "fichier": "crates/glucose-desktop/src/persist/reprise/liberes.rs",
+  "avant": "                tenus: trouve.tenus as u64,",
+  "apres": "                tenus: 0,",
+  "cmd": [
+   "wsl",
+   "-d",
+   "Glucose-Linux",
+   "-u",
+   "root",
+   "--",
+   "glucose-lancer",
+   "cargo test -p glucose-desktop --lib -- libere_1 reprise"
+  ]
+ }
+]

@@ -40,6 +40,7 @@ pub mod moisson;
 pub mod offre;
 pub mod partage;
 pub mod partager;
+pub mod place;
 pub mod presse_papiers;
 pub mod priorite;
 pub mod rapatrier;

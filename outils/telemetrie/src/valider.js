@@ -92,8 +92,12 @@ export const TYPES = {
     instant_ms: "entier",
     rouvert: "rouvert",
     brouillons: "entier",
+    tenus: "entier",
+    brouillons_mo: "entier",
     images: "entier",
     mo: "entier",
+    libre_mo: "entier?",
+    total_mo: "entier?",
   },
   plantage: {
     instant_ms: "entier",

@@ -155,6 +155,9 @@ pub struct UiState {
     pub menu_au_doigt: bool,
     /// **La question posée** (QUESTION-1, POPUP-1), et ce que sa réponse déclenchera.
     pub question: Option<(question::Question, question::Suite)>,
+    /// **Ce que la molette a parcouru sur la palette sans faire une rangée** : le pavé avance
+    /// par fractions, le geste suivant les complète (fiche 72).
+    pub reste_de_la_molette: f32,
     /// **Les documents se rangent d'eux-mêmes** dans `documents/` et se rouvrent par une
     /// liste, là où le système n'a pas de sélecteur de fichiers qu'on appelle — Android
     /// (DOCUMENTS-1).
@@ -224,6 +227,7 @@ impl UiState {
             context_menu_at: None,
             menu_au_doigt: false,
             question: None,
+            reste_de_la_molette: 0.0,
             documents_ranges: cfg!(target_os = "android"),
             fermer_la_fenetre: false,
             scale_factor: 1.0,

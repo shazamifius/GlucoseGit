@@ -130,7 +130,7 @@ test("ce que le lancement a rouvert entre, par un nom ferme (REPRISE-1)", () => 
   const reprise = SESSION.replace(
     '{"type":"fin","instant_ms":1200}',
     [
-      '{"type":"reprise","instant_ms":40,"rouvert":"brouillon","brouillons":2,"images":6000,"mo":912}',
+      '{"type":"reprise","instant_ms":40,"rouvert":"brouillon","brouillons":2,"tenus":1,"brouillons_mo":9120,"images":6000,"mo":912,"libre_mo":310,"total_mo":null}',
       '{"type":"fin","instant_ms":1200}',
     ].join(String.fromCharCode(10)),
   );
@@ -140,6 +140,7 @@ test("ce que le lancement a rouvert entre, par un nom ferme (REPRISE-1)", () => 
     reprise.replace('"rouvert":"brouillon"', '"rouvert":"Canevas 3"'),
     reprise.replace('"mo":912', '"mo":912,"chemin":"/data"'),
     reprise.replace(',"images":6000', ""),
+    reprise.replace(',"tenus":1', ""),
   ];
   for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
 });

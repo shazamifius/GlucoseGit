@@ -22,6 +22,9 @@ pub struct Attentes {
     /// [`Attentes::aucune`] : il réveille la boucle lui-même à chaque bande, et rien n'est à
     /// redessiner entre deux.
     pub export: Option<crate::persist::export::png::EnCours>,
+    /// **Les brouillons tenus au lancement** (LIBERE-1, fiche 72), attendus chacun sur son
+    /// fil ; comme l'export, ils réveillent la boucle eux-mêmes.
+    pub liberes: Option<crate::persist::reprise::Liberes>,
 }
 
 impl Attentes {

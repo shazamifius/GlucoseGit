@@ -59,6 +59,9 @@ pub enum Reponse {
     Annuler,
     /// Le n-ième élément d'une liste — un document à ouvrir.
     Choix(usize),
+    /// **Faire défiler la liste** de tant de rangées, sans répondre : les rangées « ↑ / ↓ »
+    /// de la palette (fiche 72). La question reste posée.
+    Defiler(isize),
 }
 
 /// **Ce qu'une réponse déclenche** : la suite de la question, que
@@ -99,8 +102,8 @@ pub enum Suite {
         case: String,
         texte: glucose_core::store::storyboard::Texte,
     },
-    /// **La palette de commandes** (P4, fiche 72), et le filtre que ses réponses montrent.
-    Palette(String),
+    /// **La palette de commandes** (P4, fiche 72) : son filtre, sa fenêtre, son évidence.
+    Palette(crate::commandes::palette::Etat),
     /// Le nom d'un champ de ce storyboard — son rang, ou `None` pour en ajouter un (fiches 67
     /// et 68).
     NommerLeChamp {

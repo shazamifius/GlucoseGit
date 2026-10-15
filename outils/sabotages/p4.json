@@ -159,29 +159,6 @@
   ]
  },
  {
-  "nom": "la palette ramene l'evidence a chaque image",
-  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
-  "avant": "                if ecrit == *filtre {\n                    return;\n                }",
-  "apres": "",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "shortcuts",
-   "commandes",
-   "signet",
-   "menu",
-   "toucher",
-   "question",
-   "file_shortcuts",
-   "ctrl_n",
-   "empreinte"
-  ]
- },
- {
   "nom": "la palette ignore les accents",
   "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
   "avant": "            'é' | 'è' | 'ê' | 'ë' => 'e',",
@@ -248,6 +225,142 @@
    "file_shortcuts",
    "ctrl_n",
    "empreinte"
+  ]
+ },
+ {
+  "nom": "la fleche vers le bas ignoree",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/defiler.rs",
+  "avant": "            Key::Named(NamedKey::ArrowDown) => 1,",
+  "apres": "            Key::Named(NamedKey::ArrowDown) => return false,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "la fenetre ne suit pas l'evidence",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/defiler.rs",
+  "avant": "        etat.debut = etat.choisie + 1 - MONTRES;",
+  "apres": "        etat.debut = etat.debut.min(etat.choisie);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "les fractions du pave perdues",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/defiler.rs",
+  "avant": "        self.ui.reste_de_la_molette = tout - entier;",
+  "apres": "        self.ui.reste_de_la_molette = 0.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "la molette jamais a la palette",
+  "fichier": "crates/glucose-desktop/src/interactions/pan_zoom.rs",
+  "avant": "            self.molette_sur_la_palette(rangees as f32);",
+  "apres": "            let _ = rangees;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "defiler ferme la palette",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "        if let Some(Reponse::Defiler(rangees)) = reponse {",
+  "apres": "        if let Some(Reponse::Defiler(rangees)) = reponse.filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "la rangee du haut jamais dite",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "        if etat.debut > 0 {",
+  "apres": "        if false && etat.debut > 0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "la palette ramene l'evidence a chaque image",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "                if ecrit == etat.filtre {\n                    return;\n                }",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
+  ]
+ },
+ {
+  "nom": "la fenetre debordant le bas",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/defiler.rs",
+  "avant": "        etat.debut = etat.debut.saturating_add_signed(rangees).min(dernier_debut);",
+  "apres": "        etat.debut = etat.debut.saturating_add_signed(rangees).min(dernier_debut + MONTRES);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes",
+   "question",
+   "palette"
   ]
  }
 ]

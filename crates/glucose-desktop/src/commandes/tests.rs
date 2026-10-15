@@ -122,7 +122,11 @@ fn test_p4_la_palette_trouve_comme_on_cherche() {
         !trouvees("").contains(&Commande::Palette),
         "elle ne se trouve pas elle-même"
     );
-    assert!(trouvees("").len() <= crate::persist::documents::MONTRES);
+    assert_eq!(
+        trouvees("").len(),
+        Commande::toutes().len() - 1,
+        "toutes, sauf elle"
+    );
 }
 
 /// **La palette, de bout en bout, au clavier** : `Ctrl+Maj+P` l'ouvre, « dupl » écrit dans son
@@ -215,4 +219,113 @@ fn test_p4_la_palette_au_menu_et_son_raccourci_lu_dans_le_clavier() {
     let (dessus, _) = Couche::lire("essai", "F1 palette\nCtrl+Maj+P -\n");
     app.ui.clavier = Clavier::de(vec![clavier_de_glucose().0.couches()[0].clone(), dessus]);
     assert_eq!(raccourci_de_la_palette(&app).as_deref(), Some("F1"));
+}
+
+/// La palette ouverte, sur une application sans sélection.
+fn palette_ouverte() -> GlucoseApp {
+    let mut app = GlucoseApp::new();
+    app.store.clear_selection();
+    touche(
+        &mut app,
+        "P",
+        ModifiersState::CONTROL | ModifiersState::SHIFT,
+    );
+    app.modifiers = ModifiersState::empty();
+    app
+}
+
+fn rangees(app: &GlucoseApp) -> Vec<(String, crate::ui::question::Reponse)> {
+    app.ui.question.clone().expect("la palette").0.choix
+}
+
+/// **Tout se voit, en défilant** (sa demande du 15/10) — au clavier : la flèche vers le bas
+/// passe le bas de la fenêtre, la fenêtre suit, une rangée « ↑ 1 plus haut » paraît, et Entrée
+/// lance la commande en évidence, la onzième.
+#[test]
+fn test_p4_la_palette_defile_au_clavier() {
+    use crate::persist::documents::MONTRES;
+    let mut app = palette_ouverte();
+    assert!(
+        rangees(&app).last().unwrap().0.starts_with("↓"),
+        "il en reste dessous"
+    );
+    for _ in 0..MONTRES {
+        assert!(app.prendre_la_touche(&Key::Named(NamedKey::ArrowDown), true, None));
+        app.une_image_sans_fenetre((1280, 720));
+    }
+    assert_eq!(rangees(&app)[0].0, "↑  1 plus haut");
+    let attendue = trouvees("")[MONTRES];
+    let (q, _) = app.ui.question.clone().unwrap();
+    assert!(
+        q.choix[q.focus].0.starts_with(&attendue.nom()),
+        "{:?}",
+        q.choix[q.focus]
+    );
+}
+
+/// **À la molette, un cran une rangée ; au pavé, une rangée par hauteur de rangée** — les
+/// fractions s'ajoutent d'un geste à l'autre. Le canevas, derrière, ne bouge pas.
+#[test]
+fn test_p4_la_palette_defile_a_la_molette_et_au_pave() {
+    use winit::event::MouseScrollDelta;
+    let mut app = palette_ouverte();
+    let vue = app.store.active_board().unwrap().viewport;
+    for _ in 0..3 {
+        app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, -1.0));
+    }
+    assert_eq!(rangees(&app)[0].0, "↑  3 plus haut");
+    let demi = f64::from(crate::theme::CIBLE_DU_DOIGT) * app.densite() / 2.0;
+    for _ in 0..2 {
+        app.handle_mouse_wheel(MouseScrollDelta::PixelDelta(
+            winit::dpi::PhysicalPosition::new(0.0, -demi),
+        ));
+    }
+    assert_eq!(
+        rangees(&app)[0].0,
+        "↑  4 plus haut",
+        "deux demi-rangées en font une"
+    );
+    app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, 100.0));
+    assert!(
+        !rangees(&app)[0].0.starts_with("↑"),
+        "revenue en haut, bornée"
+    );
+    assert_eq!(
+        app.store.active_board().unwrap().viewport,
+        vue,
+        "le canevas n'a pas bougé"
+    );
+}
+
+/// **Au doigt, la rangée « ↓ n plus bas » se touche** : la fenêtre descend d'une fenêtre, et
+/// la palette reste ouverte. Tout au bas, plus de « ↓ ».
+#[test]
+fn test_p4_la_palette_defile_au_doigt() {
+    use crate::persist::documents::MONTRES;
+    use crate::ui::question::Reponse;
+    let mut app = palette_ouverte();
+    let total = trouvees("").len();
+    let mut fenetres = 0;
+    while let Some((_, r)) = rangees(&app).last().filter(|(l, _)| l.starts_with("↓")) {
+        let r = *r;
+        crate::interactions::question::tests::repondre(&mut app, r);
+        app.une_image_sans_fenetre((1280, 720));
+        assert!(app.ui.question.is_some(), "défiler n'est pas répondre");
+        fenetres += 1;
+        assert!(fenetres < total, "la descente finit");
+    }
+    assert_eq!(fenetres, total.div_ceil(MONTRES) - 1);
+    let dernieres: Vec<Reponse> = rangees(&app).iter().map(|(_, r)| *r).collect();
+    assert!(
+        dernieres.contains(&Reponse::Choix(total - 1)),
+        "la dernière commande se voit"
+    );
+    let commandes = dernieres
+        .iter()
+        .filter(|r| matches!(r, Reponse::Choix(_)))
+        .count();
+    assert_eq!(
+        commandes, MONTRES,
+        "au bas de la liste, la fenêtre reste pleine"
+    );
 }

@@ -14,6 +14,13 @@
   refusées pour leur longueur, et c'étaient celles qui comptaient le plus.
 * **Au téléphone, si Android relance Glucose pendant qu'il vivait encore en arrière-plan**,
   Glucose repart proprement au lieu de se refermer aussitôt.
+* **Si Glucose est relancé pendant que l'ancien finissait de se fermer**, le travail sans nom
+  que l'ancien tenait encore n'est plus sauté : il revient de lui-même dès qu'il est libre.
+* **La palette de commandes** : `Ctrl+Maj+P`, ou au clic droit sur le vide (deux touchers au
+  téléphone). Chaque commande de Glucose, cherchée par son nom — sans se soucier des accents —,
+  avec son raccourci ; la liste défile à la molette, au pavé, aux flèches et au doigt.
+* **Les raccourcis sont désormais une donnée** : un fichier texte, une ligne par raccourci —
+  la fondation des presets à venir. Rien n'a changé pour toi.
 
 **À savoir avant d'installer**
 

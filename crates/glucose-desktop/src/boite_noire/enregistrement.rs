@@ -103,10 +103,18 @@ pub struct Reprise {
     pub rouvert: &'static str,
     /// Les brouillons qui attendaient, celui qu'on rouvre compris.
     pub brouillons: u64,
+    /// Ceux qu'un autre Glucose tenait encore — au téléphone, celui qui mourait (LIBERE-1).
+    pub tenus: u64,
+    /// Ce que pèsent tous les brouillons du dossier, en mébioctets.
+    pub brouillons_mo: u64,
     /// Les images du document ouvert après la reprise.
     pub images: u64,
     /// Le poids du fichier rouvert, en mébioctets.
     pub mo: u64,
+    /// La place libre du disque où Glucose écrit, et son total, en mébioctets — absentes là où
+    /// rien ne les lit.
+    pub libre_mo: Option<u64>,
+    pub total_mo: Option<u64>,
 }
 
 impl Reprise {
@@ -119,8 +127,12 @@ impl Reprise {
             ("instant_ms", Entier(instant_ms)),
             ("rouvert", Nom(self.rouvert)),
             ("brouillons", Entier(self.brouillons)),
+            ("tenus", Entier(self.tenus)),
+            ("brouillons_mo", Entier(self.brouillons_mo)),
             ("images", Entier(self.images)),
             ("mo", Entier(self.mo)),
+            ("libre_mo", self.libre_mo.into()),
+            ("total_mo", self.total_mo.into()),
         ]
     }
 }

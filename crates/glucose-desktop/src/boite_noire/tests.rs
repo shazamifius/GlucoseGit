@@ -863,8 +863,12 @@ fn test_memoire_1_le_serveur_attend_les_champs_que_glucose_ecrit() {
             reprise: super::enregistrement::Reprise {
                 rouvert: "brouillon",
                 brouillons: 1,
+                tenus: 1,
+                brouillons_mo: 9_000,
                 images: 6_000,
                 mo: 900,
+                libre_mo: Some(120),
+                total_mo: None,
             },
         },
         Enregistrement::Sortie {

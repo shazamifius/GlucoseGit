@@ -184,8 +184,12 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
             reprise: crate::boite_noire::enregistrement::Reprise {
                 rouvert: "rien",
                 brouillons: 0,
+                tenus: 0,
+                brouillons_mo: 0,
                 images: 0,
                 mo: 0,
+                libre_mo: None,
+                total_mo: None,
             },
         },
         Enregistrement::Fin { instant_ms: 0 },

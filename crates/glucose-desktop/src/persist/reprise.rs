@@ -26,6 +26,10 @@
 //! brouillons se rouvre donc **avant** tout document, et le compte rendu dit combien d'autres
 //! attendent encore ; chacun reparaît à son tour.
 
+mod liberes;
+
+pub use liberes::Liberes;
+
 use super::frappe::Attente;
 use super::verrou::tenu_ailleurs;
 use crate::app::GlucoseApp;
@@ -63,10 +67,16 @@ impl GlucoseApp {
     /// compte rendu : le lancement est un geste.
     pub fn retrouver_le_travail(&mut self) {
         let attentes = ce_qui_attend(&self.disque.brouillons);
-        let brouillons = attentes.autres_brouillons
-            + usize::from(matches!(attentes.premier, Some(Interrompu::Brouillon(_))));
+        let trouve = liberes::Trouve {
+            brouillons: attentes.autres_brouillons
+                + usize::from(matches!(attentes.premier, Some(Interrompu::Brouillon(_)))),
+            tenus: attentes.tenus.len(),
+            octets: attentes.octets,
+        };
         let (mut dit, rouvert, chemin) = self.rouvrir(attentes.premier);
-        self.noter_la_reprise(rouvert, brouillons, chemin.as_deref());
+        self.noter_la_reprise(rouvert, trouve, chemin.as_deref());
+        // LIBERE-1 : un brouillon qu'un autre Glucose tient encore est attendu.
+        self.attendre_les_brouillons_tenus(attentes.tenus);
         match attentes.autres_brouillons {
             0 => {}
             1 => {
@@ -90,6 +100,12 @@ impl GlucoseApp {
                 range.display()
             ));
         }
+        self.dire_la_reprise(&dit);
+    }
+
+    /// **Ce que la reprise dit**, d'un seul compte rendu — au lancement, et quand un brouillon
+    /// tenu se libère (LIBERE-1).
+    pub(super) fn dire_la_reprise(&mut self, dit: &[String]) {
         if !dit.is_empty() {
             self.ui.show_toast(dit.join(" · "));
         }
@@ -120,28 +136,6 @@ impl GlucoseApp {
                 }
             },
         }
-    }
-
-    /// **Ce que le lancement a rouvert, pour la boîte noire** (REPRISE-1, fiche 72) : le 15/10,
-    /// un tableau de 6 000 images a disparu au téléphone, et rien ne disait si le lancement
-    /// suivant l'avait cherché, trouvé, ou manqué. Des nombres et un nom fermé, jamais un chemin.
-    fn noter_la_reprise(
-        &mut self,
-        rouvert: &'static str,
-        brouillons: usize,
-        chemin: Option<&Path>,
-    ) {
-        let mo = chemin
-            .and_then(|c| std::fs::metadata(c).ok())
-            .map_or(0, |m| m.len() >> 20);
-        let images = self.store.project.toutes_les_images().count();
-        self.chronique
-            .noter_la_reprise(crate::boite_noire::enregistrement::Reprise {
-                rouvert,
-                brouillons: brouillons as u64,
-                images: images as u64,
-                mo,
-            });
     }
 
     /// Rouvre un brouillon, et rend ce que le lancement en dit.
@@ -183,6 +177,11 @@ struct Attentes {
     autres_brouillons: usize,
     /// Les textes en cours dont le document est introuvable (FRAPPE-1).
     orphelines: Vec<(PathBuf, Saisie)>,
+    /// **Les brouillons qu'un autre Glucose tient encore** (LIBERE-1) — au téléphone, le
+    /// processus qu'Android vient de tuer, qui n'a peut-être pas fini de mourir.
+    tenus: Vec<PathBuf>,
+    /// Ce que pèsent tous les brouillons du dossier, tenus compris (REPRISE-1).
+    octets: u64,
 }
 
 /// Ce qui attend dans le dossier des brouillons : les brouillons qu'aucun processus ne tient,
@@ -191,14 +190,21 @@ struct Attentes {
 fn ce_qui_attend(dossier: &Path) -> Attentes {
     let mut brouillons: Vec<(SystemTime, PathBuf)> = Vec::new();
     let mut documents: Vec<(SystemTime, PathBuf)> = Vec::new();
-    let mut orphelines = Vec::new();
+    let (mut orphelines, mut tenus, mut octets) = (Vec::new(), Vec::new(), 0u64);
     let entrees = std::fs::read_dir(dossier).into_iter().flatten().flatten();
     for p in entrees.map(|e| e.path()) {
-        let Ok(date) = std::fs::metadata(&p).and_then(|m| m.modified()) else {
+        let Ok(meta) = std::fs::metadata(&p) else {
+            continue;
+        };
+        let Ok(date) = meta.modified() else {
             continue;
         };
         let extension = p.extension().and_then(|e| e.to_str());
-        if extension == Some(glucose_core::persist::FILE_EXTENSION) && !tenu_ailleurs(&p) {
+        let brouillon = extension == Some(glucose_core::persist::FILE_EXTENSION);
+        octets += if brouillon { meta.len() } else { 0 };
+        if brouillon && tenu_ailleurs(&p) {
+            tenus.push(p);
+        } else if brouillon {
             brouillons.push((date, p));
         } else if extension == Some("saisie") {
             match super::frappe::ce_qu_attend_une_saisie(&p, dossier) {
@@ -220,6 +226,8 @@ fn ce_qui_attend(dossier: &Path) -> Attentes {
         premier,
         autres_brouillons,
         orphelines,
+        tenus,
+        octets,
     }
 }
 

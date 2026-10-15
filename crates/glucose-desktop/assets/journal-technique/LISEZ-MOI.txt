@@ -211,8 +211,13 @@ type « reprise » — ce que le lancement a rouvert
   rouvert                  rien, brouillon (un travail sans nom laissé par     brouillon
                            un arrêt), document (le dernier ouvert), ou echec
   brouillons               combien de brouillons attendaient                   1
+  tenus                    combien étaient tenus par un autre Glucose (au      0
+                           téléphone : celui qui venait de mourir)
+  brouillons_mo            ce que pèsent tous les brouillons, en mégaoctets    9120
   images                   combien d'images le document rouvert porte          6000
   mo                       son poids, en mégaoctets                            912
+  libre_mo                 la place libre du disque (null : inconnue)          310
+  total_mo                 la place totale du disque (null : inconnue)         119000
 
 type « coupee » — ajoutée à l'envoi d'une session trop longue pour le serveur, juste après
                   son début : Glucose a retiré ses plus anciennes mesures pour qu'elle tienne

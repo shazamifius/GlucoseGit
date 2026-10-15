@@ -79,6 +79,34 @@ Pour savoir :
 
 **25 sabotages, 25 chutes** (`outils/sabotages/telephone-72.json`).
 
+### 4 bis. Sa réponse, le soir — et LIBERE-1
+
+*« Je ne l'ai pas rouvert, ça a juste dépop »* ; *« un canevas vide avec le message de bienvenue
+de Glucose de base »*. La carte de bienvenue n'existe qu'au **démarrage** : le processus est
+mort, et Android a relancé l'application qu'on regardait. Au relancement, la reprise n'a rien
+rouvert — sinon il aurait lu « Travail non enregistré retrouvé », ou un échec.
+
+Deux hypothèses, aucune prouvée :
+
+* **le verrou du mourant** : la reprise saute tout brouillon qu'un autre Glucose tient encore.
+  Au bureau, c'est une autre fenêtre ; au téléphone, le seul autre Glucose possible est celui
+  qui meurt — et un processus qui tient des gigaoctets d'images met du temps à finir de mourir ;
+* **le disque plein** : les photos sont copiées dans le document, et 6 000 photos de téléphone
+  pèsent des gigaoctets.
+
+La ligne `reprise` les départage désormais : `tenus` (les brouillons sautés parce que tenus),
+`brouillons_mo` (ce que pèsent tous les brouillons), `libre_mo` et `total_mo` (la place du
+disque, lue par `StatFs` sous Android ; absente ailleurs). Le serveur, redéployé (version
+`50aee6c6`) et prouvé en ligne.
+
+**LIBERE-1** (`persist/reprise/liberes.rs`), la défense : chaque brouillon tenu au lancement a
+son fil, qui **attend son verrou** (`File::lock`) — c'est la mort ou la fermeture de l'autre qui
+le réveille, aucune horloge. Libéré, il se rouvre si le document d'accueil est intact (« Ton
+travail est revenu ») ; sinon il attend le prochain lancement, et le dit. Sous Windows, le
+verrou est un mode de partage qu'on ne peut pas attendre : un brouillon tenu y appartient à une
+fenêtre vivante. Éprouvé **sous Linux** (la distribution `Glucose-Linux`), le scénario même du
+téléphone ; 4 sabotages, 4 chutes (`outils/sabotages/libere-1.json`, lancés par `wsl`).
+
 ## 5. Le texte de près — GRAND-1
 
 **Le mécanisme** (lu dans le code, puis mesuré) : sur la voie graphique, une carte de texte est
@@ -153,9 +181,14 @@ personnalisables).
   raccourcis écrits à la main ont disparu (deux sources pour un même fait). `Ctrl+S` au clavier et
   « Enregistrer » au menu passaient par deux fonctions ; la commande prend celle du menu, juste
   partout.
-* **La palette** (`Ctrl+Maj+P`) : une question de Glucose — un champ, les commandes trouvées avec
-  leur raccourci, Entrée qui lance —, au PC comme au téléphone ; elle suit son champ à chaque
-  image ; elle cherche sans majuscules ni accents.
+* **La palette** (`Ctrl+Maj+P`, et au menu du vide pour le doigt) : une question de Glucose — un
+  champ, les commandes trouvées avec leur raccourci, Entrée qui lance —, au PC comme au
+  téléphone ; elle suit son champ à chaque image ; elle cherche sans majuscules ni accents.
+  **Elle défile** (sa demande du soir : *« pouvoir scroller et voir tout »*) : une fenêtre de dix
+  commandes sur toutes celles trouvées ; la molette une rangée par cran, le pavé une rangée par
+  hauteur de rangée (les fractions s'ajoutent), les flèches et Tab déplacent l'évidence et la
+  fenêtre la suit, Page haut et Page bas d'une fenêtre ; au doigt, « ↑ n plus haut » et « ↓ n
+  plus bas » se touchent (une réponse qui défile sans répondre). P4 : 20 sabotages, 20 chutes.
 * L'épreuve demandée par SUITE : **un raccourci changé par la table** (`Ctrl+K` duplique,
   `Ctrl+D` retiré).
 
