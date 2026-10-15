@@ -21,13 +21,13 @@ fn glyphes(items: &[MathItem]) -> Vec<(String, f64, f64, f64, Family)> {
         .iter()
         .filter_map(|i| match i {
             MathItem::Glyph {
-                text,
+                caractere,
                 x,
                 y,
                 size,
                 family,
                 ..
-            } => Some((text.clone(), *x, *y, *size, *family)),
+            } => Some((caractere.to_string(), *x, *y, *size, *family)),
             _ => None,
         })
         .collect()
@@ -181,7 +181,7 @@ fn test_les_familles_de_la_feuille() {
         ]
     );
     let gras = f.items.iter().any(|i| {
-        matches!(i, MathItem::Glyph { text, style, .. } if text == "v" && style.bold && !style.italic)
+        matches!(i, MathItem::Glyph { caractere, style, .. } if *caractere == 'v' && style.bold && !style.italic)
     });
     assert!(gras, "\\mathbf est gras et droit");
 }

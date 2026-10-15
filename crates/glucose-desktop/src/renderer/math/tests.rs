@@ -291,3 +291,43 @@ fn test_un_filet_en_svg_a_l_encre_de_sa_formule() {
         "{filet}"
     );
 }
+
+/// La boîte des pixels encrés : (gauche, haut, droite, bas).
+fn boite(p: &Pixmap) -> (f32, f32, f32, f32) {
+    let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, 0.0f32, 0.0f32);
+    for (i, px) in p.pixels().iter().enumerate() {
+        if px.alpha() > 127 {
+            let (x, y) = ((i as u32 % p.width()) as f32, (i as u32 / p.width()) as f32);
+            (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+        }
+    }
+    (x0, y0, x1, y1)
+}
+
+/// **GRAND-1 (fiche 72) : une formule tracée de près est la même, agrandie.** À un corps de
+/// 60 px, ses glyphes sont des images ; à 600, des contours. Rapportée à la plume, la boîte de
+/// l'encre est dix fois plus grande, à l'anticrénelage près — même fonte, même place.
+#[test]
+fn test_grand_1_une_formule_de_pres_est_la_meme_agrandie() {
+    let r = MathRenderer::new();
+    let source = r"x^2 + \sum_i y";
+    let mut boites = Vec::new();
+    for corps in [60.0f32, 600.0] {
+        let k = corps / 60.0;
+        let mut p = Pixmap::new((500.0 * k) as u32, (200.0 * k) as u32).expect("tampon");
+        let (x, y) = (20.0 * k, 130.0 * k);
+        assert!(r.draw(
+            &mut p.as_mut(),
+            source,
+            Mode::Inline,
+            plume(x, y, corps),
+            BLANC
+        ));
+        let (x0, y0, x1, y1) = boite(&p);
+        boites.push(((x0 - x) / k, (y0 - y) / k, (x1 - x) / k, (y1 - y) / k));
+    }
+    let (a, b) = (boites[0], boites[1]);
+    for (petit, grand) in [(a.0, b.0), (a.1, b.1), (a.2, b.2), (a.3, b.3)] {
+        assert!((petit - grand).abs() <= 1.5, "{a:?} contre {b:?}");
+    }
+}

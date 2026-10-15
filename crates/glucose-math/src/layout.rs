@@ -54,8 +54,9 @@ use katex::dom_tree::HtmlDomNode;
 pub enum MathItem {
     /// Un caractère, à sa place.
     Glyph {
-        /// Le caractère à dessiner. Souvent un seul, parfois une ligature.
-        text: String,
+        /// Le caractère à dessiner — **un seul** : le pont pose chaque caractère d'un symbole à
+        /// son avance (`pont::symbole`), et le type le dit (fiche 72).
+        caractere: char,
         /// Abscisse du bord gauche, en `em`.
         x: f64,
         /// Ordonnée de la **ligne de base**, en `em`, positive vers le haut.

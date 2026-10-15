@@ -140,6 +140,9 @@ fn nom_de_fonte(family: Family, style: Style) -> String {
 /// laquelle il existe, et le rendu est mono-thread.
 pub struct MathRenderer {
     fonts: HashMap<&'static str, fontdue::Font>,
+    /// Les contours des mêmes fontes, dans l'ordre de [`FONTS`] : une grande lettre se trace
+    /// (GRAND-1, fiche 72).
+    contours: crate::typography::trace::Contours,
     /// `(source, mode)` → mise en page, ou l'erreur de KaTeX si la source est fausse.
     cache: RefCell<HashMap<(String, Mode), Result<MathLayout, MathError>>>,
 }
@@ -160,8 +163,10 @@ impl MathRenderer {
                     .map(|f| (*nom, f))
             })
             .collect();
+        let octets: Vec<&'static [u8]> = FONTS.iter().map(|(_, o)| *o).collect();
         Self {
             fonts,
+            contours: crate::typography::trace::Contours::de(&octets),
             cache: RefCell::new(HashMap::new()),
         }
     }
@@ -237,7 +242,7 @@ impl MathRenderer {
         for item in &layout.items {
             match item {
                 MathItem::Glyph {
-                    text,
+                    caractere,
                     x: gx,
                     y: gy,
                     size,
@@ -245,7 +250,10 @@ impl MathRenderer {
                     style,
                 } => {
                     let nom = nom_de_fonte(*family, *style);
-                    let Some(font) = self.fonts.get(nom.as_str()) else {
+                    let (Some(font), Some(rang)) = (
+                        self.fonts.get(nom.as_str()),
+                        FONTS.iter().position(|(n, _)| *n == nom),
+                    ) else {
                         continue;
                     };
                     let plume = Pen {
@@ -254,7 +262,13 @@ impl MathRenderer {
                         y: y - *gy as f32 * font_size,
                         font_size: *size as f32 * font_size,
                     };
-                    dessine_glyphe(pixmap, font, text, plume, color);
+                    dessine_glyphe(
+                        pixmap,
+                        (font, &self.contours, rang),
+                        *caractere,
+                        plume,
+                        color,
+                    );
                 }
                 MathItem::Rule {
                     x: rx,
@@ -323,15 +337,18 @@ fn boite_du_filet(
     )
 }
 
-/// Dessine un caractère avec une fonte de KaTeX, à la taille voulue.
+/// Dessine **un** caractère avec une fonte de KaTeX, à la taille voulue.
 ///
 /// `fontdue` rastérise le glyphe puis on le compose en alpha prémultiplié, comme le fait déjà
 /// [`Typography`] pour le texte ordinaire. La différence est qu'ici la fonte change d'un glyphe
 /// à l'autre, ce qui interdit de réutiliser son cache tel quel.
+///
+/// **De près, la lettre se trace** (GRAND-1, fiche 72) : rastérisée sans cache, une formule vue
+/// à ×32 coûtait l'image entière de chaque glyphe à chaque carré qui la touchait.
 fn dessine_glyphe(
     pixmap: &mut PixmapMut,
-    font: &fontdue::Font,
-    texte: &str,
+    (font, contours, rang): (&fontdue::Font, &crate::typography::trace::Contours, usize),
+    c: char,
     pen: Pen,
     couleur: Color,
 ) {
@@ -343,23 +360,24 @@ fn dessine_glyphe(
     if taille < 0.5 {
         return;
     }
-    let mut plume = x;
-    for c in texte.chars() {
-        let (metrics, bitmap) = font.rasterize(c, taille);
-        if metrics.width > 0 && metrics.height > 0 {
-            let gx = (plume + metrics.xmin as f32).round() as i32;
-            let gy = (y - metrics.height as f32 - metrics.ymin as f32).round() as i32;
-            compose(
-                pixmap,
-                &bitmap,
-                metrics.width,
-                metrics.height,
-                gx,
-                gy,
-                couleur,
-            );
-        }
-        plume += metrics.advance_width;
+    if crate::typography::trace::se_trace(taille) {
+        let indice = font.lookup_glyph_index(c);
+        contours.remplir(pixmap, (rang, indice), (x, y), taille, couleur);
+        return;
+    }
+    let (metrics, bitmap) = font.rasterize(c, taille);
+    if metrics.width > 0 && metrics.height > 0 {
+        let gx = (x + metrics.xmin as f32).round() as i32;
+        let gy = (y - metrics.height as f32 - metrics.ymin as f32).round() as i32;
+        compose(
+            pixmap,
+            &bitmap,
+            metrics.width,
+            metrics.height,
+            gx,
+            gy,
+            couleur,
+        );
     }
 }
 

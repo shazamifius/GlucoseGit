@@ -34,7 +34,7 @@ impl MathRenderer {
         for item in &layout.items {
             match item {
                 MathItem::Glyph {
-                    text,
+                    caractere,
                     x: gx,
                     y: gy,
                     size,
@@ -46,7 +46,7 @@ impl MathRenderer {
                         y: y - *gy as f32 * font_size,
                         font_size: *size as f32 * font_size,
                     };
-                    self.glyphes_en_svg(svg, text, (*family, *style), plume);
+                    self.glyphe_en_svg(svg, *caractere, (*family, *style), plume);
                 }
                 MathItem::Rule {
                     x: rx,
@@ -80,7 +80,7 @@ impl MathRenderer {
 
     /// Les caractères d'un élément, dans la fonte de KaTeX qui les dessine, la plume avancée
     /// comme [`super::dessine_glyphe`] l'avance.
-    fn glyphes_en_svg(&self, svg: &mut Svg, texte: &str, (f, s): (Family, Style), pen: Pen) {
+    fn glyphe_en_svg(&self, svg: &mut Svg, c: char, (f, s): (Family, Style), pen: Pen) {
         let nom = nom_de_fonte(f, s);
         let Some((&nom, font)) = self.fonts.get_key_value(nom.as_str()) else {
             return;
@@ -97,11 +97,7 @@ impl MathRenderer {
             return;
         }
         let police = Police { nom, octets };
-        let mut plume = x;
-        for c in texte.chars() {
-            svg.glyphe((police, font.lookup_glyph_index(c)), (plume, y), taille);
-            plume += font.metrics(c, taille).advance_width;
-        }
+        svg.glyphe((police, font.lookup_glyph_index(c)), (x, y), taille);
     }
 }
 

@@ -370,7 +370,7 @@ fn test_font_1_the_cmap_reader_agrees_with_fontdue_and_rejects_the_absent() {
 fn test_font_1_accents_are_drawn_not_stripped() {
     // Avant : « é » devenait « e » par une table de repli, et « É » un `.notdef`.
     let typo = Typography::new();
-    let glyph = |ch: char| typo.get_glyph(ch, 32.0, Face::Regular);
+    let glyph = |ch: char| typo.get_glyph(ch, 32.0, Face::Regular).expect("une image");
     assert_ne!(
         glyph('é').bitmap,
         glyph('e').bitmap,
@@ -450,7 +450,12 @@ fn test_every_face_shares_the_metrics_of_its_family() {
     );
 
     // Et elle est bien à chasse fixe — sans quoi un bloc de code n'alignerait rien.
-    let avance = |ch| typo.get_glyph(ch, SIZE, Face::Mono).metrics.advance_width;
+    let avance = |ch| {
+        typo.get_glyph(ch, SIZE, Face::Mono)
+            .expect("une image")
+            .metrics
+            .advance_width
+    };
     for ch in ['i', 'm', 'W', '.', 'é'] {
         assert_eq!(avance(ch), avance('x'), "{ch:?} n'a pas la chasse commune");
     }
@@ -470,21 +475,30 @@ fn test_measuring_agrees_with_drawing() {
             for ch in "aMé€ i.W~`*_".chars() {
                 assert_eq!(
                     typo.advance(ch, size, face),
-                    typo.get_glyph(ch, size, face).metrics.advance_width,
+                    typo.get_glyph(ch, size, face)
+                        .expect("une image")
+                        .metrics
+                        .advance_width,
                     "{ch:?} à {size} en {face:?}"
                 );
             }
         }
     }
-    // La borne de taille s'applique des deux côtés, sans quoi une taille aberrante mesurerait
-    // autrement qu'elle ne se dessine.
-    for size in [f32::NAN, 0.0, 1e9] {
+    // **Le dessin même**, et pas l'image d'une lettre : au-delà d'un carré, une lettre se
+    // trace (GRAND-1). Une taille aberrante se mesure comme elle se dessine, et se dessine en
+    // un temps borné par le tampon — 10⁹ pixels de corps dans un tampon de 64.
+    let mut tampon = tiny_skia::Pixmap::new(64, 64).expect("tampon");
+    for size in [f32::NAN, 0.0, 14.0, 300.0, 4_000.0, 1e9] {
+        let style = crate::typography::TextStyle {
+            size,
+            color: tiny_skia::Color::BLACK,
+            face: Face::Regular,
+        };
+        let fin = typo.draw_text(&mut tampon.as_mut(), "aMé", 0.0, 0.0, style);
         assert_eq!(
-            typo.advance('a', size, Face::Regular),
-            typo.get_glyph('a', size, Face::Regular)
-                .metrics
-                .advance_width,
-            "taille aberrante : {size}"
+            fin,
+            typo.measure_text("aMé", size, Face::Regular).0,
+            "taille : {size}"
         );
     }
 }
@@ -510,14 +524,16 @@ pub(crate) fn missing_from_interface(chars: &str) -> Vec<char> {
 fn test_emoji_1_un_emoji_se_dessine_par_le_repli() {
     let typo = Typography::new();
     let inter = typo.font(Face::Regular);
-    let personne = typo.get_glyph('\u{4E2D}', 32.0, Face::Regular);
+    let personne = typo
+        .get_glyph('\u{4E2D}', 32.0, Face::Regular)
+        .expect("une image");
     for ch in ['\u{1F600}', '\u{1F44D}', '\u{1F525}', '\u{1FAE8}'] {
         assert_eq!(
             inter.lookup_glyph_index(ch),
             0,
             "{ch:?} n'est pas dans Inter"
         );
-        let glyphe = typo.get_glyph(ch, 32.0, Face::Regular);
+        let glyphe = typo.get_glyph(ch, 32.0, Face::Regular).expect("une image");
         assert!(
             glyphe.bitmap.iter().filter(|&&a| a > 128).count() > 50,
             "{ch:?} se dessine"

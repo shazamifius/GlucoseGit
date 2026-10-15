@@ -27,8 +27,11 @@ impl Viewport {
     /// avant (fiche 07 § 7.1), mais un signet, un cadrage calculé ou un fichier venu de
     /// Glucose Tauri peuvent porter une échelle plus large, et doivent rester valides.
     pub const MIN_SCALE: f64 = 0.005;
-    /// Échelle la plus grande que le modèle accepte : ×50 zoomé (fiche 09 § 1).
-    pub const MAX_SCALE: f64 = 50.0;
+    /// Échelle la plus grande que le modèle accepte : **celle où une unité du document vaut un
+    /// pixel d'écran** — ×256, déduite de la précision des coordonnées (`fixed`, fiche 72).
+    /// Au-delà, un glisser sauterait de plus d'un pixel. C'était ×50, une borne héritée (fiche
+    /// 09 § 1) ; il a demandé de pouvoir zoomer « beaucoup plus ».
+    pub const MAX_SCALE: f64 = (1u32 << crate::fixed::FRAC_BITS) as f64;
     /// Les deux bornes du modèle, sous la forme qu'attend [`Viewport::zoom_at`].
     pub const SCALE_RANGE: (f64, f64) = (Self::MIN_SCALE, Self::MAX_SCALE);
 

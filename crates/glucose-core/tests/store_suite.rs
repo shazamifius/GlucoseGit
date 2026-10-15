@@ -301,14 +301,20 @@ fn test_les_enveloppes_historiques_restent_silencieuses() {
 
 // ── Fiche 09 § 1 — bornes numériques du modèle : l'échelle ───────────────────
 
-/// « Échelle de zoom bornée entre 0.005 (×200 dézoomé) et 50.0 (×50 zoomé). »
+/// « Échelle de zoom bornée entre 0.005 (×200 dézoomé) et 50.0 (×50 zoomé) » disait la fiche 09
+/// § 1 ; le zoom avant est désormais **déduit** de la précision du document : ×256, où une
+/// unité vaut un pixel (fiche 72).
 ///
 /// Les chiffres eux-mêmes, puis la propriété : **tout** viewport qui entre dans le store est
 /// dans ce domaine, quel que soit le chemin — pose directe, zoom, chargement d'un fichier.
 #[test]
-fn test_l_echelle_du_modele_est_bornee_a_0_005_et_50() {
+fn test_l_echelle_du_modele_est_bornee_a_0_005_et_256() {
     assert_eq!(Viewport::MIN_SCALE, 0.005, "fiche 09 § 1 : ×200 dézoomé");
-    assert_eq!(Viewport::MAX_SCALE, 50.0, "fiche 09 § 1 : ×50 zoomé");
+    assert_eq!(
+        Viewport::MAX_SCALE,
+        256.0,
+        "fiche 72 : ×256, une unité vaut un pixel"
+    );
 
     let mut store = Store::new("P");
     let scale = |store: &Store| store.active_board().expect("main").viewport.scale;
@@ -334,13 +340,17 @@ fn test_l_echelle_du_modele_est_bornee_a_0_005_et_50() {
             scale: 1_000.0,
         },
     );
-    assert_eq!(scale(&store), 50.0, "au-dessus, rabattu sur la borne haute");
+    assert_eq!(
+        scale(&store),
+        256.0,
+        "au-dessus, rabattu sur la borne haute"
+    );
 
     store.set_viewport("main", Viewport::default());
     store.zoom(1e9, 0.0, 0.0, Viewport::SCALE_RANGE);
     assert_eq!(
         scale(&store),
-        50.0,
+        256.0,
         "un zoom ne franchit pas la borne haute"
     );
     store.zoom(1e-9, 0.0, 0.0, Viewport::SCALE_RANGE);
@@ -355,7 +365,7 @@ fn test_l_echelle_du_modele_est_bornee_a_0_005_et_50() {
         "la borne du geste s'ajoute à celle du modèle"
     );
     store.zoom(1e9, 0.0, 0.0, (0.0, 1e9));
-    assert_eq!(scale(&store), 50.0, "et ne peut pas l'élargir");
+    assert_eq!(scale(&store), 256.0, "et ne peut pas l'élargir");
 }
 
 /// Un fichier abîmé peut porter une caméra à `NaN` ou à l'infini. `clamp` laisse passer
@@ -396,7 +406,7 @@ fn test_charger_un_projet_ramene_la_camera_dans_le_modele() {
     let b2 = store.project.boards[1].viewport;
     assert_eq!(
         (b2.x, b2.y, b2.scale),
-        (10.0, 20.0, 50.0),
+        (10.0, 20.0, 256.0),
         "hors borne → rabattu, le reste intact"
     );
     // Zéro est un nombre : il est rabattu sur la borne basse, comme dans la version de

@@ -4,11 +4,11 @@
 use crate::layout::MathItem;
 use crate::{layout, Family, MathError, Mode, Style};
 
-/// Le premier glyphe dont le texte est `quoi`, s'il existe.
+/// Le premier glyphe dont le caractère est `quoi`, s'il existe.
 fn glyphe<'a>(items: &'a [MathItem], quoi: &str) -> Option<&'a MathItem> {
     items
         .iter()
-        .find(|i| matches!(i, MathItem::Glyph { text, .. } if text == quoi))
+        .find(|i| matches!(i, MathItem::Glyph { caractere, .. } if quoi.chars().eq([*caractere])))
 }
 
 /// Les coordonnées, la taille et la fonte d'un glyphe nommé.

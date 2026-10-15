@@ -17,14 +17,14 @@ fn main() {
                 for it in &l.items {
                     match it {
                         MathItem::Glyph {
-                            text,
+                            caractere,
                             x,
                             y,
                             size,
                             family,
                             style,
                         } => println!(
-                            "  GLYPHE {text:?} x={x:+.3} y={y:+.3} taille={size:.3} {}-{}",
+                            "  GLYPHE {caractere:?} x={x:+.3} y={y:+.3} taille={size:.3} {}-{}",
                             family.font_name(),
                             style.suffix()
                         ),

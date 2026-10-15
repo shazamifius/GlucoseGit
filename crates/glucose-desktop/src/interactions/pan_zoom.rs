@@ -24,10 +24,12 @@
 use crate::app::GlucoseApp;
 use winit::event::MouseScrollDelta;
 
-/// Bornes du zoom **au geste** — molette et pincement (fiche 07 § 7.1) : de ×50 dézoomé à
-/// ×20 zoomé. Plus étroites que celles du modèle ([`glucose_core::types::Viewport::SCALE_RANGE`]),
-/// qu'un signet ou un fichier peuvent atteindre sans que la main y arrive.
-pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, 20.0);
+/// Bornes du zoom **au geste** — molette et pincement (fiche 07 § 7.1) : de ×50 dézoomé au
+/// zoom maximal du modèle ([`glucose_core::types::Viewport::MAX_SCALE`], ×256). Vers le bas,
+/// plus étroite que celle du modèle, qu'un signet ou un fichier peuvent atteindre sans que la
+/// main y arrive. Vers le haut, la main va **aussi loin que le modèle** : la borne de ×20,
+/// héritée de Tauri, s'arrêtait « trop proche » (sa parole du 15/10, fiche 72).
+pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, glucose_core::types::Viewport::MAX_SCALE);
 
 /// Ce qu'un cran de molette de souris change d'échelle, en **octaves**.
 ///

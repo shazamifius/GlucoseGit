@@ -35,10 +35,9 @@
 //! rastériseur, mise en page du texte, facteurs d'échelle. La frontière est nette — `Fx` décrit
 //! où sont les choses dans le document, `f64` décrit où elles tombent à l'écran.
 //!
-//! # Pourquoi 1/256 de pixel, et pourquoi cette valeur ne pouvait pas être autre chose
+//! # Pourquoi 1/256 de pixel, et pourquoi le zoom maximal s'en déduit
 //!
-//! [`FRAC_BITS`] n'est pas un chiffre rond choisi au jugé : c'est le **seul** entier qui
-//! satisfasse les deux exigences du projet à la fois. Avec un `i32`, portée et précision
+//! [`FRAC_BITS`] n'est pas un chiffre rond choisi au jugé. Avec un `i32`, portée et précision
 //! s'échangent exactement — un bit gagné d'un côté est un bit perdu de l'autre :
 //!
 //! ```text
@@ -48,11 +47,21 @@
 //! | Exigence | Inégalité | Conséquence |
 //! |---|---|---|
 //! | Un canva de 10⁷ nœuds doit tenir dans le document, au maillage confortable de 5 000 px (√10⁷ ≈ 3 163 nœuds de côté, soit 15,8 Mpx de large) | portée ≥ 7,9 Mpx | `FRAC_BITS ≤ 8` |
-//! | Au zoom maximal du modèle (×50, fiche 09 § 1), une unité doit rester indiscernable : au plus un quart de pixel écran | 50 / 2^FRAC_BITS ≤ 0,25 | `FRAC_BITS ≥ 8` |
+//! | Au zoom maximal, déplacer un nœud d'un pixel d'écran doit rester possible : une unité du document y vaut au plus un pixel | zoom max × 2^-FRAC_BITS ≤ 1 | zoom max ≤ 2^FRAC_BITS |
 //!
-//! Les deux inégalités enferment **8**, et `test_la_precision_est_la_seule_qui_satisfasse_les_deux_exigences`
-//! le vérifie en refusant 7 comme 9. La constante ne se règle pas : elle se déduit. Le jour où
-//! l'une des deux exigences change, c'est le test qui le dira.
+//! La précision est donc la plus fine que la portée permette — **8** —, et le zoom maximal du
+//! modèle est celui où une unité vaut exactement un pixel : **×256** ([`Viewport::MAX_SCALE`]).
+//! Aucune des deux ne se règle.
+//!
+//! **Ce qui a changé le 15/10/2026** (fiche 72) : la seconde exigence disait « au zoom maximal
+//! ×50, une unité vaut au plus un quart de pixel », et enfermait 8 avec la première. Mais ×50
+//! était une borne héritée, et il a demandé de pouvoir zoomer « beaucoup plus ». Le quart de
+//! pixel servait le placement sous-pixel du texte, qui se calcule **dans** le nœud, en `f64` :
+//! seule l'origine du nœud est en unités, et un nœud posé à un demi-pixel près à ×256 ne se voit
+//! pas. Ce qui se verrait, c'est un glisser qui saute de plus d'un pixel : c'est l'exigence qui
+//! reste, et elle donne ×256 — le maximum de Figma, trouvé sans le chercher.
+//!
+//! [`Viewport::MAX_SCALE`]: crate::types::Viewport::MAX_SCALE
 //!
 //! > **Ce que cela révèle de la fiche 09, et qui reste à trancher.** À l'échelle minimale du
 //! > modèle (0,005), un écran de 1 920 px ne montre que 384 000 px de monde — alors que le

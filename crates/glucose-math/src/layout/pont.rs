@@ -145,7 +145,7 @@ impl<'a> Pont<'a> {
         let mut avance = 0.0;
         for (rang, c) in s.text.chars().enumerate() {
             self.pousse(MathItem::Glyph {
-                text: c.to_string(),
+                caractere: c,
                 x: x + gauche + dx + avance,
                 y: y + dy,
                 size: etat.size,

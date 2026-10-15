@@ -505,7 +505,6 @@ fn test_cliquet_2_le_nombre_de_toasts_ne_grandit_pas() {
 const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
     // La fondation 10⁷ (fiche 11, étape B), en attente de sa substitution (fiche 12, vague 4).
     "arena",
-    "fixed",
     // Écrits et testés, en attente de leur geste (fiche 12 § 4).
     "curtain_model",
     "curtain_panel",

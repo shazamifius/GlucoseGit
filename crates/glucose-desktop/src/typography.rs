@@ -56,6 +56,7 @@
 #[cfg(test)]
 pub(crate) mod coverage;
 pub mod glyph;
+pub(crate) mod trace;
 
 use fontdue::{Font, FontSettings};
 use glyph::{
@@ -163,6 +164,9 @@ pub struct Typography {
     emoji: Font,
     glyph_cache: RefCell<HashMap<GlyphKey, CachedGlyph>>,
     access_counter: Cell<u64>,
+    /// Les contours des mêmes polices, dans le même ordre, le repli des emojis en dernier :
+    /// une grande lettre se trace (GRAND-1, fiche 72).
+    contours: trace::Contours,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -181,12 +185,31 @@ impl Typography {
         });
         let emoji = Font::from_bytes(EMOJI_BYTES, FontSettings::default())
             .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue");
+        let mut octets = FACE_BYTES.to_vec();
+        octets.push(EMOJI_BYTES);
         Self {
             faces,
             emoji,
             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
             access_counter: Cell::new(0),
+            contours: trace::Contours::de(&octets),
         }
+    }
+
+    /// **Trace ce caractère par son contour** (GRAND-1) — la police que le choix d'EMOJI-1 lui
+    /// donne, numérotée comme [`Self::contours`] —, et rend son avance.
+    fn tracer(
+        &self,
+        pixmap: &mut PixmapMut,
+        (ch, size, face): (char, f32, Face),
+        plume: (f32, f32),
+        couleur: Color,
+    ) -> f32 {
+        let (choisi, indice) = self.choix(ch, face);
+        let police = choisi.map_or(Face::ALL.len(), Face::index);
+        self.contours
+            .remplir(pixmap, (police, indice), plume, size, couleur);
+        self.advance(ch, size, face)
     }
 
     /// La police d'un visage.
@@ -238,10 +261,11 @@ impl Typography {
         }
     }
 
-    /// Récupère ou rastérise un glyphe **non décalé** (R-26, R-40).
-    pub fn get_glyph(&self, ch: char, size: f32, face: Face) -> Rc<GlyphEntry> {
+    /// Récupère ou rastérise l'image d'un glyphe **non décalé** (R-26, R-40) — `None` au-delà
+    /// d'un demi-carré : à cette taille, une lettre se trace et n'a pas d'image (GRAND-1).
+    pub fn get_glyph(&self, ch: char, size: f32, face: Face) -> Option<Rc<GlyphEntry>> {
         let size = clamp_font_size(size);
-        self.glyph_variant(ch, size, face, PHASE_ORIGIN)
+        (!trace::se_trace(size)).then(|| self.glyph_variant(ch, size, face, PHASE_ORIGIN))
     }
 
     /// De combien la plume avance après `ch` — **sans toucher au cache de glyphes**.
@@ -373,7 +397,6 @@ impl Typography {
 
         let w = pixmap.width() as i32;
         let h = pixmap.height() as i32;
-        let data = pixmap.data_mut();
 
         // La partie fractionnaire verticale est la même pour toute la ligne : `ymin` et
         // `height` sont entiers, donc seule l'ordonnée de base porte une phase (GLYPH-1).
@@ -384,6 +407,12 @@ impl Typography {
             if ch == '\n' {
                 continue;
             }
+            if trace::se_trace(size) {
+                let plume = (x + offset.0 as f32, y + size + offset.1 as f32);
+                x += self.tracer(pixmap, (ch, size, face), plume, color);
+                continue;
+            }
+            let data = pixmap.data_mut();
             let (cell_x, phase_x) = split_position(x);
             let entry = self.glyph_variant(ch, size, face, phase_y * SUBPIXEL_PHASES + phase_x);
             let metrics = &entry.metrics;
@@ -420,10 +449,6 @@ impl Typography {
         let b = color.blue() * 255.0;
         let a = color.alpha();
 
-        let w = pixmap.width() as i32;
-        let h = pixmap.height() as i32;
-        let data = pixmap.data_mut();
-
         for ch in text.chars() {
             if ch == '\n' {
                 continue;
@@ -433,31 +458,40 @@ impl Typography {
                 //    quelle position. Les huit offsets n'en produisent que quatre distinctes.
                 for &(ox, oy) in &shadow_offsets {
                     self.blend_positioned(
-                        data,
-                        (w, h),
+                        pixmap,
                         (ch, size, face),
                         (x + ox, y + size + oy),
-                        (out_r, out_g, out_b, out_a),
+                        (outline_color, (out_r, out_g, out_b, out_a)),
                     );
                 }
                 // 2. Passe principale
-                self.blend_positioned(data, (w, h), (ch, size, face), (x, y + size), (r, g, b, a))
+                self.blend_positioned(
+                    pixmap,
+                    (ch, size, face),
+                    (x, y + size),
+                    (color, (r, g, b, a)),
+                )
             };
             x += advance;
         }
         x
     }
 
-    /// Compose un glyphe à une position fractionnaire et rend son avance.
+    /// Compose un glyphe à une position fractionnaire et rend son avance — tracé s'il est plus
+    /// grand qu'un demi-carré (GRAND-1).
     fn blend_positioned(
         &self,
-        data: &mut [u8],
-        bounds: (i32, i32),
+        pixmap: &mut PixmapMut,
         glyph: (char, f32, Face),
         at: (f32, f32),
-        color: (f32, f32, f32, f32),
+        (couleur, color): (Color, (f32, f32, f32, f32)),
     ) -> f32 {
         let (ch, size, face) = glyph;
+        if trace::se_trace(size) {
+            return self.tracer(pixmap, glyph, at, couleur);
+        }
+        let bounds = (pixmap.width() as i32, pixmap.height() as i32);
+        let data = pixmap.data_mut();
         let (cell_x, phase_x) = split_position(at.0);
         let (cell_y, phase_y) = split_position(at.1);
         let entry = self.glyph_variant(ch, size, face, phase_y * SUBPIXEL_PHASES + phase_x);
@@ -499,22 +533,21 @@ pub const DETOURAGE: [(f32, f32); 8] = [
     (1.0, 1.0),
 ];
 
-/// Taille de glyphe maximale rastérisable.
+/// Normalise une taille de police : `NaN` devient 1, et rien ne descend sous un pixel.
 ///
-/// Un glyphe est rastérisé dans un bitmap de `size * size` octets puis composé
-/// pixel par pixel : sans borne, une taille aberrante (échelle corrompue,
-/// NaN, argument inversé) transforme un seul appel de texte en plusieurs
-/// centaines de millions d'itérations et gèle l'application. La borne rend ce
-/// scénario impossible par construction.
-pub const MAX_FONT_SIZE: f32 = 512.0;
-
-/// Normalise une taille de police : NaN et valeurs aberrantes sont ramenées
-/// dans une plage rastérisable en temps borné.
+/// # Ce qui a disparu, et pourquoi (GRAND-1, fiche 72)
+///
+/// Une borne haute, `MAX_FONT_SIZE` (512 px), protégeait le rastériseur : une lettre se
+/// rastérisait entière, et une taille aberrante (échelle corrompue, argument inversé) aurait
+/// coûté des centaines de millions de pixels. Elle **réduisait** donc les lettres de près —
+/// au-delà de ×32, un texte se dessinait plus petit que sa boîte. Depuis GRAND-1, une lettre
+/// plus grande qu'un carré se trace par son contour, dont le coût est borné par le tampon où
+/// l'on dessine, quelle que soit sa taille : la garde n'a plus rien à garder, elle disparaît.
 pub fn clamp_font_size(size: f32) -> f32 {
     if size.is_nan() {
         return 1.0;
     }
-    size.clamp(1.0, MAX_FONT_SIZE)
+    size.max(1.0)
 }
 
 #[cfg(test)]
@@ -699,7 +732,7 @@ mod tests {
     fn test_glyph_1_the_phase_belongs_to_the_cache_key() {
         // Servir le bitmap d'une phase pour une autre annulerait tout le correctif.
         let typo = Typography::new();
-        let origin = typo.get_glyph('A', 16.0, Face::Regular);
+        let origin = typo.get_glyph('A', 16.0, Face::Regular).expect("une image");
         let shifted = typo.glyph_variant('A', 16.0, Face::Regular, 2);
         assert_ne!(
             origin.bitmap, shifted.bitmap,
@@ -747,18 +780,20 @@ mod tests {
     #[test]
     fn test_lru_glyph_cache_eviction_retains_frequent_entries() {
         let typo = Typography::new();
-        // Remplir avec 4096 glyphes uniques (différentes tailles)
+        // Remplir avec 4096 glyphes uniques (quatre lettres, différentes tailles) — toutes sous
+        // un demi-carré : au-delà, une lettre se trace et n'a pas d'image (GRAND-1).
         for i in 0..4096 {
-            let size = 10.0 + (i as f32) * 0.1;
-            typo.get_glyph('A', size, Face::Regular);
+            let ch = ['A', 'C', 'D', 'E'][i / 1024];
+            let size = 10.0 + ((i % 1024) as f32) * 0.1;
+            typo.get_glyph(ch, size, Face::Regular).expect("une image");
         }
         assert_eq!(typo.cached_glyph_count(), 4096);
 
         // Ré-accéder fréquemment à un glyphe particulier pour qu'il ait un timestamp récent
-        typo.get_glyph('A', 10.0, Face::Regular);
+        typo.get_glyph('A', 10.0, Face::Regular).expect("une image");
 
         // Insérer un 4097e glyphe pour déclencher l'éviction LRU
-        typo.get_glyph('B', 12.0, Face::Regular);
+        typo.get_glyph('B', 12.0, Face::Regular).expect("une image");
 
         // L'éviction des 25% les plus anciens ramène la taille à ~3072 + 1
         let count = typo.cached_glyph_count();
@@ -767,7 +802,7 @@ mod tests {
 
         // Le glyphe fréquemment ré-accédé doit toujours être présent en cache sans réallocation
         let pre_count = typo.cached_glyph_count();
-        typo.get_glyph('A', 10.0, Face::Regular);
+        typo.get_glyph('A', 10.0, Face::Regular).expect("une image");
         assert_eq!(typo.cached_glyph_count(), pre_count);
     }
 }

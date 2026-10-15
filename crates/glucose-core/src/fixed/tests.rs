@@ -12,16 +12,9 @@ use crate::types::Viewport;
 const MAILLAGE_PX: f64 = 5_000.0;
 /// La cible de la charte : des dizaines de millions de nœuds. On dimensionne sur dix.
 const NOEUDS_CIBLE: f64 = 1e7;
-/// Au zoom maximal, une unité de coordonnée doit rester indiscernable : au plus un quart de
-/// pixel écran. En deçà, le positionnement sous-pixel du texte perdrait de la finesse.
-const SOUS_PIXEL_MAX: f64 = 0.25;
 
 fn portee_px(bits: u32) -> f64 {
     (1i64 << 31) as f64 / (1i64 << bits) as f64
-}
-
-fn pas_ecran_au_zoom_max(bits: u32) -> f64 {
-    Viewport::MAX_SCALE / (1i64 << bits) as f64
 }
 
 /// Portée à couvrir : un canva de 10⁷ nœuds au maillage confortable, de part et d'autre de
@@ -30,28 +23,32 @@ fn portee_requise_px() -> f64 {
     NOEUDS_CIBLE.sqrt() * MAILLAGE_PX / 2.0
 }
 
-/// La justification de [`FRAC_BITS`], sous forme exécutable : **un seul** nombre de bits
-/// satisfait les deux exigences du projet, et c'est celui que le module retient.
+/// La justification de [`FRAC_BITS`], sous forme exécutable : **la plus fine précision** dont
+/// la portée tient encore le canva des 10⁷ nœuds.
 ///
 /// Ce test est la raison pour laquelle cette constante n'a pas à être « réglée ». Le jour où
-/// la cible en nœuds, le maillage ou le zoom maximal changent, c'est lui qui le dira — et si
-/// plus aucun `i32` ne convient, il dira ça aussi.
+/// la cible en nœuds ou le maillage changent, c'est lui qui le dira.
 #[test]
-fn test_la_precision_est_la_seule_qui_satisfasse_les_deux_exigences() {
-    let admissibles: Vec<u32> = (0..=16)
-        .filter(|&b| {
-            portee_px(b) >= portee_requise_px() && pas_ecran_au_zoom_max(b) <= SOUS_PIXEL_MAX
-        })
-        .collect();
+fn test_la_precision_est_la_plus_fine_que_la_portee_permette() {
+    let plus_fine = (0..=16)
+        .filter(|&b| portee_px(b) >= portee_requise_px())
+        .max();
     assert_eq!(
-        admissibles,
-        vec![FRAC_BITS],
+        plus_fine,
+        Some(FRAC_BITS),
         "portée requise {:.0} px ; candidats : {:?}",
         portee_requise_px(),
         (0..=16)
-            .map(|b| (b, portee_px(b) as i64, pas_ecran_au_zoom_max(b)))
+            .map(|b| (b, portee_px(b) as i64))
             .collect::<Vec<_>>()
     );
+}
+
+/// **Le zoom maximal est celui où une unité du document vaut un pixel d'écran** (fiche 72) :
+/// déplacer un nœud d'un pixel y reste possible, et pas au-delà.
+#[test]
+fn test_le_zoom_maximal_est_celui_ou_une_unite_vaut_un_pixel() {
+    assert_eq!(Viewport::MAX_SCALE * Fx::EPSILON.to_f64(), 1.0);
 }
 
 /// Les deux bornes annoncées dans la documentation sont celles que le type a vraiment.

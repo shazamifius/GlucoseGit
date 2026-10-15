@@ -1,0 +1,162 @@
+[
+ {
+  "nom": "le contour a l'envers",
+  "fichier": "crates/glucose-desktop/src/typography/trace.rs",
+  "avant": "        let pose = Transform::from_row(s, 0.0, 0.0, -s, x, base);",
+  "apres": "        let pose = Transform::from_row(s, 0.0, 0.0, s, x, base);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "le contour a la mauvaise echelle",
+  "fichier": "crates/glucose-desktop/src/typography/trace.rs",
+  "avant": "        let s = corps / f32::from(self.polices[police].units_per_em());",
+  "apres": "        let s = corps / 1000.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "le seuil a un carre entier",
+  "fichier": "crates/glucose-desktop/src/typography/trace.rs",
+  "avant": "    corps > (glucose_core::tuile::COTE / 2) as f32",
+  "apres": "    corps > glucose_core::tuile::COTE as f32",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "le decalage oublie par le trace",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "                let plume = (x + offset.0 as f32, y + size + offset.1 as f32);",
+  "apres": "                let plume = (x, y + size);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "la ligne de base oubliee par le trace",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "                let plume = (x + offset.0 as f32, y + size + offset.1 as f32);",
+  "apres": "                let plume = (x + offset.0 as f32, y + offset.1 as f32);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "l'emoji trace dans la police d'Inter",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "        let police = choisi.map_or(Face::ALL.len(), Face::index);",
+  "apres": "        let police = choisi.map_or(0, Face::index);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "le texte detoure jamais trace",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "            return self.tracer(pixmap, glyph, at, couleur);",
+  "apres": "            let _ = self.advance(glyph.0, glyph.1, glyph.2);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "l'avance du trace oubliee",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "        self.advance(ch, size, face)\n    }",
+  "apres": "        let _ = (ch, size, face);\n        0.0\n    }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "measuring"
+  ]
+ },
+ {
+  "nom": "la formule tracee hors de sa ligne de base",
+  "fichier": "crates/glucose-desktop/src/renderer/math.rs",
+  "avant": "        contours.remplir(pixmap, (rang, indice), (x, y), taille, couleur);",
+  "apres": "        contours.remplir(pixmap, (rang, indice), (x, y - taille), taille, couleur);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "math"
+  ]
+ },
+ {
+  "nom": "la formule tracee dans une autre fonte",
+  "fichier": "crates/glucose-desktop/src/renderer/math.rs",
+  "avant": "                        FONTS.iter().position(|(n, _)| *n == nom),",
+  "apres": "                        Some(0),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "grand_1",
+   "math"
+  ]
+ }
+]

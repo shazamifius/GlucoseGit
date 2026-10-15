@@ -334,15 +334,15 @@ fn test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box()
     );
 }
 
-/// § 7.1 — la molette ne dépasse ni ×20 ni ×50 dézoomé (0,02), bornes du geste, plus
-/// étroites que celles du modèle.
+/// § 7.1 — la molette ne dépasse ni ×256 (le zoom maximal du modèle, déduit de sa précision,
+/// fiche 72 — c'était ×20) ni ×50 dézoomé (0,02), plus étroit que le modèle.
 #[test]
-fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
+fn test_the_wheel_zoom_is_bounded_between_0_02_and_256() {
     use winit::event::MouseScrollDelta;
     let mut app = canvas_app();
     assert_eq!(
         crate::interactions::pan_zoom::WHEEL_SCALE_RANGE,
-        (0.02, 20.0)
+        (0.02, 256.0)
     );
     let scale = |app: &GlucoseApp| app.store.active_board().unwrap().viewport.scale;
 
@@ -365,7 +365,7 @@ fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
             }
         };
     geste(&mut app, &mut horloge, 1.0, 300);
-    assert_eq!(scale(&app), 20.0, "zoom avant borné");
+    assert_eq!(scale(&app), 256.0, "zoom avant borné");
     geste(&mut app, &mut horloge, -1.0, 600);
     assert_eq!(scale(&app), 0.02, "zoom arrière borné");
 }

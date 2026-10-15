@@ -1,0 +1,29 @@
+[
+ {
+  "nom": "le zoom maximal choisi et non deduit",
+  "fichier": "crates/glucose-core/src/types/board.rs",
+  "avant": "    pub const MAX_SCALE: f64 = (1u32 << crate::fixed::FRAC_BITS) as f64;",
+  "apres": "    pub const MAX_SCALE: f64 = 50.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core"
+  ]
+ },
+ {
+  "nom": "la main arretee a x20",
+  "fichier": "crates/glucose-desktop/src/interactions/pan_zoom.rs",
+  "avant": "pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, glucose_core::types::Viewport::MAX_SCALE);",
+  "apres": "pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, 20.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "wheel"
+  ]
+ }
+]
