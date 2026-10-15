@@ -1,48 +1,162 @@
-# La suite, dans l'ordre
+# La suite, mise à jour par mise à jour
 
-> **Au 15/10/2026, la nuit** (fiche 73). La feuille de route de Glucose Rust. Chaque chantier dit **ce qui
-> le déclare fini**. Tout y est à remettre en question — ses paroles comprises. La direction
-> vit dans [VISION](VISION.md), l'état vérifié dans [ÉTAT](ETAT.md), chaque fonction et son
-> bouton dans [INVENTAIRE](INVENTAIRE.md), la cible PureRef dans [PUREREF](PUREREF.md).
+> **Au 16/10/2026** (fiches 73 et 74, la 2.0.3-beta.5). **Le plan complet** de ce qui attend
+> Glucose Rust, rangé en mises à jour : ce que chacune porte, et ce qui la déclare finie. Tout y
+> est à remettre en question — ses paroles comprises. La direction vit dans [VISION](VISION.md),
+> l'état vérifié dans [ÉTAT](ETAT.md), chaque fonction et son bouton dans
+> [INVENTAIRE](INVENTAIRE.md), la cible PureRef dans [PUREREF](PUREREF.md).
 >
-> **Comment s'en servir** : prendre le premier chantier non fait. Fini = **prouvé** (sur une
-> copie, sur GitHub, ou à son écran), jamais « ça compile ». Le cocher ici, mettre ÉTAT à jour,
-> passer au suivant. L'histoire des tableaux d'avant (§ 0 à 0 octies, du 07 au 14/10) vit dans
-> les fiches 51 à 70 ; ce qui en restait ouvert est repris ci-dessous.
+> **Comment s'en servir** : prendre le premier chantier non fait de la première mise à jour non
+> publiée. Fini = **prouvé** (sur une copie, sur GitHub, ou à son écran), jamais « ça compile ».
+> Le cocher ici, mettre ÉTAT à jour, passer au suivant. Une mise à jour se publie quand ses
+> chantiers sont prouvés — **le nom et le moment restent les siens**.
 
 `[x]` fini et prouvé · `[~]` écrit, éprouvé, saboté — **attend son écran** · `[ ]` à faire
 
 ---
 
-## 1. Le programme
+## 0. Pourquoi cet ordre
+
+Quatre principes, tirés de la charte et de ce que les sessions ont appris — à contredire :
+
+1. **Ce qu'il voit d'abord.** Une version publiée sans son essai est un pari : chaque mise à
+   jour commence par juger la précédente à son écran, et par lire sa télémétrie.
+2. **Ne jamais perdre un tableau** passe avant toute fonction neuve (P0) — sa panique devant une
+   perte, et deux téléphones l'ont vécu.
+3. **Le manque de fonctions bloque plus que la vitesse** (la charte : « le blocage actuel n'est
+   pas la performance ») — mais **100 images par seconde, toujours**. Les mises à jour alternent
+   donc : des fonctions, puis la fluidité de tout ce qui existe.
+4. **Relire avant de bâtir** : chaque panneau contre Tauri (P6) *avant* que le thème et la
+   disposition deviennent des données (les presets) — sinon on transcrit des panneaux qu'il
+   faudra refaire.
+
+**Les noms proposés** : les betas de la 2.0.3 continuent tant que la parité avec Glucose Tauri
+n'est pas atteinte ; la **2.1.0** serait la première version que Glucose Rust appelle stable — le
+jour où un utilisateur de Tauri n'y perd plus rien. À sa parole.
+
+---
+
+## 1. Le plan
+
+### La 2.0.3-beta.5 — publiée le 16/10 (fiches 73, 74)
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
-| [x] | **P5 — L'export SVG complet** (fiches 69 à 71) : tout ce que le canevas montre, dans son ordre, le texte en tracés ; les flous bornés à leur portée (28 s → 62 ms) ; le rectangle net par la règle du canevas ; 30 sabotages, 30 chutes ; regardé sur une copie de son document « UwU » (superposé au PNG) | reste **ses yeux** : un SVG ouvert dans son navigateur et dans Inkscape (§ 2) |
-| [x] | **La 2.0.3-beta.3** — publiée par lui le 15/10 | publiée par lui |
-| [x] | **La 2.0.3-beta.4** (fiche 72) — publiée par lui le 15/10 ; son essai : plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt cool » | publiée par lui |
-| [ ] | **P0 — Glucose ne doit jamais figer ni perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu** (fiche 72 § 4) : la cause n'est pas connue. La beta 4 la dira : ses lignes `sortie` (la raison d'Android, la mémoire à la mort) et `reprise` (ce que le lancement a rouvert), et les longues sessions qui partent enfin. **Relevé du 16/10 : aucune session de la beta 4 encore** — il faut rouvrir Glucose une seconde fois, au PC et au téléphone. **Ne pas désinstaller** : le brouillon est peut-être encore là | la cause nommée par ses lignes ; puis corrigée, éprouvée sur une copie |
-| [~] | **P4 — La fondation des presets** (fiche 72) : **fait** — le noyau des raccourcis (`glucose-core::raccourcis` : l'accord et sa loi ACCORD-1, le clavier français ; la couche en texte ; la pile qui remplace ou retire), **la table des 75 commandes** (`commandes.rs`), les raccourcis de Glucose en couche (`assets/raccourcis/glucose.txt`), **le menu qui exécute les commandes et dit leurs raccourcis lus dans le clavier**, **la palette** (`Ctrl+Maj+P`) ; un raccourci changé par la table, éprouvé ; rien n'a changé à l'écran (le témoin du menu). **Et la couche de l'utilisateur** (fiche 74) : « Changer un raccourci… », retirer, rétablir, `raccourcis.txt` écrit à chaque changement et jamais écrasé s'il porte une ligne fausse. **Reste** : le thème et la disposition des panneaux comme données ; puis les presets PureRef, Figma, Miro comme couches | à son écran : `Ctrl+Maj+P` ; changer un raccourci, relancer |
-| [~] | **P8 — Le texte de près par la carte graphique** (fiche 73) : un nœud plus grand que l'écran se dessine depuis sa description vectorielle — la même que l'export SVG (`Vectoriel`) — : les lettres et les formes de KaTeX par **Slug** (le noyau `courbes` : CUBIQUE-1, BANDES-1, BANDES-2 ; RACINES-1), les fonds, plaques, filets et liserés par la loi des membranes ; le découpage en carrés (DE-PRES-1) retiré ; **CADRE-1** (le cadre d'un passage, une membrane sur les deux voies) ; SLUG-1 ; ~1 ms par image de près, contre ~20 et le flou. **Reste** : son écran, puis son téléphone (jamais mesuré) ; les titres des membranes, encore peints au processeur ; la frontière « plus grand que l'écran », à remettre en question par la mesure (fiche 73 § 6) | de près, aucun flou, sur sa machine et au téléphone |
-| [~] | **P8 bis — Un nœud immense, de près** (fiche 73 § 7) : à ×16, le relevé payait toute la longueur du nœud à chaque image — **10,5 ms pour 17 600 mots**. **LIGNE-1** (une ligne qui ne peut pas toucher l'écran ne se parcourt pas, sa marge prouvée sur les tables des six polices) et **la mémoire des mises en page** (gardées d'une image à l'autre, oubliées quand l'image d'avant ne les a pas demandées) : **0,72 ms**, quelle que soit la longueur ; et un tableau de mille textes ne refait plus deux mille mises en page par image. Éprouvé, saboté | à son écran : un très long texte, de près ; puis la fluidité d'un tableau plein de textes |
-| [ ] | **Ordonner, très très grandement** (sa proposition du 15/10) : à concevoir avec lui — ce qui manque (PureRef : par nom, par date, en ligne, en colonne — dans le noyau sans bouton ; aligner, distribuer, empiler, normaliser), et ce qu'il entend par « grandement » | sa parole, puis à son écran |
-| [ ] | **P3 — Ce que son téléphone dira** : POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent. Son téléphone tournait à **19,5 ms** par image en médiane — sous le plancher presque tout le temps | les postes lus, le coupable nommé par la mesure |
-| [ ] | **Les choix à l'utilisateur** (sa parole : « TOUJOURS CHOISIR ») : la planche claire ou sombre, les champs (dialogue, action, notes) sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux, les photos du SVG en originaux ou réduites | chaque choix dans la question ou le panneau où l'on agit, enregistré, saboté |
-| [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande ; la carte d'accueil qui naît choisie au premier lancement | la liste de ce qui manque, puis fait |
-| [ ] | **P7 — Les fonctions qui manquent** ([INVENTAIRE](INVENTAIRE.md) § 3, [PUREREF](PUREREF.md)) : **la recherche** (`Ctrl+F`) d'abord ; les opérateurs des post-it ; la couleur (un sélecteur), la couleur des domaines, le filtre par domaine ; les miroirs ; la temporalité ; l'export HTML ; le mode zen ; les vidéos et les GIF animés ; la provenance (sa clé SauceNAO) ; de PureRef : la hiérarchie, le miroir, l'opacité, les niveaux de gris, la pipette, le dessin, les modes de fenêtre | chacun à son écran |
-| [ ] | **Le dossier, à retravailler** (sa parole du 15/10) ; « double-clic + zoom comme Tauri » à vérifier au PC et au téléphone | à son écran |
-| [ ] | **GLISSER-2** — défaire un glisser exactement (une édition neuve du journal, un format neuf) ; **les glyphes des formules calés au pixel entier** au canevas (le texte l'est au quart de pixel) | avant 10⁷ nœuds ; regardé |
+| [~] | **P8 — Le texte de près par la carte graphique** (fiche 73) : un nœud plus grand que l'écran se dessine depuis sa description vectorielle — la même que l'export SVG (`Vectoriel`) — : les lettres et les formes de KaTeX par **Slug** (le noyau `courbes` : CUBIQUE-1, BANDES-1, BANDES-2 ; RACINES-1), les fonds, plaques, filets et liserés par la loi des membranes ; le découpage en carrés retiré ; **CADRE-1** ; SLUG-1 et sa loi de place ; ~1 ms par image de près, contre ~20 et le flou ; CI verte sur les dix tâches | de près, aucun flou, sur sa machine et au téléphone |
+| [~] | **P8 bis — Un nœud immense, de près** (fiche 73 § 7) : **LIGNE-1** et **la mémoire des mises en page** — 10,5 ms → **0,72 ms** à 17 600 mots ; un tableau de mille textes ne refait plus deux mille mises en page par image | un très long texte, de près ; un tableau plein de textes |
+| [~] | **P4 — Tes raccourcis** (fiches 72, 74) : la table des 77 commandes, la palette, la couche de Glucose, **la couche de l'utilisateur** (« Changer un raccourci… », retirer, rétablir, `raccourcis.txt` jamais écrasé s'il porte une ligne fausse) | `Ctrl+Maj+P` ; changer un raccourci, relancer |
+
+### La 2.0.3-beta.6 — « Ce que les écrans diront »
+
+Petite et rapide : juger la beta 5, nommer les causes que la télémétrie apporte, réparer.
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **Ses essais de la beta 5** (§ 2) : chaque défaut qu'il voit, corrigé — en premier, le texte de près | sa parole |
+| [ ] | **P0 — Ne jamais perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3 ; fiche 72 : LIBERE-1, SORTIE-1, REPRISE-1). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu** : cause inconnue. Ses lignes `sortie` (la raison d'Android, la mémoire à la mort), `reprise` (ce que le lancement a rouvert, la place du disque) et `precedente` la diront — **au 16/10, aucune session de la beta 4 n'était arrivée** : rouvrir Glucose une seconde fois, au PC et au téléphone. **Ne pas désinstaller** : le brouillon est peut-être encore là. Relevé : `node outils/telemetrie/tableau.mjs <dossier>` (7403 → `npx wrangler whoami`, puis une fois encore) | la cause nommée par ses lignes ; corrigée, éprouvée sur une copie |
+| [ ] | **P3 — Ce que son téléphone dira** : son téléphone tournait à **19,5 ms** par image en médiane, sous le plancher presque tout le temps. POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent ; et **P8 au téléphone**, jamais mesuré (Slug sur sa PowerVR) | les postes lus, le coupable nommé par la mesure, puis tenu |
 | [ ] | **Le repos à zéro** : sa chronique redessine pour les messages (1,6 image par seconde) — la charte dit zéro | une chronique au repos sans image |
-| [ ] | **La fluidité** (la charte : 100 images par seconde, toujours) : ses zooms chargés à 11-24 ms (sa chronique du 14/10 : 345 images sur 13 886 au-dessus de 10 ms, un tressaut à 91 px au p99 quand la durée d'une image change) ; **sur batterie**, 30 images par seconde par moments (le bridage de la RTX, à séparer par une session branchée et une débranchée) ; les gels de l'Intel Arc (probablement l'écran sur la RTX, à confirmer en mode Optimus) ; la coupure du pavé de 7 à 10 s (la boîte noire dira où à la prochaine) ; le plantage reproductible d'une épreuve dans `vulkan-1.dll` (fiche 49 § 4) | chaque point mesuré, puis tenu ou pixelisé — jamais une dégradation qui se voit |
-| [ ] | **Android, ce qui manque** : le presse-papiers du système, les photos HEIC, les champs du dock qui se tapent (le miroir du clavier étendu), les panneaux qui s'écartent des bords ; **les rayures** de sa PowerVR (« je surveillerai ») ; la mise à jour automatique d'Android, à prouver quand une version suivante arrivera à un téléphone qui a la beta 3. Hors Android : les doigts sous Windows (tablettes), l'iPad par le web, le dépôt d'une page compressée hors Windows (`ureq` sans `gzip`) | chacun à son écran |
-| [ ] | **P9 — Le Mac publié** (un `.dmg`, son copier, sa mise à jour) ; **Collaborer** (obligatoire, plus tard) ; **l'ergonomie, puis l'UX du téléphone**, toutes refaites quand toutes les fonctionnalités seront là | |
+| [ ] | **Les boutons qui se taisent** : Trans-domaines ne fait rien et ne le dit pas (il doit dire « bientôt », comme Collaborer) ; la carte d'accueil qui naît **choisie** au premier lancement (le premier clic droit ouvre le menu d'une sélection) — à vérifier contre Tauri | à son écran |
+
+### La 2.0.4 — « Retrouver, ranger, choisir »
+
+Les gestes de tous les jours qui manquent le plus, et la relecture qui prépare les presets.
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **La recherche, `Ctrl+F`** (sa décision du 13/10 : tout cadrer est passé à `Alt+F`) : chercher dans tout le document — textes, titres, noms de fichiers —, voler d'un résultat au suivant ; sur le noyau, pour tenir 10⁷ nœuds | à son écran, sur un gros tableau |
+| [ ] | **Ordonner, « très très grandement »** (sa proposition du 15/10) : **à concevoir avec lui**. Ce qui manque déjà (PureRef) : par nom, par date d'ajout (dans le noyau, sans bouton), en ligne, en colonne (dans le noyau, sans bouton), aligner avec un espacement, distribuer, empiler, normaliser la largeur, la taille, l'aire, l'échelle ; aléatoire ; et ce qu'il entend par « grandement » | sa parole, puis à son écran |
+| [ ] | **Les choix à l'utilisateur** (sa parole : « TOUJOURS CHOISIR ») : la planche claire ou sombre, les champs (dialogue, action, notes) sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux, les photos du SVG en originaux ou réduites | chaque choix là où l'on agit, enregistré, saboté |
+| [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
+| [ ] | **Le dossier, à retravailler** (sa parole du 15/10) ; « double-clic + zoom comme Tauri », au PC et au téléphone | à son écran |
+
+### La 2.0.5 — « Le contenu vivant » (la parité avec Glucose Tauri)
+
+Ce que Tauri faisait et que Rust ne fait pas encore ([INVENTAIRE](INVENTAIRE.md) § 3).
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it ; **la couleur des domaines sur le canevas**, et le filtre par domaine (fiche 03 § 11) | à son écran |
+| [ ] | **Les opérateurs des post-it** (ET, OU, MAIS, PARCE QUE — `Alt+0…4`) : ils se dessinent déjà, aucun geste ne les pose | à son écran |
+| [ ] | **Les miroirs** (un même nœud à deux endroits, `Ctrl+Maj+M` ; le noyau en partie) | à son écran |
+| [ ] | **La temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre (`Maj+T`, `Maj+R` ; le noyau écrit) | à son écran |
+| [ ] | **Les GIF animés et les vidéos** (un GIF se montre figé) | à son écran |
+| [ ] | **L'export HTML** (pan, zoom, descriptions, un fichier) ; **le mode zen** (`F11`) | à son écran |
+| [ ] | **La provenance des images** (SauceNAO) | **sa clé** |
+| [ ] | **Ce qui attend sa parole** : les rideaux (un tableau dans une membrane — le noyau écrit), les membranes de Mary (étirées, minimisées — le noyau écrit), Trans-domaines (sa définition) | sa parole |
+
+### La 2.0.6 — « 100 images par seconde, partout »
+
+Tout ce qui existe, tenu au plancher sur chaque machine — et ce que P8 a laissé ouvert.
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **La fluidité de son PC** : ses zooms chargés à 11-24 ms (345 images sur 13 886 au-dessus de 10 ms, un tressaut à 91 px au p99) ; **sur batterie**, 30 images par seconde par moments (le bridage de la RTX : une session branchée, une débranchée) ; les gels de l'Intel Arc (l'écran sur la RTX, en mode Optimus ?) ; la coupure du pavé de 7 à 10 s ; le plantage d'une épreuve dans `vulkan-1.dll` (fiche 49 § 4) | chaque point mesuré, puis tenu ou pixelisé — jamais une dégradation qui se voit |
+| [ ] | **Le texte de près, la suite** (fiche 73 § 7) : les **titres des membranes**, des zones et des cases en formes (par la `Surface`, qui sait écrire en vecteurs) ; **la frontière « plus grand que l'écran »** remise en question par la mesure — les formes comme repli au lieu de la texture agrandie pendant un zoom (un banc qui zoome sur 10, 100, 1 000 textes, à son PC puis à son téléphone) | mesuré, puis aucun flou pendant un zoom |
+| [ ] | **Le modèle de coût qui prédit** (la charte : ne pas mesurer les images en boucle, prédire ce qu'une image va coûter) — COUT-1 ne connaît encore que les pixels des photos | l'écart prédit-mesuré lu dans sa chronique |
+| [ ] | **La mémoire des formules** (`MathRenderer`) ne s'oublie jamais — la même loi que celle des mises en page | éprouvé, saboté |
+
+### La 2.0.7 — « Toutes les machines »
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **Android, ce qui manque** : le presse-papiers du système, les photos HEIC, les champs du dock qui se tapent (le miroir du clavier étendu), les panneaux qui s'écartent des bords ; **les rayures** de sa PowerVR ; la mise à jour automatique d'Android, prouvée par une version qui arrive d'elle-même | chacun à son écran |
+| [ ] | **Les doigts sous Windows** (tablettes) ; le dépôt d'une page compressée hors Windows (`ureq` sans `gzip`) | à son écran, ou sur une copie |
+| [ ] | **P9 — Le Mac publié** (un `.dmg`, son copier, sa mise à jour) | une version publiée qui s'installe |
+| [ ] | **L'iPad par le web** (Glucose dans Safari — la personne qui compte pour lui) | **le modèle de l'iPad**, puis à son écran |
+
+### La 2.1.0 — « Les presets » (la vision)
+
+Un preset est **l'interface entière** ([VISION](VISION.md)) : la disposition, le comportement, les
+couleurs, les raccourcis, les fenêtres.
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **Le thème comme donnée**, puis **la disposition des panneaux comme donnée** (après P6) | rien n'a changé à l'œil ; un thème changé par la table |
+| [ ] | **Le preset PureRef** ([PUREREF](PUREREF.md)) : la hiérarchie (l'arbre des membranes et des dossiers), le miroir horizontal et vertical, l'opacité, les niveaux de gris, le plus proche voisin (pixel art), la pipette, le dessin à main levée, les formes, le magnétisme à 45°, réinitialiser une transformation, image suivante et précédente, un diaporama, les modes de fenêtre (derrière tout, au premier plan d'une application, overlay) | sa liste PureRef, cochée |
+| [ ] | **Le preset Figma**, **le preset Miro** — leurs façons de faire | sa parole |
+| [ ] | **Le preset de Glucose** — *« extrêmement travaillé, qui n'a jamais été créé »* : toutes les fonctions, ergonomique, rapide pour les professionnels, propre à l'œil | sa parole |
+| [ ] | **Choisir son preset**, importer et exporter ses réglages (un preset exporté *est* un fichier) ; les raccourcis de la souris et les raccourcis globaux | à son écran |
+
+### La 2.2 — « L'échelle » (le canevas de Wikipédia)
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **GLISSER-2** (défaire un glisser exactement : une édition neuve du journal, un format neuf) ; **les glyphes des formules calés au pixel entier** | regardé |
+| [ ] | **La fondation des 10⁷ nœuds** : l'arène, écrite, branchée ; l'index, la mémoire, le disque à cette échelle | un tableau de dix millions de nœuds, à 100 images par seconde |
+| [ ] | **Le canevas de Wikipédia de `glucose-brain`** : des millions de textes, membranes, flèches, domaines — **naviguer ultra facilement** par les domaines et la couleur, jamais en appauvrissant le sens | à son écran |
+
+### La 3.0 — « Ensemble » (la vision, plus loin)
+
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [ ] | **Collaborer** (obligatoire) : le co-working sur le journal du document | à son écran, à deux |
+| [ ] | **Les plugins** ([PLUGINS.md](../PLUGINS.md)), **l'IA locale**, **le MCP réécrit en Rust** | sa parole |
+| [ ] | **D'humain à IA** : des graphes de questions et de réponses au lieu d'un fil ; le plugin de la langue inventée | sa parole |
+| [ ] | **D'IA à IA** : l'idée de Proteo | sa parole |
+| [ ] | **Le document de recherche** en mathématiques et en physique, non linéaire | sa parole |
+| [ ] | **Glucose en briques** : le noyau, le rendu, la typographie, les formules, le format, chacun lisible seul, pour des milliers de forks ; **les dépendances vers zéro**, sans jamais exclure une machine | une brique prise par un autre projet |
+
+### En dernier, toujours
+
+* **L'ergonomie** : une grosse session, quand toutes les fonctions seront là ; **puis l'UX du
+  téléphone**, toute refaite — ultra rapide, fluide, pratique.
+* **Le dessin de la sélection** (E pour l'instant), avec l'ergonomie.
+
+### La recherche, à côté
+
+* **L'améliorateur d'image à l'import** (sa parole du 15/10) : comprendre une image avant d'y
+  toucher (filtres de Gabor, GLCM, LBP — `recherche/cerveau-image/`), pour débruiter, déflouter,
+  agrandir sans inventer.
+
+---
 
 ## 2. Ce qui attend son écran — une seule liste
 
 Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**. Sa parole du 15/10 :
 *« si j'ai absolument tout testé, normalement 100 % des fonctionnalités sont validées »*.
 
-**Au PC** — `cargo run --release > sortie-essais.txt 2>&1` :
+**Au PC** — la 2.0.3-beta.5 installée, ou `cargo run --release > sortie-essais.txt 2>&1` :
 
 * **Le texte de près** (fiches 72 et 73) : zoomer très près d'un texte, d'une formule, d'un
   passage qu'une flèche fait briller, d'une sélection en cours d'écriture, d'un emoji, de
@@ -54,9 +168,8 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
   Glucose : il duplique encore ; puis « Rétablir tous les raccourcis de Glucose ».
 * **La palette** : `Ctrl+Maj+P`, écrire « dupl », Entrée ; les flèches pour choisir ; Échap ;
   sans rien écrire, faire défiler toute la liste (molette, pavé, flèches, Page bas).
-* **Le menu du clic droit** : ses raccourcis viennent désormais du clavier — rien ne doit avoir
-  changé à l'œil.
-
+* **Le menu du clic droit** : ses raccourcis viennent du clavier — rien ne doit avoir changé à
+  l'œil.
 * **Le Storyboard** (fiches 64 à 68) : « Activer », la grille qui suit la souris par son coin,
   un clic ou un rectangle tracé ; la poignée qui le retrace ; une case lâchée ailleurs ; décrire
   (deux clics sur la bande), `Tab` vers la suivante ; plusieurs images lâchées sur une case ;
@@ -65,26 +178,26 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 * **L'export SVG** : l'ouvrir dans son navigateur, puis dans Inkscape s'il l'a.
 * **Le dossier** : son titre et son compteur ; un dossier vide dit « Double-clic pour ouvrir ».
 * **`Alt+F`** cadre tout, même un tableau qui ne porte qu'un storyboard.
-* **Mood board** (l'ancien Presets) : poser un gabarit, ses zones (bandeau, coins, croix), « Par
-  mood board » dans Ordonner.
+* **Mood board** : poser un gabarit, ses zones (bandeau, coins, croix), « Par mood board » dans
+  Ordonner.
 * **Ordonner** : les trois tris par la couleur ; les champs (glisser, cliquer et taper).
 * **L'export PNG** : une sélection, puis tout le tableau.
 * **Le clic droit** : Annuler, Rétablir, Tout cadrer, Signets…, Enregistrer, Exporter ; le menu
   en colonnes sur un écran bas.
 * **La membrane et le dossier tracés** d'un glisser ; « Décrire » écrit au clavier.
 * **La chrome** : rien ne doit avoir changé à l'œil, sauf la minimap (un trait fin, un voile).
-* **Trans-domaines** dit « bientôt ».
 * De plus loin : transformer une sélection entière (origine commune ou individuelle) ; le cadre
   du groupe qui suit ; Pinterest (la copie d'abord, puis l'original) ; les sélecteurs de fichiers
   qui ne figent plus Glucose ; les flèches qui contournent et leur coude ; les formules seules
   sur leur ligne ; la Time Machine pendant un zoom ; `Ctrl+Z` après un glisser ; l'aimant sur un
   tableau chargé ; un PDF glissé d'une page web.
 
-**Au téléphone** — l'APK de la beta 4 (zippé sur son Bureau) :
+**Au téléphone** — l'APK de la beta 5 (zippé sur son Bureau) :
 
 * l'installer **par-dessus** (ne pas désinstaller : un brouillon perdu est peut-être encore là),
   l'ouvrir une fois, puis une **longue session** ; si Glucose se ferme seul, le rouvrir deux
   fois — ses lignes partent au lancement suivant ;
+* le texte de près (P8 sur sa PowerVR, jamais mesuré) ;
 * le clavier (écrire dans un texte), l'appui long (le clic droit), deux doigts touchés annulent,
   trois rétablissent ; renommer, dupliquer, supprimer un document (appui long dans la liste) ;
 * le Storyboard au doigt ; un dossier choisi (son menu, sa barre) ; le partage vers Glucose
@@ -95,20 +208,22 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 ## 3. Ce qui n'attend que lui
 
+* **Rouvrir Glucose une seconde fois**, au PC et au téléphone : la télémétrie de la beta 4 et de
+  la beta 5 part au lancement suivant (P0).
 * **Sa clé SauceNAO** (la provenance des images).
 * **Le modèle de l'iPad**, les téléphones de ses testeurs Android (le plus ancien d'abord).
+* **Ordonner** : ce qu'il entend par « très très grandement ».
 * **Les définitions** : Trans-domaines et « domaine » (en recherche), les rideaux, les membranes de
   Mary (étirées, minimisées), « optimiser » dans la Time Machine.
+* **Sa liste PureRef** (ce qu'il veut retrouver de PureRef), pour le preset.
 * **Le dessin de la sélection** : E pour l'instant, à reprendre avec l'ergonomie.
 * **Le défilement au bord** (« moche, pas fluide ») : plus tard, à sa parole.
 * **Les modes de la fenêtre** (opacité, clics qui traversent) : pas pour l'instant.
+* **Le nom des versions** : la 2.1.0 comme première stable, à sa parole.
 
-## 4. Plus loin
+## 4. Fait (mémoire courte)
 
-**L'améliorateur d'image à l'import** (sa parole du 15/10) : comprendre une image avant d'y
-toucher (filtres de Gabor, GLCM, LBP — son cerveau d'image, `recherche/cerveau-image/`) pour
-débruiter, déflouter, agrandir sans inventer · Le co-working (sur le journal du document) · le MCP réécrit en Rust · les plugins selon sa vision
-([PLUGINS.md](../PLUGINS.md)) et l'IA locale · Glucose en briques réutilisables (des milliers de
-forks, [VISION](VISION.md)) · la fondation des 10⁷ nœuds (l'arène, écrite, en attente) · le modèle
-de coût qui **prédit** ce qu'une image va coûter · et le but : le canevas de Wikipédia de
-`glucose-brain`, puis les graphes d'humain à IA et d'IA à IA.
+* **P5 — L'export SVG complet** (fiches 69 à 71) — reste ses yeux (§ 2).
+* **La 2.0.3-beta.3** et **la 2.0.3-beta.4** — publiées par lui le 15/10 ; son essai de la beta 4 :
+  plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt cool ».
+* **La 2.0.3-beta.5** — publiée à sa demande le 16/10 (§ 1).

@@ -121,7 +121,7 @@
 | PureRef | Glucose | |
 |---|---|---|
 | Interface minimaliste : raccourcis et clic droit | ✅ | chaque commande est au clic droit (ACCES-1) |
-| **Raccourcis entièrement personnalisables** (souris, contextes, global) | 🟡 | **la fondation est posée** (fiche 72) : chaque raccourci est une ligne d'une couche de texte, les couches s'empilent et se retirent ; la couche de l'utilisateur, lue sur le disque, reste à faire ; la souris et le raccourci global aussi |
+| **Raccourcis entièrement personnalisables** (souris, contextes, global) | 🟡 | chaque raccourci est une ligne d'une couche de texte, les couches s'empilent (fiche 72) ; **ils se changent dans Glucose** — « Changer un raccourci… », écrits dans `raccourcis.txt` (fiche 74) ; la souris et le raccourci global restent à faire |
 | **Palette de commandes** (`Ctrl+Maj+P`) | ✅ | les 75 commandes de la table, cherchées sans accents, chacune avec son raccourci (fiche 72) |
 | Chercher dans les réglages, importer et exporter les réglages | ❌ | un preset exporté *est* un fichier de réglages |
 | Interface traduite (sept langues) | ❌ | Glucose parle français |

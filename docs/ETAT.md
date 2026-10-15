@@ -9,13 +9,14 @@
 
 ## 1. En une page
 
-* **Glucose Rust est publié.** La **2.0.3-beta.4** est la release « latest » depuis le 15/10
-  (publiée par lui, sur `a7893be`) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
+* **Glucose Rust est publié.** La **2.0.3-beta.5** est la release « latest » depuis le 16/10
+  (publiée à sa demande, sur `141499c` : P8, P8 bis, ses raccourcis ; la beta 4 l'était le 15/10,
+  sur `a7893be`) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
   `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses données ne sont jamais
   touchées. Son essai : **plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt
   cool »** ; au PC, *« tout fonctionne merveilleusement bien »*.
-* **P8, le texte net de près** (fiche 73) : écrit, éprouvé, saboté, sur `main` — **il attend son
+* **P8, le texte net de près** (fiche 73) : écrit, éprouvé, saboté, **publié dans la beta 5** — **il attend son
   écran**, puis son téléphone (aucune mesure n'y a été faite). Et **P8 bis** : un nœud immense vu de
   près coûtait 10,5 ms par image au processeur (17 600 mots) ; 0,72 ms désormais, quelle que soit sa
   longueur — et la mise en page de chaque nœud visible n'est plus refaite deux fois par image.
@@ -94,7 +95,8 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
   **`3e1ee42` (15/10) : dix vertes** — celle de la beta 4 (exécution 38749250295) ;
   **`a6689c8` (16/10) : dix vertes** — P8, ses nuanceurs neufs traduits pour Metal, Vulkan et
   l'APK (exécution 38811883089). P8 bis, du Rust sans rien de propre à une plateforme, n'a pas
-  relancé la CI : la prochaine publication la passera.
+  relancé la CI : la publication l'a passée — **`141499c` (16/10) : dix vertes** (exécution
+  38820378998), puis la construction signée de la beta 5 (exécution 38821870908).
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication. **Au repos**, Glucose
   redessine encore pour ses messages (1,6 image par seconde) : la charte dit zéro.
 

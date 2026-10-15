@@ -106,3 +106,31 @@ changerait le clavier de celles qui tournent à côté.
 * Un **éditeur** de tous les raccourcis d'un coup d'œil (la liste, la source de chacun) : la palette
   montre déjà chaque commande et son raccourci ; une vue « mes changements » (le `@source:user` de
   VS Code) viendrait avec les presets.
+
+## 7. La 2.0.3-beta.5, publiée à sa demande (16/10)
+
+Sa parole : *« fais la publication complète de Glucose, publique »*. Le nom : **2.0.3-beta.5** —
+« beta » parce que la parité avec Glucose Tauri n'est pas atteinte et que P8 n'a pas encore été vu
+à son écran (à sa parole s'il en veut un autre).
+
+* Les notes (`outils/publication/notes.md`) : le texte net de près, le très long texte fluide,
+  tes raccourcis ; la prudence du téléphone gardée (la cause de la fermeture n'est pas connue).
+* **La CI d'abord**, sur le commit des notes `141499c` : dix vertes (exécution 38820378998) — P8 bis
+  et la couche des raccourcis ne l'avaient pas encore passée.
+* **La construction signée**, `Publier` sur le même commit, en brouillon (exécution 38821870908) :
+  onze fichiers — l'installeur Windows, l'AppImage, le `.deb`, le `.rpm`, l'APK, leurs signatures,
+  le `latest.json`.
+* **Vérifié avant de publier** : le `latest.json` annonce `2.0.3-beta.5` et pointe vers ses
+  fichiers pour Windows, Linux et Android ; l'APK porte la clé de Glucose pour Android
+  (`3f2af005…`, `apksigner`).
+* **Publiée**, marquée « Latest » ; le `latest.json` servi en ligne dit `2.0.3-beta.5` : chaque
+  Glucose installé (et chaque Glucose Tauri depuis la 1.0.1-beta.9) la recevra de lui-même.
+  L'APK, zippé, sur son Bureau : `Glucose-2.0.3-beta.5-telephone.zip`.
+
+**Les branches** (sa demande du même message, *« je déteste avoir plusieurs branches »*) :
+`p8-slug`, `p8-bis` et `p4-utilisateur`, fusionnées, retirées en local et sur GitHub ; la branche
+locale `secours/avant-reattribution` sauvée d'abord dans
+`Documents\Glucose-sauvegardes\avant-reattribution.bundle` (vérifiée), puis retirée. Il reste
+`main` et `tauri-v1.0.1`. La règle est dans le `CLAUDE.md` du dépôt.
+
+**Le plan complet** de la suite, mise à jour par mise à jour, est désormais [SUITE](../SUITE.md).
