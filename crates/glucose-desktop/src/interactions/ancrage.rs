@@ -174,7 +174,11 @@ impl GlucoseApp {
             style: &crate::renderer::passages::DANS_L_EDITEUR,
         };
         let mise_en_page = crate::renderer::passages::mise_en_page(
-            (&self.renderer.typography, &self.renderer.math),
+            (
+                &self.renderer.typography,
+                &self.renderer.math,
+                &self.renderer.mises_en_page,
+            ),
             (&texte, zone.largeur_monde),
             TextMode::Rendered,
             Some(&eclaires),

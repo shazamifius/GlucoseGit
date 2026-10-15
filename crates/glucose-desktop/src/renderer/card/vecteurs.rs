@@ -7,7 +7,8 @@
 //! du canevas n'est que la façon de poser une lettre : depuis son contour, à sa place exacte.
 //!
 //! Sa lueur n'est pas ici : comme au canevas, toutes les lueurs passent avant toutes les cartes
-//! (LUEUR-3, `halo/svg.rs`, fiche 70).
+//! (LUEUR-3, `halo/svg.rs`, fiche 70). Une ligne qui ne peut pas toucher l'écran ne se parcourt
+//! pas (LIGNE-1).
 
 use super::habit::{boite_de_la_carte, voile_de_la_carte};
 use super::ornament::{ornement_en_vecteurs, plaque_de_code};
@@ -58,11 +59,52 @@ fn corps_en_vecteurs<V: Vectoriel>(
         crate::renderer::passages::cadres_en_vecteurs(v, pose, &passages, (e.teinte, e.style));
     }
     let mut y = at.1 + layout.pad_y;
-    for line in &text.lines {
-        ligne_en_vecteurs_de_carte(ctx, v, (at.0, y), layout, (text, line), (card, selection));
+    for (rang, line) in text.lines.iter().enumerate() {
+        let (haut, bas) = bande_d_une_ligne(&text.lines, rang, y, layout.line_height);
+        if v.voit_la_bande(haut, bas) {
+            ligne_en_vecteurs_de_carte(ctx, v, (at.0, y), layout, (text, line), (card, selection));
+        }
         y += layout.line_height;
     }
 }
+
+/// **LIGNE-1 — ce qu'une ligne peut dessiner** : sa boîte, une hauteur de ligne au-dessus et
+/// au-dessous ; et pour la première ligne d'une formule, toutes les lignes qu'elle réserve —
+/// elle s'y dessine, centrée ([`crate::renderer::richtext::place_d_une_formule`]).
+///
+/// # Pourquoi une hauteur de ligne, et pourquoi elle suffit
+///
+/// Un nœud de dix-sept mille mots, vu de près, se parcourait en entier à chaque image, lettre
+/// par lettre, avant que chaque lettre hors de l'écran soit écartée : 10,5 ms (fiche 73 § 7).
+/// Une ligne ne dessine que des glyphes et des rectangles posés sur elle ; ce qui en sort, c'est
+/// l'encre d'un glyphe plus haut ou plus bas que sa ligne, et la plaque d'un `code` qui la déborde
+/// de sa marge. L'épreuve `test_ligne_1_rien_ne_sort_d_une_ligne_de_plus_d_une_ligne` le
+/// vérifie sur les tables de **toutes** les polices embarquées, à toutes les tailles de ligne,
+/// titres compris : la borne n'est pas choisie, elle est prouvée — et une police neuve qui la
+/// violerait la ferait tomber.
+fn bande_d_une_ligne(
+    lignes: &[VisualLine],
+    rang: usize,
+    y: f32,
+    hauteur_de_ligne: f32,
+) -> (f32, f32) {
+    let ligne = &lignes[rang];
+    let reservees = if ligne.first && matches!(ligne.kind, BlockKind::Math { .. }) {
+        1 + lignes[rang + 1..]
+            .iter()
+            .take_while(|l| !l.first && l.paragraph_start == ligne.paragraph_start)
+            .count()
+    } else {
+        1
+    };
+    (
+        y - hauteur_de_ligne,
+        y + (reservees + 1) as f32 * hauteur_de_ligne,
+    )
+}
+
+#[cfg(test)]
+mod tests;
 
 /// Une ligne : sa plaque, son ornement — qui remplace un signe au repos (MODE-1) —, le
 /// surlignage de la sélection, son texte.

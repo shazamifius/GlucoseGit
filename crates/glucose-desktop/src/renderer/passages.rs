@@ -26,7 +26,7 @@
 //! * seule la **lueur** passe au-dessus ([`eclairer`]), découpée dans le cadre comme l'ombre
 //!   CSS de Tauri : elle déborde de la carte, et une texture s'arrête à la carte.
 
-use super::card::{card_text_layout, text_box, TEXT_ORIGIN};
+use super::card::{text_box, MisesEnPage, TEXT_ORIGIN};
 use super::halo::{draw_halo, HaloBox};
 use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
@@ -42,6 +42,7 @@ use glucose_core::quadtree::{noeud_au_rang, Noeud};
 use glucose_core::store::Store;
 use glucose_core::text::BlockKind;
 use glucose_core::types::{Annotation, Viewport};
+use std::rc::Rc;
 use tiny_skia::{Color, PixmapMut};
 
 /// **Comment un passage brille** — les nombres de Tauri, en unités du monde : la carte de
@@ -131,20 +132,20 @@ pub(crate) fn eclaires_de<'a>(
 /// tracé, le clic et les cadres lisent. Sans passage, ou pendant l'édition, c'est celle de la
 /// carte, inchangée.
 pub(crate) fn mise_en_page(
-    (typographie, math): (&Typography, &MathRenderer),
+    (typographie, math, memoire): (&Typography, &MathRenderer, &MisesEnPage),
     (texte, largeur): (&str, f32),
     mode: TextMode,
     eclaires: Option<&Eclaires>,
-) -> TextLayout {
-    let brute = card_text_layout(typographie, math, texte, largeur, mode);
+) -> Rc<TextLayout> {
+    let brute = memoire.de((typographie, math), texte, largeur, mode);
     match eclaires {
-        Some(e) if mode == TextMode::Rendered && !e.plages.is_empty() => ouvrir_la_place(
+        Some(e) if mode == TextMode::Rendered && !e.plages.is_empty() => Rc::new(ouvrir_la_place(
             &brute,
             typographie,
             (texte, text_box(largeur)),
             e.plages,
             e.style.etendue(),
-        ),
+        )),
         _ => brute,
     }
 }
@@ -222,8 +223,9 @@ pub(crate) fn rectangles(
         teinte: (255, 255, 255),
         style: &SUR_LA_CARTE,
     };
+    let memoire = MisesEnPage::default();
     let ouverte = mise_en_page(
-        outils,
+        (outils.0, outils.1, &memoire),
         (texte, largeur),
         TextMode::Rendered,
         Some(&eclaires),
@@ -430,7 +432,7 @@ pub(crate) fn peindre_une_selection(
 /// ou à la sienne, s'il en porte une. Le fond, le liseré et les lettres sont déjà dans la carte.
 pub(super) fn eclairer(
     hue_cache: &mut SymbioticHueCache,
-    outils: (&Typography, &MathRenderer),
+    (typographie, math, memoire): (&Typography, &MathRenderer, &MisesEnPage),
     pixmap: &mut PixmapMut,
     (store, eclairages, pass): (&Store, &[Eclairage], ViewPass<'_>),
 ) {
@@ -460,8 +462,17 @@ pub(super) fn eclairer(
             style: &SUR_LA_CARTE,
         };
         let largeur = largeur as f32;
-        let ouverte = mise_en_page(outils, (text, largeur), TextMode::Rendered, Some(&eclaires));
-        let t = troncons(outils, (&ouverte, text, largeur), eclaires.plages);
+        let ouverte = mise_en_page(
+            (typographie, math, memoire),
+            (text, largeur),
+            TextMode::Rendered,
+            Some(&eclaires),
+        );
+        let t = troncons(
+            (typographie, math),
+            (&ouverte, text, largeur),
+            eclaires.plages,
+        );
         let pose = Pose {
             origine: (*x, *y),
             vp: pass.vp,

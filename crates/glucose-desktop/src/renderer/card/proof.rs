@@ -79,6 +79,7 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
     let kit = PaintKit {
         typography: typo,
         math: &crate::renderer::math::MathRenderer::new(),
+        mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
     };

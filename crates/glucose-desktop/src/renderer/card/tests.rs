@@ -301,6 +301,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
         PaintKit {
             typography: &typo,
             math: &math,
+            mises_en_page: &Default::default(),
             tints: &tints,
             theme: &theme,
         },

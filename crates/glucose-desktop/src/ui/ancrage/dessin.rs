@@ -204,7 +204,7 @@ fn dessiner_la_zone(
     let outils = (kit.typography, kit.math);
     let largeur = zone.largeur_monde;
     let ouverte = passages::mise_en_page(
-        outils,
+        (kit.typography, kit.math, kit.mises_en_page),
         (texte, largeur),
         crate::renderer::richtext::TextMode::Rendered,
         Some(&eclaires),

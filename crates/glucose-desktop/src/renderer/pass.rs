@@ -47,6 +47,8 @@ pub(crate) struct Pass<'a> {
     pub typography: &'a Typography,
     /// Le moteur de formules — il ne mute rien de visible, son cache est interne.
     pub math: &'a MathRenderer,
+    /// Les mises en page des nœuds de texte, gardées d'une image à l'autre (P8 bis).
+    pub mises_en_page: &'a crate::renderer::card::MisesEnPage,
     /// `domain_id → teinte`, déjà résolue pour cette version du document (DOMAIN-TINT-1).
     pub tints: &'a DomainTints,
     pub theme: &'a Theme,
@@ -96,6 +98,7 @@ pub(super) fn draw_annotations(
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
+        mises_en_page: kit.mises_en_page,
         tints: kit.tints,
         theme: kit.theme,
         vp: pass.vp,

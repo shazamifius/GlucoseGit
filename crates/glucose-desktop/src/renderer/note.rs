@@ -438,6 +438,7 @@ mod tests {
         let ctx = Pass {
             typography: kit.typography,
             math: kit.math,
+            mises_en_page: kit.mises_en_page,
             tints: kit.tints,
             theme: kit.theme,
             vp: glucose_core::types::Viewport {

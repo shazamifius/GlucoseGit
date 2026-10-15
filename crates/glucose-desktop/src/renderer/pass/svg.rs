@@ -33,6 +33,7 @@ pub(in crate::renderer) fn annotations_en_svg(
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
+        mises_en_page: kit.mises_en_page,
         tints: kit.tints,
         theme: kit.theme,
         vp: pass.vp,

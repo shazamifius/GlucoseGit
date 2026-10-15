@@ -30,6 +30,13 @@ use tiny_skia::Color;
 
 /// **Ce qui reçoit le dessin vectoriel d'un nœud** : le SVG d'un export, ou la carte graphique.
 pub(crate) trait Vectoriel {
+    /// **La bande horizontale `[haut, bas]` peut-elle recevoir une trace ?** Le SVG écrit tout ;
+    /// le relevé ne garde que ce qui touche l'écran — et ce qui ne le peut pas ne se parcourt
+    /// même pas (LIGNE-1, fiche 73 § 7).
+    fn voit_la_bande(&self, _haut: f32, _bas: f32) -> bool {
+        true
+    }
+
     /// Le rectangle `(x, y, largeur, hauteur)` aux coins de `rayon`, plein de `couleur`.
     fn rectangle(&mut self, boite: (f32, f32, f32, f32), rayon: f32, couleur: Color);
 

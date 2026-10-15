@@ -160,6 +160,8 @@
 | **Deux lois pour un même bord** : le cadre d'un passage par `tiny-skia` au processeur, par la loi des membranes sur la carte ; et son bord débordait de la lueur découpée par la loi exacte (fiche 73) | une forme a une seule loi, que les deux voies **appellent** ; une fois la géométrie partagée, la comparaison des voies ne la voit plus : une épreuve à part la lit contre la référence (Tauri) |
 | **Une affirmation vraie d'avance** : « tout doit repartir » (`envoyees == (0, 0)`) sur un atlas qui n'avait jamais rien envoyé (fiche 73) | mettre l'état dans la situation contraire avant d'affirmer qu'il en sort ; et jouer le nombre d'images que le mécanisme lit vraiment (le resserrement lit l'image d'avant) |
 | **Une garde que la mathématique rend vide** : un `abs` devant une fonction paire (fiche 73) | démontrer la propriété, l'écrire dans la doc de la fonction, l'éprouver au bit près, et retirer la garde |
+| **Une garde qui ne sert qu'à un cas qu'on ne sait pas produire** : comparer le texte derrière une empreinte, pour les seules collisions (fiche 73, la mémoire des mises en page) — aucune épreuve ne peut la voir | changer de structure pour que la garde disparaisse (la table prend le texte pour clé) |
+| **Une optimisation qui écarte ce qui « ne se verra pas »** (LIGNE-1) | l'éprouver par **équivalence** : le résultat avec et sans elle, identique, en balayant les places critiques plus finement que le plus petit débordement mesuré |
 | **Une épreuve qui compare deux voies appelant la même fonction** ne voit pas une faute dans cette fonction (`inverse()` dans la loi et dans la carte) | saboter ce que la règle interdit vraiment (ici : que la carte divise elle-même), et voir la fonction contre une voie qui ne l'appelle pas |
 
 ## 5. Les pièges pratiques
@@ -169,6 +171,8 @@
 * **Git Bash refuse aussi certains heredocs** (apostrophes, guillemets français) avec « unexpected
   EOF » : tout script Python long s'écrit dans un fichier du scratchpad, puis `python -I fichier`.
   Et Python sous Windows écrit en CRLF : ouvrir avec `newline='\n'` (le dépôt est en LF).
+* **Même entre apostrophes (`<<'EOF'`), Git Bash change `\\` en `\`** : trois scripts de la fiche 73
+  en ont perdu leurs `\\n` et leurs `\\sum`. La règle qui suit vaut sans exception.
 * **Git Bash mange aussi les barres obliques inverses d'un `python - <<'EOF'`** (fiche 56 : des
   `\n` devenus de vrais sauts de ligne dans une chaîne Rust, et un script qui ne s'est jamais
   écrit). Tout script qui en porte s'écrit avec l'outil d'écriture, puis `python -I fichier`.

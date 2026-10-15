@@ -186,7 +186,12 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   (`couverture`, transcrite par `formes.wgsl`), ses contours en quadratiques (CUBIQUE-1), ses
   bandes (BANDES-1, BANDES-2), un atlas qui se resserre. Chaque suite de formes se pose à son rang
   parmi les textures (`couches::poser_une_tranche`). La texture du nœud se **prépare** dans le
-  temps qui reste, sans se poser, pour le dézoom (`Confie::a_preparer`).
+  temps qui reste, sans se poser, pour le dézoom (`Confie::a_preparer`). Une ligne qui ne peut
+  pas toucher l'écran ne se parcourt pas (LIGNE-1, `Vectoriel::voit_la_bande`).
+* **Les mises en page des nœuds de texte sont gardées** (`card/memoire.rs`, `MisesEnPage`) : elles
+  ne dépendent pas du zoom (CARD-1). Possédées par le `Renderer`, passées par le `PaintKit` et la
+  `Pass`, oubliées au début de chaque image si la précédente ne les a pas demandées — la loi des
+  textures et de l'atlas, sans capacité choisie.
 * **La garantie** : les deux voies rendent la même scène, au bit près ou à un écart **mesuré et
   borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat. De près,
   SLUG-1 : elles ne diffèrent qu'au bord des formes (le quart de pixel et l'aire au processeur,

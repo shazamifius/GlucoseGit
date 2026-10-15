@@ -149,6 +149,8 @@ pub(crate) fn parse_hex_color(
 pub struct PaintKit<'a> {
     pub typography: &'a Typography,
     pub math: &'a math::MathRenderer,
+    /// Les mises en page des nœuds de texte, gardées d'une image à l'autre (P8 bis).
+    pub mises_en_page: &'a card::MisesEnPage,
     pub tints: &'a DomainTints,
     pub theme: &'a Theme,
 }
@@ -160,6 +162,9 @@ pub struct Renderer {
     pub magasin: magasin::Magasin,
     pub typography: Typography,
     pub math: math::MathRenderer,
+    /// Les mises en page des nœuds de texte, gardées d'une image à l'autre : elles ne dépendent
+    /// pas du zoom (P8 bis, fiche 73 § 7).
+    pub mises_en_page: card::MisesEnPage,
     pub hue_cache: SymbioticHueCache,
     /// `domain_id → teinte`, reconstruite une fois par version du document (DOMAIN-TINT-1).
     pub domain_tints: DomainTints,
@@ -213,6 +218,7 @@ impl Renderer {
             magasin: magasin::Magasin::nouveau(),
             typography: Typography::new(),
             math: math::MathRenderer::new(),
+            mises_en_page: Default::default(),
             hue_cache: SymbioticHueCache::new(),
             domain_tints: DomainTints::new(),
             cout: glucose_core::cout::Cout::nouveau(),
@@ -284,6 +290,8 @@ impl Renderer {
         // ici qu'elle appartient.
         self.magasin.recolter();
         self.magasin.regler_la_vue_d_ensemble(store, ecran);
+        // Ce que l'image d'avant n'a pas mis en page s'oublie (P8 bis).
+        self.mises_en_page.nouvelle_image();
         crate::perf::stage("recolte");
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");
@@ -416,6 +424,7 @@ impl Renderer {
         PaintKit {
             typography: &self.typography,
             math: &self.math,
+            mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
         }
@@ -449,6 +458,7 @@ impl Renderer {
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,
+            mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
         };

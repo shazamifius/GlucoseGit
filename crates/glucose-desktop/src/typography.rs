@@ -158,6 +158,22 @@ pub struct Police {
     pub octets: &'static [u8],
 }
 
+/// **Toutes les polices embarquées** : les cinq visages, puis le repli des emojis — tout ce
+/// qu'une lettre de Glucose peut dessiner.
+pub(crate) fn toutes_les_polices() -> [Police; 6] {
+    let mut polices = [Police {
+        nom: "NotoEmoji-Regular",
+        octets: EMOJI_BYTES,
+    }; 6];
+    for (k, police) in polices.iter_mut().take(5).enumerate() {
+        *police = Police {
+            nom: FACE_NOMS[k],
+            octets: FACE_BYTES[k],
+        };
+    }
+    polices
+}
+
 pub struct Typography {
     faces: [Font; 5],
     /// Le repli des emojis (EMOJI-1).
@@ -231,22 +247,9 @@ impl Typography {
     /// même choix que le tracé ([`Self::police`]) : le SVG écrit le glyphe même que le canevas
     /// pose (P5, fiche 70).
     pub fn source(&self, ch: char, face: Face) -> (Police, u16) {
-        match self.choix(ch, face) {
-            (Some(face), indice) => (
-                Police {
-                    nom: FACE_NOMS[face.index()],
-                    octets: FACE_BYTES[face.index()],
-                },
-                indice,
-            ),
-            (None, indice) => (
-                Police {
-                    nom: "NotoEmoji-Regular",
-                    octets: EMOJI_BYTES,
-                },
-                indice,
-            ),
-        }
+        let (choisi, indice) = self.choix(ch, face);
+        let rang = choisi.map_or(Face::ALL.len(), Face::index);
+        (toutes_les_polices()[rang], indice)
     }
 
     /// Le choix d'EMOJI-1 : le visage (`Some`) ou le repli des emojis (`None`), et l'indice.

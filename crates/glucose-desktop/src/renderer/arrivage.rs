@@ -104,6 +104,7 @@ mod tests {
         let kit = PaintKit {
             typography: &typography,
             math: &math,
+            mises_en_page: &Default::default(),
             tints: &tints,
             theme: &theme,
         };

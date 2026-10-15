@@ -65,7 +65,7 @@ const SMALL_FACTOR: f32 = 1.0 / H1_FACTOR;
 const _: () = assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0);
 
 /// Ce que l'affichage fait des signes du Markdown (MODE-1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TextMode {
     /// Au repos : les signes s'effacent, le texte porte le style qu'ils commandent.
     Rendered,

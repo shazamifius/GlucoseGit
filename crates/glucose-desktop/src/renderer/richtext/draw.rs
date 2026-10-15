@@ -20,7 +20,7 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 /// Marge horizontale du fond d'un `` `code` `` : `4px` sur les `14px` de la référence.
 const CODE_PAD_X: f32 = 4.0 / 14.0;
 /// Marge verticale du même fond : `1px` sur `14px`.
-const CODE_PAD_Y: f32 = 1.0 / 14.0;
+pub(crate) const CODE_PAD_Y: f32 = 1.0 / 14.0;
 /// Rayon de ses coins : `4px` sur `14px`.
 const CODE_RADIUS: f32 = 4.0 / 14.0;
 /// Épaisseur de la barre d'un `~~barré~~`, en multiples du corps.

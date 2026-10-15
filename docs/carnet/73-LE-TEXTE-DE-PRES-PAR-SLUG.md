@@ -241,6 +241,44 @@ ligne qui ne peut pas toucher l'écran ne se parcourt pas** — ce qui demande u
 ce qu'une ligne dessine hors de sa boîte : une formule réserve plusieurs lignes et se dessine
 depuis la première, par-dessus les suivantes.
 
+### P8 bis — fait le même soir
+
+**LIGNE-1** (`card/vecteurs.rs`, `bande_d_une_ligne`) : une ligne ne se parcourt que si la bande
+qu'elle peut dessiner touche l'écran — sa boîte, une hauteur de ligne au-dessus et au-dessous ;
+pour la première ligne d'une formule, toutes les lignes qu'elle réserve (elle s'y dessine,
+centrée : `place_d_une_formule` laisse une marge positive par construction). La marge d'une
+ligne n'est pas choisie : `test_ligne_1_rien_ne_sort_d_une_ligne_de_plus_d_une_ligne` lit les
+tables `head` des **six** polices embarquées et la plaque d'un `code` à chaque taille de ligne,
+titres compris, et prouve que rien n'en sort de plus. Il en sort vraiment quelque chose : « Ǻ »
+monte à 1,105 em dans Inter SemiBold, « ① » descend à −0,32 em — un titre déborde de sa ligne
+par les deux côtés. `test_ligne_1_ne_change_jamais_le_releve` fait passer un nœud qui les porte,
+avec une formule haute, sous tout l'écran par pas de treize pixels, et exige que le relevé soit
+**identique** avec et sans la règle. Le `Vectoriel` gagne `voit_la_bande` (le SVG voit tout).
+
+**La mémoire des mises en page** (`card/memoire.rs`, `MisesEnPage`) : la mise en page était
+refaite **deux fois par image pour chaque nœud de texte visible** — une pour compter ses lignes
+(`composants.rs`), une pour le dessiner — de près comme de loin, un tableau de mille textes
+deux mille fois par image. Elle est gardée, possédée par le `Renderer` comme la typographie et les
+formules, passée par le `PaintKit` et la `Pass` (vingt-deux constructions complétées). Sa loi
+d'oubli est celle des textures et de l'atlas : au début de chaque image
+(`synchroniser_les_caches`), ce que l'image d'avant n'a pas demandé s'oublie ; aucune capacité.
+Sa clé est **le texte lui-même** (rangée par largeur et mode, puis `HashMap<Box<str>, _>`) : un
+premier jet comparait le texte derrière une empreinte, une garde qui ne servait qu'aux
+collisions — aucune épreuve n'aurait pu la voir ; la table l'a remplacée. Elle ne vit pas dans la
+typographie : la mise en page dépend de la typographie, pas l'inverse, et un cycle aurait défait
+la brique.
+
+| mots | relevé par image, avant | LIGNE-1 seule | LIGNE-1 et la mémoire |
+|---|---|---|---|
+| 44 | 0,46 ms | 0,46 | 0,66 |
+| 440 | 0,71 | 0,65 | 0,48 |
+| 4 400 | 3,56 | 1,90 | 0,57 |
+| 17 600 | **10,5** | 5,66 | **0,72** |
+
+Le relevé ne dépend plus de la longueur du nœud ; seule sa première image paie la mise en page,
+une fois (3,5 ms à 17 600 mots). Les écarts à 44 mots sont du bruit (une exécution contre une
+autre, METHODE § 4).
+
 **La frontière « plus grand que l'écran ».** Elle n'ajoute aucun nombre, et c'est sa force. Mais
 elle ne retire pas tout le flou : **sous** elle, un nœud reste une texture, et pendant un zoom il
 change de palier dyadique ; tant que le palier suivant n'est pas peint, c'est la texture du palier

@@ -61,6 +61,7 @@ fn rendu_a(arrow: &Annotation, editing: Option<&TextEditSession>, zoom: f64) -> 
     let ctx = Pass {
         typography: &typography,
         math: &math,
+        mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
         vp,

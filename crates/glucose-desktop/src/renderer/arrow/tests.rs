@@ -39,6 +39,7 @@ fn rendu(points: &[(f64, f64)], zoom: f64, selectionnee: bool, double_sens: bool
     let ctx = Pass {
         typography: &typography,
         math: &math,
+        mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
         vp,
