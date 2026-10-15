@@ -37,7 +37,7 @@ pub(crate) fn nom_de(chemin: &Path) -> String {
 
 /// Combien de documents la liste montre au plus : ce qu'un téléphone tient debout, en
 /// rangées de 48 points, sous son titre.
-const MONTRES: usize = 10;
+pub(crate) const MONTRES: usize = 10;
 
 /// **Les documents de ce dossier**, du plus récemment touché au plus ancien.
 pub(crate) fn les_documents(dossier: &Path) -> Vec<PathBuf> {

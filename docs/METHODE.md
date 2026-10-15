@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 15/10/2026** (fiches 59 à 71). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 15/10/2026** (fiches 59 à 72). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -149,6 +149,12 @@
 | **Une épreuve globale qui dilue ce qui est petit ou peu contrasté** : la superposition du SVG ne voyait ni un texte bleu sur bleu absent, ni un glyphe grossi de 5 %, ni un décalage d'un pixel (fiche 71) | une épreuve globale borne le gros ; chaque petite garde a son épreuve ciblée, jugée si possible par un autre que nous (`fontdue`, `resvg`) |
 | **Un brouillon de release déposé sans le dire** : une `v2.0.3-beta.3` du 14/10, sur un commit d'avant le storyboard et l'export SVG, attendait sur GitHub ; la publication du 15/10 a refusé de la remplacer (fiche 71) | une fiche dit chaque brouillon déposé (sa version, son commit) ; avant de publier, lister les releases et lire la cible de celle qu'on va publier |
 | **Une commande de sabotage qui ne lance pas l'épreuve visée** : BORNES-2 « aveugle » — son épreuve vit dans `tests/store_suite.rs`, la commande ne lançait que `--lib` (fiche 71) | avant de saboter, lancer la commande sur le code intact et vérifier qu'elle **exécute** l'épreuve visée (son nom dans la sortie) |
+| **Une limite du serveur payée en silence par le client** : le serveur refusait toute session de plus de 512 Kio, le client retenait le refus pour toujours — les longues sessions, celles qui comptaient, ne partaient jamais (fiche 72) | une donnée trop grosse se raccourcit avant de partir ; un verdict se retient **avec ce qui l'a causé** (la version), et se retente quand la cause a pu changer |
+| **Un essai lancé avant que le déploiement soit arrivé** : le serveur refusait encore, trente secondes après `wrangler deploy` (fiche 72) | attendre la minute de propagation de Cloudflare avant de chercher une cause |
+| **Une garde qui cache un défaut** : `MAX_FONT_SIZE` empêchait le gel d'une lettre géante, et réduisait les lettres de près depuis toujours (fiche 72) | quand le coût cesse de dépendre de la grandeur gardée, retirer la garde — et regarder ce qu'elle tordait |
+| **Un seuil emprunté** : 256 px, celui de Skia, laissait ×16 au pire ; le croisement mesuré est vers 100 (fiche 72) | mesurer le croisement des deux coûts sur sa machine, écrire le journal des valeurs essayées |
+| **Une loi implicite perdue en mettant en table** : le clavier français marchait parce que cinq `match` ignoraient Alt et Maj par endroits (fiche 72) | avant de remplacer un aiguillage, écrire la loi qu'il appliquait sans le dire (ACCORD-1), et l'éprouver par les claviers qu'elle sert |
+| **Un nombre écrit de tête dans un document** : « 89 commandes » — le compte est 75 (fiche 72) | compter dans le code, ou s'appuyer sur ce que le type tient (la longueur d'un tableau) |
 
 ## 5. Les pièges pratiques
 
@@ -169,7 +175,8 @@
   Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
-  `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
+  `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
   texte).
 * **L'APK signé, depuis ce PC** : `outils/android/construire.sh` avec, **en chemins Windows**,
@@ -230,6 +237,11 @@
   répond pas hors de son navigateur (fiche 67).
 * **Le jeton de `wrangler` expire** : une erreur 7403 (« account not authorized ») sur une
   requête à la base se règle par `npx wrangler whoami`, qui le rafraîchit.
+* **Le serveur avant le client** : une ligne neuve de la boîte noire se déploie d'abord
+  (`npx wrangler deploy` dans `outils/telemetrie`), se prouve en ligne une minute plus tard (une
+  session jetable, puis son effacement, puis la base relue — le script de la fiche 72), et
+  seulement ensuite part dans une version : un client neuf devant un serveur ancien voit chacune de
+  ses sessions refusée.
 * **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le
   fichier, le dossier seul échoue sur ce Node. **Cloudflare refuse un client sans en-tête
   d'identité** (erreur 1010) : un essai en ligne donne un `user-agent`, s'efface ensuite

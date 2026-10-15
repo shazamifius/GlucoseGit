@@ -168,7 +168,7 @@ fn test_le_clic_droit_sur_un_onglet_ouvre_son_menu() {
     assert_eq!(app.ui.onglets.menu.as_deref(), Some(b.as_str()));
     let menu = crate::ui::context_menu::layout_context_menu(
         &app.store,
-        &app.renderer.typography,
+        (&app.renderer.typography, &app.ui.clavier),
         (
             app.ui.context_menu_at.expect("un menu"),
             app.ui.onglets.menu.as_deref(),

@@ -1,0 +1,253 @@
+[
+ {
+  "nom": "AltGr compte comme Alt",
+  "fichier": "crates/glucose-core/src/raccourcis/accord.rs",
+  "avant": "            alt: alt && !ctrl,",
+  "apres": "            alt,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "Maj compte pour un signe",
+  "fichier": "crates/glucose-core/src/raccourcis/accord.rs",
+  "avant": "            maj: maj && touche.prend_maj(),",
+  "apres": "            maj,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "une lettre gardee en majuscule",
+  "fichier": "crates/glucose-core/src/raccourcis/accord.rs",
+  "avant": "            Touche::Lettre(c.to_lowercase().next().unwrap_or(c))",
+  "apres": "            Touche::Lettre(c)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "la couche du dessous l'emporte",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "            .rev()\n            .find_map(|c| c.liaison(accord))",
+  "apres": "            .find_map(|c| c.liaison(accord))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "un accord lie deux fois sans le dire",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "                Ok((accord, _)) if couche.liaison(&accord).is_some() => {",
+  "apres": "                Ok((accord, _)) if false && couche.liaison(&accord).is_some() => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "les accords de la couche du dessous d'abord",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "        for a in self.couches.iter().rev().flat_map(Couche::accords) {",
+  "apres": "        for a in self.couches.iter().flat_map(Couche::accords) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "seule la premiere commande d'un accord",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "            if self.executer(commande) {\n                return;\n            }",
+  "apres": "            self.executer(commande);\n            return;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ },
+ {
+  "nom": "la repetition passe partout",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "        self.commandes_de(key).iter().any(|c| c.repetable())",
+  "apres": "        !self.commandes_de(key).is_empty()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ },
+ {
+  "nom": "annuler ne se repete plus",
+  "fichier": "crates/glucose-desktop/src/commandes.rs",
+  "avant": "            Commande::Pousser(..) | Commande::Annuler | Commande::Retablir",
+  "apres": "            Commande::Pousser(..) | Commande::Retablir",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ },
+ {
+  "nom": "la palette ramene l'evidence a chaque image",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "                if ecrit == *filtre {\n                    return;\n                }",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ },
+ {
+  "nom": "la palette ignore les accents",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "            'é' | 'è' | 'ê' | 'ë' => 'e',",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ },
+ {
+  "nom": "le menu dit le dernier accord",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+  "avant": "            .accords_de(&c.id())\n            .first()",
+  "apres": "            .accords_de(&c.id())\n            .last()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ },
+ {
+  "nom": "le menu au doigt dit les raccourcis",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+  "avant": "    if doigt {\n        return String::new();\n    }",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "shortcuts",
+   "commandes",
+   "signet",
+   "menu",
+   "toucher",
+   "question",
+   "file_shortcuts",
+   "ctrl_n",
+   "empreinte"
+  ]
+ }
+]

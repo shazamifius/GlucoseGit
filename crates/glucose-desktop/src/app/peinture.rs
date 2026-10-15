@@ -189,6 +189,7 @@ impl GlucoseApp {
 
     pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
         self.suivre_la_grille_dans_le_panneau();
+        self.suivre_la_palette();
         // La salissure est **consommee** : ce qui est redessine maintenant cesse d'etre sale,
         // et une nouvelle demande arrivee pendant le rendu appartient a l'image suivante.
         let Some(sale) = self.ce_quil_faut_repeindre(tampon_neuf) else {

@@ -71,7 +71,7 @@ fn deposer_un_repli(app: &mut GlucoseApp) -> String {
 fn entrees(app: &GlucoseApp) -> Vec<MenuAction> {
     layout_context_menu(
         &app.store,
-        &app.renderer.typography,
+        (&app.renderer.typography, &app.ui.clavier),
         ((40.0, 40.0), None),
         (ECRAN.width, ECRAN.height),
         ECRAN.scale,
@@ -94,7 +94,7 @@ fn cliquer(app: &mut GlucoseApp, voulue: MenuAction) {
     app.ui.context_menu_at = Some((40.0, 40.0));
     let menu = layout_context_menu(
         &app.store,
-        &app.renderer.typography,
+        (&app.renderer.typography, &app.ui.clavier),
         ((40.0, 40.0), None),
         (ECRAN.width, ECRAN.height),
         ECRAN.scale,

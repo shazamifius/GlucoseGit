@@ -1,0 +1,80 @@
+# Les raccourcis de Glucose — la couche de base du preset de Glucose (P4, fiche 72).
+#
+# Un accord, puis la commande qu'il désigne ; plusieurs, séparées par |, la première qui
+# s'applique l'emportant ; - retire l'accord des couches du dessous. Les modificateurs : Ctrl,
+# Alt, Maj. Un chiffre est la touche marquée de ce chiffre, quel que soit le clavier.
+#
+# Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran.
+
+# Le document
+Ctrl+N          nouveau-document
+Ctrl+O          ouvrir
+Ctrl+S          enregistrer
+Ctrl+Maj+S      enregistrer-sous
+Ctrl+E          exporter
+Ctrl+I          importer-des-images
+Ctrl+H          time-machine
+
+# L'édition
+Ctrl+Z          annuler
+Ctrl+Y          retablir
+Ctrl+Maj+Z      retablir
+Ctrl+C          copier
+Ctrl+X          couper
+Ctrl+V          coller
+Ctrl+D          dupliquer
+Ctrl+A          tout-choisir
+Suppr           supprimer
+Effacer         supprimer
+Ctrl+]          premier-plan
+Ctrl+[          arriere-plan
+Ctrl+B          retirer-les-bordures
+L               verrouiller
+Gauche          pousser.gauche
+Droite          pousser.droite
+Haut            pousser.haut
+Bas             pousser.bas
+Maj+Gauche      pousser.gauche.dix
+Maj+Droite      pousser.droite.dix
+Maj+Haut        pousser.haut.dix
+Maj+Bas         pousser.bas.dix
+
+# Naviguer
+F               cadrer-la-selection
+Alt+F           tout-cadrer
+Espace          naviguer
+Echap           echap
+Ctrl+Maj+A      mode-reference
+Alt+T           mode-reference
+
+# Les outils
+V               outil.selection
+H               outil.main
+T               outil.texte
+N               outil.post-it
+A               outil.fleche
+M               outil.membrane
+
+# Les chiffres : la relation des flèches choisies — sinon, le signet de vue (PRED-1, signets)
+0               relation.aucune
+1               relation.1 | signet.aller.1
+2               relation.2 | signet.aller.2
+3               relation.3 | signet.aller.3
+4               relation.4 | signet.aller.4
+5               relation.5 | signet.aller.5
+6               relation.6 | signet.aller.6
+7               signet.aller.7
+8               signet.aller.8
+9               signet.aller.9
+Ctrl+1          signet.poser.1
+Ctrl+2          signet.poser.2
+Ctrl+3          signet.poser.3
+Ctrl+4          signet.poser.4
+Ctrl+5          signet.poser.5
+Ctrl+6          signet.poser.6
+Ctrl+7          signet.poser.7
+Ctrl+8          signet.poser.8
+Ctrl+9          signet.poser.9
+
+# L'interface
+Ctrl+Maj+P      palette

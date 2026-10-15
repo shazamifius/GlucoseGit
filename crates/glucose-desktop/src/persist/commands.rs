@@ -77,46 +77,6 @@ impl GlucoseApp {
         self.window_title_cache = title;
     }
 
-    /// `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+N`, `Ctrl+I`, `Ctrl+E`. Rend `true` si la touche a été
-    /// consommée.
-    pub fn handle_file_shortcut(&mut self, key: &str) -> bool {
-        if !self.modifiers.control_key() {
-            return false;
-        }
-        match key {
-            "s" | "S" => {
-                if self.modifiers.shift_key() {
-                    self.save_project_as();
-                } else {
-                    self.save_project();
-                }
-                true
-            }
-            "o" | "O" => {
-                self.open_project();
-                true
-            }
-            "n" | "N" => {
-                self.nouveau_document();
-                true
-            }
-            "i" | "I" => {
-                self.pick_and_import_images();
-                true
-            }
-            "e" | "E" => {
-                self.export_board();
-                true
-            }
-            // La Time Machine, au raccourci de Glucose Tauri.
-            "h" | "H" => {
-                self.basculer_la_machine();
-                true
-            }
-            _ => false,
-        }
-    }
-
     /// Enregistre, en demandant un chemin si le projet n'en a pas encore.
     pub fn save_project(&mut self) {
         self.enregistrer_puis(super::close::Puis::Rien);

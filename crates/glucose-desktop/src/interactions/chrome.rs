@@ -12,7 +12,6 @@ use crate::ui::action_bar::ActionBarClick;
 use crate::ui::context_menu::MenuAction;
 use crate::ui::{handle_ui_click, UiAction};
 use glucose_core::membrane_focus::ScreenSize;
-use glucose_core::store::StackMove;
 
 impl GlucoseApp {
     /// Le fil d'Ariane occupe une bande sous les onglets, donc il passe avant la chrome.
@@ -86,7 +85,7 @@ impl GlucoseApp {
         let onglet = self.ui.onglets.menu.take();
         let menu = crate::ui::context_menu::layout_context_menu(
             &self.store,
-            &self.renderer.typography,
+            (&self.renderer.typography, &self.ui.clavier),
             (at, onglet.as_deref()),
             (screen.width, screen.height),
             self.ui.scale_factor,
@@ -109,56 +108,16 @@ impl GlucoseApp {
     }
 
     fn apply_menu_action(&mut self, action: MenuAction, onglet: Option<&str>) {
-        let board = self.store.project.active_board_id.clone();
-        match action {
-            MenuAction::AjouterDesImages => self.pick_and_import_images(),
-            MenuAction::Copier => self.copy_selection(false),
-            MenuAction::Couper => self.copy_selection(true),
-            MenuAction::NouveauDocument => self.nouveau_document(),
-            MenuAction::OuvrirUnDocument => self.choisir_un_document(),
-            MenuAction::ModeReference => self.basculer_le_mode_reference(),
-            MenuAction::JournalTechnique => self.revoir_la_telemetrie(),
-            MenuAction::VoirCeQuiPart => self.voir_ce_qui_part(),
-            MenuAction::Duplicate => self.duplicate_selection(),
-            MenuAction::EnregistrerLImage => self.enregistrer_l_image_sous(),
-            MenuAction::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
-            MenuAction::ToggleLock => self.toggle_lock(),
-            MenuAction::TrimBorders => self.retirer_les_bordures_de_la_selection(),
-            MenuAction::StoryboardDeLaSelection => self.storyboard_de_la_selection(),
-            MenuAction::LireLeStoryboard => {
-                let depuis = self.ui.storyboard.choisie.clone();
-                self.lire_le_storyboard(depuis.as_deref());
-            }
-            MenuAction::ExporterLesPlanches => self.exporter_les_planches(),
-            MenuAction::ToFront => {
-                self.store.move_selection_in_stack(&board, StackMove::Front);
-            }
-            MenuAction::ToBack => {
-                self.store.move_selection_in_stack(&board, StackMove::Back);
-            }
-            MenuAction::Delete => self.delete_selection(),
-            MenuAction::Paste => self.paste_from_clipboard(),
-            MenuAction::SelectAll => self.select_all(),
-            MenuAction::RenommerOnglet => {
-                if let Some(id) = onglet {
-                    self.commencer_le_renommage(id);
-                }
-            }
-            MenuAction::SupprimerOnglet => {
-                if let Some(id) = onglet {
-                    self.fermer_l_onglet(id);
-                }
-            }
-            MenuAction::NouvelOnglet => self.ajouter_un_onglet(),
-            MenuAction::AjouterUnDocument => self.choisir_un_document_a_ajouter(),
-            MenuAction::Annuler => self.annuler(),
-            MenuAction::Retablir => self.retablir(),
-            MenuAction::ToutCadrer => self.cadrer(false),
-            MenuAction::CadrerLaSelection => self.cadrer(true),
-            MenuAction::Signets => self.montrer_les_signets(),
-            MenuAction::Enregistrer => self.enregistrer_depuis_le_menu(),
-            MenuAction::EnregistrerSous => self.enregistrer_sous_depuis_le_menu(),
-            MenuAction::Exporter => self.export_board(),
+        // Une entrée du menu est une commande de la table (P4, fiche 72) : le menu, le clavier
+        // et la palette appellent le même geste. Seuls ceux d'un onglet portent son nom.
+        if let Some(commande) = action.commande() {
+            self.executer(commande);
+            return;
+        }
+        match (action, onglet) {
+            (MenuAction::RenommerOnglet, Some(id)) => self.commencer_le_renommage(id),
+            (MenuAction::SupprimerOnglet, Some(id)) => self.fermer_l_onglet(id),
+            _ => {}
         }
         self.mark_dirty();
     }

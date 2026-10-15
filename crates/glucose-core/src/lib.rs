@@ -34,6 +34,7 @@ pub mod mirror_graph;
 pub mod occlusion;
 pub mod persist;
 pub mod quadtree;
+pub mod raccourcis;
 pub mod report;
 pub mod resize;
 pub mod rotate;

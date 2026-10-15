@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 15/10/2026** (fiche 71). La feuille de route de Glucose Rust. Chaque chantier dit **ce qui
+> **Au 15/10/2026, le soir** (fiche 72). La feuille de route de Glucose Rust. Chaque chantier dit **ce qui
 > le déclare fini**. Tout y est à remettre en question — ses paroles comprises. La direction
 > vit dans [VISION](VISION.md), l'état vérifié dans [ÉTAT](ETAT.md), chaque fonction et son
 > bouton dans [INVENTAIRE](INVENTAIRE.md), la cible PureRef dans [PUREREF](PUREREF.md).
@@ -19,9 +19,12 @@
 | | chantier | ce qui le déclare fini |
 |---|---|---|
 | [x] | **P5 — L'export SVG complet** (fiches 69 à 71) : tout ce que le canevas montre, dans son ordre, le texte en tracés ; les flous bornés à leur portée (28 s → 62 ms) ; le rectangle net par la règle du canevas ; 30 sabotages, 30 chutes ; regardé sur une copie de son document « UwU » (superposé au PNG) | reste **ses yeux** : un SVG ouvert dans son navigateur et dans Inkscape (§ 2) |
-| [~] | **La 2.0.3-beta.3** — P0 (la mémoire du téléphone), le Storyboard complet, l'export SVG, le dossier, Mood board. **La CI groupée : dix vertes** (`58478d6`) ; **le brouillon est prêt** (sur `162502a` ; un brouillon oublié du 14/10 a été retiré, fiche 71 § 10) ; l'APK zippé sur son Bureau. Reste **son essai de l'APK au téléphone**, puis **son clic** « Publish release » | publiée par lui |
-| [ ] | **P0 — Glucose ne doit jamais figer un téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3). Reste **son téléphone** : l'APK installé (sans câble : le zip par Drive, fiche 71 § 3), une longue session, ses lignes `memoire` et `alerte_memoire` lues dans la télémétrie — et la session du gel, qui partira à la première ouverture | une longue session sans saccade qui monte ni gel ; ses lignes lues |
-| [ ] | **P4 — La fondation des presets** (sa parole du 15/10, [VISION](VISION.md)) : **l'interface devient une donnée** — une table des commandes (chaque action nommée, une fois), une table des raccourcis qui les désigne, le thème, la disposition des panneaux ; puis la **palette de commandes** (`Ctrl+Maj+P`, PureRef), qui en sort d'elle-même. Les presets sont des **couches** qu'on mélange (les raccourcis de Figma avec l'allure de Glucose) — sa réponse du 15/10. Rien ne change à l'écran tant qu'il n'y a qu'un preset. **La grande session suivante** | chaque raccourci et chaque commande lus dans leur table ; une épreuve qui change un raccourci par la table ; saboté |
+| [x] | **La 2.0.3-beta.3** — publiée par lui le 15/10 | publiée par lui |
+| [~] | **La 2.0.3-beta.4** (fiche 72) — la télémétrie qui ne perd plus les longues sessions, la raison de mort d'Android (SORTIE-1), ce que la reprise rouvre (REPRISE-1), VIE-2, le texte net de près (GRAND-1), le zoom ×256. **CI dix vertes** (`3e1ee42`) ; **le brouillon** sur `b6a8ea4` ; l'APK zippé sur son Bureau. Reste **son essai au téléphone**, puis **son clic** « Publish release » | publiée par lui |
+| [ ] | **P0 — Glucose ne doit jamais figer ni perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu** (fiche 72 § 4) : la cause n'est pas connue. La beta 4 la dira : ses lignes `sortie` (la raison d'Android, la mémoire à la mort) et `reprise` (ce que le lancement a rouvert), et les longues sessions qui partent enfin. **Ne pas désinstaller** : le brouillon est peut-être encore là | la cause nommée par ses lignes ; puis corrigée, éprouvée sur une copie |
+| [~] | **P4 — La fondation des presets** (fiche 72) : **fait** — le noyau des raccourcis (`glucose-core::raccourcis` : l'accord et sa loi ACCORD-1, le clavier français ; la couche en texte ; la pile qui remplace ou retire), **la table des 75 commandes** (`commandes.rs`), les raccourcis de Glucose en couche (`assets/raccourcis/glucose.txt`), **le menu qui exécute les commandes et dit leurs raccourcis lus dans le clavier**, **la palette** (`Ctrl+Maj+P`) ; un raccourci changé par la table, éprouvé ; rien n'a changé à l'écran (le témoin du menu). **Reste** : la couche de l'utilisateur, lue sur le disque et modifiable ; le thème et la disposition des panneaux comme données ; puis les presets PureRef, Figma, Miro comme couches | à son écran : `Ctrl+Maj+P` ; puis la couche de l'utilisateur |
+| [ ] | **P8 — Le texte par la carte graphique** (fiche 72 § 5) : de près, le texte se rastérise au processeur et la cascade montre un repli flou le temps de refaire les carrés. **Slug** (Eric Lengyel), dans le domaine public depuis le 17/03/2026, nuanceurs MIT : les lettres rendues par la carte depuis leurs courbes, nettes à tout zoom sans re-rastériser. Les contours sont déjà lus (GRAND-1) ; les fontes CFF (Inter Italic) demandent les cubiques en quadratiques ; le texte riche, les formules et les cadres à porter en primitives | de près, aucun flou, sur sa machine et au téléphone |
+| [ ] | **Ordonner, très très grandement** (sa proposition du 15/10) : à concevoir avec lui — ce qui manque (PureRef : par nom, par date, en ligne, en colonne — dans le noyau sans bouton ; aligner, distribuer, empiler, normaliser), et ce qu'il entend par « grandement » | sa parole, puis à son écran |
 | [ ] | **P3 — Ce que son téléphone dira** : POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent. Son téléphone tournait à **19,5 ms** par image en médiane — sous le plancher presque tout le temps | les postes lus, le coupable nommé par la mesure |
 | [ ] | **Les choix à l'utilisateur** (sa parole : « TOUJOURS CHOISIR ») : la planche claire ou sombre, les champs (dialogue, action, notes) sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux, les photos du SVG en originaux ou réduites | chaque choix dans la question ou le panneau où l'on agit, enregistré, saboté |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande ; la carte d'accueil qui naît choisie au premier lancement | la liste de ce qui manque, puis fait |
@@ -39,6 +42,12 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 *« si j'ai absolument tout testé, normalement 100 % des fonctionnalités sont validées »*.
 
 **Au PC** — `cargo run --release > sortie-essais.txt 2>&1` :
+
+* **Le texte de près** (fiche 72) : zoomer très près d'un texte, d'un titre de membrane, d'une
+  formule — net bien plus vite ; et **le zoom jusqu'à ×256**.
+* **La palette** : `Ctrl+Maj+P`, écrire « dupl », Entrée ; les flèches pour choisir ; Échap.
+* **Le menu du clic droit** : ses raccourcis viennent désormais du clavier — rien ne doit avoir
+  changé à l'œil.
 
 * **Le Storyboard** (fiches 64 à 68) : « Activer », la grille qui suit la souris par son coin,
   un clic ou un rectangle tracé ; la poignée qui le retrace ; une case lâchée ailleurs ; décrire
@@ -63,9 +72,11 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
   sur leur ligne ; la Time Machine pendant un zoom ; `Ctrl+Z` après un glisser ; l'aimant sur un
   tableau chargé ; un PDF glissé d'une page web.
 
-**Au téléphone** — l'APK de la beta 3 :
+**Au téléphone** — l'APK de la beta 4 (zippé sur son Bureau) :
 
-* l'ouvrir une première fois (la session du gel part), puis une **longue session** ;
+* l'installer **par-dessus** (ne pas désinstaller : un brouillon perdu est peut-être encore là),
+  l'ouvrir une fois, puis une **longue session** ; si Glucose se ferme seul, le rouvrir deux
+  fois — ses lignes partent au lancement suivant ;
 * le clavier (écrire dans un texte), l'appui long (le clic droit), deux doigts touchés annulent,
   trois rétablissent ; renommer, dupliquer, supprimer un document (appui long dans la liste) ;
 * le Storyboard au doigt ; un dossier choisi (son menu, sa barre) ; le partage vers Glucose
@@ -87,7 +98,9 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 ## 4. Plus loin
 
-Le co-working (sur le journal du document) · le MCP réécrit en Rust · les plugins selon sa vision
+**L'améliorateur d'image à l'import** (sa parole du 15/10) : comprendre une image avant d'y
+toucher (filtres de Gabor, GLCM, LBP — son cerveau d'image, `recherche/cerveau-image/`) pour
+débruiter, déflouter, agrandir sans inventer · Le co-working (sur le journal du document) · le MCP réécrit en Rust · les plugins selon sa vision
 ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · Glucose en briques réutilisables (des milliers de
 forks, [VISION](VISION.md)) · la fondation des 10⁷ nœuds (l'arène, écrite, en attente) · le modèle
 de coût qui **prédit** ce qu'une image va coûter · et le but : le canevas de Wikipédia de

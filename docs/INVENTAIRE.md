@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 15/10/2026** (fiches 63 à 71). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 15/10/2026** (fiches 63 à 72). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -40,7 +40,8 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 
 | fonction | au PC | au téléphone |
 |---|---|---|
-| Se déplacer, zoomer | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
+| Se déplacer, zoomer (jusqu'à ×256, fiche 72) | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
+| **La palette de commandes** — chaque commande cherchée par son nom, lancée par Entrée (fiche 72) | **menu du vide**, `Ctrl+Maj+P` | ✅ menu (deux touchers sur le vide) |
 | Tout cadrer | **menu du vide** (ACCES-1), **`Alt+F`** (`Ctrl+F` jusqu'au 13/10, rendu à la recherche — fiche 65) | ✅ menu |
 | Cadrer la sélection | **menu de la sélection** (ACCES-1), `F` | ✅ menu |
 | Signets de vue (poser, y voler, remplacer) | **menu du vide « Signets… »** (ACCES-1), `Ctrl+1…9`, `1…9` | ✅ menu |

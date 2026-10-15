@@ -170,6 +170,7 @@ impl GlucoseApp {
             Suite::Laisser(ensuite) => self.repondre_au_depart(reponse, ensuite),
             Suite::MiseAJour(proposition) if oui => self.preparer_la_mise_a_jour(proposition),
             Suite::Signets => self.suivre_les_signets(reponse),
+            Suite::Palette(filtre) => self.lancer_depuis_la_palette(&filtre, reponse),
             Suite::Exporter => self.exporter_au_format(reponse),
             Suite::RemplacerUnSignet => self.remplacer_le_signet(reponse),
             Suite::Ajouter(chemins) => {

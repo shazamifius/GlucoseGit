@@ -1,27 +1,34 @@
 # Où en est Glucose
 
-> **Au 15/10/2026** (fiche 71). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 15/10/2026, le soir** (fiche 72). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
-> le [carnet](carnet/00-INDEX.md) (fiches 51 à 71 pour la V2). La direction : [VISION](VISION.md).
+> le [carnet](carnet/00-INDEX.md) (fiches 51 à 72 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
 
 ---
 
 ## 1. En une page
 
-* **Glucose Rust est publié.** La **2.0.3-beta.2** est la release « latest » depuis le 13/10 (sur
-  `82c774b`, CI dix vertes) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
+* **Glucose Rust est publié.** La **2.0.3-beta.3** est la release « latest » depuis le 15/10
+  (publiée par lui) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
   `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses données ne sont jamais
-  touchées. **La 2.0.3-beta.3 est prête en brouillon** (fiche 71 : sur `162502a`, CI dix vertes, publication
-  38721371815) : la mémoire du téléphone, le Storyboard complet, l'export SVG complet, le dossier
-  corrigé, Mood board. Son APK, signé de sa clé (`3f2af005…`), est zippé sur son Bureau
-  (`Glucose-2.0.3-beta.3-telephone.zip`) : **son essai, puis son clic** « Publish release ».
+  touchées. **La 2.0.3-beta.4 est prête en brouillon** (fiche 72 : CI dix vertes sur `3e1ee42`,
+  le brouillon sur `b6a8ea4`, qui n'ajoute que ses notes) : la télémétrie qui ne perd plus les
+  longues sessions, la raison de mort d'Android, ce que la reprise rouvre, le texte net de près,
+  le zoom ×256. Son APK, signé de sa clé, est zippé sur son Bureau
+  (`Glucose-2.0.3-beta.4-telephone.zip`) : **son essai, puis son clic** « Publish release ».
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
   Cloudflare de son compte, `docs/TELEMETRIE.md`) : 59 sessions, 5 installations au 15/10, dont
   deux utilisateurs Windows inconnus de lui.
+* **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est
+  pas revenu** (« parfaitement fluide » jusque-là). **Cause inconnue** : aucune session de la
+  beta 3 n'est arrivée du téléphone — le serveur refusait toute session de plus de 512 Kio, et le
+  refus était retenu pour toujours (réparé, POIDS-1). La beta 4 dira la raison de mort qu'Android
+  garde (SORTIE-1) et ce que le lancement suivant a rouvert (REPRISE-1). Rien dans le code
+  n'efface un brouillon à la mort : **son tableau est peut-être encore dans le téléphone**.
 * **Android** : Glucose tourne sur son **moto g54 5G** (une PowerVR BXM-8-256). **Le 12/10, une
   longue session a figé tout le téléphone**, bouton d'alimentation compris, après des saccades qui
   montaient, puis un redémarrage seul — *« c'est bien Glucose »*. Cause la plus probable : la
@@ -45,10 +52,11 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; souris instantanée ; pavé par *Direct Manipulation* (la similitude entière des doigts — « tellement mieux qu'avant », 15/10) ; `F` cadre la sélection, `Alt+F` tout ; signets `Ctrl+1..9` ; minimap ; onglets ; le canevas défile au bord ; les doigts au téléphone |
+| **Naviguer** | canevas infini, **zoom jusqu'à ×256** (déduit de la précision du document, fiche 72) ; souris instantanée ; pavé par *Direct Manipulation* (la similitude entière des doigts — « tellement mieux qu'avant », 15/10) ; `F` cadre la sélection, `Alt+F` tout ; signets `Ctrl+1..9` ; minimap ; onglets ; le canevas défile au bord ; les doigts au téléphone |
 | **Le document** | `.glucose` écrit geste après geste, images scellées, brouillons, reprise au lancement, Time Machine (`Ctrl+H`), documents de Tauri lus ; `Ctrl+N`, `Ctrl+O` ; au téléphone, les documents rangés et rouverts |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; coller, déposer (Pinterest en pleine résolution sous Windows) ; rotation, recadrage non destructif, `Ctrl+B` ; la mémoire par étages (carte graphique, mémoire, disque, bornés par ce que la machine laisse) |
-| **Texte** | Markdown, tableaux, liens, LaTeX fidèle à KaTeX, annulation mot par mot ; le clavier du téléphone |
+| **Texte** | Markdown, tableaux, liens, LaTeX fidèle à KaTeX, annulation mot par mot ; le clavier du téléphone ; **de près, les grandes lettres se tracent** (GRAND-1, fiche 72) |
+| **L'interface** | **les raccourcis sont une donnée** (une couche de texte, `assets/raccourcis/glucose.txt`), **75 commandes** dans une table, le menu qui les exécute et dit leurs raccourcis, **la palette** (`Ctrl+Maj+P`) — la fondation des presets (P4, fiche 72) |
 | **Flèches** | droites ou courbes, double sens, six relations, coudes, contournement, ancres de texte |
 | **Copier, coller** | la sélection entière d'une fenêtre à l'autre ; un seul « Copier » qui donne aussi les images (Discord, navigateur) ; le glisser vers d'autres applications sous Windows ; sous Linux, la sélection X11 servie par Glucose |
 | **Organiser** | membranes (tracées ou posées) ; dossiers ; domaines ; aimant ; **Ordonner** (cinq dispositions, huit tris dont trois par la couleur) ; **Mood board** (six gabarits de zones, « Par mood board ») ; **le Storyboard** : la grille tracée, retracée, ses cases glissées, décrites, plusieurs images qui remplissent les cases, un storyboard de la sélection, les « + », la lecture plein écran, durée, plan et champs par case, plusieurs storyboards par tableau, les planches en PDF |
@@ -64,15 +72,17 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **2 535 épreuves** sous Windows, toutes vertes (15/10, fiche 71) ; clippy strict à zéro sous
+* **2 568 épreuves** sous Windows, toutes vertes (15/10, fiche 72) ; clippy strict à zéro sous
   Windows et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
-  (`outils/sabotages/`, un fichier par chantier) — 30 sur 30 pour l'export SVG (fiche 71).
+  (`outils/sabotages/`, un fichier par chantier) — 30 sur 30 pour l'export SVG (fiche 71) ; à la
+  fiche 72, 25 sur 25 pour le téléphone, 10 sur 10 pour GRAND-1, 2 sur 2 pour le zoom, et P4.
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;
-  **`58478d6` (15/10) : dix vertes** — la CI groupée de la beta 3 (exécution 38717823204).
+  **`58478d6` (15/10) : dix vertes** — la CI groupée de la beta 3 (exécution 38717823204) ;
+  **`3e1ee42` (15/10) : dix vertes** — celle de la beta 4 (exécution 38749250295).
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication. **Au repos**, Glucose
   redessine encore pour ses messages (1,6 image par seconde) : la charte dit zéro.
 

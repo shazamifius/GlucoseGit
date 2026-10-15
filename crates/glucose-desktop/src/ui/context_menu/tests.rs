@@ -28,7 +28,18 @@ fn store_with(images: usize, cartes: usize, selection: bool) -> Store {
 }
 
 fn menu(store: &Store, at: (f32, f32)) -> ContextMenu {
-    layout_context_menu(store, &Typography::new(), (at, None), SCREEN, 1.0, false).expect("un menu")
+    layout_context_menu(
+        store,
+        (
+            &Typography::new(),
+            &crate::commandes::clavier_de_glucose().0,
+        ),
+        (at, None),
+        SCREEN,
+        1.0,
+        false,
+    )
+    .expect("un menu")
 }
 
 fn actions(m: &ContextMenu) -> Vec<MenuAction> {
@@ -53,6 +64,7 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
             MenuAction::SelectAll,
             MenuAction::ToutCadrer,
             MenuAction::Signets,
+            MenuAction::Palette,
             MenuAction::NouveauDocument,
             MenuAction::OuvrirUnDocument,
             MenuAction::Enregistrer,
@@ -215,7 +227,10 @@ fn test_au_doigt_chaque_entree_fait_quarante_huit_points_sans_raccourci() {
     for densite in [1.0f32, 2.0, 3.0] {
         let m = layout_context_menu(
             &store,
-            &Typography::new(),
+            (
+                &Typography::new(),
+                &crate::commandes::clavier_de_glucose().0,
+            ),
             ((100.0, 100.0), None),
             SCREEN,
             densite,
@@ -314,13 +329,27 @@ fn test_acces_1_chaque_geste_du_clavier_a_son_entree() {
 fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
     let store = store_with(1, 0, false);
     let typo = Typography::new();
-    let haut = layout_context_menu(&store, &typo, ((10.0, 10.0), None), SCREEN, 1.0, true)
-        .expect("un menu");
+    let haut = layout_context_menu(
+        &store,
+        (&typo, &crate::commandes::clavier_de_glucose().0),
+        ((10.0, 10.0), None),
+        SCREEN,
+        1.0,
+        true,
+    )
+    .expect("un menu");
     // Trois cents pixels : sous les deux premiers groupes, le troisième ne tient plus entier —
     // sans la règle des groupes, la colonne se couperait au milieu de lui.
     let bas = (SCREEN.0, 300.0);
-    let range =
-        layout_context_menu(&store, &typo, ((10.0, 10.0), None), bas, 1.0, true).expect("un menu");
+    let range = layout_context_menu(
+        &store,
+        (&typo, &crate::commandes::clavier_de_glucose().0),
+        ((10.0, 10.0), None),
+        bas,
+        1.0,
+        true,
+    )
+    .expect("un menu");
     assert_eq!(actions(&range), actions(&haut), "aucune entree perdue");
     let colonnes = |m: &ContextMenu| {
         let mut x: Vec<i32> = m
@@ -401,7 +430,7 @@ fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
 }
 
 /// **« Lire le storyboard » n'existe que s'il y a des cases à lire** (fiche 67), juste après
-/// les signets — au clic droit comme au doigt.
+/// les signets et la palette (fiche 72) — au clic droit comme au doigt.
 #[test]
 fn test_lire_le_storyboard_n_existe_que_s_il_y_a_des_cases() {
     let mut store = store_with(0, 0, false);
@@ -411,14 +440,14 @@ fn test_lire_le_storyboard_n_existe_que_s_il_y_a_des_cases() {
     store.poser_le_storyboard(&board, grille, (0.0, 0.0));
     store.clear_selection();
     let offertes = actions(&menu(&store, (100.0, 100.0)));
-    let signets = offertes.iter().position(|a| *a == MenuAction::Signets);
+    let palette = offertes.iter().position(|a| *a == MenuAction::Palette);
     let lire = offertes
         .iter()
         .position(|a| *a == MenuAction::LireLeStoryboard);
     assert_eq!(
         lire,
-        signets.map(|s| s + 1),
-        "après les signets : {offertes:?}"
+        palette.map(|s| s + 1),
+        "après les signets et la palette : {offertes:?}"
     );
     // Ses planches, juste après (P2.7, fiche 68) — et pas sans cases.
     let planches = offertes

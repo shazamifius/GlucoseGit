@@ -194,7 +194,7 @@ fn test_une_entree_du_menu_agit_vraiment() {
 
     let menu = crate::ui::context_menu::layout_context_menu(
         &app.store,
-        &app.renderer.typography,
+        (&app.renderer.typography, &app.ui.clavier),
         (app.ui.context_menu_at.expect("un menu ouvert"), None),
         (1440.0, 900.0),
         app.ui.scale_factor,
@@ -379,6 +379,15 @@ fn lettre(c: &str) -> Key {
     Key::Character(SmolStr::new(c))
 }
 
+/// **La répétition de cette touche passe-t-elle**, avec ces modificateurs ? La règle même que
+/// `handle_keyboard_shortcut` appelle (KEY-2) — lue dans la table des commandes (P4, fiche 72),
+/// et non plus dans une liste de touches à part.
+fn se_repete(key: Key, mods: ModifiersState) -> bool {
+    let mut app = GlucoseApp::new();
+    app.modifiers = mods;
+    app.la_repetition_passe(&key)
+}
+
 /// **Les actions qui créent quelque chose ne se répètent pas.**
 ///
 /// Mesuré avant ce filtre : maintenir `Ctrl+V` collait cinquante images par seconde, chacune
@@ -389,16 +398,26 @@ fn lettre(c: &str) -> Key {
 fn test_les_actions_ponctuelles_ne_se_repetent_pas() {
     for touche in ["v", "V", "s", "S", "o", "O", "i", "I", "d", "D", "a", "A"] {
         assert!(
-            !super::repetition_utile(&lettre(touche)),
-            "« {touche} » a un effet ponctuel : sa répétition automatique ne doit pas passer"
+            !se_repete(lettre(touche), ModifiersState::CONTROL),
+            "« Ctrl+{touche} » a un effet ponctuel : sa répétition automatique ne doit pas passer"
+        );
+        assert!(
+            !se_repete(lettre(touche), ModifiersState::empty()),
+            "« {touche} »"
         );
     }
-    assert!(!super::repetition_utile(&Key::Named(NamedKey::Delete)));
-    assert!(!super::repetition_utile(&Key::Named(NamedKey::Space)));
+    assert!(!se_repete(
+        Key::Named(NamedKey::Delete),
+        ModifiersState::empty()
+    ));
+    assert!(!se_repete(
+        Key::Named(NamedKey::Space),
+        ModifiersState::empty()
+    ));
 }
 
 /// Les flèches, elles, doivent se répéter : chaque répétition avance d'un pas de plus, et
-/// c'est le geste même du déplacement fin au clavier.
+/// c'est le geste même du déplacement fin au clavier — avec `Maj` aussi, dix pas à la fois.
 #[test]
 fn test_les_fleches_se_repetent() {
     for touche in [
@@ -407,7 +426,8 @@ fn test_les_fleches_se_repetent() {
         NamedKey::ArrowUp,
         NamedKey::ArrowDown,
     ] {
-        assert!(super::repetition_utile(&Key::Named(touche)));
+        assert!(se_repete(Key::Named(touche), ModifiersState::empty()));
+        assert!(se_repete(Key::Named(touche), ModifiersState::SHIFT));
     }
 }
 
@@ -416,8 +436,15 @@ fn test_les_fleches_se_repetent() {
 #[test]
 fn test_annuler_et_retablir_se_repetent() {
     for touche in ["z", "Z", "y", "Y"] {
-        assert!(super::repetition_utile(&lettre(touche)));
+        assert!(
+            se_repete(lettre(touche), ModifiersState::CONTROL),
+            "Ctrl+{touche}"
+        );
     }
+    assert!(se_repete(
+        lettre("Z"),
+        ModifiersState::CONTROL | ModifiersState::SHIFT
+    ));
 }
 
 // ── Les signets de vue ──────────────────────────────────────────────────────

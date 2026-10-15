@@ -133,17 +133,34 @@ fn test_opening_a_corrupted_file_leaves_the_current_document_alone() {
     std::fs::remove_file(&path).expect("nettoyage");
 }
 
+/// Les raccourcis du document ne partent qu'avec Ctrl — lus désormais dans la table (P4,
+/// fiche 72) : sans Ctrl, `s`, `o` et `i` ne désignent aucune commande du document ; avec Ctrl,
+/// une lettre étrangère au document non plus.
 #[test]
 fn test_file_shortcuts_only_fire_with_ctrl() {
+    use crate::commandes::Commande;
+    let du_document = [
+        Commande::Enregistrer,
+        Commande::EnregistrerSous,
+        Commande::OuvrirUnDocument,
+        Commande::NouveauDocument,
+        Commande::ImporterDesImages,
+        Commande::Exporter,
+        Commande::TimeMachine,
+    ];
+    let lettre = |c: &str| winit::keyboard::Key::Character(winit::keyboard::SmolStr::new(c));
     let mut app = GlucoseApp::new();
-    // Sans Ctrl, `s`, `o` et `i` appartiennent aux outils, pas au menu Fichier.
-    assert!(!app.handle_file_shortcut("s"));
-    assert!(!app.handle_file_shortcut("o"));
-    assert!(!app.handle_file_shortcut("i"));
-    // Avec Ctrl, une lettre etrangere au menu Fichier n'est pas consommee non plus.
+    for c in ["s", "o", "i"] {
+        let commandes = app.commandes_de(&lettre(c));
+        assert!(
+            !commandes.iter().any(|c| du_document.contains(c)),
+            "{c} : {commandes:?}"
+        );
+    }
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
-    assert!(!app.handle_file_shortcut("q"));
-    assert!(!app.handle_file_shortcut("z"));
+    assert!(app.commandes_de(&lettre("q")).is_empty());
+    assert_eq!(app.commandes_de(&lettre("s")), [Commande::Enregistrer]);
+    assert!(!du_document.contains(&app.commandes_de(&lettre("z"))[0]));
 }
 
 #[test]

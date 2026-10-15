@@ -30,9 +30,74 @@
 //! d'action, qui est la surface flottante voisine, et n'ont pas à être défendues comme une
 //! parité.
 
+use crate::commandes::Commande;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
-use entrees::{entrees, Def};
+use entrees::entrees;
+use glucose_core::raccourcis::Clavier;
+
+/// Une entrée posée : son action, son libellé, et ce qui se dit à côté.
+type Ligne = Option<(MenuAction, &'static str, String)>;
+
+/// **Ce qui se dit à côté d'une entrée** : au doigt, rien — il n'y a pas de clavier sous la
+/// main ; pour une commande, le premier accord que le clavier lui lie ; sans accord, ou pour un
+/// geste d'onglet, l'indication du geste (« + », « déposer ici ») — jamais un raccourci écrit à
+/// la main, qu'un preset aurait pu retirer.
+fn raccourci((action, indication): (MenuAction, &str), clavier: &Clavier, doigt: bool) -> String {
+    if doigt {
+        return String::new();
+    }
+    match action.commande() {
+        Some(c) => clavier
+            .accords_de(&c.id())
+            .first()
+            .map(|a| a.dire())
+            .unwrap_or_else(|| indication.to_string()),
+        None => indication.to_string(),
+    }
+}
+
+impl MenuAction {
+    /// **La commande de cette entrée** (P4, fiche 72) — toutes, sauf les gestes d'un onglet,
+    /// qui portent son nom.
+    pub fn commande(self) -> Option<Commande> {
+        Some(match self {
+            MenuAction::AjouterDesImages => Commande::ImporterDesImages,
+            MenuAction::Copier => Commande::Copier,
+            MenuAction::NouveauDocument => Commande::NouveauDocument,
+            MenuAction::OuvrirUnDocument => Commande::OuvrirUnDocument,
+            MenuAction::ModeReference => Commande::ModeReference,
+            MenuAction::Couper => Commande::Couper,
+            MenuAction::Duplicate => Commande::Dupliquer,
+            MenuAction::EnregistrerLImage => Commande::EnregistrerLImage,
+            MenuAction::RemplacerParLImage => Commande::RemplacerParLImage,
+            MenuAction::ToggleLock => Commande::Verrouiller,
+            MenuAction::TrimBorders => Commande::RetirerLesBordures,
+            MenuAction::StoryboardDeLaSelection => Commande::StoryboardDeLaSelection,
+            MenuAction::LireLeStoryboard => Commande::LireLeStoryboard,
+            MenuAction::ExporterLesPlanches => Commande::ExporterLesPlanches,
+            MenuAction::ToFront => Commande::PremierPlan,
+            MenuAction::ToBack => Commande::ArrierePlan,
+            MenuAction::Delete => Commande::Supprimer,
+            MenuAction::Paste => Commande::Coller,
+            MenuAction::SelectAll => Commande::ToutChoisir,
+            MenuAction::NouvelOnglet => Commande::NouvelOnglet,
+            MenuAction::AjouterUnDocument => Commande::ImporterUnDocument,
+            MenuAction::JournalTechnique => Commande::JournalTechnique,
+            MenuAction::VoirCeQuiPart => Commande::VoirCeQuiPart,
+            MenuAction::Annuler => Commande::Annuler,
+            MenuAction::Retablir => Commande::Retablir,
+            MenuAction::ToutCadrer => Commande::ToutCadrer,
+            MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
+            MenuAction::Signets => Commande::Signets,
+            MenuAction::Enregistrer => Commande::Enregistrer,
+            MenuAction::EnregistrerSous => Commande::EnregistrerSous,
+            MenuAction::Exporter => Commande::Exporter,
+            MenuAction::Palette => Commande::Palette,
+            MenuAction::RenommerOnglet | MenuAction::SupprimerOnglet => return None,
+        })
+    }
+}
 use glucose_core::store::Store;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
@@ -117,6 +182,8 @@ pub enum MenuAction {
     EnregistrerSous,
     /// Le tableau dans un autre format (`Ctrl+E`).
     Exporter,
+    /// Chaque commande, cherchée par son nom (P4, fiche 72).
+    Palette,
 }
 
 /// Une ligne du menu : soit une entrée, soit un filet.
@@ -125,7 +192,9 @@ pub enum MenuRow {
     Item {
         action: MenuAction,
         label: &'static str,
-        shortcut: &'static str,
+        /// Le raccourci dit à côté : celui que le clavier lie à sa commande (P4, fiche 72), ou
+        /// l'indication d'un geste (« Double-clic »).
+        shortcut: String,
         rect: (f32, f32, f32, f32),
     },
     /// Un filet de séparation, à cette ordonnée, sur la largeur de sa colonne.
@@ -152,7 +221,7 @@ pub struct ContextMenu {
 /// « mode téléphone » — une tablette Windows au doigt reçoit la même.
 pub fn layout_context_menu(
     store: &Store,
-    typography: &Typography,
+    (typography, clavier): (&Typography, &Clavier),
     (at, onglet): ((f32, f32), Option<&str>),
     screen: (f32, f32),
     scale: f32,
@@ -165,12 +234,10 @@ pub fn layout_context_menu(
         (ROW, FONT)
     };
     let (rangee, font) = (rangee * s, corps * s);
-    let mut defs = entrees(store, onglet)?;
-    if doigt {
-        for (_, _, raccourci) in defs.iter_mut().flatten() {
-            *raccourci = "";
-        }
-    }
+    let defs: Vec<Ligne> = entrees(store, onglet)?
+        .into_iter()
+        .map(|d| d.map(|(a, l, k)| (a, l, raccourci((a, k), clavier, doigt))))
+        .collect();
 
     let largeur_ligne = |label: &str, shortcut: &str| {
         let (a, _) = typography.measure_text(label, font, Face::Regular);
@@ -220,7 +287,7 @@ pub fn layout_context_menu(
 /// colonne a la largeur de sa plus longue entrée ; ses entrées, cette largeur moins les marges
 /// — la mesure d'une seule colonne, inchangée.
 fn poser(
-    colonnes: Vec<Vec<Def>>,
+    colonnes: Vec<Vec<Ligne>>,
     largeurs: &[f32],
     (x, y): (f32, f32),
     (pad, rangee, filet): (f32, f32, f32),
@@ -256,7 +323,7 @@ fn poser(
 }
 
 /// La hauteur d'une colonne d'entrées : une rangée par entrée, un filet par séparation.
-fn hauteur_de(colonne: &[Def], (rangee, filet): (f32, f32)) -> f32 {
+fn hauteur_de(colonne: &[Ligne], (rangee, filet): (f32, f32)) -> f32 {
     colonne
         .iter()
         .map(|d| if d.is_some() { rangee } else { filet })
@@ -270,9 +337,9 @@ fn hauteur_de(colonne: &[Def], (rangee, filet): (f32, f32)) -> f32 {
 /// Une colonne se ferme **à une séparation** quand le groupe qui suit ne tiendrait pas entier
 /// sous elle : les gestes d'un même groupe restent ensemble. Seul un groupe plus haut qu'une
 /// colonne se coupe entre deux entrées. Une séparation ne commence ni ne finit une colonne.
-fn en_colonnes(defs: Vec<Def>, hauteur: f32, (rangee, filet): (f32, f32)) -> Vec<Vec<Def>> {
-    let groupes: Vec<&[Def]> = defs.split(Option::is_none).collect();
-    let mut colonnes: Vec<Vec<Def>> = vec![Vec::new()];
+fn en_colonnes(defs: Vec<Ligne>, hauteur: f32, (rangee, filet): (f32, f32)) -> Vec<Vec<Ligne>> {
+    let groupes: Vec<&[Ligne]> = defs.split(Option::is_none).collect();
+    let mut colonnes: Vec<Vec<Ligne>> = vec![Vec::new()];
     for groupe in groupes.into_iter().filter(|g| !g.is_empty()) {
         let colonne = colonnes.last_mut().expect("au moins une colonne");
         let sous = if colonne.is_empty() { 0.0 } else { filet };
@@ -290,7 +357,7 @@ fn en_colonnes(defs: Vec<Def>, hauteur: f32, (rangee, filet): (f32, f32)) -> Vec
             colonnes
                 .last_mut()
                 .expect("au moins une colonne")
-                .push(*def);
+                .push(def.clone());
         }
     }
     colonnes

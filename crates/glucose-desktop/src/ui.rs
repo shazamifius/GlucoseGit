@@ -119,6 +119,9 @@ pub enum UiAction {
 
 pub struct UiState {
     pub active_tool: ActiveTool,
+    /// **Le clavier** : les couches de raccourcis, la plus haute l'emportant (P4, fiche 72) —
+    /// ce que les touches, le menu et la palette lisent.
+    pub clavier: glucose_core::raccourcis::Clavier,
     /// **Autour de quoi la sélection entière se transforme** — le point de pivot de Blender :
     /// l'origine du groupe, ou celle de chaque nœud (fiche 53 § 10).
     pub origine_du_groupe: glucose_core::groupe::Origine,
@@ -206,6 +209,7 @@ impl UiState {
     pub fn new() -> Self {
         Self {
             active_tool: ActiveTool::Select,
+            clavier: crate::commandes::clavier_de_glucose().0,
             origine_du_groupe: glucose_core::groupe::Origine::Commune,
             smart_align: true,
             survol: bande::Survol::default(),

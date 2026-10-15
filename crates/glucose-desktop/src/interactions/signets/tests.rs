@@ -91,7 +91,7 @@ fn par_le_menu(app: &mut GlucoseApp, libelle: &str) {
     app.handle_mouse_up(MouseButton::Right);
     let menu = crate::ui::context_menu::layout_context_menu(
         &app.store,
-        &app.renderer.typography,
+        (&app.renderer.typography, &app.ui.clavier),
         (app.ui.context_menu_at.expect("un menu ouvert"), None),
         ECRAN,
         app.ui.scale_factor,

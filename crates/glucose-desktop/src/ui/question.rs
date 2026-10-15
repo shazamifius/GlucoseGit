@@ -99,6 +99,8 @@ pub enum Suite {
         case: String,
         texte: glucose_core::store::storyboard::Texte,
     },
+    /// **La palette de commandes** (P4, fiche 72), et le filtre que ses réponses montrent.
+    Palette(String),
     /// Le nom d'un champ de ce storyboard — son rang, ou `None` pour en ajouter un (fiches 67
     /// et 68).
     NommerLeChamp {

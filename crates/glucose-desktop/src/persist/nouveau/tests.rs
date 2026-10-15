@@ -17,7 +17,10 @@ fn test_ctrl_n_laisse_le_document_intact_et_en_ouvre_un_vierge() {
     image_suivante(&mut app);
 
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
-    assert!(app.handle_file_shortcut("n"), "Ctrl+N est consommé");
+    app.handle_shortcut_input(
+        &winit::keyboard::Key::Character(winit::keyboard::SmolStr::new("n")),
+        winit::event::ElementState::Pressed,
+    );
     app.modifiers = winit::keyboard::ModifiersState::empty();
     repondre(&mut app, Reponse::Oui);
     let board = app.store.active_board().expect("un tableau");
@@ -58,7 +61,10 @@ fn test_ctrl_n_sur_un_travail_sans_nom_le_dit_a_enregistrer() {
     let mut app = application(&d);
     app.save_to(d.join("nomme.glucose"));
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
-    assert!(app.handle_file_shortcut("n"));
+    app.handle_shortcut_input(
+        &winit::keyboard::Key::Character(winit::keyboard::SmolStr::new("n")),
+        winit::event::ElementState::Pressed,
+    );
     app.modifiers = winit::keyboard::ModifiersState::empty();
     repondre(&mut app, Reponse::Oui);
     noter(&mut app, "neuf", "un travail sans nom");
@@ -80,7 +86,10 @@ fn test_nouveau_1_ctrl_n_demande_et_non_ne_change_rien() {
     app.save_to(chemin.clone());
     noter(&mut app, "garde", "du travail");
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
-    assert!(app.handle_file_shortcut("n"), "Ctrl+N est consommé");
+    app.handle_shortcut_input(
+        &winit::keyboard::Key::Character(winit::keyboard::SmolStr::new("n")),
+        winit::event::ElementState::Pressed,
+    );
     app.modifiers = winit::keyboard::ModifiersState::empty();
     repondre(&mut app, Reponse::Annuler);
     assert_eq!(

@@ -6,7 +6,9 @@
 use super::MenuAction;
 use glucose_core::store::Store;
 
-/// Les entrées que l'état courant justifie, `None` entre deux groupes.
+/// Les entrées que l'état courant justifie, `None` entre deux groupes. Le troisième champ
+/// n'est que l'indication d'un geste (« Double-clic », « déposer ici ») : le raccourci d'une
+/// commande, le clavier le dit (P4, fiche 72).
 ///
 /// Rien n'est grisé : une entrée sans objet **disparaît**. Griser, c'est montrer une porte
 /// fermée ; retirer, c'est ne pas parler de porte du tout.
@@ -51,10 +53,10 @@ pub(super) fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
 fn entrees_de_l_historique(store: &Store) -> Vec<Def> {
     let mut defs = Vec::new();
     if store.can_undo() {
-        defs.push(Some((MenuAction::Annuler, "Annuler", "Ctrl+Z")));
+        defs.push(Some((MenuAction::Annuler, "Annuler", "")));
     }
     if store.can_redo() {
-        defs.push(Some((MenuAction::Retablir, "Rétablir", "Ctrl+Y")));
+        defs.push(Some((MenuAction::Retablir, "Rétablir", "")));
     }
     if !defs.is_empty() {
         defs.push(None);
@@ -67,16 +69,16 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     // **Un dossier seul** (DOSSIER-1) : copier, dupliquer et l'ordre ne portent pas encore les
     // dossiers — les proposer mentirait. La suppression, elle, les prend.
     if store.selected_image_ids.is_empty() && store.selected_annotation_ids.is_empty() {
-        return Some(vec![Some((MenuAction::Delete, "Supprimer", "Suppr"))]);
+        return Some(vec![Some((MenuAction::Delete, "Supprimer", ""))]);
     }
     let images = store.selected_image_ids.len();
     // « Copier » emporte tout : le lot, le texte, les images elles-mêmes — « Copier l'image »
     // n'avait plus de raison d'être un geste à part (COPIER-1, fiche 59).
     let mut defs: Vec<Def> = vec![
-        Some((MenuAction::Copier, "Copier", "Ctrl+C")),
-        Some((MenuAction::Couper, "Couper", "Ctrl+X")),
-        Some((MenuAction::Duplicate, "Dupliquer", "Ctrl+D")),
-        Some((MenuAction::CadrerLaSelection, "Cadrer la sélection", "F")),
+        Some((MenuAction::Copier, "Copier", "")),
+        Some((MenuAction::Couper, "Couper", "")),
+        Some((MenuAction::Duplicate, "Dupliquer", "")),
+        Some((MenuAction::CadrerLaSelection, "Cadrer la sélection", "")),
     ];
     if images == 1 && store.selected_annotation_ids.is_empty() {
         defs.push(None);
@@ -107,12 +109,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         } else {
             "Verrouiller"
         };
-        defs.push(Some((MenuAction::ToggleLock, label, "L")));
-        defs.push(Some((
-            MenuAction::TrimBorders,
-            "Retirer les bordures",
-            "Ctrl+B",
-        )));
+        defs.push(Some((MenuAction::ToggleLock, label, "")));
+        defs.push(Some((MenuAction::TrimBorders, "Retirer les bordures", "")));
         // Une case par image choisie (P2, proposition 2, fiche 66).
         defs.push(Some((
             MenuAction::StoryboardDeLaSelection,
@@ -121,26 +119,24 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         )));
     }
     defs.push(None);
-    defs.push(Some((MenuAction::ToFront, "Au premier plan", "Ctrl+]")));
-    defs.push(Some((MenuAction::ToBack, "À l'arrière-plan", "Ctrl+[")));
+    defs.push(Some((MenuAction::ToFront, "Au premier plan", "")));
+    defs.push(Some((MenuAction::ToBack, "À l'arrière-plan", "")));
     defs.push(None);
-    defs.push(Some((MenuAction::Delete, "Supprimer", "Suppr")));
+    defs.push(Some((MenuAction::Delete, "Supprimer", "")));
     Some(defs)
 }
 
 /// Les entrées d'un menu ouvert sur le vide : ce qu'on y apporte, et le document.
 fn entrees_du_vide(store: &Store) -> Vec<Def> {
     let mut defs: Vec<Def> = vec![
-        Some((
-            MenuAction::AjouterDesImages,
-            "Ajouter des images…",
-            "Ctrl+I",
-        )),
+        Some((MenuAction::AjouterDesImages, "Ajouter des images…", "")),
         None,
-        Some((MenuAction::Paste, "Coller", "Ctrl+V")),
-        Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")),
-        Some((MenuAction::ToutCadrer, "Tout cadrer", "Alt+F")),
+        Some((MenuAction::Paste, "Coller", "")),
+        Some((MenuAction::SelectAll, "Tout sélectionner", "")),
+        Some((MenuAction::ToutCadrer, "Tout cadrer", "")),
         Some((MenuAction::Signets, "Signets…", "1…9")),
+        // La palette (P4, fiche 72) : au doigt, il n'y a pas de `Ctrl+Maj+P`.
+        Some((MenuAction::Palette, "Palette de commandes…", "")),
     ];
     // L'animatique, quand le tableau a des cases à lire (fiche 67).
     if !store
@@ -161,27 +157,15 @@ fn entrees_du_vide(store: &Store) -> Vec<Def> {
     }
     defs.extend([
         None,
-        Some((MenuAction::NouveauDocument, "Nouveau document", "Ctrl+N")),
-        Some((
-            MenuAction::OuvrirUnDocument,
-            "Ouvrir un document…",
-            "Ctrl+O",
-        )),
-        Some((MenuAction::Enregistrer, "Enregistrer", "Ctrl+S")),
-        Some((
-            MenuAction::EnregistrerSous,
-            "Enregistrer sous…",
-            "Ctrl+Maj+S",
-        )),
-        Some((MenuAction::Exporter, "Exporter…", "Ctrl+E")),
+        Some((MenuAction::NouveauDocument, "Nouveau document", "")),
+        Some((MenuAction::OuvrirUnDocument, "Ouvrir un document…", "")),
+        Some((MenuAction::Enregistrer, "Enregistrer", "")),
+        Some((MenuAction::EnregistrerSous, "Enregistrer sous…", "")),
+        Some((MenuAction::Exporter, "Exporter…", "")),
     ]);
     // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
     if !cfg!(target_os = "android") {
-        defs.push(Some((
-            MenuAction::ModeReference,
-            "Mode référence",
-            "Ctrl+Maj+A",
-        )));
+        defs.push(Some((MenuAction::ModeReference, "Mode référence", "")));
     }
     // Sans serveur, ces entrées n'ont pas d'objet : elles n'existent pas.
     if crate::telemetrie::serveur().is_some() {

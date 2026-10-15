@@ -503,8 +503,15 @@ fn test_appui_1_l_appui_long_dans_une_membrane_offre_supprimer() {
     );
     let at = app.ui.context_menu_at.expect("son menu s'ouvre");
     let typo = crate::typography::Typography::new();
-    let menu = layout_context_menu(&app.store, &typo, (at, None), (1280.0, 720.0), 1.0, true)
-        .expect("un menu");
+    let menu = layout_context_menu(
+        &app.store,
+        (&typo, &app.ui.clavier),
+        (at, None),
+        (1280.0, 720.0),
+        1.0,
+        true,
+    )
+    .expect("un menu");
     let supprimer = menu.rows.iter().any(|r| {
         matches!(
             r,
@@ -544,8 +551,15 @@ fn test_dossier_1_l_appui_long_sur_un_dossier_le_supprime_et_s_annule() {
     );
     let at = app.ui.context_menu_at.expect("son menu s'ouvre");
     let typo = crate::typography::Typography::new();
-    let menu = layout_context_menu(&app.store, &typo, (at, None), (1280.0, 720.0), 1.0, true)
-        .expect("un menu");
+    let menu = layout_context_menu(
+        &app.store,
+        (&typo, &app.ui.clavier),
+        (at, None),
+        (1280.0, 720.0),
+        1.0,
+        true,
+    )
+    .expect("un menu");
     let entrees: Vec<MenuAction> = menu
         .rows
         .iter()

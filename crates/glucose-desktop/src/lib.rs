@@ -25,6 +25,7 @@ pub mod boite_noire;
 pub mod cadence;
 pub mod canvas;
 pub mod chronique;
+pub mod commandes;
 pub mod composition;
 pub mod demarrage;
 pub mod dialogue;

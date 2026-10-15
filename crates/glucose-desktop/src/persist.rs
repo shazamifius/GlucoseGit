@@ -28,7 +28,7 @@ pub mod choix;
 pub mod close;
 pub mod commands;
 pub mod disque;
-mod documents;
+pub(crate) mod documents;
 pub mod ecriture;
 pub mod export;
 pub mod frappe;

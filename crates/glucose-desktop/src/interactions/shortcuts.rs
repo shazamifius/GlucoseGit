@@ -1,32 +1,30 @@
-//! Raccourcis clavier globaux et sélecteur d'outils (PureRef-style).
+//! **Le clavier** : une touche devient un accord, l'accord désigne ses commandes dans le
+//! clavier de l'application (P4, fiche 72), et la première qui s'applique l'emporte.
 //!
-//! # Ordre de résolution des touches de caractère
+//! # Ce qui a changé, et ce qui n'a pas changé
 //!
-//! Trois familles se partagent les mêmes lettres selon les modificateurs (`Ctrl+V` colle,
-//! `V` choisit l'outil de sélection). Elles sont donc essayées dans un ordre fixe, chacune
-//! rendant `true` si elle a consommé la touche :
+//! Les raccourcis étaient écrits dans cinq familles de `match` — fichier, édition, outils,
+//! prédicats, signets —, essayées dans un ordre fixe, chacune « rendant la main » si la touche
+//! ne la concernait pas. Ils sont désormais une **donnée** : la couche des raccourcis de Glucose
+//! (`assets/raccourcis/glucose.txt`), lue dans [`crate::commandes`]. L'ordre des familles est
+//! devenu l'ordre des commandes d'un accord : `1` désigne `relation.1 | signet.aller.1`.
 //!
-//! 1. **Fichier** (`persist`) — `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`, `Ctrl+E`
-//!    dont les **signets de vue** — `Ctrl+1`..`Ctrl+9` posent, `1`..`9` y volent
-//! 2. **Édition** — `Ctrl+V`, `Ctrl+Z`, `Ctrl+Y`, `Ctrl+D`, `Ctrl+A`
-//! 3. **Outils** — les lettres nues
-//!
-//! Le découpage tient la règle § 1.1 : chaque famille est une fonction courte, et ajouter un
-//! raccourci n'allonge plus un `match` unique de cent lignes.
+//! Les gestes, eux, n'ont pas bougé : ils sont ici, et les commandes les appellent.
 
 use crate::app::GlucoseApp;
+use crate::commandes::Commande;
 use crate::ui::ActiveTool;
+use glucose_core::raccourcis::{Accord, Nommee, Touche};
+use glucose_core::store::StackMove;
 use glucose_core::types::ArrowPredicate;
+use winit::event::{ElementState, KeyEvent};
+use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey, SmolStr};
 
 /// Ce que `Maj` fait à un déplacement au clavier : dix pas d'un coup.
 ///
 /// La base décimale, pas une longueur choisie — l'unité fine est celle du monde, et ceci en
 /// est la dizaine.
 const NUDGE_DECADE: f64 = 10.0;
-use glucose_core::store::StackMove;
-use winit::event::{ElementState, KeyEvent};
-use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey, SmolStr};
-
 /// Le chiffre que porte cette touche **physique**, quel que soit le clavier branché.
 ///
 /// # Pourquoi la touche logique ne pouvait pas marcher, et pourquoi personne ne l'a vu
@@ -65,7 +63,6 @@ fn chiffre_de_la_touche(physique: PhysicalKey) -> Option<char> {
         _ => return None,
     })
 }
-
 impl GlucoseApp {
     /// Une touche arrive de la fenêtre. Trois preneurs, dans l'ordre : la saisie d'un nom de
     /// domaine, l'édition d'une annotation, puis les raccourcis globaux. Chacun rend `false`
@@ -121,60 +118,58 @@ impl GlucoseApp {
     /// C'est ce que les compteurs de la trace ont permis de voir : une durée seule disait
     /// « le rendu est lent », et aucune optimisation de rendu n'aurait touché la cause.
     pub fn handle_keyboard_shortcut(&mut self, event: &KeyEvent) {
-        if event.repeat && !repetition_utile(&event.logical_key) {
-            return;
-        }
         // Les chiffres se lisent sur la touche **physique**, et c'est tout l'objet de
         // [`chiffre_de_la_touche`] : un raccourci numérique est positionnel.
         let touche = match chiffre_de_la_touche(event.physical_key) {
             Some(chiffre) => Key::Character(SmolStr::new(chiffre.to_string())),
             None => event.logical_key.clone(),
         };
+        if event.repeat && !self.la_repetition_passe(&touche) {
+            return;
+        }
         self.handle_shortcut_input(&touche, event.state);
     }
 
     /// Le corps de [`GlucoseApp::handle_keyboard_shortcut`], sans le `KeyEvent` de winit,
     /// qui ne se construit pas hors de la boucle d'événements : tout ce qui décide se teste
-    /// ici, sans fenêtre (§ 7.1).
+    /// ici, sans fenêtre (§ 7.1). La première commande de l'accord qui s'applique l'emporte.
     pub fn handle_shortcut_input(&mut self, logical_key: &Key, state: ElementState) {
         if state != ElementState::Pressed {
             return;
         }
-
-        match logical_key {
-            Key::Named(NamedKey::Space) => self.enter_pan_mode(),
-            Key::Named(NamedKey::Escape) => self.escape_gesture(),
-            Key::Named(NamedKey::ArrowLeft) => self.nudge(-1.0, 0.0),
-            Key::Named(NamedKey::ArrowRight) => self.nudge(1.0, 0.0),
-            Key::Named(NamedKey::ArrowUp) => self.nudge(0.0, -1.0),
-            Key::Named(NamedKey::ArrowDown) => self.nudge(0.0, 1.0),
-            Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
-                self.delete_selection();
+        for commande in self.commandes_de(logical_key) {
+            if self.executer(commande) {
+                return;
             }
-            Key::Character(ref c) => {
-                let key = c.as_str();
-                if self.handle_predicate_shortcut(key) {
-                    return;
-                }
-                if self.handle_bookmark_shortcut(key) {
-                    return;
-                }
-                if self.handle_file_shortcut(key) {
-                    return;
-                }
-                if self.handle_edit_shortcut(key) {
-                    return;
-                }
-                self.handle_tool_shortcut(key);
-            }
-            _ => {}
         }
+    }
+
+    /// **KEY-2 : la répétition d'une touche maintenue passe-t-elle ?** Seulement vers une
+    /// commande qui la demande (`Commande::repetable`).
+    pub(crate) fn la_repetition_passe(&self, key: &Key) -> bool {
+        self.commandes_de(key).iter().any(|c| c.repetable())
+    }
+
+    /// **Les commandes que cette touche désigne**, avec les modificateurs tenus : l'accord
+    /// (ACCORD-1, la loi du clavier français), puis ce que le clavier en dit.
+    pub(crate) fn commandes_de(&self, key: &Key) -> Vec<Commande> {
+        let Some(touche) = touche_de(key) else {
+            return Vec::new();
+        };
+        let m = self.modifiers;
+        let accord = Accord::de(m.control_key(), m.alt_key(), m.shift_key(), touche);
+        self.ui
+            .clavier
+            .commandes(&accord)
+            .iter()
+            .filter_map(|id| Commande::de_l_id(id))
+            .collect()
     }
 
     /// `Échap` annule le geste en cours. Aujourd'hui, le seul geste annulable hors édition est
     /// un redimensionnement, qui reprend sa taille de départ ; la fiche 03 § 19.6 en attend
     /// davantage (tout geste courant), et c'est ici que les autres viendront.
-    fn escape_gesture(&mut self) {
+    pub(crate) fn escape_gesture(&mut self) {
         // Un menu ouvert est ce qu'on annule en premier : c'est le geste le plus récent, et
         // celui qui attend une décision.
         if self.ui.context_menu_at.take().is_some() {
@@ -211,7 +206,7 @@ impl GlucoseApp {
     /// Le bascule fait disparaître l'état `space_pressed` : le mode Pan était dit deux
     /// fois, par une touche tenue **et** par un outil, et deux vérités pour un seul fait
     /// finissent toujours par diverger.
-    fn enter_pan_mode(&mut self) {
+    pub(crate) fn enter_pan_mode(&mut self) {
         self.ui.active_tool = ActiveTool::Pan;
         // Comme Tauri : entrer en navigation lâche ce qu'on tenait. Un pan n'agit sur
         // rien, garder une sélection sous le curseur n'inviterait qu'à la déplacer par
@@ -227,24 +222,12 @@ impl GlucoseApp {
     /// où l'on qualifie des dizaines de liens à la suite. Un menu à six entrées, ouvert et
     /// refermé à chaque flèche, coûterait trois gestes là où celui-ci en demande un.
     ///
-    /// Rend `false` quand la touche n'est pas un chiffre, ou qu'aucune flèche n'est
-    /// sélectionnée — le raccourci rend alors la main à ce qui suit, au lieu d'avaler la
-    /// touche pour rien.
-    fn handle_predicate_shortcut(&mut self, key: &str) -> bool {
-        if self.modifiers.control_key() || self.modifiers.alt_key() {
-            return false;
-        }
+    /// Rend `false` quand aucune flèche n'est sélectionnée — l'accord passe alors à sa commande
+    /// suivante (le signet de vue), au lieu d'avaler la touche pour rien.
+    pub(crate) fn qualifier_les_fleches(&mut self, rang: Option<u8>) -> bool {
         // Le rang d'un chiffre **est** le rang du prédicat (`ArrowPredicate::rank`) : la
         // touche, la couleur et le sigle désignent donc tous le même par le même nombre.
-        let rang = match key.chars().next() {
-            Some('0') => None,
-            Some(c @ '1'..='6') => Some(ArrowPredicate::ALL[c as usize - '1' as usize]),
-            _ => return false,
-        };
-        // Un chiffre suivi d'autre chose n'est pas un chiffre.
-        if key.chars().count() != 1 {
-            return false;
-        }
+        let predicat = rang.and_then(|r| ArrowPredicate::ALL.get(usize::from(r).checked_sub(1)?));
         // Les **flèches** de la sélection, demandées au modèle, et non toute la sélection :
         // sans quoi la transaction s'ouvrirait avant de savoir s'il y a quelque chose à
         // écrire, et un chiffre tapé sur une carte marquerait le document comme modifié
@@ -260,105 +243,14 @@ impl GlucoseApp {
         }
         let board = self.store.project.active_board_id.clone();
         self.store.begin_live_edit();
-        self.store.set_arrow_predicate(&board, &fleches, rang);
+        self.store
+            .set_arrow_predicate(&board, &fleches, predicat.copied());
         self.store.end_live_edit();
         // **Sans toast** : le sigle apparaît, change de couleur ou disparaît sous les yeux de
         // celui qui vient d'appuyer. Un message qui décrit ce que l'œil enregistre est du
         // bruit — la même règle que pour `Échap` et pour l'ordre d'empilement.
         self.mark_dirty();
         true
-    }
-
-    /// Les signets de vue : `Ctrl+1` à `Ctrl+9` posent, `1` à `9` y ramènent en volant.
-    ///
-    /// # Ce que c'est, en un geste
-    ///
-    /// On est quelque part sur la carte, `Ctrl+3`. Plus tard, où que l'on soit et à n'importe
-    /// quelle échelle, `3` y ramène — par un vol, donc en voyant d'où l'on vient. Neuf
-    /// emplacements par tableau, enregistrés avec le document.
-    ///
-    /// # La cohabitation avec les prédicats de flèche n'a rien coûté
-    ///
-    /// `1` à `6` qualifient déjà les flèches sélectionnées (PRED-1). Mais ce raccourci-là
-    /// **rend la main** quand rien n'est sélectionné, et refuse `Ctrl`. L'ordre d'appel suffit
-    /// donc à départager, sans un seul test de plus : une flèche en main, le chiffre la
-    /// qualifie ; les mains vides, il transporte.
-    fn handle_bookmark_shortcut(&mut self, key: &str) -> bool {
-        if self.modifiers.alt_key() {
-            return false;
-        }
-        let mut chiffres = key.chars();
-        let (Some(cle @ '1'..='9'), None) = (chiffres.next(), chiffres.next()) else {
-            return false;
-        };
-        let message = if self.modifiers.control_key() {
-            self.poser_le_signet(cle)
-        } else {
-            self.voler_vers_le_signet(cle)
-        };
-        self.annoncer_le_signet(message);
-        true
-    }
-
-    /// Raccourcis d'édition du document. Rend `true` si la touche a été consommée.
-    fn handle_edit_shortcut(&mut self, key: &str) -> bool {
-        if !self.modifiers.control_key() {
-            return false;
-        }
-        match key {
-            "c" | "C" => self.copy_selection(false),
-            "x" | "X" => self.copy_selection(true),
-            "v" | "V" => self.paste_from_clipboard(),
-            "z" | "Z" if self.modifiers.shift_key() => self.retablir(),
-            "z" | "Z" => self.annuler(),
-            "y" | "Y" => self.retablir(),
-            "d" | "D" => self.duplicate_selection(),
-            // `Ctrl+Maj+A` : le premier plan de PureRef, ici tout le mode référence.
-            "a" | "A" if self.modifiers.shift_key() => self.basculer_le_mode_reference(),
-            "a" | "A" => self.select_all(),
-            "]" => self.restack(StackMove::Front),
-            "[" => self.restack(StackMove::Back),
-            // B comme bordures : les bandes unies des images sélectionnées se retirent
-            // (BORDURES-1). Sur le lot entier, en une entrée d'annulation.
-            "b" | "B" => self.retirer_les_bordures_de_la_selection(),
-            _ => return false,
-        }
-        self.mark_dirty();
-        true
-    }
-
-    /// Choix d'outil et recentrage : les lettres nues, plus `Alt+T`.
-    fn handle_tool_shortcut(&mut self, key: &str) {
-        if self.modifiers.control_key() {
-            return;
-        }
-        let tool = match key {
-            "h" | "H" => ActiveTool::Pan,
-            "v" | "V" => ActiveTool::Select,
-            "a" | "A" => ActiveTool::Arrow,
-            "n" | "N" => ActiveTool::Sticky,
-            "m" | "M" => ActiveTool::Membrane,
-            // L'ancien geste du premier plan fait désormais tout le mode référence (fiche 51 § 5).
-            "t" | "T" if self.modifiers.alt_key() => {
-                self.basculer_le_mode_reference();
-                return;
-            }
-            "t" | "T" => ActiveTool::Text,
-            // `Alt+F` tout cadrer, `F` seul la sélection ; `Ctrl+F` est gardé à la recherche,
-            // comme dans Tauri — sa décision du 13/10 (fiche 65).
-            "f" | "F" => {
-                self.cadrer(!self.modifiers.alt_key());
-                return;
-            }
-            "l" | "L" => {
-                self.toggle_lock();
-                return;
-            }
-            _ => return,
-        };
-        self.ui.active_tool = tool;
-        self.update_cursor();
-        self.mark_dirty();
     }
 
     /// **Annule le dernier geste** — `Ctrl+Z`, ou deux doigts touchés (GESTES-1). Dans le texte
@@ -398,12 +290,8 @@ impl GlucoseApp {
     /// Le pas est **l'unité du monde**, et `Maj` le multiplie par dix : deux gestes, aucune
     /// longueur à choisir. Une image verrouillée ne bouge pas — c'est `move_selected` qui le
     /// tient, et le clavier n'a pas à le savoir.
-    fn nudge(&mut self, dx: f64, dy: f64) {
-        let pas = if self.modifiers.shift_key() {
-            NUDGE_DECADE
-        } else {
-            1.0
-        };
+    pub(crate) fn nudge(&mut self, (dx, dy): (f64, f64), dix: bool) {
+        let pas = if dix { NUDGE_DECADE } else { 1.0 };
         if self.store.compte_de_la_selection() == 0 {
             return;
         }
@@ -421,7 +309,7 @@ impl GlucoseApp {
     ///
     /// Sans toast : le nœud passe devant, ou derrière, et cela **se voit**. Un message qui
     /// décrit ce que l'œil vient d'enregistrer est du bruit, pas une confirmation.
-    fn restack(&mut self, mv: StackMove) {
+    pub(crate) fn restack(&mut self, mv: StackMove) {
         let board = self.store.project.active_board_id.clone();
         if self.store.move_selection_in_stack(&board, mv) > 0 {
             self.mark_dirty();
@@ -521,30 +409,57 @@ impl GlucoseApp {
     }
 }
 
-/// Les touches dont la **répétition automatique** rend un service, et elles seules (KEY-2).
-///
-/// La question n'est pas « quelle touche est dangereuse » mais « quelle action a un effet
-/// cumulatif que l'utilisateur demande en maintenant la touche ». Deux familles répondent oui :
-///
-/// * les **flèches**, où chaque répétition avance d'un pas de plus — c'est le geste même du
-///   déplacement fin au clavier, et l'interrompre le rendrait inutilisable ;
-/// * l'**annulation** et le **rétablissement**, où chaque répétition remonte d'un cran dans
-///   une pile — remonter dix fois est une intention courante, et rien n'est créé.
-///
-/// Tout le reste a un effet **ponctuel** : coller crée un objet, dupliquer aussi, enregistrer
-/// écrit un fichier, ouvrir montre un dialogue, un outil se choisit une fois. Les répéter n'est
-/// jamais ce qu'on demande en gardant le doigt appuyé.
-///
-/// La saisie de texte n'a pas à figurer ici : elle est prise plus tôt, par `handle_text_key`,
-/// et c'est justement le lieu où la répétition est la raison d'être du mécanisme.
-fn repetition_utile(logical_key: &Key) -> bool {
-    match logical_key {
-        Key::Named(
-            NamedKey::ArrowLeft | NamedKey::ArrowRight | NamedKey::ArrowUp | NamedKey::ArrowDown,
-        ) => true,
-        Key::Character(c) => matches!(c.as_str(), "z" | "Z" | "y" | "Y"),
-        _ => false,
-    }
+/// **La touche d'un évènement**, pour un accord : une touche nommée, ou le caractère qu'elle
+/// porte. Une touche que Glucose ne lie pas (une touche multimédia) n'en a pas.
+fn touche_de(key: &Key) -> Option<Touche> {
+    let nommee = match key {
+        Key::Character(c) => {
+            let mut lettres = c.chars();
+            return match (lettres.next(), lettres.next()) {
+                (Some(c), None) => Some(Touche::du_caractere(c)),
+                _ => None,
+            };
+        }
+        Key::Named(n) => n,
+        _ => return None,
+    };
+    Some(Touche::Nommee(match nommee {
+        NamedKey::Space => Nommee::Espace,
+        NamedKey::Escape => Nommee::Echap,
+        NamedKey::Enter => Nommee::Entree,
+        NamedKey::Tab => Nommee::Tab,
+        NamedKey::Delete => Nommee::Suppr,
+        NamedKey::Backspace => Nommee::Effacer,
+        NamedKey::ArrowLeft => Nommee::Gauche,
+        NamedKey::ArrowRight => Nommee::Droite,
+        NamedKey::ArrowUp => Nommee::Haut,
+        NamedKey::ArrowDown => Nommee::Bas,
+        NamedKey::Home => Nommee::Debut,
+        NamedKey::End => Nommee::Fin,
+        NamedKey::PageUp => Nommee::PageHaut,
+        NamedKey::PageDown => Nommee::PageBas,
+        autre => return touche_de_fonction(autre),
+    }))
+}
+
+/// `F1` à `F12` : les touches de fonction que winit nomme.
+fn touche_de_fonction(n: &NamedKey) -> Option<Touche> {
+    const F: [NamedKey; 12] = [
+        NamedKey::F1,
+        NamedKey::F2,
+        NamedKey::F3,
+        NamedKey::F4,
+        NamedKey::F5,
+        NamedKey::F6,
+        NamedKey::F7,
+        NamedKey::F8,
+        NamedKey::F9,
+        NamedKey::F10,
+        NamedKey::F11,
+        NamedKey::F12,
+    ];
+    let rang = F.iter().position(|f| f == n)?;
+    Some(Touche::Nommee(Nommee::F(rang as u8 + 1)))
 }
 
 #[cfg(test)]
