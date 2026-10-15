@@ -12,7 +12,8 @@
 //! deux copies. Une seule définition : ce que les épreuves composent est ce que l'écran reçoit.
 
 use super::{
-    couches, fleches_gpu, fond_gpu, lisere_gpu, lueurs_gpu, membranes_gpu, scene_gpu, zones_gpu,
+    couches, fleches_gpu, fond_gpu, formes_gpu, lisere_gpu, lueurs_gpu, membranes_gpu, scene_gpu,
+    zones_gpu,
 };
 use crate::renderer::Confie;
 
@@ -28,6 +29,8 @@ pub struct Passes {
     membranes: membranes_gpu::Membranes,
     fleches: fleches_gpu::FlechesGpu,
     lisere: lisere_gpu::LisereGpu,
+    /// Ce qui est plus grand que l'écran, dessiné en formes (fiche 73).
+    formes: formes_gpu::FormesGpu,
 }
 
 impl Passes {
@@ -40,6 +43,7 @@ impl Passes {
             membranes: membranes_gpu::Membranes::nouvelles(peripherique, format),
             fleches: fleches_gpu::FlechesGpu::nouvelles(peripherique, format),
             lisere: lisere_gpu::LisereGpu::nouveau(peripherique, format),
+            formes: formes_gpu::FormesGpu::nouvelles(peripherique, format),
         }
     }
 
@@ -62,6 +66,8 @@ impl Passes {
         self.fleches
             .preparer(peripherique, file, ecran, &confie.fleches);
         self.lisere.preparer(file, ecran, confie.lisere);
+        self.formes
+            .preparer((peripherique, file), ecran, &confie.formes);
     }
 
     /// **Les cinq temps de cette image**, avec les photos et les couches du processeur, et les
@@ -73,7 +79,7 @@ impl Passes {
             &'a scene_gpu::SceneGpu,
             &'a scene_gpu::Retenues,
         ),
-        confie: &Confie,
+        confie: &'a Confie,
     ) -> couches::Temps<'a> {
         couches::Temps {
             fond: &self.fond,
@@ -86,6 +92,8 @@ impl Passes {
             couches,
             scene,
             retenues,
+            formes: &self.formes,
+            suites: &confie.formes.suites,
             photos: confie.photos.len(),
             sous_le_dessus: confie.sous_le_dessus(),
             sous_le_cadre: confie.sous_le_cadre(),

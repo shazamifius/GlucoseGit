@@ -52,6 +52,7 @@ pub mod storyboard;
 mod surface;
 pub mod svg;
 pub mod tuiles;
+pub(crate) mod vectoriel;
 pub mod vignette;
 pub mod wrap;
 pub mod zone;

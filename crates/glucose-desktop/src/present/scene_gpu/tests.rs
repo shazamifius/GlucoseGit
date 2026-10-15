@@ -411,6 +411,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
         &mut envoi,
         (
             &[demande("vieux:neuf", "vieux"), demande("neuf", "neuf")],
+            &[],
             std::time::Duration::ZERO,
         ),
         &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
@@ -469,7 +470,7 @@ fn test_la_cascade_compte_ce_que_le_rendu_a_pris() {
     scene.assurer(
         &peripherique,
         &mut envoi,
-        (&[demande], std::time::Duration::MAX),
+        (&[demande], &[], std::time::Duration::MAX),
         &lente,
     );
     let rendu = crate::perf::valeur_du_compteur("textures_rendu_us").unwrap_or(0.0);
@@ -702,7 +703,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
     scene.assurer(
         &peripherique,
         &mut envoi,
-        (&demande, std::time::Duration::ZERO),
+        (&demande, &[], std::time::Duration::ZERO),
         &source,
     );
     assert!(
@@ -714,7 +715,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
     scene.assurer(
         &peripherique,
         &mut envoi,
-        (&demande, std::time::Duration::MAX),
+        (&demande, &[], std::time::Duration::MAX),
         &source,
     );
     assert!(
@@ -848,7 +849,7 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
     scene.assurer(
         &peripherique,
         &mut envoi,
-        (&demandes, std::time::Duration::MAX),
+        (&demandes, &[], std::time::Duration::MAX),
         &|cle| {
             Some(if cle == "photo" {
                 Pixels::Pretes(pretee.as_ref())
@@ -910,6 +911,7 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
         &mut envoi,
         (
             &[a_poser("premiere"), a_poser("seconde")],
+            &[],
             std::time::Duration::from_millis(5),
         ),
         &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
@@ -955,7 +957,7 @@ fn test_nettete_1_la_cascade_dit_qu_elle_n_a_pas_fini() {
     let source = |_: &str| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
     let mut servir = |scene: &mut SceneGpu, demandes: &[APoser], budget| {
         scene.ouvrir();
-        scene.assurer(&peripherique, &mut envoi, (demandes, budget), &source);
+        scene.assurer(&peripherique, &mut envoi, (demandes, &[], budget), &source);
         scene.inachevee()
     };
     let deux = [a_poser("a", pose), a_poser("b", pose)];

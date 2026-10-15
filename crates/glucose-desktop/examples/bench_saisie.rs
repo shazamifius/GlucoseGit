@@ -269,7 +269,7 @@ fn par_la_carte() {
             scene.assurer(
                 &peripherique,
                 &mut envoi,
-                (&textures, std::time::Duration::MAX),
+                (&textures, &confie.a_preparer, std::time::Duration::MAX),
                 &|cle| confie.pixels(&renderer, cle),
             );
             envoi.soumettre();

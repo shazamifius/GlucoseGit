@@ -230,7 +230,7 @@ pub fn composer_les_cinq_temps(
     scene.assurer(
         peripherique,
         &mut envoi,
-        (&textures, std::time::Duration::MAX),
+        (&textures, &confie.a_preparer, std::time::Duration::MAX),
         source,
     );
     let retenues = scene.preparer(peripherique, file, ecran, &textures);

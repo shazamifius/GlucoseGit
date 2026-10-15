@@ -73,7 +73,11 @@ fn ecrire(m: &Membrane, dans: &mut Vec<u8>) {
     }
 }
 
-const NUANCEUR: &str = include_str!("membranes_gpu/membranes.wgsl");
+/// La loi des rectangles arrondis, commune à la brume des cartes (fiche 73), puis la membrane.
+const NUANCEUR: &str = concat!(
+    include_str!("arrondi.wgsl"),
+    include_str!("membranes_gpu/membranes.wgsl")
+);
 
 /// La passe des membranes : un quad par membrane, un nuanceur, aucun tampon de sommets.
 pub struct Membranes {

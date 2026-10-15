@@ -1,4 +1,5 @@
-//! **Ce qu'un texte vu de près coûte à rendre, carré par carré** (fiche 72).
+//! **Ce qu'un texte vu de près coûte, maintenant que la carte le dessine depuis ses formes**
+//! (fiches 72 et 73).
 //!
 //! ```text
 //! cargo run --release -p glucose-desktop --example bench_de_pres
@@ -6,12 +7,22 @@
 //!
 //! # Pourquoi ce banc existe
 //!
-//! Le 15/10, ses captures : de près, un texte reste flou « un bon moment », en gros pixels, un
-//! carré net au milieu — illisible, « impossible de travailler dessus ». Les photos, elles,
-//! restent nettes. Une carte vue de près se découpe en carrés (DE-PRES-1) que la cascade rend un
-//! à un, dans le temps libre de chaque image (CASCADE-2) ; en attendant, l'ancienne texture est
-//! posée, agrandie. Ce banc dit **combien coûte chaque carré**, et de quoi ce coût dépend :
-//! l'échelle, le premier rendu (glyphes jamais vus) ou les suivants.
+//! Le 15/10, ses captures : de près, un texte reste flou « un bon moment », en gros pixels. La
+//! carte graphique posait un nœud de texte comme une image que le processeur avait peinte ; de
+//! près, l'image se découpait en carrés repeints un à un (DE-PRES-1), l'image entière agrandie
+//! en attendant. Ce banc chiffrait ces carrés (fiche 72, à froid, son écran, une carte qui le
+//! couvre) :
+//!
+//! ```text
+//!   x16    21,3 ms (pire carré 3,0)      — et le flou, le temps de les rendre tous
+//!   x32    19,7 ms (pire carré 2,5)
+//!   x50    18,7 ms (pire carré 3,8)
+//! ```
+//!
+//! Depuis la fiche 73, un nœud plus grand que l'écran se dessine **en formes** : chaque lettre
+//! par Slug, sur la carte, à chaque image — rien ne se repeint, rien n'est flou. Ce banc dit ce
+//! que cela coûte : le **relevé** des formes au processeur (la mise en page, les primitives), et
+//! le **dessin** par la carte, image après image, mesuré jusqu'à ce que la carte ait fini.
 //!
 //! Il vise l'écran de l'utilisateur (2 560 × 1 600) et une carte dont le texte couvre l'écran.
 
@@ -19,13 +30,17 @@ use glucose_core::store::Store;
 use glucose_core::types::Viewport;
 use glucose_desktop::interactions::tools::text_card;
 use glucose_desktop::params::{Pointer, SceneOverlay};
-use glucose_desktop::renderer::composants::Composant;
+use glucose_desktop::present::banc_gpu;
+use glucose_desktop::present::formes_gpu::{Formes, FormesGpu};
 use glucose_desktop::renderer::{Regard, Renderer};
 use glucose_desktop::ui::UiState;
 use std::time::Instant;
 use tiny_skia::Pixmap;
 
 const ECRAN: (u32, u32) = (2560, 1600);
+
+/// Combien d'images la carte dessine pour une mesure.
+const IMAGES: u32 = 60;
 
 const TEXTE: &str = "Le pointillé de la membrane : elle s'entend automatiquement quand tu \
 cliques en plein dans la membrane, et bien sûr un texte avec du **gras**, de l'*italique* et \
@@ -48,9 +63,9 @@ fn une_carte(renderer: &Renderer) -> Store {
     store
 }
 
-/// Les composants que l'écran montre à cette échelle — les carrés de la carte, de près —, la
-/// vue posée sur le début du texte.
-fn composants(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> Vec<Composant> {
+/// Les formes que l'écran montre à cette échelle, la vue posée sur le début du texte, et ce
+/// que le relevé a coûté.
+fn formes(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> (Formes, f64) {
     let board = store.project.active_board_id.clone();
     // Le coin haut gauche de l'écran sur le monde (20, 40) : le début de la première ligne.
     store.set_viewport(
@@ -65,6 +80,7 @@ fn composants(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> Vec<C
     let mut dessus = Pixmap::new(ECRAN.0, ECRAN.1).expect("tampon");
     let mut ui = UiState::new();
     let guides = glucose_core::smart_align::SnapGuides::default();
+    let debut = Instant::now();
     let confie = renderer.rendre_les_couches(
         &mut dessous.as_mut(),
         &mut dessus.as_mut(),
@@ -76,42 +92,59 @@ fn composants(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> Vec<C
             en_mouvement: false,
         },
     );
-    confie.composants
+    let ms = debut.elapsed().as_secs_f64() * 1000.0;
+    (confie.formes, ms)
 }
 
-fn une_echelle(echelle: f64) {
-    // Un renderer neuf : le cache de glyphes est froid, comme après un zoom d'une octave.
-    let mut renderer = Renderer::new();
-    let mut store = une_carte(&renderer);
-    let carres = composants(&mut renderer, &mut store, echelle);
-    let (mut froid, mut pire, mut kpx) = (0.0f64, 0.0f64, 0.0f64);
-    for c in &carres {
+/// **Ce que la carte met à dessiner ces formes**, en millisecondes par image : la première
+/// (l'atlas se remplit), puis la médiane des suivantes.
+fn dessiner(gpu: &(wgpu::Device, wgpu::Queue), formes: &Formes) -> (f64, f64) {
+    let (peripherique, file) = gpu;
+    let mut passe = FormesGpu::nouvelles(peripherique, banc_gpu::FORMAT);
+    let cible = banc_gpu::cible(peripherique, ECRAN);
+    let vue = cible.create_view(&Default::default());
+    let ecran = (ECRAN.0 as f32, ECRAN.1 as f32);
+    let mut une_image = || {
         let debut = Instant::now();
-        let rendu = c.rendre(renderer.kit());
-        let ms = debut.elapsed().as_secs_f64() * 1000.0;
-        froid += ms;
-        pire = pire.max(ms);
-        if let Some(p) = rendu {
-            kpx += f64::from(p.width()) * f64::from(p.height()) / 1000.0;
-        }
-    }
-    let debut = Instant::now();
-    for c in &carres {
-        let _ = c.rendre(renderer.kit());
-    }
-    let chaud = debut.elapsed().as_secs_f64() * 1000.0;
-    println!(
-        "  x{echelle:<6}  {:>4} carres  {kpx:>8.0} kpx   froid {froid:>9.1} ms  (pire carre {pire:>7.1} ms)   chaud {chaud:>8.1} ms",
-        carres.len()
-    );
+        passe.preparer((peripherique, file), ecran, formes);
+        let mut encodeur = peripherique.create_command_encoder(&Default::default());
+        banc_gpu::passe(&mut encodeur, &vue, wgpu::Color::BLACK, |p| {
+            for s in 0..formes.suites.len() {
+                passe.poser(p, s);
+            }
+        });
+        file.submit(Some(encodeur.finish()));
+        let _ = peripherique.poll(wgpu::PollType::wait_indefinitely());
+        debut.elapsed().as_secs_f64() * 1000.0
+    };
+    let premiere = une_image();
+    let mut suivantes: Vec<f64> = (0..IMAGES).map(|_| une_image()).collect();
+    suivantes.sort_by(f64::total_cmp);
+    (premiere, suivantes[suivantes.len() / 2])
 }
 
 fn main() {
+    let Some(gpu) = banc_gpu::carte() else {
+        println!("aucune carte graphique : rien a mesurer");
+        return;
+    };
     println!(
         "Une carte de texte qui couvre l'ecran ({} x {}), a l'arret :",
         ECRAN.0, ECRAN.1
     );
-    for echelle in [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 50.0] {
-        une_echelle(echelle);
+    for echelle in [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 50.0, 128.0, 256.0] {
+        let mut renderer = Renderer::new();
+        let mut store = une_carte(&renderer);
+        let (formes, releve) = formes(&mut renderer, &mut store, echelle);
+        if formes.primitives.is_empty() {
+            println!("  x{echelle:<6}  une texture (la carte tient dans l'ecran)");
+            continue;
+        }
+        let (premiere, mediane) = dessiner(&gpu, &formes);
+        println!(
+            "  x{echelle:<6}  {:>5} primitives   releve (toute la scene) {releve:>6.1} ms   \
+             carte : premiere {premiere:>6.2} ms, puis {mediane:>6.2} ms par image",
+            formes.primitives.len()
+        );
     }
 }

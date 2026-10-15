@@ -14,6 +14,7 @@ use super::{CardLayout, TextCard, BULLET_BASELINE};
 use crate::params::Pen;
 use crate::renderer::pass::Pass;
 use crate::renderer::richtext::{ink_of, mode_of, place_d_une_formule, VisualLine};
+use crate::renderer::vectoriel::Vectoriel;
 use crate::typography::{Face, TextStyle};
 use glucose_core::text::BlockKind;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
@@ -71,18 +72,35 @@ fn draw_ordinal(
     tint: (u8, u8, u8),
 ) {
     let mut buf = [0u8; ORDINAL_MAX];
-    let label = ordinal_label(n, &mut buf);
+    let (label, (x, y), style) = numero(ctx, at, layout, (n, tint), &mut buf);
+    ctx.typography.draw_text(pixmap, label, x, y, style);
+}
+
+/// **Le numéro d'un élément**, son coin et son style : là où [`draw_ordinal`] le pose, et le
+/// dessin vectoriel avec lui.
+fn numero<'b>(
+    ctx: &Pass,
+    at: (f32, f32),
+    layout: &CardLayout,
+    (n, tint): (u32, (u8, u8, u8)),
+    buf: &'b mut [u8; ORDINAL_MAX],
+) -> (&'b str, (f32, f32), TextStyle) {
+    let label = ordinal_label(n, buf);
     let (w, _) = ctx
         .typography
         .measure_text(label, layout.font, Face::Regular);
     let gap = ctx.typography.advance(' ', layout.font, Face::Regular);
     let style = TextStyle {
         size: layout.font,
-        color: Color::from_rgba8(tint.0, tint.1, tint.2, ORNAMENT_ALPHA),
+        color: encre_d_ornement(tint),
         face: Face::Regular,
     };
-    ctx.typography
-        .draw_text(pixmap, label, at.0 + layout.indent - w - gap, at.1, style);
+    (label, (at.0 + layout.indent - w - gap, at.1), style)
+}
+
+/// L'encre des ornements teintés.
+fn encre_d_ornement(tint: (u8, u8, u8)) -> Color {
+    Color::from_rgba8(tint.0, tint.1, tint.2, ORNAMENT_ALPHA)
 }
 
 /// Dix chiffres d'un `u32`, et le point qui les suit.
@@ -114,24 +132,30 @@ fn ordinal_label(n: u32, buf: &mut [u8; ORDINAL_MAX]) -> &str {
 fn draw_quote_bar(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {
     fill(
         pixmap,
-        Rect::from_xywh(at.0, at.1, layout.border * 2.0, layout.line_height),
-        Color::from_rgba8(tint.0, tint.1, tint.2, ORNAMENT_ALPHA),
+        barre_de_citation(at, layout),
+        encre_d_ornement(tint),
     );
+}
+
+/// La boîte de la barre d'une citation.
+fn barre_de_citation(at: (f32, f32), layout: &CardLayout) -> (f32, f32, f32, f32) {
+    (at.0, at.1, layout.border * 2.0, layout.line_height)
 }
 
 /// Le trait d'un `---`, à mi-hauteur de sa ligne et sur toute la largeur du texte.
 fn draw_rule(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {
+    fill(pixmap, filet(at, layout), encre_d_ornement(tint));
+}
+
+/// La boîte du trait d'un `---`.
+fn filet(at: (f32, f32), layout: &CardLayout) -> (f32, f32, f32, f32) {
     let width = layout.width - layout.pad_x * 2.0;
-    fill(
-        pixmap,
-        Rect::from_xywh(
-            at.0,
-            at.1 + (layout.line_height - layout.border) / 2.0,
-            width,
-            layout.border,
-        ),
-        Color::from_rgba8(tint.0, tint.1, tint.2, ORNAMENT_ALPHA),
-    );
+    (
+        at.0,
+        at.1 + (layout.line_height - layout.border) / 2.0,
+        width,
+        layout.border,
+    )
 }
 
 /// Le fond d'une ligne de bloc de code : la plaque d'un `` `code` `` étendue à toute la
@@ -142,16 +166,17 @@ pub(super) fn draw_code_plate(
     at: (f32, f32),
     layout: &CardLayout,
 ) {
-    fill(
-        pixmap,
-        Rect::from_xywh(
-            at.0,
-            at.1,
-            layout.width - layout.pad_x * 2.0,
-            layout.line_height,
-        ),
-        ctx.theme.code_bg,
-    );
+    fill(pixmap, plaque_de_code(at, layout), ctx.theme.code_bg);
+}
+
+/// La boîte de la plaque d'une ligne de code.
+pub(super) fn plaque_de_code(at: (f32, f32), layout: &CardLayout) -> (f32, f32, f32, f32) {
+    (
+        at.0,
+        at.1,
+        layout.width - layout.pad_x * 2.0,
+        layout.line_height,
+    )
 }
 
 /// Un rectangle plein, quand il y en a un à remplir.
@@ -159,8 +184,8 @@ pub(super) fn draw_code_plate(
 /// Filets, barres de citation et plaques de code sont tous alignés sur les axes : ils
 /// passent donc par [`fill_crisp`] (SCALE-3), qui les pose sur la grille de pixels. C'est
 /// là que la barre d'une citation faisait paniquer le rastériseur.
-fn fill(pixmap: &mut PixmapMut, rect: Option<Rect>, color: Color) {
-    let Some(rect) = rect else {
+fn fill(pixmap: &mut PixmapMut, (x, y, l, h): (f32, f32, f32, f32), color: Color) {
+    let Some(rect) = Rect::from_xywh(x, y, l, h) else {
         return;
     };
     crate::renderer::scale::fill_crisp(pixmap, rect, color);
@@ -246,13 +271,10 @@ fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint
         anti_alias: true,
         ..Default::default()
     };
-    paint.set_color(Color::from_rgba8(tint.0, tint.1, tint.2, 200));
+    paint.set_color(encre_d_ornement(tint));
     let mut pb = PathBuilder::new();
-    pb.push_circle(
-        at.0 + layout.bullet_offset,
-        at.1 + layout.font * BULLET_BASELINE,
-        layout.bullet,
-    );
+    let (cx, cy) = centre_de_la_puce(at, layout);
+    pb.push_circle(cx, cy, layout.bullet);
     if let Some(path) = pb.finish() {
         pixmap.fill_path(
             &path,
@@ -264,55 +286,39 @@ fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint
     }
 }
 
-// ── La sœur vectorielle (P5, fiche 69) ──────────────────────────────────────
+/// Le centre de la puce d'une liste.
+fn centre_de_la_puce(at: (f32, f32), layout: &CardLayout) -> (f32, f32) {
+    (
+        at.0 + layout.bullet_offset,
+        at.1 + layout.font * BULLET_BASELINE,
+    )
+}
 
-/// **Les ornements d'une ligne en SVG** : la sœur de [`draw_ornament`], aux mêmes places, à la
-/// même encre. Une formule s'écrit par sa source, à l'encre du texte : le moteur de formules
-/// ne livre encore que des pixels (fiche 69).
-pub(super) fn ornement_en_svg(
+// ── Le dessin vectoriel (P5 fiche 69, P8 fiche 73) ─────────────────────────────
+
+/// **Les ornements d'une ligne, en dessin vectoriel** : ceux de [`draw_ornament`], aux mêmes
+/// places — les mêmes fonctions les placent —, à la même encre ; la barre, le filet et la
+/// plaque sur la grille des pixels, comme le canevas les pose.
+pub(super) fn ornement_en_vecteurs<V: Vectoriel>(
     ctx: &Pass,
-    svg: &mut crate::renderer::svg::Svg,
+    v: &mut V,
     (left, text_x, y): (f32, f32, f32),
     layout: &CardLayout,
     (line, card): (&VisualLine, &TextCard),
 ) -> bool {
-    let t = card.tint;
-    let teinte = crate::renderer::svg::hex(t);
-    let alpha = f32::from(ORNAMENT_ALPHA) / 255.0;
+    let encre = encre_d_ornement(card.tint);
     match line.kind {
-        BlockKind::Bullet if line.first => svg.poser(&format!(
-            r#"<circle cx="{}" cy="{}" r="{}" fill="{teinte}" fill-opacity="{}"/>"#,
-            crate::renderer::svg::n(left + layout.bullet_offset),
-            crate::renderer::svg::n(y + layout.font * BULLET_BASELINE),
-            crate::renderer::svg::n(layout.bullet),
-            crate::renderer::svg::n(alpha)
-        )),
+        BlockKind::Bullet if line.first => {
+            v.disque(centre_de_la_puce((left, y), layout), layout.bullet, encre);
+        }
         BlockKind::Ordered(n) if line.first => {
             let mut buf = [0u8; ORDINAL_MAX];
-            let label = ordinal_label(n, &mut buf);
-            let (w, _) = ctx
-                .typography
-                .measure_text(label, layout.font, Face::Regular);
-            let gap = ctx.typography.advance(' ', layout.font, Face::Regular);
-            let style = TextStyle {
-                size: layout.font,
-                color: Color::from_rgba8(t.0, t.1, t.2, ORNAMENT_ALPHA),
-                face: Face::Regular,
-            };
-            let at = (left + layout.indent - w - gap, y);
-            svg.texte(ctx.typography, at, label, style);
+            let (label, at, style) = numero(ctx, (left, y), layout, (n, card.tint), &mut buf);
+            v.texte(ctx.typography, at, label, style);
         }
-        BlockKind::Quote => {
-            svg.rectangle(
-                (left, y, layout.border * 2.0, layout.line_height),
-                0.0,
-                (&teinte, alpha),
-            );
-        }
+        BlockKind::Quote => v.rectangle_net(barre_de_citation((left, y), layout), encre),
         BlockKind::Rule | BlockKind::TableRule => {
-            let largeur = layout.width - layout.pad_x * 2.0;
-            let haut = y + (layout.line_height - layout.border) / 2.0;
-            svg.rectangle((left, haut, largeur, layout.border), 0.0, (&teinte, alpha));
+            v.rectangle_net(filet((left, y), layout), encre);
             return true;
         }
         BlockKind::Math { .. } => {
@@ -320,9 +326,9 @@ pub(super) fn ornement_en_svg(
                 .first
                 .then(|| poser_la_formule(ctx, (text_x, y), layout, line, card));
             if let Some(f) = posee.flatten() {
-                if !ctx.math.en_svg(svg, f.corps, f.mode, f.plume, f.encre) {
+                if !ctx.math.en_vecteurs(v, f.corps, f.mode, f.plume, f.encre) {
                     let (at, source, rouge) = f.erreur;
-                    svg.texte(ctx.typography, at, source, rouge);
+                    v.texte(ctx.typography, at, source, rouge);
                 }
             }
             return true;

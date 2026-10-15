@@ -75,17 +75,56 @@ pub(in crate::renderer) fn draw_missing_image(
     };
     pixmap.stroke_path(&path, &border, &stroke, ts, None);
 
-    typography.draw_text(
-        pixmap,
-        &format!("Image [{id}]"),
-        at.0 + 10.0,
-        at.1 + size.1 / 2.0 - 6.0,
+    let (texte, (x, y), style) = libelle(theme, at, size, id);
+    typography.draw_text(pixmap, &texte, x, y, style);
+}
+
+/// **Le libellé d'une photo en chemin** : son texte, son coin, son style — là où
+/// [`draw_missing_image`] l'écrit, et le dessin vectoriel avec lui.
+fn libelle(
+    theme: &Theme,
+    at: (f32, f32),
+    size: (f32, f32),
+    id: &str,
+) -> (String, (f32, f32), TextStyle) {
+    (
+        format!("Image [{id}]"),
+        (at.0 + 10.0, at.1 + size.1 / 2.0 - 6.0),
         TextStyle {
             size: 12.0,
             color: theme.text_muted,
             face: Face::Regular,
         },
-    );
+    )
+}
+
+/// **Le cadre d'une photo en chemin, en formes** (fiche 73) : celui de [`draw_missing_image`] —
+/// le même rectangle tourné, son trait d'un pixel élargi par le même traceur, son libellé —, que
+/// la carte dessine de près au lieu d'en agrandir l'image.
+pub(in crate::renderer) fn cadre_manquant_en_vecteurs(
+    kit: PaintKit<'_>,
+    v: &mut crate::renderer::vectoriel::Releve,
+    (at, size): ((f32, f32), (f32, f32)),
+    (id, rotation): (&str, f64),
+) {
+    use crate::renderer::vectoriel::Vectoriel;
+    let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) else {
+        return;
+    };
+    let ts = rotation_at(rotation, at, size);
+    let path = PathBuilder::from_rect(rect);
+    if let Some(plein) = path.clone().transform(ts) {
+        v.chemin(&plein, kit.theme.bg_hover);
+    }
+    let stroke = Stroke {
+        width: 1.0,
+        ..Default::default()
+    };
+    if let Some(trait_) = path.stroke(&stroke, 1.0).and_then(|t| t.transform(ts)) {
+        v.chemin(&trait_, kit.theme.border_accent);
+    }
+    let (texte, at, style) = libelle(kit.theme, at, size, id);
+    v.texte(kit.typography, at, &texte, style);
 }
 
 /// La transformation qui fait tourner une boîte écran autour de son propre centre.

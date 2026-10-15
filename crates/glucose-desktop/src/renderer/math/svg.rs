@@ -10,7 +10,8 @@
 
 use super::{boite_du_filet, nom_de_fonte, MathRenderer, FONTS};
 use crate::params::Pen;
-use crate::renderer::svg::{couleur, echapper, n, Svg};
+use crate::renderer::svg::{n, Svg};
+use crate::renderer::vectoriel::Vectoriel;
 use crate::typography::Police;
 use glucose_math::layout::MathItem;
 use glucose_math::{Commande, Family, Forme, Mode, Style};
@@ -18,19 +19,22 @@ use std::fmt::Write as _;
 use tiny_skia::Color;
 
 impl MathRenderer {
-    /// **Écrit une formule** dont la ligne de base commence à la plume — `false` si la source
-    /// est fausse, comme [`Self::draw`] : l'appelant montre alors la source, en rouge.
-    pub fn en_svg(&self, svg: &mut Svg, source: &str, mode: Mode, pen: Pen, color: Color) -> bool {
+    /// **Dessine une formule** dont la ligne de base commence à la plume, dans un dessin
+    /// vectoriel (fiche 73) — `false` si la source est fausse, comme [`Self::draw`] : l'appelant
+    /// montre alors la source, en rouge.
+    pub(crate) fn en_vecteurs<V: Vectoriel>(
+        &self,
+        v: &mut V,
+        source: &str,
+        mode: Mode,
+        pen: Pen,
+        color: Color,
+    ) -> bool {
         let Ok(layout) = self.layout(source, mode) else {
             return false;
         };
         let Pen { x, y, font_size } = pen;
-        let (c, a) = couleur(color);
-        svg.poser(&format!(
-            r#"<g fill="{c}" fill-opacity="{}" aria-label="{}">"#,
-            n(a),
-            echapper(source)
-        ));
+        v.groupe(source, color);
         for item in &layout.items {
             match item {
                 MathItem::Glyph {
@@ -46,7 +50,7 @@ impl MathRenderer {
                         y: y - *gy as f32 * font_size,
                         font_size: *size as f32 * font_size,
                     };
-                    self.glyphe_en_svg(svg, *caractere, (*family, *style), plume);
+                    self.glyphe_en_vecteurs(v, *caractere, (*family, *style), plume);
                 }
                 MathItem::Rule {
                     x: rx,
@@ -55,7 +59,7 @@ impl MathRenderer {
                     height,
                 } => {
                     let boite = boite_du_filet((*rx, *ry, *width, *height), pen);
-                    svg.rectangle(boite, 0.0, (&c, a));
+                    v.rectangle(boite, 0.0, color);
                 }
                 MathItem::Path {
                     x: px,
@@ -69,18 +73,24 @@ impl MathRenderer {
                     let bas = y - *py as f32 * font_size;
                     let boite = (x + *px as f32 * font_size, bas - h, w, h);
                     let trait_px = forme.epaisseur.map(|e| e as f32 * font_size);
-                    forme_en_svg(svg, forme, boite, ((&c, a), trait_px));
+                    v.forme(forme, boite, trait_px, color);
                 }
                 MathItem::Path { forme: None, .. } => {}
             }
         }
-        svg.poser("</g>");
+        v.fin_du_groupe();
         true
     }
 
     /// Les caractères d'un élément, dans la fonte de KaTeX qui les dessine, la plume avancée
     /// comme [`super::dessine_glyphe`] l'avance.
-    fn glyphe_en_svg(&self, svg: &mut Svg, c: char, (f, s): (Family, Style), pen: Pen) {
+    fn glyphe_en_vecteurs<V: Vectoriel>(
+        &self,
+        v: &mut V,
+        c: char,
+        (f, s): (Family, Style),
+        pen: Pen,
+    ) {
         let nom = nom_de_fonte(f, s);
         let Some((&nom, font)) = self.fonts.get_key_value(nom.as_str()) else {
             return;
@@ -97,13 +107,13 @@ impl MathRenderer {
             return;
         }
         let police = Police { nom, octets };
-        svg.glyphe((police, font.lookup_glyph_index(c)), (x, y), taille);
+        v.glyphe((police, font.lookup_glyph_index(c)), (x, y), taille);
     }
 }
 
 /// **Une forme de KaTeX dans sa boîte** `(x, y, largeur, hauteur)`, rognée par elle ; remplie,
 /// ou tracée à l'épaisseur qu'elle porte (en pixels : elle ne s'étire pas avec la boîte).
-fn forme_en_svg(
+pub(in crate::renderer) fn forme_en_svg(
     svg: &mut Svg,
     forme: &Forme,
     (bx, by, bl, bh): (f32, f32, f32, f32),

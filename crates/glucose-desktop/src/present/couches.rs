@@ -28,6 +28,7 @@
 //! n'existe plus du tout. Un coût supprimé vaut mieux qu'un coût mis en cache.
 
 use super::bandes::Bandes;
+use super::formes_gpu::Tranche;
 use tiny_skia::Pixmap;
 
 /// Le nuanceur des couches : un triangle qui déborde de l'écran, et la texture telle quelle.
@@ -362,6 +363,10 @@ pub struct Temps<'a> {
     pub couches: &'a Couches,
     pub scene: &'a super::scene_gpu::SceneGpu,
     pub retenues: &'a super::scene_gpu::Retenues,
+    /// Ce qui est plus grand que l'écran, dessiné en formes (fiche 73), et où chaque suite se
+    /// pose parmi les textures.
+    pub formes: &'a super::formes_gpu::FormesGpu,
+    pub suites: &'a [super::formes_gpu::Suite],
     /// Combien des textures demandées sont des photos — les premières : la pose se coupe
     /// après elles pour laisser passer les lueurs (LUEUR-3).
     pub photos: usize,
@@ -391,6 +396,35 @@ pub struct Temps<'a> {
 /// l'ombre CSS d'un bloc HTML pose sur la toile, donc devant toute image. Elle se pose
 /// desormais entre les photos et les cartes : devant ce que la carte recouvre, derriere les
 /// autres cartes.
+/// **Les textures d'une tranche, et ses formes à leur rang** (fiche 73) : chaque suite se pose
+/// juste avant la texture qui la suit dans le modèle — `rangs` sont ceux des textures demandées.
+fn poser_une_tranche(
+    passe: &mut wgpu::RenderPass<'_>,
+    temps: &Temps<'_>,
+    (tranche, rangs): (Tranche, std::ops::Range<usize>),
+) {
+    let retenues = temps.retenues;
+    let mut rang = rangs.start;
+    for (k, suite) in temps.suites.iter().enumerate() {
+        if suite.tranche != tranche {
+            continue;
+        }
+        let jusqu_a = (rangs.start + suite.avant).min(rangs.end);
+        temps.scene.poser(
+            passe,
+            retenues,
+            retenues.avant(rang)..retenues.avant(jusqu_a),
+        );
+        temps.formes.poser(passe, k);
+        rang = jusqu_a;
+    }
+    temps.scene.poser(
+        passe,
+        retenues,
+        retenues.avant(rang)..retenues.avant(rangs.end),
+    );
+}
+
 pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, temps: Temps<'_>) {
     let mut passe = encodeur.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("glucose-couches"),
@@ -420,13 +454,14 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
     let retenues = temps.retenues;
-    let (photos, cartes) = (
-        retenues.avant(temps.photos),
-        retenues.avant(temps.sous_le_dessus),
-    );
-    temps.scene.poser(&mut passe, retenues, 0..photos);
+    let cartes = retenues.avant(temps.sous_le_dessus);
+    poser_une_tranche(&mut passe, &temps, (Tranche::Photos, 0..temps.photos));
     temps.lueurs.poser(&mut passe);
-    temps.scene.poser(&mut passe, retenues, photos..cartes);
+    poser_une_tranche(
+        &mut passe,
+        &temps,
+        (Tranche::Cartes, temps.photos..temps.sous_le_dessus),
+    );
     // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
     // poignées qui sont dans la couche du dessus (FLECHE-2).
     temps.fleches.poser(&mut passe);

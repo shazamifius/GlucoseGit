@@ -42,6 +42,9 @@ pub(super) enum Contenu {
     },
     PhotoEnChemin {
         id: String,
+        /// Son centre **dans le monde** : ce que ses formes posent à l'écran (fiche 73). Il
+        /// n'entre pas dans l'empreinte — la texture ne dépend pas de sa place.
+        centre: (f64, f64),
         /// La taille de la photo **dans le monde** : celle de rendu s'en déduit à chaque
         /// échelle par [`cadre_en_chemin`], y compris celle du repli, qui n'est pas la même.
         taille: (f64, f64),
@@ -145,6 +148,7 @@ impl Contenu {
                 id,
                 taille,
                 rotation,
+                ..
             } => {
                 1u8.hash(h);
                 id.hash(h);

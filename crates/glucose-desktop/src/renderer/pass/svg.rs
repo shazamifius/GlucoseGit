@@ -7,7 +7,7 @@
 use super::{carte_de, Clip, Pass};
 use crate::params::ViewPass;
 use crate::renderer::arrow::{fleche_en_svg, Fleche, NoeudsDuRendu};
-use crate::renderer::card::svg::carte_en_svg;
+use crate::renderer::card::vecteurs::carte_en_vecteurs;
 use crate::renderer::card::Contenants;
 use crate::renderer::domain::reglette;
 use crate::renderer::hue::SymbioticHueCache;
@@ -49,7 +49,7 @@ pub(in crate::renderer) fn annotations_en_svg(
     let visibles = || Visibles::nouvelles(pass.visibles, board).annotations();
     for ann in visibles() {
         if let Some(carte) = carte_de(hue_cache, (ann, store, pass), (&contenants, &[]), None) {
-            carte_en_svg(&ctx, carte, svg);
+            carte_en_vecteurs(&ctx, carte, svg);
         }
     }
     let noeuds = NoeudsDuRendu {

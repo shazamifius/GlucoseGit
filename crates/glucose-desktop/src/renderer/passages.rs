@@ -355,6 +355,32 @@ pub(crate) fn peindre_les_cadres(
     }
 }
 
+/// **Le fond et le liseré de chaque tronçon, en dessin vectoriel** (fiche 73) : ceux de
+/// [`peindre_les_cadres`], aux mêmes boîtes. Le liseré y est un anneau rempli — entre les deux
+/// contours repoussés de `décalage ± demi` — : c'est exactement l'anneau de l'[`super::vectoriel::Vectoriel::anneau`],
+/// puisque le contour d'un rectangle arrondi repoussé reste un rectangle arrondi.
+pub(crate) fn cadres_en_vecteurs<V: super::vectoriel::Vectoriel>(
+    v: &mut V,
+    pose: Pose,
+    troncons: &[Troncon],
+    ((r, g, b), style): ((u8, u8, u8), &Surlignage),
+) {
+    let opacite = |f: f32| (f * 255.0).round() as u8;
+    let s = pose.echelle;
+    let coins = s.world(style.coins);
+    let (decalage, demi) = (s.world(style.decalage), s.world(style.epaisseur) / 2.0);
+    for t in troncons {
+        let boite = pose.boite(t.rect, style);
+        v.rectangle(
+            boite,
+            coins,
+            Color::from_rgba8(r, g, b, opacite(style.fond)),
+        );
+        let lisere = Color::from_rgba8(r, g, b, opacite(style.lisere));
+        v.anneau(boite, coins, (decalage, demi), lisere);
+    }
+}
+
 /// **La lueur de chaque tronçon**, découpée à l'intérieur de sa boîte comme l'ombre CSS de
 /// Tauri (`box-shadow` ne se peint que hors de la boîte qui la porte) : c'est ce qui passe
 /// au-dessus de la carte, et déborde d'elle.

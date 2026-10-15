@@ -61,24 +61,26 @@
 //! affordances en pixels écran, pas du contenu : ils restent dans la couche du dessus, comme
 //! pour les photos.
 //!
-//! # DE-PRES-1 — un composant plus grand que l'écran se découpe en tuiles
+//! # DE-PRES-1 — un composant plus grand que l'écran se dessine en formes (fiche 73)
 //!
 //! Sa texture entière dépasserait l'écran : elle coûterait des pixels que personne ne voit, et
-//! une carte graphique ne l'accepte pas au-delà de sa taille maximale. Ce module la refusait,
-//! et sa documentation promettait qu'elle se dessinerait alors « en direct » — **personne ne
-//! le faisait** : de près, une carte disparaissait, et il ne restait que sa lueur et la grille
-//! (fiche 24 § 13, fiche 29 § 4.2).
+//! une carte graphique ne l'accepte pas au-delà de sa taille maximale. La fiche 24 le refusait
+//! — de près, une carte disparaissait —, puis la fiche 29 le découpait en carrés de 256 pixels
+//! rendus un à un, la texture entière agrandie posée en attendant : *« absolument illisible »*
+//! de près (fiche 72). Désormais **la carte le dessine depuis ses formes**
+//! ([`crate::present::formes_gpu`]) : chaque lettre par Slug, chaque fond par la loi des
+//! membranes — net à tout zoom, sans rien repeindre. Le détail est dans [`formes`].
 //!
-//! Elle se découpe donc en carrés de [`glucose_core::tuile::COTE`] pixels, ancrés à son propre
-//! coin, et **seuls ceux que l'écran montre** existent : se déplacer de près ne rend que ceux
-//! qui entrent. Le détail est dans [`decoupe`].
+//! Sa texture au plus haut palier qui tient dans l'écran se **prépare** encore, dans le temps
+//! qui reste, et ne se pose jamais tant qu'il est dessiné en formes : c'est elle qui se pose à
+//! l'instant où, dézoomé, il retient dans l'écran — au lieu d'un trou, ou d'une image qui gèle
+//! le temps de la peindre.
 
 use super::card::{card_text_layout, draw_card_contenu, CardLayout, Contenants};
 use super::pass::{Clip, Pass, SELECTION_RING};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
 use super::scene::image::ornement::draw_missing_image;
-use super::voies::APoser;
 use super::{PaintKit, Regard};
 use crate::canvas::world_to_screen;
 use crate::present::scene_gpu::Pose;
@@ -89,7 +91,7 @@ use std::sync::Arc;
 use tiny_skia::Pixmap;
 
 mod contenu;
-mod decoupe;
+mod formes;
 
 use contenu::{cadre_en_chemin, Contenu};
 
@@ -127,24 +129,20 @@ pub struct Composant {
     marge: f32,
     /// La taille de la texture, en pixels.
     pixels: (u32, u32),
-    /// **Où cette texture commence dans celle du composant entier**, en pixels : l'origine
-    /// pour un composant entier, le coin de la tuile — gouttière comprise — pour une tuile
-    /// (DE-PRES-1).
-    depart: (f32, f32),
-    /// Ce que la carte pose **à la place** de cette tuile tant qu'elle ne la détient pas : le
-    /// morceau correspondant du composant entier, à un palier plus bas (DE-PRES-1).
-    pub repli: Option<APoser>,
 }
 
-/// **Ce qu'un composant devient à l'écran** : sa texture entière — ou, s'il est plus grand
-/// que l'écran, les tuiles qu'on en voit et leur repli (DE-PRES-1).
+/// **Ce qu'un composant devient à l'écran** : sa texture — ou, s'il est plus grand que
+/// l'écran, ses formes, et sa texture à préparer (DE-PRES-1).
 #[derive(Debug, Default)]
 pub struct Pieces {
-    /// Ce qui se pose, dans l'ordre : une texture, ou les tuiles visibles.
-    pub posees: Vec<Composant>,
-    /// La texture entière à un palier plus bas, qui ne se pose **jamais pour elle-même** —
-    /// seulement à la place d'une tuile absente. Elle se rend à la demande, comme le reste.
-    pub repli: Option<Composant>,
+    /// La texture qui se pose, s'il tient dans l'écran.
+    pub posee: Option<Composant>,
+    /// **Ses formes**, s'il ne tient pas dans l'écran : la carte les dessine (fiche 73).
+    pub formes: Vec<crate::present::formes_gpu::Primitive>,
+    /// Sa texture au plus haut palier qui tient dans l'écran, **à préparer** dans le temps qui
+    /// reste : elle ne se pose jamais tant qu'il est dessiné en formes, mais elle est là quand,
+    /// dézoomé, il retient dans l'écran.
+    pub a_preparer: Option<Composant>,
 }
 
 /// Ce que le composant montre, résumé en un nombre : tout ce qui change ses pixels, rien
@@ -240,6 +238,7 @@ impl Regime {
     /// elle qui permet de mesurer le repli à un autre palier que celui de l'image.
     fn composer(
         &self,
+        kit: PaintKit<'_>,
         (prefixe, id): (&str, &str),
         coin: (f32, f32),
         mesure: &dyn Fn(f64) -> (f32, f32, f32),
@@ -256,14 +255,14 @@ impl Regime {
         );
         if entier.tient_dans(self.ecran) {
             return Pieces {
-                posees: vec![entier],
-                repli: None,
+                posee: Some(entier),
+                ..Pieces::default()
             };
         }
-        let repli = self.repli(&entier, coin, mesure);
         Pieces {
-            posees: decoupe::tuiles(self, &entier, repli.as_ref()),
-            repli,
+            posee: None,
+            formes: entier.en_formes(kit, self),
+            a_preparer: self.repli(&entier, coin, mesure),
         }
     }
 
@@ -302,23 +301,21 @@ impl Regime {
             phase,
             marge,
             pixels,
-            depart: (0.0, 0.0),
-            repli: None,
         };
         composant.cle = format!("{}:{:016x}", composant.identite, empreinte(&composant));
         composant
     }
 
-    /// **Le repli d'un composant découpé** : lui tout entier, au plus haut palier dyadique
-    /// dont la texture tient dans l'écran.
+    /// **La texture à préparer d'un composant dessiné en formes** : lui tout entier, au plus
+    /// haut palier dyadique dont la texture tient dans l'écran.
     ///
-    /// Aucun nombre n'est choisi : c'est la même limite que celle qui a décidé de découper,
-    /// et un palier dyadique ne change pas pendant qu'on zoome plus près — le repli se rend
-    /// donc une fois, et sert tout le temps qu'on reste de près.
+    /// Aucun nombre n'est choisi : c'est la même limite que celle qui fait dessiner en formes,
+    /// et un palier dyadique ne change pas pendant qu'on zoome plus près — elle se rend donc
+    /// une fois, et attend tout le temps qu'on reste de près.
     ///
-    /// Il porte **l'identité du composant entier**, et c'est ce qui le rend gratuit à l'entrée
-    /// du régime découpé : la texture que la carte détenait juste avant, quand le composant
-    /// tenait encore dans l'écran, sert de repli tant que la sienne n'est pas rendue.
+    /// Elle porte **l'identité du composant entier** : quand, dézoomé, il retient dans
+    /// l'écran, c'est elle que la carte détient sous cette identité, et qu'elle pose — un
+    /// palier plus bas peut-être, le temps que le sien se rende (CASCADE-2).
     fn repli(
         &self,
         entier: &Composant,
@@ -384,6 +381,7 @@ impl Regime {
         };
         Some(
             self.composer(
+                kit,
                 ("carte", id),
                 (sx, sy),
                 &mesure,
@@ -410,7 +408,7 @@ impl Regime {
     ///
     /// La texture est la boîte englobante du cadre **tourné** : le libellé, lui, reste droit,
     /// comme le processeur le dessine — la texture se pose donc sans angle.
-    pub(super) fn photo_en_chemin(&self, img: &BoardImage) -> Option<Pieces> {
+    pub(super) fn photo_en_chemin(&self, kit: PaintKit<'_>, img: &BoardImage) -> Option<Pieces> {
         let (sx, sy) =
             world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &self.vue);
         let (sx, sy) = (sx as f32, sy as f32);
@@ -437,11 +435,13 @@ impl Regime {
             centre.1 - englobante.1 / 2.0 * rapport,
         );
         Some(self.composer(
+            kit,
             ("chemin", &img.id),
             coin,
             &mesure,
             Contenu::PhotoEnChemin {
                 id: img.id.clone(),
+                centre: (img.x, img.y),
                 taille,
                 rotation: img.rotation,
             },
@@ -455,12 +455,7 @@ impl Composant {
     /// celle qui pose son coin sur la marge, à sa phase.
     pub fn rendre(&self, kit: PaintKit<'_>) -> Option<Pixmap> {
         let mut pixmap = Pixmap::new(self.pixels.0, self.pixels.1)?;
-        // Une tuile est le composant entier vu depuis son coin : la même vue, décalée de là
-        // où elle commence (DE-PRES-1).
-        let coin = (
-            self.marge + self.phase.0 - self.depart.0,
-            self.marge + self.phase.1 - self.depart.1,
-        );
+        let coin = (self.marge + self.phase.0, self.marge + self.phase.1);
         match self.contenu.as_ref() {
             Contenu::Carte { origine, .. } => {
                 // `world_to_screen` vaut `monde x echelle + vue` : la vue qui place le coin
@@ -492,6 +487,7 @@ impl Composant {
                 id,
                 taille,
                 rotation,
+                ..
             } => {
                 let (taille, englobante) = cadre_en_chemin(*taille, *rotation, self.echelle);
                 // Le cadre non tourne se place au centre de la boite englobante ; c'est la
@@ -514,7 +510,7 @@ impl Composant {
         Some(pixmap)
     }
 
-    /// Sa texture tient-elle dans l'écran ? C'est la limite qui décide de le découper.
+    /// Sa texture tient-elle dans l'écran ? C'est la limite qui le fait dessiner en formes.
     fn tient_dans(&self, ecran: (u32, u32)) -> bool {
         self.pixels.0 <= ecran.0 && self.pixels.1 <= ecran.1
     }
@@ -522,13 +518,15 @@ impl Composant {
 
 #[cfg(test)]
 impl Pieces {
-    /// **La texture unique d'un composant qui tient dans l'écran** : ni tuile, ni repli.
-    fn seule(mut self) -> Composant {
+    /// **La texture unique d'un composant qui tient dans l'écran** : ni formes, ni texture à
+    /// préparer.
+    fn seule(self) -> Composant {
         assert!(
-            self.posees.len() == 1 && self.repli.is_none(),
+            self.formes.is_empty() && self.a_preparer.is_none(),
             "un composant qui tient dans l'ecran est une texture, et une seule"
         );
-        self.posees.remove(0)
+        self.posee
+            .expect("la texture d'un composant qui tient dans l'ecran")
     }
 }
 

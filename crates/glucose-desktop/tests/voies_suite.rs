@@ -688,6 +688,19 @@ fn document_de_pres(echelle: f64, coin: (f64, f64)) -> glucose_core::store::Stor
 /// il ne restait que sa lueur et la grille. La fiche 24 § 13 l'avait prédit sans pouvoir
 /// l'établir, faute de cette épreuve-ci.
 ///
+/// # SLUG-1 — de près, les deux voies ne diffèrent qu'au bord des lettres (fiche 73)
+///
+/// De près, la carte graphique dessine la carte depuis ses formes : chaque lettre par Slug, à sa
+/// place exacte, filtrée le long de deux rayons. Le processeur la pose au quart de pixel
+/// (GLYPH-1) et la filtre par son aire. Ce sont deux anticrénelages fidèles — aucun ne grossit
+/// ni n'amincit la lettre —, mais ils ne tombent pas au bit près sur un bord : un huitième de
+/// pixel de place, un dixième de couverture sur un bord oblique (mesurés : écart signé moyen
+/// nul, tous les écarts sur un bord). La loi tient donc ce qui compte : **un écart de plus de
+/// trois niveaux ne tombe que sur un pixel que l'une des deux voies couvre en partie** — une
+/// couleur entre le fond de la carte et l'encre de ses lettres. Une carte absente, une lettre
+/// manquante ou décalée d'un pixel donnent des pixels pleins d'un côté et vides de l'autre :
+/// ceux-là tombent. Ailleurs, la règle de toute la suite.
+///
 /// Deux vues : une où le coin de la carte est à l'écran, une où elle le couvre entièrement.
 #[test]
 fn test_une_carte_plus_grande_que_l_ecran_se_dessine_sur_les_deux_voies() {
@@ -699,15 +712,160 @@ fn test_une_carte_plus_grande_que_l_ecran_se_dessine_sur_les_deux_voies() {
             return;
         };
         let processeur = par_le_processeur(taille, &store);
-        let _ = carte.save_png(format!(r"C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Documents-GlucoseGit-main/3b3cd992-dff0-4aaf-9a68-e8d42ba227b1/scratchpad/depres-carte-{echelle}.png"));
-        let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
-        let canaux = processeur.data().len();
-        assert!(
-            larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
-            "a l'echelle {echelle}, l'ecart depasse {ECART_COURANT} sur {larges} canaux sur \
-             {canaux} : la carte manque sur une des deux voies"
-        );
+        slug_1(&format!("a l'echelle {echelle}"), &processeur, &carte);
     }
+}
+
+/// **SLUG-1** : un écart de plus de trois niveaux ne tombe que sur un pixel que l'une des voies
+/// couvre en partie d'une lettre — au plus la part de la suite ailleurs —, et l'encre est là
+/// des deux côtés.
+fn slug_1(nom: &str, processeur: &Pixmap, carte: &Pixmap) {
+    let (fond, encre) = fond_et_encre(processeur);
+    let partiel = |p: tiny_skia::PremultipliedColorU8| entre(p, (fond, encre));
+    let mut hors_des_bords = 0;
+    for (a, b) in processeur.pixels().iter().zip(carte.pixels()) {
+        let ecarts = [
+            a.red().abs_diff(b.red()),
+            a.green().abs_diff(b.green()),
+            a.blue().abs_diff(b.blue()),
+        ];
+        let larges = ecarts.iter().filter(|&&e| e > ECART_COURANT).count();
+        if larges > 0 && !partiel(*a) && !partiel(*b) {
+            hors_des_bords += larges;
+        }
+    }
+    let canaux = processeur.data().len();
+    assert!(
+        hors_des_bords * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "{nom}, {hors_des_bords} canaux s'ecartent de plus de {ECART_COURANT} hors du bord des \
+         lettres : la carte manque, ou se decale, sur une des deux voies"
+    );
+    // L'épreuve regarde bien des lettres : l'encre est là, des deux côtés.
+    let pleins = |image: &Pixmap| {
+        image
+            .pixels()
+            .iter()
+            .filter(|p| [p.red(), p.green(), p.blue()] == encre)
+            .count()
+    };
+    assert!(
+        pleins(processeur) > 2000 && pleins(carte) > 2000,
+        "{nom} : l'encre manque"
+    );
+}
+
+/// **De près, un passage qui brille et une sélection qu'on écrit se dessinent pareil sur les
+/// deux voies** (SLUG-1, fiche 73) : le fond et le liseré du passage, le surlignage de la
+/// sélection, que le dessin vectoriel a reçus en devenant celui de la carte. Leurs couleurs ne
+/// sont ni le fond ni l'encre : ils tiennent sous trois niveaux, comme le reste.
+#[test]
+fn test_slug_1_de_pres_un_passage_et_une_selection_se_dessinent_pareil() {
+    use glucose_desktop::params::Eclairage;
+    let taille = (800u32, 600u32);
+    let store = document_de_pres(6.0, (150.37, 180.61));
+    let texte = "Un texte qu'on lit de tres pres, accents compris : éàçù.";
+    let debut = texte.find("texte").expect("le passage");
+    let eclairages = [Eclairage {
+        carte: "de-pres".to_string(),
+        plages: vec![(debut, debut + 5)],
+        teinte: None,
+    }];
+    let session = glucose_desktop::renderer::TextEditSession {
+        ann_id: "de-pres".to_string(),
+        buffer: texte.to_string(),
+        selection: glucose_core::text::Selection::spanning(3, 14),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible: false,
+    };
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let lumiere = SceneOverlay {
+        eclairages: &eclairages,
+        ..SceneOverlay::sans_rien(&guides)
+    };
+    let saisie = SceneOverlay {
+        editing: Some(&session),
+        ..SceneOverlay::sans_rien(&guides)
+    };
+    for (nom, overlay) in [("le passage", lumiere), ("la selection", saisie)] {
+        let Some((processeur, carte)) = deux_voies_sous(taille, &store, overlay) else {
+            eprintln!("aucune carte utilisable : epreuve sautee");
+            return;
+        };
+        slug_1(nom, &processeur, &carte);
+    }
+}
+
+/// La même scène par les deux voies, sous ce que l'interface y pose.
+fn deux_voies_sous(
+    taille: (u32, u32),
+    store: &glucose_core::store::Store,
+    overlay: SceneOverlay<'_>,
+) -> Option<(Pixmap, Pixmap)> {
+    let mut processeur = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    Renderer::new().render(
+        &mut processeur.as_mut(),
+        store,
+        &mut UiState::new(),
+        overlay,
+        Pointer { x: 0.0, y: 0.0 },
+        Regard::immobile(),
+    );
+    let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    let mut renderer = Renderer::new();
+    let confie = renderer.rendre_les_couches(
+        &mut dessous.as_mut(),
+        &mut dessus.as_mut(),
+        store,
+        (&mut UiState::new(), Pointer { x: 0.0, y: 0.0 }),
+        overlay,
+        Regard::immobile(),
+    );
+    let (peripherique, file) = banc_gpu::carte()?;
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.pixels(&renderer, cle),
+    )?;
+    Some((processeur, carte))
+}
+
+/// **Le fond de la carte et l'encre de ses lettres**, lus sur l'image : la couleur la plus
+/// fréquente, et la plus fréquente parmi les claires — le cœur des lettres.
+fn fond_et_encre(image: &Pixmap) -> ([u8; 3], [u8; 3]) {
+    let mut comptes = std::collections::HashMap::<[u8; 3], usize>::new();
+    for p in image.pixels() {
+        *comptes.entry([p.red(), p.green(), p.blue()]).or_default() += 1;
+    }
+    let la_plus_frequente = |garder: &dyn Fn(&[u8; 3]) -> bool| {
+        comptes
+            .iter()
+            .filter(|(c, _)| garder(c))
+            .max_by_key(|(_, n)| **n)
+            .map(|(c, _)| *c)
+            .expect("une image qui a des pixels")
+    };
+    let fond = la_plus_frequente(&|_| true);
+    let encre = la_plus_frequente(&|c| c.iter().map(|&v| u32::from(v)).sum::<u32>() > 3 * 128);
+    (fond, encre)
+}
+
+/// **Ce pixel est-il couvert en partie par une lettre ?** — un mélange du fond et de l'encre,
+/// à trois niveaux près, qui n'est ni l'un ni l'autre.
+fn entre(p: tiny_skia::PremultipliedColorU8, (fond, encre): ([u8; 3], [u8; 3])) -> bool {
+    let c = [p.red(), p.green(), p.blue()].map(f32::from);
+    let (f, e) = (fond.map(f32::from), encre.map(f32::from));
+    let d = [e[0] - f[0], e[1] - f[1], e[2] - f[2]];
+    let longueur = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+    let t = ((c[0] - f[0]) * d[0] + (c[1] - f[1]) * d[1] + (c[2] - f[2]) * d[2])
+        / (longueur * longueur);
+    let tolerance = f32::from(ECART_COURANT);
+    let sur_le_segment = (0..3).all(|k| (c[k] - (f[k] + t * d[k])).abs() <= tolerance);
+    let marge = tolerance / longueur;
+    sur_le_segment && t > marge && t < 1.0 - marge
 }
 
 // ── NIVEAU-GPU-1 : la carte reçoit le niveau qui couvre la taille posée ────────────────────

@@ -273,7 +273,7 @@ fn test_un_filet_en_svg_a_l_encre_de_sa_formule() {
     let mut svg = crate::renderer::svg::Svg::new();
     let encre = Color::from_rgba8(255, 255, 255, 128);
     let source = r"\frac{1}{2}";
-    assert!(r.en_svg(
+    assert!(r.en_vecteurs(
         &mut svg,
         source,
         Mode::Display,

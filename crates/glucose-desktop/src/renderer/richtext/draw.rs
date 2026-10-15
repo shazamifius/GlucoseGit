@@ -107,9 +107,35 @@ pub(crate) fn draw_line_selection(
     source: &str,
     selection: Selection,
 ) {
+    let Some((x, y, l, h)) = boite_de_la_selection(
+        ctx,
+        at,
+        (layout, line),
+        (font, line_height),
+        (source, selection),
+    ) else {
+        return;
+    };
+    let Some(rect) = Rect::from_xywh(x, y, l, h) else {
+        return;
+    };
+    let mut paint = Paint::default();
+    paint.set_color(ctx.theme.text_selection);
+    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+}
+
+/// **La boîte du surlignage d'une sélection sur une ligne**, ou `None` si la ligne n'en porte
+/// rien : ce que [`draw_line_selection`] remplit, et le dessin vectoriel avec lui.
+pub(crate) fn boite_de_la_selection(
+    ctx: &Pass,
+    at: (f32, f32),
+    (layout, line): (&TextLayout, &VisualLine),
+    (font, line_height): (f32, f32),
+    (source, selection): (&str, Selection),
+) -> Option<(f32, f32, f32, f32)> {
     let (start, end) = selection.range();
     if selection.is_empty() || end <= line.start || start > line.end {
-        return;
+        return None;
     }
     let from = offset_to_x(
         ctx.typography,
@@ -130,12 +156,7 @@ pub(crate) fn draw_line_selection(
     if end > line.end {
         to += ctx.typography.advance(' ', font, Face::Regular);
     }
-    let Some(rect) = Rect::from_xywh(at.0 + from, at.1, (to - from).max(0.0), line_height) else {
-        return;
-    };
-    let mut paint = Paint::default();
-    paint.set_color(ctx.theme.text_selection);
-    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+    Some((at.0 + from, at.1, (to - from).max(0.0), line_height))
 }
 
 /// Le fond d'un `` `code` `` : la valeur de la référence, dite en multiples du corps.
@@ -230,14 +251,14 @@ fn draw_strikethrough(
     pixmap.fill_rect(rect, &paint, Transform::identity(), None);
 }
 
-// ── La sœur vectorielle (P5, fiche 69) ──────────────────────────────────────
+// ── Le dessin vectoriel (P5 fiche 69, P8 fiche 73) ─────────────────────────────
 
-/// **Une ligne en SVG** : la sœur de [`draw_line`] — les mêmes taquets, le même fond d'un
+/// **Une ligne en dessin vectoriel** : celle de [`draw_line`] — les mêmes taquets, le même fond d'un
 /// `` `code` ``, le même trait d'un lien et d'un barré, lus dans la police ; chaque fragment
 /// posé à l'abscisse que la mesure d'Inter lui donne. Rend l'abscisse où la plume s'arrête.
-pub(crate) fn ligne_en_svg(
+pub(crate) fn ligne_en_vecteurs<V: crate::renderer::vectoriel::Vectoriel>(
     ctx: &Pass,
-    svg: &mut crate::renderer::svg::Svg,
+    v: &mut V,
     at: (f32, f32),
     (layout, line): (&TextLayout, &VisualLine),
     (font, ink): (f32, Ink),
@@ -252,7 +273,6 @@ pub(crate) fn ligne_en_svg(
         let slice = &source[fragment.start..fragment.end];
         let style = fragment_style(fragment, font, ink);
         let (largeur, _) = ctx.typography.measure_text(slice, font, style.face);
-        let couleur = crate::renderer::svg::couleur(ctx.theme.code_bg);
         if fragment.emphasis.code() && !plate {
             if let Some(lm) = ctx
                 .typography
@@ -267,12 +287,11 @@ pub(crate) fn ligne_en_svg(
                     largeur + pad_x * 2.0,
                     lm.ascent - lm.descent + pad_y * 2.0,
                 );
-                svg.rectangle(boite, font * CODE_RADIUS, (&couleur.0, couleur.1));
+                v.rectangle(boite, font * CODE_RADIUS, ctx.theme.code_bg);
             }
         }
-        svg.texte(ctx.typography, (x, at.1), slice, style);
+        v.texte(ctx.typography, (x, at.1), slice, style);
         let fin = x + largeur;
-        let encre = crate::renderer::svg::couleur(style.color);
         let epaisseur = (font * STRIKE_WIDTH).max(1.0);
         if fragment.emphasis.link() {
             let metrics = ctx
@@ -281,12 +300,12 @@ pub(crate) fn ligne_en_svg(
                 .horizontal_line_metrics(font);
             let creux = metrics.map_or(font * STRIKE_WIDTH * 2.0, |m| -m.descent / 2.0);
             let trait_ = (x, at.1 + font + creux, fin - x, epaisseur);
-            svg.rectangle(trait_, 0.0, (&encre.0, encre.1));
+            v.rectangle(trait_, 0.0, style.color);
         }
         if fragment.emphasis.strike() {
             let x_height = ctx.typography.font(style.face).metrics('x', font).height as f32;
             let trait_ = (x, at.1 + font - x_height / 2.0, fin - x, epaisseur);
-            svg.rectangle(trait_, 0.0, (&encre.0, encre.1));
+            v.rectangle(trait_, 0.0, style.color);
         }
         x = fin;
     }
