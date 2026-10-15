@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 14/10/2026** (fiches 59 à 66). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 15/10/2026** (fiches 59 à 71). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -144,6 +144,10 @@
 | **Deux sources pour un même état** : le storyboard courant se lisait sur la case choisie, puis sur le dernier touché — les deux divergeaient après « + Nouveau » (fiche 68) | une seule source ; chaque geste qui change l'une tient l'autre, ou l'autre disparaît |
 | **Une page qui prend tout ce qui tombe dans son cadre** : la planche d'un storyboard montrait l'autre storyboard, posé dessous — aucune épreuve ne le disait, l'aperçu si (fiche 68) | regarder l'image produite avant d'y croire ; une page ne prend que ce qui est à elle, par la règle d'appartenance qui existe déjà |
 | **Une adaptation par script qui garde la forme et perd le sens** : une lecture construite avec un nom de storyboard vide compilait, et ne lisait rien (fiche 68) | après un remplacement mécanique, lire chaque épreuve qui tombe avant de la « réparer » ; une aide d'épreuve qui exige l'hypothèse (« un seul storyboard ») tombe au lieu de choisir |
+| **Une lenteur attribuée sans chronomètre** : « probablement le flou de `resvg` » — juste, mais la cause était dans **notre** SVG (une région de filtre de ±100 000 unités), et tout lecteur la payait (fiche 71) | chronométrer chaque étape avant de supposer ; une lenteur d'épreuve peut être un défaut du produit |
+| **Un commentaire qui affirme ce que le code ne fait pas** : « trois écarts-types de chaque côté » au-dessus de ±100 000 ; « les pixels mêmes que `fill_crisp` » au-dessus d'une autre règle (fiche 71) | relire le code sous chaque commentaire qui promet une égalité ; une égalité promise s'obtient en **appelant** la règle, jamais en la récrivant |
+| **Une épreuve globale qui dilue ce qui est petit ou peu contrasté** : la superposition du SVG ne voyait ni un texte bleu sur bleu absent, ni un glyphe grossi de 5 %, ni un décalage d'un pixel (fiche 71) | une épreuve globale borne le gros ; chaque petite garde a son épreuve ciblée, jugée si possible par un autre que nous (`fontdue`, `resvg`) |
+| **Une commande de sabotage qui ne lance pas l'épreuve visée** : BORNES-2 « aveugle » — son épreuve vit dans `tests/store_suite.rs`, la commande ne lançait que `--lib` (fiche 71) | avant de saboter, lancer la commande sur le code intact et vérifier qu'elle **exécute** l'épreuve visée (son nom dans la sortie) |
 
 ## 5. Les pièges pratiques
 
@@ -163,7 +167,7 @@
 * **Git Bash exécute ce qu'on met entre accents graves**, même dans une chaîne destinée à
   Python : `` `docs/INVENTAIRE.md` `` dans un `python -c "…"` a été lancé comme un script
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
-* **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`,
+* **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
   texte).
@@ -214,6 +218,12 @@
   <dossier>` — la raison du dernier redémarrage, les morts de Glucose qu'Android a notées
   (`exit-info`), la boîte des incidents, les journaux, la mémoire, le pilote, et un rapport de
   bogue complet. Rien n'est écrit sur le téléphone, et Glucose n'y est pas ouvert.
+* **Sans câble** (il a perdu le sien, fiche 71) : le **débogage sans fil** d'Android 11 et après
+  (`adb pair <adresse:port>` et son code à six chiffres, puis `adb connect <adresse:port>`, un
+  autre port) — le même script marche. Il demande que téléphone et PC soient sur **un même
+  Wi-Fi** : quand le PC passe par le partage de connexion du téléphone, c'est probablement
+  refusé. Le repli : l'APK dans un zip, envoyé par Drive (Discord refuse plus de 10 Mo sans
+  abonnement), extrait par l'application Fichiers ; la télémétrie dit le reste.
 * **Le pilote Vulkan du téléphone** : `adb shell cmd gpu vkjson` (dans `lire_le_telephone.sh`,
   `vulkan.json`) dit ses extensions — `VK_EXT_memory_budget` y est-il ? vulkan.gpuinfo.org ne
   répond pas hors de son navigateur (fiche 67).

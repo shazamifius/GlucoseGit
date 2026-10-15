@@ -33,13 +33,14 @@
 | PureRef | Glucose | |
 |---|---|---|
 | Sélection simple, multiple, rectangle, tout, désélection | ✅ | et aux doigts (GESTES-1) |
-| Arranger : disposition optimale | ✅ | Ordonner : grille, maçonnerie, rangées compactes, même hauteur, même largeur, ligne, colonne |
-| Arranger par nom, ordre d'ajout, taille | ✅ | huit tris : taille (↑↓), rapport (paysage, portrait), nom, date, et **trois par la couleur** (Oklab) — PureRef n'en a pas |
+| Arranger : disposition optimale | ✅ | Ordonner : rangées compactes, maçonnerie, grille alignée, même hauteur, par mood board |
+| Arranger par taille, ordre actuel | ✅ | huit tris : l'ordre actuel, la taille (↑↓), le rapport (portrait, paysage), et **trois par la couleur** — la teinte, du sombre au clair, du clair au sombre (Oklab) — que PureRef n'a pas |
+| Arranger par nom, ordre d'ajout | 🟡 | le noyau sait trier par nom et par date (`OrganizeSort`), **aucun bouton ne le montre** : à brancher |
 | … par hiérarchie, chemin de fichier, aléatoire (relancer inverse) | ❌ | |
 | Aligner (gauche, droite, haut, bas) avec espacement réglable | 🟡 | l'aimant aligne aux voisines pendant un glisser (SNAP-4) ; une commande « Aligner » : à faire |
-| Distribuer en lignes horizontales ou verticales | ✅ | Ordonner : ligne, colonne |
+| Distribuer en lignes horizontales ou verticales | 🟡 | le noyau sait poser en ligne et en colonne (`OrganizeMode::Row`, `Column`), **aucun bouton ne le montre** : à brancher |
 | Empiler (pile selon l'ordre des calques) | ❌ | |
-| Normaliser hauteur, largeur, taille, aire, échelle | 🟡 | même hauteur, même largeur ; taille, aire, échelle à faire |
+| Normaliser hauteur, largeur, taille, aire, échelle | 🟡 | même hauteur (Ordonner) ; même largeur dans le noyau sans bouton ; taille, aire, échelle à faire |
 | Premier plan, arrière-plan | ✅ | `Ctrl+]`, `Ctrl+[` |
 | Déplacement contraint sur un axe | ❌ | |
 | Aimanter aux bords des voisins | ✅ | l'aimant, et le placement aimanté dès le premier clic |

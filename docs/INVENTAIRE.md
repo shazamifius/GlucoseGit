@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 15/10/2026** (fiches 63 à 68). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 15/10/2026** (fiches 63 à 71). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -75,7 +75,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | fonction | au PC | au téléphone |
 |---|---|---|
 | Ordonner (cinq dispositions, huit tris, champs) | panneau Ordonner | 🟡 les champs se glissent, **ne se tapent pas** (le clavier d'Android ne sert pas les champs du dock) |
-| Presets : poser un gabarit, ses zones, « Par slot preset » | panneau Preset | ✅ |
+| **Mood board** (l'ancien « Presets » de Tauri, renommé à sa parole, fiche 71) : poser un gabarit, ses zones, « Par mood board » dans Ordonner | panneau Mood board | ✅ |
 | **Storyboard** : poser la grille (« Activer », un clic), « Mettre à jour » le storyboard courant, effacer le courant (×) | panneau Storyboard | ✅ (STORYBOARD-1, fiche 64 — à juger) |
 | **Plusieurs storyboards par tableau**, une séquence chacun : « + Nouveau » en pose un autre ; ‹ et › passent de l'un à l'autre (« 2 / 3 ») ; choisir une case fait le sien **courant** — celui que le panneau montre, que « ▶ Lire », « + Ajouter », « Mettre à jour » et × visent (P2.8, fiche 68) | panneau Storyboard, la bande d'une case | ✅ (les mêmes boutons au doigt) |
 | Storyboard : **tracer un rectangle** que les cases remplissent | « Activer », puis glisser (STORYBOARD-2, fiche 65) | ✅ |
@@ -107,7 +107,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Plugins | « Télécharger » le modèle d'IA | l'IA locale | plus tard |
 | bande | **Collaborer** : dit « pas encore disponible » | la collaboration — obligatoire | plus tard, à sa parole |
 | bande | **Trans-domaines** : ne fait rien, **et ne le dit pas** | sa définition — de la recherche, son raisonnement sur « domaine » n'est pas fini (15/10) | **dire « bientôt »**, comme Collaborer (fiche 71 : un bouton ne fait jamais semblant) |
-| Preset | « Créer un preset custom » — **un preset est l'interface entière** (disposition, comportement, couleurs, raccourcis, fenêtres : Glucose, PureRef, Figma, Miro — `VISION.md`), pas des zones | la fondation : l'interface devenue donnée | SUITE P4 |
+| Mood board | « + Créer un mood board », grisé — et **un preset est désormais l'interface entière** (disposition, comportement, couleurs, raccourcis, fenêtres : Glucose, PureRef, Figma, Miro — `VISION.md`), pas des zones | la fondation : l'interface devenue donnée | SUITE P4 |
 | le téléphone | les champs de nombre du dock, le nom d'un jalon, celui d'un domaine : on ne peut pas taper | le miroir du clavier (CLAVIER-1) étendu au dock | avec l'UX du téléphone, refaite en dernier |
 | au premier lancement | la carte d'accueil naît **choisie** : le premier clic droit ouvre le menu d'une sélection | à vérifier contre Tauri | relecture des menus |
 

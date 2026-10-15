@@ -86,3 +86,56 @@ la distance au-delà de laquelle elle ne change plus un niveau, déjà calculée
 Aucune constante. **28,3 s → 62 ms**, et la superposition est identique au centième (forme 26,62,
 teinte 6,31, avec et sans la borne). Une épreuve neuve la garde — remettre ±100 000 laissait
 toutes les autres vertes, seulement plus lentes : `test_p5_chaque_flou_tient_dans_le_cadre_de_l_export`.
+
+## 6. Les sabotages de P5 — et ce que la superposition ne voyait pas
+
+`outils/sabotages/p5.json` : chaque appel du SVG retiré, l'ordre des lueurs, le fond, le premier
+rang, les membranes, les textes, les dossiers, l'échelle et l'avance d'un glyphe, la ligne de
+base, le détourage, l'opacité d'un filet, `rayon_tenu`, le rectangle net, la région des flous
+(immense ou sans portée), BORNES-2, le badge et le texte d'un dossier vide, le titre et le
+chiffre du dossier. Premier passage : **20 chutes, 9 aveugles**. Deux venaient de **ma commande**
+(BORNES-2 : son épreuve vit dans `tests/store_suite.rs`, je ne lançais que `--lib`). Les sept
+autres disaient une vraie limite : la superposition borne le gros, et dilue le petit ou le peu
+contrasté. Sept épreuves ciblées, jugées par un autre que nous quand c'est possible :
+
+* les textes peu contrastés (le nom d'une zone, bleu sur son bandeau bleu ; sa phrase grise ; la
+  description d'une case ; « Double-clic pour ouvrir ») et l'absence de badge d'un dossier vide ;
+* la taille d'un glyphe, mesurée contre la boîte que **`fontdue`** rastérise pour le canevas ;
+* le filet d'une fraction à l'encre de sa formule ; un coin borné à la moitié du côté ;
+* **le rectangle net, jugé par `resvg` au pixel près — et il tombait sur le code intact** : le
+  canevas cale un rectangle en *arrondissant* (`on_pixel_grid`), le SVG *tronquait* ses bords
+  (son commentaire promettait « les pixels mêmes que `fill_crisp` »). Chaque zone et chaque case
+  du SVG étaient décalées d'un pixel. Le SVG appelle désormais la règle du canevas.
+
+Rejoués : **30 sabotages, 30 chutes**.
+
+## 7. Le SVG d'un vrai document
+
+Une copie de son document « UwU » (`Desktop\projet horreur`, 5 Mo ; l'original n'est pas touché),
+exportée par le chemin même du bouton : un SVG de 6,9 Mo (les photos y portent leurs octets
+d'origine) que `resvg` rend en **0,5 s**, superposé au PNG de 7 710 × 2 260 pixels : 0,4 % des
+pixels s'écartent de plus de 32 niveaux, 1 461 de plus de 96 — tous dans le détail fin des photos
+(deux rééchantillonnages différents), invisibles côte à côte. Le texte, les lueurs, les flèches,
+les nœuds se superposent.
+
+## 8. Mood board, Trans-domaines
+
+* **Le panneau « Presets » devient « Mood board »** (sa parole) : la bande, le rail, le titre, les
+  légendes, « + Créer un mood board » (grisé), « Par mood board » dans Ordonner. La bande mesure
+  sa densité : elle garde tous ses libellés dès **1 626 pixels** (1 594 avant) ; son écran (2 560 à
+  150 %) en a 1 707 — l'épreuve de la bande porte désormais sur lui. Les trois témoins : la bande
+  seule, 2 764 pixels, regardés.
+* **Trans-domaines dit « bientôt — en recherche »**, comme Collaborer. Sa parole du 23/09 disait
+  « laisse le bouton ne rien faire » ; je lui ai annoncé le changement le 15/10 (un bouton ne fait
+  jamais semblant, R1) sans objection — **à lui dire, réversible**.
+* 2 sabotages, 2 chutes (`outils/sabotages/mood-board.json`).
+
+## 9. La remise en forme des documents
+
+* **[VISION](../VISION.md)** (neuf) : sa direction. **[PUREREF](../PUREREF.md)** (neuf) : sa liste des
+  fonctions de PureRef, chacune en face de ce que Glucose fait — la cible du preset PureRef. En
+  l'écrivant, trouvé : le tri par nom et par date, la ligne et la colonne existent dans le noyau
+  et **aucun bouton ne les montre**.
+* **[ÉTAT](../ETAT.md)** tient en une page (l'histoire reste au carnet) ; **[SUITE](../SUITE.md)** dit
+  le programme, puis **une seule liste de ce qui attend son écran** — pour sa séance d'essais.
+* `decisions/13` (ttf-parser, resvg) ; METHODE : cinq leçons, et le téléphone sans câble.
