@@ -20,6 +20,9 @@ wgpu = "30"
 pollster = "0.4"
 tiny-skia = "0.11"
 fontdue = "0.9"
+# Les contours des glyphes, pour l'export SVG (P5, fiche 70, decisions/13). Déjà là par
+# `fontdue`, même version, sans ses fonctions par défaut : rien de plus ne se compile.
+ttf-parser = { version = "0.25", default-features = false }
 # La vérification des mises à jour : minisign, par son auteur, sans aucune dépendance (fiche 44 § 4).
 minisign-verify = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
@@ -68,6 +71,11 @@ automerge = "0.12"
 # L'oracle de notre DEFLATE (`glucose_core::persist::tauri::inflate`) : ce qu'elle compresse, notre
 # lecteur doit le rendre à l'octet près. Aucune caisse de plus : `png` la tire déjà (decisions/03).
 miniz_oxide = "0.8"
+# L'oracle de l'export SVG (P5, fiche 70, decisions/13) : il rend le SVG en pixels, que
+# l'épreuve superpose au canevas. Sans ses fonctions par défaut (ni texte ni polices du
+# système : nos glyphes sont des tracés), sur notre `tiny-skia` 0.11 ; ses décodeurs de photos
+# sont ceux d'`image`. Jamais dans l'application.
+resvg = { version = "0.46", default-features = false, features = ["raster-images"] }
 
 # Une épreuve fait tomber un vrai processus pour vérifier que le journal de Windows le rend
 # (`plateforme::journal`), et une autre ouvre une fenêtre cachée pour voir ce que sa file de

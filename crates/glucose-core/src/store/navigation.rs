@@ -319,6 +319,10 @@ impl Store {
             .map(|img| img.rect())
             .chain(board.folders.iter().map(|f| f.rect()))
             .chain(board.annotations.iter().map(|a| a.bounds()))
+            // BORNES-2 (fiche 70) : les zones d'un gabarit et les cases d'un storyboard sont du
+            // contenu — un tableau qui ne porte qu'un storyboard se cadre, et s'exporte entier.
+            .chain(board.zones.iter().map(|z| z.rect()))
+            .chain(board.panels.iter().map(|c| c.emprise()))
             .reduce(|acc, r| acc.union(r))
     }
 }

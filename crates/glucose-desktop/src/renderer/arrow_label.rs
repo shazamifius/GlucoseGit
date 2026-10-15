@@ -264,7 +264,7 @@ pub(super) fn etiquette_en_svg(
         face: Face::Regular,
     };
     let at = (cx - text_w / 2.0, cy - text_h / 2.0);
-    svg.texte(at, text, &super::richtext::draw::style_svg(style));
+    svg.texte(typography, at, text, style);
 }
 
 #[cfg(test)]

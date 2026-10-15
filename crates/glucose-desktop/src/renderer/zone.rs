@@ -30,6 +30,7 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::renderer::pass::Clip;
 use crate::renderer::scale::{on_pixel_grid, WorldScale};
+use crate::renderer::surface::{Pixels, Surface};
 use crate::renderer::wrap::wrap_paragraph;
 use crate::renderer::PaintKit;
 use crate::typography::{Face, TextStyle};
@@ -143,44 +144,48 @@ pub(super) fn ecrire_les_textes(
     store: &Store,
     pass: ViewPass<'_>,
 ) -> bool {
+    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
+    let mut pixels = Pixels {
+        pixmap,
+        typographie: kit.typography,
+    };
+    textes(&mut pixels, (store, pass), ecran)
+}
+
+/// **Les textes des zones, sur n'importe quel peintre** — le canevas, ou le SVG d'un export
+/// (P5, fiche 70). Rend vrai si une zone en a reçu.
+pub(super) fn textes(
+    p: &mut impl Surface,
+    (store, pass): (&Store, ViewPass<'_>),
+    ecran: (f32, f32),
+) -> bool {
     let scale = pass.echelle();
     if !scale.draws_detail() {
         return false;
     }
-    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
     let zones = visibles(store, pass, ecran);
     for (zone, boite) in &zones {
-        ecrire(
-            kit,
-            pixmap,
-            *boite,
-            &ce_que_montre(zone, &store.project),
-            scale,
-        );
+        ecrire(p, *boite, &ce_que_montre(zone, &store.project), scale);
     }
     !zones.is_empty()
 }
 
 /// Le nom d'une zone dans son bandeau, sa phrase au milieu, coupée à sa largeur.
 fn ecrire(
-    kit: PaintKit<'_>,
-    pixmap: &mut PixmapMut,
+    p: &mut impl Surface,
     (x, y, w, h): (f32, f32, f32, f32),
     montre: &Montre,
     scale: WorldScale,
 ) {
     let un = |l: f32| scale.world(l);
-    let typo = kit.typography;
     let nom = TextStyle {
         size: un(CORPS_DU_NOM),
         color: rgba(montre.couleur, 255),
         face: Face::Bold,
     };
-    typo.draw_text(
-        pixmap,
+    p.ecrire(
+        (x + un(MARGE), y + un(10.0)),
         &montre.nom.to_uppercase(),
-        x + un(MARGE),
-        y + un(10.0),
         nom,
     );
     let corps = un(CORPS_DE_LA_PHRASE);
@@ -190,16 +195,13 @@ fn ecrire(
         face: Face::Regular,
     };
     let largeur = (w - 2.0 * un(MARGE)).max(0.0);
+    let typo = p.typographie();
     let avance = |_: usize, c: char| typo.advance(c, corps, Face::Regular);
+    let lignes = wrap_paragraph(&montre.description, largeur, avance);
     let mut ligne_y = y + h / 2.0 - un(10.0);
-    for (debut, fin) in wrap_paragraph(&montre.description, largeur, avance) {
-        typo.draw_text(
-            pixmap,
-            &montre.description[debut..fin],
-            x + un(MARGE),
-            ligne_y,
-            phrase,
-        );
+    for (debut, fin) in lignes {
+        let morceau = &montre.description[debut..fin];
+        p.ecrire((x + un(MARGE), ligne_y), morceau, phrase);
         ligne_y += corps * 1.3;
     }
 }

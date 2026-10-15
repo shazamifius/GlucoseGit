@@ -259,13 +259,13 @@ pub(super) fn formes_des_membranes(
 /// part, comme le `<rect>` du SVG, du haut juste après le coin haut gauche, dans le sens des
 /// aiguilles d'une montre : le pointillé tombe au même endroit.
 pub(super) fn membranes_en_svg(
-    (store, pass, theme): (&Store, ViewPass<'_>, &Theme),
+    (kit, store, pass): (PaintKit<'_>, &Store, ViewPass<'_>),
     taille: (u32, u32),
     svg: &mut super::svg::Svg,
 ) {
     use super::svg::n;
-    let mut titres = Vec::new();
-    pour_chaque_membrane(store, pass, (taille.0 as f32, taille.1 as f32), |m| {
+    let ecran = (taille.0 as f32, taille.1 as f32);
+    pour_chaque_membrane(store, pass, ecran, |m| {
         let forme = m.forme();
         let [r, g, b] = forme.teinte.map(|c| (c * 255.0).round() as u8);
         let teinte = super::svg::hex((r, g, b));
@@ -283,20 +283,32 @@ pub(super) fn membranes_en_svg(
             r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="none" stroke="{teinte}" stroke-opacity="{}" stroke-width="{}"{tirets}/>"#,
             n(x), n(y), n(l), n(h), n(bord.forme.rayon), n(bord.alpha), n(bord.demi_largeur * 2.0)
         ));
-        if let Some(texte) = m.text.filter(|t| !t.is_empty() && m.scale.draws_detail()) {
-            let (sx, sy) = m.coin;
-            let at = (sx + m.layout.label_dx, sy - m.layout.label_dy);
-            titres.push((texte.to_string(), at, m.layout.label_font, (r, g, b)));
-        }
     });
-    // Les titres au-dessus de toutes les formes, comme au canevas ; leur contour est le fond.
-    let fond = super::svg::couleur(theme.bg_canvas).0;
-    for (texte, (x, y), corps, teinte) in titres {
-        svg.poser(&format!(
-            r#"<text x="{}" y="{}" font-size="{}" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="700" fill="{}" stroke="{fond}" stroke-width="2" paint-order="stroke" stroke-linejoin="round" xml:space="preserve">{}</text>"#,
-            n(x), n(y + corps), n(corps), super::svg::hex(teinte), super::svg::echapper(&texte)
-        ));
+    // Les ornements au-dessus de toutes les formes, comme au canevas : le titre détouré du
+    // fond, puis la réglette, alignée à droite du bord haut.
+    pour_chaque_membrane(store, pass, ecran, |m| ornements_en_svg(kit, svg, &m));
+}
+
+/// Le titre et la réglette d'une membrane — la sœur de `poser_les_ornements`.
+fn ornements_en_svg(kit: PaintKit<'_>, svg: &mut super::svg::Svg, m: &MembraneVue<'_>) {
+    let (sx, sy) = m.coin;
+    let (layout, (r, g, b)) = (m.layout, m.teinte);
+    if let Some(label) = m.text.filter(|l| !l.is_empty() && m.scale.draws_detail()) {
+        let style = TextStyle {
+            size: layout.label_font,
+            color: Color::from_rgba8(r, g, b, 255),
+            face: Face::Bold,
+        };
+        let at = (sx + layout.label_dx, sy - layout.label_dy);
+        svg.texte_detoure(kit.typography, at, label, (style, kit.theme.bg_canvas));
     }
+    let gauge_x = sx + layout.width - gauge_width(m.scale, m.domains.len());
+    let mut vecteurs = super::surface::Vecteurs {
+        svg,
+        typographie: kit.typography,
+    };
+    let coin = (gauge_x, sy);
+    super::domain::reglette(&mut vecteurs, kit.tints, m.scale, coin, m.domains);
 }
 
 /// **Les membranes entières, au processeur** : leurs formes, puis leurs ornements. Rend vrai

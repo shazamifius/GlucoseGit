@@ -485,6 +485,50 @@ fn test_les_bornes_du_contenu_couvrent_les_trois_familles() {
     assert_eq!(b.top + b.height, 550.0, "la membrane tire le bas");
 }
 
+/// **BORNES-2 — les zones et les cases sont du contenu** (fiche 70) : un tableau qui ne porte
+/// qu'un gabarit et un storyboard se cadre, et un export le prend entier — la bande de
+/// description de la dernière case comprise. Avant, les deux étaient oubliés : l'export coupait
+/// le storyboard.
+#[test]
+fn test_bornes_2_les_zones_et_les_cases_sont_du_contenu() {
+    use glucose_core::store::storyboard::{Format, Grille, DESCRIPTION};
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+    }
+    assert!(store.content_bounds(&board).is_none());
+    let zone = glucose_core::types::BoardZone::new("ref", -500.0, -40.0, 100.0, 80.0);
+    store.poser_les_zones(&board, vec![zone]);
+    let grille = Grille {
+        format: Format::Cinema,
+        largeur: 200.0,
+        colonnes: 2,
+        ecart: 20.0,
+    };
+    store
+        .poser_le_storyboard(&board, grille, (0.0, 0.0))
+        .expect("un storyboard");
+    let derniere = store
+        .active_board()
+        .and_then(|b| b.panels.iter().map(|c| c.y + c.height).reduce(f64::max))
+        .expect("des cases");
+    let b = store.content_bounds(&board).expect("des bornes");
+    assert_eq!(b.left, -500.0, "la zone tire la gauche");
+    assert_eq!(b.top, -40.0, "la zone tire le haut");
+    assert_eq!(
+        b.left + b.width,
+        420.0,
+        "deux cases et leur écart tirent la droite"
+    );
+    assert_eq!(
+        b.top + b.height,
+        derniere + DESCRIPTION,
+        "la bande de la dernière case tire le bas"
+    );
+}
+
 /// **L'emprise de la sélection ne compte que ce qui est choisi**, dans les trois familles —
 /// la touche `F` cadre ceci (fiche 53 § 8). Rien de choisi : rien à cadrer.
 #[test]

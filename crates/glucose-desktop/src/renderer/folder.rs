@@ -17,12 +17,26 @@
 //! c'est un cadre qui contient, pas un objet qui s'affirme. La sélection double cette
 //! opacité, remplace le pointillé par un trait plein et ajoute un halo — la même grammaire
 //! que les membranes, qui sont l'autre conteneur du canevas.
+//!
+//! # Ce que la relecture contre Tauri a corrigé (fiche 70)
+//!
+//! `FolderSvgLayer.tsx` écrit le titre **sur sa ligne de base**, à `HEADER / 2 + 4` = 23, et le
+//! chiffre du badge à 11,5 dans sa pastille. Le portage avait pris ces ordonnées pour des
+//! **hauts** de texte : le titre tombait d'un corps entier et touchait le trait du bandeau, le
+//! chiffre passait sous sa pastille. Le badge ne se montre que si le dossier contient quelque
+//! chose, et un dossier vide dit « Double-clic pour ouvrir » ; l'icône est le tracé même de
+//! Tauri, plus deux rectangles ; le titre a les opacités de Tauri (55 %, 85 % choisi).
+//!
+//! Le dessin est écrit **une fois**, sur une [`Surface`] : les pixels du canevas, ou le SVG
+//! d'un export (P5).
 
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::renderer::handles::draw_resize_handles;
 use crate::renderer::pass::Clip;
 use crate::renderer::scale::WorldScale;
+use crate::renderer::surface::{Pixels, Surface, Trait, Vecteurs};
+use crate::renderer::svg::Svg;
 use crate::renderer::{parse_hex_color, push_rounded_rect, PaintKit};
 use crate::typography::{Face, TextStyle};
 use glucose_core::hit_priority::pick_consts;
@@ -30,7 +44,7 @@ use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
 use glucose_core::types::CanvasFolder;
-use tiny_skia::{Color, LineCap, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use tiny_skia::{Color, LineCap, Path, PathBuilder, PixmapMut, Rect};
 
 /// Rayon des coins du cadre, en unités monde (fiche 06 § 8.1).
 pub(super) const CORNER_RADIUS: f32 = 10.0;
@@ -49,21 +63,29 @@ const BORDER_DASH: (f32, f32) = (3.0, 5.0);
 /// Le halo de sélection : débord, rayon supplémentaire, épaisseur, opacité.
 const GLOW: (f32, f32, f32, u8) = (3.0, 13.0, 1.5, 89);
 
-/// Position et taille de l'icône d'explorateur, en unités monde.
-const ICON: (f32, f32, f32, f32) = (12.0, 11.0, 16.0, 14.0);
+/// Le coin de l'icône d'explorateur, en unités monde — le `translate(12, 11)` de Tauri.
+const ICON: (f32, f32) = (12.0, 11.0);
 /// Opacité de l'icône : 45 % au repos, 70 % sélectionnée.
 const ICON_ALPHA: (u8, u8) = (115, 179);
-/// Ancre du titre dans le bandeau, et sa taille de police, en unités monde.
+/// Le titre dans le bandeau : son abscisse, **sa ligne de base**, son corps — en unités monde.
 const TITLE: (f32, f32, f32) = (34.0, 23.0, 14.0);
+/// Opacité du titre : 55 % au repos, 85 % sélectionné (Tauri, `fillOpacity`).
+const TITLE_ALPHA: (u8, u8) = (140, 217);
 /// Longueur au-delà de laquelle le titre est tronqué.
 const TITLE_MAX_CHARS: usize = 28;
 /// Le badge compteur : retrait depuis le bord droit, ordonnée, largeur, hauteur, rayon.
 const BADGE: (f32, f32, f32, f32, f32) = (38.0, 11.0, 30.0, 16.0, 8.0);
 /// Opacité du fond du badge (18 %) et de son contour (40 %).
 const BADGE_ALPHA: (u8, u8) = (46, 102);
-/// Épaisseur du contour du badge et taille de son chiffre, en unités monde.
+/// Épaisseur du contour du badge, taille de son chiffre, et **la ligne de base** du chiffre
+/// dans la pastille, en unités monde.
 const BADGE_STROKE: f32 = 0.8;
 const BADGE_FONT: f32 = 10.0;
+const BADGE_BASELINE: f32 = 11.5;
+/// Opacité du chiffre du badge : 95 %.
+const BADGE_TEXT_ALPHA: u8 = 242;
+/// Ce qu'un dossier vide dit, au milieu de son corps, sa taille et son gris (Tauri : `#444`).
+const VIDE: (&str, f32, (u8, u8, u8)) = ("Double-clic pour ouvrir", 11.0, (0x44, 0x44, 0x44));
 
 /// Les longueurs d'un dossier à l'échelle d'une passe.
 struct Layout {
@@ -88,255 +110,235 @@ impl Layout {
     }
 }
 
-/// Dessine les dossiers visibles du tableau actif.
+/// Ce qu'un dossier sait de lui-même pour se dessiner : sa teinte, s'il est choisi, l'échelle,
+/// et ce qu'il contient.
+struct Etat {
+    tint: (u8, u8, u8),
+    selected: bool,
+    scale: WorldScale,
+    compte: usize,
+}
+
+/// **Chaque dossier visible du tableau actif**, avec son coin à l'écran, sa mise en page et
+/// son état.
 ///
 /// Deux filtres, et ils ne font pas double emploi. L'index donne la tranche des dossiers
 /// proches, sans parcourir les autres : c'est lui qui rend le coût indépendant de la taille
 /// du document (CULL-1). Le test de bord qui suit reste nécessaire parce que l'index
 /// interroge une zone élargie de 200 px — marge utile au picking, superflue pour dessiner.
-/// Rend **vrai** si au moins un dossier a recu de l'encre (voir `draw_membranes`).
+fn visibles<'a>(
+    store: &'a Store,
+    pass: ViewPass<'a>,
+    clip: Clip,
+) -> impl Iterator<Item = (&'a CanvasFolder, (f32, f32), Layout, Etat)> + 'a {
+    let scale = pass.echelle();
+    let board = store.active_board();
+    let dossiers = board
+        .into_iter()
+        .flat_map(move |b| Visibles::nouvelles(pass.visibles, b).dossiers());
+    dossiers.filter_map(move |f| {
+        let layout = Layout::new(f, scale);
+        let (wx, wy) = world_to_screen(f.x, f.y, &pass.vp);
+        let (sx, sy) = (wx as f32, wy as f32);
+        if clip.rejects(sx, sy, layout.width, layout.height) {
+            return None;
+        }
+        let etat = Etat {
+            tint: parse_hex_color(&f.color, 136, 136, 136),
+            selected: store.selected_folder_id.as_deref() == Some(f.id.as_str()),
+            scale,
+            compte: store.folder_child_count(&f.child_board_id),
+        };
+        Some((f, (sx, sy), layout, etat))
+    })
+}
+
+/// Dessine les dossiers visibles du tableau actif. Rend **vrai** si au moins un dossier a reçu
+/// de l'encre (voir `draw_membranes`).
 pub(super) fn draw_folders(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
 ) -> bool {
-    let Some(board) = store.active_board() else {
-        return false;
-    };
-    if board.folders.is_empty() {
-        return false;
-    }
-    let PaintKit {
-        typography, theme, ..
-    } = kit;
-    let scale = pass.echelle();
     let clip = Clip {
         width: pixmap.width() as f32,
         height: pixmap.height() as f32,
         top: pass.header_h,
     };
-
     let mut encre = false;
-    for f in Visibles::nouvelles(pass.visibles, board).dossiers() {
-        let layout = Layout::new(f, scale);
-        let (wx, wy) = world_to_screen(f.x, f.y, &pass.vp);
-        let (sx, sy) = (wx as f32, wy as f32);
-        if clip.rejects(sx, sy, layout.width, layout.height) {
-            continue;
-        }
+    let groupe = store
+        .active_board()
+        .and_then(|b| store.emprise_du_groupe(&b.id));
+    for (f, at, layout, etat) in visibles(store, pass, clip) {
         encre = true;
-        let tint = parse_hex_color(&f.color, 136, 136, 136);
-        let selected = store.selected_folder_id.as_deref() == Some(f.id.as_str());
-
-        draw_frame(pixmap, (sx, sy), &layout, tint, (selected, scale));
-        if scale.draws_detail() {
-            draw_header(
-                typography,
-                pixmap,
-                (sx, sy),
-                &layout,
-                f,
-                (tint, selected, scale),
-                store.folder_child_count(&f.child_board_id),
-            );
-        }
-        if selected && store.emprise_du_groupe(&board.id).is_none() {
-            draw_resize_handles(
-                pixmap,
-                theme,
-                scale,
-                (sx, sy, layout.width, layout.height),
-                &Handle::ALL,
-            );
+        let mut pixels = Pixels {
+            pixmap: &mut *pixmap,
+            typographie: kit.typography,
+        };
+        dessiner(&mut pixels, f, at, &layout, &etat);
+        if etat.selected && groupe.is_none() {
+            let boite = (at.0, at.1, layout.width, layout.height);
+            draw_resize_handles(pixmap, kit.theme, etat.scale, boite, &Handle::ALL);
         }
     }
     encre
 }
 
-/// Le cadre : halo de sélection, corps teinté, bordure, séparation du bandeau.
-fn draw_frame(
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &Layout,
-    tint: (u8, u8, u8),
-    state: (bool, WorldScale),
+/// **Écrit les dossiers visibles en SVG** (P5, fiche 70) — le même dessin.
+pub(super) fn dossiers_en_svg(
+    kit: PaintKit<'_>,
+    svg: &mut Svg,
+    (store, pass): (&Store, ViewPass<'_>),
+    taille: (u32, u32),
 ) {
-    let (selected, scale) = state;
-    let (r, g, b) = tint;
+    let clip = Clip {
+        width: taille.0 as f32,
+        height: taille.1 as f32,
+        top: pass.header_h,
+    };
+    let mut vecteurs = Vecteurs {
+        svg,
+        typographie: kit.typography,
+    };
+    for (f, at, layout, etat) in visibles(store, pass, clip) {
+        dessiner(&mut vecteurs, f, at, &layout, &etat);
+    }
+}
+
+/// Un dossier : son cadre, puis — quand l'échelle dessine le détail — son bandeau.
+fn dessiner(p: &mut impl Surface, f: &CanvasFolder, at: (f32, f32), layout: &Layout, etat: &Etat) {
+    draw_frame(p, at, layout, etat);
+    if etat.scale.draws_detail() {
+        draw_header(p, at, layout, f, etat);
+    }
+}
+
+/// Un rectangle aux coins arrondis, en tracé.
+fn arrondi((x, y, w, h): (f32, f32, f32, f32), rayon: f32) -> Option<Path> {
+    let mut pb = PathBuilder::new();
+    push_rounded_rect(&mut pb, x, y, w, h, rayon);
+    pb.finish()
+}
+
+/// Le cadre : halo de sélection, corps teinté, bordure, séparation du bandeau.
+fn draw_frame(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat) {
+    let Etat {
+        tint: (r, g, b),
+        selected,
+        scale,
+        ..
+    } = *etat;
     let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
 
     if selected && scale.draws_detail() {
         let pad = scale.world(GLOW.0);
-        let mut pb = PathBuilder::new();
-        push_rounded_rect(
-            &mut pb,
+        let boite = (
             at.0 - pad,
             at.1 - pad,
             layout.width + pad * 2.0,
             layout.height + pad * 2.0,
-            scale.world(GLOW.1),
         );
-        if let Some(path) = pb.finish() {
-            let mut paint = Paint {
-                anti_alias: true,
-                ..Default::default()
-            };
-            paint.set_color(Color::from_rgba8(r, g, b, GLOW.3));
-            let stroke = Stroke {
-                width: scale.world(GLOW.2),
-                ..Default::default()
-            };
-            pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+        if let Some(halo) = arrondi(boite, scale.world(GLOW.1)) {
+            let trait_ = Trait::plein(scale.world(GLOW.2));
+            p.tracer(&halo, Color::from_rgba8(r, g, b, GLOW.3), trait_);
         }
     }
 
-    let mut pb = PathBuilder::new();
-    push_rounded_rect(
-        &mut pb,
-        at.0,
-        at.1,
-        layout.width,
-        layout.height,
-        layout.radius,
-    );
-    let Some(path) = pb.finish() else {
+    let boite = (at.0, at.1, layout.width, layout.height);
+    let Some(cadre) = arrondi(boite, layout.radius) else {
         return;
     };
-
-    let mut fill = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    fill.set_color(Color::from_rgba8(r, g, b, pick(BODY_ALPHA)));
-    pixmap.fill_path(
-        &path,
-        &fill,
-        tiny_skia::FillRule::Winding,
-        Transform::identity(),
-        None,
-    );
-
-    let mut border = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    border.set_color(Color::from_rgba8(r, g, b, pick(BORDER_ALPHA)));
-    let stroke = Stroke {
-        width: scale.world(if selected {
+    p.remplir(&cadre, Color::from_rgba8(r, g, b, pick(BODY_ALPHA)));
+    let trait_ = Trait {
+        largeur: scale.world(if selected {
             BORDER_WIDTH.1
         } else {
             BORDER_WIDTH.0
         }),
-        dash: if selected {
-            None
-        } else {
-            tiny_skia::StrokeDash::new(
-                vec![scale.world(BORDER_DASH.0), scale.world(BORDER_DASH.1)],
-                0.0,
-            )
-        },
-        line_cap: LineCap::Butt,
-        ..Default::default()
+        tirets: (!selected).then(|| (scale.world(BORDER_DASH.0), scale.world(BORDER_DASH.1))),
+        bout: LineCap::Butt,
     };
-    pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
+    let bord = Color::from_rgba8(r, g, b, pick(BORDER_ALPHA));
+    p.tracer(&cadre, bord, trait_);
 
-    draw_header_rule(
-        pixmap,
-        at,
-        layout,
-        scale,
-        Color::from_rgba8(r, g, b, pick(BORDER_ALPHA)),
-    );
+    // Le trait qui sépare le bandeau du corps : il rend le portail lisible comme une fenêtre.
+    // Net (SCALE-3) — un trait horizontal n'a pas de bord oblique, et anticrénelé il avait fait
+    // paniquer le rastériseur.
+    let ligne = Rect::from_xywh(at.0, at.1 + layout.header, layout.width, scale.world(1.0));
+    if let Some(ligne) = ligne {
+        p.remplir_net(ligne, bord);
+    }
 }
 
-/// Le trait qui sépare le bandeau du corps d'un dossier.
-///
-/// C'est lui qui rend le portail lisible comme une fenêtre plutôt que comme un simple
-/// rectangle — et c'est lui qui avait fait paniquer le rastériseur, quand il était
-/// anti-aliasé. Il passe désormais par [`fill_crisp`] (SCALE-3), où l'anti-aliasing ne sert
-/// de toute façon à rien : un trait horizontal n'a pas de bord oblique.
-fn draw_header_rule(
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &Layout,
-    scale: WorldScale,
-    color: Color,
-) {
-    let Some(line) = Rect::from_xywh(at.0, at.1 + layout.header, layout.width, scale.world(1.0))
-    else {
-        return;
+/// L'icône d'explorateur de Tauri, en unités monde depuis son coin : un onglet sur un corps.
+fn icone((x, y): (f32, f32), scale: WorldScale) -> Option<Path> {
+    let point = |px: f32, py: f32| (x + scale.world(px), y + scale.world(py));
+    let mut pb = PathBuilder::new();
+    let aller = |pb: &mut PathBuilder, px, py| {
+        let (a, b) = point(px, py);
+        pb.line_to(a, b);
     };
-    crate::renderer::scale::fill_crisp(pixmap, line, color);
+    let courbe = |pb: &mut PathBuilder, (cx, cy), (px, py)| {
+        let ((a, b), (c, d)) = (point(cx, cy), point(px, py));
+        pb.quad_to(a, b, c, d);
+    };
+    // « M0 3 Q0 1 2 1 L7 1 L9 3 L14 3 Q16 3 16 5 L16 13 Q16 15 14 15 L2 15 Q0 15 0 13 Z »
+    let (a, b) = point(0.0, 3.0);
+    pb.move_to(a, b);
+    courbe(&mut pb, (0.0, 1.0), (2.0, 1.0));
+    aller(&mut pb, 7.0, 1.0);
+    aller(&mut pb, 9.0, 3.0);
+    aller(&mut pb, 14.0, 3.0);
+    courbe(&mut pb, (16.0, 3.0), (16.0, 5.0));
+    aller(&mut pb, 16.0, 13.0);
+    courbe(&mut pb, (16.0, 15.0), (14.0, 15.0));
+    aller(&mut pb, 2.0, 15.0);
+    courbe(&mut pb, (0.0, 15.0), (0.0, 13.0));
+    pb.close();
+    pb.finish()
 }
 
-/// Le bandeau : icône, titre tronqué, badge compteur.
+/// Le bandeau : icône, titre tronqué, puis le badge compteur — ou, vide, ce qu'il faut faire.
 fn draw_header(
-    typography: &crate::typography::Typography,
-    pixmap: &mut PixmapMut,
+    p: &mut impl Surface,
     at: (f32, f32),
     layout: &Layout,
     f: &CanvasFolder,
-    state: ((u8, u8, u8), bool, WorldScale),
-    compte: usize,
+    etat: &Etat,
 ) {
-    let (tint, selected, scale) = state;
-    let (r, g, b) = tint;
-    let alpha = if selected { ICON_ALPHA.1 } else { ICON_ALPHA.0 };
-
-    // L'icône d'explorateur : un onglet posé sur un corps, réduit à deux rectangles arrondis.
-    // Le dessin exact de la référence est vectoriel ; ces deux formes en portent la silhouette
-    // et se lisent à toute échelle où le détail est dessiné.
-    let (ix, iy) = (at.0 + scale.world(ICON.0), at.1 + scale.world(ICON.1));
-    let (iw, ih) = (scale.world(ICON.2), scale.world(ICON.3));
-    let mut pb = PathBuilder::new();
-    push_rounded_rect(&mut pb, ix, iy + ih * 0.25, iw, ih * 0.75, scale.world(2.0));
-    push_rounded_rect(&mut pb, ix, iy, iw * 0.45, ih * 0.35, scale.world(1.0));
-    if let Some(path) = pb.finish() {
-        let mut paint = Paint {
-            anti_alias: true,
-            ..Default::default()
-        };
-        paint.set_color(Color::from_rgba8(r, g, b, alpha));
-        pixmap.fill_path(
-            &path,
-            &paint,
-            tiny_skia::FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
+    let Etat {
+        tint: (r, g, b),
+        selected,
+        scale,
+        compte,
+    } = *etat;
+    let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
+    let coin = (at.0 + scale.world(ICON.0), at.1 + scale.world(ICON.1));
+    if let Some(forme) = icone(coin, scale) {
+        p.remplir(&forme, Color::from_rgba8(r, g, b, pick(ICON_ALPHA)));
     }
-
-    let titre = truncate(&f.name, TITLE_MAX_CHARS);
-    typography.draw_text(
-        pixmap,
-        &titre,
-        at.0 + scale.world(TITLE.0),
-        at.1 + scale.world(TITLE.1),
-        TextStyle {
-            size: scale.world(TITLE.2),
-            color: Color::from_rgba8(r, g, b, if selected { 255 } else { 204 }),
-            face: Face::Bold,
-        },
-    );
-
-    draw_badge(typography, pixmap, at, layout, tint, scale, compte);
+    let corps = scale.world(TITLE.2);
+    let titre = TextStyle {
+        size: corps,
+        color: Color::from_rgba8(r, g, b, pick(TITLE_ALPHA)),
+        face: Face::Bold,
+    };
+    let haut = at.1 + scale.world(TITLE.1) - corps;
+    let nom = truncate(&f.name, TITLE_MAX_CHARS);
+    p.ecrire((at.0 + scale.world(TITLE.0), haut), &nom, titre);
+    if compte > 0 {
+        draw_badge(p, at, layout, etat);
+    } else {
+        dire_qu_il_est_vide(p, at, layout, scale);
+    }
 }
 
-/// Le badge compteur, en haut à droite du bandeau.
+/// Le badge compteur, en haut à droite du bandeau : ce que le dossier contient
+/// ([`Store::folder_child_count`] — ses images, ses notes, ses dossiers).
 ///
-/// Il annonce ce que le dossier contient. Le compte réel demande d'ouvrir le tableau enfant,
-/// ce que le rendu d'une frame ne peut pas faire : le badge montre donc le nombre de nœuds
-/// **connus** du dossier, qui est zéro tant que le tableau enfant n'a pas été ouvert. Un
-/// compte tenu à jour par le store est le pas suivant, et il appartient au noyau.
 /// Combien de chiffres le badge sait montrer, borné par sa largeur : au-delà, `999+`.
 const BADGE_CHIFFRES: usize = 4;
-
-/// Largeur moyenne d'un chiffre, en fraction de la taille de police.
-///
-/// Les chiffres d'Inter sont à chasse fixe — c'est une garantie de la fonte, pas une
-/// approximation : un nombre ne danse donc pas d'un dossier à l'autre.
-const BADGE_CHASSE: f32 = 0.55;
 
 /// Le compte tel que le badge l'écrit, dans un tampon de pile.
 ///
@@ -360,66 +362,61 @@ fn badge_label(n: usize, buf: &mut [u8; BADGE_CHIFFRES]) -> &str {
     std::str::from_utf8(&buf[fin..]).unwrap_or("0")
 }
 
-fn draw_badge(
-    typography: &crate::typography::Typography,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &Layout,
-    tint: (u8, u8, u8),
-    scale: WorldScale,
-    compte: usize,
-) {
-    let (r, g, b) = tint;
+fn draw_badge(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat) {
+    let Etat {
+        tint: (r, g, b),
+        scale,
+        compte,
+        ..
+    } = *etat;
     let (bx, by) = (
         at.0 + layout.width - scale.world(BADGE.0),
         at.1 + scale.world(BADGE.1),
     );
     let (bw, bh) = (scale.world(BADGE.2), scale.world(BADGE.3));
-    let mut pb = PathBuilder::new();
-    push_rounded_rect(&mut pb, bx, by, bw, bh, scale.world(BADGE.4));
-    let Some(path) = pb.finish() else {
+    let Some(pastille) = arrondi((bx, by, bw, bh), scale.world(BADGE.4)) else {
         return;
     };
-    let mut fill = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    fill.set_color(Color::from_rgba8(r, g, b, BADGE_ALPHA.0));
-    pixmap.fill_path(
-        &path,
-        &fill,
-        tiny_skia::FillRule::Winding,
-        Transform::identity(),
-        None,
+    p.remplir(&pastille, Color::from_rgba8(r, g, b, BADGE_ALPHA.0));
+    let contour = Trait::plein(scale.world(BADGE_STROKE));
+    p.tracer(
+        &pastille,
+        Color::from_rgba8(r, g, b, BADGE_ALPHA.1),
+        contour,
     );
-
-    let mut border = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    border.set_color(Color::from_rgba8(r, g, b, BADGE_ALPHA.1));
-    let stroke = Stroke {
-        width: scale.world(BADGE_STROKE),
-        ..Default::default()
-    };
-    pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
 
     let mut chiffres = [0u8; BADGE_CHIFFRES];
     let texte = badge_label(compte, &mut chiffres);
-    // Centré sur le badge : à un chiffre le texte tombait déjà juste par hasard, à trois il
-    // débordait. La demi-largeur du texte est la seule mesure qui vaille pour les deux.
-    let large = texte.len() as f32 * scale.world(BADGE_FONT) * BADGE_CHASSE;
-    typography.draw_text(
-        pixmap,
-        texte,
-        bx + (bw - large) * 0.5,
-        by + bh * 0.75,
-        TextStyle {
-            size: scale.world(BADGE_FONT),
-            color: Color::from_rgba8(r, g, b, 204),
-            face: Face::Bold,
-        },
-    );
+    let corps = scale.world(BADGE_FONT);
+    // Centré sur la pastille par sa largeur mesurée (`textAnchor="middle"`), posé sur sa ligne
+    // de base.
+    let (large, _) = p.typographie().measure_text(texte, corps, Face::Bold);
+    let haut = by + scale.world(BADGE_BASELINE) - corps;
+    let style = TextStyle {
+        size: corps,
+        color: Color::from_rgba8(r, g, b, BADGE_TEXT_ALPHA),
+        face: Face::Bold,
+    };
+    p.ecrire((bx + (bw - large) / 2.0, haut), texte, style);
+}
+
+/// Un dossier vide dit ce qu'il faut faire, au milieu de son corps — centré comme Tauri le
+/// centre (`dominantBaseline="middle"` : la ligne de base à une demi-hauteur d'x sous le
+/// milieu).
+fn dire_qu_il_est_vide(p: &mut impl Surface, at: (f32, f32), layout: &Layout, scale: WorldScale) {
+    let (texte, taille, (r, g, b)) = VIDE;
+    let corps = scale.world(taille);
+    let typo = p.typographie();
+    let (large, _) = typo.measure_text(texte, corps, Face::Regular);
+    let hauteur_d_x = typo.font(Face::Regular).metrics('x', corps).height as f32;
+    let milieu = at.1 + layout.header + (layout.height - layout.header) / 2.0;
+    let haut = milieu + hauteur_d_x / 2.0 - corps;
+    let style = TextStyle {
+        size: corps,
+        color: Color::from_rgba8(r, g, b, 255),
+        face: Face::Regular,
+    };
+    p.ecrire((at.0 + (layout.width - large) / 2.0, haut), texte, style);
 }
 
 /// Tronque un titre à `max` caractères, ellipse comprise.

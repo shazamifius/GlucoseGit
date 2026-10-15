@@ -49,6 +49,7 @@ pub mod richtext;
 pub mod scale;
 pub mod scene;
 pub mod storyboard;
+mod surface;
 pub mod svg;
 pub mod tuiles;
 pub mod vignette;

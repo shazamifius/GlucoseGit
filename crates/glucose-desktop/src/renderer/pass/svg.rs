@@ -1,6 +1,7 @@
 //! **Les annotations en SVG** (P5, fiche 69) : la sœur de [`super::draw_annotations`], dans le
 //! même ordre — le contenu des cartes d'abord, à leur rang ; puis, dans l'ordre du tableau, ce
-//! qui passe au-dessus : pense-bêtes, flèches, leurs libellés et leurs badges. Rien de ce qui
+//! qui passe au-dessus : les réglettes des cartes, les pense-bêtes et la leur, les flèches,
+//! leurs libellés et leurs badges. Rien de ce qui
 //! se choisit ou s'édite : un export n'a ni sélection ni saisie.
 
 use super::{carte_de, Clip, Pass};
@@ -8,8 +9,10 @@ use crate::params::ViewPass;
 use crate::renderer::arrow::{fleche_en_svg, Fleche, NoeudsDuRendu};
 use crate::renderer::card::svg::carte_en_svg;
 use crate::renderer::card::Contenants;
+use crate::renderer::domain::reglette;
 use crate::renderer::hue::SymbioticHueCache;
 use crate::renderer::note::svg::sticky_en_svg;
+use crate::renderer::surface::Vecteurs;
 use crate::renderer::svg::Svg;
 use crate::renderer::PaintKit;
 use glucose_core::arrow;
@@ -56,9 +59,23 @@ pub(in crate::renderer) fn annotations_en_svg(
         math: kit.math,
         contournement: pass.contournement,
     };
+    // La réglette d'un nœud, juste après lui, comme au canevas.
+    let reglette = |svg: &mut Svg, (x, y): (f64, f64), ann: &Annotation| {
+        let (sx, sy) = crate::canvas::world_to_screen(x, y, &ctx.vp);
+        let mut vecteurs = Vecteurs {
+            svg,
+            typographie: kit.typography,
+        };
+        let coin = (sx as f32, sy as f32);
+        reglette(&mut vecteurs, kit.tints, ctx.scale, coin, ann.domains());
+    };
     for ann in visibles() {
         match ann {
-            Annotation::Sticky { .. } => sticky_en_svg(&ctx, ann, svg),
+            Annotation::Text { x, y, .. } => reglette(svg, (*x, *y), ann),
+            Annotation::Sticky { x, y, .. } => {
+                sticky_en_svg(&ctx, ann, svg);
+                reglette(svg, (*x, *y), ann);
+            }
             Annotation::Arrow { predicate, .. } => {
                 let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), false) else {
                     continue;

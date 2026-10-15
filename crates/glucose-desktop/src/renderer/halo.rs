@@ -530,6 +530,7 @@ pub fn draw_halos(
 }
 
 mod bandes;
+pub(super) mod svg;
 
 #[cfg(test)]
 use bandes::peindre_en;

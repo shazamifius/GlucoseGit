@@ -20,6 +20,7 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::renderer::pass::Clip;
 use crate::renderer::scale::{on_pixel_grid, WorldScale};
+use crate::renderer::surface::{Pixels, Surface};
 use crate::renderer::wrap::wrap_paragraph;
 use crate::renderer::PaintKit;
 use crate::typography::{Face, TextStyle};
@@ -124,14 +125,28 @@ pub(super) fn ecrire_les_textes(
     store: &Store,
     pass: ViewPass<'_>,
 ) -> bool {
+    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
+    let mut pixels = Pixels {
+        pixmap,
+        typographie: kit.typography,
+    };
+    textes(&mut pixels, (store, pass), ecran)
+}
+
+/// **Les textes des cases, sur n'importe quel peintre** — le canevas, ou le SVG d'un export
+/// (P5, fiche 70). Rend vrai si une case en a reçu.
+pub(super) fn textes(
+    p: &mut impl Surface,
+    (store, pass): (&Store, ViewPass<'_>),
+    ecran: (f32, f32),
+) -> bool {
     let scale = pass.echelle();
     if !scale.draws_detail() {
         return false;
     }
-    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
     let cases = visibles(store, pass, ecran);
     for (case, boite) in &cases {
-        ecrire(kit, pixmap, (case, *boite), scale);
+        ecrire(p, (case, *boite), scale);
     }
     !cases.is_empty()
 }
@@ -139,16 +154,14 @@ pub(super) fn ecrire_les_textes(
 /// Le numéro centré dans son badge, le sigle du plan s'il est dit, la description à leur droite,
 /// coupée à la largeur restante.
 fn ecrire(
-    kit: PaintKit<'_>,
-    pixmap: &mut PixmapMut,
+    p: &mut impl Surface,
     (case, (x, y, w, h)): (&StoryboardPanel, Boite),
     scale: WorldScale,
 ) {
     let un = |l: f32| scale.world(l);
-    let typo = kit.typography;
     let corps = un(CORPS);
     let numero = (case.order + 1).to_string();
-    let (nw, _) = typo.measure_text(&numero, corps, Face::Bold);
+    let (nw, _) = p.typographie().measure_text(&numero, corps, Face::Bold);
     let (bx, by) = (x + un(MARGE), y + h + un(MARGE));
     let (bw, bh) = (un(BADGE_TAILLE.0), un(BADGE_TAILLE.1));
     let style = |couleur, face| TextStyle {
@@ -156,31 +169,28 @@ fn ecrire(
         color: rgba(couleur, 255),
         face,
     };
-    typo.draw_text(
-        pixmap,
-        &numero,
-        bx + (bw - nw) / 2.0,
-        by + (bh - corps) / 2.0,
-        style(NUMERO, Face::Bold),
-    );
+    let place = (bx + (bw - nw) / 2.0, by + (bh - corps) / 2.0);
+    p.ecrire(place, &numero, style(NUMERO, Face::Bold));
     let mut gauche = bx + bw + un(MARGE * 1.5);
     // Le plan, par son sigle, avant la légende — là où une planche l'écrit (fiche 67).
     if let Some(plan) = case.plan {
         let sigle = plan.noms().1;
         let haut = by + (bh - corps) / 2.0;
-        typo.draw_text(pixmap, sigle, gauche, haut, style(NUMERO, Face::Bold));
-        gauche += typo.measure_text(sigle, corps, Face::Bold).0 + un(MARGE * 1.5);
+        p.ecrire((gauche, haut), sigle, style(NUMERO, Face::Bold));
+        gauche += p.typographie().measure_text(sigle, corps, Face::Bold).0 + un(MARGE * 1.5);
     }
     let largeur = (x + w - un(MARGE) - gauche).max(0.0);
+    let typo = p.typographie();
     let avance = |_: usize, c: char| typo.advance(c, corps, Face::Regular);
+    let lignes = wrap_paragraph(&case.description, largeur, avance);
     let mut ligne = by + (bh - corps) / 2.0;
     let bas = y + h + un(BANDE_HAUTEUR);
-    for (debut, fin) in wrap_paragraph(&case.description, largeur, avance) {
+    for (debut, fin) in lignes {
         if ligne + corps > bas {
             break;
         }
         let morceau = &case.description[debut..fin];
-        typo.draw_text(pixmap, morceau, gauche, ligne, style(TEXTE, Face::Regular));
+        p.ecrire((gauche, ligne), morceau, style(TEXTE, Face::Regular));
         ligne += corps * 1.3;
     }
 }

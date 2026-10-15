@@ -41,6 +41,11 @@ impl BoardZone {
             height,
         }
     }
+
+    /// La boîte de la zone — son bandeau est dedans.
+    pub fn rect(&self) -> crate::geometry::Rect {
+        crate::geometry::Rect::new(self.x, self.y, self.width, self.height)
+    }
 }
 
 /// Magasin d'actifs binaires indépendant du document (Roadmap 1.20, R-04).

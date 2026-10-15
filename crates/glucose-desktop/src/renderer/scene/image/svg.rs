@@ -77,3 +77,24 @@ pub(in crate::renderer) fn images_en_svg(
         ));
     }
 }
+
+/// **Les réglettes des images visibles** — au-dessus de tout, comme les ornements des photos
+/// au canevas (ORNEMENTS-1) : le même dessin ([`crate::renderer::domain::reglette`]).
+pub(in crate::renderer) fn reglettes_des_images_en_svg(
+    (typographie, tints): (
+        &crate::typography::Typography,
+        &crate::renderer::domain::DomainTints,
+    ),
+    (store, pass): (&Store, ViewPass<'_>),
+    svg: &mut Svg,
+) {
+    let Some(board) = store.active_board() else {
+        return;
+    };
+    let mut vecteurs = crate::renderer::surface::Vecteurs { svg, typographie };
+    for img in Visibles::nouvelles(pass.visibles, board).images() {
+        let (x, y, _, _) = boite_ecran(img, &pass);
+        let coin = (x, y);
+        crate::renderer::domain::reglette(&mut vecteurs, tints, pass.echelle(), coin, &img.domains);
+    }
+}

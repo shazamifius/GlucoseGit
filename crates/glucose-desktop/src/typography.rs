@@ -140,6 +140,23 @@ pub(crate) const FACE_BYTES: [&[u8]; 5] = [
 /// `decisions/10`).
 const EMOJI_BYTES: &[u8] = include_bytes!("../assets/NotoEmoji-Regular.ttf");
 
+/// Le nom de chaque police embarquée, dans l'ordre de [`FACE_BYTES`].
+const FACE_NOMS: [&str; 5] = [
+    "Inter-Regular",
+    "Inter-SemiBold",
+    "Inter-Italic",
+    "Inter-SemiBoldItalic",
+    "JetBrainsMonoNL-Regular",
+];
+
+/// **Une police embarquée, nommée** : ce que le peintre vectoriel lit pour écrire les contours de
+/// ses glyphes (P5, fiche 70). Le nom distingue deux polices, les octets donnent leurs tables.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Police {
+    pub nom: &'static str,
+    pub octets: &'static [u8],
+}
+
 pub struct Typography {
     faces: [Font; 5],
     /// Le repli des emojis (EMOJI-1).
@@ -181,14 +198,43 @@ impl Typography {
     /// visage s'il l'a, sinon Noto Emoji s'il l'a, sinon le `.notdef` du visage — un caractère
     /// que personne ne dessine se voit, plutôt que de disparaître.
     fn police(&self, ch: char, face: Face) -> (&Font, u16) {
-        let font = self.font(face);
-        let indice = font.lookup_glyph_index(ch);
+        match self.choix(ch, face) {
+            (Some(face), indice) => (self.font(face), indice),
+            (None, indice) => (&self.emoji, indice),
+        }
+    }
+
+    /// **La police nommée qui dessine `ch` dans ce visage**, et l'indice de son glyphe — le
+    /// même choix que le tracé ([`Self::police`]) : le SVG écrit le glyphe même que le canevas
+    /// pose (P5, fiche 70).
+    pub fn source(&self, ch: char, face: Face) -> (Police, u16) {
+        match self.choix(ch, face) {
+            (Some(face), indice) => (
+                Police {
+                    nom: FACE_NOMS[face.index()],
+                    octets: FACE_BYTES[face.index()],
+                },
+                indice,
+            ),
+            (None, indice) => (
+                Police {
+                    nom: "NotoEmoji-Regular",
+                    octets: EMOJI_BYTES,
+                },
+                indice,
+            ),
+        }
+    }
+
+    /// Le choix d'EMOJI-1 : le visage (`Some`) ou le repli des emojis (`None`), et l'indice.
+    fn choix(&self, ch: char, face: Face) -> (Option<Face>, u16) {
+        let indice = self.font(face).lookup_glyph_index(ch);
         if indice != 0 {
-            return (font, indice);
+            return (Some(face), indice);
         }
         match self.emoji.lookup_glyph_index(ch) {
-            0 => (font, 0),
-            repli => (&self.emoji, repli),
+            0 => (Some(face), 0),
+            repli => (None, repli),
         }
     }
 
@@ -362,16 +408,7 @@ impl Typography {
     ) -> f32 {
         let TextStyle { color, face, .. } = style;
         let size = clamp_font_size(style.size);
-        let shadow_offsets: [(f32, f32); 8] = [
-            (-1.5, 0.0),
-            (1.5, 0.0),
-            (0.0, -1.5),
-            (0.0, 1.5),
-            (-1.0, -1.0),
-            (1.0, -1.0),
-            (-1.0, 1.0),
-            (1.0, 1.0),
-        ];
+        let shadow_offsets = DETOURAGE;
 
         let out_r = outline_color.red() * 255.0;
         let out_g = outline_color.green() * 255.0;
@@ -448,6 +485,19 @@ impl Typography {
         (width, height)
     }
 }
+
+/// **Le détourage d'un texte** ([`Typography::draw_text_with_outline`]) : les huit copies, de la
+/// teinte du contour, qui passent sous le texte — le SVG pose les mêmes (P5, fiche 70).
+pub const DETOURAGE: [(f32, f32); 8] = [
+    (-1.5, 0.0),
+    (1.5, 0.0),
+    (0.0, -1.5),
+    (0.0, 1.5),
+    (-1.0, -1.0),
+    (1.0, -1.0),
+    (-1.0, 1.0),
+    (1.0, 1.0),
+];
 
 /// Taille de glyphe maximale rastérisable.
 ///

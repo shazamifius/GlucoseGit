@@ -125,4 +125,6 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 
 | 69 | [L'export SVG — commencé](69-L-EXPORT-SVG-COMMENCE.md) | P5 : une sœur vectorielle pour chaque dessin du rendu, dans le cadre de l'export PNG ; écrit, compile, **ni regardé ni saboté** — **§ 3 : ce qui reste, dans l'ordre** |
 
-La prochaine fiche porte le numéro **70**.
+| 70 | [L'export SVG se superpose](70-L-EXPORT-SVG-SE-SUPERPOSE.md) | P5 suite : regardé par `resvg` ; les glyphes en tracés (aucune police demandée au lecteur), les formules en vecteurs ; **la surface** (un dessin écrit une fois, pixels ou SVG : dossier, réglette, textes des zones et des cases) ; l'ordre exact du canevas (toutes les lueurs avant les cartes) ; le dossier relu contre Tauri ; BORNES-2 ; l'épreuve de superposition par `resvg` (oracle d'épreuve) — **§ 5 : ce qui reste, dans l'ordre** |
+
+La prochaine fiche porte le numéro **71**.

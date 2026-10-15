@@ -7,7 +7,6 @@ use super::{
 };
 use crate::canvas::world_to_screen;
 use crate::renderer::pass::Pass;
-use crate::renderer::richtext::draw::style_svg;
 use crate::renderer::svg::{couleur, n, Svg};
 use crate::typography::{Face, TextStyle};
 use glucose_core::types::Annotation;
@@ -55,7 +54,7 @@ pub(in crate::renderer) fn sticky_en_svg(ctx: &Pass, ann: &Annotation, svg: &mut
             at.0 + (layout.width - lw) / 2.0,
             at.1 + (layout.height - lh) / 2.0,
         );
-        svg.texte(place, mot, &style_svg(style));
+        svg.texte(ctx.typography, place, mot, style);
         return;
     }
     let fond = document_color(bg_color.as_deref()).unwrap_or(ctx.theme.sticky_yellow_bg);
@@ -84,9 +83,10 @@ pub(in crate::renderer) fn sticky_en_svg(ctx: &Pass, ann: &Annotation, svg: &mut
             break;
         }
         svg.texte(
+            ctx.typography,
             (at.0 + layout.pad, ligne),
             &text[debut..fin],
-            &style_svg(style),
+            style,
         );
         ligne += layout.line_height;
     }

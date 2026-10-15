@@ -141,10 +141,13 @@ fn test_les_metriques_sont_celles_de_la_fiche() {
     assert_eq!(BORDER_WIDTH, (1.0, 1.4));
     assert_eq!(BORDER_DASH, (3.0, 5.0));
     assert_eq!(GLOW, (3.0, 13.0, 1.5, 89));
-    assert_eq!(ICON, (12.0, 11.0, 16.0, 14.0));
+    assert_eq!(ICON, (12.0, 11.0));
     assert_eq!((TITLE, TITLE_MAX_CHARS), ((34.0, 23.0, 14.0), 28));
     assert_eq!(BADGE, (38.0, 11.0, 30.0, 16.0, 8.0));
-    assert_eq!((BADGE_STROKE, BADGE_FONT), (0.8, 10.0));
+    assert_eq!(
+        (BADGE_STROKE, BADGE_FONT, BADGE_BASELINE),
+        (0.8, 10.0, 11.5)
+    );
 
     // Les opacités de la fiche sont en pourcentage ; le rendu les veut sur 255. La conversion
     // est vérifiée ici plutôt que recopiée de tête.
@@ -154,6 +157,8 @@ fn test_les_metriques_sont_celles_de_la_fiche() {
     assert_eq!(ICON_ALPHA, (pourcent(0.45), pourcent(0.70)));
     assert_eq!(BADGE_ALPHA, (pourcent(0.18), pourcent(0.40)));
     assert_eq!(GLOW.3, pourcent(0.35));
+    assert_eq!(TITLE_ALPHA, (pourcent(0.55), pourcent(0.85)));
+    assert_eq!(BADGE_TEXT_ALPHA, pourcent(0.95));
 }
 
 /// Un dossier plus petit que le minimum de la fiche est dessiné au minimum : en deçà, le

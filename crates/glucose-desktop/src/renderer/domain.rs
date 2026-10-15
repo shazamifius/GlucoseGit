@@ -40,13 +40,14 @@
 //! lire une table.
 
 use super::scale::WorldScale;
+use super::surface::{Pixels, Surface};
 use super::{parse_hex_color, push_rounded_rect};
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
 use glucose_core::types::DomainAssignment;
 use std::collections::HashMap;
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Transform};
+use tiny_skia::{Color, PathBuilder, PixmapMut};
 
 // ── Mesures, en unités monde ────────────────────────────────────────────────
 
@@ -201,13 +202,6 @@ fn shorten_sigil(icon: &str) -> String {
 
 // ── Dessin ──────────────────────────────────────────────────────────────────
 
-/// Ce qu'une passe de réglettes garde constant.
-struct GaugePass<'a> {
-    typography: &'a Typography,
-    tints: &'a DomainTints,
-    scale: WorldScale,
-}
-
 /// Largeur écran d'une réglette de `count` colonnes.
 ///
 /// Ce que doit connaître un appelant qui veut l'aligner autrement qu'à gauche — la membrane,
@@ -231,30 +225,41 @@ pub(super) fn draw_domain_gauge(
     if assignments.is_empty() {
         return;
     }
-    let pass = &GaugePass {
-        typography,
-        tints,
-        scale,
+    let mut pixels = Pixels {
+        pixmap,
+        typographie: typography,
     };
-    let layout = GaugeLayout::world().scaled(pass.scale);
+    reglette(&mut pixels, tints, scale, node_top_left, assignments);
+}
+
+/// **La réglette, sur n'importe quel peintre** — les pixels du canevas, ou le SVG d'un export
+/// (P5, fiche 70) : le même dessin.
+pub(super) fn reglette(
+    p: &mut impl Surface,
+    tints: &DomainTints,
+    scale: WorldScale,
+    node_top_left: (f32, f32),
+    assignments: &[DomainAssignment],
+) {
+    let layout = GaugeLayout::world().scaled(scale);
     let track_bottom = node_top_left.1 - layout.node_gap;
     let track_top = track_bottom - layout.track_height;
 
     for (column, assignment) in assignments.iter().enumerate() {
-        let Some(tint) = pass.tints.get(&assignment.domain_id) else {
+        let Some(tint) = tints.get(&assignment.domain_id) else {
             // DOM-1 rend ce cas impossible dans un document sain ; le renderer ne dessine pas
             // ce qu'il ne sait pas nommer, il ne panique pas pour autant.
             continue;
         };
         let x = node_top_left.0 + column as f32 * (layout.bar_width + layout.bar_gap);
-        draw_column(pixmap, (x, track_top), &layout, tint, assignment.weight);
-        draw_sigil(pass, pixmap, (x, track_top), &layout, tint);
+        draw_column(p, (x, track_top), &layout, tint, assignment.weight);
+        draw_sigil(p, scale, (x, track_top), &layout, tint);
     }
 }
 
 /// La piste d'une colonne et son remplissage.
 fn draw_column(
-    pixmap: &mut PixmapMut,
+    p: &mut impl Surface,
     at: (f32, f32),
     layout: &GaugeLayout,
     tint: &DomainTint,
@@ -262,7 +267,7 @@ fn draw_column(
 ) {
     let (r, g, b) = tint.rgb;
     fill_rounded(
-        pixmap,
+        p,
         at,
         (layout.bar_width, layout.track_height),
         layout.bar_radius,
@@ -278,7 +283,7 @@ fn draw_column(
     let fill_height = layout.track_height * weight as f32;
     let top = at.1 + layout.track_height - fill_height;
     fill_rounded(
-        pixmap,
+        p,
         (at.0, top),
         (layout.bar_width, fill_height),
         layout.bar_radius,
@@ -288,26 +293,27 @@ fn draw_column(
 
 /// Le sigle du domaine, centré au-dessus de sa colonne.
 fn draw_sigil(
-    pass: &GaugePass,
-    pixmap: &mut PixmapMut,
+    p: &mut impl Surface,
+    scale: WorldScale,
     at: (f32, f32),
     layout: &GaugeLayout,
     tint: &DomainTint,
 ) {
     // SCALE-2 — sous le seuil, la réglette garde ses colonnes et laisse tomber son texte,
     // exactement comme une carte garde son cadre et laisse tomber le sien.
-    if !pass.scale.draws_detail() || tint.sigil.is_empty() {
+    if !scale.draws_detail() || tint.sigil.is_empty() {
         return;
     }
-    let (width, _) = pass
-        .typography
+    let (width, _) = p
+        .typographie()
         .measure_text(&tint.sigil, layout.sigil_font, Face::Bold);
     let (r, g, b) = tint.rgb;
-    pass.typography.draw_text(
-        pixmap,
+    p.ecrire(
+        (
+            at.0 + (layout.bar_width - width) / 2.0,
+            at.1 - layout.sigil_gap - layout.sigil_font,
+        ),
         &tint.sigil,
-        at.0 + (layout.bar_width - width) / 2.0,
-        at.1 - layout.sigil_gap - layout.sigil_font,
         TextStyle {
             size: layout.sigil_font,
             color: Color::from_rgba8(r, g, b, SIGIL_ALPHA),
@@ -316,13 +322,7 @@ fn draw_sigil(
     );
 }
 
-fn fill_rounded(
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    size: (f32, f32),
-    radius: f32,
-    color: Color,
-) {
+fn fill_rounded(p: &mut impl Surface, at: (f32, f32), size: (f32, f32), radius: f32, color: Color) {
     if !(at.0.is_finite() && at.1.is_finite() && size.0 > 0.0 && size.1 > 0.0) {
         return;
     }
@@ -331,18 +331,7 @@ fn fill_rounded(
     let Some(path) = pb.finish() else {
         return;
     };
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    paint.set_color(color);
-    pixmap.fill_path(
-        &path,
-        &paint,
-        tiny_skia::FillRule::Winding,
-        Transform::identity(),
-        None,
-    );
+    p.remplir(&path, color);
 }
 
 #[cfg(test)]

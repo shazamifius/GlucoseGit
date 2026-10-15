@@ -87,6 +87,12 @@ impl StoryboardPanel {
         (self.x..=self.x + self.width).contains(&x) && (self.y..=self.y + self.height).contains(&y)
     }
 
+    /// **Ce que la case occupe sur le canevas** : son cadre, et la bande de description sous
+    /// lui — ce que le cadrage du contenu et un export doivent couvrir (BORNES-2, fiche 70).
+    pub fn emprise(&self) -> crate::geometry::Rect {
+        crate::geometry::Rect::new(self.x, self.y, self.width, self.height + DESCRIPTION)
+    }
+
     /// Le texte du champ de rang `champ` — vide s'il n'en a pas.
     pub fn texte(&self, champ: usize) -> &str {
         self.textes.get(champ).map_or("", String::as_str)

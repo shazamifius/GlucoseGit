@@ -175,18 +175,47 @@ fn draw_formula(
     line: &VisualLine,
     card: &TextCard,
 ) {
+    let Some(f) = poser_la_formule(ctx, at, layout, line, card) else {
+        return;
+    };
+    if ctx.math.draw(pixmap, f.corps, f.mode, f.plume, f.encre) {
+        return;
+    }
+    // Une formule fausse montre sa source, en rouge : l'erreur se voit là où elle est, pas
+    // dans une console.
+    let (x, y) = f.erreur.0;
+    ctx.typography
+        .draw_text(pixmap, f.erreur.1, x, y, f.erreur.2);
+}
+
+/// **Une formule posée** : sa source, son mode, sa plume, son encre — et, si elle est fausse,
+/// ce qui la remplace (sa source en rouge, à sa place). Le tracé et le SVG la lisent tous deux.
+struct FormulePosee<'a> {
+    corps: &'a str,
+    mode: glucose_math::Mode,
+    plume: Pen,
+    encre: Color,
+    erreur: ((f32, f32), &'a str, TextStyle),
+}
+
+/// **Où et comment la formule d'une ligne se pose** — rien si la ligne n'en porte pas.
+fn poser_la_formule<'a>(
+    ctx: &Pass,
+    at: (f32, f32),
+    layout: &CardLayout,
+    line: &VisualLine,
+    card: &TextCard<'a>,
+) -> Option<FormulePosee<'a>> {
     let text = &card.body[line.start..line.end];
     // Le genre de la ligne dit déjà si la formule veut le mode bloc ; seules ses bornes se
     // relisent, par la même fonction du noyau qui les a reconnues.
     let BlockKind::Math { display } = line.kind else {
-        return;
+        return None;
     };
-    let Some((corps, _)) = glucose_core::text::block::formula(text) else {
-        return;
-    };
+    let (corps, _) = glucose_core::text::block::formula(text)?;
     let (corps, mode) = (&text[corps], mode_of(display));
     // Une formule qu'un passage désigne brille entière, à la teinte de l'éclat (PASSAGE-2).
-    let ink = match card.eclaires.filter(|e| e.touchent(line.start, line.end)) {
+    let encre = match card.eclaires.filter(|e| e.touchent(line.start, line.end)) {
         Some(e) => tiny_skia::Color::from_rgba8(e.teinte.0, e.teinte.1, e.teinte.2, 255),
         None => ink_of(line.kind, ctx.theme),
     };
@@ -198,22 +227,18 @@ fn draw_formula(
         y: at.1 + ligne_de_base * layout.font,
         font_size: layout.font,
     };
-    if ctx.math.draw(pixmap, corps, mode, plume, ink) {
-        return;
-    }
-    // Une formule fausse montre sa source, en rouge : l'erreur se voit là où elle est, pas
-    // dans une console.
-    ctx.typography.draw_text(
-        pixmap,
-        text,
-        at.0,
-        at.1,
-        crate::typography::TextStyle {
-            size: layout.font,
-            color: ctx.theme.danger,
-            face: Face::Regular,
-        },
-    );
+    let rouge = TextStyle {
+        size: layout.font,
+        color: ctx.theme.danger,
+        face: Face::Regular,
+    };
+    Some(FormulePosee {
+        corps,
+        mode,
+        plume,
+        encre,
+        erreur: (at, text, rouge),
+    })
 }
 
 fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {
@@ -275,11 +300,7 @@ pub(super) fn ornement_en_svg(
                 face: Face::Regular,
             };
             let at = (left + layout.indent - w - gap, y);
-            svg.texte(
-                at,
-                label,
-                &crate::renderer::richtext::draw::style_svg(style),
-            );
+            svg.texte(ctx.typography, at, label, style);
         }
         BlockKind::Quote => {
             svg.rectangle(
@@ -295,18 +316,14 @@ pub(super) fn ornement_en_svg(
             return true;
         }
         BlockKind::Math { .. } => {
-            if line.first {
-                let source = &card.body[line.start..line.end];
-                let style = TextStyle {
-                    size: layout.font,
-                    color: ink_of(line.kind, ctx.theme),
-                    face: Face::Regular,
-                };
-                svg.texte(
-                    (text_x, y),
-                    source,
-                    &crate::renderer::richtext::draw::style_svg(style),
-                );
+            let posee = line
+                .first
+                .then(|| poser_la_formule(ctx, (text_x, y), layout, line, card));
+            if let Some(f) = posee.flatten() {
+                if !ctx.math.en_svg(svg, f.corps, f.mode, f.plume, f.encre) {
+                    let (at, source, rouge) = f.erreur;
+                    svg.texte(ctx.typography, at, source, rouge);
+                }
             }
             return true;
         }

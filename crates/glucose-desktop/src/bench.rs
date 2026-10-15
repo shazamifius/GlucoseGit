@@ -216,6 +216,8 @@ pub fn capture_with(
     pixmap.encode_png().expect("encoder un PNG")
 }
 
+pub mod vitrine;
+
 #[cfg(test)]
 mod tests;
 

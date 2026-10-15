@@ -300,17 +300,27 @@ fn dessine_filet(
         ..Default::default()
     };
     paint.set_color(color);
+    let (bx, by, bl, bh) = boite_du_filet((rx, ry, width, height), Pen { x, y, font_size });
+    if let Some(r) = Rect::from_xywh(bx, by, bl, bh) {
+        pixmap.fill_rect(r, &paint, Transform::identity(), None);
+    }
+}
+
+/// **La boîte d'un filet** à l'écran, `(x, y, largeur, hauteur)` — celle que le tracé remplit et
+/// que le SVG écrit.
+fn boite_du_filet(
+    (rx, ry, width, height): (f64, f64, f64, f64),
+    Pen { x, y, font_size }: Pen,
+) -> (f32, f32, f32, f32) {
     // Un filet d'épaisseur inférieure au pixel disparaîtrait ; on lui en donne un, sans quoi une
     // barre de fraction s'évanouit au dézoom.
     let h = (height as f32 * font_size).max(1.0);
-    if let Some(r) = Rect::from_xywh(
+    (
         x + rx as f32 * font_size,
         y - ry as f32 * font_size - h,
         (width as f32 * font_size).max(1.0),
         h,
-    ) {
-        pixmap.fill_rect(r, &paint, Transform::identity(), None);
-    }
+    )
 }
 
 /// Dessine un caractère avec une fonte de KaTeX, à la taille voulue.
@@ -480,6 +490,8 @@ fn compose(
         }
     }
 }
+
+mod svg;
 
 #[cfg(test)]
 mod tests;

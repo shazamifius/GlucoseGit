@@ -181,6 +181,7 @@
   (`Glucose.apk`, `e5d5832b…`, signé `3f2af005…`) porte P0, FANTOME-1 et les huit propositions
   du Storyboard. La télémétrie, relue le 15/10 : 59 sessions, 5 installations ; **rien du
   téléphone depuis le 13/10** (la session du gel est toujours sur lui).
+* **Fiche 70 — l'export SVG se superpose au canevas** : glyphes en tracés (aucune police demandée au lecteur), formules en vecteurs, le dossier, les réglettes, les zones et les cases dans le SVG, l'ordre exact du canevas ; une épreuve le rend par `resvg` et le superpose au PNG. En passant : **le dossier corrigé contre Tauri** (titre et badge à leur ligne de base, « Double-clic pour ouvrir ») et **BORNES-2** (l'export, `Alt+F` et la minimap comptent les zones et les cases). **Ni saboté, suite entière non rejouée**, rien jugé à son écran.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera

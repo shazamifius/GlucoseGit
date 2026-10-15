@@ -11,12 +11,14 @@
 //!
 //! # Ce qu'un lecteur doit trouver
 //!
-//! Du SVG 1.1 sans script : des `<rect>`, des `<path>`, des `<text>` dont chaque ligne est déjà
-//! coupée (le lecteur n'a pas à refaire la coupe, qui dépend des mesures d'Inter), des
+//! Du SVG 1.1 sans script : des `<rect>`, des `<path>`, des glyphes en tracés posés là où le
+//! canevas les pose ([`glyphes`], fiche 70 — aucune police à demander au lecteur), des
 //! `<image>` qui portent leurs octets d'origine en `data:` — un fichier qui se suffit.
 
-use std::fmt::Write as _;
+use std::collections::HashMap;
 use tiny_skia::Color;
+
+mod glyphes;
 
 /// **Un SVG en cours d'écriture** : ses définitions (dégradés, filtres) et ses éléments, dans
 /// l'ordre où ils se peignent.
@@ -28,6 +30,9 @@ pub struct Svg {
     suivant: usize,
     /// Les flous déjà définis, par leur écart-type.
     flous: Vec<String>,
+    /// Les glyphes déjà définis, par leur police et leur indice — `None` pour un glyphe sans
+    /// contour (fiche 70, [`glyphes`]).
+    glyphes: HashMap<(&'static str, u16), Option<glyphes::Defini>>,
 }
 
 /// `#rrggbb` d'une couleur, son opacité à part.
@@ -68,16 +73,6 @@ pub fn n(v: f32) -> String {
     }
 }
 
-/// Un style de texte : son corps, sa graisse, son italique, sa chasse fixe, sa couleur.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StyleDeTexte {
-    pub corps: f32,
-    pub gras: bool,
-    pub italique: bool,
-    pub fixe: bool,
-    pub couleur: Color,
-}
-
 impl Svg {
     pub fn new() -> Self {
         Self::default()
@@ -113,39 +108,9 @@ impl Svg {
             n(y),
             n(l),
             n(h),
-            n(rayon),
+            n(rayon_tenu(rayon, (l, h))),
             n(a)
         );
-        self.poser(&e);
-    }
-
-    /// **Un texte sur une ligne**, son coin haut gauche en `(x, y)` — la ligne de base tombe à
-    /// `y + corps`, comme dans la typographie du rendu.
-    pub fn texte(&mut self, (x, y): (f32, f32), texte: &str, style: &StyleDeTexte) {
-        let mut e = String::new();
-        let (c, a) = couleur(style.couleur);
-        let _ = write!(
-            e,
-            r#"<text x="{}" y="{}" font-size="{}" font-family="{}" fill="{c}""#,
-            n(x),
-            n(y + style.corps),
-            n(style.corps),
-            if style.fixe {
-                "'JetBrains Mono', Consolas, monospace"
-            } else {
-                "Inter, 'Segoe UI', system-ui, sans-serif"
-            }
-        );
-        if a < 1.0 {
-            let _ = write!(e, r#" fill-opacity="{}""#, n(a));
-        }
-        if style.gras {
-            e.push_str(r#" font-weight="700""#);
-        }
-        if style.italique {
-            e.push_str(r#" font-style="italic""#);
-        }
-        let _ = write!(e, r#" xml:space="preserve">{}</text>"#, echapper(texte));
         self.poser(&e);
     }
 
@@ -170,7 +135,7 @@ impl Svg {
         }
         self.poser(&format!(
             r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="{teinte}" fill-opacity="{}" filter="url(#{nom})"/>"#,
-            n(x), n(y), n(l), n(h), n(rayon), n(alpha)
+            n(x), n(y), n(l), n(h), n(rayon_tenu(rayon, (l, h))), n(alpha)
         ));
     }
 
@@ -183,6 +148,14 @@ impl Svg {
             self.defs, self.corps
         )
     }
+}
+
+/// **Le rayon qu'un coin peut tenir** : borné par la plus petite demi-dimension, comme le
+/// canevas le borne (`push_rounded_rect`) — un coin reste un quart de cercle. Un `rx` seul
+/// laisserait le lecteur borner chaque axe à part, et un rectangle bas aurait des coins
+/// d'ellipse.
+pub fn rayon_tenu(rayon: f32, (l, h): (f32, f32)) -> f32 {
+    rayon.min(l / 2.0).min(h / 2.0).max(0.0)
 }
 
 /// **Du base64** (RFC 4648, avec remplissage) — les octets d'une image dans son `data:`.

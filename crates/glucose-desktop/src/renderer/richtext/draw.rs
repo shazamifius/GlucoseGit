@@ -270,7 +270,7 @@ pub(crate) fn ligne_en_svg(
                 svg.rectangle(boite, font * CODE_RADIUS, (&couleur.0, couleur.1));
             }
         }
-        svg.texte((x, at.1), slice, &style_svg(style));
+        svg.texte(ctx.typography, (x, at.1), slice, style);
         let fin = x + largeur;
         let encre = crate::renderer::svg::couleur(style.color);
         let epaisseur = (font * STRIKE_WIDTH).max(1.0);
@@ -291,15 +291,4 @@ pub(crate) fn ligne_en_svg(
         x = fin;
     }
     x
-}
-
-/// Un style de la typographie, dit au peintre vectoriel.
-pub(crate) fn style_svg(style: crate::typography::TextStyle) -> crate::renderer::svg::StyleDeTexte {
-    crate::renderer::svg::StyleDeTexte {
-        corps: style.size,
-        gras: matches!(style.face, Face::Bold | Face::BoldItalic),
-        italique: matches!(style.face, Face::Italic | Face::BoldItalic),
-        fixe: style.face == Face::Mono,
-        couleur: style.color,
-    }
 }

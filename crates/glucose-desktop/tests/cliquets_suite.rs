@@ -515,7 +515,6 @@ const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
     // Outillage de mesure : les documents synthétiques des bancs et de la capture témoin. Il
     // vit dans le noyau pour rester sans dépendance et se tester sans écran ; il n'a pas
     // vocation à être atteint par l'application, seulement par les exemples et les tests.
-    "synth",
 ];
 
 /// Les modules déclarés par `lib.rs`.
@@ -783,11 +782,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "crates/glucose-core/src/membrane_space.rs",
         "resolve_items",
         86,
-    ),
-    (
-        "crates/glucose-desktop/src/renderer/folder.rs",
-        "draw_frame",
-        94,
     ),
 ];
 
