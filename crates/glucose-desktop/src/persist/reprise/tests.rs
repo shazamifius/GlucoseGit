@@ -187,3 +187,35 @@ fn test_quitter_un_document_sans_nom_ne_laisse_rien_de_cache() {
     let relu = crate::persist::disque::tests::rouvrir(&d, &nom);
     assert_eq!(relu.store.project, travail);
 }
+
+/// **REPRISE-1** (fiche 72) : ce que le lancement a rouvert s'écrit dans la boîte noire — le
+/// brouillon qu'un arrêt brutal a laissé, et ses images. Le 15/10, un tableau de 6 000 images a
+/// disparu au téléphone sans qu'aucune ligne dise si le lancement l'avait cherché.
+#[test]
+fn test_reprise_1_ce_que_le_lancement_rouvre_s_ecrit() {
+    use crate::persist::disque::tests::png;
+    let d = dossier("reprise-boite-noire");
+    let mut tuee = application(&d);
+    let sources: Vec<_> = (0..3u8)
+        .map(|i| png(&d, &format!("{i}.png"), 40 * i))
+        .collect();
+    tuee.import_image_files(&sources);
+    image_suivante(&mut tuee);
+    // Ce qu'un processus tué laisse : rien n'est fermé, le brouillon reste.
+    drop(tuee);
+
+    let mut relance = application(&d);
+    relance.chronique.ouvrir_la_boite_noire(&d);
+    relance.retrouver_le_travail();
+    assert_eq!(relance.store.project.toutes_les_images().count(), 3);
+    let boite = relance.chronique.boite_noire().expect("ouverte");
+    boite.synchroniser();
+    let texte = std::fs::read_to_string(boite.chemin()).expect("la session");
+    let ligne = texte
+        .lines()
+        .find(|l| l.contains("\"type\":\"reprise\""))
+        .expect("une ligne reprise");
+    assert!(ligne.contains("\"rouvert\":\"brouillon\""), "{ligne}");
+    assert!(ligne.contains("\"brouillons\":1"), "{ligne}");
+    assert!(ligne.contains("\"images\":3"), "{ligne}");
+}

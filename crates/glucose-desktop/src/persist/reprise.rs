@@ -63,18 +63,10 @@ impl GlucoseApp {
     /// compte rendu : le lancement est un geste.
     pub fn retrouver_le_travail(&mut self) {
         let attentes = ce_qui_attend(&self.disque.brouillons);
-        let mut dit = match attentes.premier {
-            None => Vec::new(),
-            Some(Interrompu::Document(chemin)) => vec![self.ouvrir_et_dire(chemin)],
-            Some(Interrompu::Brouillon(chemin)) => {
-                vec![self.ouvrir_un_brouillon(&chemin).unwrap_or_else(|e| {
-                    format!(
-                        "Un brouillon n'a pas pu se rouvrir : {e} — il reste dans {}",
-                        chemin.display()
-                    )
-                })]
-            }
-        };
+        let brouillons = attentes.autres_brouillons
+            + usize::from(matches!(attentes.premier, Some(Interrompu::Brouillon(_))));
+        let (mut dit, rouvert, chemin) = self.rouvrir(attentes.premier);
+        self.noter_la_reprise(rouvert, brouillons, chemin.as_deref());
         match attentes.autres_brouillons {
             0 => {}
             1 => {
@@ -101,6 +93,55 @@ impl GlucoseApp {
         if !dit.is_empty() {
             self.ui.show_toast(dit.join(" · "));
         }
+    }
+
+    /// **Rouvre ce qui attend en premier** : ce que le lancement en dit, ce qui a été rouvert
+    /// — par un nom fermé, pour la boîte noire —, et d'où.
+    fn rouvrir(
+        &mut self,
+        premier: Option<Interrompu>,
+    ) -> (Vec<String>, &'static str, Option<PathBuf>) {
+        match premier {
+            None => (Vec::new(), "rien", None),
+            Some(Interrompu::Document(chemin)) => {
+                let dit = self.ouvrir_et_dire(chemin.clone());
+                let ouvert = self.project_path.as_deref() == Some(chemin.as_path());
+                let rouvert = if ouvert { "document" } else { "echec" };
+                (vec![dit], rouvert, Some(chemin))
+            }
+            Some(Interrompu::Brouillon(chemin)) => match self.ouvrir_un_brouillon(&chemin) {
+                Ok(dit) => (vec![dit], "brouillon", Some(chemin)),
+                Err(e) => {
+                    let dit = format!(
+                        "Un brouillon n'a pas pu se rouvrir : {e} — il reste dans {}",
+                        chemin.display()
+                    );
+                    (vec![dit], "echec", Some(chemin))
+                }
+            },
+        }
+    }
+
+    /// **Ce que le lancement a rouvert, pour la boîte noire** (REPRISE-1, fiche 72) : le 15/10,
+    /// un tableau de 6 000 images a disparu au téléphone, et rien ne disait si le lancement
+    /// suivant l'avait cherché, trouvé, ou manqué. Des nombres et un nom fermé, jamais un chemin.
+    fn noter_la_reprise(
+        &mut self,
+        rouvert: &'static str,
+        brouillons: usize,
+        chemin: Option<&Path>,
+    ) {
+        let mo = chemin
+            .and_then(|c| std::fs::metadata(c).ok())
+            .map_or(0, |m| m.len() >> 20);
+        let images = self.store.project.toutes_les_images().count();
+        self.chronique
+            .noter_la_reprise(crate::boite_noire::enregistrement::Reprise {
+                rouvert,
+                brouillons: brouillons as u64,
+                images: images as u64,
+                mo,
+            });
     }
 
     /// Rouvre un brouillon, et rend ce que le lancement en dit.

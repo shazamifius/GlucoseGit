@@ -168,9 +168,12 @@ fn test_ranger_garde_la_precedente_et_ce_qui_a_mal_fini() {
     let derniere = ecrire(&nom(4_000), &format!("{}{fin}", debut(4_000)));
     let autre = ecrire("autre-chose.txt", "à ne pas toucher");
 
-    let precedente = bilan::ranger(&boite(&d), None, |_| {
-        panic!("une session propre ne demande rien au système")
-    })
+    let precedente = bilan::ranger(
+        &boite(&d),
+        None,
+        |_| panic!("une session propre ne demande rien au système"),
+        || panic!("ni à Android"),
+    )
     .expect("la dernière");
     assert_eq!(precedente.fin, Fin::Propre);
     assert!(
@@ -301,6 +304,8 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         "premier_plan",
         "memoire",
         "alerte_memoire",
+        "sortie",
+        "reprise",
     ];
     let gestes = Geste::TOUS.map(Geste::nom);
     let moteurs = [
@@ -327,8 +332,10 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         Fin::Plantee,
         Fin::Gelee,
         Fin::ArrierePlan,
+        Fin::FauteDeMemoire,
     ]
     .map(Fin::nom);
+    let raisons = super::sortie::toutes_les_raisons();
     let noms = types
         .iter()
         .chain(&gestes)
@@ -336,6 +343,8 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         .chain(&crate::interactions::pave::NOMS_DES_SIGNES)
         .chain(&moteurs)
         .chain(&genres)
+        .chain(&raisons)
+        .chain(&super::enregistrement::Reprise::ROUVERTS)
         .chain(&[std::env::consts::OS, std::env::consts::ARCH]);
     for nom in noms {
         assert!(connu(nom), "le serveur ne connaît pas « {nom} »");
@@ -436,20 +445,24 @@ fn vu_par_le_systeme(chemin: &Path, gel: bool) -> crate::plateforme::journal::Ev
 #[test]
 fn test_une_session_arretee_se_dit_plantee_d_apres_le_systeme() {
     let d = Dossier::nouveau("plantee");
-    let (mut b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
+    let (mut b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new(), Vec::new).expect("ouverte");
     b.image(Geste::Zoomer, 900, SANS_POSTES);
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     // Ce qu'un plantage laisse : la session lâchée sans être close — sans sa ligne de fin.
     drop(b);
     let vu = vu_par_le_systeme(&tombee, false);
-    let (seconde, precedente) = BoiteNoire::ouvrir_avec(&d, |depuis| {
-        assert!(
-            depuis <= vu.instant_ms,
-            "on lit depuis le début de la session"
-        );
-        vec![vu.clone()]
-    })
+    let (seconde, precedente) = BoiteNoire::ouvrir_avec(
+        &d,
+        |depuis| {
+            assert!(
+                depuis <= vu.instant_ms,
+                "on lit depuis le début de la session"
+            );
+            vec![vu.clone()]
+        },
+        Vec::new,
+    )
     .expect("rouverte");
     let p = precedente.expect("la session d'avant");
     assert_eq!(p.fin, Fin::Plantee);
@@ -476,14 +489,14 @@ fn test_une_session_arretee_se_dit_plantee_d_apres_le_systeme() {
 #[test]
 fn test_sans_rien_du_systeme_la_session_reste_muette() {
     let d = Dossier::nouveau("muette");
-    let (b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new(), Vec::new).expect("ouverte");
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     drop(b);
     let mut ailleurs = vu_par_le_systeme(&tombee, false);
     ailleurs.processus = ailleurs.processus.wrapping_add(1);
     let (seconde, precedente) =
-        BoiteNoire::ouvrir_avec(&d, move |_| vec![ailleurs]).expect("rouverte");
+        BoiteNoire::ouvrir_avec(&d, move |_| vec![ailleurs], Vec::new).expect("rouverte");
     assert_eq!(
         precedente.expect("la session d'avant").fin,
         Fin::Interrompue
@@ -496,12 +509,13 @@ fn test_sans_rien_du_systeme_la_session_reste_muette() {
 #[test]
 fn test_un_gel_ferme_par_le_systeme_se_dit_gel() {
     let d = Dossier::nouveau("gelee");
-    let (b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new()).expect("ouverte");
+    let (b, _) = BoiteNoire::ouvrir_avec(&d, |_| Vec::new(), Vec::new).expect("ouverte");
     b.synchroniser();
     let tombee = b.chemin().to_path_buf();
     drop(b);
     let gel = vu_par_le_systeme(&tombee, true);
-    let (_, precedente) = BoiteNoire::ouvrir_avec(&d, move |_| vec![gel]).expect("rouverte");
+    let (_, precedente) =
+        BoiteNoire::ouvrir_avec(&d, move |_| vec![gel], Vec::new).expect("rouverte");
     let p = precedente.expect("la session d'avant");
     assert_eq!(p.fin, Fin::Gelee);
     assert!(p.dire().starts_with("gelée"), "{}", p.dire());
@@ -539,7 +553,8 @@ fn test_l_heure_qui_revient_ne_trompe_pas_le_rangement() {
     std::fs::write(&premiere, debut(1_000)).expect("écrite");
     let seconde = boite(&d).join("2026-10-25 02h10m00 (2).txt");
     std::fs::write(&seconde, format!("{}{fin}", debut(4_000_000))).expect("écrite");
-    let precedente = bilan::ranger(&boite(&d), None, |_| Vec::new()).expect("la dernière");
+    let precedente =
+        bilan::ranger(&boite(&d), None, |_| Vec::new(), Vec::new).expect("la dernière");
     assert_eq!(
         precedente.fin,
         Fin::Propre,
@@ -735,9 +750,12 @@ fn test_boite_android_le_rangement_traite_l_arriere_plan_comme_ordinaire() {
     let nom = |ms: u64| super::fichiers::nom_de_session(ms, 1);
     let ancienne = ecrire(&nom(1_000), &format!("{}{derriere}", debut(1_000)));
     let derniere = ecrire(&nom(2_000), &format!("{}{derriere}", debut(2_000)));
-    let precedente = bilan::ranger(&boite(&d), None, |_| {
-        panic!("une session fermée en arrière-plan ne demande rien au système")
-    })
+    let precedente = bilan::ranger(
+        &boite(&d),
+        None,
+        |_| panic!("une session fermée en arrière-plan ne demande rien au système"),
+        Vec::new,
+    )
     .expect("la dernière");
     assert_eq!(precedente.fin, Fin::ArrierePlan);
     assert!(!ancienne.exists(), "rien à apprendre : effacée");
@@ -838,6 +856,26 @@ fn test_memoire_1_le_serveur_attend_les_champs_que_glucose_ecrit() {
         Enregistrement::AlerteMemoire {
             instant_ms: 1,
             arriere_plan: true,
+        },
+        // REPRISE-1 et SORTIE-1 (fiche 72) : la même promesse pour la reprise et la mort d'avant.
+        Enregistrement::Reprise {
+            instant_ms: 3,
+            reprise: super::enregistrement::Reprise {
+                rouvert: "brouillon",
+                brouillons: 1,
+                images: 6_000,
+                mo: 900,
+            },
+        },
+        Enregistrement::Sortie {
+            instant_ms: 0,
+            fermeture: super::sortie::Fermeture {
+                raison: "memoire_basse",
+                statut: Some(9),
+                importance: 100,
+                pss_mo: 1,
+                rss_mo: 2,
+            },
         },
     ];
     for e in lignes {

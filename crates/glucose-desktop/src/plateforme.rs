@@ -43,6 +43,7 @@ pub mod partager;
 pub mod presse_papiers;
 pub mod priorite;
 pub mod rapatrier;
+pub mod sortie;
 pub mod sources;
 pub mod telechargements;
 

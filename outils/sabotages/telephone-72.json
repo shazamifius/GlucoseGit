@@ -1,0 +1,362 @@
+[
+ {
+  "nom": "une autre mort que celle de son processus",
+  "fichier": "crates/glucose-desktop/src/boite_noire/sortie.rs",
+  "avant": "        .filter(|s| s.processus == processus && s.instant_ms >= debut_ms)",
+  "apres": "        .filter(|s| s.instant_ms >= debut_ms)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "une mort d'avant son debut",
+  "fichier": "crates/glucose-desktop/src/boite_noire/sortie.rs",
+  "avant": "        .filter(|s| s.processus == processus && s.instant_ms >= debut_ms)",
+  "apres": "        .filter(|s| s.processus == processus)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "la plus tardive plutot que la plus ancienne",
+  "fichier": "crates/glucose-desktop/src/boite_noire/sortie.rs",
+  "avant": "        .min_by_key(|s| s.instant_ms)",
+  "apres": "        .max_by_key(|s| s.instant_ms)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "la memoire en kibioctets dite en mebioctets",
+  "fichier": "crates/glucose-desktop/src/boite_noire/sortie.rs",
+  "avant": "            pss_mo: s.pss_ko >> 10,",
+  "apres": "            pss_mo: s.pss_ko,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "tuee en cache prise pour une faute",
+  "fichier": "crates/glucose-desktop/src/boite_noire/sortie.rs",
+  "avant": "        self.raison == raison(MEMOIRE_BASSE) && self.importance < EN_CACHE",
+  "apres": "        self.raison == raison(MEMOIRE_BASSE)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "le statut lu a la place de l'importance",
+  "fichier": "crates/glucose-desktop/src/plateforme/sortie.rs",
+  "avant": "                statut: i32::try_from(c[3]).ok()?,",
+  "apres": "                statut: i32::try_from(c[4]).ok()?,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "la fin faute de memoire que le serveur ne connait pas",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "            Fin::FauteDeMemoire => \"faute_de_memoire\",",
+  "apres": "            Fin::FauteDeMemoire => \"faute_memoire\",",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "boite_noire"
+  ]
+ },
+ {
+  "nom": "Android jamais lu",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "        b.sortie = sortie::reconnaitre(&sorties(), processus, debut_ms);",
+  "apres": "        b.sortie = sortie::reconnaitre(&[], processus, debut_ms);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "la faute de memoire ne change pas la fin",
+  "fichier": "crates/glucose-desktop/src/boite_noire/bilan.rs",
+  "avant": "        Some(f) if f.faute_de_memoire() => Fin::FauteDeMemoire,",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "la ligne sortie jamais ecrite",
+  "fichier": "crates/glucose-desktop/src/boite_noire.rs",
+  "avant": "            if let Some(fermeture) = p.sortie {",
+  "apres": "            if let Some(fermeture) = p.sortie.filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sortie_1"
+  ]
+ },
+ {
+  "nom": "un brouillon rouvert dit document",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "                Ok(dit) => (vec![dit], \"brouillon\", Some(chemin)),",
+  "apres": "                Ok(dit) => (vec![dit], \"document\", Some(chemin)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "reprise"
+  ]
+ },
+ {
+  "nom": "le brouillon rouvert pas compte",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "            + usize::from(matches!(attentes.premier, Some(Interrompu::Brouillon(_))));",
+  "apres": "            + usize::from(false);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "reprise"
+  ]
+ },
+ {
+  "nom": "la reprise jamais notee",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "        self.noter_la_reprise(rouvert, brouillons, chemin.as_deref());",
+  "apres": "        let _ = (rouvert, brouillons, chemin);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "reprise"
+  ]
+ },
+ {
+  "nom": "les images du document pas comptees",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "        let images = self.store.project.toutes_les_images().count();",
+  "apres": "        let images = self.store.project.boards.len();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "reprise"
+  ]
+ },
+ {
+  "nom": "une session trop lourde part entiere",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "    let coupee = (total > max).then(|| {",
+  "apres": "    let coupee = (total > max * 2).then(|| {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "la ligne coupee oubliee dans ce qu'on retire",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "        let a_retirer = total - max + poids(&ligne_coupee(u64::MAX, u64::MAX));",
+  "apres": "        let a_retirer = total - max;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "les plus recentes mesures retirees d'abord",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "        for (i, (l, t)) in lignes.iter().enumerate().skip(1) {",
+  "apres": "        for (i, (l, t)) in lignes.iter().enumerate().skip(1).rev() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "la ligne coupee ailleurs qu'apres le debut",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "        if let (0, Some(c)) = (i, &coupee) {",
+  "apres": "        if let (1, Some(c)) = (i, &coupee) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "une session refusee pour son poids ne repart pas",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "            Deja::RetenueAvant => lourde(s),",
+  "apres": "            Deja::RetenueAvant => false,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "un verdict ignore",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "        if mots.next().is_some() {",
+  "apres": "        if mots.next().is_some() && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "le verdict jamais ecrit",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "        .and_then(|mut f| writeln!(f, \"{nom} {comment}\"));",
+  "apres": "        .and_then(|mut f| writeln!(f, \"{nom}\"));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "la liste rangee oublie les verdicts",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "            let cle = l.split_whitespace().next().unwrap_or_default();",
+  "apres": "            let cle = l.trim();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "une session refusee par une autre version jamais retentee",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "            (Some(\"refusee\"), Some(par)) if par != version => {}",
+  "apres": "            (Some(\"refusee\"), Some(par)) if par != version && false => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ },
+ {
+  "nom": "un refus retenu sans sa version",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": "                retenir(dossier, &cle, &format!(\"refusee {version}\"));",
+  "apres": "                retenir(dossier, &cle, \"refusee\");",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "poids_1"
+  ]
+ }
+]

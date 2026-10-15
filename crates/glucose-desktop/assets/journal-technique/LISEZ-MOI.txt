@@ -55,9 +55,11 @@ type « precedente » — comment la session d'avant a fini
   champ                    ce qu'il dit                                        exemple
   -----------------------  --------------------------------------------------  -------------
   instant_ms               toujours 0 : écrit à l'ouverture                    0
-  fin                      propre, panique, interrompue, plantee, gelee, ou    propre
+  fin                      propre, panique, interrompue, plantee, gelee,       propre
                            arriere_plan (au téléphone : fermée par le système
-                           pendant que Glucose était derrière)
+                           pendant que Glucose était derrière), ou
+                           faute_de_memoire (au téléphone : tuée par le
+                           système faute de mémoire, sous les yeux)
   appareil_redemarre       l'appareil a-t-il redémarré depuis ?                false
   duree_ms                 combien de temps elle a duré                        415940
   batterie_pct             sa dernière batterie, en pour cent                  87
@@ -188,6 +190,37 @@ type « plantage » — ce que le système a vu de la fin de la session d'avant
   version_du_module        sa version                                          32.0.16.1074
   code                     le code d'erreur du système                         3221225477
   decalage                 l'endroit, dans ce module                           1234567
+
+type « sortie » — au téléphone, comment le système a fermé la session d'avant
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               toujours 0 : écrit à l'ouverture                    0
+  raison                   la raison que le système a gardée (memoire_basse,   memoire_basse
+                           plantage_natif, gel, arretee_par_l_utilisateur…)
+  statut                   le code de sortie, ou le signal qui l'a arrêtée     9
+  importance               100 : sous les yeux ; 400 : en attente, derrière    100
+  pss_mo                   la mémoire qu'elle occupait à sa mort               1840
+  rss_mo                   la même, comptée autrement                          2210
+
+type « reprise » — ce que le lancement a rouvert
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               40
+  rouvert                  rien, brouillon (un travail sans nom laissé par     brouillon
+                           un arrêt), document (le dernier ouvert), ou echec
+  brouillons               combien de brouillons attendaient                   1
+  images                   combien d'images le document rouvert porte          6000
+  mo                       son poids, en mégaoctets                            912
+
+type « coupee » — ajoutée à l'envoi d'une session trop longue pour le serveur, juste après
+                  son début : Glucose a retiré ses plus anciennes mesures pour qu'elle tienne
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               jusqu'à quand les mesures ont été retirées          640000
+  lignes                   combien de lignes ont été retirées                  9150
 
 
 OÙ VONT LES DONNÉES

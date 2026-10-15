@@ -169,6 +169,25 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
             instant_ms: 0,
             arriere_plan: true,
         },
+        Enregistrement::Sortie {
+            instant_ms: 0,
+            fermeture: crate::boite_noire::sortie::Fermeture {
+                raison: "memoire_basse",
+                statut: None,
+                importance: 100,
+                pss_mo: 1,
+                rss_mo: 1,
+            },
+        },
+        Enregistrement::Reprise {
+            instant_ms: 0,
+            reprise: crate::boite_noire::enregistrement::Reprise {
+                rouvert: "rien",
+                brouillons: 0,
+                images: 0,
+                mo: 0,
+            },
+        },
         Enregistrement::Fin { instant_ms: 0 },
     ];
     let plantage = crate::boite_noire::plantage::Plantage {
@@ -181,6 +200,7 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
     let mut lignes: Vec<String> = tous.iter().map(Enregistrement::ligne).collect();
     lignes.push(ligne_de_panique(0, "src/ui.rs", 1, true));
     lignes.push(ligne_de_plantage(0, &plantage));
+    lignes.push(crate::telemetrie::envoi::ligne_coupee(1, 1));
     lignes
 }
 

@@ -13,10 +13,16 @@
 //! **Et ce que le système a vu** : une session arrêtée sans rien dire a peut-être planté, ou gelé
 //! jusqu'à ce que le système la ferme — il l'a noté ([`super::plantage`]). Elle se dit alors
 //! « plantée dans tel module » ou « gelée ».
+//!
+//! **Et Android** (SORTIE-1, fiche 72) : il garde la raison de chaque mort d'un processus de
+//! Glucose ([`super::sortie`]). Une session tuée faute de mémoire pendant qu'on la regardait se
+//! dit alors « faute de mémoire » — et non plus « arrêtée sans rien dire ».
 
 use super::plantage::{self, Plantage};
 use super::sondes::EtatMachine;
+use super::sortie::{self, Fermeture};
 use crate::plateforme::journal::Evenement;
+use crate::plateforme::sortie::Sortie;
 use glucose_core::persist::tauri::json;
 use std::path::{Path, PathBuf};
 
@@ -37,6 +43,8 @@ pub enum Fin {
     /// 65) : la fin ordinaire d'une application de téléphone, que rien ne prévient. Sans elle,
     /// toute session d'Android paraissait interrompue, et un vrai plantage s'y confondait.
     ArrierePlan,
+    /// **Tuée par Android faute de mémoire, pendant qu'on la regardait** (SORTIE-1).
+    FauteDeMemoire,
 }
 
 impl Fin {
@@ -48,6 +56,7 @@ impl Fin {
             Fin::Plantee => "plantee",
             Fin::Gelee => "gelee",
             Fin::ArrierePlan => "arriere_plan",
+            Fin::FauteDeMemoire => "faute_de_memoire",
         }
     }
 
@@ -70,6 +79,8 @@ pub struct Bilan {
     pub machine: EtatMachine,
     /// Ce que le système a vu de sa fin, si elle s'est arrêtée sans rien dire.
     pub plantage: Option<Plantage>,
+    /// Ce qu'Android a vu de sa fin, si elle ne l'a pas écrite (SORTIE-1).
+    pub sortie: Option<Fermeture>,
 }
 
 impl Bilan {
@@ -84,10 +95,13 @@ impl Bilan {
             Fin::ArrierePlan => {
                 format!("fermée par le système en arrière-plan, après {min} min {s} s")
             }
-            Fin::Plantee | Fin::Gelee => match &self.plantage {
-                Some(p) => format!("{}, après {min} min {s} s", p.dire()),
-                None => format!("arrêtée sans rien dire, après {min} min {s} s"),
-            },
+            Fin::Plantee | Fin::Gelee | Fin::FauteDeMemoire => {
+                match (&self.plantage, &self.sortie) {
+                    (Some(p), _) => format!("{}, après {min} min {s} s", p.dire()),
+                    (None, Some(f)) => format!("{}, après {min} min {s} s", f.dire()),
+                    (None, None) => format!("arrêtée sans rien dire, après {min} min {s} s"),
+                }
+            }
         };
         if self.appareil_redemarre {
             t.push_str(" ; l'appareil a redémarré depuis");
@@ -149,6 +163,7 @@ pub fn bilan(texte: &str, demarrage_appareil_ms: Option<u64>) -> Option<Bilan> {
         duree_ms: dernier,
         machine,
         plantage: None,
+        sortie: None,
     })
 }
 
@@ -187,11 +202,13 @@ fn est_une_session(p: &Path) -> bool {
 ///
 /// `systeme` rend ce que le système a noté depuis un instant
 /// ([`crate::plateforme::journal::plantages_depuis`]) : il n'est lu que pour une session d'avant
-/// qui s'est arrêtée sans rien dire.
+/// qui s'est arrêtée sans rien dire. `sorties` rend ce qu'Android a gardé des morts de Glucose
+/// ([`crate::plateforme::sortie::lire`]), lu pour toute session qui n'a pas écrit sa fin.
 pub fn ranger(
     dossier: &Path,
     demarrage_appareil_ms: Option<u64>,
     systeme: impl FnOnce(u64) -> Vec<Evenement>,
+    sorties: impl FnOnce() -> Vec<Sortie>,
 ) -> Option<Bilan> {
     let vivantes = |p: &Path| crate::persist::verrou::tenu_ailleurs(p);
     let finies: Vec<PathBuf> = sessions(dossier)
@@ -209,16 +226,33 @@ pub fn ranger(
     }
     let texte = std::fs::read_to_string(precedente).ok()?;
     let mut b = bilan(&texte, demarrage_appareil_ms)?;
+    let processus = precedente
+        .file_name()
+        .and_then(|n| super::fichiers::processus_de(&n.to_string_lossy()));
+    let (Some(debut_ms), Some(processus)) = (super::fichiers::debut_de(&texte), processus) else {
+        return Some(b);
+    };
     if b.fin == Fin::Interrompue {
-        let processus = precedente
-            .file_name()
-            .and_then(|n| super::fichiers::processus_de(&n.to_string_lossy()));
-        if let (Some(debut_ms), Some(processus)) = (super::fichiers::debut_de(&texte), processus) {
-            b.plantage = plantage::reconnaitre(&systeme(debut_ms), processus, debut_ms);
-        }
+        b.plantage = plantage::reconnaitre(&systeme(debut_ms), processus, debut_ms);
         if let Some(p) = &b.plantage {
             b.fin = if p.gel { Fin::Gelee } else { Fin::Plantee };
         }
     }
+    if !matches!(b.fin, Fin::Propre | Fin::Panique) {
+        b.sortie = sortie::reconnaitre(&sorties(), processus, debut_ms);
+        b.fin = fin_selon_android(b.fin, b.sortie.as_ref());
+    }
     Some(b)
+}
+
+/// **Ce qu'Android dit change la fin** d'une session qui ne l'a pas écrite : plantée, gelée —
+/// au premier plan comme derrière —, ou tuée faute de mémoire pendant qu'on la regardait. Tuée
+/// en cache, elle reste ordinaire : Android y prend la mémoire de qui il veut.
+fn fin_selon_android(fin: Fin, sortie: Option<&Fermeture>) -> Fin {
+    match sortie {
+        Some(f) if f.plantee() => Fin::Plantee,
+        Some(f) if f.gelee() => Fin::Gelee,
+        Some(f) if f.faute_de_memoire() => Fin::FauteDeMemoire,
+        _ => fin,
+    }
 }

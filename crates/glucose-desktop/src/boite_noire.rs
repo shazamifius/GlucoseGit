@@ -34,6 +34,7 @@ pub mod enregistrement;
 pub mod fichiers;
 pub mod plantage;
 pub mod sondes;
+pub mod sortie;
 
 use crate::chronique::{Chronique, Geste, Histogramme};
 use enregistrement::Enregistrement;
@@ -110,7 +111,11 @@ impl BoiteNoire {
     /// **Ouvre la boîte noire d'une session** dans `dossier` — celui de l'application —, après
     /// avoir relu la session d'avant, dont le bilan est rendu.
     pub fn ouvrir(dossier: &Path) -> std::io::Result<(Self, Option<bilan::Bilan>)> {
-        Self::ouvrir_avec(dossier, crate::plateforme::journal::plantages_depuis)
+        Self::ouvrir_avec(
+            dossier,
+            crate::plateforme::journal::plantages_depuis,
+            crate::plateforme::sortie::lire,
+        )
     }
 
     /// [`Self::ouvrir`], avec ce que le système a noté donné par qui l'appelle : les épreuves
@@ -118,10 +123,11 @@ impl BoiteNoire {
     fn ouvrir_avec(
         dossier: &Path,
         systeme: impl FnOnce(u64) -> Vec<crate::plateforme::journal::Evenement>,
+        sorties: impl FnOnce() -> Vec<crate::plateforme::sortie::Sortie>,
     ) -> std::io::Result<(Self, Option<bilan::Bilan>)> {
         let boite = fichiers::preparer(dossier)?;
         let demarrage = sondes::demarrage_de_l_appareil_ms();
-        let precedente = bilan::ranger(&boite, demarrage, systeme);
+        let precedente = bilan::ranger(&boite, demarrage, systeme, sorties);
         let epoque = sondes::maintenant_ms();
         let nom = fichiers::nom_de_session(epoque, std::process::id());
         let chemin = boite.join(nom);
@@ -163,6 +169,12 @@ impl BoiteNoire {
             });
             if let (Some(plantage), Some(v)) = (&p.plantage, &b.vers) {
                 let _ = v.send(Ordre::Ligne(enregistrement::ligne_de_plantage(0, plantage)));
+            }
+            if let Some(fermeture) = p.sortie {
+                b.envoyer(Enregistrement::Sortie {
+                    instant_ms: 0,
+                    fermeture,
+                });
             }
         }
         Ok((b, precedente))
@@ -460,6 +472,16 @@ impl Chronique {
     pub fn noter_la_memoire(&mut self, occupation: enregistrement::Occupation, forcer: bool) {
         if let Some(b) = self.boite.as_mut() {
             b.memoire(occupation, forcer);
+        }
+    }
+
+    /// Ce que le lancement a rouvert, pour la boîte noire si elle est ouverte (REPRISE-1).
+    pub fn noter_la_reprise(&self, reprise: enregistrement::Reprise) {
+        if let Some(b) = &self.boite {
+            b.envoyer(Enregistrement::Reprise {
+                instant_ms: b.instant_ms(),
+                reprise,
+            });
         }
     }
 

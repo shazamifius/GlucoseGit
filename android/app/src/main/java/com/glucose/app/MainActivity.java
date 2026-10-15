@@ -1,5 +1,7 @@
 package com.glucose.app;
 
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.app.PendingIntent;
 import android.content.ClipData;
 import android.content.Intent;
@@ -115,6 +117,37 @@ public class MainActivity extends GameActivity {
             etat.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
             etat.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
         };
+    }
+
+    /**
+     * **Comment le système a fermé les derniers processus de Glucose** (SORTIE-1, fiche 72),
+     * tel qu'Android le garde depuis la version 11 : sept nombres par mort — le processus,
+     * l'instant, la raison, le code de sortie ou le signal, l'importance, la mémoire (PSS et
+     * RSS, en kibioctets). Sa description, un texte du système, ne part pas. `null` avant
+     * Android 11. Appelé par Rust, au lancement, du fil de Glucose.
+     */
+    public long[] lireLesSorties() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return null;
+        }
+        ActivityManager gestionnaire = getSystemService(ActivityManager.class);
+        if (gestionnaire == null) {
+            return null;
+        }
+        List<ApplicationExitInfo> morts =
+                gestionnaire.getHistoricalProcessExitReasons(null, 0, 0);
+        long[] v = new long[morts.size() * 7];
+        for (int i = 0; i < morts.size(); i++) {
+            ApplicationExitInfo m = morts.get(i);
+            v[i * 7] = m.getPid();
+            v[i * 7 + 1] = m.getTimestamp();
+            v[i * 7 + 2] = m.getReason();
+            v[i * 7 + 3] = m.getStatus();
+            v[i * 7 + 4] = m.getImportance();
+            v[i * 7 + 5] = m.getPss();
+            v[i * 7 + 6] = m.getRss();
+        }
+        return v;
     }
 
     /**

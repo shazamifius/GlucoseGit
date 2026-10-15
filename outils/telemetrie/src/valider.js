@@ -73,6 +73,28 @@ export const TYPES = {
     plafond: "entier",
   },
   panique: { instant_ms: "entier", fichier: "source", ligne: "entier", principal: "booleen" },
+  // **Comment Android a fermé la session d'avant** (SORTIE-1, fiche 72) : la raison qu'il a
+  // gardée, par son nom fermé, et la mémoire du processus à sa mort, en mébioctets.
+  sortie: {
+    instant_ms: "entier",
+    raison: "raison",
+    statut: "entier?",
+    importance: "entier",
+    pss_mo: "entier",
+    rss_mo: "entier",
+  },
+  // **Une longue session, raccourcie pour tenir** (POIDS-1, fiche 72) : Glucose a retiré ses
+  // `lignes` plus anciennes mesures, jusqu'à `instant_ms` — ajoutée à l'envoi, juste après le début.
+  coupee: { instant_ms: "entier", lignes: "entier" },
+  // **Ce que le lancement a rouvert** (REPRISE-1, fiche 72) : rien, un brouillon, le dernier
+  // document, ou un échec — et combien d'images, de quel poids.
+  reprise: {
+    instant_ms: "entier",
+    rouvert: "rouvert",
+    brouillons: "entier",
+    images: "entier",
+    mo: "entier",
+  },
   plantage: {
     instant_ms: "entier",
     gel: "booleen",
@@ -96,7 +118,18 @@ export const NOMS = {
     "repos", "deplacer la vue", "zoomer", "glisser un noeud", "redimensionner", "dessiner",
     "selectionner", "editer du texte", "decoder des images", "animer la camera",
   ],
-  fin: ["propre", "panique", "interrompue", "plantee", "gelee", "arriere_plan"],
+  fin: [
+    "propre", "panique", "interrompue", "plantee", "gelee", "arriere_plan", "faute_de_memoire",
+  ],
+  rouvert: ["rien", "brouillon", "document", "echec"],
+  // Les raisons d'une mort qu'Android garde (`ApplicationExitInfo.REASON_*`), par leur nom chez
+  // Glucose (`boite_noire::sortie::raison`) : une épreuve de Glucose les lie.
+  raison: [
+    "inconnue", "sortie_d_elle_meme", "signal", "memoire_basse", "plantage_java",
+    "plantage_natif", "gel", "echec_au_demarrage", "permission_changee",
+    "ressources_excessives", "demandee_par_l_utilisateur", "arretee_par_l_utilisateur",
+    "dependance_morte", "autre", "gelee_par_le_systeme", "etat_du_paquet", "mise_a_jour",
+  ],
   quoi: [
     "contact", "cadre_refuse", "interaction_debut", "interaction_fin",
     "statut_en_construction", "statut_actif", "statut_desactive", "statut_en_cours",
@@ -139,6 +172,8 @@ function conforme(sorte, v) {
     case "geste":
     case "poste":
     case "fin":
+    case "raison":
+    case "rouvert":
     case "quoi":
     case "moteur":
     case "genre":

@@ -83,8 +83,46 @@ pub enum Enregistrement {
     /// **Le système demande de rendre de la mémoire** (MEMOIRE-2) : sous Android, `onTrimMemory`
     /// — dont le niveau se perd en route — et `onLowMemory`.
     AlerteMemoire { instant_ms: u64, arriere_plan: bool },
+    /// **Comment Android a fermé la session d'avant** (SORTIE-1, fiche 72) : la raison qu'il a
+    /// gardée, et la mémoire qu'elle occupait à sa mort — relu au lancement, comme `precedente`.
+    Sortie {
+        instant_ms: u64,
+        fermeture: super::sortie::Fermeture,
+    },
+    /// **Ce que le lancement a rouvert** (REPRISE-1, fiche 72) : rien, le brouillon qu'un arrêt
+    /// a laissé, le dernier document — ou un échec —, et ce qu'il porte.
+    Reprise { instant_ms: u64, reprise: Reprise },
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
+}
+
+/// **Ce que le lancement a rouvert** (REPRISE-1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reprise {
+    /// `rien`, `brouillon`, `document` ou `echec`.
+    pub rouvert: &'static str,
+    /// Les brouillons qui attendaient, celui qu'on rouvre compris.
+    pub brouillons: u64,
+    /// Les images du document ouvert après la reprise.
+    pub images: u64,
+    /// Le poids du fichier rouvert, en mébioctets.
+    pub mo: u64,
+}
+
+impl Reprise {
+    /// Tout ce que `rouvert` peut valoir : une épreuve vérifie que le serveur le connaît.
+    pub const ROUVERTS: [&'static str; 4] = ["rien", "brouillon", "document", "echec"];
+
+    fn champs(&self, instant_ms: u64) -> Vec<(&'static str, Champ)> {
+        use Champ::{Entier, Nom};
+        vec![
+            ("instant_ms", Entier(instant_ms)),
+            ("rouvert", Nom(self.rouvert)),
+            ("brouillons", Entier(self.brouillons)),
+            ("images", Entier(self.images)),
+            ("mo", Entier(self.mo)),
+        ]
+    }
 }
 
 /// **Ce que Glucose occupe, et ce que la machine laisse**, en mébioctets (MEMOIRE-1).
@@ -225,6 +263,22 @@ pub fn genre(d: wgpu::DeviceType) -> &'static str {
     }
 }
 
+/// Les champs de la ligne `sortie` (SORTIE-1, fiche 72).
+fn champs_de_la_sortie(
+    instant_ms: u64,
+    f: &super::sortie::Fermeture,
+) -> Vec<(&'static str, Champ)> {
+    use Champ::{Entier, Nom};
+    vec![
+        ("instant_ms", Entier(instant_ms)),
+        ("raison", Nom(f.raison)),
+        ("statut", f.statut.into()),
+        ("importance", Entier(f.importance)),
+        ("pss_mo", Entier(f.pss_mo)),
+        ("rss_mo", Entier(f.rss_mo)),
+    ]
+}
+
 /// Une valeur de champ.
 enum Champ {
     Entier(u64),
@@ -267,6 +321,8 @@ impl Enregistrement {
             Self::PremierPlan { .. } => "premier_plan",
             Self::Memoire { .. } => "memoire",
             Self::AlerteMemoire { .. } => "alerte_memoire",
+            Self::Sortie { .. } => "sortie",
+            Self::Reprise { .. } => "reprise",
             Self::Fin { .. } => "fin",
         }
     }
@@ -351,8 +407,16 @@ impl Enregistrement {
                 ("valeur", Entier(valeur)),
             ],
             Self::Carte { instant_ms, carte } => carte.champs(instant_ms),
+            Self::Reprise {
+                instant_ms,
+                reprise,
+            } => reprise.champs(instant_ms),
             Self::Poste(poste) => poste.champs(),
             Self::Memoire { .. } | Self::AlerteMemoire { .. } => self.champs_de_la_memoire(),
+            Self::Sortie {
+                instant_ms,
+                fermeture,
+            } => champs_de_la_sortie(instant_ms, &fermeture),
             Self::ArrierePlan { instant_ms }
             | Self::PremierPlan { instant_ms }
             | Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],

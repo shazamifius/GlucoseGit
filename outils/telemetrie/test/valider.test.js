@@ -102,3 +102,53 @@ test("la memoire entre, record ou alerte, et ce qui ne se lit pas est null (MEMO
   ];
   for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
 });
+
+test("la mort qu'Android a gardee entre, par sa raison fermee (SORTIE-1)", () => {
+  const sortie = SESSION
+    .replace('"fin":"propre"', '"fin":"faute_de_memoire"')
+    .replace(
+      '{"type":"fin","instant_ms":1200}',
+      [
+        '{"type":"sortie","instant_ms":0,"raison":"memoire_basse","statut":9,"importance":100,"pss_mo":1840,"rss_mo":2210}',
+        '{"type":"sortie","instant_ms":0,"raison":"plantage_natif","statut":null,"importance":400,"pss_mo":0,"rss_mo":0}',
+        '{"type":"fin","instant_ms":1200}',
+      ].join(String.fromCharCode(10)),
+    );
+  const v = validerSession(sortie);
+  assert.equal(v.ok, true, v.raison);
+  const cas = [
+    sortie.replace('"raison":"memoire_basse"', '"raison":"le pilote de Mali"'),
+    sortie.replace('"rss_mo":2210', '"rss_mo":2210,"description":"lmkd"'),
+    sortie.replace('"importance":100,', ""),
+    sortie.replace('"pss_mo":1840', '"pss_mo":-1'),
+    sortie.replace('"fin":"faute_de_memoire"', '"fin":"oubliee"'),
+  ];
+  for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
+});
+
+test("ce que le lancement a rouvert entre, par un nom ferme (REPRISE-1)", () => {
+  const reprise = SESSION.replace(
+    '{"type":"fin","instant_ms":1200}',
+    [
+      '{"type":"reprise","instant_ms":40,"rouvert":"brouillon","brouillons":2,"images":6000,"mo":912}',
+      '{"type":"fin","instant_ms":1200}',
+    ].join(String.fromCharCode(10)),
+  );
+  const v = validerSession(reprise);
+  assert.equal(v.ok, true, v.raison);
+  const cas = [
+    reprise.replace('"rouvert":"brouillon"', '"rouvert":"Canevas 3"'),
+    reprise.replace('"mo":912', '"mo":912,"chemin":"/data"'),
+    reprise.replace(',"images":6000', ""),
+  ];
+  for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
+});
+
+test("une longue session raccourcie le dit, juste apres son debut (POIDS-1)", () => {
+  const lignes = SESSION.split(String.fromCharCode(10));
+  lignes.splice(1, 0, '{"type":"coupee","instant_ms":640000,"lignes":9150}');
+  const coupee = lignes.join(String.fromCharCode(10));
+  const v = validerSession(coupee);
+  assert.equal(v.ok, true, v.raison);
+  assert.equal(validerSession(coupee.replace('"lignes":9150', '"lignes":"beaucoup"')).ok, false);
+});

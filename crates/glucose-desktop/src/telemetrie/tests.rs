@@ -2,7 +2,7 @@
 //! réseau, et dans un dossier d'épreuve, jamais celui de l'utilisateur.
 
 use super::accord::{est_un_identifiant, nouvel_identifiant, Accord};
-use super::envoi::{a_envoyer, corps, identifiant_de_session};
+use super::envoi::{a_envoyer, corps, identifiant_de_session, POIDS_MAX};
 use super::Telemetrie;
 use crate::epreuve::Dossier;
 use glucose_core::persist::tauri::json;
@@ -60,8 +60,9 @@ fn test_ce_qui_part_sauf_la_courante_et_les_parties() {
     ];
     let restent = a_envoyer(
         &sessions,
-        Some("2026-10-08 20h51m04 (4).txt"),
+        (Some("2026-10-08 20h51m04 (4).txt"), "2.0.3"),
         "session-00000000000000000002-2.jsonl\n",
+        |_| false,
     );
     let noms: Vec<&str> = restent.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
@@ -340,4 +341,196 @@ fn test_question_1_la_question_dessinee_repond_au_toucher() {
         Some(true),
         "et la réponse se retient"
     );
+}
+
+// ── POIDS-1 : une longue session part toujours (fiche 72) ────────────────────────────────
+
+/// Une session de `episodes` épisodes, qui commence et finit comme une vraie : son début, sa
+/// précédente, un record de mémoire, puis ses mesures, et sa fin.
+fn session_de(episodes: u64) -> String {
+    let mut t = String::from(
+        "{\"type\":\"debut\",\"epoque_ms\":1,\"version\":\"2.0.3-dev\",\"systeme\":\"android\",\"architecture\":\"aarch64\",\"demarrage_appareil_ms\":null}\n\
+         {\"type\":\"precedente\",\"instant_ms\":0,\"fin\":\"interrompue\",\"appareil_redemarre\":false,\"duree_ms\":5,\"batterie_pct\":null,\"en_charge\":null}\n\
+         {\"type\":\"memoire\",\"instant_ms\":2,\"processus_mo\":900,\"disponible_mo\":100,\"images_mo\":1,\"offerts_mo\":2,\"decodages_mo\":3,\"carte_mo\":4}\n",
+    );
+    for i in 0..episodes {
+        t.push_str(&format!(
+            "{{\"type\":\"episode\",\"instant_ms\":{},\"duree_ms\":25,\"geste\":\"zoomer\",\"images\":1,\"median_us\":58277,\"p99_us\":58277,\"pire_us\":58277}}\n\
+             {{\"type\":\"poste\",\"instant_ms\":{},\"geste\":\"zoomer\",\"nom\":\"soumettre\",\"median_us\":28175,\"p99_us\":28175}}\n",
+            10 + i,
+            10 + i
+        ));
+    }
+    t.push_str(&format!(
+        "{{\"type\":\"fin\",\"instant_ms\":{}}}\n",
+        10 + episodes
+    ));
+    t
+}
+
+fn lignes_du_corps(c: &str) -> String {
+    json::lire(c)
+        .ok()
+        .and_then(|v| v.texte("lignes").map(str::to_string))
+        .expect("les lignes")
+}
+
+/// **Une session trop lourde part sans ses plus anciennes mesures** : elle tient dans le poids
+/// du serveur, garde son début, sa précédente, sa mémoire, sa dernière mesure et sa fin — ce
+/// qui précède une mort —, et dit ce qu'elle a perdu juste après son début.
+#[test]
+fn test_poids_1_une_session_trop_lourde_perd_ses_plus_anciennes_mesures() {
+    let texte = session_de(5_000);
+    assert!(
+        super::envoi::poids_entier(&texte) > POIDS_MAX,
+        "l'épreuve doit peser"
+    );
+    let lignes = lignes_du_corps(&corps(INSTALLATION, "s.jsonl", &texte).expect("un corps"));
+    assert!(lignes.len() <= POIDS_MAX, "{} octets", lignes.len());
+    let types: Vec<String> = lignes
+        .lines()
+        .map(|l| json::lire(l).unwrap().texte("type").unwrap().to_string())
+        .collect();
+    assert_eq!(&types[..4], ["debut", "coupee", "precedente", "memoire"]);
+    assert_eq!(types.last().map(String::as_str), Some("fin"));
+    assert!(
+        lignes.contains("\"instant_ms\":5009,"),
+        "la dernière mesure reste"
+    );
+    assert!(
+        !lignes.contains("\"instant_ms\":10,"),
+        "la première est partie"
+    );
+    let coupee = json::lire(lignes.lines().nth(1).unwrap()).unwrap();
+    let gardees = types
+        .iter()
+        .filter(|t| *t == "episode" || *t == "poste")
+        .count();
+    assert_eq!(
+        coupee.entier("lignes").unwrap() as usize + gardees,
+        10_000,
+        "chaque mesure est partie ou comptée"
+    );
+    // Au plus près du poids : retirer une mesure de moins l'aurait dépassé.
+    assert!(lignes.len() + 400 > POIDS_MAX, "{} octets", lignes.len());
+}
+
+/// **Une session qui tient part entière**, sans ligne `coupee`.
+#[test]
+fn test_poids_1_une_session_qui_tient_part_entiere() {
+    let texte = session_de(10);
+    let lignes = lignes_du_corps(&corps(INSTALLATION, "s.jsonl", &texte).expect("un corps"));
+    assert_eq!(lignes, texte);
+}
+
+/// **Le poids est celui du serveur**, lu dans sa loi : deux nombres recopiés finissent par
+/// diverger, et chaque longue session serait refusée en silence.
+#[test]
+fn test_poids_1_le_poids_est_celui_du_serveur() {
+    let serveur = include_str!("../../../../outils/telemetrie/src/valider.js");
+    let ligne = serveur
+        .lines()
+        .find(|l| l.starts_with("export const POIDS_MAX = "))
+        .expect("le poids du serveur");
+    let facteurs: usize = ligne
+        .trim_start_matches("export const POIDS_MAX = ")
+        .trim_end_matches(';')
+        .split('*')
+        .map(|n| n.trim().parse::<usize>().expect("un nombre"))
+        .product();
+    assert_eq!(facteurs, POIDS_MAX);
+    assert!(
+        serveur.contains("  coupee: {"),
+        "le serveur connaît la ligne coupee"
+    );
+}
+
+/// **Une session qu'un Glucose d'avant s'est vu refuser pour son poids repart, une fois** : sa
+/// clé seule, sans verdict, et lourde. Retenue avec un verdict, ou légère, elle ne repart pas.
+#[test]
+fn test_poids_1_une_session_refusee_pour_son_poids_repart_une_fois() {
+    let s = |n: &str| (format!("{n}.txt"), format!("session-{n}.jsonl"));
+    let sessions = [s("1"), s("2"), s("3"), s("4")];
+    let envoyees = "session-1.jsonl\n\
+                    session-2.jsonl\n\
+                    session-3.jsonl\n\
+                    session-3.jsonl partie\n";
+    let lourdes = ["session-2.jsonl", "session-3.jsonl"];
+    let restent = a_envoyer(&sessions, (None, "2.0.3"), envoyees, |(_, cle)| {
+        lourdes.contains(&cle.as_str())
+    });
+    let cles: Vec<&str> = restent.iter().map(|(_, c)| c.as_str()).collect();
+    assert_eq!(cles, ["session-2.jsonl", "session-4.jsonl"]);
+}
+
+/// **Une session refusée par une version est retentée une fois par la suivante** : le serveur a
+/// peut-être appris la ligne qui la faisait refuser. Refusée par cette version-ci, elle attend la
+/// prochaine ; retentée et reçue, elle ne repart plus.
+#[test]
+fn test_poids_1_une_session_refusee_est_retentee_par_la_version_suivante() {
+    let s = |n: &str| (format!("{n}.txt"), format!("session-{n}.jsonl"));
+    let sessions = [s("1"), s("2"), s("3")];
+    let envoyees = "session-1.jsonl refusee 2.0.3-beta.3\n\
+                    session-2.jsonl refusee 2.0.3-beta.4\n\
+                    session-3.jsonl refusee 2.0.3-beta.3\n\
+                    session-3.jsonl partie\n";
+    let restent = a_envoyer(&sessions, (None, "2.0.3-beta.4"), envoyees, |_| false);
+    let cles: Vec<&str> = restent.iter().map(|(_, c)| c.as_str()).collect();
+    assert_eq!(cles, ["session-1.jsonl"]);
+}
+
+/// **Aucun poids ne fait déborder une session** : pour chaque poids, de celui où rien ne tient
+/// à celui où tout tient, ce qui part pèse au plus ce poids — la ligne `coupee` comprise, que
+/// retirer « juste assez » oublierait une fois sur deux.
+#[test]
+fn test_poids_1_aucun_poids_ne_fait_deborder() {
+    use super::envoi::a_envoyer_dans;
+    let texte = session_de(12);
+    let entier = super::envoi::poids_entier(&texte);
+    let plancher = texte.lines().next().unwrap().len() + 1 + 60;
+    for max in plancher..=entier + 5 {
+        let lignes = a_envoyer_dans(&texte, max).expect("des lignes");
+        assert!(lignes.len() <= max, "poids {max} : {} octets", lignes.len());
+        assert_eq!(lignes.contains("\"coupee\""), max < entier, "poids {max}");
+    }
+}
+
+/// **Un verdict se retient avec son mot, et la liste rangée le garde** : une session partie ne
+/// repart pas au lancement suivant — la liste, rangée à chaque lancement, ne doit pas oublier
+/// les lignes qui portent leur verdict.
+#[test]
+fn test_poids_1_une_session_partie_ne_repart_pas() {
+    let d = Dossier::nouveau("poids-verdict");
+    let (b, _) = crate::boite_noire::BoiteNoire::ouvrir(&d).expect("ouverte");
+    b.clore();
+    let (racine, recu) = serveur_local(201);
+    super::envoi::envoyer_tout(&racine, &d, INSTALLATION, None);
+    recu.recv_timeout(std::time::Duration::from_secs(10))
+        .expect("la session part");
+    let envoyees = std::fs::read_to_string(d.join(super::envoi::ENVOYEES)).expect("la liste");
+    assert!(envoyees.trim_end().ends_with(" partie"), "{envoyees}");
+
+    let (racine, recu) = serveur_local(201);
+    super::envoi::envoyer_tout(&racine, &d, INSTALLATION, None);
+    assert!(
+        recu.recv_timeout(std::time::Duration::from_millis(500))
+            .is_err(),
+        "elle est partie : elle ne repart pas"
+    );
+}
+
+/// **Une session refusée se retient avec la version qui l'a envoyée** : c'est ce qui permettra
+/// à la suivante de la retenter.
+#[test]
+fn test_poids_1_un_refus_se_retient_avec_sa_version() {
+    let d = Dossier::nouveau("poids-refus");
+    let (b, _) = crate::boite_noire::BoiteNoire::ouvrir(&d).expect("ouverte");
+    b.clore();
+    let (racine, recu) = serveur_local(422);
+    super::envoi::envoyer_tout(&racine, &d, INSTALLATION, None);
+    recu.recv_timeout(std::time::Duration::from_secs(10))
+        .expect("la session part");
+    let envoyees = std::fs::read_to_string(d.join(super::envoi::ENVOYEES)).expect("la liste");
+    let attendu = format!(" refusee {}", env!("CARGO_PKG_VERSION"));
+    assert!(envoyees.trim_end().ends_with(&attendu), "{envoyees}");
 }

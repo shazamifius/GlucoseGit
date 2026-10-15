@@ -18,6 +18,7 @@ fn android_main(app: AndroidApp) {
     feuille::brancher(&app);
     installation::brancher(&app);
     batterie::brancher(&app);
+    sortie::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
     glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
         java::Activite::de(&app),
@@ -30,15 +31,36 @@ fn android_main(app: AndroidApp) {
         .join("glucose");
     let mut constructeur = winit::event_loop::EventLoop::builder();
     constructeur.with_android_app(app);
-    let lancement = constructeur
-        .build()
-        .map_err(|e| e.to_string())
-        .and_then(|boucle| {
-            glucose_desktop::demarrage::lancer(boucle, &dossier).map_err(|e| e.to_string())
-        });
-    if let Err(e) = lancement {
+    let boucle = match constructeur.build() {
+        Ok(boucle) => boucle,
+        Err(winit::error::EventLoopError::RecreationAttempt) => repartir(),
+        Err(e) => {
+            eprintln!("[Glucose] le lancement a echoue : {e}");
+            return;
+        }
+    };
+    if let Err(e) = glucose_desktop::demarrage::lancer(boucle, &dossier) {
         eprintln!("[Glucose] le lancement a echoue : {e}");
     }
+}
+
+/// **VIE-2 — une activité recréée dans un processus qui vit encore** (fiche 72).
+///
+/// Android peut détruire l'activité de Glucose sans tuer son processus, puis en créer une neuve
+/// dans le même : `android_main` est alors appelé une seconde fois. `winit` ne transmet pas la
+/// destruction (« TODO: forward onDestroy notification », `platform_impl/android`) et refuse de
+/// recréer sa boucle (`RecreationAttempt`) : l'activité neuve se fermait aussitôt, et chaque
+/// toucher sur l'icône refaisait la même chose tant que le système gardait le processus. Rien
+/// ne prouve que ce soit ce qu'il a vécu le 15/10 — c'est une fermeture « de lui-même » qui se
+/// répète, et la ligne `sortie` le dira (SORTIE-1).
+///
+/// Le processus se quitte : le toucher suivant repart d'un processus neuf, dont le lancement
+/// rouvre le travail (BROUILLON-1). Ce qu'il écrivait est déjà sur le disque geste après geste,
+/// et un fichier coupé se relit jusqu'à sa dernière entrée saine — la même garantie qu'une mort
+/// par le système.
+fn repartir() -> ! {
+    eprintln!("[Glucose] une activite neuve dans un processus vivant : le processus repart");
+    std::process::exit(0)
 }
 
 /// **Ce qu'une autre application partage vers Glucose** (PARTAGE-1, fiche 56) : l'activité
@@ -243,6 +265,41 @@ mod batterie {
                 echelle: lus[1],
                 prise: lus[2],
             })
+        }));
+    }
+}
+
+/// **Comment Android a fermé les derniers processus de Glucose** (SORTIE-1, fiche 72) :
+/// `MainActivity.lireLesSorties`, sept nombres par mort, lus par la boîte noire au lancement.
+mod sortie {
+    use glucose_desktop::plateforme::sortie::{depuis_le_tableau, installer};
+    use winit::platform::android::activity::AndroidApp;
+
+    pub fn brancher(app: &AndroidApp) {
+        let activite = super::java::Activite::de(app);
+        installer(Box::new(move || {
+            super::java::sur_le_fil(
+                |env| {
+                    let objet = activite.objet(env);
+                    let rendu = env
+                        .call_method(
+                            &objet,
+                            jni::jni_str!("lireLesSorties"),
+                            jni::jni_sig!("()[J"),
+                            &[],
+                        )?
+                        .l()?;
+                    let tableau = env.cast_local::<jni::objects::JLongArray>(rendu)?;
+                    if tableau.is_null() {
+                        return Ok(Vec::new());
+                    }
+                    let mut v = vec![0; tableau.len(env)?];
+                    tableau.get_region(env, 0, &mut v)?;
+                    Ok(depuis_le_tableau(&v))
+                },
+                "sorties",
+            )
+            .unwrap_or_default()
         }));
     }
 }
