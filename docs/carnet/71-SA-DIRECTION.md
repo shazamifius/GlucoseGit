@@ -139,3 +139,20 @@ les nœuds se superposent.
 * **[ÉTAT](../ETAT.md)** tient en une page (l'histoire reste au carnet) ; **[SUITE](../SUITE.md)** dit
   le programme, puis **une seule liste de ce qui attend son écran** — pour sa séance d'essais.
 * `decisions/13` (ttf-parser, resvg) ; METHODE : cinq leçons, et le téléphone sans câble.
+
+## 10. La beta 3 : un brouillon oublié
+
+La CI groupée sur `58478d6` : **dix tâches vertes** (exécution 38717823204). La publication en
+brouillon (Actions → Publier, `2.0.3-beta.3`) a construit l'installeur, les paquets Linux et l'APK
+signé, puis **refusé de déposer le brouillon** : « une release v2.0.3-beta.3 existe déjà : rien
+n'est remplacé ». Le garde-fou a bien fait. Elle existait depuis le **14/10 à 15 h 35 (UTC)**,
+déposée par une session précédente sur `5bb82ec` (la mémoire du téléphone, sans le storyboard des
+fiches 67 et 68, ni l'export SVG, ni le dossier, ni Mood board), et **aucune fiche ne le disait** —
+si on l'avait publiée, le téléphone aurait reçu une version sans ce que les notes annoncent. Un
+brouillon n'a pas d'étiquette et personne ne le voit : il est retiré, et la publication relancée
+sur `162502a`.
+
+Relancée : **le brouillon est déposé** (exécution 38721371815, sur `162502a`, onze fichiers).
+L'APK, téléchargé du brouillon et vérifié (`apksigner` : signé `3f2af005…` ; SHA-256 `30fb2dc3…`),
+est zippé sur son Bureau : `Glucose-2.0.3-beta.3-telephone.zip`. **Son essai au téléphone, puis
+son clic** « Publish release ».

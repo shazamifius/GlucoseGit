@@ -13,8 +13,10 @@
   `82c774b`, CI dix vertes) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
   `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses données ne sont jamais
-  touchées. **La 2.0.3-beta.3 se prépare** (fiche 71) : la mémoire du téléphone, le Storyboard
-  complet, l'export SVG complet, le dossier corrigé, Mood board.
+  touchées. **La 2.0.3-beta.3 est prête en brouillon** (fiche 71 : sur `162502a`, CI dix vertes, publication
+  38721371815) : la mémoire du téléphone, le Storyboard complet, l'export SVG complet, le dossier
+  corrigé, Mood board. Son APK, signé de sa clé (`3f2af005…`), est zippé sur son Bureau
+  (`Glucose-2.0.3-beta.3-telephone.zip`) : **son essai, puis son clic** « Publish release ».
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
@@ -70,7 +72,7 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;
-  **la CI groupée de la beta 3 tourne sur `58478d6`** (15/10).
+  **`58478d6` (15/10) : dix vertes** — la CI groupée de la beta 3 (exécution 38717823204).
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication. **Au repos**, Glucose
   redessine encore pour ses messages (1,6 image par seconde) : la charte dit zéro.
 
