@@ -1,5 +1,6 @@
 // La forme d'une membrane, evaluee en chaque pixel : la loi de `glucose_core::membrane_forme`,
-// recopiee fonction pour fonction, en f32 et dans le meme ordre.
+// recopiee fonction pour fonction, en f32 et dans le meme ordre. La distance et les deux
+// couvertures sont dans `arrondi.wgsl`, pose devant ce texte.
 
 struct Membrane {
     // Les trois remplissages (deux halos, le fond) puis le bord : gauche, haut, droite, bas.
@@ -46,13 +47,6 @@ fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Sortie 
     );
     s.rang = i;
     return s;
-}
-
-// `Arrondi::distance` : depuis les BORDS, pour rester juste quand le centre est tres loin.
-fn distance(b: vec4<f32>, r: f32, p: vec2<f32>) -> f32 {
-    let qx = max(b.x - p.x, p.x - b.z) + r;
-    let qy = max(b.y - p.y, p.y - b.w) + r;
-    return length(max(vec2<f32>(qx, qy), vec2<f32>(0.0))) + min(max(qx, qy), 0.0) - r;
 }
 
 // `Arrondi::sur_le_bord` : le morceau du bord le plus proche, et l'abscisse depuis son debut.
@@ -108,14 +102,6 @@ fn ecart(i: u32, morceau: u32, abscisse: f32) -> f32 {
         return 0.0;
     }
     return min(min(t - tiret, periode - t), max(reste - abscisse, 0.0));
-}
-
-fn couverture_d_un_plein(d: f32) -> f32 {
-    return clamp(0.5 - d, 0.0, 1.0);
-}
-
-fn couverture_d_un_trait(d: f32, h: f32) -> f32 {
-    return max(min(d + 0.5, h) - max(d - 0.5, -h), 0.0);
 }
 
 // `Membrane::alpha` : le produit des transparences de ses couches, dans l'ordre.

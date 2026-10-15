@@ -19,8 +19,9 @@
 //! Le même mécanisme écrit les formules (les fontes de KaTeX) et les emojis (Noto Emoji) : une
 //! police nommée, un indice de glyphe.
 
-use super::{couleur, echapper, n, Svg};
-use crate::typography::{clamp_font_size, Police, TextStyle, Typography, DETOURAGE};
+use super::{n, Svg};
+use crate::renderer::vectoriel::Vectoriel;
+use crate::typography::{Police, TextStyle, Typography, DETOURAGE};
 use std::fmt::Write as _;
 
 /// Le contour d'un glyphe, écrit en commandes de chemin dans les unités de sa police — l'axe
@@ -106,31 +107,16 @@ impl Svg {
         })
     }
 
-    /// **Un texte sur une ligne**, son coin haut gauche en `(x, y)` : chaque caractère dans la
-    /// police que la typographie lui choisit (EMOJI-1), la ligne de base à `y + corps`, la plume
-    /// avancée de l'avance même du tracé — le texte du canevas, au trait près.
+    /// **Un texte sur une ligne**, son coin haut gauche en `(x, y)` : le texte de tout dessin
+    /// vectoriel ([`Vectoriel::texte`], fiche 73), écrit en un groupe de glyphes.
     pub fn texte(
         &mut self,
         typographie: &Typography,
-        (x, y): (f32, f32),
+        at: (f32, f32),
         texte: &str,
         style: TextStyle,
     ) {
-        let corps = clamp_font_size(style.size);
-        let (c, a) = couleur(style.color);
-        let mut groupe = format!(r#"<g fill="{c}""#);
-        if a < 1.0 {
-            let _ = write!(groupe, r#" fill-opacity="{}""#, n(a));
-        }
-        let _ = write!(groupe, r#" aria-label="{}">"#, echapper(texte));
-        self.poser(&groupe);
-        let mut plume = x;
-        for ch in texte.chars().filter(|&ch| ch != '\n') {
-            let glyphe = typographie.source(ch, style.face);
-            self.glyphe(glyphe, (plume, y + corps), corps);
-            plume += typographie.advance(ch, corps, style.face);
-        }
-        self.poser("</g>");
+        Vectoriel::texte(self, typographie, at, texte, style);
     }
 
     /// **Un texte détouré** : ses huit copies de la teinte du contour ([`DETOURAGE`]), puis

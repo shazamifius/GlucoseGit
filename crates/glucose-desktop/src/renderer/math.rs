@@ -509,7 +509,7 @@ fn compose(
     }
 }
 
-mod svg;
+pub(in crate::renderer) mod svg;
 
 #[cfg(test)]
 mod tests;

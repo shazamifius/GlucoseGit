@@ -354,6 +354,22 @@ fn test_les_couvertures_sont_celles_du_filtre_boite() {
     assert!((couverture_d_un_trait(0.0, 0.125) - 0.25).abs() < 1e-6);
 }
 
+/// **La couverture d'un trait est paire, au bit près** : une distance signée s'y passe telle
+/// quelle — le nuanceur des formes la lit ainsi, des deux côtés d'un liseré (fiche 73).
+#[test]
+fn test_la_couverture_d_un_trait_est_paire_au_bit_pres() {
+    let mut essais = 0;
+    for h in [0.1f32, 0.375, 0.75, 3.0, 4.5, 1000.25] {
+        for k in -4000..=4000 {
+            let d = k as f32 * 0.003_7;
+            let (a, b) = (couverture_d_un_trait(d, h), couverture_d_un_trait(-d, h));
+            assert_eq!(a.to_bits(), b.to_bits(), "d = {d}, h = {h} : {a} et {b}");
+            essais += usize::from(a > 0.0 && a < 1.0);
+        }
+    }
+    assert!(essais > 1000, "l'épreuve doit exercer les bords ({essais})");
+}
+
 /// **Une image qui ment sur sa taille, ou une membrane hors de l'image, ne dessine rien.**
 #[test]
 fn test_rien_ne_se_pose_hors_de_l_image_ni_sur_une_taille_fausse() {

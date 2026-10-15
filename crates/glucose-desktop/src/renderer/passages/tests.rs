@@ -265,3 +265,64 @@ fn test_ancre_ux_le_texte_du_passage_prend_la_teinte() {
         "l'encre du mot est teintee : {plus_clair:?}"
     );
 }
+
+/// **CADRE-1 — le cadre d'un passage est celui de Tauri, peint par la loi des membranes**
+/// (fiche 73) : un fond à 20 % qui déborde du mot de sa marge (3 et 1), un liseré à 45 % épais
+/// de 1,5, décalé de 2 — à ×4, des bords qui tombent sur des pixels entiers, donc des valeurs
+/// exactes. La carte le dessine de la même membrane : cette épreuve garde ce que les deux voies
+/// partagent, et que leur comparaison ne peut pas voir.
+#[test]
+fn test_cadre_1_le_cadre_est_celui_de_tauri() {
+    use glucose_core::types::Viewport;
+    let pose = Pose {
+        origine: (0.0, 0.0),
+        vp: Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 4.0,
+        },
+        echelle: WorldScale::new(4.0, 1.0),
+    };
+    let troncon = Troncon {
+        rect: (10.0, 10.0, 40.0, 12.0),
+        ligne: 0,
+    };
+    let mut image = tiny_skia::Pixmap::new(240, 120).expect("pixmap");
+    image.fill(tiny_skia::Color::BLACK);
+    peindre_les_cadres(
+        &mut image.as_mut(),
+        pose,
+        &[troncon],
+        ((255, 0, 0), &SUR_LA_CARTE),
+    );
+    let rouge = |x: u32, y: u32| image.pixel(x, y).expect("dans l'image").red();
+    // Le fond : (40, 40) − la marge (12, 4) → de 28 à 212 en x, de 36 à 92 en y. Le liseré : le
+    // milieu de son trait sur ce bord repoussé de 8, de demi-largeur 3.
+    let (fond, lisere) = (51, 115);
+    let colonne = [
+        (24, 0),
+        (25, lisere),
+        (30, lisere),
+        (31, 0),
+        (35, 0),
+        (36, fond),
+        (91, fond),
+        (92, 0),
+        (96, 0),
+        (97, lisere),
+    ];
+    for (y, attendu) in colonne {
+        assert_eq!(rouge(120, y), attendu, "en (120, {y})");
+    }
+    let ligne = [
+        (16, 0),
+        (17, lisere),
+        (22, lisere),
+        (23, 0),
+        (27, 0),
+        (28, fond),
+    ];
+    for (x, attendu) in ligne {
+        assert_eq!(rouge(x, 60), attendu, "en ({x}, 60)");
+    }
+}

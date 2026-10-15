@@ -111,15 +111,20 @@ pub(super) fn draw_card_brume(
     layout: &CardLayout,
     card: &TextCard,
 ) {
-    let brume = f32::from(BRUME) / 255.0;
-    let (t, f) = (card.tint, card.fond);
-    let voile = [(t.0, f.0), (t.1, f.1), (t.2, f.2)]
-        .map(|(t, f)| (f32::from(f) * (1.0 - brume) + f32::from(t) * brume) / 255.0);
     let forme = forme_de_la_carte(at, (layout.width, layout.height), layout.radius);
-    let brume = Membrane::plein(forme, voile, 1.0);
+    let brume = Membrane::plein(forme, voile_de_la_carte(card), 1.0);
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
     glucose_core::membrane_forme::peindre(&brume, pixels, largeur, hauteur);
+}
+
+/// **La couleur de la brume** : le fond qu'elle couvre, et la teinte de la carte à 3 % — de 0 à
+/// 1 par canal, opaque. Le canevas la peint, le dessin vectoriel la pose.
+pub(super) fn voile_de_la_carte(card: &TextCard) -> [f32; 3] {
+    let brume = f32::from(BRUME) / 255.0;
+    let (t, f) = (card.tint, card.fond);
+    [(t.0, f.0), (t.1, f.1), (t.2, f.2)]
+        .map(|(t, f)| (f32::from(f) * (1.0 - brume) + f32::from(t) * brume) / 255.0)
 }
 
 /// L'opacité de la brume sous le texte, sur 255 : les 3 % de Tauri.
@@ -139,12 +144,22 @@ pub(crate) fn forme_de_la_carte(
     (largeur, hauteur): (f32, f32),
     rayon: f32,
 ) -> Arrondi {
+    let (x, y, l, h) = boite_de_la_carte(at, (largeur, hauteur));
+    Arrondi::nouveau(x, y, l, h, rayon)
+}
+
+/// **La boîte d'une carte à l'écran**, sur la grille de ses glyphes : celle que
+/// [`forme_de_la_carte`] arrondit, et que le dessin vectoriel donne à la carte graphique — les
+/// mêmes nombres, donc la même forme au bit près.
+pub(crate) fn boite_de_la_carte(
+    at: (f32, f32),
+    (largeur, hauteur): (f32, f32),
+) -> (f32, f32, f32, f32) {
     use crate::typography::glyph::sur_la_grille;
-    Arrondi::nouveau(
+    (
         sur_la_grille(at.0),
         sur_la_grille(at.1),
         sur_la_grille(largeur),
         sur_la_grille(hauteur),
-        rayon,
     )
 }

@@ -128,8 +128,13 @@ fn preparer_la_scene(
     // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
     let textures = confie.textures();
     p.scene.ouvrir();
-    p.scene
-        .assurer(&p.device, &mut p.envoi, (&textures, budget), source);
+    let a_preparer = &confie.a_preparer[..];
+    p.scene.assurer(
+        &p.device,
+        &mut p.envoi,
+        (&textures, a_preparer, budget),
+        source,
+    );
     // **Ce que la carte ne connaissait pas encore**, et il fallait le séparer du reste.
     //
     // `assurer` crée et téléverse les textures que la scène réclame et que la carte n'a pas :
@@ -154,6 +159,7 @@ fn preparer_la_scene(
     crate::perf::compteur("lueurs_posees", confie.lueurs.len() as f64);
     crate::perf::compteur("cartes_posees", confie.cartes.len() as f64);
     crate::perf::compteur("composants", confie.composants.len() as f64);
+    crate::perf::compteur("formes", confie.formes.primitives.len() as f64);
     retenues
 }
 

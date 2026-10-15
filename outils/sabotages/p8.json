@@ -1,0 +1,566 @@
+[
+ {
+  "nom": "CUBIQUE-1 : la borne divisee par deux",
+  "fichier": "crates/glucose-core/src/courbes.rs",
+  "avant": "    let ecart = BORNE_DU_MILIEU * d[0].hypot(d[1]);",
+  "apres": "    let ecart = BORNE_DU_MILIEU / 2.0 * d[0].hypot(d[1]);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "CUBIQUE-1 : un morceau de moins",
+  "fichier": "crates/glucose-core/src/courbes.rs",
+  "avant": "    (ecart / tolerance).cbrt().ceil() as usize",
+  "apres": "    (ecart / tolerance).cbrt().floor().max(1.0) as usize",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "CUBIQUE-1 : les tangentes du morceau fausses",
+  "fichier": "crates/glucose-core/src/courbes.rs",
+  "avant": "    let h = (t1 - t0) / 3.0;",
+  "apres": "    let h = (t1 - t0) / 2.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "une ligne nulle devient une courbe",
+  "fichier": "crates/glucose-core/src/courbes.rs",
+  "avant": "        if p == self.plume {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "un contour qui ne se ferme pas",
+  "fichier": "crates/glucose-core/src/courbes.rs",
+  "avant": "        self.ligne(depart);",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "BANDES-2 : une seule arithmetique",
+  "fichier": "crates/glucose-core/src/courbes/emballage.rs",
+  "avant": "    let fondue = borner(v.mul_add(echelle, decalage));",
+  "apres": "    let fondue = separees;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "les bandes triees a l'envers",
+  "fichier": "crates/glucose-core/src/courbes/emballage.rs",
+  "avant": "                max(b).total_cmp(&max(a))",
+  "apres": "                max(a).total_cmp(&max(b))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "BANDES-1 : les droites dans les bandes qu'elles ne croisent pas",
+  "fichier": "crates/glucose-core/src/courbes/emballage.rs",
+  "avant": "                !(p[0][coupe] == p[1][coupe] && p[1][coupe] == p[2][coupe])",
+  "apres": "                true",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "la table des racines fausse",
+  "fichier": "crates/glucose-core/src/courbes/couverture.rs",
+  "avant": "    (0x2E74u32 >> decalage) & 0x0101",
+  "apres": "    (0x2E75u32 >> decalage) & 0x0101",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "la droite resolue comme une courbe",
+  "fichier": "crates/glucose-core/src/courbes/couverture.rs",
+  "avant": "        t1 = p[0][axe] * rb;",
+  "apres": "        t1 = (b[axe] - d) * ra;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "le rayon vertical dans le mauvais sens",
+  "fichier": "crates/glucose-core/src/courbes/couverture.rs",
+  "avant": "        let sens = if axe == 0 { 1.0 } else { -1.0 };",
+  "apres": "        let sens = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "le plancher des deux rayons oublie",
+  "fichier": "crates/glucose-core/src/courbes/couverture.rs",
+  "avant": "    melee.max(xc.abs().min(yc.abs())).clamp(0.0, 1.0)",
+  "apres": "    melee.clamp(0.0, 1.0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "courbes"
+  ]
+ },
+ {
+  "nom": "carte : le point de la forme decale",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "    let x = centre.x - p.t.x;",
+  "apres": "    let x = centre.x + p.t.x;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "carte : la table des racines fausse",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "    return (0x2E74u >> decalage) & 0x0101u;",
+  "apres": "    return (0x2E75u >> decalage) & 0x0101u;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "carte : le rayon vertical dans le mauvais sens",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "        sens = -1.0;",
+  "apres": "        sens = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "carte : la rogne sur un seul axe",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "    return x * y;",
+  "apres": "    return x;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "carte : la forme sans sa dilatation",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "        let d = vec2<f32>(0.5) / pixels_par_unite(p);",
+  "apres": "        let d = vec2<f32>(0.0) / pixels_par_unite(p);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "l'atlas resserre ne renvoie rien",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/atlas.rs",
+  "avant": "        self.envoyees = (0, 0);",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "l'atlas resserre garde tout",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/atlas.rs",
+  "avant": "        self.entrees.retain(|_, e| e.vue == image);",
+  "apres": "        self.entrees.retain(|_, _| true);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "le tampon des courbes refait sans tout renvoyer",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu.rs",
+  "avant": "            atlas.envoyees.0 = 0;",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "le tampon des bandes refait sans tout renvoyer",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu.rs",
+  "avant": "            atlas.envoyees.1 = 0;",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : les formes d'une carte oubliees",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/recolte.rs",
+  "avant": "            self.formes.primitives.extend(pieces.formes);",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_une_carte_plus_grande"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : une lettre decalee d'un pixel",
+  "fichier": "crates/glucose-desktop/src/renderer/vectoriel/releve.rs",
+  "avant": "        let matrice = [corps, 0.0, 0.0, -corps, x, base];",
+  "apres": "        let matrice = [corps, 0.0, 0.0, -corps, x + 1.0, base];",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_une_carte_plus_grande"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : les lettres visibles retirees",
+  "fichier": "crates/glucose-desktop/src/renderer/vectoriel/releve.rs",
+  "avant": "        if !self.voit(boite) {",
+  "apres": "        if self.voit(boite) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_une_carte_plus_grande"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : les suites jamais posees",
+  "fichier": "crates/glucose-desktop/src/present/couches.rs",
+  "avant": "        temps.formes.poser(passe, k);",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_une_carte_plus_grande"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : la brume sans ses coins",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "    v.rectangle(boite, layout.radius, voile);",
+  "apres": "    v.rectangle(boite, 0.0, voile);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_une_carte_plus_grande"
+  ]
+ },
+ {
+  "nom": "RACINES-1 : la carte divise elle-meme",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "    let i = p.inverse;",
+  "apres": "    let det = p.m.x * p.m.w - p.m.z * p.m.y;\n    let i = vec4<f32>(p.m.w / det, -p.m.y / det, -p.m.z / det, p.m.x / det);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "RACINES-1 : l'inverse faux",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu.rs",
+  "avant": "    [d / det, -b / det, -c / det, a / det]",
+  "apres": "    [a / det, -b / det, -c / det, d / det]",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_une_carte_plus_grande"
+  ]
+ },
+ {
+  "nom": "CADRE-1 : le liseré sans son décalage",
+  "fichier": "crates/glucose-desktop/src/renderer/passages.rs",
+  "avant": "        forme: fond.dilate(s.world(style.decalage)),",
+  "apres": "        forme: fond,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "passages"
+  ]
+ },
+ {
+  "nom": "CADRE-1 : le liseré deux fois plus fin",
+  "fichier": "crates/glucose-desktop/src/renderer/passages.rs",
+  "avant": "        demi_largeur: s.world(style.epaisseur) / 2.0,",
+  "apres": "        demi_largeur: s.world(style.epaisseur) / 4.0,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "passages"
+  ]
+ },
+ {
+  "nom": "CADRE-1 : le liseré à l'opacité du fond",
+  "fichier": "crates/glucose-desktop/src/renderer/passages.rs",
+  "avant": "        alpha: f32::from(opacite(style.lisere)) / 255.0,",
+  "apres": "        alpha: f32::from(opacite(style.fond)) / 255.0,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "passages"
+  ]
+ },
+ {
+  "nom": "CADRE-1 : le fond sans sa marge",
+  "fichier": "crates/glucose-desktop/src/renderer/passages.rs",
+  "avant": "    let (x, y, l, h) = pose.boite(troncon.rect, style);",
+  "apres": "    let (x, y, l, h) = pose.a_l_ecran(troncon.rect);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "passages"
+  ]
+ },
+ {
+  "nom": "CADRE-1 : le processeur ne peint pas le cadre",
+  "fichier": "crates/glucose-desktop/src/renderer/passages.rs",
+  "avant": "        glucose_core::membrane_forme::peindre(&cadre, pixels, largeur, hauteur);",
+  "apres": "        let _ = (&cadre, &pixels, largeur, hauteur);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_slug_1_de_pres"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : de pres, le passage oublie par la carte",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "        crate::renderer::passages::cadres_en_vecteurs(v, pose, &passages, (e.teinte, e.style));",
+  "apres": "        let _ = (&pose, &passages, &v);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_slug_1_de_pres"
+  ]
+ },
+ {
+  "nom": "SLUG-1 : de pres, la selection oubliee par la carte",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "        v.rectangle(boite, 0.0, ctx.theme.text_selection);",
+  "apres": "        let _ = boite;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_slug_1_de_pres"
+  ]
+ },
+ {
+  "nom": "carte : le dedans du lisere oublie",
+  "fichier": "crates/glucose-desktop/src/present/formes_gpu/formes.wgsl",
+  "avant": "            c = couverture_d_un_trait(d, p.t.y);",
+  "apres": "            c = couverture_d_un_trait(max(d, 0.0), p.t.y);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "formes_gpu"
+  ]
+ },
+ {
+  "nom": "la couverture d'un trait qui n'est plus paire",
+  "fichier": "crates/glucose-core/src/membrane_forme.rs",
+  "avant": "    ((d + 0.5).min(h) - (d - 0.5).max(-h)).max(0.0)",
+  "apres": "    ((d + 0.5).min(h) - (d - 0.5).max(-h * 0.999)).max(0.0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_forme"
+  ]
+ }
+]

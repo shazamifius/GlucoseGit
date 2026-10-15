@@ -132,3 +132,9 @@ Un bug : une [issue](https://github.com/shazamifius/GlucoseGit/issues/new/choose
 ## Licence
 
 [MIT](LICENSE) : utilisation, modification et redistribution libres.
+
+Le texte vu de près est dessiné par la carte graphique selon l'algorithme **Slug** d'Eric
+Lengyel (brevet versé au domaine public le 17/03/2026 ; nuanceurs de référence © 2017 Eric
+Lengyel, licence MIT) : sa loi est transcrite dans `crates/glucose-core/src/courbes/couverture.rs`
+et `crates/glucose-desktop/src/present/formes_gpu/formes.wgsl`
+([sa licence](crates/glucose-desktop/src/present/formes_gpu/LICENSE-Slug.txt)).

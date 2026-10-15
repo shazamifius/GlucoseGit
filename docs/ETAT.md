@@ -1,24 +1,22 @@
 # Où en est Glucose
 
-> **Au 15/10/2026, le soir** (fiche 72). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 15/10/2026, la nuit** (fiche 73). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
-> le [carnet](carnet/00-INDEX.md) (fiches 51 à 72 pour la V2). La direction : [VISION](VISION.md).
+> le [carnet](carnet/00-INDEX.md) (fiches 51 à 73 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
 
 ---
 
 ## 1. En une page
 
-* **Glucose Rust est publié.** La **2.0.3-beta.3** est la release « latest » depuis le 15/10
-  (publiée par lui) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
+* **Glucose Rust est publié.** La **2.0.3-beta.4** est la release « latest » depuis le 15/10
+  (publiée par lui, sur `a7893be`) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
   `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses données ne sont jamais
-  touchées. **La 2.0.3-beta.4 est prête en brouillon** (fiche 72 : CI dix vertes sur `a7893be`,
-  exécution 38769058177 ; le brouillon sur ce commit, publication 38771020014 — un premier
-  brouillon, sur `b6a8ea4`, a été retiré) : la télémétrie qui ne perd plus les longues sessions,
-  la raison de mort d'Android, ce que la reprise rouvre ou saute, LIBERE-1, le texte net de près,
-  le zoom ×256, la palette qui défile. Son APK, signé de sa clé, est zippé sur son Bureau
-  (`Glucose-2.0.3-beta.4-telephone.zip`) : **son essai, puis son clic** « Publish release ».
+  touchées. Son essai : **plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt
+  cool »** ; au PC, *« tout fonctionne merveilleusement bien »*.
+* **P8, le texte net de près** (fiche 73) : écrit, éprouvé, saboté, sur `main` — **il attend son
+  écran**, puis son téléphone (aucune mesure n'y a été faite).
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
@@ -59,7 +57,7 @@
 | **Naviguer** | canevas infini, **zoom jusqu'à ×256** (déduit de la précision du document, fiche 72) ; souris instantanée ; pavé par *Direct Manipulation* (la similitude entière des doigts — « tellement mieux qu'avant », 15/10) ; `F` cadre la sélection, `Alt+F` tout ; signets `Ctrl+1..9` ; minimap ; onglets ; le canevas défile au bord ; les doigts au téléphone |
 | **Le document** | `.glucose` écrit geste après geste, images scellées, brouillons, reprise au lancement, Time Machine (`Ctrl+H`), documents de Tauri lus ; `Ctrl+N`, `Ctrl+O` ; au téléphone, les documents rangés et rouverts |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; coller, déposer (Pinterest en pleine résolution sous Windows) ; rotation, recadrage non destructif, `Ctrl+B` ; la mémoire par étages (carte graphique, mémoire, disque, bornés par ce que la machine laisse) |
-| **Texte** | Markdown, tableaux, liens, LaTeX fidèle à KaTeX, annulation mot par mot ; le clavier du téléphone ; **de près, les grandes lettres se tracent** (GRAND-1, fiche 72) |
+| **Texte** | Markdown, tableaux, liens, LaTeX fidèle à KaTeX, annulation mot par mot ; le clavier du téléphone ; **de près, la carte graphique dessine les lettres depuis leur forme** (Slug, P8, fiche 73) : nettes à tout zoom jusqu'à ×256, ~1 ms par image ; au processeur, les grandes lettres se tracent (GRAND-1) |
 | **L'interface** | **les raccourcis sont une donnée** (une couche de texte, `assets/raccourcis/glucose.txt`), **75 commandes** dans une table, le menu qui les exécute et dit leurs raccourcis, **la palette** (`Ctrl+Maj+P`) — la fondation des presets (P4, fiche 72) |
 | **Flèches** | droites ou courbes, double sens, six relations, coudes, contournement, ancres de texte |
 | **Copier, coller** | la sélection entière d'une fenêtre à l'autre ; un seul « Copier » qui donne aussi les images (Discord, navigateur) ; le glisser vers d'autres applications sous Windows ; sous Linux, la sélection X11 servie par Glucose |
@@ -76,13 +74,14 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **2 573 épreuves** sous Windows, toutes vertes (15/10, fiche 72) ; clippy strict à zéro sous
-  Windows et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
+* **2 590 épreuves** sous Windows, toutes vertes (15/10, fiche 73) ; clippy strict à zéro sous
+  Windows (Rust 1.99.1) et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
   (`outils/sabotages/`, un fichier par chantier) — 30 sur 30 pour l'export SVG (fiche 71) ; à la
   fiche 72, 25 sur 25 pour le téléphone, 4 sur 4 pour LIBERE-1 (sous Linux), 10 sur 10 pour
-  GRAND-1, 2 sur 2 pour le zoom, 20 sur 20 pour P4.
+  GRAND-1, 2 sur 2 pour le zoom, 20 sur 20 pour P4 ; à la fiche 73, **37 sur 37 pour P8** — après
+  qu'une première passe en eut trouvé cinq aveugles, chacun corrigé par l'épreuve qui le voit.
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;

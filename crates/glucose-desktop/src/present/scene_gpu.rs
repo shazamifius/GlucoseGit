@@ -465,9 +465,9 @@ impl SceneGpu {
         let image = self.image;
         let mut perimees = 0.0_f64;
         for (rang, t) in photos.iter().enumerate() {
-            // **Le repli se garde tant que sa tuile peut en avoir besoin** (DE-PRES-1). Il
-            // ne se pose qu'à la place d'une tuile absente ; oublié à la fin de chaque image
-            // où toutes sont là, il manquerait au premier zoom, qui les change toutes.
+            // **Le repli se garde tant que sa photo peut en avoir besoin** (ETAGES-1). Il ne se
+            // pose qu'à la place d'une photo absente ; oublié à la fin de chaque image où elle
+            // est là, il manquerait au premier zoom, qui change son niveau.
             if let Some(gardee) = t
                 .repli
                 .as_deref()

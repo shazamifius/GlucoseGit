@@ -14,11 +14,14 @@ impl SceneGpu {
     ///
     /// `source` n'est appelee que pour les photos absentes : une photo ne traverse le bus
     /// qu'une fois dans sa vie, au premier affichage.
+    ///
+    /// `a_preparer` se rend comme un repli, sur le temps qui reste, et **se garde** sans se
+    /// poser : la texture d'un composant que la carte dessine en formes (fiche 73).
     pub fn assurer(
         &mut self,
         peripherique: &wgpu::Device,
         envoi: &mut crate::present::envoi::Envoi,
-        (a_poser, budget): (&[APoser], Duration),
+        (a_poser, a_preparer, budget): (&[APoser], &[APoser], Duration),
         source: &Source<'_>,
     ) {
         let mut tranche = Tranche {
@@ -29,12 +32,13 @@ impl SceneGpu {
             surface: 0.0,
             rendu: Duration::ZERO,
         };
-        // Les replis des tuiles (DE-PRES-1), une fois chacun : les cent tuiles d'une carte vue
-        // de près partagent le même.
+        // Les replis — le niveau tenu d'une photo dont le voulu ne l'est pas (ETAGES-1), et la
+        // texture de ce que la carte dessine en formes (fiche 73) —, une fois chacun.
         let mut vus = std::collections::HashSet::new();
         let replis: Vec<&APoser> = a_poser
             .iter()
             .filter_map(|t| t.repli.as_deref())
+            .chain(a_preparer)
             .filter(|r| vus.insert(r.cle.as_str()))
             .collect();
         // **Deux tours, et leur ordre EST la priorité.** Au premier, ce que la carte n'a pas
@@ -45,9 +49,8 @@ impl SceneGpu {
         //
         // **Dans chaque tour, les replis passent après tout le reste**, et seulement sur le
         // temps qui reste : ils ne montrent rien par eux-mêmes, ils préparent le prochain zoom.
-        // Mais ils sont toujours demandés tant qu'une carte est découpée — les réserver aux
-        // tuiles absentes les laissait sans jamais de temps, puisque ces tuiles passent avant
-        // eux, et une carte ouverte de près n'en aurait jamais eu.
+        // Mais ils sont toujours demandés tant qu'ils peuvent servir — les réserver à ce qui
+        // manque les laissait sans jamais de temps, puisque ce qui manque passe avant eux.
         for urgent in [true, false] {
             for t in a_poser {
                 self.rendre_si_besoin((peripherique, envoi), (t, urgent), source, &mut tranche);
@@ -70,6 +73,14 @@ impl SceneGpu {
         // compter garderait éveillée, sans fin, une machine dont chaque image dépasse déjà le
         // plancher — le téléphone.
         self.inachevee = tranche.reportees > 0.0;
+        // Ce qui se prépare se garde, comme ce qui se pose : oublié à la fin de chaque image où
+        // il ne sert pas, il ne serait jamais là quand il sert.
+        let image = self.image;
+        for t in a_preparer {
+            if let Some(gardee) = self.photos.get_mut(&t.identite) {
+                gardee.vue = image;
+            }
+        }
         crate::perf::compteur("textures_kpx", tranche.surface);
         crate::perf::compteur("textures_rendu_us", tranche.rendu.as_secs_f64() * 1e6);
         crate::perf::compteur("textures_faites", tranche.faites);

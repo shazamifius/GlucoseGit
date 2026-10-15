@@ -70,8 +70,8 @@ use crate::typography::Typography;
 mod dessus;
 mod habit;
 mod ornament;
-pub(in crate::renderer) mod svg;
 mod texte_seul;
+pub(in crate::renderer) mod vecteurs;
 use crate::theme::Theme;
 use dessus::dessiner_les_ornements;
 use glucose_core::text::{BlockKind, Selection};
@@ -392,16 +392,7 @@ fn draw_text_line(
         return;
     }
 
-    let text_ink = ink_of(line.kind, ctx.theme);
-    let ink = Ink {
-        text: text_ink,
-        link: ctx.theme.link,
-        marker: marker_ink(ctx.math, ctx.theme, line, card.body, card.editing.is_some()),
-        eclat: card.eclaires.map_or(text_ink, |e| {
-            let (r, g, b) = e.teinte;
-            Color::from_rgba8(r, g, b, 255)
-        }),
-    };
+    let ink = encre_de_la_ligne(ctx, line, card);
     // Le surlignage passe sous le texte : dessiné après, il le recouvrirait.
     draw_line_selection(
         ctx,
@@ -420,6 +411,22 @@ fn draw_text_line(
         (font, ink),
         card.body,
     );
+}
+
+/// **Les encres d'une ligne** : celle de son genre, le bleu d'un lien, le gris des signes (ou
+/// le vert et le rouge d'une formule qu'on écrit), la teinte d'un passage qui brille — lues
+/// une fois, pour le canevas et pour le dessin vectoriel.
+fn encre_de_la_ligne(ctx: &Pass, line: &VisualLine, card: &TextCard) -> Ink {
+    let text_ink = ink_of(line.kind, ctx.theme);
+    Ink {
+        text: text_ink,
+        link: ctx.theme.link,
+        marker: marker_ink(ctx.math, ctx.theme, line, card.body, card.editing.is_some()),
+        eclat: card.eclaires.map_or(text_ink, |e| {
+            let (r, g, b) = e.teinte;
+            Color::from_rgba8(r, g, b, 255)
+        }),
+    }
 }
 
 /// Le paragraphe entier auquel appartient une ligne visuelle.

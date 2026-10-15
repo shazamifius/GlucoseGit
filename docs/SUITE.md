@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 15/10/2026, le soir** (fiche 72). La feuille de route de Glucose Rust. Chaque chantier dit **ce qui
+> **Au 15/10/2026, la nuit** (fiche 73). La feuille de route de Glucose Rust. Chaque chantier dit **ce qui
 > le déclare fini**. Tout y est à remettre en question — ses paroles comprises. La direction
 > vit dans [VISION](VISION.md), l'état vérifié dans [ÉTAT](ETAT.md), chaque fonction et son
 > bouton dans [INVENTAIRE](INVENTAIRE.md), la cible PureRef dans [PUREREF](PUREREF.md).
@@ -20,10 +20,11 @@
 |---|---|---|
 | [x] | **P5 — L'export SVG complet** (fiches 69 à 71) : tout ce que le canevas montre, dans son ordre, le texte en tracés ; les flous bornés à leur portée (28 s → 62 ms) ; le rectangle net par la règle du canevas ; 30 sabotages, 30 chutes ; regardé sur une copie de son document « UwU » (superposé au PNG) | reste **ses yeux** : un SVG ouvert dans son navigateur et dans Inkscape (§ 2) |
 | [x] | **La 2.0.3-beta.3** — publiée par lui le 15/10 | publiée par lui |
-| [~] | **La 2.0.3-beta.4** (fiche 72) — la télémétrie qui ne perd plus les longues sessions, la raison de mort d'Android (SORTIE-1), ce que la reprise rouvre et ce qu'elle saute (REPRISE-1), **LIBERE-1** (un brouillon tenu au lancement revient), VIE-2, le texte net de près (GRAND-1), le zoom ×256, **la palette qui défile** et les raccourcis comme donnée (P4). Le brouillon, refait sur le dernier commit après sa CI ; l'APK zippé sur son Bureau. Reste **son essai au téléphone** (le 16/10), puis **son clic** « Publish release » | publiée par lui |
+| [x] | **La 2.0.3-beta.4** (fiche 72) — publiée par lui le 15/10 ; son essai : plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt cool » | publiée par lui |
 | [ ] | **P0 — Glucose ne doit jamais figer ni perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu** (fiche 72 § 4) : la cause n'est pas connue. La beta 4 la dira : ses lignes `sortie` (la raison d'Android, la mémoire à la mort) et `reprise` (ce que le lancement a rouvert), et les longues sessions qui partent enfin. **Ne pas désinstaller** : le brouillon est peut-être encore là | la cause nommée par ses lignes ; puis corrigée, éprouvée sur une copie |
 | [~] | **P4 — La fondation des presets** (fiche 72) : **fait** — le noyau des raccourcis (`glucose-core::raccourcis` : l'accord et sa loi ACCORD-1, le clavier français ; la couche en texte ; la pile qui remplace ou retire), **la table des 75 commandes** (`commandes.rs`), les raccourcis de Glucose en couche (`assets/raccourcis/glucose.txt`), **le menu qui exécute les commandes et dit leurs raccourcis lus dans le clavier**, **la palette** (`Ctrl+Maj+P`) ; un raccourci changé par la table, éprouvé ; rien n'a changé à l'écran (le témoin du menu). **Reste** : la couche de l'utilisateur, lue sur le disque et modifiable ; le thème et la disposition des panneaux comme données ; puis les presets PureRef, Figma, Miro comme couches | à son écran : `Ctrl+Maj+P` ; puis la couche de l'utilisateur |
-| [ ] | **P8 — Le texte par la carte graphique** (fiche 72 § 5) : de près, le texte se rastérise au processeur et la cascade montre un repli flou le temps de refaire les carrés. **Slug** (Eric Lengyel), dans le domaine public depuis le 17/03/2026, nuanceurs MIT : les lettres rendues par la carte depuis leurs courbes, nettes à tout zoom sans re-rastériser. Les contours sont déjà lus (GRAND-1) ; les fontes CFF (Inter Italic) demandent les cubiques en quadratiques ; le texte riche, les formules et les cadres à porter en primitives | de près, aucun flou, sur sa machine et au téléphone |
+| [~] | **P8 — Le texte de près par la carte graphique** (fiche 73) : un nœud plus grand que l'écran se dessine depuis sa description vectorielle — la même que l'export SVG (`Vectoriel`) — : les lettres et les formes de KaTeX par **Slug** (le noyau `courbes` : CUBIQUE-1, BANDES-1, BANDES-2 ; RACINES-1), les fonds, plaques, filets et liserés par la loi des membranes ; le découpage en carrés (DE-PRES-1) retiré ; **CADRE-1** (le cadre d'un passage, une membrane sur les deux voies) ; SLUG-1 ; ~1 ms par image de près, contre ~20 et le flou. **Reste** : son écran, puis son téléphone (jamais mesuré) ; les titres des membranes, encore peints au processeur ; la frontière « plus grand que l'écran », à remettre en question par la mesure (fiche 73 § 6) | de près, aucun flou, sur sa machine et au téléphone |
+| [ ] | **P8 bis — Un nœud immense, de près** (fiche 73 § 7, mesuré) : à ×16, le relevé paie toute la longueur du nœud à chaque image — 0,46 ms pour 44 mots, **10,5 ms pour 17 600** (la carte, elle, 1 ms). La mise en page ne dépend pas du zoom : la garder ; une ligne qui ne peut pas toucher l'écran ne se parcourt pas — une borne exacte, les formules dessinant sur les lignes qu'elles réservent | `bench_de_pres` : le relevé ne dépend plus de la longueur ; épreuves et sabotages |
 | [ ] | **Ordonner, très très grandement** (sa proposition du 15/10) : à concevoir avec lui — ce qui manque (PureRef : par nom, par date, en ligne, en colonne — dans le noyau sans bouton ; aligner, distribuer, empiler, normaliser), et ce qu'il entend par « grandement » | sa parole, puis à son écran |
 | [ ] | **P3 — Ce que son téléphone dira** : POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent. Son téléphone tournait à **19,5 ms** par image en médiane — sous le plancher presque tout le temps | les postes lus, le coupable nommé par la mesure |
 | [ ] | **Les choix à l'utilisateur** (sa parole : « TOUJOURS CHOISIR ») : la planche claire ou sombre, les champs (dialogue, action, notes) sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux, les photos du SVG en originaux ou réduites | chaque choix dans la question ou le panneau où l'on agit, enregistré, saboté |
@@ -43,8 +44,10 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 **Au PC** — `cargo run --release > sortie-essais.txt 2>&1` :
 
-* **Le texte de près** (fiche 72) : zoomer très près d'un texte, d'un titre de membrane, d'une
-  formule — net bien plus vite ; et **le zoom jusqu'à ×256**.
+* **Le texte de près** (fiches 72 et 73) : zoomer très près d'un texte, d'une formule, d'un
+  passage qu'une flèche fait briller, d'une sélection en cours d'écriture, d'un emoji, de
+  l'italique — **nets dès la première image**, jusqu'à ×256 ; zoomer et dézoomer sans trou ni
+  à-coup ; un titre de membrane (encore peint au processeur).
 * **La palette** : `Ctrl+Maj+P`, écrire « dupl », Entrée ; les flèches pour choisir ; Échap ;
   sans rien écrire, faire défiler toute la liste (molette, pavé, flèches, Page bas).
 * **Le menu du clic droit** : ses raccourcis viennent désormais du clavier — rien ne doit avoir
@@ -88,7 +91,6 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 ## 3. Ce qui n'attend que lui
 
-* Son **essai de l'APK** et son **clic** « Publish release » de la beta 3.
 * **Sa clé SauceNAO** (la provenance des images).
 * **Le modèle de l'iPad**, les téléphones de ses testeurs Android (le plus ancien d'abord).
 * **Les définitions** : Trans-domaines et « domaine » (en recherche), les rideaux, les membranes de

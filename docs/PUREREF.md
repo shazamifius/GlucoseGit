@@ -53,7 +53,7 @@
 
 | PureRef | Glucose | |
 |---|---|---|
-| Déplacer, zoomer, se déplacer (souris, pavé, doigts) | ✅ | le pavé par *Direct Manipulation* ; les doigts au téléphone |
+| Déplacer, zoomer, se déplacer (souris, pavé, doigts) | ✅ | le pavé par *Direct Manipulation* ; les doigts au téléphone ; **mieux** : de près, le texte reste net à ×256, dessiné depuis la forme des lettres (P8) |
 | Rotation libre, **magnétisée à 45°** | 🟡 | libre (`Alt` + coin) ; le magnétisme à 45° à faire |
 | Mise à l'échelle non destructive, depuis le centre (`Alt`) | ✅ | origine commune ou individuelle, comme Blender |
 | Réinitialiser la transformation | ❌ | |

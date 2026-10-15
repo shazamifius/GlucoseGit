@@ -61,7 +61,10 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
     );
 
     // A part, puis repose la ou la pose le dit.
-    let composant = regime.photo_en_chemin(&img).expect("un composant").seule();
+    let composant = regime
+        .photo_en_chemin(kit, &img)
+        .expect("un composant")
+        .seule();
     let texture = composant.rendre(kit).expect("une texture");
     let mut reposee = Pixmap::new(taille.0, taille.1).expect("pixmap");
     let (px, py) = (composant.pose.x, composant.pose.y);

@@ -11,7 +11,7 @@
 
 ```
 crates/
-├── glucose-core/     le noyau : modèle, géométrie, journal, format, texte, index — AUCUNE dépendance
+├── glucose-core/     le noyau : modèle, géométrie, journal, format, texte, index, courbes (Slug) — AUCUNE dépendance
 ├── glucose-math/     les formules LaTeX en géométrie pure — une dépendance, katex-rs
 ├── glucose-desktop/  l'application : fenêtre, deux voies de rendu, plateforme, mise à jour
 └── glucose-android/  le point d'entrée du téléphone (`android_main`) et la frontière JNI
@@ -177,8 +177,23 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   sans rien de choisi, elle est vide (297 lignes de moins par image au PC, 556 à 1 865 au
   téléphone). Ce qui attend une décision passe toujours dans son tampon, au-dessus de la chrome,
   et ne se peint que s'il y a quelque chose à décider (`UiState::attend_une_decision`).
+* **De près, la carte dessine depuis les formes** (P8, fiche 73) : un composant **plus grand que
+  l'écran** ne se découpe plus en carrés (DE-PRES-1 retiré) — la carte le dessine depuis sa
+  description vectorielle, la même que l'export SVG (`renderer/vectoriel.rs`, le trait
+  `Vectoriel` ; `card/vecteurs.rs`), relevée en primitives (`vectoriel/releve.rs`) :
+  `present/formes_gpu` pose des **arrondis** par la loi des membranes (`present/arrondi.wgsl`,
+  partagé avec elles) et des **courbes** par **Slug** — la loi dans `glucose-core::courbes`
+  (`couverture`, transcrite par `formes.wgsl`), ses contours en quadratiques (CUBIQUE-1), ses
+  bandes (BANDES-1, BANDES-2), un atlas qui se resserre. Chaque suite de formes se pose à son rang
+  parmi les textures (`couches::poser_une_tranche`). La texture du nœud se **prépare** dans le
+  temps qui reste, sans se poser, pour le dézoom (`Confie::a_preparer`).
 * **La garantie** : les deux voies rendent la même scène, au bit près ou à un écart **mesuré et
-  borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat.
+  borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat. De près,
+  SLUG-1 : elles ne diffèrent qu'au bord des formes (le quart de pixel et l'aire au processeur,
+  la place exacte et deux rayons sur la carte), et les lettres sont à la même place à un
+  huitième de pixel près (la borne du quart de pixel). Une forme qui n'a pas de raison de
+  différer a **une seule loi**, que les deux voies appellent : le cadre d'un passage est une
+  membrane (CADRE-1), peinte par `membrane_forme::peindre` comme la brume.
 * **La surface** (`renderer/surface.rs`, fiche 70) : un dessin qui n'emploie que remplir un
   tracé, tracer un contour, remplir un rectangle net et écrire est **écrit une fois**, générique
   sur `Surface` — `Pixels` (le canevas) ou `Vecteurs` (le SVG d'un export) —, la forme de Cairo

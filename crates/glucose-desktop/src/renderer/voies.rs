@@ -15,7 +15,6 @@ use super::{
 };
 use crate::params::ViewPass;
 use crate::params::{Pointer, SceneOverlay};
-use crate::present::scene_gpu::Pose;
 use crate::renderer::Cadrage;
 use crate::ui::UiState;
 use glucose_core::quadtree::Visibles;
@@ -25,9 +24,10 @@ use tiny_skia::PixmapMut;
 
 mod confie;
 pub mod cran;
+mod recolte;
 mod tenue;
 pub use confie::{APoser, Confie};
-use tenue::pose_tenue;
+use recolte::{composants_de_texte, poses_des_photos, PhotosAPoser};
 
 /// **Ce qui passe sous les photos** : le fond, les membranes, les dossiers.
 ///
@@ -282,164 +282,6 @@ pub(super) fn lueurs_a_poser(
     lueurs
 }
 
-/// **Ou chaque photo visible se pose a l'ecran**, en pixels et en radians -- et, pour
-/// celles dont les octets ne sont pas encore la, le composant qui les dessinera.
-///
-/// # Ce que cette fonction est, et ce qu'elle n'est pas
-///
-/// Elle ne dessine rien. Elle traduit ce que le **modele** dit en ce que la carte attend :
-/// un rectangle d'ecran et un angle par photo. C'est exactement la frontiere que la fiche 21
-/// trace entre le socle -- le *quoi* -- et les executants -- le *comment*.
-///
-/// Le culling a deja fait son travail, donc `rangs` ne designe que ce qui touche l'ecran.
-///
-/// **Reclamer, sinon rien n'est jamais decode.** Le magasin ne decode que ce qu'on lui
-/// demande, et il oublie ce qu'on ne lui redemande pas. C'est ici que chaque photo visible se
-/// reclame, et `reclamer` dit du meme coup si elle est la : sinon, elle se pose comme un
-/// cadre en chemin, **a son rang** -- ni dessous ni dessus les autres, exactement ou la voie
-/// processeur la dessine.
-///
-/// L'angle est celui du modele, en **radians** : le multiplier par pi sur cent quatre-vingts
-/// posait droite une photo penchee de pi sur huit, et aucune epreuve ne le voyait parce que
-/// la photo penchee du temoin est en chemin.
-pub(super) fn poses_des_photos(
-    regime: &super::composants::Regime,
-    (magasin, carte): (&mut super::magasin::Magasin, &mut cran::EtatDeLaCarte),
-    (vp, rangs, store): (&Viewport, &[u32], &Store),
-) -> PhotosAPoser {
-    // Le cran de cette image d'abord, sur la vue qu'elle montre (ETAGES-3).
-    carte.juger(magasin, store, (vp, rangs));
-    let mut photos = PhotosAPoser::default();
-    let Some(board) = store.active_board() else {
-        return photos;
-    };
-    let PhotosAPoser {
-        posees,
-        composants,
-        niveaux,
-        replis,
-    } = &mut photos;
-    let mut en_chemin = 0.0f64;
-    for img in Visibles::nouvelles(rangs, board).images() {
-        match pose_tenue(magasin, img, (vp, carte.cran, carte.plafond_des_textures)) {
-            Some(tenue) => {
-                let cle = format!("{}@{}", tenue.src, tenue.facteur);
-                if let Some((facteur, pose)) = tenue.repli {
-                    let cle_du_repli = format!("{}@{facteur}", tenue.src);
-                    niveaux.insert(cle_du_repli.clone(), (tenue.src.clone(), facteur));
-                    replis.insert(cle.clone(), (cle_du_repli, pose));
-                }
-                niveaux.insert(cle.clone(), (tenue.src, tenue.facteur));
-                posees.push((cle, tenue.pose));
-            }
-            None => {
-                if let Some(pieces) = regime.photo_en_chemin(img) {
-                    ranger(pieces, posees, composants);
-                    en_chemin += 1.0;
-                }
-            }
-        }
-    }
-    crate::perf::compteur("photos_en_chemin", en_chemin);
-    photos
-}
-
-/// **Ce que la passe des photos confie à la carte** : où chacune se pose, ce qui sait se
-/// rendre pour celles en chemin, et le niveau de chacune de celles qui sont là.
-#[derive(Default)]
-pub(super) struct PhotosAPoser {
-    posees: Vec<(String, Pose)>,
-    composants: Vec<super::composants::Composant>,
-    niveaux: std::collections::HashMap<String, (String, u32)>,
-    replis: std::collections::HashMap<String, (String, Pose)>,
-}
-
-/// **Les cartes de texte que l'ecran montre**, comme composants (COMPOSANT-1).
-///
-/// La teinte symbiotique se calcule ici, comme dans `draw_annotations` : c'est le meme
-/// parcours, au meme endroit, et c'est elle qui entre dans l'empreinte.
-///
-/// # La carte qu'on edite en est une aussi (COMPOSANT-2)
-///
-/// Elle en etait exclue, et elle se redessinait donc en entier a chaque image : le terrain du
-/// 22/09 la chiffre a 9,74 ms en median sur le geste « editer du texte », dont l'image
-/// mediane coute 19,48 ms. **Cinquante et une images par seconde pendant qu'on ecrit**, la ou
-/// la charte en demande cent -- et ce n'est pas la frappe qui coute, c'est de refaire a
-/// l'identique entre deux touches.
-///
-/// Ce qu'elle montre ne change qu'a la frappe et deux fois par seconde pour le curseur : son
-/// empreinte le dit, et la texture ne se refait que la. Elle se pose **en dernier**, donc
-/// au-dessus des autres cartes, ce qui est exactement le rang que le processeur lui donnait
-/// en la dessinant dans sa seconde passe.
-fn composants_de_texte(
-    (regime, contenants, eclairages): (
-        &super::composants::Regime,
-        &super::card::Contenants<'_>,
-        &[crate::params::Eclairage],
-    ),
-    hue_cache: &mut SymbioticHueCache,
-    kit: PaintKit<'_>,
-    (store, pass, edition): (&Store, ViewPass<'_>, Option<&super::TextEditSession>),
-) -> (Vec<(String, Pose)>, Vec<super::composants::Composant>) {
-    let Some(board) = store.active_board() else {
-        return (Vec::new(), Vec::new());
-    };
-    let mut posees = Vec::new();
-    let mut composants = Vec::new();
-    // Ce qu'on edite passe au-dessus des autres cartes : on le met de cote et on l'ajoute
-    // apres, plutot que de trier une liste dont l'ordre est deja celui du modele.
-    let mut en_saisie = None;
-    for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
-        let glucose_core::types::Annotation::Text { x, y, text, .. } = ann else {
-            continue;
-        };
-        let saisie = edition.filter(|e| e.ann_id == ann.id());
-        let Some((w, h)) = ann.size() else {
-            continue;
-        };
-        let teinte = super::card::teinte_de_carte(hue_cache, ann, (pass.index, board));
-        // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
-        // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
-        let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());
-        let Some(pieces) = regime.carte(
-            kit,
-            ann.id(),
-            (*x, *y, w as f32, h as f32),
-            (corps, teinte),
-            (
-                saisie,
-                contenants,
-                super::passages::eclaires_de(eclairages, ann.id(), teinte),
-            ),
-        ) else {
-            continue;
-        };
-        if saisie.is_some() {
-            en_saisie = Some(pieces);
-        } else {
-            ranger(pieces, &mut posees, &mut composants);
-        }
-    }
-    if let Some(pieces) = en_saisie {
-        ranger(pieces, &mut posees, &mut composants);
-    }
-    (posees, composants)
-}
-
-/// **Range les pièces d'un composant** : ce qui se pose, à son rang, et tout ce qui sait se
-/// rendre — le repli compris, qui ne se pose jamais pour lui-même (DE-PRES-1).
-fn ranger(
-    pieces: super::composants::Pieces,
-    posees: &mut Vec<(String, Pose)>,
-    composants: &mut Vec<super::composants::Composant>,
-) {
-    for c in pieces.posees {
-        posees.push((c.cle.clone(), c.pose));
-        composants.push(c);
-    }
-    composants.extend(pieces.repli);
-}
-
 /// Les deux entrees de la voie graphique, posees ici pour que le moteur reste lisible.
 impl Renderer {
     /// **Rend la scene en deux couches, et dit ou les photos se posent.**
@@ -530,48 +372,43 @@ impl Renderer {
         // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
         // tous : deux composants voisins se rendent au meme palier.
         let regime = super::composants::Regime::de((vp, densite), regard, taille, header_h);
-        let PhotosAPoser {
-            posees: photos,
-            composants: en_chemin,
-            niveaux,
-            replis,
-        } = poses_des_photos(
-            &regime,
-            (&mut self.magasin, &mut self.carte),
-            (&vp, &rangs, store),
-        );
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,
             tints: &self.domain_tints,
             theme: &self.theme,
         };
+        let PhotosAPoser {
+            recolte: des_photos,
+            niveaux,
+            replis,
+        } = poses_des_photos(
+            (&regime, kit),
+            (&mut self.magasin, &mut self.carte),
+            (&vp, &rangs, store),
+        );
         // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
         let contenants = super::card::Contenants::nouveaux(&self.theme, &membranes);
-        let (cartes, de_texte) = composants_de_texte(
+        let de_texte = composants_de_texte(
             (&regime, &contenants, overlay.eclairages),
             &mut self.hue_cache,
             kit,
             (store, pass, edition),
         );
         crate::perf::stage("composants");
-        let mut composants = en_chemin;
-        composants.extend(de_texte);
-        Confie {
+        let confie = Confie {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
             lueurs,
             zones,
             membranes,
             fleches,
-            photos,
             niveaux,
             replis,
-            cartes,
-            composants,
             dessous_porte_quelque_chose: true,
             // Les panneaux, le releve des bandes et le lisere appartiennent a la peinture : la
             // chrome se dessine APRES le renderer, donc rien de juste ne peut en etre dit ici.
             ..Confie::default()
-        }
+        };
+        des_photos.puis_les_cartes(de_texte, confie)
     }
 }

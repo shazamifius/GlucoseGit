@@ -37,11 +37,12 @@ use super::scale::WorldScale;
 use crate::canvas::world_to_screen;
 use crate::params::{Eclairage, ViewPass};
 use crate::typography::{Face, Typography};
+use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
 use glucose_core::quadtree::{noeud_au_rang, Noeud};
 use glucose_core::store::Store;
 use glucose_core::text::BlockKind;
 use glucose_core::types::{Annotation, Viewport};
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Transform};
+use tiny_skia::{Color, PixmapMut};
 
 /// **Comment un passage brille** — les nombres de Tauri, en unités du monde : la carte de
 /// Tauri se met à l'échelle avec tout ce qu'elle porte.
@@ -295,63 +296,79 @@ impl Pose {
     }
 }
 
+/// L'opacité d'une part du cadre, sur 255 : celle que les deux voies composent.
+fn opacite(f: f32) -> u8 {
+    (f * 255.0).round() as u8
+}
+
+/// **Le cadre d'un tronçon : une membrane** — un fond et un liseré d'une même teinte, le liseré
+/// étant le trait de demi-largeur `demi` sur le bord du fond repoussé de `décalage`.
+///
+/// # CADRE-1 — une seule loi pour le cadre, sur les deux voies (fiche 73)
+///
+/// Le processeur le remplissait par `tiny-skia` (le liseré en anneau pair-impair) ; de près, la
+/// carte le dessine par la loi des membranes. Deux lois pour un même bord : de dix niveaux sur
+/// le liseré, et le bord du fond qui débordait de la lueur découpée par la loi exacte — plus
+/// clair que le fond et que le dehors, sur toute sa longueur. C'est la loi de la brume
+/// ([`super::card`]) : une membrane d'une couche, et un bord.
+fn membrane_du_cadre(
+    pose: Pose,
+    troncon: &Troncon,
+    ((r, g, b), style): ((u8, u8, u8), &Surlignage),
+) -> Membrane {
+    let s = pose.echelle;
+    let (x, y, l, h) = pose.boite(troncon.rect, style);
+    let fond = Arrondi::nouveau(x, y, l, h, s.world(style.coins));
+    let teinte = [r, g, b].map(|v| f32::from(v) / 255.0);
+    let mut cadre = Membrane::plein(fond, teinte, f32::from(opacite(style.fond)) / 255.0);
+    cadre.bord = Bord {
+        forme: fond.dilate(s.world(style.decalage)),
+        demi_largeur: s.world(style.epaisseur) / 2.0,
+        pointille: None,
+        alpha: f32::from(opacite(style.lisere)) / 255.0,
+    };
+    cadre
+}
+
 /// **Le fond et le liseré de chaque tronçon** — ce que la carte porte sous le texte de ses
-/// passages (PASSAGE-2). Leurs lettres se peignent ensuite à la teinte, avec le reste du texte.
+/// passages (PASSAGE-2), par la loi des membranes (CADRE-1). Leurs lettres se peignent ensuite à
+/// la teinte, avec le reste du texte.
 pub(crate) fn peindre_les_cadres(
     pixmap: &mut PixmapMut,
     pose: Pose,
     troncons: &[Troncon],
-    ((r, g, b), style): ((u8, u8, u8), &Surlignage),
+    teinte_et_style: ((u8, u8, u8), &Surlignage),
 ) {
-    let opacite = |f: f32| (f * 255.0).round() as u8;
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Paint::default()
-    };
-    let s = pose.echelle;
-    let coins = s.world(style.coins);
+    let (largeur, hauteur) = (pixmap.width(), pixmap.height());
+    let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
     for t in troncons {
-        let (gauche, haut, largeur, hauteur) = pose.boite(t.rect, style);
-        let mut pb = PathBuilder::new();
-        crate::renderer::push_rounded_rect(&mut pb, gauche, haut, largeur, hauteur, coins);
-        if let Some(fond) = pb.finish() {
-            paint.set_color(Color::from_rgba8(r, g, b, opacite(style.fond)));
-            pixmap.fill_path(
-                &fond,
-                &paint,
-                tiny_skia::FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-        // Le liseré est un **anneau rempli** — deux contours et la règle pair-impair —, pas un
-        // trait : dézoomé, il devient plus fin qu'un pixel, et c'est sur ces traits que le
-        // rastériseur a déjà planté trois fois dans ce projet (SCALE-3).
-        let mut pb = PathBuilder::new();
-        let demi = s.world(style.epaisseur) / 2.0;
-        for ecart in [
-            s.world(style.decalage) + demi,
-            s.world(style.decalage) - demi,
-        ] {
-            crate::renderer::push_rounded_rect(
-                &mut pb,
-                gauche - ecart,
-                haut - ecart,
-                largeur + 2.0 * ecart,
-                hauteur + 2.0 * ecart,
-                coins + ecart,
-            );
-        }
-        if let Some(lisere) = pb.finish() {
-            paint.set_color(Color::from_rgba8(r, g, b, opacite(style.lisere)));
-            pixmap.fill_path(
-                &lisere,
-                &paint,
-                tiny_skia::FillRule::EvenOdd,
-                Transform::identity(),
-                None,
-            );
-        }
+        let cadre = membrane_du_cadre(pose, t, teinte_et_style);
+        glucose_core::membrane_forme::peindre(&cadre, pixels, largeur, hauteur);
+    }
+}
+
+/// **Le fond et le liseré de chaque tronçon, en dessin vectoriel** (fiche 73) : la membrane même
+/// de [`peindre_les_cadres`], sa couche puis son bord (CADRE-1).
+pub(crate) fn cadres_en_vecteurs<V: super::vectoriel::Vectoriel>(
+    v: &mut V,
+    pose: Pose,
+    troncons: &[Troncon],
+    teinte_et_style: ((u8, u8, u8), &Surlignage),
+) {
+    for t in troncons {
+        let cadre = membrane_du_cadre(pose, t, teinte_et_style);
+        let [r, g, b] = cadre.teinte;
+        let encre = |alpha: f32| Color::from_rgba(r, g, b, alpha).unwrap_or(Color::TRANSPARENT);
+        let (fond, alpha) = cadre.remplissages[2];
+        let boite = (
+            fond.gauche,
+            fond.haut,
+            fond.droite - fond.gauche,
+            fond.bas - fond.haut,
+        );
+        v.rectangle(boite, fond.rayon, encre(alpha));
+        let bord = cadre.bord;
+        v.anneau(bord.forme, bord.demi_largeur, encre(bord.alpha));
     }
 }
 
@@ -377,7 +394,7 @@ pub(crate) fn peindre_les_lueurs(
                 right: gauche + largeur + etale,
                 bottom: haut + hauteur + etale,
                 sigma: s.world(ecart_type),
-                carte: Some(glucose_core::membrane_forme::Arrondi::nouveau(
+                carte: Some(Arrondi::nouveau(
                     gauche,
                     haut,
                     largeur,

@@ -50,6 +50,12 @@ pub struct Confie {
     /// Ce qui se rend **à la demande**, quand la carte graphique ne connaît pas la clé : les
     /// cartes de texte, les photos en chemin.
     pub composants: Vec<crate::renderer::composants::Composant>,
+    /// **Ce que la carte dessine en formes** (fiche 73) : ce qui est plus grand que l'écran, une
+    /// suite par composant, à son rang parmi les textures.
+    pub formes: crate::present::formes_gpu::Formes,
+    /// **Ce qui se prépare dans le temps qui reste, sans se poser** : la texture de chaque
+    /// composant dessiné en formes, prête pour l'instant où, dézoomé, il retient dans l'écran.
+    pub a_preparer: Vec<APoser>,
     /// **Les lignes que la couche du dessus porte**, relevées après que tout y a été dessiné.
     ///
     /// Elles décident de ce qui s'efface et de ce qui part sur le bus (BANDE-1) : depuis que la
@@ -134,7 +140,7 @@ impl Confie {
                 // Le repli d'une photo a son identité à lui : sous celle de la photo, il
                 // remplacerait la texture nette que la carte a peut-être gardée (ETAGES-1).
                 let repli = match composant {
-                    Some(c) => c.repli.clone(),
+                    Some(_) => None,
                     None => self
                         .replis
                         .get(cle.as_str())
