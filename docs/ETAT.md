@@ -104,5 +104,8 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
   (`Documents\Glucose-cle-android`) sont dans les secrets du dépôt, et sauvegardées hors de ce PC.
 * `%LOCALAPPDATA%\Glucose` ne se touche jamais ; un diagnostic se fait sur une copie de ses
   documents.
-* Une branche locale, `secours/avant-reattribution`, garde 83 commits d'avant la réécriture des
-  auteurs : une sauvegarde, à garder. Sur GitHub : `main` et `tauri-v1.0.1`.
+* **Deux branches, et pas une de plus** (sa demande du 16/10) : `main` et `tauri-v1.0.1`, en local
+  comme sur GitHub. On travaille sur `main` ; une branche de travail se retire dès sa fusion.
+  L'ancienne branche locale `secours/avant-reattribution` (les commits d'avant la réécriture des
+  auteurs) est sauvée dans `Documents\Glucose-sauvegardes\avant-reattribution.bundle` — vérifiée ;
+  `git fetch <ce fichier> secours/avant-reattribution:secours` la rend.

@@ -48,6 +48,8 @@ python outils/saboter.py <sabotages.json>   # exiger qu'une épreuve tombe quand
 * **Les messages de commit** s'écrivent dans un fichier du scratchpad, puis `git commit -F` : Git
   Bash mange les barres obliques inverses.
 * **Jamais de jeton dans le dépôt.**
+* **Deux branches, pas une de plus** : `main` et `tauri-v1.0.1`. On travaille sur `main` ; une
+  branche de travail se retire, en local et sur GitHub, dès qu'elle est fusionnée.
 
 ## En fin de session
 
