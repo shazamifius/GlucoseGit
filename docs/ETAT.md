@@ -22,8 +22,9 @@
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
-  Cloudflare de son compte, `docs/TELEMETRIE.md`) : 59 sessions, 5 installations au 15/10, dont
-  deux utilisateurs Windows inconnus de lui.
+  Cloudflare de son compte, `docs/TELEMETRIE.md`) : 77 sessions, 5 installations au 16/10, dont
+  deux utilisateurs Windows inconnus de lui ; **aucune session de la beta 4 n'est encore arrivée**
+  (une session part au lancement suivant).
 * **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est
   pas revenu** (« parfaitement fluide » jusque-là). **Cause inconnue** : aucune session de la
   beta 3 n'est arrivée du téléphone — le serveur refusait toute session de plus de 512 Kio, et le
