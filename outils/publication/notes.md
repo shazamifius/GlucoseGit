@@ -1,43 +1,27 @@
 **Glucose {version}** — Glucose, réécrit en Rust.
 
-**Ce qui change depuis la 2.0.3-beta.2**
+**Ce qui change depuis la 2.0.3-beta.3**
 
-* **Au téléphone, Glucose ne prend plus la mémoire sans regarder ce qui reste** : une image ne
-  commence à se décoder que si l'ensemble des décodages en cours tient dans la moitié de ce que
-  l'appareil laisse libre à cet instant ; et une photo décodée occupe jusqu'à 40 % de mémoire de
-  moins pendant son décodage (254 Mo au lieu de 445 pour une photo de 50 mégapixels).
-* **Quand Android demande de la mémoire, Glucose la rend** : derrière une autre application, la
-  carte graphique lâche ses images et le reste est offert au système, qui le reprend s'il en a
-  besoin ; au retour, tout revient de lui-même.
-* **Le journal technique, si tu l'as accepté**, dit désormais la mémoire — ce que Glucose occupe
-  et ce que l'appareil laisse, en mégaoctets, quand c'est un record de la session — et les
-  instants où le système en demande. Toujours aucun contenu de tes documents.
-* **Le Storyboard, complet** :
-  * plusieurs images lâchées sur une case remplissent les cases vides à la suite, et le
-    storyboard s'allonge s'il le faut ;
-  * « Storyboard de la sélection » au clic droit : une case par image choisie ;
-  * les deux « + » d'une case choisie insèrent une case avant ou après elle ;
-  * **la lecture** (« ▶ Lire ») : chaque case plein écran, une durée par case, ses textes en
-    sous-titre, ← → pour avancer, Espace pour la pause ;
-  * par case : sa durée, son plan (du plan général au très gros plan), des champs nommés
-    (Dialogue, Action, Notes…) ;
-  * **plusieurs storyboards par tableau** (« + Nouveau », ‹ 2 / 3 ›) ;
-  * **l'export en planches**, en PDF ou en images, au format A.
-* **La grille du Storyboard part du coin de la souris**, comme quand on la trace.
-* **L'export SVG porte tout ce que le canevas montre** : photos, membranes, dossiers, formules,
-  zones et cases, dans le même ordre ; le texte y est en tracés, lisible tel quel par n'importe
-  quel logiciel (navigateur, Inkscape, Illustrator), sans police à installer.
-* **Le dossier, comme dans Glucose Tauri** : son titre et son compteur à leur place, et un dossier
-  vide dit « Double-clic pour ouvrir ».
-* **`Alt+F` cadre aussi un tableau qui ne porte qu'un storyboard ou des zones.**
-* **Le panneau « Presets » s'appelle « Mood board »** : ses six gabarits de zones.
+* **De près, le texte redevient net bien plus vite** : une grande lettre se dessine désormais par
+  son contour, au lieu d'une image d'elle entière qu'il fallait refaire à chaque zoom. Vu de
+  près, l'écran entier se refait jusqu'à trois fois plus vite — le texte, les titres des
+  membranes, les formules. Au-delà de ×32, les lettres se dessinaient aussi trop petites : c'est
+  réparé.
+* **On zoome bien plus près** : jusqu'à ×256 (c'était ×20).
+* **Au téléphone, quand Glucose se ferme sans prévenir**, le journal technique — si tu l'as
+  accepté — dit désormais **pourquoi** Android l'a fermé (la mémoire, un plantage, un gel) et
+  ce que le lancement suivant a retrouvé. Les longues sessions partent enfin : elles étaient
+  refusées pour leur longueur, et c'étaient celles qui comptaient le plus.
+* **Au téléphone, si Android relance Glucose pendant qu'il vivait encore en arrière-plan**,
+  Glucose repart proprement au lieu de se refermer aussitôt.
 
 **À savoir avant d'installer**
 
-* **Au téléphone, une prudence** : sur un téléphone, une longue session a fini par figer tout le
-  système, jusqu'à son redémarrage. Cette version empêche Glucose de prendre plus de mémoire que
-  l'appareil n'en laisse — la cause la plus probable, **pas encore prouvée**. Si Glucose se met
-  à saccader de plus en plus, ferme-le.
+* **Au téléphone, une prudence** : sur deux téléphones, un tableau de plusieurs milliers
+  d'images s'est fermé tout seul, et le travail n'est pas revenu au lancement suivant. **La
+  cause n'est pas encore connue** : cette version la fera dire. Pour l'instant, au téléphone,
+  préfère plusieurs documents de quelques centaines d'images à un seul très grand, et ne
+  désinstalle pas Glucose si cela t'arrive : ce qui a été écrit est peut-être encore là.
 
 | système | fichier |
 |---|---|
