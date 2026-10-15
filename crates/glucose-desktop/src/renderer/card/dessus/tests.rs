@@ -36,6 +36,7 @@ fn rendu(corps: &str, tete: usize, vue: Vue, curseur_visible: bool) -> Pixmap {
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
+        mises_en_page: kit.mises_en_page,
         tints: kit.tints,
         theme: kit.theme,
         vp: Viewport {
@@ -311,6 +312,7 @@ fn carte_de_taille(selectionnee: bool, taille: (f32, f32)) -> Pixmap {
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
+        mises_en_page: kit.mises_en_page,
         tints: kit.tints,
         theme: kit.theme,
         vp: Viewport {

@@ -79,6 +79,7 @@ impl Renderer {
         let kit = super::PaintKit {
             typography: &self.typography,
             math: &self.math,
+            mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
         };

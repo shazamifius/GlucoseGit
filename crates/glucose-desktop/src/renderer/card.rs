@@ -69,8 +69,10 @@ use crate::typography::Typography;
 
 mod dessus;
 mod habit;
+mod memoire;
 mod ornament;
 mod texte_seul;
+pub use memoire::MisesEnPage;
 pub(in crate::renderer) mod vecteurs;
 use crate::theme::Theme;
 use dessus::dessiner_les_ornements;
@@ -284,11 +286,11 @@ pub(super) fn draw_card_ornements(ctx: &Pass, pixmap: &mut PixmapMut, card: Text
 ///
 /// Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
 /// l'unique mise à l'échelle (CARD-1, WRAP-1).
-fn poser(ctx: &Pass, card: &TextCard) -> Option<(TextLayout, CardLayout, (f32, f32))> {
+fn poser(ctx: &Pass, card: &TextCard) -> Option<(std::rc::Rc<TextLayout>, CardLayout, (f32, f32))> {
     // La mise en page ouverte pour ses passages qui brillent (PASSAGE-2) : la coupe des lignes
     // est la même, donc la hauteur aussi.
     let text = super::passages::mise_en_page(
-        (ctx.typography, ctx.math),
+        (ctx.typography, ctx.math, ctx.mises_en_page),
         (card.body, card.size.0),
         card.mode(),
         card.eclaires.as_ref(),

@@ -105,6 +105,7 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
     let kit = PaintKit {
         typography: typo,
         math: &crate::renderer::math::MathRenderer::new(),
+        mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
     };
@@ -362,6 +363,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     let kit = PaintKit {
         typography: typo,
         math: &crate::renderer::math::MathRenderer::new(),
+        mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
     };

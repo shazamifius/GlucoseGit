@@ -76,7 +76,7 @@
 //! l'instant où, dézoomé, il retient dans l'écran — au lieu d'un trou, ou d'une image qui gèle
 //! le temps de la peindre.
 
-use super::card::{card_text_layout, draw_card_contenu, CardLayout, Contenants};
+use super::card::{draw_card_contenu, CardLayout, Contenants};
 use super::pass::{Clip, Pass, SELECTION_RING};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
@@ -364,7 +364,10 @@ impl Regime {
         //
         // Une carte qu'on edite est toujours une texture : ce qui suit son curseur -- le trait,
         // la previsualisation d'une formule -- se pose au-dessus (COMPOSANT-3).
-        let lignes = card_text_layout(kit.typography, kit.math, corps, w, mode).line_count();
+        let lignes = kit
+            .mises_en_page
+            .de((kit.typography, kit.math), corps, w, mode)
+            .line_count();
         let vue = CardLayout::text_card(w, h, lignes)
             .scaled(WorldScale::new(self.vue.scale, self.densite));
         let (sx, sy) = world_to_screen(x, y, &self.vue);
@@ -468,6 +471,7 @@ impl Composant {
                 let ctx = Pass {
                     typography: kit.typography,
                     math: kit.math,
+                    mises_en_page: kit.mises_en_page,
                     tints: kit.tints,
                     theme: kit.theme,
                     vp,

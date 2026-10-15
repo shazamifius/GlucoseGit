@@ -38,6 +38,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
     let kit = PaintKit {
         typography: &typography,
         math: &crate::renderer::math::MathRenderer::new(),
+        mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
     };

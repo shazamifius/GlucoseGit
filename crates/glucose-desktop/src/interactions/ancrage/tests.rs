@@ -349,7 +349,7 @@ fn point_vu(app: &GlucoseApp, texte: &str, octet: usize) -> (f64, f64) {
     };
     let outils = (&app.renderer.typography, &app.renderer.math);
     let vue = mise_en_page(
-        outils,
+        (outils.0, outils.1, &app.renderer.mises_en_page),
         (texte, zone.largeur_monde),
         crate::renderer::richtext::TextMode::Rendered,
         Some(&eclaires),

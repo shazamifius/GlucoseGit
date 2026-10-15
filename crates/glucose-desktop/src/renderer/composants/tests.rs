@@ -167,6 +167,7 @@ Et un lien.";
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
+        mises_en_page: kit.mises_en_page,
         tints: kit.tints,
         theme: kit.theme,
         vp,
@@ -374,6 +375,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
+        mises_en_page: kit.mises_en_page,
         tints: kit.tints,
         theme: kit.theme,
         vp,

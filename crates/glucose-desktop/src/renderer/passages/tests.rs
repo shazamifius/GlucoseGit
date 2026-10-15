@@ -184,7 +184,7 @@ fn encre_du_caractere(texte: &str, plage: (usize, usize), o: usize) -> (u32, u32
         style: &SUR_LA_CARTE,
     };
     let ouverte = mise_en_page(
-        (&typo, &math),
+        (&typo, &math, &crate::renderer::card::MisesEnPage::default()),
         (texte, 400.0),
         TextMode::Rendered,
         Some(&eclaires),

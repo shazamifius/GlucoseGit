@@ -16,7 +16,9 @@
   touchées. Son essai : **plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt
   cool »** ; au PC, *« tout fonctionne merveilleusement bien »*.
 * **P8, le texte net de près** (fiche 73) : écrit, éprouvé, saboté, sur `main` — **il attend son
-  écran**, puis son téléphone (aucune mesure n'y a été faite).
+  écran**, puis son téléphone (aucune mesure n'y a été faite). Et **P8 bis** : un nœud immense vu de
+  près coûtait 10,5 ms par image au processeur (17 600 mots) ; 0,72 ms désormais, quelle que soit sa
+  longueur — et la mise en page de chaque nœud visible n'est plus refaite deux fois par image.
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
@@ -86,7 +88,10 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;
   **`58478d6` (15/10) : dix vertes** — la CI groupée de la beta 3 (exécution 38717823204) ;
-  **`3e1ee42` (15/10) : dix vertes** — celle de la beta 4 (exécution 38749250295).
+  **`3e1ee42` (15/10) : dix vertes** — celle de la beta 4 (exécution 38749250295) ;
+  **`a6689c8` (16/10) : dix vertes** — P8, ses nuanceurs neufs traduits pour Metal, Vulkan et
+  l'APK (exécution 38811883089). P8 bis, du Rust sans rien de propre à une plateforme, n'a pas
+  relancé la CI : la prochaine publication la passera.
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication. **Au repos**, Glucose
   redessine encore pour ses messages (1,6 image par seconde) : la charte dit zéro.
 

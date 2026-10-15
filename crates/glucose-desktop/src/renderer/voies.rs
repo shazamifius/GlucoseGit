@@ -141,7 +141,7 @@ pub(super) fn dessiner_sur_les_photos(
     // carte ; sa lueur passe par-dessus (FLECHE-4, PASSAGE-2).
     super::passages::eclairer(
         hue_cache,
-        (kit.typography, kit.math),
+        (kit.typography, kit.math, kit.mises_en_page),
         pixmap,
         (store, overlay.eclairages, pass),
     );
@@ -375,6 +375,7 @@ impl Renderer {
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,
+            mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
         };

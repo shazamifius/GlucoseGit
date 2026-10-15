@@ -114,6 +114,10 @@ impl Releve {
 }
 
 impl Vectoriel for Releve {
+    fn voit_la_bande(&self, haut: f32, bas: f32) -> bool {
+        bas >= 0.0 && haut <= self.ecran.1
+    }
+
     fn rectangle(&mut self, (x, y, l, h): (f32, f32, f32, f32), rayon: f32, c: Color) {
         self.arrondi(Arrondi::nouveau(x, y, l, h, rayon), 0.0, c);
     }

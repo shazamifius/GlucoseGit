@@ -1,0 +1,137 @@
+[
+ {
+  "nom": "LIGNE-1 : sans la marge au-dessus",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "        y - hauteur_de_ligne,",
+  "apres": "        y,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ligne_1"
+  ]
+ },
+ {
+  "nom": "LIGNE-1 : sans la marge au-dessous",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "        y + (reservees + 1) as f32 * hauteur_de_ligne,",
+  "apres": "        y + reservees as f32 * hauteur_de_ligne,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ligne_1"
+  ]
+ },
+ {
+  "nom": "LIGNE-1 : la formule sans ses lignes reservees",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "    let reservees = if ligne.first && matches!(ligne.kind, BlockKind::Math { .. }) {",
+  "apres": "    let reservees = if ligne.first && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ligne_1"
+  ]
+ },
+ {
+  "nom": "LIGNE-1 : le releve ne voit que le haut de l'ecran",
+  "fichier": "crates/glucose-desktop/src/renderer/vectoriel/releve.rs",
+  "avant": "        bas >= 0.0 && haut <= self.ecran.1",
+  "apres": "        bas >= 0.0 && haut <= self.ecran.1 / 2.0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "releve_voit"
+  ]
+ },
+ {
+  "nom": "memoire : ce qui sert ne se marque pas",
+  "fichier": "crates/glucose-desktop/src/renderer/card/memoire.rs",
+  "avant": "            e.vue = image;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "card::memoire"
+  ]
+ },
+ {
+  "nom": "memoire : rien ne s'oublie",
+  "fichier": "crates/glucose-desktop/src/renderer/card/memoire.rs",
+  "avant": "            par_texte.retain(|_, e| e.vue == image);",
+  "apres": "            par_texte.retain(|_, _| true);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "card::memoire"
+  ]
+ },
+ {
+  "nom": "memoire : la largeur hors de la cle",
+  "fichier": "crates/glucose-desktop/src/renderer/card/memoire.rs",
+  "avant": "        let par_texte = entrees.entry((largeur.to_bits(), mode)).or_default();",
+  "apres": "        let par_texte = entrees.entry((0, mode)).or_default();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "card::memoire"
+  ]
+ },
+ {
+  "nom": "memoire : le mode hors de la cle",
+  "fichier": "crates/glucose-desktop/src/renderer/card/memoire.rs",
+  "avant": "        let par_texte = entrees.entry((largeur.to_bits(), mode)).or_default();",
+  "apres": "        let par_texte = entrees.entry((largeur.to_bits(), TextMode::Rendered)).or_default();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "card::memoire"
+  ]
+ },
+ {
+  "nom": "memoire : le rendu ne commence jamais d'image",
+  "fichier": "crates/glucose-desktop/src/renderer.rs",
+  "avant": "        self.mises_en_page.nouvelle_image();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "card::memoire"
+  ]
+ }
+]
