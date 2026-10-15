@@ -106,6 +106,9 @@ pour décider · *→* = remplacée par le document indiqué.
 | 66 | [La mémoire du téléphone](66-LA-MEMOIRE-DU-TELEPHONE.md) | P0 côté code : la recherche (Android 14 ne dit plus rien à l'application qu'on regarde ; le seuil du système à ~216 Mo ; la Memory Advice de Google) ; quatre trous sous Android ; **MEMOIRE-1** (la mémoire mesurée, une ligne `memoire` par record) ; **MEMOIRE-2** (`onTrimMemory` : la carte rend, le magasin offre) ; **MEMOIRE-3** (l'admission des décodages, le décodage sur place : 445 → 254 Mo mesurés) ; **FANTOME-1** (le fantôme part du curseur) et GLISSER-2 trouvé (défaire un glisser n'est pas exact au bit près) — **§ 7 : ce qui reste, le téléphone** |
 | 67 | [La lecture du storyboard](67-LA-LECTURE-DU-STORYBOARD.md) | P2.4 à 6 en un seul **schéma 4** (la durée, les champs du storyboard, le plan ; témoins v3 de `ea8a690`) ; **l'animatique** (le canevas cadré case après case, le voile, les sous-titres, la coupe) ; le panneau en miroir ; une durée réglée en rapport (règle logarithmique) ; l'arène tient une seule liste de ses tables — **§ 6 : deux gardes aveugles à trancher** |
 | 68 | [Plusieurs storyboards, et les planches](68-PLUSIEURS-STORYBOARDS.md) | les gardes de la fiche 67 tranchées, la caméra de la lecture en une seule règle (un pincement restait dû) ; il avait lancé la build du schéma 4 : **schéma 5**, témoins v4 de `5bb82ec` ; **P2.8** — la case qui sait son storyboard (remis en question contre Storyboarder), SEQUENCE-1, le storyboard courant, « ‹ 2 / 3 › », « + Nouveau » ; **P2.7** — la planche est le canevas, ses rangées déduites du format A, le PDF écrit à la main (img2pdf), rendu au pixel près par MuPDF et PDFium — **§ 9 : à essayer** |
+| 69 | [L'export SVG — commencé](69-L-EXPORT-SVG-COMMENCE.md) | P5 : une sœur vectorielle pour chaque dessin du rendu, dans le cadre de l'export PNG ; écrit, compile, **ni regardé ni saboté** — **§ 3 : ce qui reste, dans l'ordre** |
+| 70 | [L'export SVG se superpose](70-L-EXPORT-SVG-SE-SUPERPOSE.md) | P5 suite : regardé par `resvg` ; les glyphes en tracés (aucune police demandée au lecteur), les formules en vecteurs ; **la surface** (un dessin écrit une fois, pixels ou SVG : dossier, réglette, textes des zones et des cases) ; l'ordre exact du canevas (toutes les lueurs avant les cartes) ; le dossier relu contre Tauri ; BORNES-2 ; l'épreuve de superposition par `resvg` (oracle d'épreuve) — **§ 5 : ce qui reste, dans l'ordre** |
+| 71 | [Sa direction](71-SA-DIRECTION.md) | l'inventaire de ce qui attendait sa parole ; **sa vision, écrite pour la première fois** ([VISION](../VISION.md)) : remplacer la feuille de papier, quatre objectifs, une application mère qu'on forke, les presets comme interfaces entières, l'utilisateur qui choisit toujours ; le téléphone sans câble |
 
 ## Les décisions — **foi**
 
@@ -123,8 +126,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb` ·
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png`.
 
-| 69 | [L'export SVG — commencé](69-L-EXPORT-SVG-COMMENCE.md) | P5 : une sœur vectorielle pour chaque dessin du rendu, dans le cadre de l'export PNG ; écrit, compile, **ni regardé ni saboté** — **§ 3 : ce qui reste, dans l'ordre** |
-
-| 70 | [L'export SVG se superpose](70-L-EXPORT-SVG-SE-SUPERPOSE.md) | P5 suite : regardé par `resvg` ; les glyphes en tracés (aucune police demandée au lecteur), les formules en vecteurs ; **la surface** (un dessin écrit une fois, pixels ou SVG : dossier, réglette, textes des zones et des cases) ; l'ordre exact du canevas (toutes les lueurs avant les cartes) ; le dossier relu contre Tauri ; BORNES-2 ; l'épreuve de superposition par `resvg` (oracle d'épreuve) — **§ 5 : ce qui reste, dans l'ordre** |
-
-La prochaine fiche porte le numéro **71**.
+La prochaine fiche porte le numéro **72**.

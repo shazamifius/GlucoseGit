@@ -9,12 +9,13 @@ cible figée (branche `tauri-v1.0.1`, lisible dans `C:\Users\Administrator\Docum
 1. Lire **toutes** les mémoires, une par une, en entier : elles portent la charte (100 images par
    seconde, aucune machine exclue, deux voies processeur et carte graphique, élégance
    mathématique) et la façon de travailler avec le propriétaire.
-2. Lire `docs/ETAT.md`, `docs/SUITE.md`, `docs/METHODE.md`, puis `docs/ARCHITECTURE.md`.
+2. Lire `docs/VISION.md` (ce que Glucose veut devenir, sa parole), puis `docs/ETAT.md`,
+   `docs/SUITE.md`, `docs/METHODE.md` et `docs/ARCHITECTURE.md`.
 3. Prendre le premier chantier non coché de `docs/SUITE.md`, et **tout remettre en question**,
    ses paroles comprises, avec des arguments et, avant de concevoir, une recherche sur internet.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais
-renuméroter une fiche. La prochaine porte le numéro 71.
+renuméroter une fiche. La prochaine porte le numéro 72.
 
 ## Avec lui
 
