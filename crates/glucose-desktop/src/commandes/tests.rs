@@ -1,7 +1,7 @@
 //! La table des commandes, la couche de Glucose et la palette (P4, fiche 72) — par la vraie
 //! application et ses touches.
 
-use super::palette::{rang_de, trouvees};
+use super::palette::{rang_de, trouvees_pour, But};
 use super::*;
 use crate::app::GlucoseApp;
 use glucose_core::raccourcis::Accord;
@@ -113,17 +113,20 @@ fn test_p4_la_palette_trouve_comme_on_cherche() {
     assert_eq!(rang_de("adr", "Cadrer la sélection", "x"), Some(2));
     assert_eq!(rang_de("cdr", "Cadrer la sélection", "x"), Some(3));
     assert_eq!(rang_de("zzz", "Cadrer la sélection", "x"), None);
-    assert_eq!(trouvees("retab").first(), Some(&Commande::Retablir));
     assert_eq!(
-        trouvees("signet.poser.3").first(),
+        trouvees_pour("retab", But::Lancer).first(),
+        Some(&Commande::Retablir)
+    );
+    assert_eq!(
+        trouvees_pour("signet.poser.3", But::Lancer).first(),
         Some(&Commande::PoserLeSignet(3))
     );
     assert!(
-        !trouvees("").contains(&Commande::Palette),
+        !trouvees_pour("", But::Lancer).contains(&Commande::Palette),
         "elle ne se trouve pas elle-même"
     );
     assert_eq!(
-        trouvees("").len(),
+        trouvees_pour("", But::Lancer).len(),
         Commande::toutes().len() - 1,
         "toutes, sauf elle"
     );
@@ -174,7 +177,7 @@ fn test_p4_la_palette_garde_l_evidence_d_une_image_a_l_autre() {
         assert!(app.prendre_la_touche(&Key::Character(SmolStr::new(c)), true, Some(c)));
         app.une_image_sans_fenetre((1280, 720));
     }
-    let attendue = trouvees("cop")[1];
+    let attendue = trouvees_pour("cop", But::Lancer)[1];
     assert!(app.prendre_la_touche(&Key::Named(NamedKey::ArrowDown), true, None));
     app.une_image_sans_fenetre((1280, 720));
     let (question, _) = app.ui.question.clone().expect("la palette");
@@ -254,7 +257,7 @@ fn test_p4_la_palette_defile_au_clavier() {
         app.une_image_sans_fenetre((1280, 720));
     }
     assert_eq!(rangees(&app)[0].0, "↑  1 plus haut");
-    let attendue = trouvees("")[MONTRES];
+    let attendue = trouvees_pour("", But::Lancer)[MONTRES];
     let (q, _) = app.ui.question.clone().unwrap();
     assert!(
         q.choix[q.focus].0.starts_with(&attendue.nom()),
@@ -304,7 +307,7 @@ fn test_p4_la_palette_defile_au_doigt() {
     use crate::persist::documents::MONTRES;
     use crate::ui::question::Reponse;
     let mut app = palette_ouverte();
-    let total = trouvees("").len();
+    let total = trouvees_pour("", But::Lancer).len();
     let mut fenetres = 0;
     while let Some((_, r)) = rangees(&app).last().filter(|(l, _)| l.starts_with("↓")) {
         let r = *r;

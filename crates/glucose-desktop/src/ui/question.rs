@@ -104,6 +104,11 @@ pub enum Suite {
     },
     /// **La palette de commandes** (P4, fiche 72) : son filtre, sa fenêtre, son évidence.
     Palette(crate::commandes::palette::Etat),
+    /// **Le nouvel accord de cette commande** (P4, fiche 74) : la touche qu'on frappe le donne ;
+    /// les boutons retirent son raccourci, ou rendent celui de Glucose.
+    Raccourci(crate::commandes::Commande),
+    /// Rendre tous les raccourcis de Glucose, en oubliant ceux de l'utilisateur.
+    RetablirLesRaccourcis,
     /// Le nom d'un champ de ce storyboard — son rang, ou `None` pour en ajouter un (fiches 67
     /// et 68).
     NommerLeChamp {

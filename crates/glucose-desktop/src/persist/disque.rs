@@ -51,6 +51,12 @@ pub struct Disque {
     /// **Ce qui part par la feuille de partage** (PARTAGE-2) : un export, une image enregistrée
     /// — le seul dossier qu'Android laisse lire à l'application choisie.
     pub partages: PathBuf,
+    /// **Ses raccourcis** (P4, fiche 74) : la couche de l'utilisateur, écrite à chaque
+    /// changement. Le vrai lancement seul y met le dossier de l'utilisateur.
+    pub raccourcis: PathBuf,
+    /// **Pourquoi ce fichier ne doit pas se réécrire**, s'il ne doit pas : il ne s'est pas lu,
+    /// ou porte des lignes fausses — écrites à la main, qu'on n'efface pas en silence.
+    pub raccourcis_proteges: Option<String>,
 }
 
 impl Disque {
@@ -64,6 +70,9 @@ impl Disque {
             brouillons: crate::app::accueil::dossier_hors_lancement().join("brouillons"),
             documents: crate::app::accueil::dossier_hors_lancement().join("documents"),
             partages: crate::app::accueil::dossier_hors_lancement().join("partages"),
+            raccourcis: crate::app::accueil::dossier_hors_lancement()
+                .join(crate::commandes::utilisateur::FICHIER),
+            raccourcis_proteges: None,
         }
     }
 }

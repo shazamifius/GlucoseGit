@@ -30,16 +30,41 @@ pub struct Etat {
     pub filtre: String,
     pub debut: usize,
     pub choisie: usize,
+    /// Ce que la commande choisie devient : lancée, ou celle dont on change le raccourci.
+    pub but: But,
+}
+
+/// **Ce que la palette fait de la commande choisie** (P4, fiche 74).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum But {
+    /// La lancer.
+    #[default]
+    Lancer,
+    /// Changer son raccourci : la palette sert à la trouver, toutes les commandes comprises.
+    ChangerLeRaccourci,
 }
 
 impl GlucoseApp {
     /// **Ouvre la palette**, le champ vide : toutes les commandes, dans l'ordre de la table.
-    pub(crate) fn ouvrir_la_palette(&mut self) {
-        let etat = Etat::default();
+    pub(crate) fn ouvrir_la_palette(&mut self, but: But) {
+        let etat = Etat {
+            but,
+            ..Etat::default()
+        };
         let (choix, focus) = self.rangees_de_la_palette(&etat);
+        let (titre, texte) = match but {
+            But::Lancer => (
+                "Palette de commandes",
+                "Écris ce que tu cherches ; Entrée lance la commande en évidence.",
+            ),
+            But::ChangerLeRaccourci => (
+                "Changer un raccourci",
+                "Choisis la commande dont tu veux changer le raccourci.",
+            ),
+        };
         let question = Question {
-            titre: "Palette de commandes".into(),
-            texte: "Écris ce que tu cherches ; Entrée lance la commande en évidence.".into(),
+            titre: titre.into(),
+            texte: texte.into(),
             choix,
             focus,
             champ: Some(Champ::default()),
@@ -66,10 +91,15 @@ impl GlucoseApp {
             }
             _ => return,
         };
+        let but = match &self.ui.question {
+            Some((_, Suite::Palette(etat))) => etat.but,
+            _ => But::Lancer,
+        };
         self.poser_la_palette(Etat {
             filtre: ecrit,
             debut: 0,
             choisie: 0,
+            but,
         });
     }
 
@@ -87,8 +117,12 @@ impl GlucoseApp {
     /// **La réponse de la palette** : la commande de ce rang, parmi celles que ce filtre trouve.
     pub(crate) fn lancer_depuis_la_palette(&mut self, etat: &Etat, reponse: Reponse) {
         if let Reponse::Choix(i) = reponse {
-            if let Some(&commande) = trouvees(&etat.filtre).get(i) {
-                self.executer(commande);
+            match (trouvees_pour(&etat.filtre, etat.but).get(i), etat.but) {
+                (Some(&commande), But::Lancer) => {
+                    self.executer(commande);
+                }
+                (Some(&commande), But::ChangerLeRaccourci) => self.demander_le_raccourci(commande),
+                (None, _) => {}
             }
         }
     }
@@ -97,7 +131,7 @@ impl GlucoseApp {
     /// commandes au-dessus de la fenêtre, ses commandes avec leur raccourci, « ↓ n plus bas »
     /// s'il en reste dessous.
     fn rangees_de_la_palette(&self, etat: &Etat) -> (Vec<(String, Reponse)>, usize) {
-        let toutes = trouvees(&etat.filtre);
+        let toutes = trouvees_pour(&etat.filtre, etat.but);
         let fin = (etat.debut + MONTRES).min(toutes.len());
         let mut rangees = Vec::new();
         if etat.debut > 0 {
@@ -131,12 +165,12 @@ impl GlucoseApp {
     }
 }
 
-/// **Toutes les commandes que ce filtre trouve**, les meilleures d'abord. La palette ne se
-/// trouve pas elle-même.
-pub(crate) fn trouvees(filtre: &str) -> Vec<Commande> {
+/// **Les commandes que ce filtre trouve, pour ce but**, les meilleures d'abord : pour en lancer une, la palette ne se
+/// trouve pas elle-même ; pour changer un raccourci, toutes — le sien compris.
+pub(crate) fn trouvees_pour(filtre: &str, but: But) -> Vec<Commande> {
     let mut v: Vec<(u8, usize, Commande)> = Commande::toutes()
         .into_iter()
-        .filter(|c| *c != Commande::Palette)
+        .filter(|c| but == But::ChangerLeRaccourci || *c != Commande::Palette)
         .enumerate()
         .filter_map(|(rang, c)| Some((rang_de(filtre, &c.nom(), &c.id())?, rang, c)))
         .collect();

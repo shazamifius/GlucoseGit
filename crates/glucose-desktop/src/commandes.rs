@@ -16,6 +16,7 @@ use glucose_core::raccourcis::{Clavier, Couche, ErreurDeLigne};
 
 mod executer;
 pub(crate) mod palette;
+pub(crate) mod utilisateur;
 
 /// Un sens de déplacement au clavier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,6 +104,10 @@ pub enum Commande {
     VoirCeQuiPart,
     // L'interface.
     Palette,
+    /// Changer le raccourci d'une commande (P4, fiche 74).
+    ChangerUnRaccourci,
+    /// Rendre tous les raccourcis de Glucose : la couche de l'utilisateur s'oublie.
+    RetablirLesRaccourcis,
 }
 
 /// Les outils que le clavier choisit, et le nom de chacun.
@@ -117,7 +122,7 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
 ];
 
 /// Les commandes sans paramètre : leur identifiant et leur nom.
-const SIMPLES: [(Commande, &str, &str); 35] = [
+const SIMPLES: [(Commande, &str, &str); 37] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -213,6 +218,16 @@ const SIMPLES: [(Commande, &str, &str); 35] = [
         "Voir ce qui part",
     ),
     (Commande::Palette, "palette", "Palette de commandes"),
+    (
+        Commande::ChangerUnRaccourci,
+        "raccourci.changer",
+        "Changer un raccourci…",
+    ),
+    (
+        Commande::RetablirLesRaccourcis,
+        "raccourcis.retablir",
+        "Rétablir tous les raccourcis de Glucose…",
+    ),
 ];
 
 impl Commande {
@@ -305,11 +320,13 @@ impl Commande {
 /// **Les raccourcis de Glucose**, la couche de base.
 pub const RACCOURCIS_DE_GLUCOSE: &str = include_str!("../assets/raccourcis/glucose.txt");
 
-/// **Le clavier de Glucose** : sa couche de base, et les lignes qu'elle n'a pas pu lire — une
+/// **Le clavier de Glucose** : sa couche de base, la couche de l'utilisateur au-dessus — vide
+/// tant qu'il n'a rien changé (P4, fiche 74) —, et les lignes que la base n'a pas pu lire : une
 /// épreuve exige qu'il n'y en ait aucune, et que chaque commande nommée existe.
 pub fn clavier_de_glucose() -> (Clavier, Vec<ErreurDeLigne>) {
     let (couche, erreurs) = Couche::lire("glucose", RACCOURCIS_DE_GLUCOSE);
-    (Clavier::de(vec![couche]), erreurs)
+    let utilisateur = Couche::nommee(utilisateur::COUCHE);
+    (Clavier::de(vec![couche, utilisateur]), erreurs)
 }
 
 #[cfg(test)]

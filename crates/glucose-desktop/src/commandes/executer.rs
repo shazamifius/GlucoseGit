@@ -63,7 +63,11 @@ impl GlucoseApp {
             Commande::JournalTechnique => self.revoir_la_telemetrie(),
             Commande::VoirCeQuiPart => self.voir_ce_qui_part(),
             Commande::Relation(rang) => return self.qualifier_les_fleches(rang),
-            Commande::Palette => self.ouvrir_la_palette(),
+            Commande::Palette => self.ouvrir_la_palette(super::palette::But::Lancer),
+            Commande::ChangerUnRaccourci => {
+                self.ouvrir_la_palette(super::palette::But::ChangerLeRaccourci);
+            }
+            Commande::RetablirLesRaccourcis => self.demander_a_retablir_les_raccourcis(),
         }
         self.mark_dirty();
         true

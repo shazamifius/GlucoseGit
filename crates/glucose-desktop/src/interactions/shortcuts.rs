@@ -70,13 +70,28 @@ impl GlucoseApp {
     pub fn handle_key(&mut self, event: &KeyEvent) {
         let appuyee = event.state == winit::event::ElementState::Pressed;
         let texte = event.text.as_ref().map(|t| t.as_str());
-        if self.prendre_la_touche(&event.logical_key, appuyee, texte) {
+        let lue = (&event.logical_key, &touche_des_raccourcis(event));
+        if self.prendre_avant_tout(lue, appuyee, texte) {
             return;
         }
         if self.handle_domain_rename_key(event) || self.handle_text_key(event) {
             return;
         }
         self.handle_keyboard_shortcut(event);
+    }
+
+    /// **Ce qui passe avant tout**, sans le `KeyEvent` de winit qui ne se construit pas hors de
+    /// la boucle — la touche lue deux fois : telle qu'elle écrit (`logique`), et telle que les
+    /// raccourcis la lisent, les chiffres par leur touche physique (`raccourci`). Un raccourci
+    /// qu'on change prend la seconde (P4, fiche 74) ; puis [`Self::prendre_la_touche`].
+    pub(crate) fn prendre_avant_tout(
+        &mut self,
+        (logique, raccourci): (&Key, &Key),
+        appuyee: bool,
+        texte: Option<&str>,
+    ) -> bool {
+        (appuyee && self.prendre_l_accord(raccourci))
+            || self.prendre_la_touche(logique, appuyee, texte)
     }
 
     /// **Les preneurs qui passent avant tout**, sans le `KeyEvent` de winit qui ne se
@@ -118,12 +133,7 @@ impl GlucoseApp {
     /// C'est ce que les compteurs de la trace ont permis de voir : une durée seule disait
     /// « le rendu est lent », et aucune optimisation de rendu n'aurait touché la cause.
     pub fn handle_keyboard_shortcut(&mut self, event: &KeyEvent) {
-        // Les chiffres se lisent sur la touche **physique**, et c'est tout l'objet de
-        // [`chiffre_de_la_touche`] : un raccourci numérique est positionnel.
-        let touche = match chiffre_de_la_touche(event.physical_key) {
-            Some(chiffre) => Key::Character(SmolStr::new(chiffre.to_string())),
-            None => event.logical_key.clone(),
-        };
+        let touche = touche_des_raccourcis(event);
         if event.repeat && !self.la_repetition_passe(&touche) {
             return;
         }
@@ -411,7 +421,16 @@ impl GlucoseApp {
 
 /// **La touche d'un évènement**, pour un accord : une touche nommée, ou le caractère qu'elle
 /// porte. Une touche que Glucose ne lie pas (une touche multimédia) n'en a pas.
-fn touche_de(key: &Key) -> Option<Touche> {
+/// **La touche telle que les raccourcis la lisent** : les chiffres sur la touche **physique**,
+/// et c'est tout l'objet de [`chiffre_de_la_touche`] — un raccourci numérique est positionnel.
+fn touche_des_raccourcis(event: &KeyEvent) -> Key {
+    match chiffre_de_la_touche(event.physical_key) {
+        Some(chiffre) => Key::Character(SmolStr::new(chiffre.to_string())),
+        None => event.logical_key.clone(),
+    }
+}
+
+pub(crate) fn touche_de(key: &Key) -> Option<Touche> {
     let nommee = match key {
         Key::Character(c) => {
             let mut lettres = c.chars();

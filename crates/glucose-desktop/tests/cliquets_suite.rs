@@ -460,7 +460,15 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 /// l'action n'existe pas est **absent ou grisé**, jamais un message qui simule. Le retirer
 /// change ce que l'utilisateur voit, donc cela lui revient ; la dette est nommée ici en
 /// attendant, et ce plafond descendra d'un cran ce jour-là.
-const PLAFOND_TOASTS: usize = 48;
+///
+/// # De 48 à 46 (fiche 74)
+///
+/// La couche des raccourcis de l'utilisateur en ajoute **deux** : ce que le lancement trouve dans
+/// son fichier, et chaque changement — protégé, écrit ou refusé par le disque, une seule phrase
+/// au même endroit. Et les domaines en perdent **quatre**, par la même règle : créé ou refusé,
+/// supprimé (avec ou sans nœuds) ou refusé, assigné ou refusé, chacun disait le même évènement
+/// en deux ou trois sites.
+const PLAFOND_TOASTS: usize = 46;
 
 fn compte_toasts() -> usize {
     sources(&src_desktop())

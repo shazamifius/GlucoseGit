@@ -1,0 +1,197 @@
+[
+ {
+  "nom": "lier_seul ne delie pas l'ancien",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "        self.delier(commande);\n        if let Some(dessus)",
+  "apres": "        if let Some(dessus)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "delier ne retire rien",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "                .filter(|c| *c != commande)\n                .cloned()\n                .collect();\n            if let Some(dessus)",
+  "apres": "                .cloned()\n                .collect();\n            if let Some(dessus)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "retablir oublie ce que menait le dessous",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "dessus.liaison(a).is_some_and(mene) || mene(dessous.commandes(a))",
+  "apres": "dessus.liaison(a).is_some_and(mene)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "oublier n'oublie rien",
+  "fichier": "crates/glucose-core/src/raccourcis/couche.rs",
+  "avant": "        self.liaisons.retain(|(a, _)| a != accord);",
+  "apres": "        let _ = accord;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "raccourcis"
+  ]
+ },
+ {
+  "nom": "le fichier faux s'ecrase",
+  "fichier": "crates/glucose-desktop/src/commandes/utilisateur.rs",
+  "avant": "        self.disque.raccourcis_proteges = illisible.clone().or_else(|| fausses.clone());",
+  "apres": "        self.disque.raccourcis_proteges = illisible.clone();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "la protection n'est pas lue",
+  "fichier": "crates/glucose-desktop/src/commandes/utilisateur.rs",
+  "avant": "        let dit = if let Some(raison) = &self.disque.raccourcis_proteges {",
+  "apres": "        let dit = if let Some(raison) = None::<&String> {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "un message en efface un autre",
+  "fichier": "crates/glucose-desktop/src/commandes/utilisateur.rs",
+  "avant": "        let dits: Vec<String> = [illisible, fausses, inconnues]",
+  "apres": "        let dits: Vec<String> = [None, None, inconnues]",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "le lancement ne relit pas le fichier",
+  "fichier": "crates/glucose-desktop/src/app/accueil.rs",
+  "avant": "        self.charger_les_raccourcis();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "Echap devient un accord",
+  "fichier": "crates/glucose-desktop/src/commandes/utilisateur.rs",
+  "avant": "        if matches!(touche, Key::Named(NamedKey::Escape)) && !(ctrl || alt || maj) {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "un modificateur seul ferme la question",
+  "fichier": "crates/glucose-desktop/src/commandes/utilisateur.rs",
+  "avant": "        let Some(t) = crate::interactions::shortcuts::touche_de(touche) else {\n            return true;\n        };",
+  "apres": "        let Some(t) = crate::interactions::shortcuts::touche_de(touche) else {\n            self.ui.question = None;\n            return true;\n        };",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "la touche lue telle qu'elle ecrit",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "        (appuyee && self.prendre_l_accord(raccourci))",
+  "apres": "        (appuyee && self.prendre_l_accord(logique))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "la prise de l'accord debranchee",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "        (appuyee && self.prendre_l_accord(raccourci))",
+  "apres": "        (appuyee && false && self.prendre_l_accord(raccourci))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ },
+ {
+  "nom": "le changement ne s'ecrit pas",
+  "fichier": "crates/glucose-desktop/src/commandes/utilisateur.rs",
+  "avant": "            .and_then(|()| crate::persist::atomic::ecrire_d_un_bloc(chemin, texte.as_bytes()));",
+  "apres": "            .map(|()| { let _ = (chemin, &texte); });",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "commandes::utilisateur"
+  ]
+ }
+]
