@@ -23,6 +23,7 @@ pub(crate) use releve::Releve;
 
 use super::svg::{couleur, echapper, hex, n, rayon_tenu, Svg};
 use crate::typography::{clamp_font_size, Police, TextStyle, Typography};
+use glucose_core::membrane_forme::Arrondi;
 use glucose_math::Forme;
 use std::fmt::Write as _;
 use tiny_skia::Color;
@@ -36,16 +37,9 @@ pub(crate) trait Vectoriel {
     /// [`super::scale::fill_crisp`] (SCALE-3), celle des filets, des barres et des plaques.
     fn rectangle_net(&mut self, boite: (f32, f32, f32, f32), couleur: Color);
 
-    /// **Un anneau** : le bord de ce rectangle arrondi repoussé de `decalage`, d'épaisseur
-    /// `2 · demi` — le trait d'une membrane, et le liseré d'un passage qui brille. `trait_` vaut
-    /// `(decalage, demi)`.
-    fn anneau(
-        &mut self,
-        boite: (f32, f32, f32, f32),
-        rayon: f32,
-        trait_: (f32, f32),
-        couleur: Color,
-    );
+    /// **Un anneau** : le trait de demi-largeur `demi` centré sur le bord de `milieu` — le bord
+    /// d'une membrane ([`glucose_core::membrane_forme::Bord`]), le liseré d'un passage qui brille.
+    fn anneau(&mut self, milieu: Arrondi, demi: f32, couleur: Color);
 
     /// Le disque de ce centre et de ce rayon.
     fn disque(&mut self, centre: (f32, f32), rayon: f32, couleur: Color);
@@ -115,29 +109,17 @@ impl Vectoriel for Svg {
         }
     }
 
-    fn anneau(
-        &mut self,
-        (x, y, l, h): (f32, f32, f32, f32),
-        rayon: f32,
-        (decalage, demi): (f32, f32),
-        c: Color,
-    ) {
-        // Le contour d'un rectangle arrondi repoussé de `decalage` est exact (`Arrondi::dilate`) ;
-        // le trait de SVG s'étend de part et d'autre de lui.
-        let (bx, by, bl, bh) = (
-            x - decalage,
-            y - decalage,
-            l + 2.0 * decalage,
-            h + 2.0 * decalage,
-        );
+    fn anneau(&mut self, milieu: Arrondi, demi: f32, c: Color) {
+        // Le trait de SVG s'étend de part et d'autre du contour qu'il suit.
+        let (l, h) = (milieu.droite - milieu.gauche, milieu.bas - milieu.haut);
         let (teinte, a) = couleur(c);
         self.poser(&format!(
             r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="none" stroke="{teinte}" stroke-opacity="{}" stroke-width="{}"/>"#,
-            n(bx),
-            n(by),
-            n(bl),
-            n(bh),
-            n(rayon_tenu(rayon + decalage, (bl, bh))),
+            n(milieu.gauche),
+            n(milieu.haut),
+            n(l),
+            n(h),
+            n(rayon_tenu(milieu.rayon, (l, h))),
             n(a),
             n(2.0 * demi)
         ));

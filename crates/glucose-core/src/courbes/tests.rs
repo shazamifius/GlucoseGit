@@ -260,6 +260,27 @@ fn test_un_bord_droit_couvre_exactement_son_aire() {
     assert_eq!(couverture(&e, [1.5, 0.5], ppu), 0.0);
 }
 
+/// **Près d'un coin, les deux rayons se mêlent par la moyenne de leurs couvertures, pondérée par
+/// leurs poids** — la loi de Lengyel. Ce n'est vrai que si les deux rayons comptent une forme
+/// pleine du même signe : le rayon vertical monte dans l'autre sens du plan, et retire où
+/// l'horizontal ajoute. Partout ailleurs un seul rayon a du poids, ou les deux voient la même
+/// couverture, et le plancher `min(|x|, |y|)` masque un signe faux : il faut un coin, et deux
+/// couvertures différentes.
+///
+/// Un carré de dix pixels, le pixel à 0,2 pixel de son bord droit et à 0,1 de son bord du haut :
+/// l'horizontal voit `0,5 + 0,2` (poids `1 − 2 · 0,2`), le vertical `0,5 + 0,1` (poids
+/// `1 − 2 · 0,1`). La vérité, l'aire, vaudrait `0,7 × 0,6` : la loi n'est pas exacte aux coins
+/// (fiche 73), et l'épreuve dit ce qu'elle calcule.
+#[test]
+fn test_pres_d_un_coin_les_deux_rayons_se_melent() {
+    let e = emballe(|c| rectangle(c, (0.0, 0.0, 1.0, 1.0), true), 0.5);
+    let c = couverture(&e, [0.98, 0.99], [10.0, 10.0]);
+    let (x, px) = (0.7f32, 0.6f32);
+    let (y, py) = (0.6f32, 0.8f32);
+    let attendu = (x * px + y * py) / (px + py);
+    assert!((c - attendu).abs() < 1e-5, "{c} au lieu de {attendu}");
+}
+
 /// Les enroulements : un trou (un contour en sens inverse) ne couvre rien ; deux contours
 /// superposés dans le même sens couvrent une fois, pas deux.
 #[test]

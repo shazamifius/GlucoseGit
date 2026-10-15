@@ -41,6 +41,7 @@ use glucose_core::synth;
 use glucose_desktop::params::{Pointer, SceneOverlay};
 use glucose_desktop::present::banc_gpu;
 use glucose_desktop::renderer::{Confie, Regard, Renderer};
+use glucose_desktop::typography::glyph::SUBPIXEL_PHASES;
 use glucose_desktop::ui::UiState;
 use tiny_skia::Pixmap;
 
@@ -696,10 +697,10 @@ fn document_de_pres(echelle: f64, coin: (f64, f64)) -> glucose_core::store::Stor
 /// ni n'amincit la lettre —, mais ils ne tombent pas au bit près sur un bord : un huitième de
 /// pixel de place, un dixième de couverture sur un bord oblique (mesurés : écart signé moyen
 /// nul, tous les écarts sur un bord). La loi tient donc ce qui compte : **un écart de plus de
-/// trois niveaux ne tombe que sur un pixel que l'une des deux voies couvre en partie** — une
-/// couleur entre le fond de la carte et l'encre de ses lettres. Une carte absente, une lettre
-/// manquante ou décalée d'un pixel donnent des pixels pleins d'un côté et vides de l'autre :
-/// ceux-là tombent. Ailleurs, la règle de toute la suite.
+/// trois niveaux ne tombe que sur un pixel que l'une des deux voies couvre en partie** — un
+/// mélange de deux de ses voisins opposés ([`couvert_en_partie`]). Une carte absente, une
+/// lettre manquante ou décalée d'un pixel donnent des pixels pleins d'un côté et vides de
+/// l'autre : ceux-là tombent. Ailleurs, la règle de toute la suite.
 ///
 /// Deux vues : une où le coin de la carte est à l'écran, une où elle le couvre entièrement.
 #[test]
@@ -717,20 +718,20 @@ fn test_une_carte_plus_grande_que_l_ecran_se_dessine_sur_les_deux_voies() {
 }
 
 /// **SLUG-1** : un écart de plus de trois niveaux ne tombe que sur un pixel que l'une des voies
-/// couvre en partie d'une lettre — au plus la part de la suite ailleurs —, et l'encre est là
-/// des deux côtés.
+/// couvre en partie — au plus la part de la suite ailleurs —, et l'encre est là des deux côtés.
 fn slug_1(nom: &str, processeur: &Pixmap, carte: &Pixmap) {
-    let (fond, encre) = fond_et_encre(processeur);
-    let partiel = |p: tiny_skia::PremultipliedColorU8| entre(p, (fond, encre));
+    let encre = encre_des_lettres(processeur);
     let mut hors_des_bords = 0;
-    for (a, b) in processeur.pixels().iter().zip(carte.pixels()) {
+    let largeur = processeur.width() as usize;
+    for (i, (a, b)) in processeur.pixels().iter().zip(carte.pixels()).enumerate() {
         let ecarts = [
             a.red().abs_diff(b.red()),
             a.green().abs_diff(b.green()),
             a.blue().abs_diff(b.blue()),
         ];
         let larges = ecarts.iter().filter(|&&e| e > ECART_COURANT).count();
-        if larges > 0 && !partiel(*a) && !partiel(*b) {
+        let (x, y) = ((i % largeur) as u32, (i / largeur) as u32);
+        if larges > 0 && !couvert_en_partie(processeur, x, y) && !couvert_en_partie(carte, x, y) {
             hors_des_bords += larges;
         }
     }
@@ -738,7 +739,14 @@ fn slug_1(nom: &str, processeur: &Pixmap, carte: &Pixmap) {
     assert!(
         hors_des_bords * 1000 <= canaux * PART_MAX_POUR_MILLE,
         "{nom}, {hors_des_bords} canaux s'ecartent de plus de {ECART_COURANT} hors du bord des \
-         lettres : la carte manque, ou se decale, sur une des deux voies"
+         lettres : une forme manque sur une des deux voies"
+    );
+    // Et les lettres sont à leur place : à un huitième de pixel près (GLYPH-1).
+    let borne = 1.0 / (2.0 * f64::from(SUBPIXEL_PHASES));
+    let [dx, dy] = deplacement(processeur, carte);
+    assert!(
+        dx.abs() <= borne && dy.abs() <= borne,
+        "{nom} : la carte se deplace de ({dx:.3}, {dy:.3}) pixel, au-dela de {borne}"
     );
     // L'épreuve regarde bien des lettres : l'encre est là, des deux côtés.
     let pleins = |image: &Pixmap| {
@@ -833,39 +841,86 @@ fn deux_voies_sous(
     Some((processeur, carte))
 }
 
-/// **Le fond de la carte et l'encre de ses lettres**, lus sur l'image : la couleur la plus
-/// fréquente, et la plus fréquente parmi les claires — le cœur des lettres.
-fn fond_et_encre(image: &Pixmap) -> ([u8; 3], [u8; 3]) {
+/// **De combien `b` est déplacée par rapport à `a`**, en pixels, sur chaque axe : la translation
+/// `δ` qui explique le mieux `b ≈ a − δ · ∇a`, par les moindres carrés (Lucas et Kanade, sur
+/// l'image entière, la luminance somme des trois canaux).
+///
+/// # Pourquoi une loi de place, en plus de la loi des bords
+///
+/// Une loi qui excuse un écart « sur un pixel couvert en partie » excuse aussi une lettre
+/// décalée d'un pixel : les pixels qu'elle déplace sont eux aussi des pixels de bord. Le
+/// sabotage l'a montré (fiche 73). La place, elle, a une borne qui ne se choisit pas : le
+/// processeur pose chaque lettre au quart de pixel ([`SUBPIXEL_PHASES`] phases par axe), donc
+/// à un huitième de pixel au plus de sa place exacte — et une moyenne de ces erreurs aussi.
+/// Mesuré : 0,047 et 0,021 pixel ; une lettre décalée d'un pixel en donne près d'un.
+fn deplacement(a: &Pixmap, b: &Pixmap) -> [f64; 2] {
+    let (l, h) = (a.width() as usize, a.height() as usize);
+    let lum = |p: &Pixmap, x: usize, y: usize| {
+        let q = p.pixels()[y * l + x];
+        f64::from(q.red()) + f64::from(q.green()) + f64::from(q.blue())
+    };
+    let (mut xx, mut xy, mut yy, mut ex, mut ey) = (0.0, 0.0, 0.0, 0.0, 0.0);
+    for y in 1..h - 1 {
+        for x in 1..l - 1 {
+            let gx = (lum(a, x + 1, y) - lum(a, x - 1, y)) / 2.0;
+            let gy = (lum(a, x, y + 1) - lum(a, x, y - 1)) / 2.0;
+            let e = lum(b, x, y) - lum(a, x, y);
+            (xx, xy, yy) = (xx + gx * gx, xy + gx * gy, yy + gy * gy);
+            (ex, ey) = (ex + e * gx, ey + e * gy);
+        }
+    }
+    let det = xx * yy - xy * xy;
+    [-(yy * ex - xy * ey) / det, -(xx * ey - xy * ex) / det]
+}
+
+/// **L'encre des lettres**, lue sur l'image : la plus fréquente des couleurs claires — le cœur
+/// des lettres.
+fn encre_des_lettres(image: &Pixmap) -> [u8; 3] {
     let mut comptes = std::collections::HashMap::<[u8; 3], usize>::new();
     for p in image.pixels() {
         *comptes.entry([p.red(), p.green(), p.blue()]).or_default() += 1;
     }
-    let la_plus_frequente = |garder: &dyn Fn(&[u8; 3]) -> bool| {
-        comptes
-            .iter()
-            .filter(|(c, _)| garder(c))
-            .max_by_key(|(_, n)| **n)
-            .map(|(c, _)| *c)
-            .expect("une image qui a des pixels")
-    };
-    let fond = la_plus_frequente(&|_| true);
-    let encre = la_plus_frequente(&|c| c.iter().map(|&v| u32::from(v)).sum::<u32>() > 3 * 128);
-    (fond, encre)
+    comptes
+        .into_iter()
+        .filter(|(c, _)| c.iter().map(|&v| u32::from(v)).sum::<u32>() > 3 * 128)
+        .max_by_key(|&(_, n)| n)
+        .map(|(c, _)| c)
+        .expect("une image qui a des pixels clairs")
 }
 
-/// **Ce pixel est-il couvert en partie par une lettre ?** — un mélange du fond et de l'encre,
-/// à trois niveaux près, qui n'est ni l'un ni l'autre.
-fn entre(p: tiny_skia::PremultipliedColorU8, (fond, encre): ([u8; 3], [u8; 3])) -> bool {
-    let c = [p.red(), p.green(), p.blue()].map(f32::from);
-    let (f, e) = (fond.map(f32::from), encre.map(f32::from));
-    let d = [e[0] - f[0], e[1] - f[1], e[2] - f[2]];
-    let longueur = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-    let t = ((c[0] - f[0]) * d[0] + (c[1] - f[1]) * d[1] + (c[2] - f[2]) * d[2])
-        / (longueur * longueur);
+/// **Ce pixel est-il couvert en partie par une forme ?** — un mélange de deux de ses voisins
+/// opposés (à gauche et à droite, en haut et en bas, ou sur une diagonale), à trois niveaux
+/// près, qui n'est ni l'un ni l'autre.
+///
+/// C'est ce que « couvert en partie » veut dire, quels que soient le fond et l'encre : une
+/// lettre blanche sur la brume, une lettre teintée sur le fond d'un passage, une lettre sur le
+/// surlignage d'une sélection, le bord d'un liseré. Lire le fond et l'encre sur toute l'image
+/// ne reconnaissait que le premier cas — et comptait tous les autres comme des fautes.
+fn couvert_en_partie(image: &Pixmap, x: u32, y: u32) -> bool {
+    let (l, h) = (image.width() as i64, image.height() as i64);
+    let lire = |x: i64, y: i64| {
+        (x >= 0 && y >= 0 && x < l && y < h)
+            .then(|| pixel(image, x as u32, y as u32))
+            .map(|p| [p[0], p[1], p[2]].map(f32::from))
+    };
+    let Some(c) = lire(x.into(), y.into()) else {
+        return false;
+    };
+    let (x, y) = (i64::from(x), i64::from(y));
     let tolerance = f32::from(ECART_COURANT);
-    let sur_le_segment = (0..3).all(|k| (c[k] - (f[k] + t * d[k])).abs() <= tolerance);
-    let marge = tolerance / longueur;
-    sur_le_segment && t > marge && t < 1.0 - marge
+    [(1, 0), (0, 1), (1, 1), (1, -1)].iter().any(|&(dx, dy)| {
+        let (Some(a), Some(b)) = (lire(x - dx, y - dy), lire(x + dx, y + dy)) else {
+            return false;
+        };
+        let d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        // Deux voisins égaux n'ont pas de segment : `t` n'est pas un nombre, et rien ne passe.
+        let longueur = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+        let t = ((c[0] - a[0]) * d[0] + (c[1] - a[1]) * d[1] + (c[2] - a[2]) * d[2])
+            / (longueur * longueur);
+        let sur_le_segment = (0..3).all(|k| (c[k] - (a[k] + t * d[k])).abs() <= tolerance);
+        let marge = tolerance / longueur;
+        sur_le_segment && t > marge && t < 1.0 - marge
+    })
 }
 
 // ── NIVEAU-GPU-1 : la carte reçoit le niveau qui couvre la taille posée ────────────────────

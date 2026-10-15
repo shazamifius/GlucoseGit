@@ -205,7 +205,7 @@ fn fs(e: Sortie) -> @location(0) vec4<f32> {
     if p.n.x == 0u {
         let d = distance(p.m, p.t.x, e.position.xy);
         if p.t.y > 0.0 {
-            c = couverture_d_un_trait(abs(d), p.t.y);
+            c = couverture_d_un_trait(d, p.t.y);
         } else {
             c = couverture_d_un_plein(d);
         }

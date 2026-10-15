@@ -110,6 +110,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 70 | [L'export SVG se superpose](70-L-EXPORT-SVG-SE-SUPERPOSE.md) | P5 suite : regardé par `resvg` ; les glyphes en tracés (aucune police demandée au lecteur), les formules en vecteurs ; **la surface** (un dessin écrit une fois, pixels ou SVG : dossier, réglette, textes des zones et des cases) ; l'ordre exact du canevas (toutes les lueurs avant les cartes) ; le dossier relu contre Tauri ; BORNES-2 ; l'épreuve de superposition par `resvg` (oracle d'épreuve) — **§ 5 : ce qui reste, dans l'ordre** |
 | 71 | [Sa direction](71-SA-DIRECTION.md) | l'inventaire de ce qui attendait sa parole ; **sa vision, écrite pour la première fois** ([VISION](../VISION.md)) : remplacer la feuille de papier, quatre objectifs, une application mère qu'on forke, les presets comme interfaces entières, l'utilisateur qui choisit toujours ; le téléphone sans câble |
 | 72 | [Le téléphone qui se taisait, le texte de près](72-LE-TELEPHONE-QUI-SE-TAIT-ET-LE-TEXTE-DE-PRES.md) | son tableau de 6 000 images fermé seul sur deux téléphones ; **POIDS-1** (les longues sessions refusées pour toujours, désormais raccourcies et retentées) ; **SORTIE-1** (la raison de mort d'Android) et **REPRISE-1** (ce que le lancement rouvre), le serveur déployé et prouvé ; **VIE-2** ; **GRAND-1** (une grande lettre se trace : ×32 66 → 19 ms, `MAX_FONT_SIZE` disparu) ; le zoom ×256 déduit de la précision ; **P4** : les raccourcis comme donnée, la table des commandes, le menu et la palette ; Slug dans le domaine public — **§ 7 : ce qui reste de P4** |
+| 73 | [Le texte de près, par Slug](73-LE-TEXTE-DE-PRES-PAR-SLUG.md) | **P8** : de près, la carte graphique dessine un nœud depuis ses formes — les lettres par **Slug** (Lengyel, domaine public), le reste par la loi des membranes ; le noyau `courbes` (CUBIQUE-1, BANDES-1, BANDES-2) ; le trait `Vectoriel`, une description pour le SVG et pour la carte ; DE-PRES-1 retiré ; **RACINES-1** (l'inverse calculé par le processeur) ; **SLUG-1** (les deux voies ne diffèrent qu'au bord d'une forme) ; **CADRE-1** (le cadre d'un passage, une membrane sur les deux voies) — ~1 ms par image de près contre ~20 et le flou |
 
 ## Les décisions — **foi**
 
@@ -128,4 +129,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **73**.
+La prochaine fiche porte le numéro **74**.

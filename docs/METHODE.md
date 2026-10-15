@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 15/10/2026** (fiches 59 à 72). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 15/10/2026** (fiches 59 à 73). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -155,6 +155,12 @@
 | **Un seuil emprunté** : 256 px, celui de Skia, laissait ×16 au pire ; le croisement mesuré est vers 100 (fiche 72) | mesurer le croisement des deux coûts sur sa machine, écrire le journal des valeurs essayées |
 | **Une loi implicite perdue en mettant en table** : le clavier français marchait parce que cinq `match` ignoraient Alt et Maj par endroits (fiche 72) | avant de remplacer un aiguillage, écrire la loi qu'il appliquait sans le dire (ACCORD-1), et l'éprouver par les claviers qu'elle sert |
 | **Un nombre écrit de tête dans un document** : « 89 commandes » — le compte est 75 (fiche 72) | compter dans le code, ou s'appuyer sur ce que le type tient (la longueur d'un tableau) |
+| **Une épreuve qui reconnaît le cas qu'on avait sous les yeux** : SLUG-1 appelait « bord » un mélange du fond de la carte et de l'encre blanche — sous un passage ou une sélection, chaque bord de lettre devenait une faute, et l'épreuve tombait sur un dessin juste (fiche 73) | enregistrer les deux images, les regarder, puis la carte des écarts **avant** toute hypothèse ; définir la grandeur par ce qu'elle est (un mélange de ses voisins), pas par les couleurs d'un exemple |
+| **Une loi qui excuse « au bord » excuse un bord déplacé** : les pixels qu'une lettre décalée d'un pixel déplace sont eux aussi des pixels de bord (fiche 73) | une loi de bord se double d'une **loi de place** — le déplacement d'ensemble par moindres carrés, borné par ce que la construction garantit (le huitième de pixel de GLYPH-1) |
+| **Deux lois pour un même bord** : le cadre d'un passage par `tiny-skia` au processeur, par la loi des membranes sur la carte ; et son bord débordait de la lueur découpée par la loi exacte (fiche 73) | une forme a une seule loi, que les deux voies **appellent** ; une fois la géométrie partagée, la comparaison des voies ne la voit plus : une épreuve à part la lit contre la référence (Tauri) |
+| **Une affirmation vraie d'avance** : « tout doit repartir » (`envoyees == (0, 0)`) sur un atlas qui n'avait jamais rien envoyé (fiche 73) | mettre l'état dans la situation contraire avant d'affirmer qu'il en sort ; et jouer le nombre d'images que le mécanisme lit vraiment (le resserrement lit l'image d'avant) |
+| **Une garde que la mathématique rend vide** : un `abs` devant une fonction paire (fiche 73) | démontrer la propriété, l'écrire dans la doc de la fonction, l'éprouver au bit près, et retirer la garde |
+| **Une épreuve qui compare deux voies appelant la même fonction** ne voit pas une faute dans cette fonction (`inverse()` dans la loi et dans la carte) | saboter ce que la règle interdit vraiment (ici : que la carte divise elle-même), et voir la fonction contre une voie qui ne l'appelle pas |
 
 ## 5. Les pièges pratiques
 
@@ -176,7 +182,7 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json`, et
   `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
   sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son

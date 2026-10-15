@@ -355,11 +355,17 @@ pub fn couverture_d_un_plein(d: f32) -> f32 {
     (0.5 - d).clamp(0.0, 1.0)
 }
 
-/// La couverture d'un trait de demi-largeur `h`, pour un pixel dont le centre est à `d ≥ 0`
-/// de son milieu : le recouvrement de `[d − ½, d + ½]` et de `[−h, h]`.
+/// La couverture d'un trait de demi-largeur `h`, pour un pixel dont le centre est à `d` de son
+/// milieu, d'un côté ou de l'autre : le recouvrement de `[d − ½, d + ½]` et de `[−h, h]`.
 ///
 /// Un trait plus fin qu'un pixel ne couvre jamais le pixel entier : sa couverture plafonne à
 /// `2h`, ce que le filtre donne sans cas particulier.
+///
+/// Elle est **paire** en `d`, au bit près : `−max(a, b) = min(−a, −b)` et la négation d'un
+/// flottant est exacte, si bien que `d` et `−d` donnent `min(d + ½, h) + min(½ − d, h)` par les
+/// mêmes opérations. Une distance signée s'y passe telle quelle : aucune valeur absolue à prendre
+/// (fiche 73 — celle que le nuanceur des formes prenait ne pouvait rien changer, et le sabotage
+/// l'a montrée aveugle).
 pub fn couverture_d_un_trait(d: f32, h: f32) -> f32 {
     ((d + 0.5).min(h) - (d - 0.5).max(-h)).max(0.0)
 }

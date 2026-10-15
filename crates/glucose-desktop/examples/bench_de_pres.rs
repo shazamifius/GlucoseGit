@@ -46,8 +46,8 @@ const TEXTE: &str = "Le pointillé de la membrane : elle s'entend automatiquemen
 cliques en plein dans la membrane, et bien sûr un texte avec du **gras**, de l'*italique* et \
 une formule $e^{i\\pi} + 1 = 0$ pour voir ce que tout cela coûte de près.";
 
-/// Un document d'une seule carte, posée à l'origine.
-fn une_carte(renderer: &Renderer) -> Store {
+/// Un document d'une seule carte de ce texte, posée à l'origine.
+fn une_carte(renderer: &Renderer, texte: &str) -> Store {
     let mut store = Store::new("de-pres");
     let board = store.project.active_board_id.clone();
     let carte = text_card(
@@ -56,7 +56,7 @@ fn une_carte(renderer: &Renderer) -> Store {
         "seule".to_string(),
         0.0,
         0.0,
-        TEXTE.to_string(),
+        texte.to_string(),
     );
     store.add_annotation(&board, carte);
     store.clear_selection();
@@ -134,7 +134,7 @@ fn main() {
     );
     for echelle in [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 50.0, 128.0, 256.0] {
         let mut renderer = Renderer::new();
-        let mut store = une_carte(&renderer);
+        let mut store = une_carte(&renderer, TEXTE);
         let (formes, releve) = formes(&mut renderer, &mut store, echelle);
         if formes.primitives.is_empty() {
             println!("  x{echelle:<6}  une texture (la carte tient dans l'ecran)");
@@ -145,6 +145,46 @@ fn main() {
             "  x{echelle:<6}  {:>5} primitives   releve (toute la scene) {releve:>6.1} ms   \
              carte : premiere {premiere:>6.2} ms, puis {mediane:>6.2} ms par image",
             formes.primitives.len()
+        );
+    }
+    immense(&gpu);
+}
+
+/// **Un nœud immense, de près** (fiche 73 § 7) : des milliers de mots, dont l'écran ne montre
+/// que le début. Le relevé de chaque image relit-il toute sa mise en page ? La première image,
+/// puis la médiane des suivantes, la vue immobile ; et ce que coûte une mise en page seule.
+///
+/// ```text
+///   (fiche 73, avant correction)
+///      44 mots : releve 0,46 ms par image, dont une mise en page 0,06
+///   17 600 mots : releve 10,5 ms par image, dont une mise en page 3,3 — la carte, 1,04
+/// ```
+fn immense(gpu: &(wgpu::Device, wgpu::Queue)) {
+    println!("Un noeud de plus en plus long, vu a x16 (l'ecran n'en montre que le debut) :");
+    for paragraphes in [1usize, 10, 100, 400] {
+        let texte = vec![TEXTE; paragraphes].join("\n\n");
+        let mots = texte.split_whitespace().count();
+        let mut renderer = Renderer::new();
+        let mut store = une_carte(&renderer, &texte);
+        let (formes_, premiere) = formes(&mut renderer, &mut store, 16.0);
+        let mut suivantes: Vec<f64> = (0..20)
+            .map(|_| formes(&mut renderer, &mut store, 16.0).1)
+            .collect();
+        suivantes.sort_by(f64::total_cmp);
+        let (_, carte) = dessiner(gpu, &formes_);
+        let debut = Instant::now();
+        let _ = glucose_desktop::renderer::card::card_text_layout(
+            &renderer.typography,
+            &renderer.math,
+            &texte,
+            glucose_core::types::DEFAULT_TEXT_CARD_WIDTH as f32,
+            glucose_desktop::renderer::richtext::TextMode::Rendered,
+        );
+        let mise_en_page = debut.elapsed().as_secs_f64() * 1000.0;
+        println!(
+            "  {mots:>6} mots : releve {premiere:>6.1} ms la premiere image, puis {:>6.2} ms, \
+             dont une mise en page {mise_en_page:>5.2} ms ; carte {carte:>5.2} ms",
+            suivantes[suivantes.len() / 2],
         );
     }
 }

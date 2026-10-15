@@ -124,15 +124,8 @@ impl Vectoriel for Releve {
         }
     }
 
-    fn anneau(
-        &mut self,
-        (x, y, l, h): (f32, f32, f32, f32),
-        rayon: f32,
-        (decalage, demi): (f32, f32),
-        c: Color,
-    ) {
-        let forme = Arrondi::nouveau(x, y, l, h, rayon).dilate(decalage);
-        self.arrondi(forme, demi, c);
+    fn anneau(&mut self, milieu: Arrondi, demi: f32, c: Color) {
+        self.arrondi(milieu, demi, c);
     }
 
     fn disque(&mut self, (cx, cy): (f32, f32), rayon: f32, c: Color) {

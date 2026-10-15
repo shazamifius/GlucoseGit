@@ -20,15 +20,18 @@ const ECART_ADMIS: u8 = 1;
 
 /// Ce que la **carte** rend sur un fond noir opaque.
 fn par_la_carte(taille: (u32, u32), formes: &Formes) -> Option<Pixmap> {
-    par_la_carte_apres(taille, &Formes::default(), formes)
+    par_la_carte_apres(taille, &[], formes)
 }
 
-/// Ce que la carte rend de `formes`, l'image d'**après** `avant` — son atlas déjà rempli.
-fn par_la_carte_apres(taille: (u32, u32), avant: &Formes, formes: &Formes) -> Option<Pixmap> {
+/// Ce que la carte rend de `formes`, l'image d'**après** celles d'`avant` — son atlas rempli
+/// par elles, et peut-être resserré.
+fn par_la_carte_apres(taille: (u32, u32), avant: &[&Formes], formes: &Formes) -> Option<Pixmap> {
     let (peripherique, file) = banc_gpu::carte()?;
     let mut passe_formes = FormesGpu::nouvelles(&peripherique, banc_gpu::FORMAT);
     let ecran = (taille.0 as f32, taille.1 as f32);
-    passe_formes.preparer((&peripherique, &file), ecran, avant);
+    for image in avant {
+        passe_formes.preparer((&peripherique, &file), ecran, image);
+    }
     passe_formes.preparer((&peripherique, &file), ecran, formes);
     let cible = banc_gpu::cible(&peripherique, taille);
     let vue = cible.create_view(&Default::default());
@@ -54,7 +57,7 @@ fn couverture_de(atlas: &mut Atlas, primitive: &Primitive, p: [f32; 2]) -> f32 {
         Genre::Arrondi { forme, demi } => {
             let d = forme.distance(p[0], p[1]);
             if *demi > 0.0 {
-                couverture_d_un_trait(d.abs(), *demi)
+                couverture_d_un_trait(d, *demi)
             } else {
                 couverture_d_un_plein(d)
             }
@@ -199,18 +202,22 @@ fn test_un_arrondi_par_la_carte_suit_la_loi_des_membranes() {
     comparer("arrondis", (200, 120), &formes(primitives));
 }
 
-/// **Ce qui rogne borne la forme** : hors de sa boîte, rien — et la carte le dit comme la loi.
+/// **Ce qui rogne borne la forme** : hors de sa boîte, rien — et la carte le dit comme la loi,
+/// jusqu'à la part d'un pixel de bord, **sur les deux axes**. Une formule se rogne par sa boîte,
+/// posée n'importe où : des bords fractionnaires, en x comme en y (avec des bords entiers en y,
+/// une rogne qui n'en lisait qu'un axe passait — fiche 73).
 #[test]
 fn test_ce_qui_rogne_borne_la_forme() {
     let typo = Typography::new();
     let mut a = lettre(&typo, ('W', Face::Regular), (5.0, 90.0), 100.0);
-    a.rogne = [20.5, 10.0, 70.25, 60.0];
+    a.rogne = [20.5, 10.3, 70.25, 60.6];
     let Some(carte) = par_la_carte((120, 100), &formes(vec![a.clone()])) else {
         return;
     };
+    let [g, h, d, b] = a.rogne;
     for (k, p) in carte.pixels().iter().enumerate() {
-        let (i, j) = ((k % 120) as f32, (k / 120) as f32);
-        if !(19.5..=70.75).contains(&(i + 0.5)) || !(9.5..=60.5).contains(&(j + 0.5)) {
+        let (i, j) = ((k % 120) as f32 + 0.5, (k / 120) as f32 + 0.5);
+        if !(g - 0.5..=d + 0.5).contains(&i) || !(h - 0.5..=b + 0.5).contains(&j) {
             assert_eq!(p.red(), 0, "un pixel hors de la rogne en ({i}, {j})");
         }
     }
@@ -235,6 +242,9 @@ fn test_l_atlas_se_resserre_sans_rien_perdre() {
         atlas.ranger(s);
     }
     let avant = atlas.emballage(&sources[6]).expect("le g");
+    // Tout est parti vers la carte, comme après un envoi : sinon « tout doit repartir » serait
+    // vrai d'avance (le sabotage l'a montré, fiche 73).
+    atlas.envoyees = (atlas.courbes.len(), atlas.bandes.len());
     // L'image suivante ne demande que le g : sept formes ne servent plus, et pèsent plus que lui.
     atlas.ouvrir();
     atlas.ranger(&sources[6]);
@@ -273,7 +283,7 @@ fn test_un_atlas_qui_grandit_renvoie_tout() {
         ));
     }
     let b = formes(toutes);
-    let Some(carte) = par_la_carte_apres((240, 140), &a, &b) else {
+    let Some(carte) = par_la_carte_apres((240, 140), &[&a], &b) else {
         return;
     };
     let loi = par_la_loi((240, 140), &b);
@@ -281,5 +291,39 @@ fn test_un_atlas_qui_grandit_renvoie_tout() {
     assert!(
         pire <= ECART_ADMIS,
         "apres avoir grandi, la carte s'ecarte de {pire} niveaux"
+    );
+}
+
+/// **Un atlas resserré renvoie tout à la carte** : le g, rangé après sept autres lettres, part
+/// au début de l'atlas quand il est le seul à servir — et la carte doit lire ses courbes à sa
+/// nouvelle place, pas celles de la lettre qui y était. Il faut trois images : le resserrement
+/// lit ce que l'image d'avant a demandé.
+#[test]
+fn test_un_atlas_resserre_renvoie_tout() {
+    let typo = Typography::new();
+    let a = formes(
+        "abcdefgh"
+            .chars()
+            .enumerate()
+            .map(|(k, c)| {
+                let at = (10.0 + k as f32 * 28.0, 60.0);
+                lettre(&typo, (c, Face::Regular), at, 40.0)
+            })
+            .collect(),
+    );
+    let g = formes(vec![lettre(
+        &typo,
+        ('g', Face::Regular),
+        (20.0, 60.0),
+        48.0,
+    )]);
+    let Some(carte) = par_la_carte_apres((240, 100), &[&a, &g], &g) else {
+        return;
+    };
+    let loi = par_la_loi((240, 100), &g);
+    let pire = banc_gpu::pire_ecart(&loi, &carte);
+    assert!(
+        pire <= ECART_ADMIS,
+        "apres s'etre resserre, la carte s'ecarte de {pire} niveaux"
     );
 }

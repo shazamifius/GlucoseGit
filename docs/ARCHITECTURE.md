@@ -189,8 +189,11 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   temps qui reste, sans se poser, pour le dézoom (`Confie::a_preparer`).
 * **La garantie** : les deux voies rendent la même scène, au bit près ou à un écart **mesuré et
   borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat. De près,
-  SLUG-1 : elles ne diffèrent qu'au bord des lettres (le quart de pixel et l'aire au processeur,
-  la place exacte et deux rayons sur la carte).
+  SLUG-1 : elles ne diffèrent qu'au bord des formes (le quart de pixel et l'aire au processeur,
+  la place exacte et deux rayons sur la carte), et les lettres sont à la même place à un
+  huitième de pixel près (la borne du quart de pixel). Une forme qui n'a pas de raison de
+  différer a **une seule loi**, que les deux voies appellent : le cadre d'un passage est une
+  membrane (CADRE-1), peinte par `membrane_forme::peindre` comme la brume.
 * **La surface** (`renderer/surface.rs`, fiche 70) : un dessin qui n'emploie que remplir un
   tracé, tracer un contour, remplir un rectangle net et écrire est **écrit une fois**, générique
   sur `Surface` — `Pixels` (le canevas) ou `Vecteurs` (le SVG d'un export) —, la forme de Cairo
