@@ -48,13 +48,13 @@ dans les deux sens : un serpent Blender trié « outils » garde `mission_ouvrir
 
 **La route** (`agent/mod.rs`) :
 
-* **une réponse** : aucun outil montré, une consigne courte (`consigne_de_reponse`), et pas de
-  relance « tu as annoncé sans agir » — il n'y a rien à appeler ;
-* **des outils** : la boucle d'avant, inchangée ;
+* **une réponse, des outils** : la boucle d'avant, tous ses outils compris. (Une première version
+  retirait les outils d'une « réponse » : son essai l'a fait mentir, § 6.)
 * **un workflow** : **le programme ouvre la mission** et en fait fixer le plan
   (`ouvrir_par_le_programme`) — mesuré le 02/10, le 7B laissé libre annonçait un plan sans l'ouvrir ;
   le modèle garde la main sur les étapes, leurs preuves et la réévaluation ;
-* **une mission en cours** est déjà un workflow : la demande qui la reprend ne se trie pas ;
+* **une mission inachevée** ne reprend que si la demande la poursuit (§ 7) ; alors elle est un
+  workflow, et la demande ne se trie pas ;
 * **un tri impossible** (Ollama absent, une réponse illisible) ne décide rien : la boucle garde tous
   ses outils, comme avant. Le contexte du tri est la dernière réponse de Protéo (« et pour Linux ? »).
 
@@ -92,8 +92,9 @@ citations [1] à [3] arrivent chacune sur le flanc de la page, à côté de sa c
 
 ## 5. Prouver
 
-* **Protéo** : 131 + 99 épreuves vertes (215 avant) ; 14 neuves pour la toile et le tri, 6 pour la
-  route dans la boucle (un faux Ollama qui répond au tri hors script) ; **24 sabotages sur 24**
+* **Protéo** : 136 + 99 épreuves vertes (215 avant) — la toile, le tri, la suite d'une mission, la
+  route dans la boucle (un faux Ollama qui répond au tri et à la suite hors script), la lecture d'une
+  page au titre trompeur ; **32 sabotages sur 32**
   (`PROTEO/outils/sabotages-tri-et-toile.json`, joué par `outils/saboter.py` de Glucose). Une épreuve
   **aveugle** trouvée en route : la mesure réelle passait « ok » avec 0 sur 28 — Ollama était mort avec
   Protéo, chaque réponse était illisible, et l'épreuve ne comptait que les fautes graves. Elle exige
@@ -103,9 +104,63 @@ citations [1] à [3] arrivent chacune sur le flanc de la page, à côté de sa c
 * **L'image** : un Glucose sans fenêtre, le vrai Protéo, le vrai web — « Comment les abeilles
   communiquent-elles entre elles ? » : 23 pages lues, 8 citations, 57 gestes, aucun refusé.
 
-## 6. Ce qui reste
+## 6. Son essai, et les corrections qui en sont venues (le soir)
 
-* **Son essai** : ce qu'il a vu le 17/10 à 20 h 11 (la recherche sur Rennes) — on ne le sait pas.
+Son essai dans Glucose a montré deux défauts que les épreuves ne voyaient pas :
+
+* **« Quel outil possèdes-tu ? » → « je n'ai aucun outil »** : triée « réponse », la demande partait
+  sans outils, sous une consigne qui disait « tu n'as aucun outil ». **Le tri ne retire plus jamais
+  d'outil** : il se montre, et il ouvre la mission d'un workflow. Une erreur de tri vers le bas ne se
+  voit pas, et elle faisait mentir.
+* **Rennes : la bonne page, aucune citation** — *mobilisation17octobre.fr* livrait 49 caractères, son
+  seul titre ; la règle « rendre la page si son texte ne contient rien du sujet » se trompait, le
+  titre en contenant. **Le corps se juge sans le titre** (`page_web.rs`) : la même page donne
+  désormais quatre citations (« Rassemblement en plein centre-ville », « devant la gare »…).
+* **Les colonnes vides disent pourquoi** : « introuvable — … », « non cherchée — dépend de la
+  sous-question 1 », en direct par les états de l'organe, puis l'état final de chaque sous-question à
+  la fin (`etats_finals` : celles bloquées en cascade ne passent par aucun événement).
+
+## 7. Les essais en conditions réelles
+
+Le vrai `proteo.exe`, piloté par son API comme son interface (`/api/chat/send`), le vrai modèle, le
+vrai web, un Glucose sans fenêtre ; chaque image regardée.
+
+* **Série 1** (sept demandes à la suite) : les trois premières justes (« salut » ; ses outils,
+  listés ; Canberra, citée). Puis Rennes — trié workflow, mission ouverte par le programme, 6
+  citations — s'est mise en pause, et **cette mission a pris pour elle les trois demandes suivantes** :
+  le script, l'étude sur le sodium-ion, la question de suite ; Protéo parlait de Rennes à chacune.
+  La règle d'avant (« une nouvelle demande reprend une mission en pause »), que le tri déclenchait
+  désormais souvent. **Correction** : une mission inachevée ne reprend que si la demande la poursuit
+  — une question fermée de plus, posée seulement alors (`tri::poursuit`, 9 sur 10 sur des cas réels) ;
+  sinon elle est **laissée de côté** (`EtatMission::Laissee`, gardée sur le disque, plus active).
+* **Série 2** (la même séquence) : la suite marche — « continue » reprend Rennes, le script la laisse
+  de côté. Mais **cinq demandes sur cinq** se sont arrêtées : le modèle écrivait ses appels d'outils
+  dans son texte (`ronics {"name": …}`), dès son premier tour. La différence avec la série 1 : la
+  conversation commençait par la demande et une longue note de mission **dans la voix de
+  l'utilisateur**. **Correction** : la conversation dit ce qui s'est passé, dans la forme d'un échange
+  d'outils — un appel à `mission_ouvrir` fait pour le modèle, et son résultat.
+* **Série 3** (la même) : plus aucun appel écrit dans le texte. Le script, juste (24 133). Mais le
+  7B demande à l'utilisateur des sources au lieu de chercher (Rennes), et l'organe de recherche lit 17
+  pages sur le sodium-ion sans **proposer** une seule citation (des résumés arXiv en anglais pour une
+  question française).
+
+**Ce que les séries disent** : la mécanique est juste désormais (le tri, la route, la suite, la
+toile, la lecture des pages, le format des appels) ; ce qui échoue encore est l'intelligence du
+modèle d'amorçage — et la machine qui devait le remplacer n'a tourné qu'une fois, le 01/10 : elle a
+retenu un candidat obscur, puis son téléchargement a échoué (« hf.co : no such host ») ; jamais
+relancée.
+
+## 8. Ce qui reste
+
+* **Le cerveau** (le chantier décidé avec lui) : relancer la machine des candidats de Protéo, les
+  passer au banc — avec `le_tri_sur_ses_demandes`, `la_suite_d_une_mission` et des recherches réelles —,
+  et basculer sur la mesure. `le_tri_sur_ses_demandes` tombe aujourd'hui sur une faute (« quel outil
+  possède tu… » triée « réponse ») : c'est la limite du 7B, gardée visible.
+* **L'organe de recherche** : les requêtes des sous-questions perdent le sujet (« organisation »,
+  « mesures » seuls → des dictionnaires) ; aucune citation proposée depuis des pages dans une autre
+  langue que la question.
+* **La mission** : une étape de recherche ne sait pas se cocher (le modèle cherche un fichier comme
+  preuve, quand un bilan suffit) ; il relance alors la recherche.
 * **Le flou** (sa parole) : *« au cours de ses recherches il peut se rendre compte qu'il ne connaît
   pas assez […] il doit pouvoir de lui-même organiser des recherches beaucoup plus intensives, en
   parallèle »* — le bilan l'appelle FLOU_DETECTE ; pas fait.

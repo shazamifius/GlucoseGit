@@ -30,7 +30,14 @@
   demande s'il faut une réponse courte, des outils ou un workflow — et sa taille, mesurée par le
   plan et tenue à jour — et en tire sa route ; mesuré sur ses 28 demandes réelles : 23 justes, aucune
   faute grave. **FLECHE-6** : une flèche ancrée arrive à la hauteur de sa citation, par le côté qui
-  fait face. Il a lancé l'essai le 17/10 à 20 h 11 (Rennes) : ce qu'il a vu n'est pas encore connu.
+  fait face. **Son essai du 17/10 au soir**, puis cinq séries d'essais réels (le vrai Protéo, le vrai web,
+  un Glucose sans fenêtre) : un tri qui privait d'outils (« je n'ai aucun outil ») — il ne retire plus
+  rien ; une page lue par son seul titre — le corps se juge sans lui ; une mission en pause qui prenait
+  pour elle les demandes suivantes — elle ne reprend que si la demande la poursuit ; des appels
+  d'outils écrits dans le texte quand la mission s'annonçait en note — elle s'écrit en échange
+  d'outils. **La mécanique tient ; l'intelligence du qwen2.5:7b, non** (il demande des sources au
+  lieu de chercher, n'extrait rien d'une page en anglais, et sa recherche dérive) : le chantier
+  suivant est son remplacement, mesuré (fiche 76 § 7).
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
