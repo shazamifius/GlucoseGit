@@ -1,0 +1,37 @@
+[
+ {
+  "nom": "FLECHE-6 le passage ne compte pas",
+  "fichier": "crates/glucose-core/src/arrow_anchor.rs",
+  "avant": "    if let Some(x) = cote.filter(|_| anchor.passage) {",
+  "apres": "    if let Some(x) = cote.filter(|_| false) {",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "fleche_6"]
+ },
+ {
+  "nom": "FLECHE-6 toute ancre sort par le cote",
+  "fichier": "crates/glucose-core/src/arrow_anchor.rs",
+  "avant": "    if let Some(x) = cote.filter(|_| anchor.passage) {",
+  "apres": "    if let Some(x) = cote {",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "fleche_6"]
+ },
+ {
+  "nom": "FLECHE-6 le cote gauche oublie",
+  "fichier": "crates/glucose-core/src/arrow_anchor.rs",
+  "avant": "        .or((target.x < b.left).then_some(b.left));",
+  "apres": "        .or(None);",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "fleche_6"]
+ },
+ {
+  "nom": "FLECHE-6 pas a la hauteur du passage",
+  "fichier": "crates/glucose-core/src/arrow_anchor.rs",
+  "avant": "            x,\n            y: ay,\n",
+  "apres": "            x,\n            y: b.top,\n",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "fleche_6"]
+ },
+ {
+  "nom": "FLECHE-6 le chemin ne dit pas le passage",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "        Some(_) => ancre.au_passage(),",
+  "apres": "        Some(_) => ancre,",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "fleche_6"]
+ }
+]

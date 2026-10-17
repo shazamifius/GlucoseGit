@@ -397,3 +397,58 @@ fn test_fleche_1_l_index_retrouve_les_noeuds_meme_en_retard() {
     );
     assert_eq!(node_rect_indexe(&board, &index, "absent"), None);
 }
+
+/// Une page longue dont on sait mesurer le passage, et un nœud loin au-dessus d'elle.
+struct PageMesuree;
+
+impl Noeuds for PageMesuree {
+    fn boite(&self, id: &str) -> Option<crate::geometry::Rect> {
+        match id {
+            "page" => Some(crate::geometry::Rect::new(0.0, 0.0, 100.0, 800.0)),
+            "loin" => Some(crate::geometry::Rect::new(-160.0, -3000.0, 50.0, 50.0)),
+            _ => None,
+        }
+    }
+
+    fn hauteur_du_passage(&self, id: &str, _: &[crate::types::TextAnchor]) -> Option<f64> {
+        (id == "page").then_some(600.0)
+    }
+}
+
+/// FLECHE-6, par le vrai chemin : une flèche ancrée à un passage arrive à sa hauteur, par le côté
+/// qui fait face — et la même flèche sans passage touche le bord du haut, comme avant.
+#[test]
+fn test_fleche_6_le_chemin_ancre_arrive_a_la_hauteur_du_passage() {
+    let mut f = fleche("f", (0.0, 0.0), (0.0, 0.0));
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        target_text_sel,
+        ..
+    } = &mut f
+    {
+        *source_id = Some("loin".into());
+        *target_id = Some("page".into());
+        *target_text_sel = Some(crate::types::TextSelection::Legacy("la citation".into()));
+    }
+    let bout = *path_with(&f, PageMesuree)
+        .expect("une flèche")
+        .last()
+        .unwrap();
+    assert!(
+        bout.0 <= 0.0 && (bout.1 - 600.0).abs() <= crate::arrow_anchor::ANCHOR_MARGIN,
+        "à la hauteur du passage : {:?}",
+        bout
+    );
+    if let Annotation::Arrow {
+        target_text_sel, ..
+    } = &mut f
+    {
+        *target_text_sel = None;
+    }
+    let sans = *path_with(&f, PageMesuree)
+        .expect("une flèche")
+        .last()
+        .unwrap();
+    assert!(sans.1 < 0.0, "sans passage, le bord du haut : {:?}", sans);
+}

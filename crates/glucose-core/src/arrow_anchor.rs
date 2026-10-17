@@ -1,4 +1,18 @@
 //! Ancrage des flèches au périmètre des blocs — 0 dépendance.
+//!
+//! # FLECHE-6 — une flèche ancrée à un passage le pointe (fiche 76)
+//!
+//! Le bout d'une flèche vise un point de son nœud — le milieu, ou, ancrée à un passage
+//! (FLECHE-4), le milieu **à la hauteur du passage** — et s'arrête au bord, sur la droite qui y
+//! mène. C'est la loi de Glucose Tauri. Elle trahit l'ancre dès que la flèche arrive en biais :
+//! venue de loin au-dessus d'une page longue, elle touche le bord du haut, et la citation
+//! qu'elle désigne est quatre cents unités plus bas. Elle ne pointe plus rien.
+//!
+//! Une ancre de passage sort donc **par le côté qui fait face** à ce qu'elle relie, **à la
+//! hauteur exacte du passage**, chaque fois que ce qu'elle relie est à côté du nœud (hors de sa
+//! largeur) : la droite qui part d'un point du côté gauche vers un point plus à gauche ne
+//! traverse jamais le nœud. Juste au-dessus ou au-dessous, il n'y a pas de côté qui fasse face :
+//! la loi d'avant reste. Aucun seuil : la frontière est le bord du nœud lui-même.
 
 use crate::geometry::Point;
 
@@ -15,6 +29,8 @@ pub struct ArrowAnchor {
     pub x: f64,
     pub y: f64,
     pub box_rect: Option<AnchorBox>,
+    /// `y` est la hauteur d'un passage que la flèche désigne (FLECHE-6).
+    pub passage: bool,
 }
 
 impl ArrowAnchor {
@@ -23,6 +39,7 @@ impl ArrowAnchor {
             x,
             y,
             box_rect: None,
+            passage: false,
         }
     }
 
@@ -36,6 +53,15 @@ impl ArrowAnchor {
                 top,
                 bottom,
             }),
+            passage: false,
+        }
+    }
+
+    /// La même ancre, dont la hauteur est celle d'un passage (FLECHE-6).
+    pub fn au_passage(self) -> Self {
+        Self {
+            passage: true,
+            ..self
         }
     }
 }
@@ -69,6 +95,21 @@ fn perimeter_exit(anchor: ArrowAnchor, target: Point) -> PerimeterExit {
             }
         }
     };
+
+    // FLECHE-6 : à côté du nœud, le côté qui fait face, à la hauteur du passage.
+    let cote = (target.x > b.right)
+        .then_some(b.right)
+        .or((target.x < b.left).then_some(b.left));
+    if let Some(x) = cote.filter(|_| anchor.passage) {
+        let (dx, dy) = (target.x - x, target.y - ay);
+        let len = f64::hypot(dx, dy);
+        return PerimeterExit {
+            x,
+            y: ay,
+            ux: dx / len,
+            uy: dy / len,
+        };
+    }
 
     let mut t = f64::INFINITY;
     if dx > 0.0 {
@@ -151,6 +192,7 @@ mod tests {
                 top: y,
                 bottom: y + h,
             }),
+            passage: false,
         }
     }
 

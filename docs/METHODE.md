@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 17/10/2026** (fiches 59 à 75). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 17/10/2026** (fiches 59 à 76). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -169,6 +169,9 @@
 | **Une épreuve qui se fige au lieu de tomber**, encore : une lecture qui attend une réponse tue ou bloquée (TUYAU-1, RELAIS-1) — deux sabotages « tombés » parce que je les avais arrêtés à la main (fiche 75) | toute lecture qui peut attendre se fait sur un fil, avec un délai (`recv_timeout`) ; un « TOMBE » obtenu en tuant le processus ne compte pas : corriger l'épreuve, rejouer |
 | **Une garde dont l'effet est rattrapé par une autre** : sans le suivi des ancres, Glucose retrouve un passage par sa citation et son contexte — l'épreuve qui ne regardait que le texte désigné était aveugle (fiche 75) | éprouver ce que la garde produit elle-même (la place enregistrée de l'ancre), pas seulement le résultat qu'un filet rattrape |
 | **Deux fils sur un même tuyau synchrone sous Windows** : l'écriture attend la lecture en cours — le relais se figeait après la première réponse ; l'épreuve passait parce qu'elle écrivait tout avant de lire (fiche 75, TUYAU-1) | un flux lu et écrit par deux fils s'ouvre en E/S superposée ; l'épreuve joue l'ordre réel (une lecture en attente, puis l'écriture) |
+| **Une mesure contre un service réel qui ne compte que les fautes graves** : le tri « passait » avec 0 sur 28 — Ollama était mort avec Protéo, chaque réponse illisible, et une réponse illisible ne fait aucune faute grave (fiche 76) | exiger que chaque mesure ait eu lieu (zéro illisible) avant de juger ce qu'elle dit |
+| **Une question à plusieurs valeurs, dont le sens tient dans des phrases, posée à un petit modèle** : deux phrases ajoutées aux définitions, et 24 justes sur 28 devenaient 19, neuf fautes graves (fiche 76) | des questions fermées sur un seul axe chacune (vrai/faux), et leur produit écrit dans le code ; ce que le programme sait sûrement (la date), il le décide lui-même |
+| **Un journal qui ne dit que les échecs** : une toile posée et une toile qui attendait l'accord laissaient le même journal, vide — son essai du 17/10 est resté illisible (fiche 76) | écrire aussi ce qui a été fait (`toile.pose`) : un silence ne doit avoir qu'un sens |
 | **Une épreuve qui compare deux voies appelant la même fonction** ne voit pas une faute dans cette fonction (`inverse()` dans la loi et dans la carte) | saboter ce que la règle interdit vraiment (ici : que la carte divise elle-même), et voir la fonction contre une voie qui ne l'appelle pas |
 
 ## 5. Les pièges pratiques
@@ -193,7 +196,7 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), la fiche 76 `fleche-6.json` (et, pour Protéo, `PROTEO/outils/sabotages-tri-et-toile.json`), et
   `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
   sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
@@ -236,6 +239,12 @@
   `attach vdisk readonly`, `compact vdisk`, `detach vdisk`) — le disque en mode normal, pas
   « clairsemé », que `diskpart` refuse (fiche 61 : 58 Go ramenés à 33).
 * **Le Mac ne se compile pas ici** : seule la CI le fait.
+* **Compiler pendant qu'il essaie** (fiche 76) : un exécutable ouvert ne se remplace pas sous
+  Windows, mais **il se renomme** — `target/release/glucose-desktop.exe` **et** son lien dur
+  `deps/glucose_desktop.exe` (`ls -i`, `find -inum`), puis `cargo build --release` ; son Glucose
+  continue, le suivant sera le neuf. Pour Protéo, `proteo.exe` est un lien dur vers
+  `target/release/proteo.exe` : compiler ailleurs (`CARGO_TARGET_DIR` hors du dépôt — un dossier
+  dans le dépôt apparaît à git). Jamais tuer ce qu'il a ouvert.
 * **Regarder ce qu'un agent pose, sans fenêtre** (fiche 75) : `cargo build -p glucose-desktop --bin
   glucose-desktop --example porte_sans_fenetre`, puis, **par PowerShell** (Git Bash déforme
   `\\.\pipe\…`), `porte_sans_fenetre.exe \\.\pipe\<nom> <arrêt> <dossier>` ; l'agent se branche

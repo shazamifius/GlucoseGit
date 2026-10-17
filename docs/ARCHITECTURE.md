@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 17/10/2026** (fiches 51 à 75 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 17/10/2026** (fiches 51 à 76 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -347,7 +347,7 @@ lettres (`agents::Boite`) ; la boucle demande l'accord (AGENTS-1, `app/agents.rs
 l'exécute (`agents/executer.rs`) — huit outils — en **un geste du journal** : le noyau
 (`core/store/agents.rs`) tient AGENT-1 à 4 (un geste atomique, la sélection rendue, le passage mot
 pour mot, l'identifiant qui met à jour). Une page web est une photo qui garde son adresse
-(`source_url`) : le double-clic l'ouvre (`interactions/links.rs`). Le banc
+(`source_url`) : le double-clic l'ouvre (`interactions/links.rs`). Une flèche ancrée à un passage arrive à sa hauteur, par le côté qui fait face (FLECHE-6, `core/arrow_anchor.rs`, fiche 76). Côté Protéo, chaque demande est triée (`tri.rs`) et posée sur une toile par demande (`toile/dessin.rs`). Le banc
 `bench/porte.rs` (exemple `porte_sans_fenetre`) sert la porte sans fenêtre et rend le tableau en
 images.
 

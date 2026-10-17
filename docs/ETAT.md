@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 17/10/2026** (fiches 73 à 75). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 17/10/2026** (fiches 73 à 76). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -26,6 +26,11 @@
   le rapport relié phrase par phrase aux citations, qui brillent au survol. Chaque geste s'annule
   par `Ctrl+Z` ; rien sans son accord. Prouvé hors écran sur deux recherches neuves du vrai Protéo
   (images regardées) ; **attend son écran**, et une version publiée (la beta 5 n'a pas la porte).
+  Envoyée sur GitHub (`1265c9b`, sans CI). **Le tri de la demande** (fiche 76) : Protéo dit pour chaque
+  demande s'il faut une réponse courte, des outils ou un workflow — et sa taille, mesurée par le
+  plan et tenue à jour — et en tire sa route ; mesuré sur ses 28 demandes réelles : 23 justes, aucune
+  faute grave. **FLECHE-6** : une flèche ancrée arrive à la hauteur de sa citation, par le côté qui
+  fait face. Il a lancé l'essai le 17/10 à 20 h 11 (Rennes) : ce qu'il a vu n'est pas encore connu.
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
@@ -70,12 +75,12 @@
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; coller, déposer (Pinterest en pleine résolution sous Windows) ; rotation, recadrage non destructif, `Ctrl+B` ; la mémoire par étages (carte graphique, mémoire, disque, bornés par ce que la machine laisse) |
 | **Texte** | Markdown, tableaux, liens, LaTeX fidèle à KaTeX, annulation mot par mot ; le clavier du téléphone ; **de près, la carte graphique dessine les lettres depuis leur forme** (Slug, P8, fiche 73) : nettes à tout zoom jusqu'à ×256, ~1 ms par image ; au processeur, les grandes lettres se tracent (GRAND-1) |
 | **L'interface** | **les raccourcis sont une donnée** (une couche de texte, `assets/raccourcis/glucose.txt`), **78 commandes** dans une table, le menu qui les exécute et dit leurs raccourcis, **la palette** (`Ctrl+Maj+P`) — la fondation des presets (P4, fiche 72) ; **ses raccourcis se changent dans Glucose**, écrits dans `raccourcis.txt` (fiche 74) |
-| **Flèches** | droites ou courbes, double sens, six relations, coudes, contournement, ancres de texte |
+| **Flèches** | droites ou courbes, double sens, six relations, coudes, contournement, ancres de texte — qui arrivent à la hauteur de leur passage, par le côté qui fait face (FLECHE-6) |
 | **Copier, coller** | la sélection entière d'une fenêtre à l'autre ; un seul « Copier » qui donne aussi les images (Discord, navigateur) ; le glisser vers d'autres applications sous Windows ; sous Linux, la sélection X11 servie par Glucose |
 | **Organiser** | membranes (tracées ou posées) ; dossiers ; domaines ; aimant ; **Ordonner** (cinq dispositions, huit tris dont trois par la couleur) ; **Mood board** (six gabarits de zones, « Par mood board ») ; **le Storyboard** : la grille tracée, retracée, ses cases glissées, décrites, plusieurs images qui remplissent les cases, un storyboard de la sélection, les « + », la lecture plein écran, durée, plan et champs par case, plusieurs storyboards par tableau, les planches en PDF |
 | **Exporter** | Markdown ; **SVG complet** (le texte en tracés, lisible par tout logiciel) ; PNG de la sélection ou du tableau ; planches d'un storyboard ; au téléphone, par la feuille de partage |
 | **Fenêtre** | le mode référence (`Ctrl+Maj+A`) : sans interface, sans cadre, au premier plan |
-| **Les agents** | `glucose --mcp` : Protéo, Claude ou tout client MCP lit le tableau et y pose textes, membranes, pages web, flèches ancrées à des phrases — en direct, chaque geste annulable, avec son accord (« Retirer l'accord des agents… » le reprend) |
+| **Les agents** | `glucose --mcp` : Protéo, Claude ou tout client MCP lit le tableau et y pose textes, membranes, pages web, flèches ancrées à des phrases — en direct, chaque geste annulable, avec son accord (« Retirer l'accord des agents… » le reprend) ; Protéo y pose chaque demande, son tri et sa réponse |
 | **Mise à jour** | automatique et signée, sous Windows et Linux ; sous Android, écrite, à prouver par la prochaine version |
 
 **Jugé à son écran** (fiches 51, 52, 58, 60, 64) : le copier-coller et le glisser entre fenêtres,
@@ -96,7 +101,8 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
   qu'une première passe en eut trouvé cinq aveugles, chacun corrigé par l'épreuve qui le voit ; 9 sur 9 pour P8 bis ;
   à la fiche 74, **13 sur 13 pour la couche des raccourcis de l'utilisateur**, et les 20 de P4
   rejoués ; à la fiche 75, **36 sur 36 pour la porte des agents** — après une épreuve aveugle et deux
-  qui se figeaient, chacune corrigée.
+  qui se figeaient, chacune corrigée ; à la fiche 76, **5 sur 5 pour FLECHE-6**, et côté Protéo
+  **24 sur 24** pour le tri et la toile.
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;

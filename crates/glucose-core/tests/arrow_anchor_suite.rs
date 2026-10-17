@@ -1,6 +1,6 @@
 //! Tests portés fidèlement de src/canvas/arrowAnchor.test.ts
 
-use glucose_core::arrow_anchor::{arrow_endpoints, ArrowAnchor};
+use glucose_core::arrow_anchor::{arrow_endpoints, ArrowAnchor, ANCHOR_MARGIN};
 use glucose_core::geometry::Point;
 
 fn note(x: f64, y: f64, w: f64, h: f64) -> ArrowAnchor {
@@ -108,4 +108,67 @@ fn test_arrow_waypoints_and_free_ends() {
     assert!(ep_same.start.y.is_finite());
     assert!(ep_same.end.x.is_finite());
     assert!(ep_same.end.y.is_finite());
+}
+
+/// Une page longue (100 × 800) dont le passage est à 600, et ce qu'elle relie loin au-dessus et
+/// à gauche : la flèche arrive en biais.
+fn page_au_passage() -> (ArrowAnchor, Point) {
+    let page = ArrowAnchor::with_box(50.0, 600.0, 0.0, 100.0, 0.0, 800.0).au_passage();
+    (page, Point::new(-100.0, -3000.0))
+}
+
+#[test]
+fn fleche_6_a_cote_elle_arrive_a_la_hauteur_du_passage_par_le_cote_qui_fait_face() {
+    let (page, loin) = page_au_passage();
+    let bout = arrow_endpoints(page, ArrowAnchor::point(loin.x, loin.y), &[]).start;
+    // Le côté gauche, à la hauteur du passage — la marge l'écarte du bord, vers ce qu'elle relie.
+    assert!(bout.x <= 0.0, "sur le côté gauche ou au-delà : {:?}", bout);
+    assert!(
+        (bout.y - 600.0).abs() <= ANCHOR_MARGIN,
+        "à la hauteur du passage : {:?}",
+        bout
+    );
+    // La preuve à l'envers : la loi d'avant (la même ancre, sans le passage) touchait le bord du
+    // haut, loin au-dessus de la citation.
+    let avant = arrow_endpoints(
+        ArrowAnchor {
+            passage: false,
+            ..page
+        },
+        ArrowAnchor::point(loin.x, loin.y),
+        &[],
+    )
+    .start;
+    assert!(
+        avant.y < 0.0,
+        "l'ancienne loi sortait par le haut : {:?}",
+        avant
+    );
+    // À droite, le côté droit.
+    let droite = arrow_endpoints(page, ArrowAnchor::point(900.0, -2000.0), &[]).start;
+    assert!(
+        droite.x >= 100.0 && (droite.y - 600.0).abs() <= ANCHOR_MARGIN,
+        "{:?}",
+        droite
+    );
+}
+
+#[test]
+fn fleche_6_juste_au_dessus_rien_ne_change() {
+    let (page, _) = page_au_passage();
+    let dessus = ArrowAnchor::point(60.0, -2000.0);
+    let avec = arrow_endpoints(page, dessus, &[]);
+    let sans = arrow_endpoints(
+        ArrowAnchor {
+            passage: false,
+            ..page
+        },
+        dessus,
+        &[],
+    );
+    assert_eq!(avec, sans, "sans côté qui fasse face, la loi d'avant");
+    // Et une ancre sans passage ne change jamais.
+    let note = ArrowAnchor::with_box(50.0, 400.0, 0.0, 100.0, 0.0, 800.0);
+    let loin = ArrowAnchor::point(-100.0, -3000.0);
+    assert!(arrow_endpoints(note, loin, &[]).start.y < 0.0);
 }

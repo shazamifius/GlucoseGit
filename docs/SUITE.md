@@ -1,6 +1,6 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 17/10/2026** (fiches 73 à 75 ; la 2.0.3-beta.5 publiée). **Le plan complet** de ce qui attend
+> **Au 17/10/2026** (fiches 73 à 76 ; la 2.0.3-beta.5 publiée). **Le plan complet** de ce qui attend
 > Glucose Rust, rangé en mises à jour : ce que chacune porte, et ce qui la déclare finie. Tout y
 > est à remettre en question — ses paroles comprises. La direction vit dans [VISION](VISION.md),
 > l'état vérifié dans [ÉTAT](ETAT.md), chaque fonction et son bouton dans
@@ -57,6 +57,8 @@ Petite et rapide : juger la beta 5, nommer les causes que la télémétrie appor
 | [ ] | **P3 — Ce que son téléphone dira** : son téléphone tournait à **19,5 ms** par image en médiane, sous le plancher presque tout le temps. POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent ; et **P8 au téléphone**, jamais mesuré (Slug sur sa PowerVR) | les postes lus, le coupable nommé par la mesure, puis tenu |
 | [ ] | **Le repos à zéro** : sa chronique redessine pour les messages (1,6 image par seconde) — la charte dit zéro | une chronique au repos sans image |
 | [~] | **P10 — La porte des agents** (fiche 75, sa demande du 17/10) : `glucose --mcp`, le protocole MCP des deux époques, huit outils ; chaque appel est un geste annulable (AGENT-1 à 4), rien sans son accord (AGENTS-1), la porte n'est qu'à lui (AGENTS-2) ; la page web en miniature, que le double-clic ouvre ; **côté Protéo** : la toile — Demande, Recherche en colonnes, Rapport relié phrase par phrase aux citations | Protéo travaille dans son Glucose, sous ses yeux |
+| [~] | **Le tri de la demande** (fiche 76, sa demande du 17/10) : réponse courte, outils, ou workflow et sa taille — deux questions vrai/faux au modèle, la règle de l'année, la route qui en suit (sans outil, la boucle, la mission ouverte par le programme) ; la toile par demande ; **FLECHE-6** (la flèche ancrée arrive à la hauteur de sa citation) | ses demandes, dans son Glucose : le tri juste à ses yeux |
+| [ ] | **Le flou** (sa parole du 17/10) : quand la recherche découvre qu'elle ne sait pas assez, Protéo organise de lui-même des recherches plus intensives, en parallèle, qui précisent la Demande | une recherche floue qui se relance seule, sur la toile |
 | [ ] | **Les boutons qui se taisent** : Trans-domaines ne fait rien et ne le dit pas (il doit dire « bientôt », comme Collaborer) ; la carte d'accueil qui naît **choisie** au premier lancement (le premier clic droit ouvre le menu d'une sélection) — à vérifier contre Tauri | à son écran |
 
 ### La 2.0.4 — « Retrouver, ranger, choisir »
@@ -158,6 +160,11 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 *« si j'ai absolument tout testé, normalement 100 % des fonctionnalités sont validées »*.
 
 **Au PC** — la 2.0.3-beta.5 installée, ou `cargo run --release > sortie-essais.txt 2>&1` :
+
+* **Protéo dans Glucose** (fiches 75, 76) : le raccourci « Essai Proteo dans Glucose » de son
+  Bureau ; « Autoriser » dans Glucose ; une demande courte (« salut »), une demande d'outils, un
+  projet — la bulle Demande dit chaque tri, la taille d'un workflow, puis la réponse ; une recherche :
+  ses pages (double-clic les ouvre), les flèches du rapport qui arrivent à côté de chaque citation.
 
 * **Le texte de près** (fiches 72 et 73) : zoomer très près d'un texte, d'une formule, d'un
   passage qu'une flèche fait briller, d'une sélection en cours d'écriture, d'un emoji, de

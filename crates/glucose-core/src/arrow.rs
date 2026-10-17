@@ -94,7 +94,8 @@ pub fn path(arrow: &Annotation) -> Option<Vec<(f64, f64)>> {
 /// cent soixante-dix-sept lignes écrites, testées, et que personne n'appelait.
 ///
 /// Ancrée à un passage que le nœud sait mesurer, elle vise ce passage : même boîte, mais un
-/// point de visée à sa hauteur — elle sort donc du bord qui fait face, à cette hauteur.
+/// point de visée à sa hauteur — et, à côté du nœud, elle sort par le côté qui fait face, à
+/// cette hauteur exacte (FLECHE-6).
 fn anchor_of(
     noeuds: &impl Noeuds,
     (id, passage): (Option<&String>, Option<&TextSelection>),
@@ -105,18 +106,21 @@ fn anchor_of(
     };
     let centre = rect.center();
     let ancres = crate::text_anchors::normalize_text_sel(passage);
-    let y = (!ancres.is_empty())
+    let hauteur = (!ancres.is_empty())
         .then(|| noeuds.hauteur_du_passage(id, &ancres))
-        .flatten()
-        .map_or(centre.y, |h| rect.top + h);
-    ArrowAnchor::with_box(
+        .flatten();
+    let ancre = ArrowAnchor::with_box(
         centre.x,
-        y,
+        hauteur.map_or(centre.y, |h| rect.top + h),
         rect.left,
         rect.right(),
         rect.top,
         rect.bottom(),
-    )
+    );
+    match hauteur {
+        Some(_) => ancre.au_passage(),
+        None => ancre,
+    }
 }
 
 /// La boîte d'un nœud du tableau, quelle que soit sa nature.
