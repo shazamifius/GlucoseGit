@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 16/10/2026** (fiches 63 à 74). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 17/10/2026** (fiches 63 à 75). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -71,6 +71,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Flèche : droite ou courbe, double sens, épaisseur, relation, ancres de texte | la barre de la flèche, `1…6` | ✅ |
 | Déplacer d'un pas | les flèches du clavier | — (le doigt glisse) |
 | Aimant | bouton Aimant | ✅ |
+| **Ouvrir une page web** — la capture qu'un agent a posée (fiche 75) | **double-clic** sur la photo, ou `Ctrl`+clic | ❌ (aucun agent n'y écrit ; le navigateur d'Android n'est pas appelé) |
 
 ### Organiser
 
@@ -99,6 +100,13 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | **Insérer une case entre deux** — les suivantes glissent d'un cran avec leurs images (P2, fiche 66) | les deux « + » de la case choisie, au milieu de ses bords : avant, après | ✅ (les mêmes, au doigt) |
 | Domaines (créer, éditer, attribuer) | panneau Domaines | 🟡 le nom d'un domaine ne se tape pas (même cause) |
 | Timer Pomodoro | panneau Timer | ✅ |
+
+### Les agents (fiche 75)
+
+| fonction | au PC | au téléphone |
+|---|---|---|
+| **Laisser un agent travailler dans le tableau** (Protéo, Claude…) : il lit, pose des textes, des membranes, des pages web, des flèches ancrées à des phrases — chaque geste s'annule par `Ctrl+Z` | la question qui s'ouvre à sa première demande : Autoriser, Refuser, Plus tard | — (aucune porte au téléphone) |
+| Brancher un agent sur Glucose | `glucose --mcp` dans sa configuration MCP (Glucose s'ouvre s'il ne l'est pas) | — |
 
 ---
 
@@ -138,7 +146,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Vidéos** | Tauri | comme les images | — |
 | **Provenance des images** (SauceNAO) | sa demande | menu d'une image | **sa clé SauceNAO** |
 | **Collaborer** | Tauri, obligatoire | bande | plus tard |
-| **Plugins, IA locale, MCP** | Tauri, PLUGINS.md | panneau Plugins | plus tard |
+| **Plugins, IA locale** | Tauri, PLUGINS.md | panneau Plugins | plus tard — **le MCP est fait** : la porte des agents (fiche 75) |
 | **Trans-domaines** | Tauri | bande | sa définition, à sa parole |
 | **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire |
 | **Les doigts sous Windows** (tablettes) | toutes les machines | — | à faire |

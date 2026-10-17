@@ -32,16 +32,50 @@ impl GlucoseApp {
         if !self.modifiers.control_key() {
             return false;
         }
-        let Some(url) = self.link_under(screen) else {
+        let Some(url) = self.link_under(screen).or_else(|| self.page_sous(screen)) else {
             return false;
         };
-        // Rien à dire quand ça marche : le navigateur s'ouvre, et cela se voit. Un échec,
-        // lui, ne se voit pas du tout — c'est le seul cas où l'utilisateur a besoin qu'on
-        // lui parle.
-        if !open_url(&url) {
+        self.ouvrir_et_le_dire(&url);
+        self.mark_dirty();
+        true
+    }
+
+    /// Ouvre la page. Rien à dire quand ça marche : le navigateur s'ouvre, et cela se voit. Un
+    /// échec, lui, ne se voit pas du tout — c'est le seul cas où l'utilisateur a besoin qu'on
+    /// lui parle.
+    fn ouvrir_et_le_dire(&mut self, adresse: &str) {
+        if !ouvrir_une_page(adresse) {
             self.ui.show_toast("Ce lien n'a pas pu être ouvert");
         }
-        self.mark_dirty();
+    }
+
+    /// **La page d'une photo sous le curseur** : une photo qui garde l'adresse web d'où elle
+    /// vient — la capture d'une page qu'un agent a lue (fiche 75) — s'ouvre comme un lien.
+    fn page_sous(&self, screen: (f64, f64)) -> Option<String> {
+        let vp = &self.store.active_board()?.viewport;
+        let (wx, wy) = crate::canvas::screen_to_world(screen.0, screen.1, vp);
+        let candidate = self.pick_candidate_at(wx, wy)?;
+        self.page_d_une_photo(&candidate.id)
+    }
+
+    /// L'adresse web d'une photo du tableau, si elle en garde une qu'on peut ouvrir.
+    fn page_d_une_photo(&self, id: &str) -> Option<String> {
+        let board = &self.store.project.active_board_id;
+        self.store
+            .image(board, id)?
+            .source_url
+            .clone()
+            .filter(|a| adresse_web(a))
+    }
+
+    /// **Le double-clic sur une page** l'ouvre dans le navigateur — comme celui d'un lanceur
+    /// ouvre son fichier : une photo n'a rien d'autre à ouvrir. Rend `false` si ce n'est pas
+    /// une page.
+    pub(crate) fn ouvrir_la_page_d_une_photo(&mut self, id: &str) -> bool {
+        let Some(adresse) = self.page_d_une_photo(id) else {
+            return false;
+        };
+        self.ouvrir_et_le_dire(&adresse);
         true
     }
 
@@ -76,10 +110,26 @@ pub fn url_at(source: &str, at: usize) -> Option<String> {
         .find(|s| s.role == SpanRole::Marker && s.slice(source).starts_with(']'))?;
     let brut = ferme.slice(source);
     let dedans = brut.strip_prefix("](")?.strip_suffix(')')?;
-    SCHEMES
-        .iter()
-        .any(|s| dedans.starts_with(s))
-        .then(|| dedans.to_string())
+    adresse_web(dedans).then(|| dedans.to_string())
+}
+
+/// **Une adresse que Glucose accepte d'ouvrir** : `http://` ou `https://`, rien d'autre.
+pub(crate) fn adresse_web(adresse: &str) -> bool {
+    SCHEMES.iter().any(|s| adresse.starts_with(s))
+}
+
+/// Ouvre une page dans le navigateur. Une épreuve n'ouvre rien sur son écran (comme DIAL-3) :
+/// elle note l'adresse, que [`tests::pages_ouvertes`] rend.
+fn ouvrir_une_page(adresse: &str) -> bool {
+    #[cfg(test)]
+    {
+        tests::OUVERTES.with(|o| o.borrow_mut().push(adresse.to_string()));
+        true
+    }
+    #[cfg(not(test))]
+    {
+        open_url(adresse)
+    }
 }
 
 /// Confie l'adresse au système. Rend `false` si la commande n'a pas pu partir.
@@ -109,6 +159,7 @@ pub(crate) fn ouvrir_un_dossier(chemin: &std::path::Path) -> bool {
 ///
 /// Et elle faisait clignoter une console : `cmd` ouvre une fenêtre que personne n'a demandée.
 #[cfg(target_os = "windows")]
+#[cfg_attr(test, allow(dead_code))]
 fn open_url(url: &str) -> bool {
     use std::os::windows::process::CommandExt;
     /// Lancer sans ouvrir de console (`CREATE_NO_WINDOW`).
@@ -135,6 +186,7 @@ fn open_url(url: &str) -> bool {
 
 /// Ouvre `url` avec le navigateur du système. Rend `false` si rien n'a pu être lancé.
 #[cfg(not(target_os = "windows"))]
+#[cfg_attr(test, allow(dead_code))]
 fn open_url(url: &str) -> bool {
     let programme = if cfg!(target_os = "macos") {
         "open"
@@ -148,4 +200,4 @@ fn open_url(url: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

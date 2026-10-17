@@ -18,6 +18,7 @@
 //! `pub` n'y sépare donc rien d'utile — elle empêche seulement ses propres bancs et ses propres
 //! preuves d'atteindre ce qu'ils mesurent.
 
+pub mod agents;
 pub mod animation;
 pub mod app;
 pub mod bench;

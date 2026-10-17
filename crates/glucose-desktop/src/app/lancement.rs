@@ -34,6 +34,8 @@ pub struct Lancement {
     pub mise_a_jour: Option<Veille>,
     /// La boîte noire qui voyage, et l'accord de cette machine (fiche 54).
     pub telemetrie: crate::telemetrie::Telemetrie,
+    /// La porte des agents, et ce que l'utilisateur a accordé à chacun (fiche 75).
+    pub agents: crate::app::agents::Agents,
     /// Le clavier du système, miroir de la saisie en cours (CLAVIER-1) — sous Android.
     pub clavier: crate::interactions::text_edit::miroir::Miroir,
 }

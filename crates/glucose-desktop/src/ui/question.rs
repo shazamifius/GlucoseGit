@@ -87,6 +87,11 @@ pub enum Suite {
     Laisser(crate::persist::close::Ensuite),
     /// Une version plus récente : oui, elle se télécharge (fiche 48).
     MiseAJour(crate::mise_a_jour::Proposition),
+    /// **Un agent demande à travailler dans Glucose** (AGENTS-1, fiche 75) : son nom, tel qu'il
+    /// se présente.
+    Agent(String),
+    /// Retirer l'accord de tous les agents (fiche 75).
+    OublierLesAgents,
     /// « Signets… » : voler vers l'un, ou en poser un ici (ACCES-1).
     Signets,
     /// Les neuf signets pris : celui qui prend la vue d'ici.

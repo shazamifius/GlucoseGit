@@ -232,6 +232,10 @@ impl GlucoseApp {
         if self.reveal_launcher_target(&top.id) {
             return true;
         }
+        // Une page web posée en photo s'ouvre dans le navigateur (fiche 75).
+        if top.owner == PickOwner::Image && self.ouvrir_la_page_d_une_photo(&top.id) {
+            return true;
+        }
         let Some(text) = self.editable_text_of(&top.id) else {
             return false;
         };

@@ -15,6 +15,12 @@ use glucose_desktop::mise_a_jour::cycle;
 use winit::event_loop::EventLoop;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // `glucose --mcp` : le relais d'un client MCP vers le Glucose ouvert (fiche 75) — avant
+    // tout, sans fenêtre, et rien d'autre sur sa sortie que le protocole.
+    #[cfg(not(target_os = "android"))]
+    if std::env::args().nth(1).as_deref() == Some("--mcp") {
+        std::process::exit(glucose_desktop::agents::relais::relayer());
+    }
     // Avant toute fenêtre et tout dialogue : qui est Glucose pour la barre des tâches.
     glucose_desktop::plateforme::identite::declarer();
     let dossier = glucose_desktop::present::souvenir::dossier();

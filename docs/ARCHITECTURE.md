@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 15/10/2026** (fiches 51 à 71 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 17/10/2026** (fiches 51 à 75 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -332,6 +332,24 @@ des plantages de Windows, la batterie.
 * **Les instruments** (variables d'environnement, jamais des réglages de production) :
   `GLUCOSE_PERF`, `GLUCOSE_CARTE`, `GLUCOSE_IMAGES`, `GLUCOSE_PRESENT`, `GLUCOSE_ARBITRE`,
   `GLUCOSE_DEPOT`, `GLUCOSE_BORDURES`.
+
+## 8 bis. La porte des agents (fiche 75)
+
+Un agent — Protéo, Claude, tout client MCP — travaille dans le Glucose ouvert, sous les yeux de
+l'utilisateur. `glucose --mcp` (`agents/relais.rs`) est le programme qu'un client lance : il
+répond seul à la découverte et à la liste des outils, et ne se branche — et n'ouvre Glucose —
+qu'au premier appel d'outil (RELAIS-1). La **porte** (`agents/porte.rs`) n'est pas un port
+réseau : un tuyau nommé sous Windows, réservé au compte (AGENTS-2), dont le bout du relais est en
+E/S superposée (`porte/tuyau.rs`, TUYAU-1) ; une prise Unix ailleurs ; aucune au téléphone. Le
+**protocole** (`agents/protocole.rs`, MCP du 28/07/2026 et les versions d'avant) est pur ; le JSON
+est écrit ici (`agents/json.rs`, JSON-1). Un appel d'outil arrive à la boucle par une boîte aux
+lettres (`agents::Boite`) ; la boucle demande l'accord (AGENTS-1, `app/agents.rs`), puis
+l'exécute (`agents/executer.rs`) — huit outils — en **un geste du journal** : le noyau
+(`core/store/agents.rs`) tient AGENT-1 à 4 (un geste atomique, la sélection rendue, le passage mot
+pour mot, l'identifiant qui met à jour). Une page web est une photo qui garde son adresse
+(`source_url`) : le double-clic l'ouvre (`interactions/links.rs`). Le banc
+`bench/porte.rs` (exemple `porte_sans_fenetre`) sert la porte sans fenêtre et rend le tableau en
+images.
 
 ## 9. Distribuer et se mettre à jour
 

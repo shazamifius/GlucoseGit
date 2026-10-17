@@ -1,6 +1,17 @@
 //! Ce qu'un `Ctrl`+clic accepte d'ouvrir — et surtout ce qu'il refuse.
 
 use super::url_at;
+use std::cell::RefCell;
+
+thread_local! {
+    /// Les pages qu'une épreuve a fait « ouvrir » — aucune ne s'ouvre sur son écran.
+    pub(crate) static OUVERTES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Les pages ouvertes depuis le début de l'épreuve, dans l'ordre.
+pub(crate) fn pages_ouvertes() -> Vec<String> {
+    OUVERTES.with(|o| o.borrow().clone())
+}
 
 #[test]
 fn test_ladresse_se_retrouve_depuis_nimporte_quel_octet_du_texte() {

@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 pub(crate) mod accueil;
+pub mod agents;
 mod attentes;
 mod decision;
 mod evenements;

@@ -68,6 +68,7 @@ impl GlucoseApp {
                 self.ouvrir_la_palette(super::palette::But::ChangerLeRaccourci);
             }
             Commande::RetablirLesRaccourcis => self.demander_a_retablir_les_raccourcis(),
+            Commande::OublierLesAgents => self.demander_a_oublier_les_agents(),
         }
         self.mark_dirty();
         true

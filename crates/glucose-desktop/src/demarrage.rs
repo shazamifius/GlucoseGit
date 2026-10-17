@@ -60,30 +60,33 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     // brouillon tenu au lancement se libérera (LIBERE-1) : avant la reprise, donc.
     app.lancement.reveil = Some(event_loop.create_proxy());
     app.retrouver_le_travail();
-    // Et quand le système dit ses marges — la barre d'état, le clavier (BORD-1).
-    let proxy = event_loop.create_proxy();
-    crate::plateforme::marges::brancher(std::sync::Arc::new(move || {
-        let _ = proxy.send_event(());
-    }));
-    // Et quand un sélecteur de fichiers rend son choix (DIAL-2).
-    let proxy = event_loop.create_proxy();
-    crate::dialogue::brancher(std::sync::Arc::new(move || {
-        let _ = proxy.send_event(());
-    }));
-    // Et quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).
-    let proxy = event_loop.create_proxy();
-    crate::plateforme::installation::brancher(std::sync::Arc::new(move || {
-        let _ = proxy.send_event(());
-    }));
+    brancher_les_reveils(&mut app, &event_loop);
     if let Some(installation) = installation {
-        let proxy = event_loop.create_proxy();
-        let reveil: crate::plateforme::Reveil = std::sync::Arc::new(move || {
-            let _ = proxy.send_event(());
-        });
+        let reveil = reveil_de(&event_loop);
         cycle::ranger_les_anciens(&installeurs, &cycle::courante());
         app.lancement.mise_a_jour =
             Some(cycle::Veille::commencer(installeurs, reveil, installation));
     }
     event_loop.run_app(&mut app)?;
     Ok(())
+}
+
+/// **Ce qui réveille la boucle depuis un autre fil** : chacun reçoit le sien.
+fn brancher_les_reveils(app: &mut GlucoseApp, event_loop: &EventLoop<()>) {
+    // Quand le système dit ses marges — la barre d'état, le clavier (BORD-1).
+    crate::plateforme::marges::brancher(reveil_de(event_loop));
+    // Quand un agent appelle un outil par sa porte (fiche 75).
+    app.ouvrir_la_porte_des_agents(reveil_de(event_loop));
+    // Quand un sélecteur de fichiers rend son choix (DIAL-2).
+    crate::dialogue::brancher(reveil_de(event_loop));
+    // Quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).
+    crate::plateforme::installation::brancher(reveil_de(event_loop));
+}
+
+/// De quoi réveiller cette boucle depuis un autre fil.
+fn reveil_de(event_loop: &EventLoop<()>) -> crate::plateforme::Reveil {
+    let proxy = event_loop.create_proxy();
+    std::sync::Arc::new(move || {
+        let _ = proxy.send_event(());
+    })
 }

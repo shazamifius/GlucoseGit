@@ -108,6 +108,8 @@ pub enum Commande {
     ChangerUnRaccourci,
     /// Rendre tous les raccourcis de Glucose : la couche de l'utilisateur s'oublie.
     RetablirLesRaccourcis,
+    /// Retirer l'accord donné aux agents : leur prochaine demande sera reposée (fiche 75).
+    OublierLesAgents,
 }
 
 /// Les outils que le clavier choisit, et le nom de chacun.
@@ -122,7 +124,7 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
 ];
 
 /// Les commandes sans paramètre : leur identifiant et leur nom.
-const SIMPLES: [(Commande, &str, &str); 37] = [
+const SIMPLES: [(Commande, &str, &str); 38] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -227,6 +229,11 @@ const SIMPLES: [(Commande, &str, &str); 37] = [
         Commande::RetablirLesRaccourcis,
         "raccourcis.retablir",
         "Rétablir tous les raccourcis de Glucose…",
+    ),
+    (
+        Commande::OublierLesAgents,
+        "agents.oublier",
+        "Retirer l'accord des agents…",
     ),
 ];
 

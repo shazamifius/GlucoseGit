@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 16/10/2026** (fiches 59 à 74). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 17/10/2026** (fiches 59 à 75). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -164,6 +164,11 @@
 | **Une optimisation qui écarte ce qui « ne se verra pas »** (LIGNE-1) | l'éprouver par **équivalence** : le résultat avec et sans elle, identique, en balayant les places critiques plus finement que le plus petit débordement mesuré |
 | **Deux messages d'affilée dans un emplacement qui n'en tient qu'un** : la ligne fausse et la commande inconnue d'un même fichier — seul le second se voyait (fiche 74) | ce qui se dit en même temps se dit en **un** message ; l'épreuve demande tout ce qu'il doit dire |
 | **Une épreuve dont la donnée n'exerce pas le cas** : « `Ctrl+  rien` », prise pour une ligne fausse, se lit très bien (fiche 74) | l'épreuve affirme d'abord qu'elle part du cas voulu (« un fichier protégé »), puis le juge |
+| **Un outil d'écriture qui décode les échappements** : `\u00e9\ud83d\ude00` écrit dans une épreuve est devenu « é😀 » — l'épreuve du décodage JSON passait sans rien décoder (fiche 75) ; c'est l'épreuve des glyphes, tombée sur l'émoji, qui l'a dit | construire les échappements dans le code (`let bs = char::from(92u8)`), et relire les octets écrits (`cat -A`) d'une épreuve qui porte des barres obliques |
+| **Une épreuve sabotée qui tombait déjà sur le code intact** : deux épreuves du double-clic ont « fait tomber » leur sabotage alors qu'elles tombaient sans lui (la carte d'accueil prenait le clic) — ajoutées après la dernière suite verte (fiche 75) | toute épreuve neuve se lance d'abord sur le code intact, **puis** se sabote |
+| **Une épreuve qui se fige au lieu de tomber**, encore : une lecture qui attend une réponse tue ou bloquée (TUYAU-1, RELAIS-1) — deux sabotages « tombés » parce que je les avais arrêtés à la main (fiche 75) | toute lecture qui peut attendre se fait sur un fil, avec un délai (`recv_timeout`) ; un « TOMBE » obtenu en tuant le processus ne compte pas : corriger l'épreuve, rejouer |
+| **Une garde dont l'effet est rattrapé par une autre** : sans le suivi des ancres, Glucose retrouve un passage par sa citation et son contexte — l'épreuve qui ne regardait que le texte désigné était aveugle (fiche 75) | éprouver ce que la garde produit elle-même (la place enregistrée de l'ancre), pas seulement le résultat qu'un filet rattrape |
+| **Deux fils sur un même tuyau synchrone sous Windows** : l'écriture attend la lecture en cours — le relais se figeait après la première réponse ; l'épreuve passait parce qu'elle écrivait tout avant de lire (fiche 75, TUYAU-1) | un flux lu et écrit par deux fils s'ouvre en E/S superposée ; l'épreuve joue l'ordre réel (une lecture en attente, puis l'écriture) |
 | **Une épreuve qui compare deux voies appelant la même fonction** ne voit pas une faute dans cette fonction (`inverse()` dans la loi et dans la carte) | saboter ce que la règle interdit vraiment (ici : que la carte divise elle-même), et voir la fonction contre une voie qui ne l'appelle pas |
 
 ## 5. Les pièges pratiques
@@ -188,7 +193,7 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), et
   `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
   sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
@@ -231,6 +236,13 @@
   `attach vdisk readonly`, `compact vdisk`, `detach vdisk`) — le disque en mode normal, pas
   « clairsemé », que `diskpart` refuse (fiche 61 : 58 Go ramenés à 33).
 * **Le Mac ne se compile pas ici** : seule la CI le fait.
+* **Regarder ce qu'un agent pose, sans fenêtre** (fiche 75) : `cargo build -p glucose-desktop --bin
+  glucose-desktop --example porte_sans_fenetre`, puis, **par PowerShell** (Git Bash déforme
+  `\\.\pipe\…`), `porte_sans_fenetre.exe \\.\pipe\<nom> <arrêt> <dossier>` ; l'agent se branche
+  par `glucose-desktop.exe --mcp` avec `GLUCOSE_PORTE=\\.\pipe\<nom>`. Créer le fichier `<arrêt>`
+  rend le tableau, chaque bulle et une flèche survolée en PNG. Protéo : `PROTEO_GLUCOSE=<exe>`, et
+  ses épreuves à la main `rejouer_une_vraie_recherche_sur_la_toile` (`PROTEO_RAPPORT=<preuve>`) et
+  `recherche_neuve_posee_en_direct` (`PROTEO_QUESTION=…`).
 * **Un témoin de format s'écrit par la build d'avant** (fiche 65, `riche-v2.glucose`) : un
   arbre de travail détaché au dernier commit qui produit ce schéma (`git worktree add --detach
   <scratchpad>/vN HEAD`), une épreuve jetable qui y écrit la fixture, sa propre cible

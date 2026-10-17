@@ -163,6 +163,8 @@ impl GlucoseApp {
         match suite {
             Suite::NouveauDocument if oui => self.laisser_puis(Ensuite::Vierge),
             Suite::Telemetrie => self.repondre_a_la_telemetrie(oui),
+            Suite::Agent(client) => self.repondre_a_l_agent(client, reponse),
+            Suite::OublierLesAgents if oui => self.lancement.agents.oublier(),
             Suite::Ouvrir(chemins) => {
                 if let Some(chemin) = reponse_choisie(reponse).and_then(|i| chemins.get(i)) {
                     self.laisser_puis(Ensuite::Ouvrir(chemin.clone()));
@@ -202,7 +204,10 @@ impl GlucoseApp {
             } => {
                 self.repondre_au_champ((&board, &storyboard, rang), reponse, champ);
             }
-            Suite::NouveauDocument | Suite::MiseAJour(_) | Suite::RetablirLesRaccourcis => {}
+            Suite::NouveauDocument
+            | Suite::MiseAJour(_)
+            | Suite::RetablirLesRaccourcis
+            | Suite::OublierLesAgents => {}
         }
     }
 }

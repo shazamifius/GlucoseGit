@@ -99,8 +99,22 @@ pub fn render_frame(
 /// Rend dans un pixmap existant — ce que [`measure`] appelle en boucle, pour ne pas mesurer
 /// l'allocation de huit mégaoctets à chaque tour.
 pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pixmap: &mut Pixmap) {
+    render_eclaire(renderer, ui, store, pixmap, &[]);
+}
+
+/// La même, avec des passages qui brillent — ceux qu'une flèche survolée désigne (FLECHE-4).
+pub fn render_eclaire(
+    renderer: &mut Renderer,
+    ui: &mut UiState,
+    store: &Store,
+    pixmap: &mut Pixmap,
+    eclairages: &[crate::params::Eclairage],
+) {
     let guides = SnapGuides::default();
-    let overlay = SceneOverlay::sans_rien(&guides);
+    let overlay = SceneOverlay {
+        eclairages,
+        ..SceneOverlay::sans_rien(&guides)
+    };
     // Le pointeur est posé hors de la fenêtre : aucun survol, donc aucun état de l'interface
     // qui dépendrait de la position de la souris. Une capture doit être la même partout.
     let pointer = Pointer { x: -1.0, y: -1.0 };
@@ -121,7 +135,10 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
     // première. La mesure reste celle du rendu, jamais celle de l'attente.
     if renderer.magasin.en_travail() > 0 {
         renderer.magasin.attendre_le_chantier();
-        let overlay = SceneOverlay::sans_rien(&guides);
+        let overlay = SceneOverlay {
+            eclairages,
+            ..SceneOverlay::sans_rien(&guides)
+        };
         renderer.render(
             &mut pixmap.as_mut(),
             store,
@@ -216,6 +233,7 @@ pub fn capture_with(
     pixmap.encode_png().expect("encoder un PNG")
 }
 
+pub mod porte;
 pub mod vitrine;
 
 #[cfg(test)]

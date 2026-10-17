@@ -1,0 +1,539 @@
+[
+ {
+  "nom": "AGENT-1 un echec ne s'annule pas",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            self.cancel_live_edit();\n",
+  "apres": "            self.end_live_edit();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-1 ecrit pendant son geste",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        if self.in_live_edit() {\n            return Err(Refus::GesteEnCours);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-2 sa selection n'est pas rendue",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        self.selected_annotation_ids = annotations\n            .into_iter()\n            .filter(|a| self.id_exists(a))\n            .collect();",
+  "apres": "        drop(annotations);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-2 un noeud retire reste choisi",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            .filter(|a| self.id_exists(a))\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-3 les passages sont ignores",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        let Some(cite) = cite.filter(|c| !c.trim().is_empty()) else {",
+  "apres": "        let Some(cite) = cite.filter(|_| false) else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-4 une mise a jour double le noeud",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        let Some(ancienne) = self.project.annotation(board_id, &id).cloned() else {",
+  "apres": "        let Some(ancienne) = None::<Annotation> else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-4 les ancres ne suivent pas",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        if let Some(texte) = texte_porte(&ann) {\n            self.ecrire_le_texte(board_id, &id, &texte);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENT-4 la membrane se perd",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            a.set_membrane_id(membrane);",
+  "apres": "            let _ = membrane;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "identifiant pris ailleurs accepte",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        if self.id_exists(id) {\n            return Err(Refus::Pris(id.to_string()));\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "retirer atteint un autre tableau",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            .filter(|i| {\n                self.image(board_id, i).is_some() || self.project.annotation(board_id, i).is_some()\n            })",
+  "apres": "            .filter(|i| self.id_exists(i))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "la membrane ne grandit pas",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        if neuf == cadre {",
+  "apres": "        if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "la hauteur ne fait pas grandir la membrane",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "                self.agrandir_la_membrane_pour(board_id, &m, boite)\n",
+  "apres": "                { let _ = (m, boite); Ok(()) }\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "deplacer ne rattache pas",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        self.rattacher_la_selection(board_id);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "placer sous le contenu oublie l'ecart",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            Some(c) => (c.left, c.bottom() + ECART),",
+  "apres": "            Some(c) => (c.left, c.bottom()),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "AGENTS-1 ecrit pendant son geste (boucle)",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                Some(true) if self.store.in_live_edit() => return,\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "AGENTS-1 la question chasse la sienne",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                    if self.ui.question.is_none() {",
+  "apres": "                    if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "AGENTS-1 refuser n'est pas retenu",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                self.lancement.agents.accords.insert(client, false);",
+  "apres": "                let _ = client;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "AGENTS-1 executer sans accord",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                Some(false) => {\n                    self.refuser_le_premier(&client, \"l'utilisateur ne l'a pas autorisé\")\n                }",
+  "apres": "                Some(false) => {\n                    let d = self.lancement.agents.attente.pop_front().expect(\"d\");\n                    let issue = self.executer_pour_un_agent(&d.appel.nom, &d.appel.arguments);\n                    repondre(d, issue);\n                }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "JSON-1 imbrication sans borne",
+  "fichier": "crates/glucose-desktop/src/agents/json.rs",
+  "avant": "        if profondeur > PROFONDEUR_MAX {",
+  "apres": "        if profondeur > usize::MAX - 1 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "un saut de ligne coupe le message",
+  "fichier": "crates/glucose-desktop/src/agents/json.rs",
+  "avant": "            '\\n' => s.push_str(\"\\\\n\"),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "une ligne sans borne",
+  "fichier": "crates/glucose-desktop/src/agents/porte.rs",
+  "avant": "        if octets.len() > LIGNE_MAX {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "une version moderne inconnue acceptee",
+  "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+  "avant": "        if version != VERSION_MODERNE {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "un ancien sans poignee de main accepte",
+  "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+  "avant": "        let Some(client) = self.ancien_client.clone() else {",
+  "apres": "        let Some(client) = self.ancien_client.clone().or(Some(String::new())) else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "un outil inconnu part a la boucle",
+  "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+  "avant": "            if !outils::noms().any(|n| n == nom) {",
+  "apres": "            if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "une page douteuse acceptee",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        if !crate::interactions::links::adresse_web(adresse) {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "une photo de fichier s'ouvre",
+  "fichier": "crates/glucose-desktop/src/interactions/links.rs",
+  "avant": "            .filter(|a| adresse_web(a))\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "le double-clic n'ouvre pas la page",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "        if top.owner == PickOwner::Image && self.ouvrir_la_page_d_une_photo(&top.id) {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "ctrl-clic n'ouvre pas la page",
+  "fichier": "crates/glucose-desktop/src/interactions/links.rs",
+  "avant": "        let Some(url) = self.link_under(screen).or_else(|| self.page_sous(screen)) else {",
+  "apres": "        let Some(url) = self.link_under(screen) else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "rien ne redemande d'image",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.\n        self.mark_dirty();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "la hauteur ne suit pas l'ecriture",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "                    s.tenir_la_hauteur_pour_un_agent(board, id, hauteur)?;",
+  "apres": "                    let _ = hauteur;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "AGENTS-2 deux Glucose prennent la meme porte",
+  "fichier": "crates/glucose-desktop/src/agents/porte/windows.rs",
+  "avant": "        ouverture |= FILE_FLAG_FIRST_PIPE_INSTANCE;",
+  "apres": "        let _ = FILE_FLAG_FIRST_PIPE_INSTANCE;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "retirer l'accord ne retire rien",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "        self.accords.clear();",
+  "apres": "        let _ = &self.accords;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents"
+  ]
+ },
+ {
+  "nom": "TUYAU-1 le tuyau du relais redevient synchrone",
+  "fichier": "crates/glucose-desktop/src/agents/porte/tuyau.rs",
+  "avant": "                    FILE_FLAG_OVERLAPPED,\n",
+  "apres": "                    windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES(0),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::porte"
+  ]
+ },
+ {
+  "nom": "RELAIS-1 les reponses rejouees ne se taisent pas",
+  "fichier": "crates/glucose-desktop/src/agents/relais.rs",
+  "avant": "    let a_taire = prelude.iter().filter(|l| a_une_reponse(l)).count();",
+  "apres": "    let a_taire = 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "agents_suite"
+  ]
+ },
+ {
+  "nom": "RELAIS-1 la poignee de main ne se rejoue pas",
+  "fichier": "crates/glucose-desktop/src/agents/relais.rs",
+  "avant": "    for ligne in prelude.iter().chain([&premier]) {",
+  "apres": "    for ligne in [&premier] {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "agents_suite"
+  ]
+ },
+ {
+  "nom": "RELAIS-1 le relais se branche tout de suite",
+  "fichier": "crates/glucose-desktop/src/agents/relais.rs",
+  "avant": "            Suite::Repondre(r) => writeln!(sortie, \"{r}\").and_then(|()| sortie.flush()).ok()?,",
+  "apres": "            Suite::Repondre(_) => return Some((prelude, ligne)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "agents_suite"
+  ]
+ }
+]

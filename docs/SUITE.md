@@ -1,6 +1,6 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 16/10/2026** (fiches 73 et 74, la 2.0.3-beta.5). **Le plan complet** de ce qui attend
+> **Au 17/10/2026** (fiches 73 à 75 ; la 2.0.3-beta.5 publiée). **Le plan complet** de ce qui attend
 > Glucose Rust, rangé en mises à jour : ce que chacune porte, et ce qui la déclare finie. Tout y
 > est à remettre en question — ses paroles comprises. La direction vit dans [VISION](VISION.md),
 > l'état vérifié dans [ÉTAT](ETAT.md), chaque fonction et son bouton dans
@@ -53,9 +53,10 @@ Petite et rapide : juger la beta 5, nommer les causes que la télémétrie appor
 | | chantier | ce qui le déclare fini |
 |---|---|---|
 | [ ] | **Ses essais de la beta 5** (§ 2) : chaque défaut qu'il voit, corrigé — en premier, le texte de près | sa parole |
-| [ ] | **P0 — Ne jamais perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3 ; fiche 72 : LIBERE-1, SORTIE-1, REPRISE-1). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu** : cause inconnue. Ses lignes `sortie` (la raison d'Android, la mémoire à la mort), `reprise` (ce que le lancement a rouvert, la place du disque) et `precedente` la diront — **au 16/10, aucune session de la beta 4 n'était arrivée** : rouvrir Glucose une seconde fois, au PC et au téléphone. **Ne pas désinstaller** : le brouillon est peut-être encore là. Relevé : `node outils/telemetrie/tableau.mjs <dossier>` (7403 → `npx wrangler whoami`, puis une fois encore) | la cause nommée par ses lignes ; corrigée, éprouvée sur une copie |
+| [ ] | **P0 — Ne jamais perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3 ; fiche 72 : LIBERE-1, SORTIE-1, REPRISE-1). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu** : cause inconnue. Ses lignes `sortie` (la raison d'Android, la mémoire à la mort), `reprise` (ce que le lancement a rouvert, la place du disque) et `precedente` la diront — **au 17/10, toujours aucune session du téléphone depuis le 15/10** (89 sessions, toutes de PC ; il est encore en beta 3) : rouvrir Glucose une seconde fois, au PC et au téléphone. **Ne pas désinstaller** : le brouillon est peut-être encore là. Relevé : `node outils/telemetrie/tableau.mjs <dossier>` (7403 → `npx wrangler whoami`, puis une fois encore) | la cause nommée par ses lignes ; corrigée, éprouvée sur une copie |
 | [ ] | **P3 — Ce que son téléphone dira** : son téléphone tournait à **19,5 ms** par image en médiane, sous le plancher presque tout le temps. POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent ; et **P8 au téléphone**, jamais mesuré (Slug sur sa PowerVR) | les postes lus, le coupable nommé par la mesure, puis tenu |
 | [ ] | **Le repos à zéro** : sa chronique redessine pour les messages (1,6 image par seconde) — la charte dit zéro | une chronique au repos sans image |
+| [~] | **P10 — La porte des agents** (fiche 75, sa demande du 17/10) : `glucose --mcp`, le protocole MCP des deux époques, huit outils ; chaque appel est un geste annulable (AGENT-1 à 4), rien sans son accord (AGENTS-1), la porte n'est qu'à lui (AGENTS-2) ; la page web en miniature, que le double-clic ouvre ; **côté Protéo** : la toile — Demande, Recherche en colonnes, Rapport relié phrase par phrase aux citations | Protéo travaille dans son Glucose, sous ses yeux |
 | [ ] | **Les boutons qui se taisent** : Trans-domaines ne fait rien et ne le dit pas (il doit dire « bientôt », comme Collaborer) ; la carte d'accueil qui naît **choisie** au premier lancement (le premier clic droit ouvre le menu d'une sélection) — à vérifier contre Tauri | à son écran |
 
 ### La 2.0.4 — « Retrouver, ranger, choisir »
@@ -133,7 +134,7 @@ couleurs, les raccourcis, les fenêtres.
 | [ ] | **Collaborer** (obligatoire) : le co-working sur le journal du document | à son écran, à deux |
 | [ ] | **Les plugins** ([PLUGINS.md](../PLUGINS.md)), **l'IA locale**, **le MCP réécrit en Rust** | sa parole |
 | [ ] | **D'humain à IA** : des graphes de questions et de réponses au lieu d'un fil ; le plugin de la langue inventée | sa parole |
-| [ ] | **D'IA à IA** : l'idée de Proteo | sa parole |
+| [ ] | **D'IA à IA** : l'idée de Proteo — **commencé** : la porte des agents et la toile de Protéo (fiche 75) ; la suite : le tri de la demande, la mise en page pilotée par Protéo, ses projets dans Glucose | sa parole |
 | [ ] | **Le document de recherche** en mathématiques et en physique, non linéaire | sa parole |
 | [ ] | **Glucose en briques** : le noyau, le rendu, la typographie, les formules, le format, chacun lisible seul, pour des milliers de forks ; **les dépendances vers zéro**, sans jamais exclure une machine | une brique prise par un autre projet |
 

@@ -33,6 +33,7 @@
 //! silencieuses et marquées `#[deprecated]` : le chemin de migration est explicite et aucun
 //! appelant existant ne casse.
 
+pub mod agents;
 mod annotations;
 mod boards;
 mod catalog;

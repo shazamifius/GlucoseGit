@@ -1,8 +1,8 @@
 # Où en est Glucose
 
-> **Au 16/10/2026** (fiches 73 et 74). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 17/10/2026** (fiches 73 à 75). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
-> le [carnet](carnet/00-INDEX.md) (fiches 51 à 74 pour la V2). La direction : [VISION](VISION.md).
+> le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
 
 ---
@@ -20,12 +20,19 @@
   écran**, puis son téléphone (aucune mesure n'y a été faite). Et **P8 bis** : un nœud immense vu de
   près coûtait 10,5 ms par image au processeur (17 600 mots) ; 0,72 ms désormais, quelle que soit sa
   longueur — et la mise en page de chaque nœud visible n'est plus refaite deux fois par image.
+* **La porte des agents** (fiche 75, P10, sa demande du 17/10) : `glucose --mcp`, le protocole MCP,
+  huit outils ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
+  sous-question avec les pages lues en capture (le double-clic les ouvre), les citations exactes,
+  le rapport relié phrase par phrase aux citations, qui brillent au survol. Chaque geste s'annule
+  par `Ctrl+Z` ; rien sans son accord. Prouvé hors écran sur deux recherches neuves du vrai Protéo
+  (images regardées) ; **attend son écran**, et une version publiée (la beta 5 n'a pas la porte).
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur
-  Cloudflare de son compte, `docs/TELEMETRIE.md`) : 77 sessions, 5 installations au 16/10, dont
-  deux utilisateurs Windows inconnus de lui ; **aucune session de la beta 4 n'est encore arrivée**
-  (une session part au lancement suivant).
+  Cloudflare de son compte, `docs/TELEMETRIE.md`) : 89 sessions, 5 installations au 17/10, dont
+  deux utilisateurs Windows inconnus de lui — l'un est passé **seul** à la beta 5 (la mise à jour
+  automatique marche chez un autre que lui) ; **toujours aucune session du téléphone depuis le
+  15/10** (il est encore en beta 3).
 * **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est
   pas revenu** (« parfaitement fluide » jusque-là). **Cause inconnue** : aucune session de la
   beta 3 n'est arrivée du téléphone — le serveur refusait toute session de plus de 512 Kio, et le
@@ -62,12 +69,13 @@
 | **Le document** | `.glucose` écrit geste après geste, images scellées, brouillons, reprise au lancement, Time Machine (`Ctrl+H`), documents de Tauri lus ; `Ctrl+N`, `Ctrl+O` ; au téléphone, les documents rangés et rouverts |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; coller, déposer (Pinterest en pleine résolution sous Windows) ; rotation, recadrage non destructif, `Ctrl+B` ; la mémoire par étages (carte graphique, mémoire, disque, bornés par ce que la machine laisse) |
 | **Texte** | Markdown, tableaux, liens, LaTeX fidèle à KaTeX, annulation mot par mot ; le clavier du téléphone ; **de près, la carte graphique dessine les lettres depuis leur forme** (Slug, P8, fiche 73) : nettes à tout zoom jusqu'à ×256, ~1 ms par image ; au processeur, les grandes lettres se tracent (GRAND-1) |
-| **L'interface** | **les raccourcis sont une donnée** (une couche de texte, `assets/raccourcis/glucose.txt`), **75 commandes** dans une table, le menu qui les exécute et dit leurs raccourcis, **la palette** (`Ctrl+Maj+P`) — la fondation des presets (P4, fiche 72) ; **ses raccourcis se changent dans Glucose**, écrits dans `raccourcis.txt` (fiche 74) |
+| **L'interface** | **les raccourcis sont une donnée** (une couche de texte, `assets/raccourcis/glucose.txt`), **78 commandes** dans une table, le menu qui les exécute et dit leurs raccourcis, **la palette** (`Ctrl+Maj+P`) — la fondation des presets (P4, fiche 72) ; **ses raccourcis se changent dans Glucose**, écrits dans `raccourcis.txt` (fiche 74) |
 | **Flèches** | droites ou courbes, double sens, six relations, coudes, contournement, ancres de texte |
 | **Copier, coller** | la sélection entière d'une fenêtre à l'autre ; un seul « Copier » qui donne aussi les images (Discord, navigateur) ; le glisser vers d'autres applications sous Windows ; sous Linux, la sélection X11 servie par Glucose |
 | **Organiser** | membranes (tracées ou posées) ; dossiers ; domaines ; aimant ; **Ordonner** (cinq dispositions, huit tris dont trois par la couleur) ; **Mood board** (six gabarits de zones, « Par mood board ») ; **le Storyboard** : la grille tracée, retracée, ses cases glissées, décrites, plusieurs images qui remplissent les cases, un storyboard de la sélection, les « + », la lecture plein écran, durée, plan et champs par case, plusieurs storyboards par tableau, les planches en PDF |
 | **Exporter** | Markdown ; **SVG complet** (le texte en tracés, lisible par tout logiciel) ; PNG de la sélection ou du tableau ; planches d'un storyboard ; au téléphone, par la feuille de partage |
 | **Fenêtre** | le mode référence (`Ctrl+Maj+A`) : sans interface, sans cadre, au premier plan |
+| **Les agents** | `glucose --mcp` : Protéo, Claude ou tout client MCP lit le tableau et y pose textes, membranes, pages web, flèches ancrées à des phrases — en direct, chaque geste annulable, avec son accord (« Retirer l'accord des agents… » le reprend) |
 | **Mise à jour** | automatique et signée, sous Windows et Linux ; sous Android, écrite, à prouver par la prochaine version |
 
 **Jugé à son écran** (fiches 51, 52, 58, 60, 64) : le copier-coller et le glisser entre fenêtres,
@@ -78,7 +86,7 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **2 606 épreuves** sous Windows, toutes vertes (16/10, fiche 74) ; clippy strict à zéro sous
+* **2 666 épreuves** sous Windows, toutes vertes (17/10, fiche 75) ; clippy strict à zéro sous
   Windows (Rust 1.99.1) et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
@@ -87,7 +95,8 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
   GRAND-1, 2 sur 2 pour le zoom, 20 sur 20 pour P4 ; à la fiche 73, **37 sur 37 pour P8** — après
   qu'une première passe en eut trouvé cinq aveugles, chacun corrigé par l'épreuve qui le voit ; 9 sur 9 pour P8 bis ;
   à la fiche 74, **13 sur 13 pour la couche des raccourcis de l'utilisateur**, et les 20 de P4
-  rejoués.
+  rejoués ; à la fiche 75, **36 sur 36 pour la porte des agents** — après une épreuve aveugle et deux
+  qui se figeaient, chacune corrigée.
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;
