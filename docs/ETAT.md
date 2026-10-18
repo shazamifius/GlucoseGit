@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 18/10/2026** (fiches 73 à 77). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 18/10/2026, le soir** (fiches 73 à 78). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -41,9 +41,13 @@
   la machine des candidats retenait un modèle de vision robotique (un a priori devenu verdict) ; le
   banc était aveugle aux modèles de 2026 (leur réflexion épuisait les sorties bornées : 41 réponses
   illisibles sur 41) et parlait en partie au modèle en service — corrigé. Douze modèles criblés sous
-  Ollama 0.40.6 ; une campagne du banc, **en cours** : **qwen3.5:4b réussit 7 cas sur 10 de la boucle
-  d'outils du chat, qwen2.5:7b 3 sur 10**, en deux fois plus de temps. Aucune bascule encore : elle
-  attend la campagne entière, les essais réels, et sa parole. L'organe de recherche : les 116 pages
+  Ollama 0.40.6. **Le banc rendu juste** (fiche 78) : les échecs du 4B venaient en partie de la boucle
+  (la sortie coupée à 1 536 jetons, SORTIE-1 — en production aussi), l'épreuve `scripts` mesurait un
+  chemin mort (retirée, ses tâches dans la boucle : 20 cas), Ollama rechargeait le modèle à presque
+  chaque question (FENETRE-1), une annulation pendant le tri se perdait (ANNULE-1). **Mesuré : qwen3.5:4b
+  réussit 15 cas sur 20 de la boucle du chat, qwen2.5:7b 3 — démontré (p = 0,0005), aucun cas perdu**,
+  pour 13 % de temps en plus ; la réflexion semble aider (15 contre 10), non démontré. Aucune bascule
+  encore : les essais réels ont été interrompus (il devait éteindre), et la bascule reste sa parole. L'organe de recherche : les 116 pages
   (PROGRES-1), les mots-clés sans sujet (SUJET-1), les cascades de blocages (DEPEND-1). La toile :
   une demande par rangée (RANGEE-1), une suite reliée par une flèche (SUITE-2) — pas encore vues en
   essai réel.

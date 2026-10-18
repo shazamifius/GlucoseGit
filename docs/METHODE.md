@@ -14,8 +14,10 @@
   un argument, lui compris.
 * **Il ne voit pas la console.** Ce qu'il lance s'écrit dans un fichier à la racine
   (`cargo run --release > sortie-x.txt 2>&1`, ignoré par git), qu'on lit soi-même.
-* **Jamais de fenêtre sur son écran** pour mesurer : les bancs tournent hors écran. Ce que seul
-  l'écran peut dire, c'est **lui** qui le lance, avec une liste courte de quoi regarder.
+* **C'est à nous de tester** (sa parole du 18/10 : *« tu seras sûrement meilleur juge que
+  moi »*) : les essais réels se mènent et se jugent ici, chaque image regardée ; une fenêtre sur
+  son écran est permise pour un essai (puis fermée), les bancs restent hors écran. Lui garde le
+  ressenti et les choix de vision, avec une liste courte de quoi regarder.
 * **Ses données avant tout.** Une perte le fait paniquer. On diagnostique sur une **copie** de ses
   documents (`examples/verifier_images`, `examples/lire_histoire` lisent sans écrire), et
   `%LOCALAPPDATA%\Glucose` (ses brouillons, sa boîte noire) ne se touche jamais.
@@ -186,6 +188,11 @@
 | **Une loi plus belle que le cas** : la valeur marginale de Charnov, quitter quand le rendement tombe sous la moyenne, n'aurait rien arrêté — le rendement en citations ne baissait pas, leur pertinence si (PROGRES-1) | mesurer le gain au but de la chose (ici, faire avancer le statut d'une question), pas à son volume ; reproduire le cas réel dans une épreuve **avant** de choisir la loi |
 | **Une campagne restreinte qui mesurait encore ce qu'elle ne jouait pas** : la fenêtre des outils MCP menait un 9B à 262 144 jetons et 16 Go pour une épreuve écartée | ce qu'on écarte s'écarte partout, la préparation comprise |
 | **`python -I` ignore les variables d'environnement**, `PYTHONIOENCODING` comprise : un script qui écrit « ✗ » tombait sous Windows | `sys.stdout.reconfigure(encoding="utf-8")` dans le script lui-même |
+| **Un échec attribué au modèle sans lire sa réponse** : les deux cas `page` de qwen3.5:4b — « illisible » — étaient coupés à 1 536 jetons pile, la borne de sortie de la boucle, que sa réflexion épuisait (fiche 78, SORTIE-1) | lire au journal la fin de chaque génération ratée (`fin`, jetons de sortie) avant de juger le modèle ; une borne qui ne vient d'aucune mesure se retire |
+| **Une épreuve morte qui garde du code en vie** : `scripts` mesurait l'« action directe », et `routes/propositions.rs` ne survivait que pour elle — « exactement celui qu'il était pour que ses mesures restent comparables » (fiche 78) | une épreuve exerce un chemin de la production, ou elle disparaît ; ses cas passent par le chemin vivant |
+| **Un signal envoyé quand personne n'écoute** : `watch::Sender::send` n'écrit rien sans récepteur — une annulation pendant le tri était perdue ; l'épreuve passait par la chance de ses 200 ms, et la charge d'une campagne l'a fait tomber (fiche 78, ANNULE-1) | lire la documentation d'un canal jusqu'à son cas « fermé » ; une épreuve de minutage qui tombe sous charge désigne souvent un défaut, pas le minutage |
+| **Une taille de contexte par appel** : Ollama recharge un modèle à chaque `num_ctx` neuf — 34 rechargements pour 46 requêtes au banc, le tri à 4 096 jetons entre deux pas de la boucle (fiche 78, FENETRE-1) | un modèle, une fenêtre : mesurée une fois, lue par toute question qui lui est posée ; compter les `starting llama-server` du journal d'Ollama |
+| **Un catalogue d'attributs recopié d'une session d'avant** : les `x-test-*` de la bibliothèque d'Ollama n'existent plus ; `/library` liste 256 modèles en une page servie sans script (fiche 78) | relire la page à la source avant de bâtir un lecteur dessus |
 
 ## 5. Les pièges pratiques
 

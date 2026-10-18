@@ -15,13 +15,14 @@ cible figée (branche `tauri-v1.0.1`, lisible dans `C:\Users\Administrator\Docum
    ses paroles comprises, avec des arguments et, avant de concevoir, une recherche sur internet.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais
-renuméroter une fiche. La prochaine porte le numéro 78.
+renuméroter une fiche. La prochaine porte le numéro 79.
 
 ## Avec lui
 
 Il ne code pas, parle français, ne voit pas la console, et veut être contredit quand on a un
 argument. Ce qu'il lance s'écrit dans un fichier (`cargo run --release > sortie-x.txt 2>&1`), qu'on
-lit soi-même. **Jamais de fenêtre sur son écran** pour mesurer. **Ses données avant tout** :
+lit soi-même. **C'est à nous de tester et de juger** (sa parole du 18/10) : une fenêtre sur son
+écran est permise pour un essai, puis fermée ; les bancs restent hors écran. **Ses données avant tout** :
 diagnostic sur une copie, et `%LOCALAPPDATA%\Glucose` ne se touche jamais. Questions en prose,
 jamais en menu.
 

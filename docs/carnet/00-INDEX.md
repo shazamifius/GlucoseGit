@@ -115,6 +115,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 75 | [La porte des agents](75-LA-PORTE-DES-AGENTS.md) | **P10** : Protéo écrit dans Glucose — `glucose --mcp`, MCP des deux époques, huit outils, un appel = un geste (AGENT-1 à 4), l'accord (AGENTS-1), la porte du compte (AGENTS-2), TUYAU-1, RELAIS-1 ; la page web en miniature que le double-clic ouvre ; côté Protéo, la toile (Demande, Recherche en colonnes, Rapport relié phrase par phrase aux citations) ; deux recherches neuves posées en direct, regardées ; le gzip que Protéo ne décompressait pas |
 | 76 | [Le tri de la demande](76-LE-TRI-DE-LA-DEMANDE.md) | **P10, suite** : Protéo trie chaque demande — une réponse, des outils, un workflow — par deux questions vrai/faux et la règle de l'année (23 sur 28 de ses demandes réelles, aucune faute grave) ; la route qui en suit (sans outil, la boucle, la mission ouverte par le programme) ; la toile par demande (le tri, la taille du workflow tenue à jour, N recherches, la réponse) ; **FLECHE-6** : une flèche ancrée arrive à la hauteur de son passage, par le côté qui fait face |
 | 77 | [Le cerveau de Protéo](77-LE-CERVEAU-DE-PROTEO.md) | **P10, suite** : pourquoi la machine retenait *ZDTaichu5.0-9B* (un a priori devenu verdict) ; trois défauts qui rendaient le banc aveugle aux modèles récents (**RAISONNEMENT-1**, **MODELE-1**, **LANGUE-1**) ; l'épreuve `tri` ; douze modèles criblés, une campagne (qwen3.5:4b : 7/10 sur la boucle d'outils, contre 3/10) ; l'organe : **PROGRES-1** (les 116 pages), **SUJET-1**, **DEPEND-1** ; la toile : **RANGEE-1** (une demande, une rangée), **SUITE-2** (une suite, une flèche) |
+| 78 | [Le banc rendu juste](78-LE-BANC-RENDU-JUSTE.md) | **P10, suite** : les échecs `page` du 4B venaient de la boucle (**SORTIE-1**, la sortie coupée à 1 536 jetons) ; `scripts` retirée, ses tâches dans la boucle (20 cas) ; le verdict pesé par chemin ; un cerveau = un modèle et sa réflexion ; **FENETRE-1** (34 rechargements pour 46 requêtes) ; **ANNULE-1** ; criblage et campagne : **qwen3.5:4b 15/20 contre 3/20, p = 0,0005** ; granite écarté (ne tient pas) ; la bibliothèque d'Ollama et la tête GGUF lues ; essais réels interrompus |
 
 ## Les décisions — **foi**
 
@@ -133,4 +134,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **78**.
+La prochaine fiche porte le numéro **79**.
