@@ -114,6 +114,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 74 | [Tes raccourcis](74-TES-RACCOURCIS.md) | **P4** : la couche de l'utilisateur — « Changer un raccourci… » (la palette à deux buts, la touche frappée lue par ACCORD-1, chiffres par leur touche), retirer, rétablir, tout rétablir ; la loi dans le noyau (`lier_seul`, `delier`, `retablir`) ; `raccourcis.txt` écrit à chaque changement, relu au lancement, **jamais écrasé** s'il porte une ligne fausse |
 | 75 | [La porte des agents](75-LA-PORTE-DES-AGENTS.md) | **P10** : Protéo écrit dans Glucose — `glucose --mcp`, MCP des deux époques, huit outils, un appel = un geste (AGENT-1 à 4), l'accord (AGENTS-1), la porte du compte (AGENTS-2), TUYAU-1, RELAIS-1 ; la page web en miniature que le double-clic ouvre ; côté Protéo, la toile (Demande, Recherche en colonnes, Rapport relié phrase par phrase aux citations) ; deux recherches neuves posées en direct, regardées ; le gzip que Protéo ne décompressait pas |
 | 76 | [Le tri de la demande](76-LE-TRI-DE-LA-DEMANDE.md) | **P10, suite** : Protéo trie chaque demande — une réponse, des outils, un workflow — par deux questions vrai/faux et la règle de l'année (23 sur 28 de ses demandes réelles, aucune faute grave) ; la route qui en suit (sans outil, la boucle, la mission ouverte par le programme) ; la toile par demande (le tri, la taille du workflow tenue à jour, N recherches, la réponse) ; **FLECHE-6** : une flèche ancrée arrive à la hauteur de son passage, par le côté qui fait face |
+| 77 | [Le cerveau de Protéo](77-LE-CERVEAU-DE-PROTEO.md) | **P10, suite** : pourquoi la machine retenait *ZDTaichu5.0-9B* (un a priori devenu verdict) ; trois défauts qui rendaient le banc aveugle aux modèles récents (**RAISONNEMENT-1**, **MODELE-1**, **LANGUE-1**) ; l'épreuve `tri` ; douze modèles criblés, une campagne (qwen3.5:4b : 7/10 sur la boucle d'outils, contre 3/10) ; l'organe : **PROGRES-1** (les 116 pages), **SUJET-1**, **DEPEND-1** ; la toile : **RANGEE-1** (une demande, une rangée), **SUITE-2** (une suite, une flèche) |
 
 ## Les décisions — **foi**
 
@@ -132,4 +133,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **77**.
+La prochaine fiche porte le numéro **78**.

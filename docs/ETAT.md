@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 17/10/2026** (fiches 73 à 76). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 18/10/2026** (fiches 73 à 77). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -37,7 +37,16 @@
   d'outils écrits dans le texte quand la mission s'annonçait en note — elle s'écrit en échange
   d'outils. **La mécanique tient ; l'intelligence du qwen2.5:7b, non** (il demande des sources au
   lieu de chercher, n'extrait rien d'une page en anglais, et sa recherche dérive) : le chantier
-  suivant est son remplacement, mesuré (fiche 76 § 7).
+  suivant est son remplacement, mesuré (fiche 76 § 7). **Le cerveau, la nuit du 18/10** (fiche 77) :
+  la machine des candidats retenait un modèle de vision robotique (un a priori devenu verdict) ; le
+  banc était aveugle aux modèles de 2026 (leur réflexion épuisait les sorties bornées : 41 réponses
+  illisibles sur 41) et parlait en partie au modèle en service — corrigé. Douze modèles criblés sous
+  Ollama 0.40.6 ; une campagne du banc, **en cours** : **qwen3.5:4b réussit 7 cas sur 10 de la boucle
+  d'outils du chat, qwen2.5:7b 3 sur 10**, en deux fois plus de temps. Aucune bascule encore : elle
+  attend la campagne entière, les essais réels, et sa parole. L'organe de recherche : les 116 pages
+  (PROGRES-1), les mots-clés sans sujet (SUJET-1), les cascades de blocages (DEPEND-1). La toile :
+  une demande par rangée (RANGEE-1), une suite reliée par une flèche (SUITE-2) — pas encore vues en
+  essai réel.
 * **Ses utilisateurs** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui
   attendent Glucose Rust, dont 10 sous Android ; une personne qui compte énormément pour lui, sur
   iPad (Glucose dans Safari, plus tard). **La télémétrie** (avec l'accord de chacun, un serveur

@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 17/10/2026** (fiches 59 à 76). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 18/10/2026** (fiches 59 à 77). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -177,6 +177,15 @@
 | **Un pilote d'essai qui abandonne avant le travail** : 25 minutes ne suffisaient pas à une recherche qui dérivait (116 pages) ; la demande suivante partait pendant que Protéo travaillait encore (fiche 76) | lire l'état réel avant de conclure ; un temps dépassé est une mesure à rapporter, pas une fin de tour |
 | **Un journal qui ne dit que les échecs** : une toile posée et une toile qui attendait l'accord laissaient le même journal, vide — son essai du 17/10 est resté illisible (fiche 76) | écrire aussi ce qui a été fait (`toile.pose`) : un silence ne doit avoir qu'un sens |
 | **Une épreuve qui compare deux voies appelant la même fonction** ne voit pas une faute dans cette fonction (`inverse()` dans la loi et dans la carte) | saboter ce que la règle interdit vraiment (ici : que la carte divise elle-même), et voir la fonction contre une voie qui ne l'appelle pas |
+| **Un a priori qui devient le verdict** : la machine des candidats de Protéo ne devait que fixer l'ordre d'examen, mais n'essayait que le premier éligible — et sa loi (la densification, appliquée à chaque modèle comme s'il était à la frontière) préférait le plus récent, un modèle de vision robotique en anglais et chinois (fiche 77 § 1) | quand un ordre décide de ce qui sera mesuré, il est un verdict : le juger comme tel, ou mesurer plusieurs candidats à bas prix avant le banc complet |
+| **Un banc aveugle aux modèles récents** : les modèles de 2026 réfléchissent par défaut, et la réflexion épuisait les 32 jetons du tri — 41 réponses illisibles sur 41 (fiche 77, RAISONNEMENT-1) | avant de comparer, vérifier que la mesure **a eu lieu** pour chaque candidat (zéro illisible) ; une question au format imposé ne délibère pas |
+| **Une épreuve qui parle en partie au modèle en service** : dans l'épreuve `agent`, seule la boucle visait le candidat ; le tri, la suite, le plan et la recherche visaient le sortant (MODELE-1) | lire au journal **à qui** chaque question est allée ; un cadre de travail porte son modèle, et chaque organe le lit là |
+| **Un banc qui favorise le sortant** : la consigne du tri avait été réglée phrase par phrase sur qwen2.5:7b ; sept modèles sur sept ratent les mêmes trois cas (fiche 77 § 6) | dire quel modèle a servi à régler une consigne ; un cas que tous ratent interroge l'étiquette avant les modèles |
+| **Une épreuve qui mesure un chemin mort** : `scripts` mesure l'« action directe », que le chat n'emprunte plus — et la règle de bascule refusait tout candidat « moins bon » sur elle | avant de peser une épreuve, demander quel chemin de la production elle exerce |
+| **Une recherche qui oublie le catalogue de l'outil** : j'ai cherché les modèles sur le web et Hugging Face, et manqué ceux que la bibliothèque d'Ollama venait d'ajouter (bonsai-2, en poids ternaires) — le seul catalogue que Protéo sait installer sans détour | chercher d'abord dans le catalogue de ce qui exécute, puis ailleurs |
+| **Une loi plus belle que le cas** : la valeur marginale de Charnov, quitter quand le rendement tombe sous la moyenne, n'aurait rien arrêté — le rendement en citations ne baissait pas, leur pertinence si (PROGRES-1) | mesurer le gain au but de la chose (ici, faire avancer le statut d'une question), pas à son volume ; reproduire le cas réel dans une épreuve **avant** de choisir la loi |
+| **Une campagne restreinte qui mesurait encore ce qu'elle ne jouait pas** : la fenêtre des outils MCP menait un 9B à 262 144 jetons et 16 Go pour une épreuve écartée | ce qu'on écarte s'écarte partout, la préparation comprise |
+| **`python -I` ignore les variables d'environnement**, `PYTHONIOENCODING` comprise : un script qui écrit « ✗ » tombait sous Windows | `sys.stdout.reconfigure(encoding="utf-8")` dans le script lui-même |
 
 ## 5. Les pièges pratiques
 
