@@ -6,6 +6,7 @@
 //! JSON que le modèle lit ; ce qui l'empêche, une phrase qu'il peut corriger.
 
 use super::json::Json;
+use super::lecture::{choisir, premiere_phrase, Demande, Rendu};
 use crate::app::GlucoseApp;
 use crate::renderer::card::text_card_fit_height;
 use glucose_core::geometry::Rect;
@@ -65,7 +66,7 @@ impl GlucoseApp {
             str::to_string,
         );
         let issue = match nom {
-            "glucose_lire" => self.agent_lire(&board, a.texte("dans")),
+            "glucose_lire" => self.agent_lire(&board, &a),
             "glucose_poser_texte" => self.agent_poser_texte(&board, &a),
             "glucose_poser_membrane" => self.agent_poser_membrane(&board, &a),
             "glucose_ecrire" => self.agent_ecrire(&board, &a),
@@ -80,17 +81,32 @@ impl GlucoseApp {
         issue
     }
 
-    fn agent_lire(&self, board: &str, dans: Option<&str>) -> Result<Json, String> {
+    /// **Lire par niveaux** (`lecture`) : le sommaire par défaut, le texte entier des nœuds
+    /// choisis, ou la phrase qui contient ce qu'on cherche.
+    fn agent_lire(&self, board: &str, a: &Args<'_>) -> Result<Json, String> {
         let decrits = self
             .store
             .decrire_pour_un_agent(board)
             .map_err(|r| r.to_string())?;
-        let noeuds = decrits
-            .iter()
-            .filter(|d| {
-                dans.is_none() || d.membrane.as_deref() == dans || Some(d.id.as_str()) == dans
-            })
-            .map(decrit_en_json)
+        let ids = match a.0.get("ids") {
+            None => None,
+            Some(l) => Some(
+                l.as_liste()
+                    .ok_or("l'argument « ids » est une liste d'identifiants")?
+                    .iter()
+                    .filter_map(Json::as_str)
+                    .collect(),
+            ),
+        };
+        let demande = Demande {
+            dans: a.texte("dans"),
+            ids,
+            cherche: a.texte("cherche"),
+            complet: a.texte("niveau") == Some("complet"),
+        };
+        let noeuds = choisir(&decrits, &demande)
+            .into_iter()
+            .map(|(d, rendu)| decrit_en_json(d, &rendu))
             .collect();
         let tableaux = self
             .store
@@ -440,14 +456,28 @@ fn boite_en_json(b: Rect) -> Json {
     ])
 }
 
-fn decrit_en_json(d: &Decrit) -> Json {
+/// Un nœud pour l'agent : son texte entier, ou sa première phrase et sa taille (le sommaire), ou
+/// le passage trouvé.
+fn decrit_en_json(d: &Decrit, rendu: &Rendu) -> Json {
     let mut champs = vec![
         ("id", Json::from(d.id.as_str())),
         ("sorte", Json::from(d.sorte.nom())),
         ("boite", boite_en_json(d.boite)),
     ];
+    if let (Rendu::Sommaire | Rendu::Passage(_), Some(t)) = (rendu, d.texte.as_deref()) {
+        champs.push(("taille", Json::Nombre(t.chars().count() as f64)));
+        if let Some(p) = premiere_phrase(t) {
+            champs.push(("debut", Json::from(p)));
+        }
+    }
+    if let Rendu::Passage(p) = rendu {
+        champs.push(("passage", Json::from(p.as_str())));
+    }
+    let entier = (*rendu == Rendu::Entier)
+        .then_some(d.texte.as_deref())
+        .flatten();
     let facultatifs = [
-        ("texte", d.texte.as_deref()),
+        ("texte", entier),
         ("membrane", d.membrane.as_deref()),
         ("source", d.source.as_deref()),
         ("cible", d.cible.as_deref()),

@@ -13,7 +13,9 @@ pub const INSTRUCTIONS: &str = "Glucose est un canevas infini : des textes (Mark
 des post-it, des photos, des membranes (des bulles qui contiennent d'autres nœuds) et des \
 flèches qui relient les nœuds. Ce que tu poses apparaît tout de suite sous les yeux de \
 l'utilisateur, sur le tableau qu'il regarde ; chaque appel est un geste qu'il peut annuler \
-(Ctrl+Z). Commence par glucose_lire. Les positions sont en unités du canevas, l'origine en haut \
+(Ctrl+Z). Commence par glucose_lire : il rend le sommaire du tableau (chaque nœud, sa première \
+phrase, sa taille) ; lis ensuite en entier seulement les nœuds dont tu as besoin (ids), ou \
+cherche une phrase dans tous (cherche). Les positions sont en unités du canevas, l'origine en haut \
 à gauche, y vers le bas. Si tu ne donnes pas de position, le nœud se pose sous le contenu de sa \
 membrane (dans), ou à droite de tout le tableau : range ton travail dans des membranes. Donne \
 tes propres identifiants (« proteo-rapport ») : poser deux fois le même met à jour au lieu de \
@@ -25,10 +27,13 @@ mot pour mot.";
 const OUTILS: &[(&str, &str, &str)] = &[
     (
         "glucose_lire",
-        "Lit le tableau que l'utilisateur regarde : ses nœuds (id, sorte, boîte, texte, membrane, \
-         bouts et relation d'une flèche, adresse d'une photo), la partie visible à l'écran et la \
-         liste des tableaux. « dans » ne rend que le contenu d'une membrane.",
-        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"}}}"##,
+        "Lit le tableau que l'utilisateur regarde, par niveaux : par défaut son sommaire — chaque \
+         nœud (id, sorte, boîte, membrane, bouts et relation d'une flèche, adresse d'une photo), \
+         la première phrase de son texte (debut) et sa taille, sans le texte entier. « ids » rend \
+         le texte entier de ces nœuds ; « cherche » rend la phrase (passage) de chaque nœud qui \
+         contient ces mots ; « dans » ne garde qu'une membrane ; niveau « complet » rend tous les \
+         textes. Rend aussi la partie visible à l'écran et la liste des tableaux.",
+        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"niveau":{"type":"string","enum":["sommaire","complet"]}}}"##,
     ),
     (
         "glucose_poser_texte",

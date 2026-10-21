@@ -37,6 +37,7 @@
 
 pub mod executer;
 pub mod json;
+pub mod lecture;
 pub mod outils;
 pub mod porte;
 pub mod protocole;

@@ -106,6 +106,84 @@ fn lire_rend_le_tableau_et_dans_ne_rend_que_la_membrane() {
     assert!(tout.get("visible").is_some() && tout.get("tableaux").is_some());
 }
 
+/// **Lire par niveaux** (fiche 79) : le sommaire ne porte pas les textes, `ids` les rend en entier,
+/// `cherche` rend la phrase trouvée. Le 21/10/2026, Protéo avait lu un manuel de 1 037 lignes d'un
+/// bloc : son sommaire tient en une phrase.
+#[test]
+fn lire_par_niveaux_ne_rend_que_ce_qu_on_demande() {
+    let mut app = GlucoseApp::new();
+    let manuel = format!(
+        "# MeshForge — manuel. {}",
+        "Une ligne du manuel.\n".repeat(1037)
+    );
+    let poser = format!(
+        r#"{{"id":"manuel","texte":{}}}"#,
+        Json::from(manuel.as_str()).ecrire()
+    );
+    appeler(&mut app, "glucose_poser_texte", &poser);
+    appeler(
+        &mut app,
+        "glucose_poser_texte",
+        r#"{"id":"note","texte":"Le portage existe. La commande polyDissolve n'existe pas dans Maya.","x":5000,"y":0}"#,
+    );
+    let noeud = |v: &Json, id: &str| -> Json {
+        v.get("noeuds")
+            .and_then(Json::as_liste)
+            .and_then(|l| {
+                l.iter()
+                    .find(|n| n.get("id").and_then(Json::as_str) == Some(id))
+                    .cloned()
+            })
+            .unwrap_or_else(|| panic!("{id} dans {}", v.ecrire()))
+    };
+    let sommaire = appeler(&mut app, "glucose_lire", "{}");
+    let m = noeud(&sommaire, "manuel");
+    assert!(
+        m.get("texte").is_none(),
+        "le sommaire ne porte pas le texte"
+    );
+    assert_eq!(
+        m.get("debut").and_then(Json::as_str),
+        Some("# MeshForge — manuel.")
+    );
+    assert_eq!(
+        m.get("taille").and_then(Json::as_f64),
+        Some(manuel.chars().count() as f64)
+    );
+    let complet = appeler(&mut app, "glucose_lire", r#"{"niveau":"complet"}"#);
+    assert!(
+        sommaire.ecrire().len() * 20 < complet.ecrire().len(),
+        "le sommaire est au moins vingt fois plus court : {} contre {}",
+        sommaire.ecrire().len(),
+        complet.ecrire().len()
+    );
+    let entier = appeler(&mut app, "glucose_lire", r#"{"ids":["note"]}"#);
+    assert_eq!(
+        entier
+            .get("noeuds")
+            .and_then(Json::as_liste)
+            .map(<[Json]>::len),
+        Some(1)
+    );
+    assert!(
+        noeud(&entier, "note").get("texte").is_some(),
+        "ids : le texte entier"
+    );
+    let trouve = appeler(&mut app, "glucose_lire", r#"{"cherche":"polydissolve"}"#);
+    assert_eq!(
+        noeud(&trouve, "note").get("passage").and_then(Json::as_str),
+        Some("La commande polyDissolve n'existe pas dans Maya.")
+    );
+    assert_eq!(
+        trouve
+            .get("noeuds")
+            .and_then(Json::as_liste)
+            .map(<[Json]>::len),
+        Some(1),
+        "seul le nœud qui contient les mots"
+    );
+}
+
 #[test]
 fn ecrire_allonge_le_document_et_sa_hauteur_suit() {
     let mut app = GlucoseApp::new();

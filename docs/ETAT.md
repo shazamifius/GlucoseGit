@@ -20,6 +20,10 @@
   écran**, puis son téléphone (aucune mesure n'y a été faite). Et **P8 bis** : un nœud immense vu de
   près coûtait 10,5 ms par image au processeur (17 600 mots) ; 0,72 ms désormais, quelle que soit sa
   longueur — et la mise en page de chaque nœud visible n'est plus refaite deux fois par image.
+* **Lire par niveaux** (fiche 79, 21/10, sa parole : « que l'IA ne récupère QUE ce dont elle a
+  besoin ») : `glucose_lire` rend d'abord le sommaire (chaque nœud, sa première phrase, sa taille),
+  puis le texte entier des nœuds choisis (`ids`) ou la phrase qui contient des mots (`cherche`).
+  Éprouvé et saboté ; **pas encore vu à son écran**.
 * **La porte des agents** (fiche 75, P10, sa demande du 17/10) : `glucose --mcp`, le protocole MCP,
   huit outils ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
   sous-question avec les pages lues en capture (le double-clic les ouvre), les citations exactes,
