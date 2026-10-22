@@ -184,6 +184,108 @@ fn lire_par_niveaux_ne_rend_que_ce_qu_on_demande() {
     );
 }
 
+fn liste_de(v: &Json, cle: &str) -> Vec<String> {
+    v.get(cle)
+        .and_then(Json::as_liste)
+        .unwrap_or_else(|| panic!("{cle} dans {}", v.ecrire()))
+        .iter()
+        .filter_map(Json::as_str)
+        .map(str::to_string)
+        .collect()
+}
+
+/// **Il montre du doigt** : ce qu'il a sélectionné, l'agent le lit — sur le tableau qu'il
+/// regarde, pas ailleurs.
+#[test]
+fn la_selection_de_l_utilisateur_se_lit() {
+    let mut app = GlucoseApp::new();
+    // Au démarrage, le nœud de bienvenue est sélectionné : poser ne change rien à cela (AGENT-2).
+    let au_depart = app.store.selected_annotation_ids.clone();
+    appeler(
+        &mut app,
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"Un."}"#,
+    );
+    appeler(
+        &mut app,
+        "glucose_poser_texte",
+        r#"{"id":"b","texte":"Deux."}"#,
+    );
+    assert_eq!(
+        liste_de(&appeler(&mut app, "glucose_lire", "{}"), "selection"),
+        au_depart
+    );
+    app.store.selected_annotation_ids = vec!["b".into()];
+    let lu = appeler(&mut app, "glucose_lire", "{}");
+    assert_eq!(liste_de(&lu, "selection"), ["b"], "« ça », c'est b");
+    app.store.selected_image_ids = vec!["une-photo".into()];
+    let avec_photo = appeler(&mut app, "glucose_lire", "{}");
+    assert_eq!(liste_de(&avec_photo, "selection"), ["une-photo", "b"]);
+    app.store.selected_image_ids.clear();
+    let autre = app.store.add_board("Ailleurs");
+    let ailleurs = appeler(
+        &mut app,
+        "glucose_lire",
+        &format!(r#"{{"tableau":"{autre}"}}"#),
+    );
+    assert!(
+        liste_de(&ailleurs, "selection").is_empty(),
+        "sa sélection n'est pas sur l'autre tableau"
+    );
+    assert_eq!(app.store.selected_annotation_ids, ["b"], "lue, pas touchée");
+}
+
+/// **Ce qu'il a récrit se voit sans tout relire** : l'empreinte d'un nœud est la même tant que
+/// son texte l'est, à tout niveau de lecture, et change quand il le récrit.
+#[test]
+fn l_empreinte_dit_ce_qui_a_ete_recrit() {
+    let mut app = GlucoseApp::new();
+    appeler(
+        &mut app,
+        "glucose_poser_texte",
+        r#"{"id":"rapport","texte":"La citation trois est juste. Fin."}"#,
+    );
+    appeler(
+        &mut app,
+        "glucose_poser_texte",
+        r#"{"id":"autre","texte":"Rien."}"#,
+    );
+    let empreinte_de = |v: &Json, id: &str| -> String {
+        v.get("noeuds")
+            .and_then(Json::as_liste)
+            .and_then(|l| {
+                l.iter()
+                    .find(|n| n.get("id").and_then(Json::as_str) == Some(id))
+            })
+            .and_then(|n| n.get("empreinte"))
+            .and_then(Json::as_str)
+            .unwrap_or_else(|| panic!("l'empreinte de {id} dans {}", v.ecrire()))
+            .to_string()
+    };
+    let avant = appeler(&mut app, "glucose_lire", "{}");
+    let entier = appeler(&mut app, "glucose_lire", r#"{"ids":["rapport"]}"#);
+    assert_eq!(
+        empreinte_de(&avant, "rapport"),
+        empreinte_de(&entier, "rapport"),
+        "la même au sommaire et en entier"
+    );
+    appeler(
+        &mut app,
+        "glucose_ecrire",
+        r#"{"id":"rapport","texte":"La citation trois est fausse. Fin."}"#,
+    );
+    let apres = appeler(&mut app, "glucose_lire", "{}");
+    assert_ne!(
+        empreinte_de(&avant, "rapport"),
+        empreinte_de(&apres, "rapport")
+    );
+    assert_eq!(
+        empreinte_de(&avant, "autre"),
+        empreinte_de(&apres, "autre"),
+        "ce qui n'a pas changé garde la sienne"
+    );
+}
+
 #[test]
 fn ecrire_allonge_le_document_et_sa_hauteur_suit() {
     let mut app = GlucoseApp::new();

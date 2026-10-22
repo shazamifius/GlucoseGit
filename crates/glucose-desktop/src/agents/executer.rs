@@ -6,7 +6,7 @@
 //! JSON que le modèle lit ; ce qui l'empêche, une phrase qu'il peut corriger.
 
 use super::json::Json;
-use super::lecture::{choisir, premiere_phrase, Demande, Rendu};
+use super::lecture::{choisir, empreinte, premiere_phrase, Demande, Rendu};
 use crate::app::GlucoseApp;
 use crate::renderer::card::text_card_fit_height;
 use glucose_core::geometry::Rect;
@@ -122,9 +122,27 @@ impl GlucoseApp {
         Ok(Json::objet([
             ("tableau", Json::from(board)),
             ("visible", boite_en_json(self.ce_qu_il_voit())),
+            ("selection", self.ce_qu_il_designe(board)),
             ("noeuds", Json::Liste(noeuds)),
             ("tableaux", Json::Liste(tableaux)),
         ]))
+    }
+
+    /// **Ce que l'utilisateur désigne** : les nœuds qu'il a sélectionnés sur le tableau qu'il
+    /// regarde — quand il écrit « ça » à l'agent, c'est cela. Rien sur un autre tableau : sa
+    /// sélection n'y est pas. L'agent la lit, il n'y touche jamais (AGENT-2).
+    fn ce_qu_il_designe(&self, board: &str) -> Json {
+        if board != self.store.project.active_board_id {
+            return Json::Liste(Vec::new());
+        }
+        let s = &self.store;
+        Json::Liste(
+            s.selected_image_ids
+                .iter()
+                .chain(&s.selected_annotation_ids)
+                .map(|id| Json::from(id.as_str()))
+                .collect(),
+        )
     }
 
     /// La partie du canevas que l'écran montre, en unités du monde.
@@ -464,6 +482,9 @@ fn decrit_en_json(d: &Decrit, rendu: &Rendu) -> Json {
         ("sorte", Json::from(d.sorte.nom())),
         ("boite", boite_en_json(d.boite)),
     ];
+    if let Some(t) = d.texte.as_deref() {
+        champs.push(("empreinte", Json::from(empreinte(t).as_str())));
+    }
     if let (Rendu::Sommaire | Rendu::Passage(_), Some(t)) = (rendu, d.texte.as_deref()) {
         champs.push(("taille", Json::Nombre(t.chars().count() as f64)));
         if let Some(p) = premiere_phrase(t) {

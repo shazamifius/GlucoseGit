@@ -1,0 +1,44 @@
+[
+ {
+  "nom": "DESIGNE la selection n'est jamais dite",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        if board != self.store.project.active_board_id {",
+  "apres": "        if true {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "la_selection_de_l_utilisateur_se_lit"]
+ },
+ {
+  "nom": "DESIGNE la selection dite sur un autre tableau",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        if board != self.store.project.active_board_id {",
+  "apres": "        if false {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "la_selection_de_l_utilisateur_se_lit"]
+ },
+ {
+  "nom": "DESIGNE les photos oubliees",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "            s.selected_image_ids\n                .iter()\n                .chain(&s.selected_annotation_ids)",
+  "apres": "            s.selected_annotation_ids\n                .iter()\n                .chain(&[])",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "la_selection_de_l_utilisateur_se_lit"]
+ },
+ {
+  "nom": "EMPREINTE absente",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        champs.push((\"empreinte\", Json::from(empreinte(t).as_str())));",
+  "apres": "        let _ = t;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "l_empreinte_dit_ce_qui_a_ete_recrit"]
+ },
+ {
+  "nom": "EMPREINTE de l'identifiant, pas du texte",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        champs.push((\"empreinte\", Json::from(empreinte(t).as_str())));",
+  "apres": "        champs.push((\"empreinte\", Json::from(empreinte(&d.id).as_str())));",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "l_empreinte_dit_ce_qui_a_ete_recrit"]
+ },
+ {
+  "nom": "EMPREINTE du seul debut du texte",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "    let mut e = hex_of(&sha256(texte.as_bytes()));",
+  "apres": "    let mut e = hex_of(&sha256(&texte.as_bytes()[..texte.len().min(8)]));",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "l_empreinte_suit_le_texte_et_lui_seul"]
+ }
+]

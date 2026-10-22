@@ -8,7 +8,18 @@
 //! dans tous (le passage trouvé, pas le texte). Aucune longueur n'est fixée ici : la phrase est
 //! l'unité, celle du texte lui-même.
 
+use glucose_core::hash::{hex_of, sha256};
 use glucose_core::store::agents::Decrit;
+
+/// **L'empreinte d'un texte** : les seize premiers chiffres de son sha256 — un mot machine, 64
+/// bits. Un agent la garde d'une lecture à l'autre : si elle a changé, l'utilisateur a récrit le
+/// nœud, et il ne relit que celui-là. Calculée à la lecture, jamais rangée : la porte reste sans
+/// état, et le fichier ne change pas.
+pub fn empreinte(texte: &str) -> String {
+    let mut e = hex_of(&sha256(texte.as_bytes()));
+    e.truncate(16);
+    e
+}
 
 /// Ce qu'un agent demande à lire.
 pub struct Demande<'a> {

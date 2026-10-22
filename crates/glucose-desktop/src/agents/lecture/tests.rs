@@ -100,3 +100,20 @@ fn le_sommaire_d_abord_puis_ce_qu_on_choisit() {
         "une membrane et ce qu'elle contient"
     );
 }
+
+#[test]
+fn l_empreinte_suit_le_texte_et_lui_seul() {
+    let e = empreinte("Le portage existe.");
+    assert_eq!(e.len(), 16, "un mot machine en hexadécimal");
+    assert_eq!(e, empreinte("Le portage existe."), "le même texte, la même");
+    assert_ne!(
+        e,
+        empreinte("Le portage existe !"),
+        "un signe change, elle change"
+    );
+    assert_eq!(
+        empreinte(""),
+        "e3b0c44298fc1c14",
+        "le début du sha256 du vide"
+    );
+}
