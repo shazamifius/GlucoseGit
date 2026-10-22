@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 22/10/2026** (fiches 73 à 80). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 22/10/2026, le soir** (fiches 73 à 81). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -31,7 +31,11 @@
   lui sans changer celui qu'on regarde. Côté Protéo : il **relit** ce que l'humain fait à chaque
   message, et range ce qu'il réussit dans son **carnet**, « Ce que Protéo a appris ». Prouvé hors
   écran (le vrai Protéo, un Glucose sans fenêtre dont une « main d'épreuve » joue l'humain) ;
-  **attend une version publiée** : la beta 5 n'a pas la porte.
+  **attend une version publiée** : la beta 5 n'a pas la porte. **Le carnet vu en réel** (fiche 81) :
+  une leçon posée par un calcul voté, corrigée depuis l'autre onglet, relue au message suivant ;
+  l'image a montré la carte d'accueil **choisie d'office**, que Protéo prenait pour un geste de
+  l'utilisateur (« il désigne : Bienvenue dans Glucose ») — corrigé, ACCUEIL-1. Son usage réel,
+  compté dans son journal : 444 gestes, aucun refus, un seul manque — la porte publiée.
 * **La porte des agents** (fiche 75, P10, sa demande du 17/10) : `glucose --mcp`, le protocole MCP,
   huit outils ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
   sous-question avec les pages lues en capture (le double-clic les ouvre), les citations exactes,
@@ -123,7 +127,7 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **2 666 épreuves** sous Windows, toutes vertes (17/10, fiche 75) ; clippy strict à zéro sous
+* **2 680 épreuves** sous Windows, toutes vertes, 7 ignorées (22/10, fiche 81) ; clippy strict à zéro sous
   Windows (Rust 1.99.1) et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
@@ -134,7 +138,8 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
   à la fiche 74, **13 sur 13 pour la couche des raccourcis de l'utilisateur**, et les 20 de P4
   rejoués ; à la fiche 75, **36 sur 36 pour la porte des agents** — après une épreuve aveugle et deux
   qui se figeaient, chacune corrigée ; à la fiche 76, **5 sur 5 pour FLECHE-6**, et côté Protéo
-  **24 sur 24** pour le tri et la toile.
+  **24 sur 24** pour le tri et la toile ; aux fiches 79 et 80, 4 + 6 + 3 + 4 pour les agents ; à la
+  fiche 81, 1 sur 1 pour ACCUEIL-1.
 * **Sur GitHub, dix tâches** à chaque envoi avec la CI : Windows, Linux, les deux Mac, le noyau
   pour Android et le web, l'APK, NixOS, l'installeur et la mise à jour, la répétition de la
   bascule depuis un vrai Glucose Tauri, les paquets Linux. Dernières vertes : `82c774b` (13/10) ;

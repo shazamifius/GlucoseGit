@@ -93,8 +93,69 @@ propose un défaut raisonnable, et laisse choisir. Les presets porteront ces dé
 * **L'ergonomie se fait à la fin** : une grosse session, quand toutes les fonctionnalités seront
   là. Avant, chaque fonction a son bouton, au PC et au téléphone (INVENTAIRE).
 
+## Le pont entre l'humain et l'IA — sa parole du 22/10/2026
+
+*« Depuis le début, Glucose visait à faire le pont entre l'humain et l'IA. »* Les quatre objectifs
+plus haut en sont les faces. Trois précisions du même jour :
+
+* **Un Glucose doit pouvoir être lu par un humain ET par une IA, de quasi la même façon.**
+  *« ATTENTION : impérativement. »* Ce qu'un humain voit, une IA doit pouvoir le lire, et l'inverse.
+* **Pas seulement Wikipédia.** *« Pourquoi se limiter à Wikipédia ? Certains datasets d'IA sont
+  super utiles, MÊME pour un humain : les avoir sur Glucose, ça doit pouvoir être incroyable. »*
+* **Un Glucose que tous les Protéo remplissent ensemble**, et où un Protéo **apprend** : *« pour
+  que Protéo lui-même démonte Maya, le comprenne — en fait il va apprendre plein de trucs avant de
+  le remonter pour finaliser l'addon ; tout ça peut être écrit sur Glucose. »*
+
+## Le domaine — sa définition (22/10/2026)
+
+*« Toutes les sessions de code me demandent ce qu'est un domaine : c'est le moment de répondre. »*
+
+> **Le domaine, c'est l'idée de créer un fork.** Dans le domaine **eau**, on peut très bien avoir :
+> « l'eau, ça mouille » ; « eau = H₂O » ; « l'eau dans les jeux vidéo : il faut des systèmes de
+> noise map et de displacement pour créer un effet de 3D ». Ce sont **trois choses très séparées**,
+> dans des **blocs de texte distincts**, qui peuvent eux-mêmes être dans des **membranes**, elles-mêmes
+> peut-être dans des **fichiers** différents — **mais le domaine, lui, va traverser tout ça : tout
+> fait partie du domaine de l'eau.** Aujourd'hui, sur Glucose, on ne peut tout simplement pas le
+> faire : c'est pour ça que le domaine existe.
+
+**Pour l'instant, on se concentre sur le domaine.**
+
+**Trans-domaines** : *« une espèce de vue en perspective 3D de tous les domaines… mais c'est de la
+R&D, je ne suis pas sûr. »* Il attend ; le bouton dit « bientôt ».
+
+**Les dimensions de Glucose** (sa piste de R&D, telle qu'il la dit) : un espace latent de 4 096
+dimensions, posé sur un canevas 2D, devient *« absolument PLUS exploitable »* ; des chercheurs
+ont réussi à travailler un espace latent sur une centaine de dimensions pour le redéplier ensuite.
+Glucose n'est pas *juste* un canevas 2D : les axes x et y ; la couleur des blocs (*« autant de
+couleurs visibles que de dimensions »*) ; la membrane (une dimension, plus une couleur) ; la flèche
+(*« une infinité de dimensions ? c'est un système qui a énormément d'options »*) ; le domaine (une
+infinité de dimensions, plus une couleur).
+
+### Ce que la session du 22/10 en comprend, et y précise (à remettre en question)
+
+* **Membrane et domaine sont deux structures différentes, et c'est ce qui fait le domaine.** Une
+  membrane **contient** : un nœud est dans une seule membrane à la fois, et les membranes
+  s'emboîtent — un arbre. Un domaine **traverse** : un nœud peut appartenir à plusieurs domaines, à
+  des degrés divers, quelle que soit sa membrane ou son fichier — un recouvrement, pas un arbre. Le
+  noyau a déjà cette forme pour un document (`Project.domains`, chaque nœud porte ses domaines avec
+  un poids de 0 à 1 : une appartenance graduée) ; il lui manque de **traverser les fichiers**, d'être
+  **vu** (filtrer, colorer) et d'être **lu par une IA** (`glucose_lire` ne dit pas les domaines).
+* **« Lu de la même façon » oblige à une règle** : le sens d'un tableau ne doit jamais tenir
+  **seulement** dans la position. Un humain lit la proximité ; une IA reçoit des coordonnées qu'elle
+  n'interprète pas. Ce qui compte s'écrit donc aussi dans une structure explicite — une membrane, une
+  flèche, un domaine —, que les deux lisent pareil.
+* **Les dimensions, comptées honnêtement** : x et y sont deux dimensions continues ; la couleur
+  perçue en a trois (clarté, deux axes de teinte), et l'œil ne distingue de façon sûre qu'une
+  dizaine de couleurs **catégorielles** (ordre de grandeur des guides de visualisation, à vérifier) —
+  au-delà d'une dizaine de domaines, la couleur seule ne suffira plus à les reconnaître ; chaque
+  domaine est une dimension à lui (appartient, et à quel degré) : leur nombre n'a pas de borne.
+  Ce qui rend Glucose plus exploitable qu'un espace latent n'est pas de le **projeter** en 2D (une
+  projection de 4 096 dimensions en perd presque tout), c'est que ses dimensions sont **explicites et
+  nommées** — « eau », « contredit » — là où celles d'un modèle sont anonymes.
+
 ## Ce qui est encore à définir — sa parole
 
-* **Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
-  raisonnement sur ce que j'entends par domaine »*.
+* ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
+  raisonnement sur ce que j'entends par domaine »*.~~ **Le domaine est défini depuis le 22/10**
+  (plus haut) ; Trans-domaines reste de la R&D (une vue en perspective 3D de tous les domaines).
 * Le design des dossiers, à retravailler ; le dessin de la sélection (E, pour l'instant).
