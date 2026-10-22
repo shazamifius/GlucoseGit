@@ -212,6 +212,8 @@ impl GlucoseApp {
         let message = match self.try_open(&path) {
             Ok(Ouverture::Glucose(report)) => {
                 self.retenir_le_document(&path);
+                // Venu d'un fichier, il en garde le nom d'une session à l'autre (fiche 80).
+                self.store.identite = path.display().to_string();
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
                 open_message(&self.store.project, &report)

@@ -14,6 +14,17 @@
 use super::{build_folder_stack, Store};
 use crate::types::Project;
 
+/// **L'identité d'un document chargé maintenant** ([`Store::identite`]) : l'instant, et le rang du
+/// chargement dans ce programme — deux chargements dans la même nanoseconde restent distincts.
+pub(super) fn identite_d_instant() -> String {
+    static RANG: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let rang = RANG.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let instant = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    format!("charge-{instant}-{rang}")
+}
+
 /// Extrait le suffixe numérique d'un identifiant produit par `generate_id`.
 ///
 /// `"img-42"` → `Some(42)`, `"mirror-folder-7"` → `Some(7)`, `"main"` → `None`.
@@ -106,6 +117,7 @@ impl Store {
     /// sinon réécrites au prochain `Ctrl+S`.
     pub fn load_project(&mut self, project: Project) -> usize {
         self.project = project;
+        self.identite = identite_d_instant();
         self.resync_next_id();
         let repaired = self.repair_domain_assignments();
         // Fiche 09 § 1 : la caméra d'un fichier — abîmé, ou écrit par une autre version —
@@ -134,6 +146,21 @@ mod tests {
         assert_eq!(numeric_suffix("main"), None);
         assert_eq!(numeric_suffix("img-"), None);
         assert_eq!(numeric_suffix("board-abc"), None);
+    }
+
+    /// Fiche 80 : chaque document nomme son premier tableau `main` ; l'identité du document, elle,
+    /// change à chaque chargement — un agent ne prend jamais un document pour un autre.
+    #[test]
+    fn chaque_chargement_a_son_identite() {
+        let mut store = Store::new("P");
+        let premiere = store.identite.clone();
+        assert_ne!(Store::new("P").identite, premiere, "deux documents");
+        store.load_project(Project::new("Autre"));
+        assert_ne!(store.identite, premiere, "un autre document chargé");
+        assert_eq!(
+            store.project.active_board_id, "main",
+            "le même nom de tableau"
+        );
     }
 
     #[test]

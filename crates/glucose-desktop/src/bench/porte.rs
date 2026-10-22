@@ -80,7 +80,40 @@ pub fn servir_sans_fenetre(
             println!("[porte] {}", chemin.display());
         }
     }
+    rendre_les_autres_onglets(&mut app, dossier, taille)?;
     Ok(gestes)
+}
+
+/// Les autres onglets qui portent quelque chose — le carnet d'un agent, par exemple (fiche 80) —,
+/// chacun en entier : `onglet-<n>.png`. Le regard y passe le temps d'une image, puis revient.
+fn rendre_les_autres_onglets(
+    app: &mut GlucoseApp,
+    dossier: &Path,
+    taille: (u32, u32),
+) -> Result<(), String> {
+    let actif = app.store.project.active_board_id.clone();
+    let autres: Vec<String> = app
+        .store
+        .onglets()
+        .filter(|(_, _, regarde)| !regarde)
+        .map(|(id, _, _)| id.to_string())
+        .collect();
+    for (n, id) in autres.iter().enumerate() {
+        let decrits = app
+            .store
+            .decrire_pour_un_agent(id)
+            .map_err(|r| r.to_string())?;
+        let Some(tout) = decrits.iter().map(|d| d.boite).reduce(|a, b| a.union(b)) else {
+            continue;
+        };
+        app.store.project.active_board_id = id.clone();
+        let chemin = dossier.join(format!("onglet-{}.png", n + 1));
+        let rendu = rendre(app, id, tout, taille, &chemin);
+        app.store.project.active_board_id = actif.clone();
+        rendu?;
+        println!("[porte] {}", chemin.display());
+    }
+    Ok(())
 }
 
 /// Rend ce rectangle du monde, cadré dans l'image.

@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 18/10/2026, le soir** (fiches 73 à 78). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 22/10/2026** (fiches 73 à 80). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -24,6 +24,14 @@
   besoin ») : `glucose_lire` rend d'abord le sommaire (chaque nœud, sa première phrase, sa taille),
   puis le texte entier des nœuds choisis (`ids`) ou la phrase qui contient des mots (`cherche`).
   Éprouvé et saboté ; **pas encore vu à son écran**.
+* **Ce que l'humain désigne** (fiche 80, 22/10, sa parole : « Protéo utilise Glucose comme un outil,
+  et Glucose reçoit ses critiques ») : `glucose_lire` dit aussi ce que l'utilisateur a
+  **sélectionné** (« ça »), l'**empreinte** de chaque texte (ce qu'il a récrit se voit sans tout
+  relire) et l'**identité du document** ; `glucose_ouvrir_tableau` donne à un agent un onglet à
+  lui sans changer celui qu'on regarde. Côté Protéo : il **relit** ce que l'humain fait à chaque
+  message, et range ce qu'il réussit dans son **carnet**, « Ce que Protéo a appris ». Prouvé hors
+  écran (le vrai Protéo, un Glucose sans fenêtre dont une « main d'épreuve » joue l'humain) ;
+  **attend une version publiée** : la beta 5 n'a pas la porte.
 * **La porte des agents** (fiche 75, P10, sa demande du 17/10) : `glucose --mcp`, le protocole MCP,
   huit outils ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
   sous-question avec les pages lues en capture (le double-clic les ouvre), les citations exactes,

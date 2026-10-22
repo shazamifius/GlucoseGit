@@ -117,6 +117,11 @@ fn test_un_brouillon_passe_avant_un_document_plus_recent() {
     relance.retrouver_le_travail();
     assert!(relance.project_path.is_none(), "le brouillon d'abord");
     assert_eq!(relance.store.project, attendu);
+    assert!(
+        std::path::Path::new(&relance.store.identite).is_file(),
+        "le même brouillon, rouvert, a l'identité de son fichier (fiche 80) : {}",
+        relance.store.identite
+    );
 }
 
 /// **Les autres brouillons se disent**, et chacun reparaît à son tour : aucun n'attend en

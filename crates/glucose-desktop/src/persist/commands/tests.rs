@@ -88,6 +88,11 @@ fn test_edit_then_save_then_reopen_through_the_application_itself() {
         !reopened.is_dirty(),
         "un document qu'on vient d'ouvrir est propre"
     );
+    assert_eq!(
+        reopened.store.identite,
+        path.display().to_string(),
+        "venu d'un fichier, il en a l'identité, d'une session à l'autre (fiche 80)"
+    );
     assert_ne!(
         reopened.store.version, version_before,
         "la version doit avancer, sinon l'index spatial du renderer reste perime"

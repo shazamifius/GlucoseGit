@@ -121,6 +121,7 @@ impl GlucoseApp {
             })
             .collect();
         Ok(Json::objet([
+            ("document", Json::from(self.store.identite.as_str())),
             ("tableau", Json::from(board)),
             ("visible", boite_en_json(self.ce_qu_il_voit())),
             ("selection", self.ce_qu_il_designe(board)),

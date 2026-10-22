@@ -233,6 +233,12 @@ fn la_selection_de_l_utilisateur_se_lit() {
         "sa sélection n'est pas sur l'autre tableau"
     );
     assert_eq!(app.store.selected_annotation_ids, ["b"], "lue, pas touchée");
+    // L'identité du document : un agent range ce qu'il a vu sous elle, jamais sous `main` seul.
+    let doc = lu
+        .get("document")
+        .and_then(Json::as_str)
+        .expect("le document");
+    assert_eq!(doc, app.store.identite);
 }
 
 /// **Ce qu'il a récrit se voit sans tout relire** : l'empreinte d'un nœud est la même tant que

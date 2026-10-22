@@ -42,6 +42,13 @@ sur le tableau que l'utilisateur regarde.
   sha256 du noyau, aucune dépendance), calculée à la lecture et jamais rangée — la porte reste
   sans état, le fichier ne change pas. L'agent la garde ; à la lecture suivante, il ne relit que
   les nœuds dont l'empreinte a changé.
+* **`document`** : l'identité du document que Glucose montre. **Un bug évité avant de servir** :
+  chaque document nomme son premier tableau `main` ; Protéo rangeait ce qu'il avait vu par
+  tableau, et ouvrir un autre document lui aurait fait prendre les 536 nœuds qu'il connaissait
+  pour des retraits de l'utilisateur. L'identité est le **chemin du fichier** quand le document en
+  vient (ouvert, ou brouillon repris : elle survit d'une session à l'autre), sinon l'**instant de
+  son chargement** (`Store::identite`) — deux documents ne la partagent jamais. Enregistrer ne la
+  change pas en cours de route.
 * **`glucose_ouvrir_tableau`** : l'onglet qui porte ce nom, créé s'il n'existe pas, en un geste
   annulable — l'onglet que l'utilisateur regarde ne change jamais, et le même nom rend toujours
   le même onglet (l'esprit d'AGENT-4). Un ajout **né de l'usage de Protéo** : son carnet n'avait
@@ -66,7 +73,9 @@ dont la première phrase dit quand s'en servir ; s'il corrige une leçon, Proté
   change pas, le vecteur du vide) ; l'onglet (le même nom, le même onglet ; un geste qu'un
   `Ctrl+Z` défait ; refusé pendant un geste de la main ; un nom vide refusé ; on y pose avec
   `tableau` sans changer de regard).
-* **Sabotages** : `agents-designer.json` (6 sur 6), `agents-tableau.json` (3 sur 3).
+* **Sabotages** : `agents-designer.json` (6 sur 6), `agents-tableau.json` (3 sur 3),
+  `agents-document.json` (4 sur 4 — dont une **épreuve aveugle** trouvée : la reprise d'un
+  brouillon ne gardait rien de son identité ; l'épreuve de la reprise la garde désormais).
 * **La suite entière** : fmt, clippy `-D warnings`, toutes les épreuves (cliquets compris).
 * **L'essai réel** (le vrai Protéo, le vrai `qwen3.5:4b`, le vrai web, ce Glucose sans fenêtre, moi
   dans le rôle de l'humain par la main d'épreuve) : « Explique-moi en deux phrases ce qu'est le
@@ -81,6 +90,8 @@ dont la première phrase dit quand s'en servir ; s'il corrige une leçon, Proté
 
 * **Un agent n'avait pas d'onglet à lui** → `glucose_ouvrir_tableau` (fait).
 * **Un agent ne voyait ni la sélection ni les corrections** → `selection`, `empreinte` (fait).
+* **Un agent ne savait pas quel document il lisait** (tous ont un tableau `main`) → `document`
+  (fait).
 * **L'auteur d'un nœud n'est pas dans le fichier** : Protéo reconnaît les siens à leur préfixe
   (`proteo-`), ce qui suffit pour un agent seul, pas pour plusieurs — ni pour le Glucose que tous
   les Protéo rempliraient. Il faudra la provenance par nœud (qui, depuis quelle preuve, quand).

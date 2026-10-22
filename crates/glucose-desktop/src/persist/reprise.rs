@@ -144,6 +144,8 @@ impl GlucoseApp {
         let ouvert =
             histoire::ouvrir(&mut std::io::BufReader::new(f)).map_err(|e| e.to_string())?;
         let adoption = self.adopter_un_ouvert(&ouvert, chemin.to_path_buf());
+        // Le même brouillon, rouvert : la même identité (fiche 80).
+        self.store.identite = chemin.display().to_string();
         if let Some(e) = self.disque.ecriture.as_mut() {
             e.brouillon = true;
         }

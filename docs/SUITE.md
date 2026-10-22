@@ -57,6 +57,7 @@ Petite et rapide : juger la beta 5, nommer les causes que la télémétrie appor
 | [ ] | **P3 — Ce que son téléphone dira** : son téléphone tournait à **19,5 ms** par image en médiane, sous le plancher presque tout le temps. POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent ; et **P8 au téléphone**, jamais mesuré (Slug sur sa PowerVR) | les postes lus, le coupable nommé par la mesure, puis tenu |
 | [x] | **Le repos à zéro** — mesuré le 18/10 : une séance immobile, un dossier de données à part — **0,2 image par seconde sans la main, toutes pour le fondu du message de bienvenue**, rien d'autre. Les « 1,6 image par seconde » du 09/10 étaient, selon toute vraisemblance, les fondus de messages que sa main venait de faire naître. Réserve : une séance, et le pavé touché en route | une chronique au repos sans image hors un message qui paraît |
 | [~] | **P10 — La porte des agents** (fiche 75, sa demande du 17/10) : `glucose --mcp`, le protocole MCP des deux époques, huit outils ; chaque appel est un geste annulable (AGENT-1 à 4), rien sans son accord (AGENTS-1), la porte n'est qu'à lui (AGENTS-2) ; la page web en miniature, que le double-clic ouvre ; **côté Protéo** : la toile — Demande, Recherche en colonnes, Rapport relié phrase par phrase aux citations | Protéo travaille dans son Glucose, sous ses yeux |
+| [~] | **L'agent et l'humain, dans les deux sens** (fiches 79, 80) : lire par niveaux ; `selection`, `empreinte`, `document` dans `glucose_lire` ; `glucose_ouvrir_tableau` ; côté Protéo, la relecture à chaque message, le carnet « Ce que Protéo a appris », le « je ne sais pas » — éprouvés, sabotés, vus en essai réel hors écran. **Reste** : les commentaires ancrés, la provenance par nœud (qui l'a écrit, depuis quelle preuve), les membranes repliables, le statut et la preuve écrits par le programme ; relever par le programme ce que l'usage de Protéo dit de Glucose | il sélectionne un nœud de Protéo et dit « ça » ; il corrige une leçon du carnet ; Protéo le voit |
 | [~] | **La toile, rangée** (fiche 77 § 5) : **RANGEE-1** (une demande, une rangée : la Demande sous tout le tableau, ses recherches et rapports à sa droite) ; **SUITE-2** (une demande qui poursuit la précédente se relie à elle — le début des graphes de questions) | vu en essai réel, puis à son écran |
 | [~] | **Le tri de la demande** (fiche 76, sa demande du 17/10) : réponse courte, outils, ou workflow et sa taille — deux questions vrai/faux au modèle, la règle de l'année, la route qui en suit (sans outil, la boucle, la mission ouverte par le programme) ; la toile par demande ; **FLECHE-6** (la flèche ancrée arrive à la hauteur de sa citation) | ses demandes, dans son Glucose : le tri juste à ses yeux |
 | [~] | **Le cerveau de Protéo** (fiches 77, 78) : le banc rendu juste (SORTIE-1, FENETRE-1, ANNULE-1, `scripts` retirée, le verdict pesé par chemin, un cerveau = un modèle et sa réflexion) ; **qwen3.5:4b démontré meilleur que qwen2.5:7b (15/20 contre 3/20, p = 0,0005)**. **Reste** : finir les essais réels (le grand prix, le sodium-ion, la suite ; relire le script et les abeilles), la seconde répétition (la réflexion), **lui proposer la bascule**, remplacer `proteo.exe` | un modèle meilleur que qwen2.5:7b, mesuré, en service |
@@ -169,6 +170,10 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
   Bureau ; « Autoriser » dans Glucose ; une demande courte (« salut »), une demande d'outils, un
   projet — la bulle Demande dit chaque tri, la taille d'un workflow, puis la réponse ; une recherche :
   ses pages (double-clic les ouvre), les flèches du rapport qui arrivent à côté de chaque citation.
+  **Puis (fiche 80)** : sélectionner la réponse de Protéo et lui écrire « développe ça » ; poser un
+  post-it dans sa bulle Demande ; ouvrir l'onglet « Ce que Protéo a appris » après un calcul, y
+  corriger une leçon, et lui demander s'il l'a vue ; sous une question de Protéo, le bouton « Je ne
+  sais pas ».
 
 * **Le texte de près** (fiches 72 et 73) : zoomer très près d'un texte, d'une formule, d'un
   passage qu'une flèche fait briller, d'une sélection en cours d'écriture, d'un emoji, de
@@ -220,6 +225,9 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 ## 3. Ce qui n'attend que lui
 
+* **Publier une version qui a la porte des agents** (la beta 5 ne l'a pas) : sans elle, rien des
+  fiches 75 à 80 ne se voit chez lui ; le brouillon se prépare à sa demande, le clic « Publish
+  release » est le sien.
 * **Rouvrir Glucose une seconde fois**, au PC et au téléphone : la télémétrie de la beta 4 et de
   la beta 5 part au lancement suivant (P0).
 * **Sa clé SauceNAO** (la provenance des images).

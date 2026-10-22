@@ -87,6 +87,12 @@ pub struct Store {
     /// projet venu du disque : [`Store::load_project`] le rétablit par un unique scan.
     pub next_id: u64,
     pub version: u64,
+    /// **L'identité du document chargé** (fiche 80) : un agent range sous elle ce qu'il en a vu.
+    /// L'instant du chargement par défaut — deux documents ne la partagent jamais ; l'application
+    /// la remplace par le chemin du fichier quand le document en vient, pour qu'elle survive d'une
+    /// session à l'autre. Chaque document nomme son premier tableau `main` : sans elle, un agent
+    /// prendrait un autre document pour celui qu'il connaît, et ses nœuds absents pour des retraits.
+    pub identite: String,
 
     /// Les bornes du contenu, gardées d'une image à l'autre (invariant BORNES-1, documenté
     /// sur [`Store::content_bounds`]). Mutabilité intérieure : répondre vite à une question
@@ -116,6 +122,7 @@ impl Store {
             journal: journal::Journal::new(UNDO_DEPTH),
             next_id: 1,
             version: 1,
+            identite: ids::identite_d_instant(),
             bornes: std::cell::RefCell::default(),
             groupe: std::cell::RefCell::default(),
             glisser: None,

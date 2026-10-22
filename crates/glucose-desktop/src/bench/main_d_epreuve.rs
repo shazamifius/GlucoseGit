@@ -7,7 +7,7 @@
 //!
 //! ```text
 //! {"selectionner": ["id", …]}                           sa sélection (vide : plus rien)
-//! {"recrire": {"id": "…", "texte": "…"}}                il récrit un texte
+//! {"recrire": {"id": "…", "texte": "…", "tableau": "…"}} il récrit un texte (un autre onglet, s'il le dit)
 //! {"poser_post_it": {"id": "…", "texte": "…", "x": 0, "y": 0}}
 //! {"retirer": ["id", …]}
 //! ```
@@ -76,8 +76,10 @@ fn geste(app: &mut GlucoseApp, g: &Json) -> Result<String, String> {
             .and_then(Json::as_str)
             .ok_or("recrire sans id")?;
         let texte = r.get("texte").and_then(Json::as_str).unwrap_or("");
+        // Un autre onglet, s'il le dit : il y corrige peut-être le carnet d'un agent.
+        let ou = r.get("tableau").and_then(Json::as_str).unwrap_or(&board);
         s.begin_live_edit();
-        s.ecrire_le_texte(&board, id, texte);
+        s.ecrire_le_texte(ou, id, texte);
         s.end_live_edit();
         return Ok(format!("récrit {id}"));
     }

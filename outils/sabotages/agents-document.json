@@ -1,0 +1,57 @@
+[
+ {
+  "nom": "DOCUMENT un chargement garde l'identite d'avant",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        self.project = project;\n        self.identite = identite_d_instant();",
+  "apres": "        self.project = project;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "chaque_chargement"
+  ]
+ },
+ {
+  "nom": "DOCUMENT un fichier ouvert n'en prend pas le nom",
+  "fichier": "crates/glucose-desktop/src/persist/commands.rs",
+  "avant": "                self.store.identite = path.display().to_string();",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_edit_then_save_then_reopen"
+  ]
+ },
+ {
+  "nom": "DOCUMENT l'agent ne lit pas l'identite",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "            (\"document\", Json::from(self.store.identite.as_str())),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "la_selection_de_l_utilisateur_se_lit"
+  ]
+ },
+ {
+  "nom": "DOCUMENT un brouillon repris change d'identite",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "        self.store.identite = chemin.display().to_string();",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_un_brouillon_passe_avant"
+  ]
+ }
+]
