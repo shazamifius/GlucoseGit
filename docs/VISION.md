@@ -106,6 +106,22 @@ plus haut en sont les faces. Trois précisions du même jour :
   que Protéo lui-même démonte Maya, le comprenne — en fait il va apprendre plein de trucs avant de
   le remonter pour finaliser l'addon ; tout ça peut être écrit sur Glucose. »*
 
+Et trois exigences pour les agents, dites le même jour :
+
+* **Une IA doit savoir où se situe quoi dans la carte** — pas seulement la liste des nœuds : leur
+  géographie (ce qui est à côté de quoi, dans quelle région, dans quelle membrane).
+* **Un système de déplacement et de recherche ULTRA avancé pour les IA**, *« pour qu'elles
+  retrouvent ce dont elles ont besoin directement, sans trop galérer — attention : Glucose est là
+  pour faire des recherches, mais des fois on ne sait pas ce qu'on recherche »*. Il faut réfléchir à
+  des systèmes pour **coller Protéo à Glucose**.
+* **Une IA peut être elle-même le sous-agent d'une autre** — avec peu de mémoire de carte graphique
+  et peu de temps pour répondre (côté Protéo : sa conception, § 4.20).
+
+**Un usage qui attend** : un projet Rust de plusieurs millions de lignes (web3), à poser **sur**
+Glucose — non pas son code, mais **l'arbre complet de comment il est fait** (*« une arborescence
+mathématique super complexe »*), que Protéo construit ; puis travailler sur ce projet avec Protéo,
+depuis Glucose.
+
 ## Le domaine — sa définition (22/10/2026)
 
 *« Toutes les sessions de code me demandent ce qu'est un domaine : c'est le moment de répondre. »*
@@ -118,7 +134,8 @@ plus haut en sont les faces. Trois précisions du même jour :
 > fait partie du domaine de l'eau.** Aujourd'hui, sur Glucose, on ne peut tout simplement pas le
 > faire : c'est pour ça que le domaine existe.
 
-**Pour l'instant, on se concentre sur le domaine.**
+**Pour l'instant, on se concentre sur le domaine** — mais pas sur sa visualisation : *« ça va dans
+la catégorie ergonomie de l'application, et l'ergonomie, ce n'est pas pour tout de suite »*.
 
 **Trans-domaines** : *« une espèce de vue en perspective 3D de tous les domaines… mais c'est de la
 R&D, je ne suis pas sûr. »* Il attend ; le bouton dit « bientôt ».
