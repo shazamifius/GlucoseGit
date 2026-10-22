@@ -1,6 +1,37 @@
 use super::*;
 use crate::text_anchors::resolve_text_sel;
 
+/// **Un carnet, pas un par appel** : le même nom rend le même onglet ; le créer est un geste
+/// qu'un `Ctrl+Z` défait ; l'onglet qu'il regarde ne change jamais.
+#[test]
+fn ouvrir_un_tableau_rend_le_meme_et_ne_change_pas_son_regard() {
+    let (mut store, regarde) = son_tableau();
+    let (id, cree) = store
+        .ouvrir_un_tableau_pour_un_agent("Ce que Protéo a appris")
+        .expect("ouvert");
+    assert!(cree && id != regarde);
+    assert_eq!(store.project.active_board_id, regarde, "son regard reste");
+    let profondeur = store.undo_depth();
+    let (encore, cree) = store
+        .ouvrir_un_tableau_pour_un_agent("Ce que Protéo a appris")
+        .expect("rouvert");
+    assert_eq!((encore.as_str(), cree), (id.as_str(), false));
+    assert_eq!(store.undo_depth(), profondeur, "rouvrir n'est pas un geste");
+    assert_eq!(store.selected_annotation_ids, ["sien"], "AGENT-2");
+    store.undo();
+    assert!(
+        store.onglets().all(|(i, _, _)| i != id),
+        "un Ctrl+Z le défait"
+    );
+    // Pendant un geste de sa main, l'appel attend : son Ctrl+Z défairait les deux (AGENT-1).
+    store.begin_live_edit();
+    assert_eq!(
+        store.ouvrir_un_tableau_pour_un_agent("Archives"),
+        Err(Refus::GesteEnCours)
+    );
+    store.cancel_live_edit();
+}
+
 /// Un tableau où l'utilisateur a déjà travaillé : un texte à lui, choisi.
 fn son_tableau() -> (Store, String) {
     let mut store = Store::new("agents");

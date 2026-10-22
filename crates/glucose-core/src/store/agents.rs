@@ -180,6 +180,18 @@ impl Store {
         resultat
     }
 
+    /// **Ouvre un tableau pour un agent** : l'onglet qui porte ce nom, ou un neuf s'il n'y en a
+    /// pas — en un geste, sans changer celui que l'utilisateur regarde. Rend son identifiant, et
+    /// s'il vient d'être créé. Le même nom rend le même onglet (AGENT-4) : un agent qui range son
+    /// carnet n'en ouvre pas un par appel.
+    pub fn ouvrir_un_tableau_pour_un_agent(&mut self, nom: &str) -> Result<(String, bool), Refus> {
+        if let Some((id, _, _)) = self.onglets().find(|(_, n, _)| *n == nom) {
+            return Ok((id.to_string(), false));
+        }
+        let id = self.geste_d_agent(|s| Ok(s.add_board(nom)))?;
+        Ok((id, true))
+    }
+
     /// **Le tableau tel qu'un agent le lit** : chaque photo et chaque annotation, avec sa boîte
     /// et son texte.
     pub fn decrire_pour_un_agent(&self, board_id: &str) -> Result<Vec<Decrit>, Refus> {

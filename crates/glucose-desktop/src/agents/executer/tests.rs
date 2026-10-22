@@ -286,6 +286,33 @@ fn l_empreinte_dit_ce_qui_a_ete_recrit() {
     );
 }
 
+/// **Son carnet** : un onglet à l'agent, où il pose avec « tableau », sans que l'utilisateur
+/// change de regard.
+#[test]
+fn un_agent_ouvre_son_tableau_et_y_pose() {
+    let mut app = GlucoseApp::new();
+    let regarde = board(&app);
+    let r = appeler(&mut app, "glucose_ouvrir_tableau", r#"{"nom":"Carnet"}"#);
+    let carnet = r
+        .get("tableau")
+        .and_then(Json::as_str)
+        .expect("son id")
+        .to_string();
+    assert_eq!(r.get("cree").and_then(Json::as_bool), Some(true));
+    let encore = appeler(&mut app, "glucose_ouvrir_tableau", r#"{"nom":"Carnet"}"#);
+    assert_eq!(
+        encore.get("tableau").and_then(Json::as_str),
+        Some(carnet.as_str())
+    );
+    let poser = format!(r#"{{"id":"lecon","texte":"Une leçon.","tableau":"{carnet}"}}"#);
+    appeler(&mut app, "glucose_poser_texte", &poser);
+    assert!(app.store.project.annotation(&carnet, "lecon").is_some());
+    assert_eq!(board(&app), regarde, "il regarde toujours le sien");
+    assert!(app
+        .executer_pour_un_agent("glucose_ouvrir_tableau", &args(r#"{"nom":"  "}"#))
+        .is_err());
+}
+
 #[test]
 fn ecrire_allonge_le_document_et_sa_hauteur_suit() {
     let mut app = GlucoseApp::new();

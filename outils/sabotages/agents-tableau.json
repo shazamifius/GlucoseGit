@@ -1,0 +1,23 @@
+[
+ {
+  "nom": "TABLEAU le meme nom en ouvre un autre",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        if let Some((id, _, _)) = self.onglets().find(|(_, n, _)| *n == nom) {",
+  "apres": "        if let Some((id, _, _)) = self.onglets().find(|_| false) {",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "ouvrir_un_tableau"]
+ },
+ {
+  "nom": "TABLEAU hors d'un geste d'agent",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "        let id = self.geste_d_agent(|s| Ok(s.add_board(nom)))?;",
+  "apres": "        let id = self.add_board(nom);",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "ouvrir_un_tableau"]
+ },
+ {
+  "nom": "TABLEAU un nom vide accepte",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        if nom.is_empty() {\n            return Err(\"un onglet a un nom\".into());",
+  "apres": "        if false {\n            return Err(\"un onglet a un nom\".into());",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "un_agent_ouvre_son_tableau"]
+ }
+]

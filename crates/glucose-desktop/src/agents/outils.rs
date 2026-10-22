@@ -80,6 +80,13 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"id":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"tableau":{"type":"string"}},"required":["id","x","y"]}"##,
     ),
     (
+        "glucose_ouvrir_tableau",
+        "Rend l'identifiant de l'onglet qui porte ce nom, et le crée s'il n'existe pas — un \
+         tableau à toi (un carnet, des archives), où poser ensuite avec « tableau ». L'onglet que \
+         l'utilisateur regarde ne change pas. Le même nom rend toujours le même onglet.",
+        r##"{"type":"object","properties":{"nom":{"type":"string"}},"required":["nom"]}"##,
+    ),
+    (
         "glucose_retirer",
         "Retire des nœuds, et les flèches qui n'ont plus de bout.",
         r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"}},"tableau":{"type":"string"}},"required":["ids"]}"##,

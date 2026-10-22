@@ -233,6 +233,7 @@ pub fn capture_with(
     pixmap.encode_png().expect("encoder un PNG")
 }
 
+pub mod main_d_epreuve;
 pub mod porte;
 pub mod vitrine;
 

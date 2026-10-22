@@ -20,7 +20,8 @@ use std::time::Duration;
 
 /// **Sert les agents** sur la porte `nom` jusqu'à ce que le fichier `arret` existe, puis rend le
 /// tableau entier, et chaque membrane qui n'est dans aucune autre, en PNG dans `dossier`. Rend le
-/// nombre de gestes reçus.
+/// nombre de gestes reçus. Les gestes d'un utilisateur écrits dans `dossier/main.jsonl` sont
+/// joués par la main d'épreuve.
 pub fn servir_sans_fenetre(
     nom: &str,
     arret: &Path,
@@ -32,8 +33,11 @@ pub fn servir_sans_fenetre(
     let _porte = Porte::ouvrir(nom, boite.clone()).ok_or("la porte ne s'ouvre pas")?;
     app.lancement.agents = Agents::avec_la_boite(boite);
     println!("[porte] ouverte : {nom}");
+    // Les gestes d'un utilisateur, s'il y en a à jouer (fiche 80) : `<dossier>/main.jsonl`.
+    let mut main = super::main_d_epreuve::MainDEpreuve::nouvelle(dossier.join("main.jsonl"));
     let mut gestes = 0;
     while !arret.exists() {
+        main.jouer(&mut app);
         let avant = app.store.undo_depth();
         app.suivre_les_agents();
         if matches!(app.ui.question, Some((_, Suite::Agent(_)))) {

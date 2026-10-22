@@ -74,6 +74,7 @@ impl GlucoseApp {
             "glucose_poser_page" => self.agent_poser_page(&board, &a),
             "glucose_deplacer" => self.agent_deplacer(&board, &a),
             "glucose_retirer" => self.agent_retirer(&board, &a),
+            "glucose_ouvrir_tableau" => self.agent_ouvrir_tableau(&a),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),
         };
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.
@@ -335,6 +336,23 @@ impl GlucoseApp {
             .geste_d_agent(|s| s.retirer_pour_un_agent(board, &ids))
             .map_err(|r| r.to_string())?;
         Ok(Json::objet([("retires", Json::Nombre(n as f64))]))
+    }
+
+    /// Un onglet à l'agent, par son nom : le même nom, le même onglet.
+    fn agent_ouvrir_tableau(&mut self, a: &Args<'_>) -> Result<Json, String> {
+        let nom = a.requis("nom")?.trim();
+        if nom.is_empty() {
+            return Err("un onglet a un nom".into());
+        }
+        let (id, cree) = self
+            .store
+            .ouvrir_un_tableau_pour_un_agent(nom)
+            .map_err(|r| r.to_string())?;
+        Ok(Json::objet([
+            ("tableau", Json::from(id.as_str())),
+            ("nom", Json::from(nom)),
+            ("cree", Json::Bool(cree)),
+        ]))
     }
 
     /// **Une page web** : sa capture, qui garde son adresse — le double-clic l'ouvre
