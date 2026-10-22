@@ -31,6 +31,11 @@ pub(super) fn document_d_accueil(renderer: &Renderer) -> Store {
     // marqueur était traité, Ctrl+Z était actif dès le lancement et retirait une carte
     // que personne n'avait posée.
     store.journal.clear();
+    // Ni un choix de l'utilisateur (ACCUEIL-1) : la fabrique choisit ce qu'elle pose, comme
+    // après un clic.
+    // Laissée choisie, la carte faisait dire « 1 sélectionné » au lancement, et un agent lisait
+    // que l'utilisateur la désignait (fiche 81).
+    store.clear_selection();
     // Ni dans l'histoire non plus : la carte fait partie de l'état de départ, que la base du
     // document écrira telle quelle (JRN-5). Sans cela, chaque lancement ouvrirait un brouillon.
     store.journal.prendre_les_ecrits();

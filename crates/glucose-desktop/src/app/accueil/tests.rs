@@ -36,6 +36,28 @@ fn test_une_application_hors_lancement_n_ecrit_rien_chez_l_utilisateur() {
     }
 }
 
+/// **ACCUEIL-1 — la carte d'accueil n'est pas un choix de l'utilisateur** : elle naît par la
+/// fabrique d'une carte posée d'un clic, qui la choisit — le document d'accueil part sans rien
+/// de choisi. Sinon, au premier lancement, la barre d'action disait « 1 sélectionné », et un
+/// agent lisait que l'utilisateur désignait la carte (fiche 81 : Protéo écrivait « il désigne :
+/// Bienvenue dans Glucose » alors que personne n'avait rien montré).
+#[test]
+fn test_le_document_d_accueil_ne_choisit_rien() {
+    let app = GlucoseApp::new();
+    let tableau = app.store.active_board().expect("le tableau d'accueil");
+    assert!(
+        tableau.annotations.iter().any(|a| a.id() == "welcome-card"),
+        "la carte d'accueil est posée"
+    );
+    assert!(
+        app.store.selected_annotation_ids.is_empty(),
+        "rien n'est choisi au lancement : {:?}",
+        app.store.selected_annotation_ids
+    );
+    assert!(app.store.selected_image_ids.is_empty());
+    assert!(app.store.selected_folder_id.is_none());
+}
+
 /// **Le vrai lancement, lui, y habite tout entier** : un seul appel, trois chemins.
 #[test]
 fn test_habiter_place_tout_dans_le_meme_dossier() {

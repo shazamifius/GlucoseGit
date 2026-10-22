@@ -1,0 +1,16 @@
+[
+ {
+  "nom": "ACCUEIL la carte d'accueil reste choisie au lancement",
+  "fichier": "crates/glucose-desktop/src/app/accueil.rs",
+  "avant": "    store.clear_selection();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_le_document_d_accueil_ne_choisit_rien"
+  ]
+ }
+]

@@ -118,6 +118,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 78 | [Le banc rendu juste](78-LE-BANC-RENDU-JUSTE.md) | **P10, suite** : les échecs `page` du 4B venaient de la boucle (**SORTIE-1**, la sortie coupée à 1 536 jetons) ; `scripts` retirée, ses tâches dans la boucle (20 cas) ; le verdict pesé par chemin ; un cerveau = un modèle et sa réflexion ; **FENETRE-1** (34 rechargements pour 46 requêtes) ; **ANNULE-1** ; criblage et campagne : **qwen3.5:4b 15/20 contre 3/20, p = 0,0005** ; granite écarté (ne tient pas) ; la bibliothèque d'Ollama et la tête GGUF lues ; essais réels interrompus |
 | 79 | [Lire par niveaux](79-LIRE-PAR-NIVEAUX.md) | **Objectif 2** : `glucose_lire` rend d'abord le sommaire (chaque nœud, sa première phrase, sa taille), puis les nœuds choisis en entier (`ids`), ou la phrase qui contient des mots (`cherche`) — un agent ne reprend que ce dont il a besoin ; aucune longueur fixée, la phrase est l'unité |
 | 80 | [Ce que l'humain désigne](80-CE-QUE-L-HUMAIN-DESIGNE.md) | **Objectifs 2 et 3** : `selection` (ce qu'il montre du doigt) et `empreinte` (ce qu'il a récrit) dans `glucose_lire` ; `glucose_ouvrir_tableau` (un onglet à l'agent, sans changer son regard), né de l'usage de Protéo ; la main d'épreuve du Glucose sans fenêtre ; côté Protéo, la relecture à chaque message et le carnet « Ce que Protéo a appris » ; ce que l'usage de Protéo dit de Glucose |
+| 81 | [Le carnet en réel](81-LE-CARNET-EN-REEL.md) | **Objectif 3** : l'essai réel du carnet de Protéo (une leçon posée, corrigée depuis l'autre onglet, relue) ; l'image montre la carte d'accueil choisie d'office, que Protéo prenait pour un geste de l'utilisateur — **ACCUEIL-1** ; son usage réel compté : 444 gestes, aucun refus, un seul manque, la porte publiée |
 
 ## Les décisions — **foi**
 
@@ -136,4 +137,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **81**.
+La prochaine fiche porte le numéro **82**.
