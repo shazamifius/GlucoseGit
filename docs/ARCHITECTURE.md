@@ -233,7 +233,11 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   plus ceux des décodages en vol, tient dans la moitié de ce que la machine laisse maintenant —
   la porte est celle du processus, et ne s'ouvre que par `pendant(octets, travail)`. Il **décode
   dans la page du niveau natif** (`photo/decodage.rs`), étalée en RGBA de la fin vers le début :
-  le pic d'une photo est sa pyramide, et rien d'autre (445 → 254 Mo pour 50 Mpx).
+  le pic d'une photo est sa pyramide, et rien d'autre (445 → 254 Mo pour 50 Mpx). **Ce qui rend
+  la mémoire passe devant ce qui en prend** (MEMOIRE-4, fiche 83) : les files se lisent
+  promesses, reprises, offres et écritures d'aperçus, puis décodages — derrière six mille
+  décodages, l'offre attendait, et le téléphone mourait ; un niveau « en chemin » se compte
+  (`Magasin::octets_en_memoire`).
 * **Le magasin** (`renderer/magasin.rs`, `photo.rs`) garde pour chaque image une pyramide de
   réductions par deux. Chaque niveau est **tenu**, **offert** au système (il le reprend s'il en a
   besoin, sans rien écrire sur le disque), en chemin ou perdu (ETAGES-1).

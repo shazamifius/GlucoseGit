@@ -27,8 +27,19 @@
 //! gestes de trois à cinq millisecondes pour dix mégaoctets, trop chers pour le fil qui
 //! dessine. Un ouvrier libre prend d'abord ce qui a été **promis** — les octets d'une image
 //! collée, que le scribe peut attendre (COLLER-3) —, puis une reprise (l'écran l'attend, et
-//! elle coûte sept fois moins qu'un décodage), puis un décodage, puis une offre (rien ne
-//! l'attend). Aucune priorité chiffrée : des files, lues dans cet ordre.
+//! elle coûte sept fois moins qu'un décodage), puis une offre ou l'écriture d'un aperçu, puis
+//! un décodage. Aucune priorité chiffrée : des files, lues dans cet ordre.
+//!
+//! # MEMOIRE-4 — ce qui rend la mémoire passe devant ce qui en prend (fiche 82)
+//!
+//! L'offre passait en dernier — « rien ne l'attend », disait ce paragraphe. C'était faux : la
+//! **mémoire** l'attend. Un niveau qui part à l'offre emporte ses octets dans la file, et
+//! l'écriture d'un aperçu emporte ses pixels ; derrière six mille décodages (« Tout cadrer » sur
+//! un grand tableau), ni l'une ni l'autre ne passait jamais, et chaque image décodée ajoutait
+//! ses mégaoctets à la file. Sur le téléphone virtuel (4 Go), le processus a monté de 0,9 à
+//! 3,1 Go en cinq secondes, et Android l'a tué au premier plan — le tableau de plus de six mille
+//! images que deux téléphones ont perdu le 15/10. Passant devant les décodages, ce qui attend
+//! d'être rendu est borné par le nombre d'ouvriers, quelle que soit la taille du tableau.
 //!
 //! # Ce que ce module ne fait pas
 //!
@@ -134,12 +145,14 @@ impl Files {
         }
     }
 
+    /// Le plus urgent : ce que le scribe et l'écran attendent, puis ce qui rend la mémoire, puis
+    /// ce qui en prend (MEMOIRE-4).
     fn prochain(&mut self) -> Option<Travail> {
         self.promesses
             .pop_front()
             .or_else(|| self.reprises.pop_front())
-            .or_else(|| self.decodages.pop_front())
             .or_else(|| self.offres.pop_front())
+            .or_else(|| self.decodages.pop_front())
     }
 }
 

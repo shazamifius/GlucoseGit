@@ -243,6 +243,54 @@ fn test_une_promesse_passe_devant_les_decodages() {
     assert!(matches!(files.prochain(), Some(Travail::Decoder(..))));
 }
 
+/// **MEMOIRE-4 — ce qui rend la mémoire passe devant ce qui en prend** (fiche 82) : derrière
+/// trente décodages, l'offre d'un niveau et l'écriture d'un aperçu — qui emportent leurs octets
+/// dans la file — passent devant ; une reprise, que l'écran attend, devant elles. À l'envers,
+/// l'offre passait en dernier : derrière six mille décodages, le téléphone virtuel est mort.
+#[test]
+fn test_memoire_4_ce_qui_rend_la_memoire_passe_devant_les_decodages() {
+    use crate::plateforme::offre::Tenue;
+    use crate::renderer::photo::Transit;
+    let page = || Tenue::nouvelle(1 << 16).expect("des pages");
+    let deplacement = |charge| Deplacement {
+        src: "photo".into(),
+        generation: 1,
+        rang: 0,
+        charge,
+    };
+    let mut files = Files::default();
+    for i in 0..30 {
+        files.ranger(Travail::Decoder(format!("photo-{i}"), None, None));
+    }
+    files.ranger(Travail::Deplacer(deplacement(Transit::AOffrir(page()))));
+    let apercu = Apercu {
+        natives: (1, 1),
+        opaque: true,
+        rang: 0,
+        niveaux: vec![vec![0; 4]],
+    };
+    files.ranger(Travail::Ecrire(
+        "photo".into(),
+        std::sync::Arc::from(std::path::Path::new("apercus")),
+        apercu,
+        None,
+    ));
+    files.ranger(Travail::Deplacer(deplacement(Transit::AReprendre(
+        page().offrir(),
+    ))));
+    let ordre: Vec<&str> = std::iter::from_fn(|| files.prochain())
+        .take(4)
+        .map(|t| match t {
+            Travail::Deplacer(d) if matches!(d.charge, Transit::AReprendre(_)) => "reprise",
+            Travail::Deplacer(_) => "offre",
+            Travail::Ecrire(..) => "aperçu",
+            Travail::Decoder(..) => "décodage",
+            Travail::Adopter(..) => "promesse",
+        })
+        .collect();
+    assert_eq!(ordre, ["reprise", "offre", "aperçu", "décodage"]);
+}
+
 /// **MEMOIRE-3 — le décodage passe par la porte** (fiche 66) : la porte pleine, il attend ;
 /// un autre décodage fini, il entre, et rend une pyramide entière. La porte est une machine qui
 /// laisse mille octets, et un jeton en tient déjà cinq cents — la moitié.

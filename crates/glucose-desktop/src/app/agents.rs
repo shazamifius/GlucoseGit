@@ -79,11 +79,17 @@ impl GlucoseApp {
     /// **Ouvre la porte** (au vrai lancement seulement : une épreuve n'en ouvre aucune).
     pub(crate) fn ouvrir_la_porte_des_agents(&mut self, reveil: Reveil) {
         let boite = Boite::nouvelle(reveil);
-        let porte = porte::nom_par_defaut().and_then(|nom| Porte::ouvrir(&nom, boite.clone()));
-        if porte.is_none() {
-            println!(
+        let nom = porte::nom_par_defaut();
+        let porte = nom
+            .as_deref()
+            .and_then(|nom| Porte::ouvrir(nom, boite.clone()));
+        // Le téléphone n'a pas de porte : le dire tel, et non comme un refus (fiche 83).
+        match (&nom, &porte) {
+            (None, _) => println!("[Glucose] porte des agents : aucune sur ce système"),
+            (Some(_), None) => println!(
                 "[Glucose] porte des agents : un autre Glucose la tient, ou le système la refuse"
-            );
+            ),
+            _ => {}
         }
         self.lancement.agents = Agents {
             boite: Some(boite),

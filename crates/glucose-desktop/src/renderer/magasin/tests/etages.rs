@@ -217,6 +217,38 @@ fn test_ce_qui_revient_pour_une_autre_pyramide_ne_s_y_pose_pas() {
     assert_eq!(magasin.cache[&src].pyramide.etat(0), Etat::Perdu);
 }
 
+/// **MEMOIRE-4 : un niveau qui part chez un ouvrier est encore en mémoire, et se compte.** Les
+/// seuls tenus l'oubliaient : derrière six mille décodages, le journal ne voyait pas 2,7 Go.
+#[test]
+#[cfg_attr(
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
+)]
+fn test_memoire_4_un_niveau_en_chemin_reste_compte() {
+    let src = grande_photo("etages-en-chemin.png");
+    let mut magasin = Magasin::nouveau();
+    arrivee(&mut magasin, &src);
+    une_image(&mut magasin, montree_a(512.0, &src));
+    assert_eq!(magasin.cache[&src].pyramide.etat(0), Etat::Tenu);
+    let avant = magasin.octets_en_memoire();
+
+    let entree = magasin.cache.get_mut(&src).expect("la photo");
+    let Some(Transit::AOffrir(tenue)) = entree.pyramide.sortir(0) else {
+        panic!("l'original tenu part à l'offre");
+    };
+    assert_eq!(magasin.cache[&src].pyramide.etat(0), Etat::EnChemin);
+    assert_eq!(
+        magasin.octets_en_memoire(),
+        avant,
+        "en chemin, l'original occupe toujours la mémoire"
+    );
+    assert!(
+        magasin.octets_en(Etat::Tenu) < avant,
+        "à l'envers : les seuls tenus l'oubliaient"
+    );
+    drop(tenue);
+}
+
 /// **Une image vue une fois s'ouvre ensuite déjà montrée** (ETAGES-4).
 ///
 /// Première session : la photo est décodée, l'écran la montre, et sa vue d'ensemble — le

@@ -198,6 +198,9 @@
 | **Ouvrir un moteur qu'on n'emploie pas** : tous les moteurs de `wgpu` d'office, alors qu'il choisit Vulkan dès qu'il existe (fiche 82) | n'ouvrir que ce qui sert, dans l'ordre où ça sert (`present::moteurs`) |
 | **Un document qui affirme un défaut déjà corrigé** : SUITE et INVENTAIRE disaient Trans-domaines muet, il dit « bientôt » depuis la fiche 71 (fiche 82) | lire le code (et son épreuve) avant de prendre un chantier |
 | **Git Bash convertit les chemins `/mnt/c/…`** passés à `wsl` en `C:/Program Files/Git/mnt/c/…` : rien n'a tourné (fiche 82) | lancer `wsl … glucose-faire` par PowerShell |
+| **Un travail qui rend une ressource attendait derrière celui qui la consomme** : l'offre des niveaux passait après six mille décodages — « rien ne l'attend », disait le code ; la mémoire l'attendait (fiche 83) | demander, pour chaque file, ce que son retard coûte, et à qui |
+| **Un état intermédiaire que personne ne compte** : « en chemin » n'était ni tenu ni offert, et le journal disait 2,7 Go « inconnus » (fiche 83) | tout état d'une ressource entre dans un compte ; `dumpsys meminfo` (tas natif, « Unknown », propre ou sale) dit lequel manque |
+| **Une cause qui dort faute d'appareil** : dix jours sans son téléphone ni son câble (fiche 83) | le téléphone virtuel de ce PC (§ 5), et un tableau fabriqué par le vrai dépôt |
 
 ## 5. Les pièges pratiques
 
@@ -221,7 +224,7 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), la fiche 76 `fleche-6.json` (et, pour Protéo, `PROTEO/outils/sabotages-tri-et-toile.json`), la fiche 82 `fin-session-1.json` et `fenetres-1.json`, et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), la fiche 76 `fleche-6.json` (et, pour Protéo, `PROTEO/outils/sabotages-tri-et-toile.json`), la fiche 82 `fin-session-1.json` et `fenetres-1.json`, la fiche 83 `memoire-4.json`, et
   `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
   sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son
@@ -292,6 +295,17 @@
   Wi-Fi** : quand le PC passe par le partage de connexion du téléphone, c'est probablement
   refusé. Le repli : l'APK dans un zip, envoyé par Drive (Discord refuse plus de 10 Mo sans
   abonnement), extrait par l'application Fichiers ; la télémétrie dit le reste.
+* **Le téléphone virtuel de ce PC** (fiche 83) : l'appareil `glucose-telephone` (Android 14
+  x86_64, 4 Go, 1080 × 2400), lancé sans fenêtre — `~/Android/Sdk/emulator/emulator.exe -avd
+  glucose-telephone -no-window -no-audio -no-boot-anim -no-snapshot -gpu host` en fond, prêt
+  quand `adb shell getprop sys.boot_completed` rend 1 (son processus s'appelle
+  `qemu-system-x86_64-headless`). L'APK : `GLUCOSE_PROCESSEURS=x86_64 bash
+  outils/android/construire.sh`, puis `adb install -r`. Sous Git Bash, **`MSYS_NO_PATHCONV=1`
+  devant `adb`**. Les données de Glucose : `adb shell run-as com.glucose.app …` dans
+  `files/glucose/` ; un document se dépose par `adb push` dans `/data/local/tmp`, puis `run-as …
+  cp` (un brouillon : `files/glucose/brouillons/<nombre>-1.glucose`). Le grand tableau :
+  `cargo run --release -p glucose-desktop --example fabriquer_un_grand_tableau -- <sortie> 6000`.
+  Répondre **Non** à la question du journal technique : le téléphone virtuel n'envoie rien.
 * **Le pilote Vulkan du téléphone** : `adb shell cmd gpu vkjson` (dans `lire_le_telephone.sh`,
   `vulkan.json`) dit ses extensions — `VK_EXT_memory_budget` y est-il ? vulkan.gpuinfo.org ne
   répond pas hors de son navigateur (fiche 67).

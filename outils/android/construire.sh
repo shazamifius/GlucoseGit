@@ -4,6 +4,9 @@
 #
 #   bash outils/android/construire.sh            l'APK de travail (signé de la clé de débogage)
 #
+# GLUCOSE_PROCESSEURS choisit les processeurs (par défaut « arm64-v8a armeabi-v7a », ceux des
+# téléphones) : « x86_64 » donne l'APK du téléphone virtuel de ce PC (l'émulateur, fiche 82).
+#
 # Avec GLUCOSE_KEYSTORE (la clé) et GLUCOSE_KEYSTORE_PASSWORD, l'APK de publication, signé de la
 # vraie clé — celle dont toute mise à jour doit être signée ; GLUCOSE_VERSION en donne la version.
 #
@@ -18,7 +21,21 @@ export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/29.0.14206865}"
 export CARGO_TARGET_DIR="$RACINE/target/android"
 
 cd "$RACINE"
-cargo ndk -t arm64-v8a -t armeabi-v7a -P 21 \
+processeurs="${GLUCOSE_PROCESSEURS:-arm64-v8a armeabi-v7a}"
+cibles=()
+for processeur in $processeurs; do
+  cibles+=(-t "$processeur")
+done
+# Seuls les processeurs demandés restent : la bibliothèque d'une construction précédente (celle
+# du téléphone virtuel) partirait sinon dans l'APK.
+for dossier in android/app/src/main/jniLibs/*/; do
+  [ -d "$dossier" ] || continue
+  case " $processeurs " in
+    *" $(basename "$dossier") "*) ;;
+    *) rm -rf "$dossier" ;;
+  esac
+done
+cargo ndk "${cibles[@]}" -P 21 \
   -o android/app/src/main/jniLibs \
   build --release -p glucose-android
 

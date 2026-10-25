@@ -32,7 +32,7 @@ impl GlucoseApp {
                 .map(|e| Occupation::mo(e.memoire_octets)),
             disponible_mo: crate::memoire::Memoire::du_systeme()
                 .map(|m| Occupation::mo(m.disponible)),
-            images_mo: Occupation::mo(magasin.octets_en(Etat::Tenu) as u64),
+            images_mo: Occupation::mo(magasin.octets_en_memoire() as u64),
             offerts_mo: Occupation::mo(magasin.octets_en(Etat::Offert) as u64),
             decodages_mo: Occupation::mo(
                 crate::renderer::atelier::admission::de_la_machine().en_vol(),

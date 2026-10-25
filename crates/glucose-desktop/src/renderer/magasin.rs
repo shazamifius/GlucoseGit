@@ -549,6 +549,13 @@ impl Magasin {
             .map(|e| e.pyramide.octets_en(etat))
             .sum()
     }
+
+    /// **Ce que les images occupent en mémoire** : leurs niveaux tenus, et ceux qu'un ouvrier
+    /// emporte pour les offrir ou les reprendre — encore là, dans sa file (MEMOIRE-4, fiche 82).
+    /// Compter les seuls tenus laissait 2,7 Go « inconnus » au journal du téléphone virtuel.
+    pub fn octets_en_memoire(&self) -> usize {
+        self.octets_en(Etat::Tenu) + self.octets_en(Etat::EnChemin)
+    }
 }
 
 #[cfg(test)]

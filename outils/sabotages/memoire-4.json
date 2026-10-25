@@ -1,0 +1,16 @@
+[
+ {
+  "nom": "MEMOIRE-4 l'offre repasse derriere les decodages",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier.rs",
+  "avant": "            .or_else(|| self.offres.pop_front())\n            .or_else(|| self.decodages.pop_front())\n",
+  "apres": "            .or_else(|| self.decodages.pop_front())\n            .or_else(|| self.offres.pop_front())\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "memoire_4"]
+ },
+ {
+  "nom": "MEMOIRE-4 le compte oublie ce qui est en chemin",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "        self.octets_en(Etat::Tenu) + self.octets_en(Etat::EnChemin)\n",
+  "apres": "        self.octets_en(Etat::Tenu)\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "memoire_4"]
+ }
+]

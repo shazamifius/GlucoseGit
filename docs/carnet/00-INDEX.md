@@ -120,6 +120,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 80 | [Ce que l'humain désigne](80-CE-QUE-L-HUMAIN-DESIGNE.md) | **Objectifs 2 et 3** : `selection` (ce qu'il montre du doigt) et `empreinte` (ce qu'il a récrit) dans `glucose_lire` ; `glucose_ouvrir_tableau` (un onglet à l'agent, sans changer son regard), né de l'usage de Protéo ; la main d'épreuve du Glucose sans fenêtre ; côté Protéo, la relecture à chaque message et le carnet « Ce que Protéo a appris » ; ce que l'usage de Protéo dit de Glucose |
 | 81 | [Le carnet en réel](81-LE-CARNET-EN-REEL.md) | **Objectif 3** : l'essai réel du carnet de Protéo (une leçon posée, corrigée depuis l'autre onglet, relue) ; l'image montre la carte d'accueil choisie d'office, que Protéo prenait pour un geste de l'utilisateur — **ACCUEIL-1** ; son usage réel compté : 444 gestes, aucun refus, un seul manque, la porte publiée |
 | 82 | [La fin que le système demande](82-LA-FIN-QUE-LE-SYSTEME-DEMANDE.md) | **Partie 1, étape 1** (Protéo en pause, sa parole du 25/10) : **FIN-1** (la fin, quelle qu'elle soit, écrite une fois), **FIN-SESSION-1** (l'extinction de Windows, le Restart Manager, `SIGTERM` : Glucose finit au lieu d'être tué) ; l'essai réel échoue — **la fenêtre sourde du moteur OpenGL de `wgpu`**, ouvert pour rien : **FENETRES-1** ; prouvé par le Restart Manager, la beta 6 à l'envers |
+| 83 | [Les six mille images](83-LES-SIX-MILLE-IMAGES.md) | **P0** : un téléphone virtuel sur ce PC (Android 14, 4 Go, sans fenêtre), un grand tableau fabriqué par le vrai dépôt ; « Tout cadrer » sur 6 000 images tue Glucose à 3,1 Go — **la mort des deux téléphones du 15/10, reproduite** ; l'autopsie (« Unknown », les niveaux « en chemin » jamais comptés, l'offre derrière les décodages) ; **MEMOIRE-4** : ce qui rend la mémoire passe devant ce qui en prend — Glucose survit, les 6 000 images dessinées |
 
 ## Les décisions — **foi**
 
@@ -138,4 +139,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **83**.
+La prochaine fiche porte le numéro **84**.

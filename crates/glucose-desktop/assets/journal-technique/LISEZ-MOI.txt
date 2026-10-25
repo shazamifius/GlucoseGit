@@ -152,7 +152,8 @@ type « memoire » — la mémoire, quand elle bat un record de la session (Gluc
   instant_ms               quand                                               12500
   processus_mo             ce que Glucose occupe en tout (null : inconnu)      412
   disponible_mo            ce que l'appareil laisse encore de libre            2210
-  images_mo                les images décodées que Glucose tient               180
+  images_mo                les images décodées que Glucose tient, ou qu'un     180
+                           ouvrier emporte pour les rendre au système
   offerts_mo               celles qu'il a rendues au système, qui peut les     96
                            reprendre sans rien demander
   decodages_mo             ce que les décodages d'images en cours prennent     40

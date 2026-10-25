@@ -28,6 +28,12 @@
   vraisemblance, faisait attendre l'extinction) ; OpenGL ne s'ouvre plus que sur une machine qui
   n'a rien d'autre. **Prouvé en réel** sous Windows : un vrai Glucose fermé par le Restart Manager
   en 287 ms, sa boîte noire close — la beta 6, dans les mêmes conditions, refuse (351) et reste.
+* **La mort du tableau de 6 000 images, reproduite et réparée** (fiche 83, MEMOIRE-4, 25/10) :
+  un **téléphone virtuel** sur ce PC (Android 14, 4 Go, sans fenêtre, piloté par `adb`), un
+  tableau de 6 000 images fabriqué par le vrai dépôt ; « Tout cadrer » tuait Glucose à 3,1 Go —
+  les niveaux à rendre au système attendaient derrière les décodages, et personne ne les
+  comptait. Ce qui rend la mémoire passe désormais devant ce qui en prend : Glucose survit, les
+  6 000 images dessinées. **Pas encore sur son téléphone** : la prochaine version l'apportera.
 * **La télémétrie au 25/10** : 125 sessions, 6 installations. Un utilisateur Windows inconnu de
   lui (GTX 1660) s'en sert presque chaque jour — 12 sessions du 20 au 23/10, un document de 373
   images, passé seul à la beta 6 ; un second (GTX 1660, encore en beta 3) ; **un testeur Android
@@ -92,14 +98,14 @@
   automatique marche chez un autre que lui) ; **toujours aucune session du téléphone depuis le
   15/10** (il est encore en beta 3).
 * **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est
-  pas revenu** (« parfaitement fluide » jusque-là). **Cause inconnue** : aucune session de la
-  beta 3 n'est arrivée du téléphone — le serveur refusait toute session de plus de 512 Kio, et le
-  refus était retenu pour toujours (réparé, POIDS-1). Le soir, sa précision : l'application a
-  « juste dépop » et a redémarré seule sur la carte de bienvenue — la reprise n'a rien rouvert.
-  Hypothèses : le brouillon encore tenu par le processus qui mourait (défendu par LIBERE-1), ou
-  le disque plein. La beta 4 dira la raison de mort qu'Android garde (SORTIE-1), ce que le
-  lancement a rouvert ou sauté, et la place du disque (REPRISE-1). Rien dans le code n'efface un
-  brouillon à la mort : **son tableau est peut-être encore dans le téléphone**.
+  pas revenu** (« parfaitement fluide » jusque-là). **La mort est reproduite et réparée** sur le
+  téléphone virtuel (fiche 83, MEMOIRE-4) : un grand tableau vu en entier épuisait la mémoire.
+  Aucune session de la beta 3 n'est arrivée du téléphone — le serveur refusait toute session de
+  plus de 512 Kio (réparé, POIDS-1). Sa précision du soir : l'application a « juste dépop » et a
+  redémarré seule sur la carte de bienvenue — la reprise n'a rien rouvert ; sur le téléphone
+  virtuel, elle rouvre le brouillon après chaque mort, et LIBERE-1 (beta 4) défend la cause la
+  plus probable du « non rouvert ». Rien dans le code n'efface un brouillon à la mort : **son
+  tableau est peut-être encore dans le téléphone**.
 * **Android** : Glucose tourne sur son **moto g54 5G** (une PowerVR BXM-8-256). **Le 12/10, une
   longue session a figé tout le téléphone**, bouton d'alimentation compris, après des saccades qui
   montaient, puis un redémarrage seul — *« c'est bien Glucose »*. Cause la plus probable : la
