@@ -59,6 +59,9 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     // Glucose dort (ETAGES-2) — quand la veille des mises à jour aura du neuf, et quand un
     // brouillon tenu au lancement se libérera (LIBERE-1) : avant la reprise, donc.
     app.lancement.reveil = Some(event_loop.create_proxy());
+    // `SIGTERM`, `Ctrl+C`, le terminal qui se ferme : Glucose finit au lieu d'être tué — sous
+    // Linux (FIN-SESSION-1).
+    app.lancement.signaux = crate::plateforme::fin::ecouter_les_signaux(reveil_de(&event_loop));
     app.retrouver_le_travail();
     brancher_les_reveils(&mut app, &event_loop);
     if let Some(installation) = installation {

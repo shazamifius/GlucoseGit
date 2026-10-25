@@ -22,7 +22,7 @@ pub(crate) fn fermer(app: &mut GlucoseApp) -> bool {
 }
 
 /// Salit le document d'une note, comme le ferait l'utilisateur.
-fn dirty_app() -> GlucoseApp {
+pub(crate) fn dirty_app() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     let board_id = app.store.project.active_board_id.clone();
     app.store.add_annotation(

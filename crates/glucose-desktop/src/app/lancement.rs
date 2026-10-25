@@ -38,6 +38,10 @@ pub struct Lancement {
     pub agents: crate::app::agents::Agents,
     /// Le clavier du système, miroir de la saisie en cours (CLAVIER-1) — sous Android.
     pub clavier: crate::interactions::text_edit::miroir::Miroir,
+    /// La fenêtre dont Windows annonce la fin de session (FIN-SESSION-1).
+    pub session: Option<crate::plateforme::fin::Session>,
+    /// Ce que les signaux de fin ont demandé — sous Linux (FIN-SESSION-1).
+    pub signaux: Option<crate::plateforme::fin::Demande>,
 }
 
 impl GlucoseApp {

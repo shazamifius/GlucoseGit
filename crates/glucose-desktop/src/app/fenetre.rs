@@ -156,6 +156,11 @@ impl GlucoseApp {
         if self.toucher.pave.is_some() {
             println!("[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender");
         }
+        // **L'extinction de Windows** finit Glucose au lieu de le tuer (FIN-SESSION-1).
+        self.lancement.session = crate::plateforme::fin::veiller_sur_la_fenetre(window);
+        if self.lancement.session.is_some() {
+            println!("[Glucose] fin : l'extinction de Windows finit Glucose au lieu de le tuer");
+        }
         // La question de la télémétrie, une seule fois : la fenêtre existe, le dialogue s'y
         // accroche (DIAL-1).
         self.demander_la_telemetrie();

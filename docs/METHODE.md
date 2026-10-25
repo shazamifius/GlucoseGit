@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 18/10/2026** (fiches 59 à 77). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 25/10/2026** (fiches 59 à 82). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -193,6 +193,11 @@
 | **Un signal envoyé quand personne n'écoute** : `watch::Sender::send` n'écrit rien sans récepteur — une annulation pendant le tri était perdue ; l'épreuve passait par la chance de ses 200 ms, et la charge d'une campagne l'a fait tomber (fiche 78, ANNULE-1) | lire la documentation d'un canal jusqu'à son cas « fermé » ; une épreuve de minutage qui tombe sous charge désigne souvent un défaut, pas le minutage |
 | **Une taille de contexte par appel** : Ollama recharge un modèle à chaque `num_ctx` neuf — 34 rechargements pour 46 requêtes au banc, le tri à 4 096 jetons entre deux pas de la boucle (fiche 78, FENETRE-1) | un modèle, une fenêtre : mesurée une fois, lue par toute question qui lui est posée ; compter les `starting llama-server` du journal d'Ollama |
 | **Un catalogue d'attributs recopié d'une session d'avant** : les `x-test-*` de la bibliothèque d'Ollama n'existent plus ; `/library` liste 256 modèles en une page servie sans script (fiche 78) | relire la page à la source avant de bâtir un lecteur dessus |
+| **Des épreuves vertes et des sabotages tous tombés, et rien ne marche en vrai** : la fenêtre témoin tenait la place de `winit` ; le Restart Manager, lui, n'atteignait jamais notre fenêtre (fiche 82) | un essai réel avant « fini » — ici un vrai processus sur un dossier jetable (`LOCALAPPDATA`, `TEMP`, `TMP` redirigés), fermé par `RmShutdown`, sa boîte noire relue |
+| **Une bibliothèque qui pose une fenêtre de premier niveau sans jamais lire ses messages** : le moteur OpenGL de `wgpu-hal` — le Restart Manager échoue, l'extinction attend (fiche 82) | énumérer les fenêtres du processus et parler à chacune (`SendMessageTimeout`) : FENETRES-1, une épreuve dans un processus à elle |
+| **Ouvrir un moteur qu'on n'emploie pas** : tous les moteurs de `wgpu` d'office, alors qu'il choisit Vulkan dès qu'il existe (fiche 82) | n'ouvrir que ce qui sert, dans l'ordre où ça sert (`present::moteurs`) |
+| **Un document qui affirme un défaut déjà corrigé** : SUITE et INVENTAIRE disaient Trans-domaines muet, il dit « bientôt » depuis la fiche 71 (fiche 82) | lire le code (et son épreuve) avant de prendre un chantier |
+| **Git Bash convertit les chemins `/mnt/c/…`** passés à `wsl` en `C:/Program Files/Git/mnt/c/…` : rien n'a tourné (fiche 82) | lancer `wsl … glucose-faire` par PowerShell |
 
 ## 5. Les pièges pratiques
 
@@ -216,7 +221,7 @@
   (fiche 63, sans dégât). Tout texte qui en porte s'écrit par l'outil d'écriture ou d'édition.
 * **Les fichiers de sabotage se rangent dans `outils/sabotages/`** (`chrome-1.json`, `p5.json`, `mood-board.json`,
   `storyboard-1.json`, `storyboard-2.json`, `memoire.json`, `memoire-3.json`, `p2-4.json`, et
-  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), la fiche 76 `fleche-6.json` (et, pour Protéo, `PROTEO/outils/sabotages-tri-et-toile.json`), et
+  depuis la fiche 72 `telephone-72.json`, `grand-1.json`, `zoom-72.json`, `p4.json`, la fiche 73 `p8.json` et `p8-bis.json`, la fiche 74 `p4-utilisateur.json`, la fiche 75 `agents.json` (36 gardes), la fiche 76 `fleche-6.json` (et, pour Protéo, `PROTEO/outils/sabotages-tri-et-toile.json`), la fiche 82 `fin-session-1.json` et `fenetres-1.json`, et
   `libere-1.json`, dont la commande passe par `wsl … glucose-lancer` : ce qui ne se joue que
   sous Linux se sabote sous Linux) : le scratchpad disparaît avec la session, et la suivante doit pouvoir les
   rejouer. Un script de remplacement s'écrit **après** `cargo fmt` (sinon il ne trouve plus son

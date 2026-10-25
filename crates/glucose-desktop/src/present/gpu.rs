@@ -159,17 +159,8 @@ impl GpuPresenter {
         cadence: Option<wgpu::PresentMode>,
         carte: wgpu::PowerPreference,
     ) -> DesktopResult<Self> {
-        let echec = |quoi: &str, e: &dyn std::fmt::Display| {
-            DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
-        };
-
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let surface = instance
-            .create_surface(window)
-            .map_err(|e| echec("surface", &e))?;
-
-        let (adapter, device, queue, adaptateur, numeros) =
-            ouverture::ouvrir(&instance, &surface, width, height, carte)?;
+        let (instance, surface, (adapter, device, queue, adaptateur, numeros)) =
+            ouverture::par_le_premier_moteur(&window, width, height, carte)?;
 
         let config = ouverture::accorder_la_surface(&surface, &adapter, (width, height), cadence)?;
         let sonde = crate::plateforme::graphique::Sonde::pour(numeros.fabricant, numeros.modele);

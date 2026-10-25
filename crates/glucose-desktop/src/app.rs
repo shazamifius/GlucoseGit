@@ -6,6 +6,7 @@ mod attentes;
 mod decision;
 mod evenements;
 mod fenetre;
+mod fin;
 pub mod focus;
 pub mod lancement;
 mod memoire;

@@ -126,17 +126,13 @@ impl ApplicationHandler for GlucoseApp {
 
     /// Winit appelle ceci quand la boucle se termine, quelle qu'en soit la raison.
     ///
-    /// La croix n'est pas la seule facon de fermer une application : `exiting` couvre aussi
-    /// l'arret demande par le systeme et toute sortie de boucle declenchee ailleurs. La
-    /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
-    /// manquait, et une session entiere s'est perdue pour cette raison.
+    /// La croix n'est pas la seule facon de fermer une application : `exiting` couvre toute
+    /// sortie de boucle -- une mise a jour qui relance, un signal sous Linux, AppKit qui quitte.
+    /// Pas l'extinction de Windows, que `winit` ne transmet pas : elle passe par
+    /// [`GlucoseApp::finir_avec_la_session`] (FIN-SESSION-1). Ce qui doit etre vrai a la fin
+    /// s'ecrit une fois, dans `finir` (FIN-1).
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        // Ce que Glucose a confié au presse-papiers y reste après lui (COPIER-1).
-        crate::plateforme::presse_papiers::rendre_avant_de_quitter();
-        self.noter_le_gel_en_cours();
-        self.clore_la_chronique();
-        self.vider_les_signes_du_pave();
-        self.chronique.clore_la_boite_noire();
+        self.finir();
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
@@ -150,11 +146,15 @@ impl GlucoseApp {
     /// Separe de `window_event` pour que la mesure de l'entracte encadre le traitement sans
     /// avoir a se repeter devant chaque retour anticipe -- une marque oubliee sur un seul
     /// chemin suffirait a fausser toute la section.
-    fn aiguiller(&mut self, event: WindowEvent) {
+    pub(super) fn aiguiller(&mut self, event: WindowEvent) {
         if self.evenement_de_la_main(&event) {
             return;
         }
         match event {
+            // Windows finit la session : personne n'est là pour répondre (FIN-SESSION-1).
+            WindowEvent::CloseRequested if self.la_session_finit() => {
+                self.finir_avec_la_session();
+            }
             WindowEvent::CloseRequested => {
                 // R-48 — la croix ne jette plus le travail : un document modifié pose la
                 // question, et un enregistrement raté annule la fermeture (SAVE-3). La boucle
@@ -194,8 +194,9 @@ impl GlucoseApp {
     /// Chaque etape porte sa marque d'entracte : c'est ici que sept dixiemes de seconde se
     /// sont caches pendant trois sessions, et aucun poste du rendu ne pouvait les voir.
     fn entretenir(&mut self, event_loop: &ActiveEventLoop) {
-        // La fenêtre a le droit de partir : une réponse l'a dit (SAVE-3, POPUP-1).
-        if self.ui.fermer_la_fenetre {
+        // La fenêtre a le droit de partir : une réponse l'a dit (SAVE-3, POPUP-1) — ou un
+        // signal de fin, et `exiting` finira (FIN-SESSION-1).
+        if self.ui.fermer_la_fenetre || self.un_signal_demande_la_fin() {
             event_loop.exit();
             return;
         }

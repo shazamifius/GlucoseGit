@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 17/10/2026** (fiches 51 à 76 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 25/10/2026** (fiches 51 à 82 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -210,6 +210,11 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   `Suspended`, la présentation lâche sa surface et garde son périphérique et ses textures ; au
   `Resumed`, une surface neuve se crée sur le même. « En arrière-plan » se lit sur elle
   (`a_sa_surface`) : rien ne se dessine entre les deux.
+* **Les moteurs de la carte, dans l'ordre** (FENETRES-1, `present/moteurs.rs`, fiche 82) : Vulkan,
+  Metal, Direct3D 12 ; OpenGL seulement si aucun n'offre de carte — son moteur WGL pose, sous
+  Windows, une fenêtre cachée qui ne lit jamais ses messages, et bloquait le Restart Manager et
+  l'extinction. La présentation (`gpu/ouverture.rs`, `par_le_premier_moteur`) et le banc
+  l'appellent tous deux.
 * **La carte qui tient l'écran** (`plateforme/ecran.rs`, ECRAN-1) : sous Windows, Glucose dessine
   sur la carte dont une sortie porte le moniteur de la fenêtre — dessiner ailleurs fait recopier
   chaque image par le compositeur. L'ordre : `GLUCOSE_CARTE` › l'écran › le souvenir › l'économe.
@@ -280,6 +285,13 @@ armée suit le curseur (`interactions/storyboard.rs`) — leurs rectangles au pr
 zones (`renderer/storyboard.rs`, `premier_rang`). **Le storyboard courant** (fiche 68, `interactions::storyboard::storyboard_courant`) : le dernier touché — choisir une case le règle — ou posé, sinon le premier ; le panneau, la lecture, « + Ajouter », « Mettre à jour » et la croix agissent sur lui, et « ‹ 2 / 3 › » passe de l'un à l'autre. La grille armée sait sa **cible** (`Placement::cible`) : aucune, elle fait naître un storyboard ; un storyboard, elle le range (« Mettre à jour », la poignée). Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
 
 ## 7. La plateforme
+
+**La fin que le système demande** (FIN-SESSION-1, `plateforme/fin.rs`, fiche 82) : sous Windows,
+une procédure devant celle de `winit` marque la fenêtre à `WM_ENDSESSION` et lui passe un
+`WM_CLOSE`, que l'application lit comme une fin sans question (`app/fin.rs`,
+`finir_avec_la_session`) ; sous Linux, `SIGTERM`, `SIGINT` et `SIGHUP` passent par un tuyau et un
+fil, et la boucle part (un second signal fait partir sur-le-champ). Partout, la fin s'écrit une
+fois : `GlucoseApp::finir` (FIN-1), qu'`exiting` appelle.
 
 Tout ce qui parle au système vit dans `plateforme/` (et le `unsafe` avec), une voie par système —
 et trois **portes** que le téléphone branche au lancement : `clavier` (lire et écrire l'état du

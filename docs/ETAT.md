@@ -1,21 +1,38 @@
 # Où en est Glucose
 
-> **Au 22/10/2026, le soir** (fiches 73 à 81). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 25/10/2026** (fiches 73 à 82). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
-> le [carnet](carnet/00-INDEX.md) (fiches 51 à 75 pour la V2). La direction : [VISION](VISION.md).
+> le [carnet](carnet/00-INDEX.md) (fiches 51 à 82 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
 
 ---
 
 ## 1. En une page
 
-* **Glucose Rust est publié.** La **2.0.3-beta.5** est la release « latest » depuis le 16/10
-  (publiée à sa demande, sur `141499c` : P8, P8 bis, ses raccourcis ; la beta 4 l'était le 15/10,
-  sur `a7893be`) : installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et
-  `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
-  bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses données ne sont jamais
-  touchées. Son essai : **plus de 24 000 nœuds au téléphone, « ça n'a pas trop lagé, plutôt
-  cool »** ; au PC, *« tout fonctionne merveilleusement bien »*.
+* **Sa parole du 25/10 : Protéo en pause, la partie 1 de Glucose d'abord** — le logiciel complet,
+  ultra optimisé, des utilisateurs, une ergonomie parfaite. SUITE § 0 en propose la ligne
+  d'arrivée (la 2.1.0, six conditions) et cinq étapes ; trois questions attendent sa parole.
+* **Glucose Rust est publié.** La **2.0.3-beta.6** est la release « latest » depuis le 23/10
+  (sur `4a111b4` : tout jusqu'à la fiche 81, la porte des agents comprise ; **ses notes sont
+  celles de la beta 5 recopiées**, à corriger à sa parole) : installeur Windows, AppImage, `.deb`,
+  `.rpm`, APK Android, et `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé
+  (depuis la 1.0.1-beta.9) bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses
+  données ne sont jamais touchées. Son essai : **plus de 24 000 nœuds au téléphone, « ça n'a pas
+  trop lagé, plutôt cool »** ; au PC, *« tout fonctionne merveilleusement bien »*.
+* **Glucose finit quand le système le ferme** (fiche 82, FIN-SESSION-1, FENETRES-1, 25/10) :
+  éteindre Windows, un installeur ou Windows Update qui ferme les applications, `SIGTERM` ou
+  `Ctrl+C` sous Linux — Glucose écrit tout, sans question, et sa boîte noire dit « fermée
+  proprement ». Jusqu'ici il était tué, et deux sessions de 3 h 37 et 7 h d'un utilisateur se
+  lisaient comme des plantages. **La cause cachée** : le moteur OpenGL de `wgpu`, ouvert d'office
+  et jamais employé, posait une fenêtre sourde qui bloquait le Restart Manager (et, selon toute
+  vraisemblance, faisait attendre l'extinction) ; OpenGL ne s'ouvre plus que sur une machine qui
+  n'a rien d'autre. **Prouvé en réel** sous Windows : un vrai Glucose fermé par le Restart Manager
+  en 287 ms, sa boîte noire close — la beta 6, dans les mêmes conditions, refuse (351) et reste.
+* **La télémétrie au 25/10** : 125 sessions, 6 installations. Un utilisateur Windows inconnu de
+  lui (GTX 1660) s'en sert presque chaque jour — 12 sessions du 20 au 23/10, un document de 373
+  images, passé seul à la beta 6 ; un second (GTX 1660, encore en beta 3) ; **un testeur Android
+  neuf** (puce Mali, le 18/10, 8,2 ms par image ordinaire) ; son téléphone, **muet depuis le
+  15/10** (beta 3, 16,4 ms par image ordinaire, 885 ms au pire).
 * **P8, le texte net de près** (fiche 73) : écrit, éprouvé, saboté, **publié dans la beta 5** — **il attend son
   écran**, puis son téléphone (aucune mesure n'y a été faite). Et **P8 bis** : un nœud immense vu de
   près coûtait 10,5 ms par image au processeur (17 600 mots) ; 0,72 ms désormais, quelle que soit sa

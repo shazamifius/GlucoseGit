@@ -42,11 +42,12 @@ pub fn sans_carte() {
 ///
 /// **`WGPU_BACKEND` choisit le moteur** (`vulkan`, `gl`, `dx12`) : c'est par là que les épreuves
 /// des deux voies se rejouent comme sur un téléphone, qui dessine par Vulkan ou GL ES — ses
-/// rayures du 09/10 (fiche 59). Sans la variable, le moteur que wgpu préfère.
+/// rayures du 09/10 (fiche 59). Sans la variable, les moteurs de Glucose, dans son ordre
+/// (FENETRES-1, [`super::moteurs`]).
 pub fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
-    let instance =
-        wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
-    let ouvrir = || {
+    let ordre = wgpu::Backends::from_env().map_or(super::moteurs::MOTEURS.to_vec(), |m| vec![m]);
+    let ouvrir = |moteurs| {
+        let instance = super::moteurs::instance(moteurs);
         let adaptateur =
             pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::LowPower,
@@ -57,7 +58,7 @@ pub fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
             .ok()?;
         pollster::block_on(adaptateur.request_device(&wgpu::DeviceDescriptor::default())).ok()
     };
-    let trouvee = ouvrir();
+    let trouvee = ordre.into_iter().find_map(ouvrir);
     if trouvee.is_none() {
         sans_carte();
     }

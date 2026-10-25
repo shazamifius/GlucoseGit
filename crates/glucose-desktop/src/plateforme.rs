@@ -30,6 +30,7 @@ pub mod copies;
 pub mod doigt;
 pub mod ecran;
 pub mod empreinte;
+pub mod fin;
 pub mod graphique;
 pub mod heure;
 pub mod identite;

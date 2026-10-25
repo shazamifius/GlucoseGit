@@ -13,6 +13,37 @@ use crate::boite_noire::enregistrement::Carte;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
+/// Ce que l'ouverture rend : l'adaptateur, son périphérique et sa file, son nom, ses numéros.
+pub(super) type Ouverte = (wgpu::Adapter, wgpu::Device, wgpu::Queue, String, Carte);
+
+/// **Ouvre la carte par le premier moteur qui en offre une** (FENETRES-1,
+/// [`crate::present::moteurs`]) : l'instance, la surface de la fenêtre, et l'ouverture.
+pub(super) fn par_le_premier_moteur(
+    window: &Arc<winit::window::Window>,
+    width: NonZeroU32,
+    height: NonZeroU32,
+    carte: wgpu::PowerPreference,
+) -> DesktopResult<(wgpu::Instance, wgpu::Surface<'static>, Ouverte)> {
+    let mut refus = Vec::new();
+    for moteurs in crate::present::moteurs::MOTEURS {
+        let instance = crate::present::moteurs::instance(moteurs);
+        let ouverte = instance
+            .create_surface(Arc::clone(window))
+            .map_err(|e| DesktopError::WindowError(format!("surface : {e}")))
+            .and_then(|surface| {
+                ouvrir(&instance, &surface, width, height, carte).map(|o| (surface, o))
+            });
+        match ouverte {
+            Ok((surface, o)) => return Ok((instance, surface, o)),
+            Err(e) => refus.push(format!("{moteurs:?} : {e}")),
+        }
+    }
+    Err(DesktopError::WindowError(format!(
+        "aucun moteur n'offre de carte — {}",
+        refus.join(" ; ")
+    )))
+}
+
 /// Choisit un adaptateur, ouvre un périphérique, et refuse proprement ce qu'il ne peut pas.
 ///
 /// Le garde-fou de taille n'est pas décoratif : demander une surface plus grande que la
@@ -24,7 +55,7 @@ pub(super) fn ouvrir(
     width: NonZeroU32,
     height: NonZeroU32,
     carte: wgpu::PowerPreference,
-) -> DesktopResult<(wgpu::Adapter, wgpu::Device, wgpu::Queue, String, Carte)> {
+) -> DesktopResult<Ouverte> {
     let echec = |quoi: &str, e: &dyn std::fmt::Display| {
         DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
     };

@@ -1,0 +1,79 @@
+[
+ {
+  "nom": "FIN-SESSION-1 la marque apres la fermeture",
+  "fichier": "crates/glucose-desktop/src/plateforme/fin/session_windows.rs",
+  "avant": "            let _ = SetPropW(fenetre, FINIT, Some(HANDLE(std::ptr::dangling_mut())));\n            CallWindowProcW(ancienne, fenetre, WM_CLOSE, WPARAM(0), LPARAM(0));\n",
+  "apres": "            CallWindowProcW(ancienne, fenetre, WM_CLOSE, WPARAM(0), LPARAM(0));\n            let _ = SetPropW(fenetre, FINIT, Some(HANDLE(std::ptr::dangling_mut())));\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 aucune marque",
+  "fichier": "crates/glucose-desktop/src/plateforme/fin/session_windows.rs",
+  "avant": "            let _ = SetPropW(fenetre, FINIT, Some(HANDLE(std::ptr::dangling_mut())));\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 la fermeture n'est pas transmise",
+  "fichier": "crates/glucose-desktop/src/plateforme/fin/session_windows.rs",
+  "avant": "            CallWindowProcW(ancienne, fenetre, WM_CLOSE, WPARAM(0), LPARAM(0));\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 une extinction annulee finit quand meme",
+  "fichier": "crates/glucose-desktop/src/plateforme/fin/session_windows.rs",
+  "avant": "        WM_ENDSESSION if wparam.0 != 0 => unsafe {",
+  "apres": "        WM_ENDSESSION => unsafe {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 la marque survit a la fenetre",
+  "fichier": "crates/glucose-desktop/src/plateforme/fin/session_windows.rs",
+  "avant": "            let _ = RemovePropW(fenetre, FINIT);\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 l'application ignore la marque",
+  "fichier": "crates/glucose-desktop/src/app/evenements.rs",
+  "avant": "            WindowEvent::CloseRequested if self.la_session_finit() => {",
+  "apres": "            WindowEvent::CloseRequested if false => {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 la fenetre ne part pas",
+  "fichier": "crates/glucose-desktop/src/app/fin.rs",
+  "avant": "        self.finir();\n        self.ui.fermer_la_fenetre = true;\n",
+  "apres": "        self.finir();\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-1 finir ne ferme pas le document",
+  "fichier": "crates/glucose-desktop/src/app/fin.rs",
+  "avant": "        if !self.ui.fermer_la_fenetre {",
+  "apres": "        if false {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-1 le brouillon abandonne renait",
+  "fichier": "crates/glucose-desktop/src/app/fin.rs",
+  "avant": "        if !self.ui.fermer_la_fenetre {",
+  "apres": "        if true {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-1 la boite noire reste ouverte",
+  "fichier": "crates/glucose-desktop/src/app/fin.rs",
+  "avant": "        self.chronique.clore_la_boite_noire();\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ },
+ {
+  "nom": "FIN-SESSION-1 le second signal ne fait pas partir",
+  "fichier": "crates/glucose-desktop/src/plateforme/fin.rs",
+  "avant": "        if self.faite.swap(true, Ordering::AcqRel) {",
+  "apres": "        if !self.faite.swap(true, Ordering::AcqRel) {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "fin_"]
+ }
+]

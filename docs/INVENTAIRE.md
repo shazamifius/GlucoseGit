@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 17/10/2026** (fiches 63 à 75). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 25/10/2026** (fiches 63 à 82). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -116,10 +116,9 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 |---|---|---|---|
 | Plugins | « Télécharger » le modèle d'IA | l'IA locale | plus tard |
 | bande | **Collaborer** : dit « pas encore disponible » | la collaboration — obligatoire | plus tard, à sa parole |
-| bande | **Trans-domaines** : ne fait rien, **et ne le dit pas** | sa définition — de la recherche, son raisonnement sur « domaine » n'est pas fini (15/10) | **dire « bientôt »**, comme Collaborer (fiche 71 : un bouton ne fait jamais semblant) |
+| bande | **Trans-domaines** : dit « bientôt — en recherche » (fiche 71) | une vue en perspective 3D de tous les domaines — de la R&D (sa parole du 22/10) | la partie 2, à sa parole |
 | Mood board | « + Créer un mood board », grisé — et **un preset est désormais l'interface entière** (disposition, comportement, couleurs, raccourcis, fenêtres : Glucose, PureRef, Figma, Miro — `VISION.md`), pas des zones | la fondation : l'interface devenue donnée | SUITE P4 |
 | le téléphone | les champs de nombre du dock, le nom d'un jalon, celui d'un domaine : on ne peut pas taper | le miroir du clavier (CLAVIER-1) étendu au dock | avec l'UX du téléphone, refaite en dernier |
-| au premier lancement | la carte d'accueil naît **choisie** : le premier clic droit ouvre le menu d'une sélection | à vérifier contre Tauri | relecture des menus |
 
 ---
 
