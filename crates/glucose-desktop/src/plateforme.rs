@@ -20,6 +20,7 @@
 #[cfg(target_os = "linux")]
 pub mod administrateur;
 pub mod batterie;
+pub mod cadre;
 pub mod clavier;
 /// Les images d'une copie en fichiers : là où un système les prend ainsi.
 #[cfg(any(

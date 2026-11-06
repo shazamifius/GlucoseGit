@@ -157,6 +157,7 @@ impl GlucoseApp {
             println!("[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender");
         }
         // **L'extinction de Windows** finit Glucose au lieu de le tuer (FIN-SESSION-1).
+        self.ui.cadre_maison = crate::plateforme::cadre::habiller(window);
         self.lancement.session = crate::plateforme::fin::veiller_sur_la_fenetre(window);
         if self.lancement.session.is_some() {
             println!("[Glucose] fin : l'extinction de Windows finit Glucose au lieu de le tuer");

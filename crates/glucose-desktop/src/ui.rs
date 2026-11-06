@@ -13,6 +13,7 @@ pub mod ancrage;
 pub mod bande;
 pub mod boutons;
 pub mod breadcrumb;
+pub mod cadre;
 pub mod chrome;
 pub mod context_menu;
 pub mod decision;
@@ -126,6 +127,11 @@ pub struct UiState {
     /// l'origine du groupe, ou celle de chaque nœud (fiche 53 § 10).
     pub origine_du_groupe: glucose_core::groupe::Origine,
     pub smart_align: bool,
+    /// **La barre du système est retirée** : la bande déplace la fenêtre, et porte ses boutons
+    /// (BARRE-1). Faux tant que Windows n'a pas accepté : jamais de fenêtre sans moyen de la fermer.
+    pub cadre_maison: bool,
+    /// La fenêtre est-elle agrandie ? Son bouton le dit par son dessin.
+    pub fenetre_agrandie: bool,
     /// Ce que le pointeur survole dans la bande, tel que la souris l'a vu en dernier : c'est
     /// ce qui lui dit si un mouvement change quelque chose à redessiner.
     pub survol: bande::Survol,
@@ -215,6 +221,8 @@ impl UiState {
             clavier: crate::commandes::clavier_de_glucose().0,
             origine_du_groupe: glucose_core::groupe::Origine::Commune,
             smart_align: true,
+            cadre_maison: false,
+            fenetre_agrandie: false,
             survol: bande::Survol::default(),
             fleche_survolee: None,
             noeud_pressenti: None,

@@ -1,0 +1,37 @@
+[
+ {
+  "nom": "BARRE-1 les boutons de la bande deplacent la fenetre",
+  "fichier": "crates/glucose-desktop/src/plateforme/cadre.rs",
+  "avant": "        if tenu {\n            Zone::Client\n        } else if",
+  "apres": "        if false && tenu {\n            Zone::Client\n        } else if",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "barre_1"]
+ },
+ {
+  "nom": "BARRE-1 le haut ne redimensionne plus",
+  "fichier": "crates/glucose-desktop/src/plateforme/cadre.rs",
+  "avant": "        } else if !agrandie && y < bord {\n",
+  "apres": "        } else if false && !agrandie && y < bord {\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "barre_1"]
+ },
+ {
+  "nom": "BARRE-1 des boutons sans cadre a nous",
+  "fichier": "crates/glucose-desktop/src/ui/cadre.rs",
+  "avant": "    if ui.cadre_maison && !ui.sans_interface() {\n",
+  "apres": "    if !ui.sans_interface() {\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "barre_1"]
+ },
+ {
+  "nom": "BARRE-1 le mode reference garde les boutons",
+  "fichier": "crates/glucose-desktop/src/ui/cadre.rs",
+  "avant": "    if ui.cadre_maison && !ui.sans_interface() {\n",
+  "apres": "    if ui.cadre_maison {\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "barre_1"]
+ },
+ {
+  "nom": "BARRE-1 fermer ne touche plus le bord",
+  "fichier": "crates/glucose-desktop/src/ui/cadre.rs",
+  "avant": "    let depart = largeur - 3.0 * l;\n",
+  "apres": "    let depart = largeur - 3.0 * l - 8.0;\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "barre_1"]
+ }
+]

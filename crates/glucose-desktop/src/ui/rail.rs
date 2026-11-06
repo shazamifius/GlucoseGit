@@ -93,7 +93,12 @@ pub struct RailLayout {
 /// **Barre ou rail ?** La barre, si elle tient en icônes seules dans `largeur`. Replié chaque
 /// fois qu'il disparaît : le retrouver ouvert en rétrécissant la fenêtre surprendrait.
 pub fn decider(ui: &mut UiState, typo: &Typography, store: &Store, largeur: f32) {
-    let tient = super::boutons::tient_en_icones(largeur, ui, typo, store.nombre_d_images());
+    let tient = super::boutons::tient_en_icones(
+        largeur - super::cadre::largeur_reservee(ui),
+        ui,
+        typo,
+        store.nombre_d_images(),
+    );
     ui.rail.actif = !tient;
     if tient {
         ui.rail.ouvert = false;

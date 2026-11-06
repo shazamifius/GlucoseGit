@@ -236,6 +236,31 @@ impl GlucoseApp {
 }
 
 impl GlucoseApp {
+    /// **Un clic sur un bouton de la fenêtre** (BARRE-1). Fermer suit le chemin de la croix du
+    /// système : un document modifié pose sa question. Rend `true` si le clic lui revient.
+    pub(crate) fn cliquer_le_cadre(&mut self, pointer: crate::params::Pointer) -> bool {
+        use crate::ui::cadre::Bouton;
+        let largeur = self.taille_de_la_fenetre().0;
+        let Some(bouton) = crate::ui::cadre::sous(&self.ui, largeur, pointer.x, pointer.y) else {
+            return false;
+        };
+        match bouton {
+            Bouton::Fermer => self.fermer_puis(crate::persist::close::Apres::Quitter),
+            Bouton::Reduire => {
+                if let Some(fenetre) = &self.window {
+                    fenetre.set_minimized(true);
+                }
+            }
+            Bouton::Agrandir => {
+                if let Some(fenetre) = &self.window {
+                    fenetre.set_maximized(!fenetre.is_maximized());
+                }
+            }
+        }
+        self.mark_dirty();
+        true
+    }
+
     /// **`Alt` + glisser, en mode référence** : la fenêtre se déplace, par le système
     /// (REFERENCE-2). Rend `true` si le geste lui revient — même sans fenêtre, il n'est pas
     /// au canevas.

@@ -98,6 +98,35 @@ jobs:
           GLUCOSE_EXIGER_UNE_CARTE: "1"
           WGPU_BACKEND: dx12
 
+      # BARRE-1 : regarder le vrai Glucose sous un vrai Windows. Le développement se fait sous
+      # NixOS : c'est la seule image de Windows qu'on ait (fiche 85).
+      - name: Regarder Glucose sous Windows
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ici = Join-Path $env:RUNNER_TEMP 'regarder'
+          New-Item -ItemType Directory -Force -Path (Join-Path $ici 'Glucose') | Out-Null
+          "envoyer=non`nvue=oui`ninstallation=00000000000000000000000000000abd`n" | Set-Content (Join-Path $ici 'Glucose\telemetrie.txt')
+          $env:LOCALAPPDATA = $ici
+          $p = Start-Process -FilePath 'target\debug\glucose-desktop.exe' -PassThru
+          Start-Sleep -Seconds 12
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $i = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($i).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $i.Save('windows.png')
+          Stop-Process -Id $p.Id -Force
+
+      - name: L'image de Windows
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: glucose-sous-windows
+          path: windows.png
+          retention-days: 7
+
       # `cargo tree` n'imprime que le noyau lui-même quand il ne dépend de rien : une ligne.
       - name: Le noyau n'a aucune dépendance
         shell: bash

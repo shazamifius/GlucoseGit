@@ -21,7 +21,7 @@ tous ses projets : `~/Projets/LISEZ-MOI.md`.
    ses paroles comprises, avec des arguments et, avant de concevoir, une recherche sur internet.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais
-renuméroter une fiche. La prochaine porte le numéro 85.
+renuméroter une fiche. La prochaine porte le numéro 86.
 
 ## Avec lui
 

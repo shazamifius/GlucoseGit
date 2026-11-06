@@ -55,6 +55,8 @@ pub struct BandeKey {
     rail: bool,
     /// Ce que la barre d'état prend en haut (BORD-1) : la bande grandit d'autant.
     marge: u32,
+    /// Les boutons de la fenêtre (BARRE-1) : présents, et agrandie ou non.
+    cadre: (bool, bool),
 }
 
 /// **Ce que le pointeur survole dans la bande** : un bouton, un onglet — la seule chose de la
@@ -67,6 +69,8 @@ pub struct BandeKey {
 pub struct Survol {
     bouton: Option<usize>,
     onglet: Option<usize>,
+    /// Un bouton de la fenêtre (BARRE-1).
+    cadre: Option<super::cadre::Bouton>,
 }
 
 impl Survol {
@@ -87,7 +91,61 @@ fn survol(barre: &TopbarLayout, onglets: &[TabButtonLayout], pointer: Pointer) -
         onglet: onglets
             .iter()
             .position(|t| contient(t.x, t.y, t.width, t.height, pointer)),
+        cadre: None,
     }
+}
+
+/// [`survol`], et les boutons de la fenêtre, qui passent devant tout.
+fn survol_ici(
+    barre: &TopbarLayout,
+    onglets: &[TabButtonLayout],
+    ui: &UiState,
+    largeur: f32,
+    pointer: Pointer,
+) -> Survol {
+    let cadre = super::cadre::sous(ui, largeur, pointer.x, pointer.y);
+    if cadre.is_some() {
+        return Survol {
+            cadre,
+            ..Survol::default()
+        };
+    }
+    survol(barre, onglets, pointer)
+}
+
+/// **Dit à Windows ce que la bande occupe** (BARRE-1) : ses boutons et ses onglets attendent un
+/// clic, le reste déplace la fenêtre. Rien ne la déplace quand un menu ou une question passe
+/// par-dessus : leur clic serait volé.
+fn dire_les_zones(ui: &UiState, largeur: f32, barre: &TopbarLayout, onglets: &[TabButtonLayout]) {
+    let boite = |x: f32, y: f32, l: f32, h: f32| {
+        [
+            x.floor() as i32,
+            y.floor() as i32,
+            l.ceil() as i32,
+            h.ceil() as i32,
+        ]
+    };
+    let couverte = ui.context_menu_at.is_some() || ui.question.is_some() || ui.sans_interface();
+    let hauteur = if ui.rail.actif {
+        ui.header_height()
+    } else {
+        ui.topbar_height()
+    };
+    let mut tenus: Vec<[i32; 4]> = barre
+        .buttons
+        .iter()
+        .map(|b| boite(b.x, b.y, b.w, b.h))
+        .collect();
+    tenus.extend(onglets.iter().map(|t| boite(t.x, t.y, t.width, t.height)));
+    tenus.extend(
+        super::cadre::boutons(ui, largeur)
+            .iter()
+            .map(|(_, [x, y, l, h])| boite(*x, *y, *l, *h)),
+    );
+    crate::plateforme::cadre::poser_les_zones(crate::plateforme::cadre::Zones {
+        bande: if couverte { 0 } else { hauteur.floor() as i32 },
+        tenus,
+    });
 }
 
 /// **Ce que le pointeur survole dans la bande d'une fenêtre large de `largeur`.**
@@ -100,7 +158,7 @@ pub fn survol_de_la_bande(
 ) -> Survol {
     let barre = la_barre(largeur, ui, typo, store.nombre_d_images());
     let onglets = layout_tabs(store, ui, typo);
-    survol(&barre, &onglets, pointer)
+    survol_ici(&barre, &onglets, ui, largeur, pointer)
 }
 
 /// La bande déjà dessinée, et la clé sous laquelle elle l'a été.
@@ -130,6 +188,9 @@ pub(super) fn tenir_la_bande(
     let images = store.nombre_d_images();
     let barre = la_barre(largeur, ui, typo, images);
     let onglets = layout_tabs(store, ui, typo);
+    if ui.cadre_maison {
+        dire_les_zones(ui, largeur, &barre, &onglets);
+    }
     let cle = BandeKey {
         largeur: largeur.to_bits(),
         echelle: ui.scale_factor.to_bits(),
@@ -137,9 +198,10 @@ pub(super) fn tenir_la_bande(
         smart_align: ui.smart_align,
         images,
         tableaux: super::onglets::empreinte(&onglets, &ui.onglets),
-        survol: survol(&barre, &onglets, pointer),
+        survol: survol_ici(&barre, &onglets, ui, largeur, pointer),
         rail: ui.rail.actif,
         marge: ui.marge_du_haut().to_bits(),
+        cadre: (ui.cadre_maison, ui.fenetre_agrandie),
     };
     let hauteur = ui.header_height().ceil() as u32;
     let perime = ui
@@ -179,6 +241,7 @@ pub(super) fn tenir_la_bande(
                 &onglets,
                 cle.survol.onglet,
             );
+            super::cadre::dessiner(&mut vue, ui, theme, largeur, cle.survol.cadre);
         }
         let dessins = ui.bande_cache.as_ref().map_or(0, |c| c.dessins) + 1;
         ui.bande_cache = Some(BandeCache {
@@ -230,7 +293,13 @@ fn la_barre(largeur: f32, ui: &UiState, typo: &Typography, images: usize) -> Top
             img_badge: None,
         }
     } else {
-        layout_topbar(largeur, ui, typo, images)
+        // Les boutons de la fenêtre gardent leur place au bout (BARRE-1).
+        layout_topbar(
+            largeur - super::cadre::largeur_reservee(ui),
+            ui,
+            typo,
+            images,
+        )
     }
 }
 

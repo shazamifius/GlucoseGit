@@ -20,7 +20,9 @@
   image regardée** ; **pas prouvé sur le pilote fautif**, que personne n'a ici. Au passage : OpenGL
   était mort sous Wayland (corrigé, vu dessiner), et le nœud de bienvenue naissait sous la barre
   (ACCUEIL-2). **Attend la beta 7.**
-* **Le brouillon de la beta 7 est déposé, à sa parole** (sur `0138982`, invisible des utilisateurs) : MEMOIRE-4 (les 6 000 images), FIN-SESSION-1,
+* **La beta 7 est publiée par lui le 6/11** (`0138982`). **Sa surprise du même jour** : l'« utilisateur Windows inconnu » à la GTX 1660
+  (`5280efb2`, 39 sessions depuis le 12/10) a la même carte et le même démarrage d'appareil que **ses
+  journaux du PC de l'école** : c'est très probablement lui. Son contenu : MEMOIRE-4 (les 6 000 images), FIN-SESSION-1,
   MOTEUR-1, ACCUEIL-2, `rustls` 0.23.46 (ferme les 4 alertes de GitHub, aucune n'atteignait Glucose).
   Le garde-fou NOTES-1 arrête une publication dont les notes parlent d'une autre version.
 * **La télémétrie au 6/11** : 132 sessions, 7 installations, 29 fins anormales. L'utilisateur à la

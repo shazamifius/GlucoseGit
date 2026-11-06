@@ -162,6 +162,8 @@ impl GlucoseApp {
                 self.fermer_puis(crate::persist::close::Apres::Quitter);
             }
             WindowEvent::Resized(size) => {
+                // Le bouton d'agrandissement dit l'état de la fenêtre, quel que soit qui l'a changé.
+                self.ui.fenetre_agrandie = self.window.as_ref().is_some_and(|f| f.is_maximized());
                 let width = size.width.max(1);
                 let height = size.height.max(1);
                 if let Some(presenter) = &mut self.presenter {
