@@ -9,6 +9,8 @@
 
 ## 1. En une page
 
+* **La session du 6/11 s'est arrêtée au milieu d'ATLAS-1** : l'atelier est décrit dans la fiche 86 § 4 quinquies,
+  et son code n'est que sur ce PC (arbre de travail, et `~/.cache/glucose-bancs/atlas-en-cours.patch`).
 * **Le problème le plus visible, au 6/11 : un tableau entier à l'écran coûte par nœud, à chaque image**
   (fiche 86) : 46 ms pour 8 000 images ici, 3 images par seconde dit-il à l'école, le fil qui dessine
   saturé et la carte qui attend. Enquête ouverte ; **passe avant le domaine**. **La beta 8, publiée par

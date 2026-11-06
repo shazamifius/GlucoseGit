@@ -1,0 +1,7 @@
+1 tout-cadrer
+8 voler 0 0 0.1
+14 tout-cadrer
+20 voler 0 0 0.1
+26 tout-cadrer
+32 tout-choisir
+38 quitter

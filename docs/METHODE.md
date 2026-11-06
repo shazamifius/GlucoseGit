@@ -213,6 +213,11 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
 * **Rust** : `nix develop -c cargo …` (`target` existe déjà). Une seule grosse compilation à la fois.
 * **Un essai réel** : `bash outils/essai_isole.sh <secondes> [capture.png]`. Dossier neuf, télémétrie
   coupée d'avance, capture par `grim`. Annoncer la fenêtre : elle prend le focus.
+* **Jouer des gestes minutés dans le vrai Glucose** : `GLUCOSE_SCENARIO=<fichier>` (`outils/scenarios/`), et le
+  tableau de 8 000 images : `~/.cache/glucose-bancs/` (`fabriquer_un_grand_tableau`, à refaire s'il manque).
+  **Dire à l'avance le nombre EXACT de fenêtres** : il a vu Glucose se relancer quatre fois quand deux
+  étaient annoncées, et a cru à un défaut. Un tableau neuf décode ; `perf` ralentit : ne comparer que deux
+  mesures faites dans les mêmes conditions.
 * **Faire tomber un moteur** : `GLUCOSE_TOMBER=vulkan` (ou `gl`) ; l'échelle se joue en relançant.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>` ; la connexion est dans CLAUDE.md
   (le mode « lien et code » : la page automatique a mis dix minutes à s'ouvrir, et l'autre mode

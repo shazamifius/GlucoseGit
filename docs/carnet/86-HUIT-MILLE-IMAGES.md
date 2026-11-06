@@ -129,6 +129,44 @@ se prend que si un banc la réclame »*. Le banc la réclame.
 **À prouver à chaque étape, sinon on s'arrête** : les mêmes pixels que le chemin actuel (l'épreuve des deux
 voies) ; 8 000 images sous 10 ms sur cette Intel UHD 620 ; aucune régression de près.
 
+## 4 quinquies. L'atelier, là où la session du 6/11 s'est arrêtée
+
+**ATLAS-1 est écrit et n'est PAS sur GitHub.** Il vit dans l'arbre de travail de ce PC (`present/scene_gpu/atlas.rs`,
+`scene_gpu.rs`, `scene_gpu/memoire.rs`), et dans `~/.cache/glucose-bancs/atlas-en-cours.patch`.
+
+La conception du § 4 quater s'est **simplifiée en écrivant** : pas de tableau de textures, pas de nuanceur de
+plus. Une page est une texture ordinaire de 2048 pixels en cellules de 64 ; le nuanceur lit déjà une fenêtre
+et des bornes ; les poses consécutives d'une page sont un seul dessin. Toutes les cartes le savent, OpenGL
+compris. **La pose reste écrite à chaque image** : les poses gardées sur la carte, en coordonnées du
+document, restent à faire, et c'est là qu'est le reste du gain.
+
+**Mesuré, une seule paire, à confirmer** (`outils/scenarios/vols-vue-d-ensemble.txt`, 8 000 images, Intel UHD 620) :
+
+| | sans atlas | avec |
+|---|---|---|
+| une image pendant le vol, médiane | 110 ms | **65 ms** |
+| au repos, médiane | 78 ms | 65 ms |
+| `soumettre`, médiane | 16,4 ms | **1,7 ms** |
+| `composants` | 23 ms | 19 ms |
+| `textures` | 14 ms | 12 ms |
+| `etages` | 12 ms | 7 ms |
+
+**Très loin des 10 ms.** Ce qui reste : `composants` (`format!` et `HashMap<String>` par photo), `textures`
+(`assurer`, `connait`, deux tours), `etages`, `cull`. Et **`soumettre` a des pics à 71-86 ms au p99**, à expliquer.
+
+**Il reste à faire, dans l'ordre** :
+
+1. Confirmer l'avant-après (`GLUCOSE_SANS_ATLAS=1` coupe l'atlas) : plusieurs paires.
+2. **3 épreuves tombent**, toutes sur la comptabilité (une petite texture compte désormais une cellule, 16 Ko) :
+   `test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran`, `test_memoire_2_rendre_garde_l_ecran_…`,
+   `test_vram_hors_de_l_ecran_…`. Décider si la comptabilité est juste, puis les adapter, sans les affaiblir.
+3. `Atlas::pages()` est morte (clippy refuse) : lui donner son épreuve (une page vide se rend entière).
+   Une épreuve qui compte les dessins ; le `GLUCOSE_SANS_ATLAS` et le mélange atlas/grandes photos dans
+   l'ordre du modèle. Sabotages. `scene_gpu.rs` est à 598 lignes : le cliquet est à 600, extraire.
+4. Une page partiellement vide occupe 16 Mo mais compte moins : à dire au budget de la carte.
+5. **Les poses gardées sur la carte** : plus d'écriture par photo tant que le document ne change pas.
+6. Reprendre le § 4 : un vol décode-t-il à ses échelles intermédiaires ? Les aperçus à la deuxième ouverture ?
+
 ## 5. Les options
 
 La piste qui ferme le sujet : **quand seule la vue change, la carte graphique n'a besoin que d'une
