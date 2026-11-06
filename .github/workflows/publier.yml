@@ -59,6 +59,11 @@ jobs:
           derniere=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
           python outils/publication/verifier_notes.py outils/publication/notes.md "$derniere"
 
+      # Une version qui écrit ce que le serveur ne connaît pas perdrait tous ses journaux (CHARGE-1).
+      - name: Le serveur de télémétrie connaît cette version
+        shell: bash
+        run: python outils/publication/verifier_serveur.py
+
       - uses: dtolnay/rust-toolchain@stable
 
       - name: NSIS

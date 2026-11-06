@@ -475,6 +475,16 @@ impl Chronique {
         }
     }
 
+    /// Ce que la machine fait, pour la boîte noire si elle est ouverte (CHARGE-1).
+    pub fn noter_la_charge(&self, charge: enregistrement::Charge) {
+        if let Some(b) = &self.boite {
+            b.envoyer(Enregistrement::Charge {
+                instant_ms: b.instant_ms(),
+                charge,
+            });
+        }
+    }
+
     /// Ce que le lancement a rouvert, pour la boîte noire si elle est ouverte (REPRISE-1).
     pub fn noter_la_reprise(&self, reprise: enregistrement::Reprise) {
         if let Some(b) = &self.boite {

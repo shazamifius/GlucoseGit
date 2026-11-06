@@ -60,6 +60,18 @@ export const TYPES = {
     decodages_mo: "entier",
     carte_mo: "entier?",
   },
+  // **Ce que la machine fait, et ce que Glucose y prend** (CHARGE-1, fiche 86) : sa demande du 6/11.
+  // Des pourcentages et des comptes, jamais rien de ce que le tableau dit. `null` : le système ne le
+  // dit pas. Une sorte de ligne de plus, et non des champs : les anciennes versions restent valides.
+  charge: {
+    instant_ms: "entier",
+    machine_pct: "entier?",
+    processus_pct: "entier?",
+    fil_pct: "entier?",
+    coeurs: "entier",
+    noeuds: "entier",
+    visibles: "entier",
+  },
   // **Le système demande de rendre de la mémoire** (MEMOIRE-2) : sous Android, onTrimMemory.
   alerte_memoire: { instant_ms: "entier", arriere_plan: "booleen" },
   // La carte graphique, par ses numéros et des noms fermés — jamais le nom que donne son pilote

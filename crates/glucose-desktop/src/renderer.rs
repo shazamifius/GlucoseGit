@@ -166,6 +166,8 @@ pub struct Renderer {
     /// pas du zoom (P8 bis, fiche 73 § 7).
     pub mises_en_page: card::MisesEnPage,
     pub hue_cache: SymbioticHueCache,
+    /// Combien de nœuds la dernière image a retenus à l'écran (CHARGE-1).
+    pub noeuds_visibles: usize,
     /// `domain_id → teinte`, reconstruite une fois par version du document (DOMAIN-TINT-1).
     pub domain_tints: DomainTints,
     /// Ce que cette machine coûte, appris de ce qu'elle vient de faire (COUT-1).
@@ -220,6 +222,7 @@ impl Renderer {
             math: math::MathRenderer::new(),
             mises_en_page: Default::default(),
             hue_cache: SymbioticHueCache::new(),
+            noeuds_visibles: 0,
             domain_tints: DomainTints::new(),
             cout: glucose_core::cout::Cout::nouveau(),
             tuiles: tuiles::Tuiles::nouveau(),

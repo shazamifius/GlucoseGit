@@ -21,6 +21,7 @@
 pub mod administrateur;
 pub mod batterie;
 pub mod cadre;
+pub mod charge;
 pub mod clavier;
 /// Les images d'une copie en fichiers : là où un système les prend ainsi.
 #[cfg(any(

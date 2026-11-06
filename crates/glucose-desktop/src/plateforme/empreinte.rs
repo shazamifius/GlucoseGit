@@ -115,6 +115,22 @@ fn residente_en_octets(status: &str) -> Option<u64> {
 mod natif {
     use super::Empreinte;
 
+    pub fn relever() -> Option<Empreinte> {
+        let status = std::fs::read_to_string("/proc/self/status").ok()?;
+        let memoire_octets = super::residente_en_octets(&status)?;
+
+        let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
+        Some(Empreinte {
+            memoire_octets,
+            processeur_us: super::temps_de_stat_us(&stat)?,
+        })
+    }
+}
+
+/// **Le processeur qu'une ligne de `stat` a consommé**, en microsecondes : celle d'un processus
+/// ou d'un fil (CHARGE-1).
+#[cfg(any(target_os = "linux", target_os = "android", test))]
+pub(crate) fn temps_de_stat_us(stat: &str) -> Option<u64> {
     /// Le nombre de tics d'horloge par seconde que `/proc` emploie, et il vaut cent partout où
     /// Linux tourne — Android compris, dont le noyau est le même.
     ///
@@ -123,25 +139,15 @@ mod natif {
     /// différer, la part de processeur serait fausse d'un facteur entier — visible tout de
     /// suite, et jamais silencieuse.
     const TICS_PAR_SECONDE: u64 = 100;
-
-    pub fn relever() -> Option<Empreinte> {
-        let status = std::fs::read_to_string("/proc/self/status").ok()?;
-        let memoire_octets = super::residente_en_octets(&status)?;
-
-        let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
-        // Le nom du processus peut contenir des espaces et des parenthèses : les champs se
-        // comptent donc APRÈS la dernière parenthèse fermante, jamais depuis le début.
-        let apres = &stat[stat.rfind(')')? + 1..];
-        let champs: Vec<&str> = apres.split_whitespace().collect();
-        // `utime` et `stime` sont les quatorzième et quinzième champs de `stat` ; le découpage
-        // commence au troisième, donc ils sont ici aux rangs onze et douze.
-        let utime: u64 = champs.get(11)?.parse().ok()?;
-        let stime: u64 = champs.get(12)?.parse().ok()?;
-        Some(Empreinte {
-            memoire_octets,
-            processeur_us: (utime + stime).saturating_mul(1_000_000) / TICS_PAR_SECONDE,
-        })
-    }
+    // Le nom du processus peut contenir des espaces et des parenthèses : les champs se
+    // comptent donc APRÈS la dernière parenthèse fermante, jamais depuis le début.
+    let apres = &stat[stat.rfind(')')? + 1..];
+    let champs: Vec<&str> = apres.split_whitespace().collect();
+    // `utime` et `stime` sont les quatorzième et quinzième champs de `stat` ; le découpage
+    // commence au troisième, donc ils sont ici aux rangs onze et douze.
+    let utime: u64 = champs.get(11)?.parse().ok()?;
+    let stime: u64 = champs.get(12)?.parse().ok()?;
+    Some((utime + stime).saturating_mul(1_000_000) / TICS_PAR_SECONDE)
 }
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "android")))]

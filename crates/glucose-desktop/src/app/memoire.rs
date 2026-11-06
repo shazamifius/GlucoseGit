@@ -62,6 +62,36 @@ impl GlucoseApp {
             self.relever_les_etages();
             self.noter_la_memoire(false);
         }
+        self.noter_la_charge();
+    }
+
+    /// **Une ligne de charge toutes les quelques secondes**, tant que Glucose dessine (CHARGE-1) :
+    /// au repos, rien ne s'écrit, et la session reste légère. Cinq secondes : assez pour suivre un
+    /// geste long, et moins de quarante kilo-octets par heure.
+    fn noter_la_charge(&mut self) {
+        use crate::plateforme::charge;
+        const ENTRE_DEUX: std::time::Duration = std::time::Duration::from_secs(5);
+        let rendues = self.chronique.rendues();
+        let Some((avant, rendues_avant)) = self.lancement.charge else {
+            self.lancement.charge = Some((charge::relever(), rendues));
+            return;
+        };
+        if avant.quand.elapsed() < ENTRE_DEUX {
+            return;
+        }
+        let apres = charge::relever();
+        self.lancement.charge = Some((apres, rendues));
+        if rendues == rendues_avant {
+            return;
+        }
+        let coeurs = charge::coeurs();
+        self.chronique
+            .noter_la_charge(crate::boite_noire::enregistrement::Charge {
+                parts: charge::parts(&avant, &apres, coeurs),
+                coeurs,
+                noeuds: self.store.nombre_de_noeuds() as u64,
+                visibles: self.renderer.noeuds_visibles as u64,
+            });
     }
 
     /// **Pour la boîte noire** : une ligne si c'est un record, ou si on la force.

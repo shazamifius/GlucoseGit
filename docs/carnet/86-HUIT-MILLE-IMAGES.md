@@ -86,11 +86,15 @@ que le banc des images ne faisait pas parler. `examples/bench_noeuds_choisis` le
 
 **Vérification** : 2 718 épreuves vertes, 7 ignorées, clippy à zéro ; `huit-mille.json`, 9 sabotages sur 9.
 
-**La télémétrie ne dit ni la charge ni le nombre de nœuds**, et il l'a remarqué. **Le serveur refuse toute
-session portant un champ inconnu, et tout champ attendu qui manque** (`valider.js`) : ajouter un champ à
-`memoire` ferait refuser les anciennes versions, ou les nouvelles. La forme juste est **une nouvelle
-sorte de ligne**, `charge`, que le serveur apprend **avant** la version qui l'écrit. Déployer le demande
-un droit que la connexion de cette session n'a pas : son clic.
+**La télémétrie ne disait ni la charge ni le nombre de nœuds**, et il l'a remarqué. **Le serveur refuse
+toute session portant un champ ou une sorte de ligne inconnus** (`valider.js`) : ce qui est neuf doit donc
+lui être appris **avant** la version qui l'écrit, sinon ses journaux cessent d'arriver. **CHARGE-1** est une
+sorte de ligne à part, `charge`, plutôt que des champs optionnels de `memoire`, qui ne s'écrit qu'aux
+records : la charge se lit dans le temps. **Le serveur est déployé le 6/11**, avant la version qui
+l'écrit ; `verifier_serveur.py` l'interroge sans rien écrire (une session qu'il refuse à sa dernière
+ligne), et a d'abord été vu tomber. **Sa limite** : cinq secondes moyennent le repos entre deux vols
+d'une seconde (fil à 1-24 % sur le scénario, sans rien démentir) : elle lira les lags longs, pas un focus
+isolé. **La carte graphique n'y est pas**, faute d'une lecture commune aux systèmes.
 
 ## 5. Les options
 

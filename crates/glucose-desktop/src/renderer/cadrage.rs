@@ -288,6 +288,7 @@ impl Renderer {
             self.visibles_du_present(store, (min_wx, min_wy, max_wx, max_wy), MARGE_DU_CULLING);
         // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
         self.focus.filtrer(&mut rangs);
+        self.noeuds_visibles = rangs.len();
         crate::perf::stage("cull");
         (vp, rangs, densite)
     }

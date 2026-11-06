@@ -217,6 +217,10 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>` ; la connexion est dans CLAUDE.md
   (le mode « lien et code » : la page automatique a mis dix minutes à s'ouvrir, et l'autre mode
   expire en deux).
+* **Une commande qui déploie ou publie ne s'enchaîne jamais sans condition** après ses épreuves : `if`, pas
+  `;` (fiche 86, un déploiement tenté malgré une épreuve tombée, refusé par chance).
+* **Une liste de droits affichée n'est pas une liste de droits accordés** : `wrangler whoami` imprime aussi
+  ce qui manque, sous un avertissement. Lire le refus avant de redemander un clic.
 * **Suivre la CI** : `GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>`.
 * **Windows** ne s'essaie plus ici : seule la CI le compile et l'éprouve. Une correction propre à
   Windows part donc **sans essai réel**, et se dit telle.

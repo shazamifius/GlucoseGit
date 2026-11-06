@@ -49,7 +49,10 @@ node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages comp
 ```
 
 Cloudflare, si `tableau.mjs` dit qu'on n'est pas connecté — demander son clic, et lui donner le lien :
-`cd outils/telemetrie && npx wrangler login --device --browser=false --scopes account:read user:read d1:write`.
+`cd outils/telemetrie && npx wrangler login --device --browser=false --scopes account:read user:read d1:write`
+(ajouter `workers:write workers_scripts:write` pour déployer le serveur). **Le serveur refuse toute ligne
+qu'il ne connaît pas : il se déploie AVANT la version qui l'écrit** ; `outils/publication/verifier_serveur.py`
+arrête une publication qui l'oublierait.
 
 ## Les règles qui ne se discutent pas
 

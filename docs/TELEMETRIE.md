@@ -26,6 +26,9 @@ précédentes. On y trouve :
   (Vulkan, GL…), si elle est intégrée ou dédiée, et la plus grande image qu'elle accepte —,
   jamais par le nom que donne son pilote ;
 * l'état de la batterie, quand l'appareil en a une ;
+* **ce que l'ordinateur fait**, en pourcentages, tant que Glucose dessine : tout l'ordinateur, Glucose,
+  et son fil de dessin ; le nombre de cœurs ; combien de nœuds a le tableau et combien sont à l'écran
+  — des nombres, jamais ce que le tableau contient ;
 * comment la session a fini : fermée normalement, plantée (et dans quel module du système),
   gelée, ou — au téléphone — fermée par le système pendant que Glucose était en arrière-plan ;
 * au téléphone, les instants où Glucose passe derrière une autre application et en revient ;

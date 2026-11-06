@@ -41,6 +41,13 @@ fn selection_sets_de<'a>(
 }
 
 impl Store {
+    /// **Combien de nœuds a le tableau ouvert** : ses images, ses textes et ses dossiers (CHARGE-1).
+    pub fn nombre_de_noeuds(&self) -> usize {
+        self.active_board().map_or(0, |b| {
+            b.images.len() + b.annotations.len() + b.folders.len()
+        })
+    }
+
     /// Combien de photos le tableau actif porte.
     ///
     /// C'est ce que la barre affiche dans son badge ; elle le lisait sur le champ, et la

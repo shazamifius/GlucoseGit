@@ -92,8 +92,35 @@ pub enum Enregistrement {
     /// **Ce que le lancement a rouvert** (REPRISE-1, fiche 72) : rien, le brouillon qu'un arrêt
     /// a laissé, le dernier document — ou un échec —, et ce qu'il porte.
     Reprise { instant_ms: u64, reprise: Reprise },
+    /// **Ce que la machine fait, et combien de nœuds il y a** (CHARGE-1, fiche 86) : toutes les
+    /// quelques secondes, tant que Glucose dessine.
+    Charge { instant_ms: u64, charge: Charge },
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
+}
+
+/// **Une ligne de charge** (CHARGE-1) : des pourcentages et des comptes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Charge {
+    pub parts: crate::plateforme::charge::Parts,
+    pub coeurs: u64,
+    pub noeuds: u64,
+    pub visibles: u64,
+}
+
+impl Charge {
+    fn champs(self, instant_ms: u64) -> Vec<(&'static str, Champ)> {
+        use Champ::Entier;
+        vec![
+            ("instant_ms", Entier(instant_ms)),
+            ("machine_pct", self.parts.machine_pct.into()),
+            ("processus_pct", self.parts.processus_pct.into()),
+            ("fil_pct", self.parts.fil_pct.into()),
+            ("coeurs", Entier(self.coeurs)),
+            ("noeuds", Entier(self.noeuds)),
+            ("visibles", Entier(self.visibles)),
+        ]
+    }
 }
 
 /// **Ce que le lancement a rouvert** (REPRISE-1).
@@ -335,6 +362,7 @@ impl Enregistrement {
             Self::AlerteMemoire { .. } => "alerte_memoire",
             Self::Sortie { .. } => "sortie",
             Self::Reprise { .. } => "reprise",
+            Self::Charge { .. } => "charge",
             Self::Fin { .. } => "fin",
         }
     }
@@ -423,6 +451,7 @@ impl Enregistrement {
                 instant_ms,
                 reprise,
             } => reprise.champs(instant_ms),
+            Self::Charge { instant_ms, charge } => charge.champs(instant_ms),
             Self::Poste(poste) => poste.champs(),
             Self::Memoire { .. } | Self::AlerteMemoire { .. } => self.champs_de_la_memoire(),
             Self::Sortie {

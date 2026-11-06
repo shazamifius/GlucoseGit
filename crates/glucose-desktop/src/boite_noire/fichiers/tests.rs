@@ -192,6 +192,19 @@ fn une_ligne_de_chaque_sorte() -> Vec<String> {
                 total_mo: None,
             },
         },
+        Enregistrement::Charge {
+            instant_ms: 0,
+            charge: crate::boite_noire::enregistrement::Charge {
+                parts: crate::plateforme::charge::Parts {
+                    machine_pct: Some(18),
+                    processus_pct: None,
+                    fil_pct: Some(97),
+                },
+                coeurs: 12,
+                noeuds: 8000,
+                visibles: 7421,
+            },
+        },
         Enregistrement::Fin { instant_ms: 0 },
     ];
     let plantage = crate::boite_noire::plantage::Plantage {

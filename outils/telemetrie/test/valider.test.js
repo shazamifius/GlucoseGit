@@ -85,6 +85,8 @@ test("la memoire entre, record ou alerte, et ce qui ne se lit pas est null (MEMO
     '{"type":"fin","instant_ms":1200}',
     [
       '{"type":"memoire","instant_ms":1000,"processus_mo":412,"disponible_mo":2210,"images_mo":180,"offerts_mo":96,"decodages_mo":40,"carte_mo":64}',
+      '{"type":"charge","instant_ms":5000,"machine_pct":18,"processus_pct":9,"fil_pct":97,"coeurs":12,"noeuds":8000,"visibles":7421}',
+  '{"type":"charge","instant_ms":10000,"machine_pct":null,"processus_pct":null,"fil_pct":null,"coeurs":1,"noeuds":0,"visibles":0}',
       '{"type":"alerte_memoire","instant_ms":1100,"arriere_plan":true}',
       '{"type":"memoire","instant_ms":1100,"processus_mo":null,"disponible_mo":null,"images_mo":0,"offerts_mo":0,"decodages_mo":0,"carte_mo":null}',
       '{"type":"fin","instant_ms":1200}',
@@ -152,4 +154,26 @@ test("une longue session raccourcie le dit, juste apres son debut (POIDS-1)", ()
   const v = validerSession(coupee);
   assert.equal(v.ok, true, v.raison);
   assert.equal(validerSession(coupee.replace('"lignes":9150', '"lignes":"beaucoup"')).ok, false);
+});
+
+test("CHARGE-1 : la ligne de charge passe, et rien n'y entre en plus", () => {
+  const ligne = (fin) =>
+    `{"type":"charge","instant_ms":1,"machine_pct":18,"processus_pct":9,"fil_pct":97,"coeurs":12,"noeuds":8000,"visibles":7421${fin}}`;
+  const avec = (l) => validerSession(`${SESSION.trimEnd()}\n${l}\n`).ok;
+  assert.equal(avec(ligne("")), true);
+  assert.equal(avec(ligne(',"titre":"secret"')), false, "un champ de plus");
+  assert.equal(
+    avec('{"type":"charge","instant_ms":1,"machine_pct":"beaucoup","processus_pct":9,"fil_pct":97,"coeurs":12,"noeuds":8000,"visibles":7421}'),
+    false,
+    "un texte à la place d'un nombre",
+  );
+  assert.equal(
+    avec('{"type":"charge","instant_ms":1,"machine_pct":18,"processus_pct":9,"fil_pct":97,"noeuds":8000,"visibles":7421}'),
+    false,
+    "un champ obligatoire qui manque",
+  );
+});
+
+test("CHARGE-1 : une session d'avant, sans ligne de charge, reste valide", () => {
+  assert.equal(validerSession(SESSION).ok, true);
 });

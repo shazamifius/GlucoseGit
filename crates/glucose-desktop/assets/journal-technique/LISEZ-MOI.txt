@@ -204,6 +204,20 @@ type « sortie » — au téléphone, comment le système a fermé la session d'
   pss_mo                   la mémoire qu'elle occupait à sa mort               1840
   rss_mo                   la même, comptée autrement                          2210
 
+type « charge » — ce que la machine fait, et combien de nœuds il y a ; toutes les quelques
+                  secondes, tant que Glucose dessine (null : le système ne le dit pas)
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               12500
+  machine_pct              tout l'ordinateur, en pour cent                     18
+  processus_pct            Glucose, sur tout l'ordinateur, en pour cent        9
+  fil_pct                  le fil qui dessine, sur un seul cœur : à près de    97
+                           cent, il n'y a plus de marge, même si le reste dort
+  coeurs                   combien de cœurs la machine annonce                 12
+  noeuds                   combien de nœuds a le tableau ouvert                8000
+  visibles                 combien sont à l'écran                              7421
+
 type « reprise » — ce que le lancement a rouvert
 
   champ                    ce qu'il dit                                        exemple

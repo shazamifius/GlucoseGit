@@ -11,7 +11,8 @@
 
 * **Le problème le plus visible, au 6/11 : un tableau entier à l'écran coûte par nœud, à chaque image**
   (fiche 86) : 46 ms pour 8 000 images ici, 3 images par seconde dit-il à l'école, le fil qui dessine
-  saturé et la carte qui attend. Enquête ouverte ; **passe avant le domaine**.
+  saturé et la carte qui attend. Enquête ouverte ; **passe avant le domaine**. **La beta 8, publiée par
+  lui le 6/11**, retire la barre blanche de Windows et les coûts au carré du texte (fiches 85 et 86).
 * **Depuis le 6/11, on travaille sur son VivoBook sous NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et
   MX150, écran 60 Hz, Wayland) : le PC Windows des fiches précédentes est cassé. Le code n'a rien
   perdu. **Windows ne s'essaie plus qu'à travers la CI**, alors que ses utilisateurs connus y sont

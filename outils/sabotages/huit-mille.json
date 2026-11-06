@@ -4,62 +4,181 @@
   "fichier": "crates/glucose-core/src/store/choix.rs",
   "avant": "            if !garde {\n                ensemble.remove(id);\n            }\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "test_choix_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "test_choix_1"
+  ]
  },
  {
   "nom": "CHOIX-1 un doublon compte deux fois",
   "fichier": "crates/glucose-core/src/store/choix.rs",
   "avant": "        if self.ensemble.insert(id.clone()) {\n            self.ordre.push(id);\n        }\n",
   "apres": "        self.ensemble.insert(id.clone());\n        self.ordre.push(id);\n",
-  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "test_choix_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "test_choix_1"
+  ]
  },
  {
   "nom": "CHOIX-1 vider oublie l'ensemble",
   "fichier": "crates/glucose-core/src/store/choix.rs",
   "avant": "        self.ordre.clear();\n        self.ensemble.clear();\n",
   "apres": "        self.ordre.clear();\n",
-  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "test_choix_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "test_choix_1"
+  ]
  },
  {
   "nom": "TEINTES-1 une version nouvelle ne perime rien",
   "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
   "avant": "            if v == version {\n                return (hue, rgb);\n            }\n",
   "apres": "            let _ = v;\n            return (hue, rgb);\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "test_teintes_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_teintes_1"
+  ]
  },
  {
   "nom": "TEINTES-1 la cascade n'avance plus",
   "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
   "avant": "        self.une_faite && self.echeance.is_some_and(|e| Instant::now() >= e)\n",
   "apres": "        self.echeance.is_some_and(|e| Instant::now() >= e)\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "test_teintes_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_teintes_1"
+  ]
  },
  {
   "nom": "TEINTES-1 l'image ne dit pas son retard",
   "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
   "avant": "            self.en_retard = true;\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "test_teintes_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_teintes_1"
+  ]
  },
  {
   "nom": "TEINTES-1 un autre tableau garde ses teintes",
   "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
   "avant": "        if !meme_tableau {\n            self.entries.clear();\n        }\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "test_teintes_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_teintes_1"
+  ]
  },
  {
   "nom": "TEINTES-1 le lancement ne pose pas la tranche",
   "fichier": "crates/glucose-desktop/src/demarrage.rs",
   "avant": "    app.renderer.hue_cache.accorder_la_tranche(Some(\n        crate::cadence::BUDGET_TOTAL.saturating_sub(crate::cadence::MARGE),\n    ));\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "test_teintes_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_teintes_1"
+  ]
  },
  {
   "nom": "TEINTES-1 le reveil ne finit pas la cascade",
   "fichier": "crates/glucose-desktop/src/app/reveil.rs",
   "avant": "            && !self.renderer.hue_cache.en_retard()\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "test_teintes_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_teintes_1"
+  ]
+ },
+ {
+  "nom": "CHARGE-1 Glucose ramene a un seul coeur",
+  "fichier": "crates/glucose-desktop/src/plateforme/charge.rs",
+  "avant": "duree_us.saturating_mul(coeurs)",
+  "apres": "duree_us",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_charge_1"
+  ]
+ },
+ {
+  "nom": "CHARGE-1 une part depasse cent",
+  "fichier": "crates/glucose-desktop/src/plateforme/charge.rs",
+  "avant": ".min(100))",
+  "apres": ")",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_charge_1"
+  ]
+ },
+ {
+  "nom": "CHARGE-1 un intervalle vide dit zero",
+  "fichier": "crates/glucose-desktop/src/plateforme/charge.rs",
+  "avant": "(sur > 0).then(||",
+  "apres": "(sur > 0 || true).then(||",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_charge_1"
+  ]
+ },
+ {
+  "nom": "CHARGE-1 l'attente du disque compte comme du travail",
+  "fichier": "crates/glucose-desktop/src/plateforme/charge.rs",
+  "avant": "valeurs.get(3)? + valeurs.get(4)?",
+  "apres": "*valeurs.get(3)?",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_charge_1"
+  ]
  }
 ]
