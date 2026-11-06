@@ -69,3 +69,29 @@ fn test_habiter_place_tout_dans_le_meme_dossier() {
     assert!(apercus.is_some_and(|a| a.starts_with(&dossier)));
     assert!(app.souvenir_de_la_carte.starts_with(&dossier));
 }
+
+#[test]
+fn test_accueil_2_le_noeud_de_bienvenue_ne_nait_pas_sous_la_barre() {
+    let mut app = crate::app::GlucoseApp::new();
+    app.montrer_l_accueil();
+    let vue = app.store.viewport();
+    let haut = f64::from(app.ui.header_height());
+    assert!(
+        vue.y > haut,
+        "le titre doit paraître sous la barre : {} <= {haut}",
+        vue.y
+    );
+    assert!(vue.x > 0.0, "et décollé du bord");
+    assert!(
+        !app.store.journal.can_undo(),
+        "regarder ailleurs n'est pas un geste à défaire"
+    );
+}
+
+#[test]
+fn test_accueil_2_seul_un_lancement_sans_rien_a_rouvrir_le_montre() {
+    let reprise = include_str!("../../persist/reprise.rs");
+    assert!(reprise.contains("accueil_a_montrer = rouvert == \"rien\""));
+    let fenetre = include_str!("../fenetre.rs");
+    assert!(fenetre.contains("std::mem::take(&mut self.lancement.accueil_a_montrer)"));
+}

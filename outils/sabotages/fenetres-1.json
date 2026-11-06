@@ -2,8 +2,8 @@
  {
   "nom": "FENETRES-1 tous les moteurs d'office",
   "fichier": "crates/glucose-desktop/src/present/moteurs.rs",
-  "avant": "pub const MOTEURS: [wgpu::Backends; 2] = [wgpu::Backends::PRIMARY, wgpu::Backends::GL];",
-  "apres": "pub const MOTEURS: [wgpu::Backends; 2] = [wgpu::Backends::all(), wgpu::Backends::GL];",
+  "avant": "    (wgpu::Backends::DX12, \"dx12\"),\n",
+  "apres": "    (wgpu::Backends::all(), \"dx12\"),\n",
   "cmd": ["cargo", "test", "-p", "glucose-desktop", "--test", "fenetres_suite"]
  },
  {

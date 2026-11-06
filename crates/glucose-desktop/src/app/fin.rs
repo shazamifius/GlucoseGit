@@ -30,6 +30,8 @@ impl GlucoseApp {
         // Ce que Glucose a confié au presse-papiers y reste après lui (COPIER-1).
         crate::plateforme::presse_papiers::rendre_avant_de_quitter();
         self.noter_le_gel_en_cours();
+        // Une fermeture demandée pendant l'ouverture n'est pas la chute d'un moteur (MOTEUR-1).
+        crate::present::echelle::survecu();
         self.clore_la_chronique();
         self.vider_les_signes_du_pave();
         self.chronique.clore_la_boite_noire();

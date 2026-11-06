@@ -50,6 +50,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Avant de construire quoi que ce soit : la beta 6 est partie avec les notes de la beta 5.
+      - name: Les notes parlent de cette version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          derniere=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          python outils/publication/verifier_notes.py outils/publication/notes.md "$derniere"
+
       - uses: dtolnay/rust-toolchain@stable
 
       - name: NSIS

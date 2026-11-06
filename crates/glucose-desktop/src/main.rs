@@ -21,6 +21,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().nth(1).as_deref() == Some("--mcp") {
         std::process::exit(glucose_desktop::agents::relais::relayer());
     }
+    // `glucose --sonder-moteur vulkan` : un moteur écarté survit-il ? (MOTEUR-1, fiche 84).
+    #[cfg(not(target_os = "android"))]
+    if std::env::args().nth(1).as_deref() == Some("--sonder-moteur") {
+        let moteur = std::env::args().nth(2);
+        std::process::exit(glucose_desktop::present::echelle::sonder(moteur.as_deref()));
+    }
     // Avant toute fenêtre et tout dialogue : qui est Glucose pour la barre des tâches.
     glucose_desktop::plateforme::identite::declarer();
     let dossier = glucose_desktop::present::souvenir::dossier();

@@ -67,6 +67,20 @@ pub fn dossier_hors_lancement() -> std::path::PathBuf {
 }
 
 impl super::GlucoseApp {
+    /// **ACCUEIL-2 — le nœud de bienvenue se voit au premier lancement.** Il naît à l'origine,
+    /// et l'origine tombait sous la barre : on lisait sa fin, jamais son titre. Le retrait suit
+    /// la hauteur réelle de la bande, à l'échelle de cet écran : aucun nombre à régler.
+    pub(super) fn montrer_l_accueil(&mut self) {
+        let Some(tableau) = self.store.active_board().map(|t| t.id.clone()) else {
+            return;
+        };
+        let haut = f64::from(self.ui.header_height());
+        let mut vue = self.store.viewport();
+        vue.x = haut / 2.0;
+        vue.y = haut * 1.5;
+        self.store.set_viewport(&tableau, vue);
+    }
+
     /// **Le dossier où l'application habite** : ses brouillons et les textes en cours de
     /// frappe, les aperçus des images vues (ETAGES-4), le souvenir de la carte graphique.
     ///

@@ -1,5 +1,5 @@
 // **Le tableau de bord de la boîte noire** (fiche 65) : la base lue depuis son compte, comme
-// toujours (`wrangler d1 execute` — le Worker n'a aucune porte pour lire), résumée en trois
+// toujours (`wrangler d1 execute` — le Worker n'a aucune porte pour lire), résumée en quatre
 // fichiers JSON que le tableau de bord cite.
 //
 //   node outils/telemetrie/tableau.mjs <dossier de sortie>
@@ -10,6 +10,7 @@
 // * `fins.json` : chaque session qui a mal fini, si l'appareil a redémarré, et combien de temps
 //   après sa dernière trace — quelques dizaines de secondes disent un redémarrage **pendant**
 //   Glucose, des heures un redémarrage sans lien.
+// * `plantages.json` : chaque plantage, par pilote et par octet — où regarder en premier.
 //
 // **Comment une session a fini** ne se lit pas dans ses propres lignes : c'est la session
 // **suivante** de la même installation qui le dit (sa ligne `precedente`). La dernière session
@@ -188,12 +189,42 @@ async function main() {
   const parJour = [...jours]
     .map(([cle, n]) => ({ jour: cle.split("|")[0], systeme: cle.split("|")[1], sessions: n }))
     .sort((a, b) => a.jour.localeCompare(b.jour) || a.systeme.localeCompare(b.systeme));
+  // Les plantages, par pilote et par octet : ce qui a fait découvrir la machine que Glucose
+  // excluait (`igvk64.dll`, fiche 84) et qu'aucun autre résumé ne montrait.
+  const plantages = new Map();
+  for (const s of sessions) {
+    for (const x of s.l) {
+      if (x.type !== "plantage") continue;
+      const cle = [x.module, x.version_du_module, x.code, x.decalage].join("|");
+      const p = plantages.get(cle) ?? {
+        module: x.module,
+        version_du_module: x.version_du_module,
+        code: x.code === undefined || x.code === null ? null : `0x${x.code.toString(16)}`,
+        decalage: x.decalage,
+        gel: x.gel,
+        fois: 0,
+        installations: new Set(),
+        versions: new Set(),
+        dernier: "",
+      };
+      p.fois += 1;
+      p.installations.add(s.installation.slice(0, 8));
+      p.versions.add(s.version);
+      if (s.recue > p.dernier) p.dernier = s.recue;
+      plantages.set(cle, p);
+    }
+  }
+  const parPlantage = [...plantages.values()]
+    .map((p) => ({ ...p, installations: [...p.installations], versions: [...p.versions] }))
+    .sort((a, b) => b.fois - a.fois);
   mkdirSync(SORTIE, { recursive: true });
+  writeFileSync(join(SORTIE, "plantages.json"), JSON.stringify(parPlantage, null, 1));
   writeFileSync(join(SORTIE, "installations.json"), JSON.stringify(installations, null, 1));
   writeFileSync(join(SORTIE, "jours.json"), JSON.stringify(parJour, null, 1));
   writeFileSync(join(SORTIE, "fins.json"), JSON.stringify(fins, null, 1));
   console.log(`${sessions.length} sessions, ${installations.length} installations, ${fins.length} fins anormales`);
   for (const i of installations) console.log(JSON.stringify(i));
+  for (const p of parPlantage) console.log(`plantage : ${JSON.stringify(p)}`);
 }
 
 main();

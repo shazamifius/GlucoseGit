@@ -27,6 +27,9 @@ use std::path::Path;
 /// Ce que `main` donne à l'application, et rien d'autre.
 #[derive(Default)]
 pub struct Lancement {
+    /// **Rien à rouvrir** : à la naissance de la fenêtre, quand l'échelle de l'écran est connue,
+    /// la vue montrera le nœud de bienvenue (ACCUEIL-2).
+    pub accueil_a_montrer: bool,
     /// De quoi réveiller la boucle depuis un autre fil : le veilleur du budget de la carte
     /// (ETAGES-2). `main` seul tient la boucle avant qu'elle tourne.
     pub reveil: Option<winit::event_loop::EventLoopProxy<()>>,

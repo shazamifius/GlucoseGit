@@ -89,6 +89,15 @@ jobs:
         env:
           GLUCOSE_EXIGER_UNE_CARTE: "1"
 
+      # MOTEUR-1 : Direct3D 12 est le barreau qui prend le relais quand le pilote Vulkan fait
+      # tomber Glucose. Il se prouve par son nom : WARP ne doit pas être seulement une possibilité.
+      - name: Le rendu par Direct3D 12
+        if: runner.os == 'Windows'
+        run: cargo test -p glucose-desktop --lib present::
+        env:
+          GLUCOSE_EXIGER_UNE_CARTE: "1"
+          WGPU_BACKEND: dx12
+
       # `cargo tree` n'imprime que le noyau lui-même quand il ne dépend de rien : une ligne.
       - name: Le noyau n'a aucune dépendance
         shell: bash

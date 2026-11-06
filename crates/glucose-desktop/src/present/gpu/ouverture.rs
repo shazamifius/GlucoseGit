@@ -16,27 +16,45 @@ use std::sync::Arc;
 /// Ce que l'ouverture rend : l'adaptateur, son périphérique et sa file, son nom, ses numéros.
 pub(super) type Ouverte = (wgpu::Adapter, wgpu::Device, wgpu::Queue, String, Carte);
 
-/// **Ouvre la carte par le premier moteur qui en offre une** (FENETRES-1,
-/// [`crate::present::moteurs`]) : l'instance, la surface de la fenêtre, et l'ouverture.
+/// **Ouvre la carte par le premier moteur qui en offre une vraie** (FENETRES-1, MOTEUR-1,
+/// [`crate::present::moteurs`], [`crate::present::echelle`]) : l'instance, la surface de la
+/// fenêtre, et l'ouverture.
+///
+/// **Une carte logicielle (llvmpipe, WARP) n'est prise qu'à défaut** : ouvrir tous les moteurs
+/// ensemble laissait `wgpu` préférer une vraie carte, et un Vulkan logiciel ne doit pas masquer
+/// un Direct3D 12 matériel. Elle se rouvre alors, plutôt que de tenir deux surfaces sur une même
+/// fenêtre pendant qu'on essaie les suivants.
 pub(super) fn par_le_premier_moteur(
     window: &Arc<winit::window::Window>,
     width: NonZeroU32,
     height: NonZeroU32,
     carte: wgpu::PowerPreference,
 ) -> DesktopResult<(wgpu::Instance, wgpu::Surface<'static>, Ouverte)> {
-    let mut refus = Vec::new();
-    for moteurs in crate::present::moteurs::MOTEURS {
-        let instance = crate::present::moteurs::instance(moteurs);
-        let ouverte = instance
+    use crate::present::{echelle, moteurs};
+    let essayer = |moteur, nom: &str| {
+        echelle::j_ouvre(nom);
+        let instance = moteurs::instance_pour_la_fenetre(moteur, window);
+        instance
             .create_surface(Arc::clone(window))
             .map_err(|e| DesktopError::WindowError(format!("surface : {e}")))
             .and_then(|surface| {
                 ouvrir(&instance, &surface, width, height, carte).map(|o| (surface, o))
-            });
-        match ouverte {
-            Ok((surface, o)) => return Ok((instance, surface, o)),
-            Err(e) => refus.push(format!("{moteurs:?} : {e}")),
+            })
+            .map(|(surface, o)| (instance, surface, o))
+    };
+    let mut refus = Vec::new();
+    let mut logicielle = None;
+    for (moteur, nom) in echelle::barreaux() {
+        match essayer(moteur, nom) {
+            Ok(trouvee) if trouvee.2 .0.get_info().device_type != wgpu::DeviceType::Cpu => {
+                return Ok(trouvee)
+            }
+            Ok(_) => logicielle = logicielle.or(Some((moteur, nom))),
+            Err(e) => refus.push(format!("{nom} : {e}")),
         }
+    }
+    if let Some((moteur, nom)) = logicielle {
+        return essayer(moteur, nom);
     }
     Err(DesktopError::WindowError(format!(
         "aucun moteur n'offre de carte — {}",

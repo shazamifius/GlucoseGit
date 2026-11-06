@@ -74,6 +74,7 @@ impl GlucoseApp {
             octets: attentes.octets,
         };
         let (mut dit, rouvert, chemin) = self.rouvrir(attentes.premier);
+        self.lancement.accueil_a_montrer = rouvert == "rien";
         self.noter_la_reprise(rouvert, trouve, chemin.as_deref());
         // LIBERE-1 : un brouillon qu'un autre Glucose tient encore est attendu.
         self.attendre_les_brouillons_tenus(attentes.tenus);

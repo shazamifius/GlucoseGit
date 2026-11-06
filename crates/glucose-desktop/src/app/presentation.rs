@@ -101,7 +101,8 @@ impl GlucoseApp {
     ) {
         use crate::present::Issue;
         match issue {
-            Ok(Issue::Presentee) => {}
+            // MOTEUR-1 : le moteur a tenu jusqu'à une image à l'écran.
+            Ok(Issue::Presentee) => crate::present::echelle::survecu(),
             Ok(Issue::Cachee) => crate::perf::compteur("images_cachees", 1.0),
             Ok(Issue::Perdue) => {
                 crate::perf::compteur("images_perdues", 1.0);

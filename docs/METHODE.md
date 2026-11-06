@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 25/10/2026** (fiches 59 à 82). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 6/11/2026** (fiches 59 à 84). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -203,6 +203,28 @@
 | **Une cause qui dort faute d'appareil** : dix jours sans son téléphone ni son câble (fiche 83) | le téléphone virtuel de ce PC (§ 5), et un tableau fabriqué par le vrai dépôt |
 
 ## 5. Les pièges pratiques
+
+### La machine d'aujourd'hui (depuis le 6/11/2026, fiche 84)
+
+Son VivoBook sous **NixOS, Wayland et niri** : i7-8550U, 7,6 Go, Intel UHD 620 (Glucose la choisit),
+MX150, écran 60 Hz. **Le reste de ce § 5 a été écrit sur le PC Windows, aujourd'hui cassé** : ses
+chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
+
+* **Rust** : `nix develop -c cargo …` (`target` existe déjà). Une seule grosse compilation à la fois.
+* **Un essai réel** : `bash outils/essai_isole.sh <secondes> [capture.png]`. Dossier neuf, télémétrie
+  coupée d'avance, capture par `grim`. Annoncer la fenêtre : elle prend le focus.
+* **Faire tomber un moteur** : `GLUCOSE_TOMBER=vulkan` (ou `gl`) ; l'échelle se joue en relançant.
+* **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>` ; la connexion est dans CLAUDE.md
+  (le mode « lien et code » : la page automatique a mis dix minutes à s'ouvrir, et l'autre mode
+  expire en deux).
+* **Windows** ne s'essaie plus ici : seule la CI le compile et l'éprouve. Une correction propre à
+  Windows part donc **sans essai réel**, et se dit telle.
+* **Android** : ni SDK ni téléphone virtuel pour l'instant. `/dev/kvm` existe ; les 4 Go de l'appareil
+  seront serrés sur 7,6 Go. La CI construit l'APK.
+* **Mac** : la CI seule, comme toujours.
+* **Tauri** : `git worktree add --detach <scratchpad>/tauri origin/tauri-v1.0.1`, retiré en sortant.
+
+### Ce qui vient de l'ancien PC
 
 * **Git Bash mange les barres obliques inverses** dans un heredoc : écrire un script ou un message
   de commit avec l'outil d'écriture, dans le scratchpad, puis `git commit -F fichier`.

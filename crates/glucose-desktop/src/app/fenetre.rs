@@ -267,6 +267,9 @@ impl GlucoseApp {
         let scale_factor = window.scale_factor();
         self.scale_factor = scale_factor;
         self.ui.scale_factor = scale_factor as f32;
+        if std::mem::take(&mut self.lancement.accueil_a_montrer) {
+            self.montrer_l_accueil();
+        }
 
         let size = window.inner_size();
         let width = size.width.max(1);

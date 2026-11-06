@@ -1,20 +1,37 @@
 # Où en est Glucose
 
-> **Au 25/10/2026** (fiches 73 à 82). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 6/11/2026** (fiches 73 à 84). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
-> le [carnet](carnet/00-INDEX.md) (fiches 51 à 82 pour la V2). La direction : [VISION](VISION.md).
+> le [carnet](carnet/00-INDEX.md) (fiches 51 à 84 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
 
 ---
 
 ## 1. En une page
 
+* **Depuis le 6/11, on travaille sur son VivoBook sous NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et
+  MX150, écran 60 Hz, Wayland) : le PC Windows des fiches précédentes est cassé. Le code n'a rien
+  perdu. **Windows ne s'essaie plus qu'à travers la CI**, alors que ses utilisateurs connus y sont
+  presque tous. Mode d'emploi : METHODE § 5 ; la carte de la machine : `~/Projets/LISEZ-MOI.md`.
+* **Glucose excluait une machine, et on l'a appris par la télémétrie** (fiche 84) : un utilisateur
+  Windows inconnu, le 29/10, quatre lancements sans une image, tué par `igvk64.dll`, le pilote Vulkan
+  d'Intel. **MOTEUR-1** : un moteur qui fait tomber Glucose à son ouverture ne s'ouvre plus, jusqu'au
+  processeur s'il le faut, sans liste de pilotes. **Joué en réel sous Linux, de vrais plantages, chaque
+  image regardée** ; **pas prouvé sur le pilote fautif**, que personne n'a ici. Au passage : OpenGL
+  était mort sous Wayland (corrigé, vu dessiner), et le nœud de bienvenue naissait sous la barre
+  (ACCUEIL-2). **Attend la beta 7.**
+* **La beta 7 est prête à partir, à sa parole** : MEMOIRE-4 (les 6 000 images), FIN-SESSION-1,
+  MOTEUR-1, ACCUEIL-2, `rustls` 0.23.46 (ferme les 4 alertes de GitHub, aucune n'atteignait Glucose).
+  Le garde-fou NOTES-1 arrête une publication dont les notes parlent d'une autre version.
+* **La télémétrie au 6/11** : 132 sessions, 7 installations, 29 fins anormales. L'utilisateur à la
+  GTX 1660 revient toujours (39 sessions, dernière le 4/11, en beta 6). **Son téléphone reste muet
+  depuis le 15/10.** Son PC Windows : dernière session le 23/10.
+* **Une clé n'a plus de copie connue** : voir § 4.
 * **Sa parole du 25/10 : Protéo en pause, la partie 1 de Glucose d'abord** — le logiciel complet,
   ultra optimisé, des utilisateurs, une ergonomie parfaite. SUITE § 0 en propose la ligne
   d'arrivée (la 2.1.0, six conditions) et cinq étapes ; trois questions attendent sa parole.
 * **Glucose Rust est publié.** La **2.0.3-beta.6** est la release « latest » depuis le 23/10
-  (sur `4a111b4` : tout jusqu'à la fiche 81, la porte des agents comprise ; **ses notes sont
-  celles de la beta 5 recopiées**, à corriger à sa parole) : installeur Windows, AppImage, `.deb`,
+  (sur `4a111b4` : tout jusqu'à la fiche 81, la porte des agents comprise) : installeur Windows, AppImage, `.deb`,
   `.rpm`, APK Android, et `nix run github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé
   (depuis la 1.0.1-beta.9) bascule de lui-même vers Glucose Rust ; ses documents s'ouvrent, ses
   données ne sont jamais touchées. Son essai : **plus de 24 000 nœuds au téléphone, « ça n'a pas
@@ -150,6 +167,8 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
+* **Au 6/11, sur NixOS** : voir le rapport de la fiche 84 ; **`53b3581` (3/11) : dix vertes** sur le
+  code de la fiche 83 plus `rustls` (exécution 41639433622).
 * **2 680 épreuves** sous Windows, toutes vertes, 7 ignorées (22/10, fiche 81) ; clippy strict à zéro sous
   Windows (Rust 1.99.1) et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.
@@ -177,10 +196,15 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 4. Points de vigilance
 
-* **Sa clé de signature** (celle de chaque version de Tauri) et **la clé Android**
-  (`Documents\Glucose-cle-android`) sont dans les secrets du dépôt, et sauvegardées hors de ce PC.
-* `%LOCALAPPDATA%\Glucose` ne se touche jamais ; un diagnostic se fait sur une copie de ses
-  documents.
+* **La clé Android** : dans les secrets du dépôt, et dans
+  `/stockage/ancien-windows/bureau/sauvegarde-documents-2026-10-31.7z` (chiffrée, testée le 6/11).
+* **La clé de mise à jour** (`glucose_updater.key`, celle de chaque version de Tauri) : dans les
+  secrets du dépôt, qui ne se relisent pas. **Sa copie, `sauvegarde-profil-2026-10-31.7z`, est
+  introuvable sur cette machine** (fiche 84 § 6) : les publications marchent, mais ce secret est son
+  seul exemplaire connu. La même archive portait ses clés de serveur, son identité web3 et ses
+  brouillons Glucose.
+* Son dossier Glucose (`~/.local/state/glucose`, `%LOCALAPPDATA%\Glucose` sous Windows) ne se touche
+  jamais ; un diagnostic se fait sur une copie de ses documents.
 * **Deux branches, et pas une de plus** (sa demande du 16/10) : `main` et `tauri-v1.0.1`, en local
   comme sur GitHub. On travaille sur `main` ; une branche de travail se retire dès sa fusion.
   L'ancienne branche locale `secours/avant-reattribution` (les commits d'avant la réécriture des

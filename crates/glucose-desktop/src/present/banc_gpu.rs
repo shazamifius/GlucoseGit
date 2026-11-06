@@ -45,7 +45,10 @@ pub fn sans_carte() {
 /// rayures du 09/10 (fiche 59). Sans la variable, les moteurs de Glucose, dans son ordre
 /// (FENETRES-1, [`super::moteurs`]).
 pub fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
-    let ordre = wgpu::Backends::from_env().map_or(super::moteurs::MOTEURS.to_vec(), |m| vec![m]);
+    let ordre = wgpu::Backends::from_env().map_or_else(
+        || super::moteurs::ici().map(|(moteur, _)| moteur).collect(),
+        |m| vec![m],
+    );
     let ouvrir = |moteurs| {
         let instance = super::moteurs::instance(moteurs);
         let adaptateur =

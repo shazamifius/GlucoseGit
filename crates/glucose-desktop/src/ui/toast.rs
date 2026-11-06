@@ -18,6 +18,8 @@ pub struct Toast {
 impl Toast {
     /// Temps de vie à l'écran (fiche 07 § 1, `TOAST_DURATION`).
     pub const DURATION_MS: u64 = 2400;
+    /// Le temps de lire une lettre : une lecture courante, mille lettres par minute.
+    pub const LECTURE_MS: u64 = 60;
     /// Apparition (fiche 07 § 1, `TOAST_ANIM_IN`).
     pub const FADE_IN_MS: f32 = 180.0;
     /// Disparition. La référence retire son toast d'un coup ; un fondu est une extension.
@@ -28,6 +30,18 @@ impl Toast {
             message: message.into(),
             created_at: Instant::now(),
             duration: Duration::from_millis(Self::DURATION_MS),
+        }
+    }
+
+    /// **Un message qui demande d'être lu** (MOTEUR-1) : le temps d'un toast, plus celui de lire
+    /// ses lettres. Une explication coupée pendant qu'on la lit n'a rien expliqué.
+    pub fn a_lire(message: impl Into<String>) -> Self {
+        let message = message.into();
+        let lettres = message.chars().count() as u64;
+        Self {
+            message,
+            created_at: Instant::now(),
+            duration: Duration::from_millis(Self::DURATION_MS + lettres * Self::LECTURE_MS),
         }
     }
 

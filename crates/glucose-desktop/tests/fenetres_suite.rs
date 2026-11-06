@@ -60,9 +60,16 @@ fn sourdes() -> Vec<HWND> {
 
 #[test]
 fn test_fenetres_1_les_moteurs_de_glucose_ne_laissent_aucune_fenetre_sourde() {
-    let instance = moteurs::instance(moteurs::MOTEURS[0]);
-    let _carte =
-        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()));
+    let _ouverts: Vec<_> = moteurs::ici()
+        .filter(|(moteur, _)| *moteur != wgpu::Backends::GL)
+        .map(|(moteur, _)| {
+            let instance = moteurs::instance(moteur);
+            let carte = pollster::block_on(
+                instance.request_adapter(&wgpu::RequestAdapterOptions::default()),
+            );
+            (instance, carte)
+        })
+        .collect();
     assert!(
         sourdes().is_empty(),
         "les moteurs que Glucose ouvre d'abord laissent une fenêtre sourde"

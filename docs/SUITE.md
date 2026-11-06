@@ -1,7 +1,7 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 25/10/2026** (fiches 73 à 82 ; la 2.0.3-beta.6 publiée le 23/10 ; **Protéo en pause,
-> la partie 1 d'abord**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
+> **Au 6/11/2026** (fiches 73 à 84 ; la 2.0.3-beta.6 publiée le 23/10, **la beta 7 prête à sa
+> parole** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
 > ce que chacune porte, et ce qui la déclare finie. Tout y est à remettre en question — ses
 > paroles comprises. La direction vit dans [VISION](VISION.md), l'état vérifié dans
 > [ÉTAT](ETAT.md), chaque fonction et son bouton dans [INVENTAIRE](INVENTAIRE.md), la cible
@@ -74,9 +74,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 * **La 2.0.3-beta.5** (16/10) : P8, P8 bis, ses raccourcis (fiches 73, 74).
 * **La 2.0.3-beta.6** (23/10, sur `4a111b4`) : la porte des agents et tout ce que les fiches 75 à
-  81 ont fait (lire par niveaux, ce que l'humain désigne, FLECHE-6, ACCUEIL-1). **Ses notes sont
-  celles de la beta 5 recopiées** (« depuis la 2.0.3-beta.4 », rien sur les agents) : à corriger
-  à sa parole.
+  81 ont fait (lire par niveaux, ce que l'humain désigne, FLECHE-6, ACCUEIL-1).
 
 | | chantier publié | ce qui le déclare fini |
 |---|---|---|
@@ -89,6 +87,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
+| [~] | **MOTEUR-1 — Un pilote qui tue Glucose ne l'exclut plus** (fiche 84) : `01ca394b`, le 29/10, tué par `igvk64.dll` à chaque lancement ; l'échelle des moteurs, OpenGL réparé sous Wayland, ACCUEIL-2. Joué en réel sous Linux | la beta 7 publiée ; la télémétrie montre cette installation, ou une autre touchée, qui dessine après sa chute. **À chaque relevé : `plantages.json`** |
 | [~] | **FIN-SESSION-1 — Glucose finit quand le système le ferme** (fiche 82) : sous Windows, `winit` ne transmet pas `WM_ENDSESSION` — l'extinction tuait Glucose, et la boîte noire lisait « interrompue » (deux sessions de 3 h 37 et 7 h chez un utilisateur, les 21 et 22/10) ; sous Linux, `SIGTERM` et `Ctrl+C` tuaient aussi. **FIN-1** : la fin, quelle qu'elle soit, s'écrit une fois (`finir`) | éteindre son PC avec Glucose ouvert : la session suivante dit « fermée proprement » ; la télémétrie ne compte plus d'extinctions parmi les fins anormales |
 | [~] | **P0 — Ne jamais perdre un tableau au téléphone** : fait côté code (fiche 66 : MEMOIRE-1 à 3 ; fiche 72 : LIBERE-1, SORTIE-1, REPRISE-1). **Le 15/10, sur deux téléphones, un tableau de plus de 6 000 images s'est fermé seul et n'est pas revenu.** **La cause, reproduite le 25/10 sur un téléphone virtuel (fiche 83)** : « Tout cadrer » sur 6 000 images — les niveaux à offrir attendaient derrière les décodages, sans être comptés ; 3,1 Go, et Android a tué Glucose au premier plan. **MEMOIRE-4** la répare : Glucose survit, les 6 000 images dessinées. Reste : que la prochaine version arrive sur son téléphone, et que ses lignes `sortie` ne disent plus de mort par la mémoire ; le « non rouvert » de la beta 3 est défendu par LIBERE-1 (beta 4). **Au 25/10, toujours aucune session de son téléphone depuis le 15/10** (encore en beta 3) : **ouvrir Glucose sur son téléphone**. **Ne pas désinstaller** : le brouillon est peut-être encore là. Relevé : `node outils/telemetrie/tableau.mjs <dossier>` (7403 → `npx wrangler whoami`, puis une fois encore) | reproduit et réparé sur le téléphone virtuel ; puis vécu sur le sien, ses lignes `sortie` sans mort par la mémoire |
 | [ ] | **Ses essais de la beta 6** (§ 2) : chaque défaut qu'il voit, corrigé — en premier, le texte de près | sa parole |
@@ -195,7 +194,7 @@ Tout ce qui suit est écrit, éprouvé et saboté au point où il est, et attend
 Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**. Sa parole du 15/10 :
 *« si j'ai absolument tout testé, normalement 100 % des fonctionnalités sont validées »*.
 
-**Au PC** — la 2.0.3-beta.6 installée, ou `cargo run --release > sortie-essais.txt 2>&1` :
+**Au PC** — `nix develop -c cargo run --release > sortie-essais.txt 2>&1` (ce qui parle de Windows ci-dessous attend une machine Windows) :
 
 * **Éteindre le PC avec Glucose ouvert** (fiche 82), puis rouvrir Glucose : le travail est là, et
   rien ne doit avoir demandé quoi que ce soit à l'extinction.
@@ -248,16 +247,19 @@ Bureau) :
 * le Storyboard au doigt ; un dossier choisi (son menu, sa barre) ; le partage vers Glucose
   depuis la galerie ou Pinterest ; les emojis ; les noms du rail ; le bord à bord.
 
-**Sous Linux** (son NixOS, quand il est allumé) : le copier vers Discord, un bloc d'un Glucose
-à l'autre, après fermeture (fiches 60, 61) ; et la liste de « tant de choses ne marchent pas ».
+**Sous Linux, désormais sa machine de tous les jours** : à essayer ici d'abord, par nous (`outils/essai_isole.sh`) — le
+copier vers Discord, un bloc d'un Glucose à l'autre, après fermeture (fiches 60, 61), les gros
+tableaux sur une Intel UHD 620 ; et la liste de « tant de choses ne marchent pas ».
 
 ## 3. Ce qui n'attend que lui
 
+* **La beta 7** : le brouillon, puis son clic « Publish release ».
+* **`sauvegarde-profil-2026-10-31.7z`** (317 Mo : la clé de mise à jour, ses clés de serveur, son
+  identité web3, ses brouillons) : où l'a-t-il mise ? Introuvable sur ce PC (fiche 84 § 6).
 * **Ouvrir Glucose sur son téléphone** (encore en beta 3, muet depuis le 15/10) : la seule façon
   de savoir pourquoi le tableau de 6 000 images est mort (P0).
 * **Ses trois réponses de la partie 1** (§ 0) : l'iPad, les presets Figma et Miro, « avec des
   utilisateurs ».
-* **Les notes de la beta 6**, recopiées de la beta 5 : les corriger sur GitHub, à sa parole.
 * **Sa clé SauceNAO** (la provenance des images).
 * **Le modèle de l'iPad**, les téléphones de ses testeurs Android (le plus ancien d'abord).
 * **Ordonner** : ce qu'il entend par « très très grandement ».

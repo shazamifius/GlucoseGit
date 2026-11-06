@@ -63,6 +63,15 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     // Linux (FIN-SESSION-1).
     app.lancement.signaux = crate::plateforme::fin::ecouter_les_signaux(reveil_de(&event_loop));
     app.retrouver_le_travail();
+    // Après la reprise, dont les messages passeraient devant celui-ci (MOTEUR-1).
+    let version = cycle::courante().to_string();
+    if let Some(moteur) = crate::present::echelle::habiter(dossier, &version) {
+        println!("[Glucose] le moteur {moteur} a fait tomber la session d'avant : il est écarté");
+        app.ui.show_toast_a_lire(
+            "Le pilote de la carte graphique a fermé Glucose au dernier lancement : \
+             Glucose passe maintenant par un autre chemin.",
+        );
+    }
     brancher_les_reveils(&mut app, &event_loop);
     if let Some(installation) = installation {
         let reveil = reveil_de(&event_loop);

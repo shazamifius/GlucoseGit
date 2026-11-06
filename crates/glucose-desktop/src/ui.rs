@@ -302,6 +302,11 @@ impl UiState {
         self.current_toast = Some(Toast::new(msg));
     }
 
+    /// **Un message qui demande d'être lu**, plus long à l'écran (MOTEUR-1).
+    pub fn show_toast_a_lire(&mut self, msg: impl Into<String>) {
+        self.current_toast = Some(Toast::a_lire(msg));
+    }
+
     /// Le message du toast affiché, s'il y en a un — ce que les tests lisent.
     #[cfg(test)]
     pub fn toast_message(&self) -> Option<&str> {
