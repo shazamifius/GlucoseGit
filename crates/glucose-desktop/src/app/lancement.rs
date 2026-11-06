@@ -27,6 +27,8 @@ use std::path::Path;
 /// Ce que `main` donne à l'application, et rien d'autre.
 #[derive(Default)]
 pub struct Lancement {
+    /// Le scénario minuté demandé par `GLUCOSE_SCENARIO`, s'il y en a un (fiche 86).
+    pub scenario: Option<super::scenario::Scenario>,
     /// **Rien à rouvrir** : à la naissance de la fenêtre, quand l'échelle de l'écran est connue,
     /// la vue montrera le nœud de bienvenue (ACCUEIL-2).
     pub accueil_a_montrer: bool,

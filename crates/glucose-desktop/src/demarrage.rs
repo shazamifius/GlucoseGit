@@ -73,6 +73,7 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
         );
     }
     brancher_les_reveils(&mut app, &event_loop);
+    app.charger_le_scenario();
     if let Some(installation) = installation {
         let reveil = reveil_de(&event_loop);
         cycle::ranger_les_anciens(&installeurs, &cycle::courante());

@@ -101,7 +101,7 @@ jobs:
       # BARRE-1 : regarder le vrai Glucose sous un vrai Windows. Le développement se fait sous
       # NixOS : c'est la seule image de Windows qu'on ait (fiche 85).
       - name: Regarder Glucose sous Windows
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         continue-on-error: true
         shell: pwsh
         run: |
@@ -119,7 +119,7 @@ jobs:
           Stop-Process -Id $p.Id -Force
 
       - name: L'image de Windows
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:

@@ -9,7 +9,7 @@ use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowRect,
+    EnumWindows, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowRect, GetWindowTextW,
     GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed, PostMessageW, SendMessageW,
     ShowWindow, GWL_STYLE, HTCAPTION, HTCLIENT, SM_CYCAPTION, SW_RESTORE, WM_LBUTTONDOWN,
     WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCHITTEST, WS_CAPTION,
@@ -24,21 +24,32 @@ impl Drop for Programme {
     }
 }
 
-fn fenetre_de(processus: u32) -> Option<HWND> {
-    struct Cherche(u32, Option<HWND>);
+/// Les fenêtres visibles de ce processus : leur poignée, leur titre, leur style.
+fn fenetres_de(processus: u32) -> Vec<(HWND, String, u32)> {
+    struct Cherche(u32, Vec<(HWND, String, u32)>);
     unsafe extern "system" fn une(fenetre: HWND, cherche: LPARAM) -> BOOL {
         let c = unsafe { &mut *(cherche.0 as *mut Cherche) };
         let mut proprietaire = 0;
         unsafe { GetWindowThreadProcessId(fenetre, Some(&raw mut proprietaire)) };
         if proprietaire == c.0 && unsafe { IsWindowVisible(fenetre) }.as_bool() {
-            c.1 = Some(fenetre);
-            return BOOL(0);
+            let mut titre = [0u16; 128];
+            let lu = unsafe { GetWindowTextW(fenetre, &mut titre) }.max(0) as usize;
+            let style = unsafe { GetWindowLongW(fenetre, GWL_STYLE) } as u32;
+            c.1.push((fenetre, String::from_utf16_lossy(&titre[..lu]), style));
         }
         BOOL(1)
     }
-    let mut cherche = Cherche(processus, None);
+    let mut cherche = Cherche(processus, Vec::new());
     let _ = unsafe { EnumWindows(Some(une), LPARAM(&raw mut cherche as isize)) };
     cherche.1
+}
+
+/// **La fenêtre de Glucose** : celle qui porte son nom, et non la première venue.
+fn fenetre_de(processus: u32) -> Option<HWND> {
+    fenetres_de(processus)
+        .into_iter()
+        .find(|(_, titre, _)| titre.contains("Glucose") || titre.contains("GLUCOSE"))
+        .map(|(fenetre, _, _)| fenetre)
 }
 
 fn attendre(quoi: &str, condition: impl Fn() -> bool) {
@@ -106,7 +117,15 @@ fn test_barre_1_la_fenetre_sans_barre_se_deplace_et_ses_boutons_font_ce_qu_ils_d
 
     // **Une fenêtre ordinaire pour le système** : l'application NVIDIA ne la prend pas pour un jeu.
     let style = unsafe { GetWindowLongW(fenetre, GWL_STYLE) } as u32;
-    assert_ne!(style & WS_CAPTION.0, 0, "elle garde WS_CAPTION (fiche 52)");
+    let vues: Vec<_> = fenetres_de(processus)
+        .into_iter()
+        .map(|(_, titre, style)| format!("« {titre} » {style:#x}"))
+        .collect();
+    assert_ne!(
+        style & WS_CAPTION.0,
+        0,
+        "elle garde WS_CAPTION (fiche 52) ; fenêtres vues : {vues:?}"
+    );
 
     // **Sans la barre** : ce qui sépare la fenêtre de sa zone cliente n'a plus sa hauteur.
     let (mut dehors, mut dedans) = (RECT::default(), RECT::default());

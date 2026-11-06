@@ -198,7 +198,8 @@ impl GlucoseApp {
     fn entretenir(&mut self, event_loop: &ActiveEventLoop) {
         // La fenêtre a le droit de partir : une réponse l'a dit (SAVE-3, POPUP-1) — ou un
         // signal de fin, et `exiting` finira (FIN-SESSION-1).
-        if self.ui.fermer_la_fenetre || self.un_signal_demande_la_fin() {
+        if self.ui.fermer_la_fenetre || self.un_signal_demande_la_fin() || self.jouer_le_scenario()
+        {
             event_loop.exit();
             return;
         }

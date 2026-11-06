@@ -15,6 +15,7 @@ mod peinture;
 mod presentation;
 mod rangement;
 pub mod reveil;
+pub mod scenario;
 mod terrain;
 mod vie;
 
