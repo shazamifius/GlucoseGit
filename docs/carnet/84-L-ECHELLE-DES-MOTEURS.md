@@ -128,7 +128,20 @@ chargeant et les déchargeant. **Rien à voir avec l'échelle** : le chemin est 
 ## 9. La vérification
 
 Sur NixOS, le 6/11 : format, clippy à zéro, **2 701 épreuves vertes, 7 ignorées** ; sabotages
-`moteur-1.json`, tous tombés après correction des deux aveugles ci-dessus. La CI Windows dira le reste.
+`moteur-1.json`, tous tombés après correction des deux aveugles ci-dessus.
+
+**Sur GitHub, `0138982` : dix tâches vertes** (exécution 42216997831) : Windows 2 710 épreuves, Linux
+2 701, Mac 2 677, aucun échec. Lu dans le journal, pas seulement au mot « vert » : l'étape « Le rendu
+par Direct3D 12 » joue bien 84 épreuves avec `WGPU_BACKEND: dx12`, et
+`test_moteur_1_un_processus_mort_a_l_ouverture_fait_tomber_le_moteur` passe sous Windows.
+
+**Le brouillon de la 2.0.3-beta.7** est déposé, sur `0138982` (exécution 42221486231). **Son vrai
+AppImage, essayé ici** (`appimage-run`, télémétrie coupée) : Vulkan sur l'Intel UHD 620, le titre de
+bienvenue visible, `moteurs.txt` propre, fermé normalement en deux secondes, journal clos.
+
+Une leçon payée en l'essayant : mon délai a tué Glucose pendant l'ouverture, et `moteurs.txt` a retenu
+Vulkan comme tombé. C'est le coût annoncé au § 2, vu de près : ne pas tuer un essai à l'aveugle, et
+repartir d'un dossier neuf.
 
 Deux défauts de la CI elle-même, le même jour : un `present::` non cité rendait `ci.yml` illisible
 (ma faute, `actionlint` le voit), et **GitHub a retiré `macos-14`** entre le 3 et le 6/11 (« the

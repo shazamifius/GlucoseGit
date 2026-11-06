@@ -41,7 +41,7 @@ compilation à la fois** (7,6 Go) : compter 5 à 8 minutes pour une compilation 
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --no-fail-fast  # ~2 200 épreuves, dont les cliquets
+cargo test --workspace --no-fail-fast  # ~2 700 épreuves, dont les cliquets
 GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 bash outils/android/construire.sh      # l'APK (SDK et NDK dans ~/Android/Sdk, ABSENTS ici : la CI le construit)
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
@@ -61,7 +61,9 @@ Cloudflare, si `tableau.mjs` dit qu'on n'est pas connecté — demander son clic
 * **Une épreuve qui ne tombe pas quand on casse ce qu'elle garde est aveugle** : saboter chaque garde.
 * **« Réglé » seulement vérifié** : sur une copie, sur GitHub, ou à son écran.
 * **Les messages de commit** s'écrivent dans un fichier du scratchpad, puis `git commit -F`.
-* **Jamais de jeton dans le dépôt.**
+* **Jamais de jeton dans le dépôt.** Envoyer sans l'écrire nulle part :
+  `git push "https://x-access-token:$JETON@github.com/shazamifius/GlucoseGit.git" main:main`. Git n'a pas
+  d'identité globale sur cette machine : celle du dépôt est réglée (`git config user.name`).
 * **Deux branches, pas une de plus** : `main` et `tauri-v1.0.1`. On travaille sur `main` ; une
   branche de travail se retire, en local et sur GitHub, dès qu'elle est fusionnée.
 

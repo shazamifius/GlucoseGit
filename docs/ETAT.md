@@ -20,7 +20,7 @@
   image regardée** ; **pas prouvé sur le pilote fautif**, que personne n'a ici. Au passage : OpenGL
   était mort sous Wayland (corrigé, vu dessiner), et le nœud de bienvenue naissait sous la barre
   (ACCUEIL-2). **Attend la beta 7.**
-* **La beta 7 est prête à partir, à sa parole** : MEMOIRE-4 (les 6 000 images), FIN-SESSION-1,
+* **Le brouillon de la beta 7 est déposé, à sa parole** (sur `0138982`, invisible des utilisateurs) : MEMOIRE-4 (les 6 000 images), FIN-SESSION-1,
   MOTEUR-1, ACCUEIL-2, `rustls` 0.23.46 (ferme les 4 alertes de GitHub, aucune n'atteignait Glucose).
   Le garde-fou NOTES-1 arrête une publication dont les notes parlent d'une autre version.
 * **La télémétrie au 6/11** : 132 sessions, 7 installations, 29 fins anormales. L'utilisateur à la
@@ -167,9 +167,11 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **Au 6/11, sur NixOS** : **2 701 épreuves vertes, 7 ignorées**, clippy à zéro (fiche 84) ;
-  **COURSE-1** : le plantage des épreuves dans le chargeur Vulkan, reproduit sous `gdb` et réparé.
-  **`53b3581` (3/11) : dix vertes** sur le code de la fiche 83 plus `rustls` (exécution 41639433622).
+* **Au 6/11** : **`0138982` : dix vertes** (exécution 42216997831) : Windows 2 710 épreuves, Linux
+  2 701, les deux Mac 2 677, aucun échec ; **84 épreuves de rendu par Direct3D 12 nommé** (WARP), et un
+  vrai plantage qui fait tomber le moteur, sous Windows. **COURSE-1** : le plantage des épreuves dans
+  le chargeur Vulkan, reproduit sous `gdb` et réparé (fiche 84 § 8). Le Mac à puce Apple passe à
+  `macos-15` : GitHub a retiré `macos-14`.
 * **2 680 épreuves** sous Windows, toutes vertes, 7 ignorées (22/10, fiche 81) ; clippy strict à zéro sous
   Windows (Rust 1.99.1) et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.

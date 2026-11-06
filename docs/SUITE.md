@@ -253,7 +253,7 @@ tableaux sur une Intel UHD 620 ; et la liste de « tant de choses ne marchent pa
 
 ## 3. Ce qui n'attend que lui
 
-* **La beta 7** : le brouillon, puis son clic « Publish release ».
+* **La beta 7** : **le brouillon est déposé** (sur `0138982`, dix tâches vertes, AppImage essayé) ; reste son clic « Publish release ».
 * **`sauvegarde-profil-2026-10-31.7z`** (317 Mo : la clé de mise à jour, ses clés de serveur, son
   identité web3, ses brouillons) : où l'a-t-il mise ? Introuvable sur ce PC (fiche 84 § 6).
 * **Ouvrir Glucose sur son téléphone** (encore en beta 3, muet depuis le 15/10) : la seule façon
