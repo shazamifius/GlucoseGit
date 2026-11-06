@@ -230,6 +230,19 @@ mod tests {
         assert_eq!(machine_de_proc_stat("rien"), None);
     }
 
+    /// **Le temps d'un fil ou d'un processus**, sur une ligne de `stat` dont le nom contient des
+    /// parenthèses et des espaces : les champs se comptent après la dernière fermante.
+    #[test]
+    fn test_charge_1_une_ligne_de_stat_se_lit_apres_son_nom() {
+        let stat = "12 (nom (bizarre) a) S 1 1 1 1 1 1 1 1 1 1 250 50 0 0\n";
+        assert_eq!(
+            super::super::empreinte::temps_de_stat_us(stat),
+            Some(3_000_000),
+            "250 + 50 tics, à cent par seconde"
+        );
+        assert_eq!(super::super::empreinte::temps_de_stat_us("sans nom"), None);
+    }
+
     /// **Sur cette machine, le relevé répond**, et le temps ne recule pas.
     #[cfg(target_os = "linux")]
     #[test]
