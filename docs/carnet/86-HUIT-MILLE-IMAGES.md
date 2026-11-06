@@ -96,6 +96,39 @@ ligne), et a d'abord été vu tomber. **Sa limite** : cinq secondes moyennent le
 d'une seconde (fil à 1-24 % sur le scénario, sans rien démentir) : elle lira les lags longs, pas un focus
 isolé. **La carte graphique n'y est pas**, faute d'une lecture commune aux systèmes.
 
+## 4 ter. Le profil qui tranche, et la forme du coût
+
+`perf`, le vrai Glucose, des vols autour de la vue d'ensemble : les 8 000 images restent à l'écran, **rien à
+décoder**. Le fil qui dessine : **16 803 échantillons** ; chaque ouvrier : **environ 300**. Il travaille
+56 % du temps total, tempo et attente de l'écran compris. Son « rien n'est à 100 % » est donc bien un seul
+fil saturé.
+
+Où vont ses échantillons : **51 % dans Glucose, 28 % dans la libc, 19 % dans le pilote Vulkan.** Comparer et
+hacher des chaînes (`memcmp` 7 %, SipHash 8 %), allouer et rendre (`malloc` et les siens 13 %), et le suivi
+par `wgpu` de chaque liaison.
+
+**La forme** : pour chaque photo visible et à chaque image, un nom fabriqué (`format!("{src}@{facteur}")`),
+rangé dans deux `HashMap<String>` ; `connait` qui le cherche ; une liaison et un dessin par photo
+(`set_bind_group` puis `draw`, huit mille fois). **Le code disait d'avance quand changer** : *« un atlas ne
+se prend que si un banc la réclame »*. Le banc la réclame.
+
+## 4 quater. La conception
+
+**La vue d'ensemble : un atlas, un seul dessin.** Quand une photo tient en quelques dizaines de pixels :
+
+* **Un tableau de textures** (`texture_2d_array`), dont chaque cellule porte le petit niveau d'une photo : un
+  seul objet pour la carte, une seule liaison. Pas de `binding_array`, absent de trop de machines.
+* **Les poses en coordonnées du document**, gardées sur la carte, et la vue en un seul uniforme : tant que
+  le document ne change pas, **le fil qui dessine n'écrit rien par photo**, à 100 images ou à 8 000.
+* **Un seul dessin instancié par suite consécutive** : l'ordre du modèle reste la loi, et une photo vue de
+  près, hors de l'atlas, coupe la suite à sa place.
+* **De près, rien ne change** : le chemin actuel est le bon pour peu de grandes photos.
+* **Toujours la mémoire par étages** : l'atlas se borne à ce que la carte accorde. Une photo sans cellule passe
+  par le chemin actuel : jamais de trou, seulement un coût.
+
+**À prouver à chaque étape, sinon on s'arrête** : les mêmes pixels que le chemin actuel (l'épreuve des deux
+voies) ; 8 000 images sous 10 ms sur cette Intel UHD 620 ; aucune régression de près.
+
 ## 5. Les options
 
 La piste qui ferme le sujet : **quand seule la vue change, la carte graphique n'a besoin que d'une
