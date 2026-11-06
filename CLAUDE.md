@@ -42,7 +42,7 @@ compilation à la fois** (7,6 Go) : compter 5 à 8 minutes pour une compilation 
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --no-fail-fast  # ~2 200 épreuves, dont les cliquets
-bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
+GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 bash outils/android/construire.sh      # l'APK (SDK et NDK dans ~/Android/Sdk, ABSENTS ici : la CI le construit)
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session

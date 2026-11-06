@@ -6,13 +6,14 @@
 # une publication (`publier.yml`) lancée sur le même commit ne se confond pas avec elle.
 cd "$(dirname "$0")/.."
 SHA="$1"; SORTIE="$2"; WORKFLOW="${3:-ci.yml}"
-T=$(git remote get-url origin | sed -n 's#https://\([^@]*\)@github.com.*#\1#p' | sed 's/^[^:]*://')
+# Le jeton : celui de l'environnement (`GH_TOKEN=… bash outils/suivre_ci.sh …`), ou celui de l'adresse du dépôt.
+T=${GH_TOKEN:-$(git remote get-url origin | sed -n 's#https://\([^@]*\)@github.com.*#\1#p' | sed 's/^[^:]*://')}
 api() { curl -s -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/shazamifius/GlucoseGit/$1"; }
 for i in $(seq 1 120); do
-  RUN=$(api "actions/workflows/$WORKFLOW/runs?head_sha=$SHA&per_page=1" | python -c "import json,sys; r=json.load(sys.stdin)['workflow_runs']; print(r[0]['id'], r[0]['status'], r[0]['conclusion']) if r else print('')")
+  RUN=$(api "actions/workflows/$WORKFLOW/runs?head_sha=$SHA&per_page=1" | python3 -c "import json,sys; r=json.load(sys.stdin)['workflow_runs']; print(r[0]['id'], r[0]['status'], r[0]['conclusion']) if r else print('')")
   if [ -n "$RUN" ]; then
     set -- $RUN; ID=$1; ETAT=$2
-    api "actions/runs/$ID/jobs" | python -c "
+    api "actions/runs/$ID/jobs" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
 for j in d['jobs']:

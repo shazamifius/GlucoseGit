@@ -217,10 +217,16 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>` ; la connexion est dans CLAUDE.md
   (le mode « lien et code » : la page automatique a mis dix minutes à s'ouvrir, et l'autre mode
   expire en deux).
+* **Suivre la CI** : `GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>`.
 * **Windows** ne s'essaie plus ici : seule la CI le compile et l'éprouve. Une correction propre à
   Windows part donc **sans essai réel**, et se dit telle.
 * **Android** : ni SDK ni téléphone virtuel pour l'instant. `/dev/kvm` existe ; les 4 Go de l'appareil
   seront serrés sur 7,6 Go. La CI construit l'APK.
+* **Avant d'envoyer un fichier de `.github/workflows/`** : `nix shell nixpkgs#actionlint -c actionlint`.
+  Un `run: … present::` non cité a rendu `ci.yml` illisible : l'exécution a échoué sans aucune tâche
+  (fiche 84).
+* **Arrêter un processus** : pas de `pkill -f` dont le motif figure dans sa propre commande, elle se
+  tue elle-même. Filtrer sur le programme exact (`ps -eo pid,args | awk …`).
 * **Mac** : la CI seule, comme toujours.
 * **Tauri** : `git worktree add --detach <scratchpad>/tauri origin/tauri-v1.0.1`, retiré en sortant.
 

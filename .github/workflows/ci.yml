@@ -93,7 +93,7 @@ jobs:
       # tomber Glucose. Il se prouve par son nom : WARP ne doit pas être seulement une possibilité.
       - name: Le rendu par Direct3D 12
         if: runner.os == 'Windows'
-        run: cargo test -p glucose-desktop --lib present::
+        run: cargo test -p glucose-desktop --lib "present::"
         env:
           GLUCOSE_EXIGER_UNE_CARTE: "1"
           WGPU_BACKEND: dx12
