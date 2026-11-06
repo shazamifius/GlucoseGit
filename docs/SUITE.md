@@ -118,6 +118,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
+| [ ] | **Huit mille images : le coût par nœud visible** (sa parole du 6/11, fiche 86, **en premier** : 3 images par seconde avec le CPU à 18 % et le GPU à 1 %) : reproduit à 46 ms par image ; options chiffrées au § 5 | les 8 000 à l'écran et un focus sans lag, par `GLUCOSE_SCENARIO`, puis à son écran |
 | [ ] | **P3 — Ce que son téléphone dira** : 16,4 ms par image ordinaire sur sa PowerVR (la télémétrie), 885 ms au pire ; POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent ; et **P8 au téléphone**, jamais mesuré | les postes lus, le coupable nommé par la mesure, puis tenu |
 | [ ] | **La fluidité de son PC** : ses zooms chargés à 11-24 ms (345 images sur 13 886 au-dessus de 10 ms) ; **sur batterie**, 30 images par seconde par moments ; les gels de l'Intel Arc ; la coupure du pavé de 7 à 10 s ; le plantage d'une épreuve dans `vulkan-1.dll` (fiche 49 § 4) | chaque point mesuré, puis tenu ou pixelisé — jamais une dégradation qui se voit |
 | [ ] | **Le texte de près, la suite** (fiche 73 § 7) : les titres des membranes, des zones et des cases en formes ; la frontière « plus grand que l'écran » remise en question par la mesure | mesuré, puis aucun flou pendant un zoom |
