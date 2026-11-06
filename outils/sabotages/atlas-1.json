@@ -1,0 +1,198 @@
+[
+ {
+  "nom": "ATLAS-1 le filtre lit la voisine (borne basse)",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "u(umin.max(0.5 / l)),",
+  "apres": "u(umin),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 le filtre lit la voisine (borne haute)",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "v(vmax.min(1.0 - 0.5 / h)),",
+  "apres": "v(vmax),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 la pose ne lit pas sa cellule",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": ".map_or(posee.pose, |c| c.dans_la_page(posee.pose))",
+  "apres": ".map_or(posee.pose, |_| posee.pose)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 un seul dessin pour tous les lots",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,",
+  "apres": "Some(suite) => suite.fin = i + 1,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 un dessin par pose",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,",
+  "apres": "Some(suite) if suite.lot == u64::MAX => suite.fin = i + 1,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une page vide ne se rend pas",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        if page.occupees == 0 {\n            self.pages.remove(&cellule.lot);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une cellule rendue ne se reprend pas",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        page.libres.push(cellule.rang);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 un changement de niveau garde sa cellule",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        if let Some(cellule) = self.photos.remove(identite).and_then(|t| t.cellule) {\n            self.atlas.liberer(cellule);\n        }\n",
+  "apres": "        self.photos.remove(identite);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une page partielle ne compte que ses cellules",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "textures + self.atlas.octets_vides()",
+  "apres": "textures",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une page par taille exacte (pas de puissance de deux)",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "let cote = largeur.max(hauteur).next_power_of_two();",
+  "apres": "let cote = largeur.max(hauteur);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_atlas_1"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une cellule trop grande pour toute carte",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "const COTE_MAX: u32 = 64;",
+  "apres": "const COTE_MAX: u32 = 128;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_atlas_1"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 le cran ignore la cellule",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/cran.rs",
+  "avant": "Some(crate::present::scene_gpu::octets_d_une_texture(l, h))",
+  "apres": "Some(u64::from(l) * u64::from(h) * 4)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_atlas_1_la_demande"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 deux tranches dessinent tout",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "let (d, f) = (suite.debut.max(debut), suite.fin.min(fin));",
+  "apres": "let (d, f) = (suite.debut, suite.fin);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "present::"
+  ]
+ },
+ {
+  "nom": "MEMOIRE-2 l'arrière-plan garde les pages",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "            self.atlas.vider();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ }
+]

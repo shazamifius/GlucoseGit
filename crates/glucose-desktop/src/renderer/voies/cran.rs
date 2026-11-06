@@ -84,7 +84,8 @@ pub(super) fn demande_des_photos(
             let facteur = pyramide.facteur_pour((largeur_source(img, vp) / diviseur) as f32);
             // Ce que la carte recevra vraiment : jamais plus que son plafond (PLAFOND-1).
             let (l, h) = pyramide.dimensions(pyramide.tenir_dans(facteur, plafond));
-            Some(u64::from(l) * u64::from(h) * 4)
+            // Sa cellule comprise (ATLAS-1) : réduite, une photo ne devient pas gratuite.
+            Some(crate::present::scene_gpu::octets_d_une_texture(l, h))
         })
         .sum()
 }
@@ -180,6 +181,31 @@ mod tests {
         assert_eq!(demande(0), 64 * 64 * 4, "soixante pixels : le niveau de 64");
         assert_eq!(demande(1), 32 * 32 * 4, "un cran : le niveau de 32");
         assert_eq!(demande(2), 16 * 16 * 4);
+    }
+
+    /// **La demande compte la cellule de chaque photo** (ATLAS-1) : une photo deux fois plus large
+    /// que haute occupe un carré dans sa page, et le cran doit le savoir pour ne pas croire qu'elle
+    /// tient quand la carte, elle, est pleine.
+    #[test]
+    fn test_atlas_1_la_demande_compte_la_cellule() {
+        let mut store = Store::new("cellule");
+        let board = store.project.active_board_id.clone();
+        let mut img = BoardImage::new("p", 0.0, 0.0, 60.0, 30.0);
+        img.src = Some("p.png".into());
+        store.add_image(&board, img);
+        let mut magasin = Magasin::nouveau();
+        let pixmap = tiny_skia::Pixmap::new(512, 256).expect("une image");
+        magasin.cache.insert(
+            "p.png".into(),
+            Entree::pour_test(Pyramide::nouvelle(pixmap)),
+        );
+        let vp = Viewport::default();
+        let demande = demande_des_photos(&magasin, &store, (&vp, &[0], None), 0);
+        assert_eq!(
+            demande,
+            64 * 64 * 4,
+            "le niveau fait 64 sur 32 : sa cellule, 64 sur 64"
+        );
     }
 
     /// **La demande compte ce que la carte recevra vraiment** (PLAFOND-1) : un plafond de 32

@@ -36,10 +36,21 @@ fn a_poser(cle: &str, pose: Pose) -> APoser {
 
 /// Dessine `poses` dans une cible de `cote` pixels, et rend ses octets RGBA.
 fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Option<Vec<u8>> {
+    rendre_par(cote, poses, sources, false)
+}
+
+/// La même chose, avec ou sans l'atlas (ATLAS-1).
+fn rendre_par(
+    cote: u32,
+    poses: &[(String, Pose)],
+    sources: &[(&str, Pixmap)],
+    sans_atlas: bool,
+) -> Option<Vec<u8>> {
     let (peripherique, file) = carte()?;
     let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let format = wgpu::TextureFormat::Rgba8Unorm;
     let mut scene = SceneGpu::nouvelle(&peripherique, format);
+    scene.sans_atlas = sans_atlas;
     scene.ouvrir();
     for (cle, source) in sources {
         scene.televerser(&peripherique, &mut envoi, (cle, cle), source.as_ref());
@@ -1018,18 +1029,21 @@ fn test_memoire_2_rendre_garde_l_ecran_au_premier_plan_et_rien_derriere() {
         scene
     };
     let mut devant = preparee();
-    assert_eq!(
-        devant.octets(),
-        4 * 4 * 4 * 4,
-        "quatre photos de seize pixels"
-    );
+    // Quatre photos de seize pixels, rangées dans une page de 128 pixels de côté, qui occupe sa
+    // place entière (ATLAS-1).
+    let page = 128 * 128 * 4;
+    assert_eq!(devant.octets(), page, "la page entière : la carte la tient");
     devant.rendre(false);
     assert!(devant.detient("d"), "ce que l'écran pose reste");
     assert!(
         !devant.detient("a") && !devant.detient("b") && !devant.detient("c"),
         "le cache part, quel que soit le budget"
     );
-    assert_eq!(devant.octets(), 4 * 4 * 4);
+    assert_eq!(
+        devant.octets(),
+        page,
+        "la page vit tant qu'une photo y reste"
+    );
     assert_eq!(devant.octets_en_cache(), 0);
 
     let mut derriere = preparee();
@@ -1037,4 +1051,223 @@ fn test_memoire_2_rendre_garde_l_ecran_au_premier_plan_et_rien_derriere() {
     assert!(!derriere.detient("d"), "personne ne regarde : tout part");
     assert_eq!(derriere.octets(), 0);
     assert_eq!(derriere.octets_en_cache(), 0);
+}
+
+/// Une photo de bruit, pour que toute lecture hors de sa cellule se voie : deux voisines
+/// différentes, un texel de trop, et l'image change.
+fn bruit(largeur: u32, hauteur: u32, graine: u64) -> Pixmap {
+    let mut p = Pixmap::new(largeur, hauteur).expect("une photo");
+    let mut g = graine.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+    for bloc in p.data_mut().as_chunks_mut::<4>().0 {
+        g ^= g << 13;
+        g ^= g >> 7;
+        g ^= g << 17;
+        *bloc = [g as u8, (g >> 8) as u8, (g >> 16) as u8, 255];
+    }
+    p
+}
+
+fn pose_de(x: f32, y: f32, largeur: f32, hauteur: f32) -> Pose {
+    Pose {
+        x,
+        y,
+        largeur,
+        hauteur,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    }
+}
+
+/// **Les mêmes pixels avec et sans l'atlas** (ATLAS-1) : la promesse qui rend l'atlas permis. Des
+/// photos de bruit, voisines dans leur page, réduites, agrandies, tournées, recadrées, à demi
+/// transparentes : un texel lu chez la voisine se verrait aussitôt. Un écart d'une unité reste
+/// permis : la page lit la même place en coordonnées arrondies autrement.
+#[test]
+fn test_atlas_1_les_memes_pixels_avec_et_sans_l_atlas() {
+    let cote = 128;
+    let sources = vec![
+        ("a", bruit(8, 8, 1)),
+        ("b", bruit(16, 7, 2)),
+        ("c", bruit(5, 13, 3)),
+        ("d", bruit(64, 64, 4)),
+        ("e", bruit(65, 65, 5)),
+        ("f", bruit(16, 16, 6)),
+    ];
+    let cle = |c: &str, p: Pose| (c.to_string(), p);
+    let poses = vec![
+        cle("a", pose_de(2.0, 2.0, 37.3, 41.7)),
+        cle("b", pose_de(40.5, 3.25, 5.5, 3.1)),
+        cle(
+            "c",
+            Pose {
+                angle: 0.7,
+                ..pose_de(50.0, 10.0, 30.0, 50.0)
+            },
+        ),
+        cle("d", pose_de(5.0, 50.0, 33.0, 33.0)),
+        cle(
+            "e",
+            Pose {
+                opacite: 0.5,
+                ..pose_de(20.0, 70.0, 50.0, 50.0)
+            },
+        ),
+        cle(
+            "f",
+            Pose {
+                fenetre: [0.25, 0.25, 0.5, 0.5],
+                bornes: [0.25, 0.25, 0.75, 0.75],
+                ..pose_de(80.0, 70.0, 45.0, 45.0)
+            },
+        ),
+    ];
+    let Some(avec) = rendre_par(cote, &poses, &sources, false) else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let sans = rendre_par(cote, &poses, &sources, true).expect("la même carte");
+    let pire = avec
+        .iter()
+        .zip(&sans)
+        .map(|(a, b)| a.abs_diff(*b))
+        .max()
+        .unwrap_or(0);
+    assert!(
+        pire <= 1,
+        "un écart de {pire} sur 255 : une lecture hors de la cellule"
+    );
+}
+
+/// **Une suite par lot, dans l'ordre du modèle** (ATLAS-1) : les petites d'une page font un seul
+/// dessin, et une grande photo posée entre elles coupe la suite à sa place — sinon elle passerait
+/// dessus ou dessous ce que le document dit.
+#[test]
+fn test_atlas_1_une_suite_par_lot_dans_l_ordre_du_modele() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    for nom in ["a", "b", "c"] {
+        scene.televerser(
+            &peripherique,
+            &mut envoi,
+            (nom, nom),
+            photo(8, [9, 9, 9, 255]).as_ref(),
+        );
+    }
+    let grande = photo(128, [1, 1, 1, 255]);
+    scene.televerser(&peripherique, &mut envoi, ("g", "g"), grande.as_ref());
+    let pose = pose_de(0.0, 0.0, 4.0, 4.0);
+    let poses: Vec<APoser> = ["a", "b", "g", "c"]
+        .iter()
+        .map(|n| a_poser(n, pose))
+        .collect();
+    let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &poses);
+    let suites: Vec<(u32, u32)> = retenues.suites.iter().map(|s| (s.debut, s.fin)).collect();
+    assert_eq!(suites, [(0, 2), (2, 3), (3, 4)]);
+    assert_eq!(
+        retenues.suites[0].lot, retenues.suites[2].lot,
+        "la même page, et pourtant deux dessins : la grande est entre les deux"
+    );
+}
+
+/// **Mille photos d'une page, un seul dessin** : c'est tout l'objet d'ATLAS-1. La page d'après
+/// commence le suivant, et aucune autre coupure n'existe.
+#[test]
+fn test_atlas_1_les_photos_d_une_page_font_un_seul_dessin() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    let petite = photo(4, [9, 9, 9, 255]);
+    let noms: Vec<String> = (0..1500).map(|i| format!("p{i}")).collect();
+    for nom in &noms {
+        scene.televerser(&peripherique, &mut envoi, (nom, nom), petite.as_ref());
+    }
+    let pose = pose_de(0.0, 0.0, 4.0, 4.0);
+    let poses: Vec<APoser> = noms.iter().map(|n| a_poser(n, pose)).collect();
+    let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &poses);
+    let suites: Vec<(u32, u32)> = retenues.suites.iter().map(|s| (s.debut, s.fin)).collect();
+    assert_eq!(
+        suites,
+        [(0, 1024), (1024, 1500)],
+        "deux pages, deux dessins"
+    );
+}
+
+/// **Une cellule rendue se reprend, et une page vide se rend** (ATLAS-1) : ce qui part de la carte
+/// ne se perd pas dans une page que plus personne ne lit.
+#[test]
+fn test_atlas_1_une_page_vide_se_rend_et_une_cellule_se_reprend() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    let petite = photo(4, [9, 9, 9, 255]);
+    for nom in ["a", "b"] {
+        scene.televerser(&peripherique, &mut envoi, (nom, nom), petite.as_ref());
+    }
+    let page = 128 * 128 * 4;
+    assert_eq!(scene.octets(), page);
+    scene.oublier_la_texture("a");
+    assert_eq!(scene.octets(), page, "une seule partie : la page reste");
+    scene.televerser(&peripherique, &mut envoi, ("c", "c"), petite.as_ref());
+    assert_eq!(
+        scene.octets(),
+        page,
+        "la cellule se reprend, sans page de plus"
+    );
+    scene.oublier_la_texture("b");
+    scene.oublier_la_texture("c");
+    assert_eq!(scene.octets(), 0, "plus personne : la page se rend");
+}
+
+/// **Une photo qui change de niveau reprend sa cellule** : remplacer la texture d'une identité ne
+/// laisse rien derrière elle, ni dans le compte ni dans la page.
+#[test]
+fn test_atlas_1_changer_de_niveau_ne_laisse_rien_derriere() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        ("a", "a@2"),
+        photo(8, [9, 9, 9, 255]).as_ref(),
+    );
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        ("a", "a@1"),
+        photo(16, [9, 9, 9, 255]).as_ref(),
+    );
+    assert_eq!(
+        scene.octets(),
+        512 * 512 * 4,
+        "la page de 8 est rendue, reste celle de 16"
+    );
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        ("a", "a@0"),
+        photo(128, [9, 9, 9, 255]).as_ref(),
+    );
+    assert_eq!(
+        scene.octets(),
+        128 * 128 * 4,
+        "sa texture à elle : plus aucune page"
+    );
 }

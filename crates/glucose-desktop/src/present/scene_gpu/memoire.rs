@@ -12,9 +12,11 @@ impl SceneGpu {
     /// **Ce que la carte détient pour la scène**, en octets : chaque texture, posée ou gardée,
     /// photo ou carte de texte. La comptabilité de Glucose, la même sur toutes les plateformes —
     /// un budget que le système dit (DXGI) ne compte pas ce que le pilote y ajoute, celle-ci non
-    /// plus, et c'est dit.
+    /// plus, et c'est dit. **Une page de l'atlas compte entière** : une page à moitié vide tient
+    /// bel et bien sa place sur la carte (ATLAS-1).
     pub fn octets(&self) -> u64 {
-        self.photos.values().map(|t| t.octets).sum()
+        let textures: u64 = self.photos.values().map(|t| t.octets).sum();
+        textures + self.atlas.octets_vides()
     }
 
     /// **Rend à la carte ce qui se reconstruit** quand le système le demande (MEMOIRE-2).
@@ -27,6 +29,7 @@ impl SceneGpu {
     pub fn rendre(&mut self, arriere_plan: bool) {
         if arriere_plan {
             self.photos.clear();
+            self.atlas.vider();
             self.en_cache = 0;
         } else {
             self.fermer(0);

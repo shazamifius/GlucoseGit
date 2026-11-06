@@ -1,0 +1,18 @@
+1 tout-cadrer
+6.0 voler -6040 -15960 0.5
+9.0 tout-cadrer
+12.0 voler -16540 -4960 0.5
+15.0 tout-cadrer
+18.0 voler -2540 -26960 0.5
+21.0 tout-cadrer
+24.0 voler -20040 -21460 0.5
+27.0 tout-cadrer
+30.0 voler -6040 -15960 0.5
+33.0 tout-cadrer
+36.0 voler -16540 -4960 0.5
+39.0 tout-cadrer
+42.0 voler -2540 -26960 0.5
+45.0 tout-cadrer
+48.0 voler -20040 -21460 0.5
+51.0 tout-cadrer
+55.0 quitter

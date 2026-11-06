@@ -27,17 +27,16 @@
 //!
 //! # Un dessin par photo, et pourquoi c'est le bon départ
 //!
-//! Chaque photo a sa texture, donc sa liaison de ressources, donc son dessin. Un atlas ou un
-//! tableau de textures les regrouperait en un seul lot — c'est la suite, et elle demande de
-//! borner la mémoire d'atlas et de replacer les photos qui entrent et sortent.
-//!
-//! Le mesurer avant de le compliquer : une carte moderne accepte des milliers de dessins par
-//! image, et le **remplissage** domine de toute façon. La complexité d'un atlas ne se prend
-//! que si un banc la réclame.
+//! Chaque grande photo a sa texture, donc sa liaison de ressources, donc son dessin. **Les petites
+//! se rangent dans des pages** ([`atlas`]), et les poses consécutives d'une page partent en un
+//! seul dessin : un banc l'a réclamé à huit mille images (ATLAS-1, fiche 86).
 
+mod atlas;
 mod cascade;
+mod construction;
 mod memoire;
 mod pose;
+pub use atlas::octets_d_une_texture;
 pub use pose::Pose;
 use pose::OCTETS_POSE;
 
@@ -71,22 +70,6 @@ impl Pixels<'_> {
     }
 }
 
-/// Le nuanceur : deux triangles par photo, calculés depuis leur indice.
-///
-/// Aucun tampon de sommets, aucun maillage : le rectangle se déduit de `vertex_index`, et sa
-/// place d'un tampon que l'**indice d'instance** adresse.
-///
-/// # Pourquoi un tampon et pas des constantes poussées
-///
-/// Les constantes poussées seraient plus courtes — trente-deux octets par photo, sans
-/// allocation. Mais elles demandent une capacité que toutes les couches graphiques n'offrent
-/// pas, WebGL en tête. **L'exiger exclurait du matériel**, ce que la charte interdit sans
-/// exception, et la demander sans l'exiger obligerait à porter deux nuanceurs pour gagner
-/// quelques microsecondes sur un chemin qui n'en coûte déjà qu'une fraction.
-///
-/// Un tampon de poses, lu par `instance_index`, marche partout et se remplit d'un coup.
-const NUANCEUR: &str = include_str!("scene_gpu/photos.wgsl");
-
 /// Les photos que la carte détient, et de quoi les poser.
 pub struct SceneGpu {
     pipeline: wgpu::RenderPipeline,
@@ -105,6 +88,11 @@ pub struct SceneGpu {
     /// nouvelle remplace l'ancienne, et la mémoire ne double jamais. Tant que la nouvelle
     /// n'est pas rendue, c'est l'ancienne qui se pose — un peu floue, jamais absente.
     photos: std::collections::HashMap<String, Televersee>,
+    /// Les pages qui rangent les petites textures (ATLAS-1).
+    atlas: atlas::Atlas,
+    /// `GLUCOSE_SANS_ATLAS` : un instrument, comme `GLUCOSE_CARTE`, pour comparer les deux chemins
+    /// dans les mêmes conditions.
+    sans_atlas: bool,
     image: u64,
     /// Ce que les textures gardées hors de l'écran occupent, en octets (VRAM-1).
     en_cache: u64,
@@ -117,6 +105,10 @@ pub struct SceneGpu {
 
 struct Televersee {
     liaison: wgpu::BindGroup,
+    /// **Le numéro de cette liaison** : les poses consécutives d'un même lot sont un seul dessin.
+    lot: u64,
+    /// Sa place dans une page, si elle en a une (ATLAS-1).
+    cellule: Option<atlas::Cellule>,
     /// **Ce que cette texture montre** : la clé qui l'a produite.
     ///
     /// Quand elle diffère de celle que la scène demande, la texture est périmée — elle se
@@ -174,142 +166,11 @@ impl SceneGpu {
             photos: std::collections::HashMap::new(),
             image: 0,
             en_cache: 0,
+            atlas: atlas::Atlas::default(),
+            sans_atlas: std::env::var_os("GLUCOSE_SANS_ATLAS").is_some(),
             debit: cascade::Debit::default(),
             inachevee: false,
         }
-    }
-
-    /// Les deux groupes de ressources : ce qui vaut pour toute l'image, et ce qui change par
-    /// photo.
-    ///
-    /// Les séparer n'est pas cosmétique : une liaison qui change à chaque dessin coûte, et
-    /// celle-là ne porte plus qu'une texture.
-    fn dispositions(peripherique: &wgpu::Device) -> (wgpu::BindGroupLayout, wgpu::BindGroupLayout) {
-        let commun = peripherique.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("scene: commun"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-        });
-        let photo = peripherique.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("scene: une photo"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            }],
-        });
-        (commun, photo)
-    }
-
-    fn pipeline_des_photos(
-        peripherique: &wgpu::Device,
-        format: wgpu::TextureFormat,
-        commun: &wgpu::BindGroupLayout,
-        photo: &wgpu::BindGroupLayout,
-    ) -> wgpu::RenderPipeline {
-        let module = peripherique.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("scene: photos"),
-            source: wgpu::ShaderSource::Wgsl(NUANCEUR.into()),
-        });
-        let agencement = peripherique.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("scene"),
-            bind_group_layouts: &[Some(commun), Some(photo)],
-            immediate_size: 0,
-        });
-        peripherique.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("scene: photos"),
-            layout: Some(&agencement),
-            vertex: wgpu::VertexState {
-                module: &module,
-                entry_point: Some("vs"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: Some("fs"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    // Source-over en prémultiplié : la même loi que `Melange::Composer` du
-                    // noyau, pour que les deux voies composent de la même façon.
-                    blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: Default::default(),
-            depth_stencil: None,
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
-        })
-    }
-
-    fn tampon_des_poses(peripherique: &wgpu::Device, combien: usize) -> wgpu::Buffer {
-        peripherique.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("scene: poses"),
-            size: (combien * OCTETS_POSE) as u64,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        })
-    }
-
-    fn liaison_commune(
-        peripherique: &wgpu::Device,
-        layout: &wgpu::BindGroupLayout,
-        poses: &wgpu::Buffer,
-        ecran: &wgpu::Buffer,
-        filtre: &wgpu::Sampler,
-    ) -> wgpu::BindGroup {
-        peripherique.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("scene: commun"),
-            layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: poses.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: ecran.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(filtre),
-                },
-            ],
-        })
     }
 
     /// La carte détient-elle **exactement** ce que cette texture montre ?
@@ -336,6 +197,9 @@ impl SceneGpu {
         (identite, cle): (&str, &str),
         source: tiny_skia::PixmapRef<'_>,
     ) {
+        if self.televerser_dans_l_atlas(peripherique, envoi, (identite, cle), source) {
+            return;
+        }
         let (l, h) = (source.width(), source.height());
         let taille = wgpu::Extent3d {
             width: l,
@@ -367,10 +231,14 @@ impl SceneGpu {
         let image = self.image;
         // La nouvelle texture **remplace** celle que cette identité portait : une identité
         // n'en a jamais deux, donc la mémoire ne double pas pendant un changement de palier.
+        self.oublier_la_texture(identite);
+        let lot = self.atlas.lot_neuf();
         self.photos.insert(
             identite.to_string(),
             Televersee {
                 liaison,
+                lot,
+                cellule: None,
                 cle: cle.to_string(),
                 vue: image,
                 octets: u64::from(l) * u64::from(h) * 4,
@@ -424,7 +292,7 @@ impl SceneGpu {
             if self.en_cache + octets <= gardable {
                 self.en_cache += octets;
             } else {
-                self.photos.remove(&identite);
+                self.oublier_la_texture(&identite);
             }
         }
     }
@@ -491,9 +359,11 @@ impl SceneGpu {
                 perimees += 1.0;
             }
             televersee.vue = image;
-            posee.pose.ecrire(&mut octets);
-            retenues.cles.push(posee.identite.clone());
-            retenues.rangs.push(rang);
+            televersee
+                .cellule
+                .map_or(posee.pose, |c| c.dans_la_page(posee.pose))
+                .ecrire(&mut octets);
+            retenues.retenir(&posee.identite, rang, televersee);
         }
         crate::perf::compteur("textures_perimees", perimees);
         if !octets.is_empty() {
@@ -523,13 +393,13 @@ impl SceneGpu {
         }
         passe.set_pipeline(&self.pipeline);
         passe.set_bind_group(0, &self.commun, &[]);
-        for rang in tranche {
-            let Some(televersee) = retenues.cles.get(rang).and_then(|c| self.photos.get(c)) else {
-                continue;
-            };
-            passe.set_bind_group(1, &televersee.liaison, &[]);
-            let i = rang as u32;
-            passe.draw(0..6, i..i + 1);
+        let (debut, fin) = (tranche.start as u32, tranche.end as u32);
+        for suite in &retenues.suites {
+            let (d, f) = (suite.debut.max(debut), suite.fin.min(fin));
+            if d < f {
+                passe.set_bind_group(1, &suite.liaison, &[]);
+                passe.draw(0..6, d..f);
+            }
         }
     }
 }
@@ -541,13 +411,42 @@ impl SceneGpu {
 /// photos, avant les cartes de texte — sans supposer qu'aucune n'a été omise : une photo que
 /// la carte ne détient pas encore est absente des retenues, et la frontière se déplace avec
 /// elle.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct Retenues {
     pub cles: Vec<String>,
     rangs: Vec<usize>,
+    /// **Les dessins de cette image** : une suite de poses consécutives d'un même lot en est un
+    /// seul (ATLAS-1). L'ordre du modèle reste la loi : une pose d'ailleurs coupe la suite à sa
+    /// place.
+    suites: Vec<Suite>,
+}
+
+/// Un dessin : une liaison, et les poses du tampon qu'il couvre.
+#[derive(Debug, Clone)]
+struct Suite {
+    lot: u64,
+    liaison: wgpu::BindGroup,
+    debut: u32,
+    fin: u32,
 }
 
 impl Retenues {
+    /// Retient une pose de plus : elle prolonge le dernier dessin si elle lit le même lot.
+    fn retenir(&mut self, identite: &str, rang: usize, televersee: &Televersee) {
+        let i = self.cles.len() as u32;
+        match self.suites.last_mut() {
+            Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,
+            _ => self.suites.push(Suite {
+                lot: televersee.lot,
+                liaison: televersee.liaison.clone(),
+                debut: i,
+                fin: i + 1,
+            }),
+        }
+        self.cles.push(identite.to_string());
+        self.rangs.push(rang);
+    }
+
     /// Combien de textures la carte posera.
     pub fn len(&self) -> usize {
         self.cles.len()
