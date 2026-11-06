@@ -456,7 +456,9 @@ impl GlucoseApp {
     /// Sans ce réveil, une application immobile s'endormirait avec son chantier en plan, et le
     /// premier geste suivant paierait tout ce qui n'a pas été fait.
     fn attente_du_chantier(&mut self) -> Option<u64> {
-        if self.renderer.magasin.vignettes.en_chantier() == 0 {
+        if self.renderer.magasin.vignettes.en_chantier() == 0
+            && !self.renderer.hue_cache.en_retard()
+        {
             return None;
         }
         if let Some(window) = &self.window {

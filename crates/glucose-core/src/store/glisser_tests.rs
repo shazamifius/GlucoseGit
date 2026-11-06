@@ -32,7 +32,7 @@ fn magasin() -> Store {
     store.add_annotation(B, h);
     store.clear_selection();
     store.select_image("a".into(), false);
-    store.selected_annotation_ids = vec!["t".into(), "g".into()];
+    store.selected_annotation_ids = (vec!["t".into(), "g".into()]).into();
     store.journal.prendre_les_ecrits();
     store
 }

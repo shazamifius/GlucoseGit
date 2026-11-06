@@ -307,8 +307,8 @@ fn test_pick_1_a_selected_node_exposes_its_eight_handles() {
             images: std::slice::from_ref(&image),
             annotations: &[],
             folders: &[],
-            selected_image_ids: &selected,
-            selected_annotation_ids: &empty,
+            selected_image_ids: &glucose_core::store::choix::Choix::from(selected.to_vec()),
+            selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
             selected_folder_id: None,
             noeuds: None,
         };
@@ -357,8 +357,8 @@ fn test_pick_1_a_text_card_offers_all_eight_handles() {
             images: &[],
             annotations: std::slice::from_ref(&card),
             folders: &[],
-            selected_image_ids: &empty,
-            selected_annotation_ids: &selected,
+            selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
+            selected_annotation_ids: &glucose_core::store::choix::Choix::from(selected.to_vec()),
             selected_folder_id: None,
             noeuds: None,
         };

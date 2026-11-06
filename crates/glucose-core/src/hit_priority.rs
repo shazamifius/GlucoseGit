@@ -174,8 +174,8 @@ pub struct PickInput<'a> {
     pub images: &'a [BoardImage],
     pub annotations: &'a [Annotation],
     pub folders: &'a [CanvasFolder],
-    pub selected_image_ids: &'a [String],
-    pub selected_annotation_ids: &'a [String],
+    pub selected_image_ids: &'a crate::store::choix::Choix,
+    pub selected_annotation_ids: &'a crate::store::choix::Choix,
     pub selected_folder_id: Option<&'a str>,
     /// **Ce qui mesure les nœuds pour les flèches** (FLECHE-4) : la boîte d'un nœud et la
     /// hauteur d'un passage de texte. Sans lui, une flèche ancrée à un passage se vise depuis

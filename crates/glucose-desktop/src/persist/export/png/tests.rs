@@ -104,7 +104,7 @@ fn test_export_png_1_la_selection_seule_dans_sa_disposition() {
     };
     app.store
         .poser_le_storyboard(&board, etroite, (55.0, -40.0));
-    app.store.selected_image_ids = vec!["rouge".into(), "bleu".into()];
+    app.store.selected_image_ids = (vec!["rouge".into(), "bleu".into()]).into();
     let scene = preparer(&app.store).expect("une sélection");
     assert_eq!((scene.largeur, scene.hauteur), (400, 100), "bord à bord");
     let chemin = dossier.join("selection.png");

@@ -108,7 +108,7 @@ fn test_gestes_1_appui_long_puis_glisser_trace_un_rectangle() {
     doigt(&mut app, 1, TouchPhase::Moved, (b.0 + 80.0, b.1 + 80.0));
     assert!(app.selection_box.is_some(), "le rectangle se trace");
     doigt(&mut app, 1, TouchPhase::Ended, (b.0 + 80.0, b.1 + 80.0));
-    let mut choisies = app.store.selected_image_ids.clone();
+    let mut choisies = app.store.selected_image_ids.to_vec();
     choisies.sort();
     assert_eq!(choisies, ["a", "b"]);
     assert_eq!(app.ui.context_menu_at, None, "aucun menu");
@@ -127,7 +127,7 @@ fn test_gestes_1_un_doigt_tient_un_autre_ajoute() {
     doigt(&mut app, 3, TouchPhase::Started, (b.0, b.1 + 400.0));
     doigt(&mut app, 3, TouchPhase::Ended, (b.0, b.1 + 400.0));
     doigt(&mut app, 1, TouchPhase::Ended, a);
-    let mut choisies = app.store.selected_image_ids.clone();
+    let mut choisies = app.store.selected_image_ids.to_vec();
     choisies.sort();
     assert_eq!(choisies, ["a", "b"], "le vide n'a rien vidé");
     assert_eq!(app.ui.context_menu_at, None, "aucun menu");

@@ -226,7 +226,7 @@ pub(super) fn fleches_a_poser(
         .annotations()
         .filter(|a| matches!(a, Annotation::Arrow { .. }))
         .filter_map(|ann| {
-            let selectionnee = store.selected_annotation_ids.iter().any(|s| s == ann.id());
+            let selectionnee = store.selected_annotation_ids.contains(ann.id());
             Fleche::de(hue_cache, ann, (pass, noeuds), selectionnee)?
                 .champ(&pass.vp, echelle, ecran)
         })

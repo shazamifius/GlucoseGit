@@ -340,7 +340,7 @@ fn app_avec_trois_images_selectionnees() -> GlucoseApp {
     with_image(&mut app, "a", -300.0, 0.0);
     with_image(&mut app, "b", 0.0, 0.0);
     with_image(&mut app, "c", 300.0, 0.0);
-    app.store.selected_image_ids = vec!["a".into(), "b".into(), "c".into()];
+    app.store.selected_image_ids = (vec!["a".into(), "b".into(), "c".into()]).into();
     app
 }
 
@@ -406,7 +406,7 @@ fn test_presser_hors_selection_remplace_la_selection() {
     let mut app = app();
     with_image(&mut app, "a", -300.0, 0.0);
     with_image(&mut app, "b", 0.0, 0.0);
-    app.store.selected_image_ids = vec!["a".into()];
+    app.store.selected_image_ids = (vec!["a".into()]).into();
 
     press_on(&mut app, "b");
     assert_eq!(

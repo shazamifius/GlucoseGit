@@ -111,7 +111,7 @@ fn test_un_lot_s_annule_d_un_coup() {
     for (i, cx) in [100.0, 400.0, 700.0].iter().enumerate() {
         poser(&mut app, &format!("i{i}"), "bandes.png", *cx, 300.0);
     }
-    app.store.selected_image_ids = vec!["i0".into(), "i1".into(), "i2".into()];
+    app.store.selected_image_ids = (vec!["i0".into(), "i1".into(), "i2".into()]).into();
     // Les trois poses sont trois entrees : on ne veut compter que celle du geste.
     app.store.journal.clear();
     let avant: Vec<BoardImage> = (0..3)
@@ -163,7 +163,7 @@ fn test_ce_qui_ne_change_pas_se_dit() {
     );
     poser(&mut app, "nette", "nette.png", 100.0, 100.0);
     poser(&mut app, "absente", "pas-decodee.png", 400.0, 100.0);
-    app.store.selected_image_ids = vec!["nette".into(), "absente".into()];
+    app.store.selected_image_ids = (vec!["nette".into(), "absente".into()]).into();
 
     app.retirer_les_bordures_de_la_selection();
     assert!(image(&app, "nette").crop.est_entier());
@@ -216,7 +216,7 @@ fn test_un_lot_attend_ses_originaux_puis_s_applique_d_un_bloc() {
     let mut app = app();
     decoder_a_bandes(&mut app, "bandes.png");
     poser(&mut app, "i", "bandes.png", 100_000.0, 100_000.0);
-    app.store.selected_image_ids = vec!["i".into()];
+    app.store.selected_image_ids = (vec!["i".into()]).into();
     app.store.journal.clear();
     // Le mot d'accueil réveillerait l'application de lui-même, et cacherait un lot qui ne
     // la réveille pas.

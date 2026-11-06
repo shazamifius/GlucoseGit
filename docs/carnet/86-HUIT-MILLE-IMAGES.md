@@ -59,6 +59,39 @@ lag des focus. C'est aussi le « rien à 100 % » : le travail tient sur un fil,
 * **Le temps énorme de la sélection** : ce n'est pas `tout-choisir`. Probablement l'image qui suit, ou un
   rectangle tracé à la souris, que le scénario ne sait pas encore jouer.
 
+## 4 bis. Son essai sur du texte, le même jour
+
+Ses journaux de 15 h 25, en texte seul : **`lueurs` à 716 ms**, **`annotations` à 378 ms**, un pic à
+1,1 s, et un coût qui monte au fil de la session (1,7 ms par image au début, 50 ms à la fin). Des postes
+que le banc des images ne faisait pas parler. `examples/bench_noeuds_choisis` les reproduit :
+
+| 4 000 textes serrés (voie processeur) | avant | après |
+|---|---|---|
+| le document change à chaque image | 1 840 ms | **296 ms** |
+| tout choisi | 411 ms | 354 ms (353 à 2 000 : ne dépend plus du nombre de choisis) |
+
+* **TEINTES-1** (`renderer/hue.rs`) : le carré. Chaque changement oubliait toutes les teintes, et chacune
+  mélange tout son voisinage (rayon de 1 200). La cascade de la charte : une image recalcule dans sa
+  tranche, montre la teinte d'avant pour le reste, et le réveil finit le travail. **Sans tranche, le
+  calcul reste entier** : épreuves et bancs déterministes. Le mélange est aussi le même au bit près.
+* **CHOIX-1** (`store/choix.rs`) : la sélection reste une liste à la lecture, et répond en temps constant.
+* **Ce que CHOIX-1 n'a pas réglé** : sur les 8 000 **images**, sélectionnées ou non, le vrai Glucose coûte
+  pareil : `composants` 25 ms, `textures` 23, `soumettre` 16 à 23. Le « temps énorme » de sa sélection
+  d'images reste à reproduire. La barre d'action comparait bien images × choisies (64 millions à huit
+  mille), mais seulement là où elle se montre : **à revoir à son écran**.
+* **`atelier` à 43-66 ms pendant les vols** : ce repère compte tout depuis le repère d'avant. **À expliquer**,
+  pas à conclure.
+* **Il reste environ 290 ms** dans ce banc pour 864 textes à l'écran : c'est le processeur qui les dessine.
+  Le chemin par la carte graphique se juge à son écran.
+
+**Vérification** : 2 718 épreuves vertes, 7 ignorées, clippy à zéro ; `huit-mille.json`, 9 sabotages sur 9.
+
+**La télémétrie ne dit ni la charge ni le nombre de nœuds**, et il l'a remarqué. **Le serveur refuse toute
+session portant un champ inconnu, et tout champ attendu qui manque** (`valider.js`) : ajouter un champ à
+`memoire` ferait refuser les anciennes versions, ou les nouvelles. La forme juste est **une nouvelle
+sorte de ligne**, `charge`, que le serveur apprend **avant** la version qui l'écrit. Déployer le demande
+un droit que la connexion de cette session n'a pas : son clic.
+
 ## 5. Les options
 
 La piste qui ferme le sujet : **quand seule la vue change, la carte graphique n'a besoin que d'une

@@ -108,8 +108,8 @@ fn test_hit_priority_rules() {
         images: &images,
         annotations: &annotations,
         folders: &empty_folders,
-        selected_image_ids: &empty,
-        selected_annotation_ids: &empty,
+        selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_folder_id: None,
         noeuds: None,
     };
@@ -185,8 +185,8 @@ fn test_nested_containers_smallest_wins() {
         images: &[],
         annotations: &[outer.clone(), inner.clone()],
         folders: &[],
-        selected_image_ids: &empty,
-        selected_annotation_ids: &empty,
+        selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_folder_id: None,
         noeuds: None,
     };
@@ -230,8 +230,8 @@ fn test_pick_2_ce_qui_est_peint_dessus_gagne() {
         images: &[i],
         annotations: &[t, s],
         folders: &[],
-        selected_image_ids: &empty,
-        selected_annotation_ids: &empty,
+        selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_folder_id: None,
         noeuds: None,
     };
@@ -268,8 +268,8 @@ fn test_handles_absolute_priority() {
         images: &[i],
         annotations: &[memb],
         folders: &[],
-        selected_image_ids: &empty,
-        selected_annotation_ids: &sel_m,
+        selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(sel_m.to_vec()),
         selected_folder_id: None,
         noeuds: None,
     };
@@ -280,7 +280,7 @@ fn test_handles_absolute_priority() {
 
     // Pas de sélection -> aucune poignée
     let input_nosel = PickInput {
-        selected_annotation_ids: &empty,
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         ..input
     };
     assert!(collect_candidates(&input_nosel)
@@ -317,8 +317,8 @@ fn test_click_cycle_chain() {
         images: &[i],
         annotations: &[memb, t],
         folders: &[],
-        selected_image_ids: &empty,
-        selected_annotation_ids: &empty,
+        selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_folder_id: None,
         noeuds: None,
     };
@@ -418,7 +418,7 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
     let annotations: Vec<Annotation> = Vec::new();
     let folders: Vec<CanvasFolder> = Vec::new();
     let empty: Vec<String> = Vec::new();
-    let selected = vec!["L1".to_string()];
+    let selected = ["L1".to_string()];
 
     let input = PickInput {
         wx: 400.0,
@@ -428,8 +428,8 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         annotations: &annotations,
         folders: &folders,
         // Sélectionnée : c'est la seule situation où des poignées pourraient naître.
-        selected_image_ids: &selected,
-        selected_annotation_ids: &empty,
+        selected_image_ids: &glucose_core::store::choix::Choix::from(selected.to_vec()),
+        selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_folder_id: None,
         noeuds: None,
     };
@@ -460,6 +460,10 @@ fn test_poignee_1_une_vignette_se_deplace_au_lieu_de_se_redimensionner() {
     let folders: Vec<CanvasFolder> = Vec::new();
     let empty: Vec<String> = Vec::new();
     let selected = vec!["V".to_string()];
+    let (choisies, aucune) = (
+        glucose_core::store::choix::Choix::from(selected),
+        glucose_core::store::choix::Choix::from(empty),
+    );
     let pres_du_coin = |scale: f64| PickInput {
         wx: -90.0,
         wy: -90.0,
@@ -467,8 +471,8 @@ fn test_poignee_1_une_vignette_se_deplace_au_lieu_de_se_redimensionner() {
         images: &images,
         annotations: &annotations,
         folders: &folders,
-        selected_image_ids: &selected,
-        selected_annotation_ids: &empty,
+        selected_image_ids: &choisies,
+        selected_annotation_ids: &aucune,
         selected_folder_id: None,
         noeuds: None,
     };
@@ -539,8 +543,8 @@ fn test_deux_noeuds_choisis_n_ont_que_les_poignees_du_groupe() {
             images: &images,
             annotations: &[],
             folders: &[],
-            selected_image_ids: sel,
-            selected_annotation_ids: &empty,
+            selected_image_ids: &glucose_core::store::choix::Choix::from(sel.to_vec()),
+            selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
             selected_folder_id: None,
             noeuds: None,
         };

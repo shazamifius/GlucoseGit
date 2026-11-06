@@ -74,6 +74,11 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     }
     brancher_les_reveils(&mut app, &event_loop);
     app.charger_le_scenario();
+    // Le plancher de la charte, sa marge déduite : une image ne s'arrête jamais pour ses teintes
+    // (TEINTES-1). Ici et non dans `new` : les épreuves gardent le calcul entier, déterministe.
+    app.renderer.hue_cache.accorder_la_tranche(Some(
+        crate::cadence::BUDGET_TOTAL.saturating_sub(crate::cadence::MARGE),
+    ));
     if let Some(installation) = installation {
         let reveil = reveil_de(&event_loop);
         cycle::ranger_les_anciens(&installeurs, &cycle::courante());

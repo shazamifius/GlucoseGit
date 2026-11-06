@@ -37,6 +37,7 @@ pub mod agents;
 mod annotations;
 mod boards;
 mod catalog;
+pub mod choix;
 mod domains;
 mod folders;
 mod glisser;
@@ -71,8 +72,8 @@ use crate::types::{AssetStore, Project, TemporalAnchor};
 pub struct Store {
     pub project: Project,
     pub assets: AssetStore,
-    pub selected_image_ids: Vec<String>,
-    pub selected_annotation_ids: Vec<String>,
+    pub selected_image_ids: choix::Choix,
+    pub selected_annotation_ids: choix::Choix,
     pub selected_folder_id: Option<String>,
     pub folder_stack: Vec<(String, String)>,
     pub temporal_filter: Option<TemporalAnchor>,
@@ -114,8 +115,8 @@ impl Store {
         Self {
             project: Project::new(project_name),
             assets: AssetStore::new(),
-            selected_image_ids: Vec::new(),
-            selected_annotation_ids: Vec::new(),
+            selected_image_ids: choix::Choix::default(),
+            selected_annotation_ids: choix::Choix::default(),
             selected_folder_id: None,
             folder_stack: Vec::new(),
             temporal_filter: None,

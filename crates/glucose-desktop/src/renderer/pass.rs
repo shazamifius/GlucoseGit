@@ -167,7 +167,7 @@ fn dessiner_ce_qui_passe_au_dessus(
 ) -> f64 {
     let mut entieres = 0.0_f64;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
-        let selected = store.selected_annotation_ids.iter().any(|s| s == ann.id());
+        let selected = store.selected_annotation_ids.contains(ann.id());
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
             Annotation::Text { x, y, .. } => {
@@ -237,7 +237,7 @@ fn carte_de<'a>(
         tint,
         fond: contenants.fond_en((cx as f32, cy as f32)),
         eclaires: super::passages::eclaires_de(eclairages, ann.id(), tint),
-        selected: store.selected_annotation_ids.iter().any(|s| s == ann.id()),
+        selected: store.selected_annotation_ids.contains(ann.id()),
         editing,
     })
 }

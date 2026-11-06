@@ -52,7 +52,7 @@ impl GlucoseApp {
     /// compose avec le recadrage qu'elle porte déjà (jamais en relâchant), et la boîte recule
     /// de ce qu'on retire pour que le contenu reste en place à l'écran.
     pub fn retirer_les_bordures_de_la_selection(&mut self) {
-        let ids: Vec<String> = self.store.selected_image_ids.clone();
+        let ids = self.store.selected_image_ids.to_vec();
         if ids.is_empty() {
             return;
         }

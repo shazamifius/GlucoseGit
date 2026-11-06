@@ -33,7 +33,7 @@ fn document() -> (Store, String) {
     }
     store.add_annotation(&board, fleche);
     store.set_selected_image_ids(vec!["a".into(), "b".into(), "fixe".into()]);
-    store.selected_annotation_ids = vec!["t".into()];
+    store.selected_annotation_ids = (vec!["t".into()]).into();
     store.journal.clear();
     (store, board)
 }

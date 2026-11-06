@@ -63,7 +63,7 @@ fn deposer_un_repli(app: &mut GlucoseApp) -> String {
     let id = app.store.active_board().expect("un tableau").annotations[0]
         .id()
         .to_string();
-    app.store.selected_annotation_ids = vec![id.clone()];
+    app.store.selected_annotation_ids = (vec![id.clone()]).into();
     id
 }
 
@@ -169,7 +169,7 @@ fn test_l_entree_n_existe_que_pour_un_lien_seul() {
         format!("ma référence : {}", moisson::lien_markdown(EPINGLE)),
     );
     app.store.add_annotation(&board, note);
-    app.store.selected_annotation_ids = vec!["note-1".into()];
+    app.store.selected_annotation_ids = (vec!["note-1".into()]).into();
     assert!(!entrees(&app).contains(&MenuAction::RemplacerParLImage));
 }
 

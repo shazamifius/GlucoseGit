@@ -628,7 +628,7 @@ fn test_le_clic_qui_rend_le_premier_plan_n_agit_pas_sur_le_canevas() {
     let selection = || vec!["i0".to_string(), "i1".to_string(), "i2".to_string()];
 
     let mut reveil = app_with(3);
-    reveil.store.selected_image_ids = selection();
+    reveil.store.selected_image_ids = (selection()).into();
     reveil.mouse_pos = (900.0, 600.0);
     reveil.clic_de_reveil = true;
     jouer_le_clic(&mut reveil, ElementState::Pressed);
@@ -641,7 +641,7 @@ fn test_le_clic_qui_rend_le_premier_plan_n_agit_pas_sur_le_canevas() {
 
     // **Sans le drapeau**, le meme clic sur le vide deselectionne : c'est ce qui arrivait.
     let mut ordinaire = app_with(3);
-    ordinaire.store.selected_image_ids = selection();
+    ordinaire.store.selected_image_ids = (selection()).into();
     ordinaire.mouse_pos = (900.0, 600.0);
     jouer_le_clic(&mut ordinaire, ElementState::Pressed);
     jouer_le_clic(&mut ordinaire, ElementState::Released);

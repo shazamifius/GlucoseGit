@@ -44,8 +44,8 @@ impl Store {
     /// Rend le nombre de nœuds déplacés — `0` quand rien n'est sélectionné, ou quand tout
     /// l'est déjà : un geste sans effet ne doit pas encombrer l'historique.
     pub fn move_selection_in_stack(&mut self, board_id: &str, mv: StackMove) -> usize {
-        let images: Vec<String> = self.selected_image_ids.clone();
-        let annotations: Vec<String> = self.selected_annotation_ids.clone();
+        let images: Vec<String> = self.selected_image_ids.to_vec();
+        let annotations: Vec<String> = self.selected_annotation_ids.to_vec();
         if images.is_empty() && annotations.is_empty() {
             return 0;
         }

@@ -2,6 +2,7 @@
 
 use super::*;
 use glucose_core::types::Board;
+use std::time::Duration;
 
 fn card(id: &str, x: f64, y: f64) -> Annotation {
     crate::renderer::card::tests::probe_card(id, x, y)
@@ -123,4 +124,110 @@ fn test_une_carte_hors_rayon_ninfluence_pas_la_teinte() {
         a.get_or_compute(&t1, &index_seule, &seule),
         b.get_or_compute(&t1, &index_avec, &avec)
     );
+}
+
+/// Trois textes voisins, et le cache qui les a déjà vus à la version 1.
+fn trois_voisines() -> (Board, SpatialHash) {
+    scene(vec![
+        card("a", 0.0, 0.0),
+        card("b", 300.0, 0.0),
+        card("c", 0.0, 300.0),
+    ])
+}
+
+fn teinte(cache: &mut SymbioticHueCache, board: &Board, index: &SpatialHash, i: usize) -> f64 {
+    cache.get_or_compute(&board.annotations[i], index, board).0
+}
+
+/// **La tranche épuisée** : la première teinte de l'image se calcule (la cascade avance), les
+/// suivantes gardent la leur, et l'image le dit.
+#[test]
+fn test_teintes_1_une_image_sans_temps_montre_l_ancienne_et_le_dit() {
+    let (board, index) = trois_voisines();
+    let mut cache = SymbioticHueCache::new();
+    cache.suivre(1, &board.id);
+    (0..3).for_each(|i| {
+        teinte(&mut cache, &board, &index, i);
+    });
+    assert_eq!(cache.calculs(), 3);
+    assert!(!cache.en_retard());
+
+    cache.accorder_la_tranche(Some(Duration::ZERO));
+    cache.suivre(2, &board.id);
+    (0..3).for_each(|i| {
+        teinte(&mut cache, &board, &index, i);
+    });
+    assert_eq!(
+        cache.calculs(),
+        4,
+        "une seule teinte refaite dans cette image"
+    );
+    assert!(cache.en_retard(), "et il en reste : une image doit suivre");
+}
+
+/// **Elle converge, puis se rendort** : autant d'images que de teintes à refaire, et la dernière
+/// ne redemande rien.
+#[test]
+fn test_teintes_1_la_cascade_finit_et_rend_les_memes_teintes_que_le_calcul_entier() {
+    let (board, index) = trois_voisines();
+    let mut entier = SymbioticHueCache::new();
+    entier.suivre(1, &board.id);
+    let attendues: Vec<f64> = (0..3)
+        .map(|i| teinte(&mut entier, &board, &index, i))
+        .collect();
+
+    let mut cache = SymbioticHueCache::new();
+    cache.accorder_la_tranche(Some(Duration::ZERO));
+    let mut images = 0;
+    let vues = loop {
+        images += 1;
+        cache.suivre(1, &board.id);
+        let vues: Vec<f64> = (0..3)
+            .map(|i| teinte(&mut cache, &board, &index, i))
+            .collect();
+        if !cache.en_retard() {
+            break vues;
+        }
+        assert!(images < 10, "la cascade ne finit pas");
+    };
+    assert_eq!(images, 3, "une teinte par image, sans tranche");
+    assert_eq!(vues, attendues, "et le même résultat, au bit près");
+}
+
+/// **Sans tranche**, rien ne change : tout se calcule tout de suite, pour les épreuves et les bancs.
+#[test]
+fn test_teintes_1_sans_tranche_tout_se_refait_dans_l_image() {
+    let (board, index) = trois_voisines();
+    let mut cache = SymbioticHueCache::new();
+    cache.suivre(1, &board.id);
+    (0..3).for_each(|i| {
+        teinte(&mut cache, &board, &index, i);
+    });
+    cache.suivre(2, &board.id);
+    (0..3).for_each(|i| {
+        teinte(&mut cache, &board, &index, i);
+    });
+    assert_eq!(cache.calculs(), 6);
+    assert!(!cache.en_retard());
+}
+
+/// **Un autre tableau oublie tout** : ses identifiants ne disent rien de celui-ci.
+#[test]
+fn test_teintes_1_un_autre_tableau_oublie_les_teintes() {
+    let (board, index) = trois_voisines();
+    let mut cache = SymbioticHueCache::new();
+    cache.suivre(1, &board.id);
+    teinte(&mut cache, &board, &index, 0);
+    cache.suivre(1, "un-autre-tableau");
+    cache.suivre(1, &board.id);
+    teinte(&mut cache, &board, &index, 0);
+    assert_eq!(cache.calculs(), 2);
+}
+
+/// **Le vrai lancement pose la tranche, et le réveil la suit** : sans lui, la cascade s'arrêterait
+/// à la première image, et les teintes resteraient fausses jusqu'au prochain geste.
+#[test]
+fn test_teintes_1_le_lancement_pose_la_tranche_et_le_reveil_finit_la_cascade() {
+    assert!(include_str!("../../demarrage.rs").contains("hue_cache.accorder_la_tranche("));
+    assert!(include_str!("../../app/reveil.rs").contains("hue_cache.en_retard()"));
 }

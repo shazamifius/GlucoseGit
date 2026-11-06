@@ -564,7 +564,7 @@ fn test_les_bornes_de_la_selection_ne_comptent_que_ce_qui_est_choisi() {
     let b = store.selection_bounds(&board).expect("l'image");
     assert_eq!(b, store.project.boards[0].images[0].rect(), "l'image seule");
 
-    store.selected_annotation_ids = vec!["a".into()];
+    store.selected_annotation_ids = (vec!["a".into()]).into();
     store.selected_folder_id = Some("f".into());
     let b = store.selection_bounds(&board).expect("trois familles");
     assert_eq!((b.left, b.top), (-300.0, -200.0), "le dossier et la flèche");

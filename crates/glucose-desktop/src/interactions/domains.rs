@@ -139,7 +139,7 @@ impl GlucoseApp {
 
     /// Les nœuds sélectionnés du tableau actif — annotations puis images.
     fn selected_nodes(&self) -> Vec<String> {
-        let mut nodes = self.store.selected_annotation_ids.clone();
+        let mut nodes = self.store.selected_annotation_ids.to_vec();
         nodes.extend(self.store.selected_image_ids.iter().cloned());
         nodes
     }

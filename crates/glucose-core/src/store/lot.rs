@@ -229,8 +229,8 @@ impl Store {
         }
         // Ce qu'on vient de poser devient la sélection : c'est ce qu'on déplace ensuite.
         self.clear_selection();
-        self.selected_image_ids = images.clone();
-        self.selected_annotation_ids = annotations.clone();
+        self.selected_image_ids = (images.clone()).into();
+        self.selected_annotation_ids = (annotations.clone()).into();
         let mut poses = images;
         poses.extend(annotations);
         poses

@@ -11,11 +11,11 @@ impl Store {
     }
 
     pub fn set_selected_image_ids(&mut self, ids: Vec<String>) {
-        self.selected_image_ids = ids;
+        self.selected_image_ids = ids.into();
     }
 
     pub fn set_selected_annotation_ids(&mut self, ids: Vec<String>) {
-        self.selected_annotation_ids = ids;
+        self.selected_annotation_ids = ids.into();
     }
 
     pub fn select_image(&mut self, id: String, multi: bool) {

@@ -200,7 +200,7 @@ fn liste_de(v: &Json, cle: &str) -> Vec<String> {
 fn la_selection_de_l_utilisateur_se_lit() {
     let mut app = GlucoseApp::new();
     // Au démarrage, le nœud de bienvenue est sélectionné : poser ne change rien à cela (AGENT-2).
-    let au_depart = app.store.selected_annotation_ids.clone();
+    let au_depart = app.store.selected_annotation_ids.to_vec();
     appeler(
         &mut app,
         "glucose_poser_texte",
@@ -215,10 +215,10 @@ fn la_selection_de_l_utilisateur_se_lit() {
         liste_de(&appeler(&mut app, "glucose_lire", "{}"), "selection"),
         au_depart
     );
-    app.store.selected_annotation_ids = vec!["b".into()];
+    app.store.selected_annotation_ids = (vec!["b".into()]).into();
     let lu = appeler(&mut app, "glucose_lire", "{}");
     assert_eq!(liste_de(&lu, "selection"), ["b"], "« ça », c'est b");
-    app.store.selected_image_ids = vec!["une-photo".into()];
+    app.store.selected_image_ids = (vec!["une-photo".into()]).into();
     let avec_photo = appeler(&mut app, "glucose_lire", "{}");
     assert_eq!(liste_de(&avec_photo, "selection"), ["une-photo", "b"]);
     app.store.selected_image_ids.clear();
