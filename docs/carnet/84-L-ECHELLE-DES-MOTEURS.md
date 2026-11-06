@@ -129,3 +129,7 @@ chargeant et les déchargeant. **Rien à voir avec l'échelle** : le chemin est 
 
 Sur NixOS, le 6/11 : format, clippy à zéro, **2 701 épreuves vertes, 7 ignorées** ; sabotages
 `moteur-1.json`, tous tombés après correction des deux aveugles ci-dessus. La CI Windows dira le reste.
+
+Deux défauts de la CI elle-même, le même jour : un `present::` non cité rendait `ci.yml` illisible
+(ma faute, `actionlint` le voit), et **GitHub a retiré `macos-14`** entre le 3 et le 6/11 (« the
+configuration is not supported ») : le Mac à puce Apple passe à `macos-15`.
