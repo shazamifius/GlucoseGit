@@ -167,8 +167,9 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
-* **Au 6/11, sur NixOS** : voir le rapport de la fiche 84 ; **`53b3581` (3/11) : dix vertes** sur le
-  code de la fiche 83 plus `rustls` (exécution 41639433622).
+* **Au 6/11, sur NixOS** : **2 701 épreuves vertes, 7 ignorées**, clippy à zéro (fiche 84) ;
+  **COURSE-1** : le plantage des épreuves dans le chargeur Vulkan, reproduit sous `gdb` et réparé.
+  **`53b3581` (3/11) : dix vertes** sur le code de la fiche 83 plus `rustls` (exécution 41639433622).
 * **2 680 épreuves** sous Windows, toutes vertes, 7 ignorées (22/10, fiche 81) ; clippy strict à zéro sous
   Windows (Rust 1.99.1) et pour Android ; la suite Linux tourne aussi sur ce PC (WSL `Glucose-Linux`, METHODE
   § 5), rejouée pour la dernière fois à la fiche 61.

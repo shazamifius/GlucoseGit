@@ -38,6 +38,27 @@ pub fn sans_carte() {
     );
 }
 
+/// **COURSE-1 — un seul à la fois devant le chargeur Vulkan** (fiche 84).
+///
+/// Les épreuves tournent en parallèle, et chacune ouvre son moteur. `libvulkan` balaie alors ses
+/// pilotes dans plusieurs fils à la fois, en les chargeant et en les déchargeant, et finit par
+/// appeler l'adresse 0 (`loader_scanned_icd_add`, quatre essais sur quatre sous `gdb`, Vulkan
+/// 1.4.357) : tout le processus d'épreuve meurt, sans dire laquelle. C'est probablement aussi
+/// le plantage de `vulkan-1.dll` au même octet de la fiche 49 § 4, à confirmer sous Windows. Le
+/// programme lui-même n'ouvre qu'un moteur à la fois.
+///
+/// **Une instance reste ouverte** : les pilotes restent chargés, et le balayage suivant ne peut
+/// plus les trouver à moitié déchargés par une épreuve qui finit.
+fn instance_du_banc(moteurs: wgpu::Backends) -> wgpu::Instance {
+    static TOUR: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static GARDEE: std::sync::OnceLock<wgpu::Instance> = std::sync::OnceLock::new();
+    let _tour = TOUR
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    GARDEE.get_or_init(|| super::moteurs::instance(wgpu::Backends::VULKAN));
+    super::moteurs::instance(moteurs)
+}
+
 /// Un périphérique hors fenêtre, ou `None` si cette machine n'en offre pas.
 ///
 /// **`WGPU_BACKEND` choisit le moteur** (`vulkan`, `gl`, `dx12`) : c'est par là que les épreuves
@@ -50,7 +71,7 @@ pub fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
         |m| vec![m],
     );
     let ouvrir = |moteurs| {
-        let instance = super::moteurs::instance(moteurs);
+        let instance = instance_du_banc(moteurs);
         let adaptateur =
             pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::LowPower,
@@ -262,4 +283,29 @@ pub fn composer_les_cinq_temps(
     envoi.soumettre();
     file.submit(Some(encodeur.finish()));
     relire(peripherique, file, &cible, taille)
+}
+
+#[cfg(test)]
+mod course {
+    /// **COURSE-1 ne s'éprouve pas en la provoquant** : une course ne tombe pas à la demande, et
+    /// vingt fils qui ouvrent la carte n'ont rien fait tomber une fois le tour retiré. La preuve
+    /// a été faite sous `gdb` (fiche 84 § 8). Ce qui se garde ici, c'est que le tour reste là.
+    #[test]
+    fn test_course_1_chaque_ouverture_du_banc_passe_par_le_tour() {
+        let source = include_str!("banc_gpu.rs");
+        let code = source.split("mod course").next().expect("le code");
+        assert!(
+            code.contains("let _tour = TOUR"),
+            "le tour devant le chargeur"
+        );
+        assert!(
+            code.contains("GARDEE.get_or_init"),
+            "les pilotes restent chargés"
+        );
+        assert_eq!(
+            code.matches("super::moteurs::instance(moteurs)").count(),
+            1,
+            "une seule ouverture, celle qui prend le tour"
+        );
+    }
 }

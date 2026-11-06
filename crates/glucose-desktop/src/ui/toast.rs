@@ -210,6 +210,19 @@ mod tests {
     /// **Au bureau, une ligne, comme toujours** ; **au téléphone, le message se coupe** et
     /// chaque ligne tient dans l'écran, marges comprises (fiche 56).
     #[test]
+    fn test_moteur_1_un_message_a_lire_dure_le_temps_de_ses_lettres() {
+        let ordinaire = Toast::new("x").duration;
+        let court = Toast::a_lire("x").duration;
+        let long = Toast::a_lire("x".repeat(100)).duration;
+        assert!(court >= ordinaire, "jamais moins qu'un toast");
+        assert_eq!(
+            long - court,
+            std::time::Duration::from_millis(99 * Toast::LECTURE_MS),
+            "chaque lettre compte, et les lettres, pas les octets"
+        );
+    }
+
+    #[test]
     fn test_le_toast_se_coupe_plutot_que_de_sortir_de_l_ecran() {
         let typo = Typography::new();
         let message = crate::plateforme::partage::RIEN;

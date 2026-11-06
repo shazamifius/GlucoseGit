@@ -104,3 +104,28 @@ Le code n'a rien perdu : `c6443cf` était sur GitHub. **Le reste, relevé :**
   distrait de l'utilisateur a envoyé une session d'essai, effacée ensuite du serveur. D'où
   `outils/essai_isole.sh`, qui écrit « non » d'avance.
 * **Une fenêtre d'essai prend le focus** et peut voler ce qu'il tape : brève, et annoncée.
+
+## 8. COURSE-1 — le plantage des épreuves
+
+Après MOTEUR-1, `cargo test --workspace` a fait tomber deux processus d'épreuve, sans dire
+laquelle : `SIGSEGV`. **Sous `gdb`, 4 essais sur 4, la même pile** : `vkEnumerateInstanceExtensionProperties`
+→ `loader_icd_scan` → `loader_scanned_icd_add` → l'adresse 0, dans `libvulkan` 1.4.357. Plusieurs
+épreuves ouvrent leur moteur en parallèle, et le chargeur balaie ses pilotes (quatorze ici) en les
+chargeant et les déchargeant. **Rien à voir avec l'échelle** : le chemin est le même avant elle.
+
+* **La réparation** : un seul à la fois devant le chargeur, et une instance gardée ouverte pour que
+  les pilotes restent chargés (`banc_gpu::instance_du_banc`). Le programme n'ouvre qu'un moteur à la
+  fois ; seules les épreuves étaient exposées.
+* **La preuve** : 8 passages sur 8 et 3 sur 3 sous `gdb` (`present::`), puis les 2 701 épreuves.
+* **Probablement** le plantage de `vulkan-1.dll` de la fiche 49 § 4, au même octet : à confirmer sous
+  Windows. **Pas** « l'épreuve qui tombe au hasard » de la fiche 35 § 4, qui est un écart de pixels,
+  contrairement à ce que la fiche 49 supposait.
+* **Une première épreuve était aveugle** : vingt fils qui ouvrent la carte, cinq fois, sans rien
+  faire tomber une fois le tour retiré. Sabotée, elle est partie : une course ne se provoque pas à
+  la demande. Elle est remplacée par une garde du code, qui dit ce qu'elle garde et pas plus.
+* **Autre aveugle trouvé par le sabotage** : la durée de lecture du message n'avait pas d'épreuve.
+
+## 9. La vérification
+
+Sur NixOS, le 6/11 : format, clippy à zéro, **2 701 épreuves vertes, 7 ignorées** ; sabotages
+`moteur-1.json`, tous tombés après correction des deux aveugles ci-dessus. La CI Windows dira le reste.

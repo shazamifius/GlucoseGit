@@ -4,83 +4,181 @@
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "            if !tombes.contains(o) {\n                tombes.push(o.clone());\n            }\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 le nom ne s'ecrit pas sur le disque",
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "        self.echelle.ouverture = Some(moteur.to_string());\n        self.retenir();\n",
   "apres": "        self.echelle.ouverture = Some(moteur.to_string());\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 la premiere image n'efface pas le nom",
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "        self.echelle.ouverture = None;\n        self.retenir();\n",
   "apres": "        self.retenir();\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 une nouvelle version rouvre sans sonder",
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "                version: version.to_string(),\n                tombes,\n",
   "apres": "                version: version.to_string(),\n                tombes: if meme_version { tombes } else { Vec::new() },\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 la sonde ne rend pas le moteur",
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "        self.tombes.retain(|t| t != moteur);\n",
   "apres": "",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 une autre version repose la question a tort",
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "            a_sonder: if meme_version {\n                Vec::new()\n",
   "apres": "            a_sonder: if meme_version {\n                tombes.clone()\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 le nom s'ecrit apres l'instance",
   "fichier": "crates/glucose-desktop/src/present/gpu/ouverture.rs",
   "avant": "        echelle::j_ouvre(nom);\n        let instance = moteurs::instance_pour_la_fenetre(moteur, window);\n",
   "apres": "        let instance = moteurs::instance_pour_la_fenetre(moteur, window);\n        echelle::j_ouvre(nom);\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 l'echelle ne choisit plus les moteurs",
   "fichier": "crates/glucose-desktop/src/present/gpu/ouverture.rs",
   "avant": "    for (moteur, nom) in echelle::barreaux() {\n",
   "apres": "    for (moteur, nom) in moteurs::ici() {\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 une image presentee ne prouve rien",
   "fichier": "crates/glucose-desktop/src/app/presentation.rs",
   "avant": "            Ok(Issue::Presentee) => crate::present::echelle::survecu(),\n",
   "apres": "            Ok(Issue::Presentee) => {}\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
  },
  {
   "nom": "MOTEUR-1 une sonde morte passe pour une survie",
   "fichier": "crates/glucose-desktop/src/present/echelle.rs",
   "avant": "    tomber_si_demande(nom);\n    let instance",
   "apres": "    let instance",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--test", "echelle_suite"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "echelle_suite"
+  ]
  },
  {
   "nom": "ACCUEIL-2 le noeud de bienvenue retourne sous la barre",
   "fichier": "crates/glucose-desktop/src/app/accueil.rs",
   "avant": "        vue.y = haut * 1.5;\n",
   "apres": "        vue.y = 0.0;\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "accueil_2"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "accueil_2"
+  ]
  },
  {
   "nom": "MOTEUR-1 le message n'a pas le temps de se lire",
   "fichier": "crates/glucose-desktop/src/ui/toast.rs",
   "avant": "            duration: Duration::from_millis(Self::DURATION_MS + lettres * Self::LECTURE_MS),\n",
   "apres": "            duration: Duration::from_millis(Self::DURATION_MS + lettres * 0),\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "moteur_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "moteur_1"
+  ]
+ },
+ {
+  "nom": "COURSE-1 plus de tour devant le chargeur Vulkan",
+  "fichier": "crates/glucose-desktop/src/present/banc_gpu.rs",
+  "avant": "    let _tour = TOUR\n        .lock()\n        .unwrap_or_else(std::sync::PoisonError::into_inner);\n    GARDEE.get_or_init(|| super::moteurs::instance(wgpu::Backends::VULKAN));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_course_1"
+  ]
  }
 ]
