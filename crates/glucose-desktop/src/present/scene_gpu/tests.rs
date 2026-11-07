@@ -28,8 +28,8 @@ fn photo(cote: u32, couleur: [u8; 4]) -> Pixmap {
 fn a_poser(cle: &str, pose: Pose) -> APoser {
     APoser {
         repli: None,
-        cle: cle.to_string(),
-        identite: cle.to_string(),
+        cle: cle.into(),
+        identite: cle.into(),
         pose,
     }
 }
@@ -53,7 +53,12 @@ fn rendre_par(
     scene.sans_atlas = sans_atlas;
     scene.ouvrir();
     for (cle, source) in sources {
-        scene.televerser(&peripherique, &mut envoi, (cle, cle), source.as_ref());
+        scene.televerser(
+            &peripherique,
+            &mut envoi,
+            (&Cle::from(*cle), &Cle::from(*cle)),
+            source.as_ref(),
+        );
     }
     let poses: Vec<APoser> = poses.iter().map(|(c, p)| a_poser(c, *p)).collect();
     let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), &poses);
@@ -234,16 +239,16 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("a", "a"),
+        (&Cle::from("a"), &Cle::from("a")),
         photo(4, [1, 2, 3, 255]).as_ref(),
     );
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("b", "b"),
+        (&Cle::from("b"), &Cle::from("b")),
         photo(4, [4, 5, 6, 255]).as_ref(),
     );
-    assert!(scene.connait("a", "a") && scene.connait("b", "b"));
+    assert!(scene.connait(&"a".into(), &"a".into()) && scene.connait(&"b".into(), &"b".into()));
 
     // Une image ou seule `a` sert.
     scene.ouvrir();
@@ -260,8 +265,14 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
     scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("a", pose)]);
     scene.fermer(0);
 
-    assert!(scene.connait("a", "a"), "ce qui a servi reste");
-    assert!(!scene.connait("b", "b"), "ce qui n'a pas servi est oublie");
+    assert!(
+        scene.connait(&"a".into(), &"a".into()),
+        "ce qui a servi reste"
+    );
+    assert!(
+        !scene.connait(&"b".into(), &"b".into()),
+        "ce qui n'a pas servi est oublie"
+    );
 }
 
 /// **Un quart de tour transpose la photo autour de son centre.**
@@ -331,17 +342,17 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("carte:c1", "carte:c1:ancien"),
+        (&Cle::from("carte:c1"), &Cle::from("carte:c1:ancien")),
         photo(4, [1, 2, 3, 255]).as_ref(),
     );
 
     // La scène en demande maintenant un palier neuf.
     assert!(
-        !scene.connait("carte:c1", "carte:c1:neuf"),
+        !scene.connait(&"carte:c1".into(), &"carte:c1:neuf".into()),
         "la clé neuve n'est pas détenue : c'est ce qui la fera rendre quand il y aura du temps"
     );
     assert!(
-        scene.detient("carte:c1"),
+        scene.detient(&"carte:c1".into()),
         "l'identité, elle, est détenue -- et c'est ce qui evite le trou"
     );
 
@@ -362,14 +373,14 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         (16.0, 16.0),
         &[APoser {
             repli: None,
-            cle: "carte:c1:neuf".to_string(),
-            identite: "carte:c1".to_string(),
+            cle: "carte:c1:neuf".into(),
+            identite: "carte:c1".into(),
             pose,
         }],
     );
     assert_eq!(
         retenues.cles,
-        vec!["carte:c1".to_string()],
+        vec![Cle::from("carte:c1")],
         "l'ancien palier doit se poser ; sous l'ancienne loi, indexee par cle, il disparaissait"
     );
 }
@@ -396,7 +407,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("vieux", "vieux:ancien"),
+        (&Cle::from("vieux"), &Cle::from("vieux:ancien")),
         photo(4, [1, 2, 3, 255]).as_ref(),
     );
 
@@ -412,8 +423,8 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     };
     let demande = |cle: &str, identite: &str| APoser {
         repli: None,
-        cle: cle.to_string(),
-        identite: identite.to_string(),
+        cle: cle.into(),
+        identite: identite.into(),
         pose,
     };
     // Budget nul : l'image n'a plus une milliseconde à donner.
@@ -429,16 +440,16 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     );
 
     assert!(
-        scene.connait("neuf", "neuf"),
+        scene.connait(&"neuf".into(), &"neuf".into()),
         "l'absent passe en premier, et au moins un se rend toujours -- sinon une scene ne se \
          completerait jamais sur une machine qui depasse le plancher a chaque image"
     );
     assert!(
-        !scene.connait("vieux", "vieux:neuf"),
+        !scene.connait(&"vieux".into(), &"vieux:neuf".into()),
         "ce qui a vieilli attend le budget ; c'est tout l'objet de la cascade"
     );
     assert!(
-        scene.detient("vieux"),
+        scene.detient(&"vieux".into()),
         "et il garde son ancien palier, donc il se pose"
     );
 }
@@ -470,11 +481,11 @@ fn test_la_cascade_compte_ce_que_le_rendu_a_pris() {
     };
     let demande = APoser {
         repli: None,
-        cle: "carte:c:1".to_string(),
-        identite: "carte:c".to_string(),
+        cle: "carte:c:1".into(),
+        identite: "carte:c".into(),
         pose,
     };
-    let lente = |_: &str| {
+    let lente = |_: &Cle| {
         std::thread::sleep(std::time::Duration::from_millis(3));
         Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])))
     };
@@ -506,18 +517,21 @@ fn test_cascade_un_nouveau_palier_remplace_l_ancien_et_ne_s_ajoute_pas() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("c", "c:x1"),
+        (&Cle::from("c"), &Cle::from("c:x1")),
         photo(4, [1, 1, 1, 255]).as_ref(),
     );
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("c", "c:x2"),
+        (&Cle::from("c"), &Cle::from("c:x2")),
         photo(4, [2, 2, 2, 255]).as_ref(),
     );
-    assert!(scene.connait("c", "c:x2"), "la neuve a pris la place");
     assert!(
-        !scene.connait("c", "c:x1"),
+        scene.connait(&"c".into(), &"c:x2".into()),
+        "la neuve a pris la place"
+    );
+    assert!(
+        !scene.connait(&"c".into(), &"c:x1".into()),
         "et l'ancienne n'est plus la : une identite ne porte qu'une texture"
     );
 }
@@ -604,12 +618,12 @@ fn test_une_bande_retiree_ne_revient_pas_sur_le_bord() {
 /// Une tuile qu'on demande, et son repli : la même place, une autre texture.
 fn tuile_et_repli(pose: Pose) -> APoser {
     APoser {
-        cle: "carte:c@6#0,0:k".to_string(),
-        identite: "carte:c@6#0,0".to_string(),
+        cle: "carte:c@6#0,0:k".into(),
+        identite: "carte:c@6#0,0".into(),
         pose,
         repli: Some(Box::new(APoser {
-            cle: "carte:c:k".to_string(),
-            identite: "carte:c".to_string(),
+            cle: "carte:c:k".into(),
+            identite: "carte:c".into(),
             pose,
             repli: None,
         })),
@@ -646,13 +660,13 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("carte:c", "carte:c:k"),
+        (&Cle::from("carte:c"), &Cle::from("carte:c:k")),
         photo(4, [7, 7, 7, 255]).as_ref(),
     );
     let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
     assert_eq!(
         retenues.cles,
-        vec!["carte:c".to_string()],
+        vec![Cle::from("carte:c")],
         "la tuile manque : son repli se pose"
     );
     scene.fermer(0);
@@ -661,18 +675,18 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("carte:c@6#0,0", "carte:c@6#0,0:k"),
+        (&Cle::from("carte:c@6#0,0"), &Cle::from("carte:c@6#0,0:k")),
         photo(4, [9, 9, 9, 255]).as_ref(),
     );
     let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
     assert_eq!(
         retenues.cles,
-        vec!["carte:c@6#0,0".to_string()],
+        vec![Cle::from("carte:c@6#0,0")],
         "la tuile est la : elle se pose"
     );
     scene.fermer(0);
     assert!(
-        scene.connait("carte:c", "carte:c:k"),
+        scene.connait(&"carte:c".into(), &"carte:c:k".into()),
         "le repli n'a pas ete pose, et il est garde pour le prochain zoom"
     );
 }
@@ -700,7 +714,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         bornes: Pose::PARTOUT,
     };
     let demande = [tuile_et_repli(pose)];
-    let source = |_: &str| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
+    let source = |_: &Cle| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
 
     // La tuile est deja la, et l'image n'a plus une milliseconde : rien n'est force.
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
@@ -708,7 +722,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("carte:c@6#0,0", "carte:c@6#0,0:k"),
+        (&Cle::from("carte:c@6#0,0"), &Cle::from("carte:c@6#0,0:k")),
         photo(4, [1, 1, 1, 255]).as_ref(),
     );
     scene.assurer(
@@ -718,7 +732,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         &source,
     );
     assert!(
-        !scene.detient("carte:c"),
+        !scene.detient(&"carte:c".into()),
         "sans temps, le repli attend : il ne force jamais une image"
     );
 
@@ -730,7 +744,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         &source,
     );
     assert!(
-        scene.connait("carte:c", "carte:c:k"),
+        scene.connait(&"carte:c".into(), &"carte:c:k".into()),
         "avec du temps, le repli se prepare"
     );
 }
@@ -790,7 +804,7 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
             scene.televerser(
                 &peripherique,
                 &mut envoi,
-                (nom, nom),
+                (&Cle::from(nom), &Cle::from(nom)),
                 photo(4, [1, 2, 3, 255]).as_ref(),
             );
             scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser(nom, pose)]);
@@ -800,7 +814,7 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         scene.televerser(
             &peripherique,
             &mut envoi,
-            ("d", "d"),
+            (&Cle::from("d"), &Cle::from("d")),
             photo(4, [4, 5, 6, 255]).as_ref(),
         );
         scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("d", pose)]);
@@ -808,21 +822,21 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         scene
     };
     let scene = jouer(128);
-    assert!(scene.detient("d"), "ce qui sert reste toujours");
+    assert!(scene.detient(&"d".into()), "ce qui sert reste toujours");
     assert!(
-        scene.detient("c") && scene.detient("b"),
+        scene.detient(&"c".into()) && scene.detient(&"b".into()),
         "les deux plus recentes tiennent dans le budget : elles restent"
     );
     assert!(
-        !scene.detient("a"),
+        !scene.detient(&"a".into()),
         "la plus ancienne ne tient plus : elle part"
     );
     assert_eq!(scene.octets_en_cache(), 128);
 
     let scene = jouer(0);
-    assert!(scene.detient("d"));
+    assert!(scene.detient(&"d".into()));
     assert!(
-        !scene.detient("a") && !scene.detient("b") && !scene.detient("c"),
+        !scene.detient(&"a".into()) && !scene.detient(&"b".into()) && !scene.detient(&"c".into()),
         "sans budget, la loi d'avant : ce que l'ecran demande, et rien de plus"
     );
     assert_eq!(scene.octets_en_cache(), 0);
@@ -851,8 +865,8 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
     };
     let a_poser = |cle: &str| APoser {
         repli: None,
-        cle: cle.to_string(),
-        identite: cle.to_string(),
+        cle: cle.into(),
+        identite: cle.into(),
         pose,
     };
     let pretee = photo(4, [1, 2, 3, 255]);
@@ -904,8 +918,8 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
     scene.ouvrir();
     let a_poser = |cle: &str| APoser {
         repli: None,
-        cle: cle.to_string(),
-        identite: cle.to_string(),
+        cle: cle.into(),
+        identite: cle.into(),
         pose: Pose {
             x: 0.0,
             y: 0.0,
@@ -928,11 +942,11 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
         &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
     );
     assert!(
-        scene.connait("premiere", "premiere"),
+        scene.connait(&"premiere".into(), &"premiere".into()),
         "la premiere passe toujours"
     );
     assert!(
-        !scene.connait("seconde", "seconde"),
+        !scene.connait(&"seconde".into(), &"seconde".into()),
         "prevue bien au-dela des cinq millisecondes du budget : elle attend"
     );
 }
@@ -965,7 +979,7 @@ fn test_nettete_1_la_cascade_dit_qu_elle_n_a_pas_fini() {
         fenetre: Pose::TOUT,
         bornes: Pose::PARTOUT,
     };
-    let source = |_: &str| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
+    let source = |_: &Cle| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
     let mut servir = |scene: &mut SceneGpu, demandes: &[APoser], budget| {
         scene.ouvrir();
         scene.assurer(&peripherique, &mut envoi, (demandes, &[], budget), &source);
@@ -991,7 +1005,7 @@ fn test_nettete_1_la_cascade_dit_qu_elle_n_a_pas_fini() {
         "la tuile est servie ; son repli attend, et ne garde pas la boucle eveillee"
     );
     assert!(
-        !scene.detient("entier-bas"),
+        !scene.detient(&"entier-bas".into()),
         "le montage : le repli a bien attendu"
     );
 }
@@ -1022,7 +1036,12 @@ fn test_memoire_2_rendre_garde_l_ecran_au_premier_plan_et_rien_derriere() {
         for nom in ["a", "b", "c", "d"] {
             scene.ouvrir();
             let p = photo(4, [1, 2, 3, 255]);
-            scene.televerser(&peripherique, &mut envoi, (nom, nom), p.as_ref());
+            scene.televerser(
+                &peripherique,
+                &mut envoi,
+                (&Cle::from(nom), &Cle::from(nom)),
+                p.as_ref(),
+            );
             scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser(nom, pose)]);
             scene.fermer(u64::MAX);
         }
@@ -1034,9 +1053,11 @@ fn test_memoire_2_rendre_garde_l_ecran_au_premier_plan_et_rien_derriere() {
     let page = 128 * 128 * 4;
     assert_eq!(devant.octets(), page, "la page entière : la carte la tient");
     devant.rendre(false);
-    assert!(devant.detient("d"), "ce que l'écran pose reste");
+    assert!(devant.detient(&"d".into()), "ce que l'écran pose reste");
     assert!(
-        !devant.detient("a") && !devant.detient("b") && !devant.detient("c"),
+        !devant.detient(&"a".into())
+            && !devant.detient(&"b".into())
+            && !devant.detient(&"c".into()),
         "le cache part, quel que soit le budget"
     );
     assert_eq!(
@@ -1048,7 +1069,10 @@ fn test_memoire_2_rendre_garde_l_ecran_au_premier_plan_et_rien_derriere() {
 
     let mut derriere = preparee();
     derriere.rendre(true);
-    assert!(!derriere.detient("d"), "personne ne regarde : tout part");
+    assert!(
+        !derriere.detient(&"d".into()),
+        "personne ne regarde : tout part"
+    );
     assert_eq!(derriere.octets(), 0);
     assert_eq!(derriere.octets_en_cache(), 0);
 }
@@ -1156,12 +1180,17 @@ fn test_atlas_1_une_suite_par_lot_dans_l_ordre_du_modele() {
         scene.televerser(
             &peripherique,
             &mut envoi,
-            (nom, nom),
+            (&Cle::from(nom), &Cle::from(nom)),
             photo(8, [9, 9, 9, 255]).as_ref(),
         );
     }
     let grande = photo(128, [1, 1, 1, 255]);
-    scene.televerser(&peripherique, &mut envoi, ("g", "g"), grande.as_ref());
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&Cle::from("g"), &Cle::from("g")),
+        grande.as_ref(),
+    );
     let pose = pose_de(0.0, 0.0, 4.0, 4.0);
     let poses: Vec<APoser> = ["a", "b", "g", "c"]
         .iter()
@@ -1190,7 +1219,12 @@ fn test_atlas_1_les_photos_d_une_page_font_un_seul_dessin() {
     let petite = photo(4, [9, 9, 9, 255]);
     let noms: Vec<String> = (0..1500).map(|i| format!("p{i}")).collect();
     for nom in &noms {
-        scene.televerser(&peripherique, &mut envoi, (nom, nom), petite.as_ref());
+        scene.televerser(
+            &peripherique,
+            &mut envoi,
+            (&Cle::from(nom), &Cle::from(nom)),
+            petite.as_ref(),
+        );
     }
     let pose = pose_de(0.0, 0.0, 4.0, 4.0);
     let poses: Vec<APoser> = noms.iter().map(|n| a_poser(n, pose)).collect();
@@ -1215,20 +1249,30 @@ fn test_atlas_1_une_page_vide_se_rend_et_une_cellule_se_reprend() {
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     let petite = photo(4, [9, 9, 9, 255]);
     for nom in ["a", "b"] {
-        scene.televerser(&peripherique, &mut envoi, (nom, nom), petite.as_ref());
+        scene.televerser(
+            &peripherique,
+            &mut envoi,
+            (&Cle::from(nom), &Cle::from(nom)),
+            petite.as_ref(),
+        );
     }
     let page = 128 * 128 * 4;
     assert_eq!(scene.octets(), page);
-    scene.oublier_la_texture("a");
+    scene.oublier_la_texture(&"a".into());
     assert_eq!(scene.octets(), page, "une seule partie : la page reste");
-    scene.televerser(&peripherique, &mut envoi, ("c", "c"), petite.as_ref());
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&Cle::from("c"), &Cle::from("c")),
+        petite.as_ref(),
+    );
     assert_eq!(
         scene.octets(),
         page,
         "la cellule se reprend, sans page de plus"
     );
-    scene.oublier_la_texture("b");
-    scene.oublier_la_texture("c");
+    scene.oublier_la_texture(&"b".into());
+    scene.oublier_la_texture(&"c".into());
     assert_eq!(scene.octets(), 0, "plus personne : la page se rend");
 }
 
@@ -1245,13 +1289,13 @@ fn test_atlas_1_changer_de_niveau_ne_laisse_rien_derriere() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("a", "a@2"),
+        (&Cle::from("a"), &Cle::from("a@2")),
         photo(8, [9, 9, 9, 255]).as_ref(),
     );
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("a", "a@1"),
+        (&Cle::from("a"), &Cle::from("a@1")),
         photo(16, [9, 9, 9, 255]).as_ref(),
     );
     assert_eq!(
@@ -1262,7 +1306,7 @@ fn test_atlas_1_changer_de_niveau_ne_laisse_rien_derriere() {
     scene.televerser(
         &peripherique,
         &mut envoi,
-        ("a", "a@0"),
+        (&Cle::from("a"), &Cle::from("a@0")),
         photo(128, [9, 9, 9, 255]).as_ref(),
     );
     assert_eq!(

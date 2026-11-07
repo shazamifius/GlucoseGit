@@ -194,16 +194,16 @@ fn test_une_photo_en_chemin_est_un_composant_qui_porte_de_l_encre() {
     let en_chemin: Vec<_> = confie
         .photos
         .iter()
-        .filter(|(cle, _)| cle.starts_with("chemin:"))
+        .filter(|t| t.cle.nom().is_some_and(|n| n.starts_with("chemin:")))
         .collect();
     assert_eq!(
         en_chemin.len(),
         3,
         "le temoin porte trois photos sans octets, et chacune est une texture a son rang"
     );
-    for (cle, _) in en_chemin {
+    for posee in en_chemin {
         let composant = confie
-            .composant(cle)
+            .composant(&posee.cle)
             .expect("une photo en chemin sait se rendre");
         let texture = composant.rendre(renderer.kit()).expect("une texture");
         let encre = texture
@@ -215,7 +215,8 @@ fn test_une_photo_en_chemin_est_un_composant_qui_porte_de_l_encre() {
             .count();
         assert!(
             encre > 5_000,
-            "la texture de {cle} ne porte que {encre} pixels : le cadre en chemin ne se dessine              plus"
+            "la texture de {:?} ne porte que {encre} pixels : le cadre en chemin ne se dessine              plus",
+            posee.cle
         );
     }
 }
@@ -277,14 +278,14 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
         confie
             .cartes
             .iter()
-            .any(|(cle, _)| cle.starts_with(&prefixe)),
+            .any(|t| t.cle.nom().is_some_and(|n| n.starts_with(&prefixe))),
         "la carte en saisie doit etre une texture que la carte pose, et elle ne l'est pas"
     );
     assert_eq!(
         confie
             .cartes
             .last()
-            .map(|(cle, _)| cle.starts_with(&prefixe)),
+            .map(|t| t.cle.nom().is_some_and(|n| n.starts_with(&prefixe))),
         Some(true),
         "elle se pose en DERNIER, donc au-dessus des autres cartes"
     );
@@ -298,7 +299,7 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
     // 205 918, et les deux mille du curseur depassaient alors les « cinq pour cent » d'avant.
     // Une carte repeinte ajoute sa surface ; le curseur, un trait. La moitie de la carte les
     // separe d'un facteur dix de chaque cote.
-    let (_, pose) = confie.cartes.last().expect("la carte en saisie");
+    let pose = confie.cartes.last().expect("la carte en saisie").pose;
     let carte = (pose.largeur * pose.hauteur) as usize;
     let (avant, apres) = (encre(&sans), encre(&avec));
     assert!(
@@ -332,16 +333,11 @@ fn test_selectionner_une_carte_ne_refait_pas_sa_texture() {
     store.select_annotation(id.clone(), false);
     let (_, _, dessus_apres, apres) = les_deux_couches(taille, &store);
 
-    let cles = |c: &Confie| {
-        c.cartes
-            .iter()
-            .map(|(cle, _)| cle.clone())
-            .collect::<Vec<_>>()
-    };
+    let cles = |c: &Confie| c.cartes.iter().map(|t| t.cle.clone()).collect::<Vec<_>>();
     assert!(
-        cles(&avant)
-            .iter()
-            .any(|c| c.starts_with(&format!("carte:{id}:"))),
+        cles(&avant).iter().any(|c| c
+            .nom()
+            .is_some_and(|n| n.starts_with(&format!("carte:{id}:")))),
         "la carte est une texture : sans elle, l'epreuve ne dirait rien"
     );
     assert_eq!(
@@ -408,12 +404,7 @@ fn test_le_curseur_de_la_carte_qu_on_ecrit_clignote_dans_la_couche_du_dessus() {
         differents < 200,
         "{differents} pixels changent quand le curseur clignote : ce n'est plus un curseur"
     );
-    let cles = |c: &Confie| {
-        c.cartes
-            .iter()
-            .map(|(cle, _)| cle.clone())
-            .collect::<Vec<_>>()
-    };
+    let cles = |c: &Confie| c.cartes.iter().map(|t| t.cle.clone()).collect::<Vec<_>>();
     assert_eq!(
         cles(&confie_allume),
         cles(&confie_eteint),
@@ -971,7 +962,7 @@ fn document_damier(echelle: f64) -> glucose_core::store::Store {
 fn test_une_photo_posee_petite_part_au_niveau_qui_la_couvre() {
     let store = document_damier(0.3);
     let (renderer, _, _, confie) = les_deux_couches_decodees((800, 600), &store);
-    let (cle, _) = confie.photos.first().expect("la photo est posee");
+    let cle = &confie.photos.first().expect("la photo est posee").cle;
     let texture = confie.pixels(&renderer, cle).expect("ses pixels");
     let texture = texture.vue();
     assert_eq!(
@@ -980,6 +971,11 @@ fn test_une_photo_posee_petite_part_au_niveau_qui_la_couvre() {
         "soixante pixels a l'ecran : le niveau de soixante-quatre, pas les 512 natifs"
     );
     let src = photo_damier().to_string_lossy().into_owned();
+    let numero = renderer
+        .magasin
+        .cache
+        .numero_connu(&src)
+        .expect("son numéro");
     let identite = confie
         .textures()
         .into_iter()
@@ -987,7 +983,7 @@ fn test_une_photo_posee_petite_part_au_niveau_qui_la_couvre() {
         .map(|t| t.identite);
     assert_eq!(
         identite,
-        Some(src),
+        Some(glucose_desktop::present::scene_gpu::Cle::Photo(numero)),
         "l'identite reste le fichier : un changement de niveau garde l'ancien pose"
     );
 }
@@ -1002,7 +998,7 @@ fn test_plafond_1_jamais_une_texture_plus_grande_que_la_carte() {
     let cote = |plafond: Option<u32>| {
         let (renderer, _, _, confie) =
             les_deux_couches_sous_un_budget((800, 600), &store, (None, plafond));
-        let (cle, _) = confie.photos.first().expect("la photo est posee");
+        let cle = &confie.photos.first().expect("la photo est posee").cle;
         let texture = confie.pixels(&renderer, cle).expect("ses pixels");
         let vue = texture.vue();
         vue.width().max(vue.height())
@@ -1056,7 +1052,12 @@ fn test_quand_la_carte_manque_de_place_la_photo_perd_un_cran() {
     let niveau_recu = |part: Option<u64>| {
         let (renderer, _, _, confie) =
             les_deux_couches_sous_un_budget((800, 600), &store, (part, None));
-        let (cle, _) = confie.photos.first().expect("la photo est posee").clone();
+        let cle = confie
+            .photos
+            .first()
+            .expect("la photo est posee")
+            .cle
+            .clone();
         let texture = confie.pixels(&renderer, &cle).expect("ses pixels");
         let texture = texture.vue();
         ((texture.width(), texture.height()), renderer.carte.debordee)
@@ -1305,7 +1306,7 @@ fn test_passage_2_un_passage_qui_brille_se_rend_pareil_sur_les_deux_voies() {
     };
     let (renderer, dessous, dessus, confie) = couches(overlay);
     let (_, _, _, sans) = couches(SceneOverlay::sans_rien(&guides));
-    let cles = |c: &Confie| c.cartes.iter().map(|(k, _)| k.clone()).collect::<Vec<_>>();
+    let cles = |c: &Confie| c.cartes.iter().map(|t| t.cle.clone()).collect::<Vec<_>>();
     assert_ne!(
         cles(&confie),
         cles(&sans),
@@ -1385,7 +1386,7 @@ fn test_panneaux_1_un_panneau_se_pose_pareil_sur_les_deux_voies() {
         &|cle| {
             confie.pixels(&renderer, cle).or_else(|| {
                 cache
-                    .pixels(cle)
+                    .pixels(cle.nom()?)
                     .map(glucose_desktop::present::scene_gpu::Pixels::Rendues)
             })
         },

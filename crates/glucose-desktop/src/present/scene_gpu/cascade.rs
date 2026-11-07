@@ -39,7 +39,7 @@ impl SceneGpu {
             .iter()
             .filter_map(|t| t.repli.as_deref())
             .chain(a_preparer)
-            .filter(|r| vus.insert(r.cle.as_str()))
+            .filter(|r| vus.insert(&r.cle))
             .collect();
         // **Deux tours, et leur ordre EST la priorité.** Au premier, ce que la carte n'a pas
         // du tout : sans texture, un composant ne se dessine pas, et un trou se voit plus
@@ -51,8 +51,15 @@ impl SceneGpu {
         // temps qui reste : ils ne montrent rien par eux-mêmes, ils préparent le prochain zoom.
         // Mais ils sont toujours demandés tant qu'ils peuvent servir — les réserver à ce qui
         // manque les laissait sans jamais de temps, puisque ce qui manque passe avant eux.
+        //
+        // **Ce qui est à jour ne se regarde qu'une fois** (PHOTO-1) : à huit mille photos à
+        // l'écran, tout est à jour presque toujours, et le second tour revoyait chacune pour rien.
+        let en_retard: Vec<&APoser> = a_poser
+            .iter()
+            .filter(|t| !self.connait(&t.identite, &t.cle))
+            .collect();
         for urgent in [true, false] {
-            for t in a_poser {
+            for t in &en_retard {
                 self.rendre_si_besoin((peripherique, envoi), (t, urgent), source, &mut tranche);
             }
             for repli in &replis {

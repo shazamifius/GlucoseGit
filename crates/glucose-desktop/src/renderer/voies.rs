@@ -27,7 +27,7 @@ pub mod cran;
 mod recolte;
 mod tenue;
 pub use confie::{APoser, Confie};
-use recolte::{composants_de_texte, poses_des_photos, PhotosAPoser};
+use recolte::{composants_de_texte, poses_des_photos};
 
 /// **Ce qui passe sous les photos** : le fond, les membranes, les dossiers.
 ///
@@ -308,6 +308,9 @@ impl Renderer {
         self.synchroniser_les_caches(store, ui, taille);
         let header_h = ui.header_height();
         let debut = std::time::Instant::now();
+        // Une seule vue, un seul document, jusqu'à la fin de cette fonction (PHOTO-1).
+        self.garder_le_cadrage = true;
+        self.cadrage_de_l_image = None;
 
         let plein = Cadrage::plein().sous_le_regard(regard);
         let sous = Cadrage {
@@ -323,6 +326,8 @@ impl Renderer {
             ..plein
         };
         self.rendre_la_region(dessus, store, ui, overlay, header_h, sur);
+        self.garder_le_cadrage = false;
+        self.cadrage_de_l_image = None;
         noter_le_cout_de_la_scene(debut);
         // **La chrome ne passe plus par la couche du dessus** (CHROME-1) : la carte la pose
         // d'après ses caches, et la couche ne porte plus que ce qui suit la vue.
@@ -379,11 +384,7 @@ impl Renderer {
             tints: &self.domain_tints,
             theme: &self.theme,
         };
-        let PhotosAPoser {
-            recolte: des_photos,
-            niveaux,
-            replis,
-        } = poses_des_photos(
+        let des_photos = poses_des_photos(
             (&regime, kit),
             (&mut self.magasin, &mut self.carte),
             (&vp, &rangs, store),
@@ -403,8 +404,6 @@ impl Renderer {
             zones,
             membranes,
             fleches,
-            niveaux,
-            replis,
             dessous_porte_quelque_chose: true,
             // Les panneaux, le releve des bandes et le lisere appartiennent a la peinture : la
             // chrome se dessine APRES le renderer, donc rien de juste ne peut en etre dit ici.

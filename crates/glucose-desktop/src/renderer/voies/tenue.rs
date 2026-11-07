@@ -3,12 +3,13 @@
 
 use super::cran;
 use crate::present::scene_gpu::Pose;
+use crate::renderer::magasin::Numero;
 use glucose_core::types::Viewport;
 
-/// **Ce que la carte doit savoir d'une photo que le magasin tient** : son fichier, le niveau
+/// **Ce que la carte doit savoir d'une photo que le magasin tient** : son numéro, le niveau
 /// voulu et sa pose — et, si ce niveau n'est pas tenu, celui qui le remplace en attendant.
 pub(super) struct PhotoTenue {
-    pub src: String,
+    pub numero: Numero,
     pub facteur: u32,
     pub pose: Pose,
     pub repli: Option<(u32, Pose)>,
@@ -22,10 +23,8 @@ pub(super) fn pose_tenue(
     (vp, cran, plafond): (&Viewport, u32, Option<u32>),
 ) -> Option<PhotoTenue> {
     let src = img.src.as_deref()?;
-    if !magasin.reclamer(src, img.width) {
-        return None;
-    }
-    let entree = magasin.cache.get(src)?;
+    let numero = magasin.reclamer_par_numero(src, img.width)?;
+    let entree = magasin.cache.par_numero(numero)?;
     // Le modele place une photo par son CENTRE : le coin s'en deduit, et c'est le piege
     // que `ce_que_porte` avait deja paye une fois.
     let (x, y) =
@@ -69,7 +68,7 @@ pub(super) fn pose_tenue(
         ),
     };
     Some(PhotoTenue {
-        src: src.to_string(),
+        numero,
         facteur: voulu,
         pose: pose(voulu),
         repli: (tenu != voulu).then(|| (tenu, pose(tenu))),

@@ -102,8 +102,8 @@ impl Decision {
             self.posee = Some((haut, pixels));
         }
         Some(APoser {
-            identite: IDENTITE.to_string(),
-            cle: cle(self.generation),
+            identite: IDENTITE.into(),
+            cle: cle(self.generation).into(),
             pose: Pose {
                 x: 0.0,
                 y: haut as f32,

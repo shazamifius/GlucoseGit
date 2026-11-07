@@ -28,7 +28,9 @@ fn test_la_tranche_est_ce_qui_porte_de_l_encre() {
     assert_eq!((posee.pose.y, posee.pose.hauteur), (10.0, 10.0));
     assert_eq!(posee.pose.largeur, 40.0);
     assert_eq!(posee.identite, IDENTITE);
-    let pixels = d.pixels(&posee.cle).expect("les pixels de cette clé");
+    let pixels = d
+        .pixels(posee.cle.nom().expect("un nom"))
+        .expect("les pixels de cette clé");
     assert_eq!((pixels.width(), pixels.height()), (40, 10));
     assert_eq!(pixels.pixel(5, 5).map(|p| p.red()), Some(200));
 }
@@ -44,10 +46,10 @@ fn test_la_cle_ne_change_que_si_les_pixels_changent() {
     let autre = d.peindre((40, 30), bande(10, 20, 90)).expect("posée").cle;
     assert_ne!(premiere, autre, "d'autres pixels, une autre clé");
     assert!(
-        d.pixels(&premiere).is_none(),
+        d.pixels(premiere.nom().expect("un nom")).is_none(),
         "l'ancienne clé ne répond plus"
     );
-    assert!(d.pixels(&autre).is_some());
+    assert!(d.pixels(autre.nom().expect("un nom")).is_some());
 }
 
 /// **Ce que l'image précédente avait écrit s'efface** : une question fermée ne reste pas dans
@@ -67,5 +69,5 @@ fn test_retirer_ne_prete_plus_rien() {
     let mut d = Decision::default();
     let cle_posee = d.peindre((40, 30), bande(10, 20, 200)).expect("posée").cle;
     d.retirer();
-    assert!(d.pixels(&cle_posee).is_none());
+    assert!(d.pixels(cle_posee.nom().expect("un nom")).is_none());
 }

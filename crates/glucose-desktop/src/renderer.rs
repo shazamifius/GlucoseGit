@@ -155,6 +155,9 @@ pub struct PaintKit<'a> {
     pub theme: &'a Theme,
 }
 
+/// La zone du monde qu'une image a cadrée, et ses rangs (PHOTO-1).
+type CadrageGarde = ((f64, f64, f64, f64), Vec<u32>);
+
 pub struct Renderer {
     pub theme: Theme,
     /// Tout ce qui sert à poser une image : le cache, les vignettes, les échecs, et les fils
@@ -168,6 +171,11 @@ pub struct Renderer {
     pub hue_cache: SymbioticHueCache,
     /// Combien de nœuds la dernière image a retenus à l'écran (CHARGE-1).
     pub noeuds_visibles: usize,
+    /// **Ce que l'image en cours a déjà cadré** : la zone du monde et ses rangs, gardés le temps
+    /// d'une seule image (PHOTO-1). Le dessous, le confié et le dessus regardent la même vue.
+    cadrage_de_l_image: Option<CadrageGarde>,
+    /// Garde-t-on ce cadrage ? Seulement pendant `rendre_les_couches`, où le document ne bouge pas.
+    garder_le_cadrage: bool,
     /// `domain_id → teinte`, reconstruite une fois par version du document (DOMAIN-TINT-1).
     pub domain_tints: DomainTints,
     /// Ce que cette machine coûte, appris de ce qu'elle vient de faire (COUT-1).
@@ -223,6 +231,8 @@ impl Renderer {
             mises_en_page: Default::default(),
             hue_cache: SymbioticHueCache::new(),
             noeuds_visibles: 0,
+            cadrage_de_l_image: None,
+            garder_le_cadrage: false,
             domain_tints: DomainTints::new(),
             cout: glucose_core::cout::Cout::nouveau(),
             tuiles: tuiles::Tuiles::nouveau(),

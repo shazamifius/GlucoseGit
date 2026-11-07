@@ -23,8 +23,12 @@ use super::photo::{Etat, Pyramide};
 use super::vignette::Vignettes;
 use crate::memoire::Memoire;
 use glucose_core::store::Store;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::time::Duration;
+
+mod cache;
+mod etagement;
+pub use cache::{Cache, Numero};
 
 /// Ce que le magasin sait de la couleur moyenne d'une image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +59,12 @@ pub struct Entree {
     queue_vue: u64,
     /// Sa vue d'ensemble reste à écrire sur le disque (ETAGES-4) : dès qu'on la connaît.
     apercu_a_ecrire: bool,
+    /// Est-elle dans la liste des images à revoir ? (PHOTO-1)
+    a_revoir: bool,
+    /// **Ce que le dernier examen a vu, s'il n'a rien trouvé à faire** : les niveaux voulus et la
+    /// queue. Tant qu'ils ne changent pas et qu'aucun niveau ne rentre, le résultat serait le
+    /// même, et une image à l'écran ne se réexamine pas à chaque image (PHOTO-1).
+    reglee: Option<(u64, usize)>,
 }
 
 impl Entree {
@@ -68,6 +78,8 @@ impl Entree {
             queue,
             queue_vue: 0,
             apercu_a_ecrire: false,
+            a_revoir: false,
+            reglee: None,
         }
     }
 
@@ -93,8 +105,9 @@ pub struct Mouvements {
 /// Tout ce qu'il faut pour poser une image sur le canevas.
 #[derive(Default)]
 pub struct Magasin {
-    /// Les images décodées, par chemin de fichier — plusieurs nœuds partagent la même.
-    pub cache: HashMap<String, Entree>,
+    /// Les images décodées, par chemin de fichier — plusieurs nœuds partagent la même — et par
+    /// numéro, ce que le rendu lit à chaque image (PHOTO-1).
+    pub cache: Cache,
     /// Les images prêtes à reporter sans transformation, par nœud (MIP-2).
     pub vignettes: Vignettes,
     /// Les fichiers dont on sait qu'ils ne donneront rien : absents, corrompus, trop grands.
@@ -114,7 +127,7 @@ pub struct Magasin {
     echelle_ensemble: f32,
     /// Les images à revoir à la fermeture : vues à cette image, voulues à la précédente, ou
     /// dont un niveau vient de rentrer. Les autres n'ont pas bougé, et ne se relisent pas.
-    a_revoir: HashSet<String>,
+    a_revoir: Vec<Numero>,
     /// Le compteur des pyramides, pour dater chacune.
     generations: u64,
     /// Ce que l'étagement a fait depuis le début.
@@ -217,13 +230,19 @@ impl Magasin {
     /// `largeur_monde` est la largeur du nœud dans le document : elle dit, avec l'échelle
     /// d'ensemble, quelle réduction de l'image reste tenue quoi qu'il arrive (ETAGES-1).
     pub fn reclamer(&mut self, src: &str, largeur_monde: f64) -> bool {
+        self.reclamer_par_numero(src, largeur_monde).is_some()
+    }
+
+    /// **La même réclamation, qui rend le numéro de l'image** : c'est par lui que le rendu la lit
+    /// ensuite (PHOTO-1). Le chemin se cherche ici, une fois par photo et par image.
+    pub fn reclamer_par_numero(&mut self, src: &str, largeur_monde: f64) -> Option<Numero> {
         if self.echecs.contains(src) {
-            return false;
+            return None;
         }
         let image = self.image;
-        let Some(entree) = self.cache.get_mut(src) else {
+        let Some((numero, entree)) = self.cache.numero_et_entree(src) else {
             self.atelier.demander(src);
-            return false;
+            return None;
         };
         entree.vue = image;
         let queue = entree
@@ -235,10 +254,20 @@ impl Magasin {
         } else {
             entree.queue = entree.queue.min(queue);
         }
-        if !self.a_revoir.contains(src) {
-            self.a_revoir.insert(src.to_string());
+        if !std::mem::replace(&mut entree.a_revoir, true) {
+            self.a_revoir.push(numero);
         }
-        true
+        Some(numero)
+    }
+
+    /// Met cette image à revoir, et oublie son dernier examen : quelque chose a changé en elle.
+    fn remettre_a_revoir(&mut self, numero: Numero) {
+        if let Some(entree) = self.cache.par_numero_mut(numero) {
+            entree.reglee = None;
+            if !std::mem::replace(&mut entree.a_revoir, true) {
+                self.a_revoir.push(numero);
+            }
+        }
     }
 
     /// **Adopte des pixels déjà là** — une image collée — sous cette clé (COLLER-1) : sa
@@ -280,8 +309,9 @@ impl Magasin {
     /// `Ctrl+B` sur une sélection qui dépasse l'écran attend (ETAGES-1).
     pub fn original_tenu(&mut self, src: &str) -> Option<bool> {
         let tenu = self.cache.get(src)?.pyramide.native().is_some();
-        if !tenu && !self.a_revoir.contains(src) {
-            self.a_revoir.insert(src.to_string());
+        if !tenu {
+            let numero = self.cache.numero(src);
+            self.remettre_a_revoir(numero);
         }
         Some(tenu)
     }
@@ -319,8 +349,9 @@ impl Magasin {
         if let Some(ancienne) = self.cache.get(&src) {
             (entree.queue, entree.queue_vue) = (ancienne.queue, ancienne.queue_vue);
         }
-        self.a_revoir.insert(src.clone());
+        let numero = self.cache.numero(&src);
         self.cache.insert(src, entree);
+        self.remettre_a_revoir(numero);
     }
 
     /// Un niveau rentre de chez un ouvrier, s'il appartient encore à la même pyramide.
@@ -337,67 +368,8 @@ impl Magasin {
             super::photo::Retour::Repris(None) => self.mouvements.perdus += 1,
         }
         entree.pyramide.rentrer(d.rang, d.charge);
-        self.a_revoir.insert(d.src);
-    }
-
-    /// **ETAGES-1 — tenu ce que l'écran montre, offert tout le reste.**
-    ///
-    /// Pour chaque image à revoir, chaque niveau : voulu à cette image ou dans la vue
-    /// d'ensemble, il doit être tenu — offert, on le reprend ; perdu, on redécode. Ni l'un ni
-    /// l'autre, et tenu, on l'offre. La borne de ce qui reste tenu n'est donc pas un nombre :
-    /// c'est ce que l'écran demande, comme pour les tuiles et les vignettes.
-    ///
-    /// Une image voulue à cette image se revoit à la suivante : c'est là qu'on saura si elle
-    /// a quitté l'écran, et qu'elle s'offrira.
-    fn etager(&mut self) {
-        let Self {
-            cache,
-            atelier,
-            a_revoir,
-            ..
-        } = self;
-        for src in std::mem::take(a_revoir) {
-            let Some(entree) = cache.get_mut(&src) else {
-                continue;
-            };
-            let voulus = entree.pyramide.prendre_les_voulus();
-            let mut redecoder = false;
-            for rang in 0..entree.pyramide.niveaux_construits() {
-                let garder = voulus & (1 << rang) != 0 || rang >= entree.queue;
-                let geste = match entree.pyramide.etat(rang) {
-                    Etat::Offert => garder,
-                    Etat::Tenu => !garder && entree.pyramide.offrable(rang),
-                    Etat::Perdu => {
-                        redecoder |= garder;
-                        false
-                    }
-                    Etat::EnChemin => false,
-                };
-                if let Some(transit) = geste.then(|| entree.pyramide.sortir(rang)).flatten() {
-                    atelier.deplacer(Deplacement {
-                        src: src.clone(),
-                        generation: entree.generation,
-                        rang,
-                        charge: transit,
-                    });
-                }
-            }
-            // Ce qui manque ne se trouve pas dans l'aperçu : un niveau perdu se redécode depuis
-            // le fichier entier (ETAGES-4).
-            if redecoder {
-                atelier.redecoder(&src);
-            }
-            // La vue d'ensemble est connue dès que l'écran a montré l'image une fois.
-            if entree.apercu_a_ecrire && entree.queue_vue != 0 {
-                entree.apercu_a_ecrire = false;
-                if let Some(a) = entree.pyramide.apercu(entree.queue) {
-                    atelier.ecrire_l_apercu(&src, a);
-                }
-            }
-            if voulus != 0 {
-                a_revoir.insert(src);
-            }
-        }
+        let numero = self.cache.numero(&d.src);
+        self.remettre_a_revoir(numero);
     }
 
     /// **Offre au système tout ce que le magasin tient** (MEMOIRE-2, fiche 66) — ce que l'écran

@@ -192,7 +192,7 @@ fn test_panneaux_1_le_panneau_part_sur_la_carte_et_le_dessus_ne_le_porte_pas() {
     assert_eq!(confie.bandes_du_dessus, rien.bandes_du_dessus);
     let pixels = app
         .dock_cache
-        .pixels(&confie.panneaux[0].cle)
+        .pixels(confie.panneaux[0].cle.nom().expect("un nom"))
         .expect("ses pixels, par sa clé");
     assert_eq!(
         (pixels.width() as f32, pixels.height() as f32),
@@ -224,7 +224,10 @@ fn test_panneaux_1_un_panneau_immobile_garde_sa_cle() {
         troisieme.panneaux[0].identite, seconde.panneaux[0].identite,
         "le même panneau"
     );
-    assert!(app.dock_cache.pixels(&seconde.panneaux[0].cle).is_none());
+    assert!(app
+        .dock_cache
+        .pixels(seconde.panneaux[0].cle.nom().expect("un nom"))
+        .is_none());
 }
 
 /// **En mode référence, la carte ne pose aucun panneau** — ils étaient visibles et morts sur
@@ -319,7 +322,7 @@ fn test_decision_1_la_carte_pose_la_question_apres_les_panneaux() {
     let pixels = app
         .tampons
         .decision
-        .pixels(&decision.cle)
+        .pixels(decision.cle.nom().expect("un nom"))
         .expect("ses pixels, par sa clé");
     let x = (panneau.pose.x + panneau.pose.largeur / 2.0) as u32;
     let y = (panneau.pose.y + panneau.pose.hauteur - 10.0 - decision.pose.y) as u32;
@@ -344,7 +347,7 @@ fn test_chrome_1_sans_panneau_la_question_passe_au_dessus_de_la_chrome() {
         "la couche du dessus porte la question"
     );
     let textures = avec.textures();
-    let derniere = textures.last().map(|t| t.identite.as_str());
+    let derniere = textures.last().and_then(|t| t.identite.nom());
     assert_eq!(derniere, Some("decision"), "la question se pose en dernier");
     assert!(
         textures.iter().any(|t| t.identite == "chrome:bande"),
@@ -401,14 +404,14 @@ fn test_chrome_1_la_chrome_part_sur_la_carte_et_le_dessus_reste_vide() {
         .chrome
         .sous_le_cadre()
         .iter()
-        .map(|t| t.identite.as_str())
+        .filter_map(|t| t.identite.nom())
         .collect();
     assert_eq!(noms, ["chrome:bande", "chrome:minimap"]);
     assert!(!confie.chrome.cadre().is_empty(), "le rectangle de la vue");
     let bande = &confie.chrome.sous_le_cadre()[0];
     let pixels = confie
         .chrome
-        .pixels(&bande.cle)
+        .pixels(bande.cle.nom().expect("un nom"))
         .expect("ses pixels, par sa clé");
     assert_eq!(
         (pixels.width() as f32, pixels.height() as f32),

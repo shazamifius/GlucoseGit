@@ -151,12 +151,9 @@ impl GlucoseApp {
                         pixmap,
                         (confie, budget),
                         &|cle| {
-                            confie.pixels(renderer, cle).or_else(|| {
-                                panneaux
-                                    .pixels(cle)
-                                    .or_else(|| decision.pixels(cle))
-                                    .map(crate::present::scene_gpu::Pixels::Rendues)
-                            })
+                            confie
+                                .pixels(renderer, cle)
+                                .or_else(|| hors_de_la_scene(panneaux, decision, cle))
                         },
                         dessus,
                     )
@@ -195,6 +192,20 @@ impl GlucoseApp {
         // parlent de la meme chose, et les separer les ferait diverger.
         self.horloge.presentee(maintenant, self.image_attendue);
     }
+}
+
+/// **Les pixels de ce qui n'appartient pas à la scène** : un panneau, ou ce qui attend une décision.
+/// Tout cela porte un nom : une photo n'est jamais ici.
+fn hors_de_la_scene<'a>(
+    panneaux: &'a crate::dock::cache::DockCache,
+    decision: &'a super::decision::Decision,
+    cle: &crate::present::scene_gpu::Cle,
+) -> Option<crate::present::scene_gpu::Pixels<'a>> {
+    let nom = cle.nom()?;
+    panneaux
+        .pixels(nom)
+        .or_else(|| decision.pixels(nom))
+        .map(crate::present::scene_gpu::Pixels::Rendues)
 }
 
 #[cfg(test)]

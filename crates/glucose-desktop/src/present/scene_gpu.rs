@@ -33,10 +33,12 @@
 
 mod atlas;
 mod cascade;
+mod cle;
 mod construction;
 mod memoire;
 mod pose;
 pub use atlas::octets_d_une_texture;
+pub use cle::Cle;
 pub use pose::Pose;
 use pose::OCTETS_POSE;
 
@@ -49,7 +51,7 @@ use tiny_skia::Pixmap;
 /// magasin, et la copier avant de la téléverser coûtait plus que le téléversement lui-même —
 /// 10,5 ms de copie pour 2,9 ms d'envoi sur une épingle de 27 Mo (`bench_televersement`).
 /// Elle se prête.
-pub type Source<'s> = dyn Fn(&str) -> Option<Pixels<'s>> + 's;
+pub type Source<'s> = dyn Fn(&Cle) -> Option<Pixels<'s>> + 's;
 
 /// **Les pixels d'une texture** : prêtés par le magasin, ou rendus pour l'occasion.
 ///
@@ -87,7 +89,7 @@ pub struct SceneGpu {
     /// Une identité porte au plus une texture : quand un composant change de palier, la
     /// nouvelle remplace l'ancienne, et la mémoire ne double jamais. Tant que la nouvelle
     /// n'est pas rendue, c'est l'ancienne qui se pose — un peu floue, jamais absente.
-    photos: std::collections::HashMap<String, Televersee>,
+    photos: std::collections::HashMap<Cle, Televersee, glucose_core::rapide::Rapide>,
     /// Les pages qui rangent les petites textures (ATLAS-1).
     atlas: atlas::Atlas,
     /// `GLUCOSE_SANS_ATLAS` : un instrument, comme `GLUCOSE_CARTE`, pour comparer les deux chemins
@@ -113,7 +115,7 @@ struct Televersee {
     ///
     /// Quand elle diffère de celle que la scène demande, la texture est périmée — elle se
     /// pose quand même, et se refera dès qu'il y aura du temps pour elle.
-    cle: String,
+    cle: Cle,
     /// La dernière image où cette photo a été posée.
     vue: u64,
     /// Ce qu'elle occupe sur la carte, en octets.
@@ -163,7 +165,7 @@ impl SceneGpu {
             poses,
             ecran,
             capacite: POSES_AU_DEPART,
-            photos: std::collections::HashMap::new(),
+            photos: std::collections::HashMap::default(),
             image: 0,
             en_cache: 0,
             atlas: atlas::Atlas::default(),
@@ -177,12 +179,12 @@ impl SceneGpu {
     ///
     /// Une identité connue dont la clé diffère n'est pas « connue » : elle est périmée, et
     /// elle se refera quand le budget le permettra.
-    pub fn connait(&self, identite: &str, cle: &str) -> bool {
-        self.photos.get(identite).is_some_and(|t| t.cle == cle)
+    pub fn connait(&self, identite: &Cle, cle: &Cle) -> bool {
+        self.photos.get(identite).is_some_and(|t| t.cle == *cle)
     }
 
     /// La carte détient-elle quelque chose à poser pour cette identité, fût-ce périmé ?
-    pub fn detient(&self, identite: &str) -> bool {
+    pub fn detient(&self, identite: &Cle) -> bool {
         self.photos.contains_key(identite)
     }
 
@@ -194,7 +196,7 @@ impl SceneGpu {
         &mut self,
         peripherique: &wgpu::Device,
         envoi: &mut crate::present::envoi::Envoi,
-        (identite, cle): (&str, &str),
+        (identite, cle): (&Cle, &Cle),
         source: tiny_skia::PixmapRef<'_>,
     ) {
         if self.televerser_dans_l_atlas(peripherique, envoi, (identite, cle), source) {
@@ -234,12 +236,12 @@ impl SceneGpu {
         self.oublier_la_texture(identite);
         let lot = self.atlas.lot_neuf();
         self.photos.insert(
-            identite.to_string(),
+            identite.clone(),
             Televersee {
                 liaison,
                 lot,
                 cellule: None,
-                cle: cle.to_string(),
+                cle: cle.clone(),
                 vue: image,
                 octets: u64::from(l) * u64::from(h) * 4,
                 photo: false,
@@ -248,7 +250,7 @@ impl SceneGpu {
     }
 
     /// Marque cette texture comme une photo : ses pixels venaient du magasin.
-    pub(super) fn marquer_photo(&mut self, identite: &str) {
+    pub(super) fn marquer_photo(&mut self, identite: &Cle) {
         if let Some(t) = self.photos.get_mut(identite) {
             t.photo = true;
         }
@@ -280,7 +282,7 @@ impl SceneGpu {
     /// — la loi d'avant, qui ne choisissait aucun nombre et n'en choisit toujours pas.
     pub fn fermer(&mut self, gardable: u64) {
         let image = self.image;
-        let mut hors_ecran: Vec<(u64, u64, String)> = self
+        let mut hors_ecran: Vec<(u64, u64, Cle)> = self
             .photos
             .iter()
             .filter(|(_, t)| t.vue != image)
@@ -413,7 +415,7 @@ impl SceneGpu {
 /// elle.
 #[derive(Debug, Clone, Default)]
 pub struct Retenues {
-    pub cles: Vec<String>,
+    pub cles: Vec<Cle>,
     rangs: Vec<usize>,
     /// **Les dessins de cette image** : une suite de poses consécutives d'un même lot en est un
     /// seul (ATLAS-1). L'ordre du modèle reste la loi : une pose d'ailleurs coupe la suite à sa
@@ -432,7 +434,7 @@ struct Suite {
 
 impl Retenues {
     /// Retient une pose de plus : elle prolonge le dernier dessin si elle lit le même lot.
-    fn retenir(&mut self, identite: &str, rang: usize, televersee: &Televersee) {
+    fn retenir(&mut self, identite: &Cle, rang: usize, televersee: &Televersee) {
         let i = self.cles.len() as u32;
         match self.suites.last_mut() {
             Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,
@@ -443,7 +445,7 @@ impl Retenues {
                 fin: i + 1,
             }),
         }
-        self.cles.push(identite.to_string());
+        self.cles.push(identite.clone());
         self.rangs.push(rang);
     }
 

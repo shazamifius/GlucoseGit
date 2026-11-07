@@ -94,8 +94,8 @@ pub fn confier_les_docks(
             continue;
         };
         confies.push(crate::renderer::voies::APoser {
-            identite: cache::identite_du_panneau(panel.tab),
-            cle: cache::cle_du_panneau(panel.tab, tenu.generation),
+            identite: cache::identite_du_panneau(panel.tab).into(),
+            cle: cache::cle_du_panneau(panel.tab, tenu.generation).into(),
             pose: Pose {
                 x: tenu.origine.0,
                 y: tenu.origine.1,

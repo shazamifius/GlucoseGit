@@ -183,8 +183,8 @@ impl ChromeConfiee {
                     bornes: Pose::PARTOUT,
                 };
                 let a_poser = APoser {
-                    identite: format!("chrome:{nom}"),
-                    cle: cle.clone(),
+                    identite: format!("chrome:{nom}").into(),
+                    cle: (&cle).into(),
                     pose,
                     repli: None,
                 };

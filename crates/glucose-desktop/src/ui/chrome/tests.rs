@@ -91,7 +91,9 @@ fn test_la_carte_recoit_la_chrome_dans_l_ordre_et_sans_copie() {
     assert_eq!(noms(confiee.sur_le_cadre()), ["chrome:rail"]);
     assert_eq!(confiee.cadre().len(), 5, "quatre filets et le voile");
     let rail = &confiee.sur_le_cadre()[0];
-    let pixels = confiee.pixels(&rail.cle).expect("ses pixels, par sa clé");
+    let pixels = confiee
+        .pixels(rail.cle.nom().expect("un nom"))
+        .expect("ses pixels, par sa clé");
     let cache = ui.rail_cache.as_ref().expect("le rail tenu");
     assert!(
         std::ptr::eq(pixels.data().as_ptr(), cache.pixmap.data().as_ptr()),

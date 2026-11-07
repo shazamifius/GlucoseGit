@@ -29,7 +29,7 @@
 //! **Une page vide se rend entière** ; une page partiellement vide occupe la carte tout entière
 //! et le dit ([`SceneGpu::octets`](super::SceneGpu::octets)).
 
-use super::{Pose, SceneGpu, Televersee};
+use super::{Cle, Pose, SceneGpu, Televersee};
 use std::collections::BTreeMap;
 
 /// Combien de cellules une page porte sur chaque côté.
@@ -166,7 +166,7 @@ impl SceneGpu {
         &mut self,
         peripherique: &wgpu::Device,
         envoi: &mut crate::present::envoi::Envoi,
-        (identite, cle): (&str, &str),
+        (identite, cle): (&Cle, &Cle),
         source: tiny_skia::PixmapRef<'_>,
     ) -> bool {
         let (l, h) = (source.width(), source.height());
@@ -199,7 +199,7 @@ impl SceneGpu {
         );
         let vue = self.image;
         self.photos.insert(
-            identite.to_string(),
+            identite.clone(),
             Televersee {
                 liaison,
                 lot,
@@ -210,7 +210,7 @@ impl SceneGpu {
                     largeur: l,
                     hauteur: h,
                 }),
-                cle: cle.to_string(),
+                cle: cle.clone(),
                 vue,
                 octets: octets_d_une_texture(l, h),
                 photo: false,
@@ -254,7 +254,7 @@ impl SceneGpu {
 
     /// **Oublie la texture de cette identité**, et rend sa cellule si elle en avait une. Seul
     /// chemin qui retire : une cellule perdue serait de la mémoire qu'aucun compte ne voit.
-    pub(super) fn oublier_la_texture(&mut self, identite: &str) {
+    pub(super) fn oublier_la_texture(&mut self, identite: &Cle) {
         if let Some(cellule) = self.photos.remove(identite).and_then(|t| t.cellule) {
             self.atlas.liberer(cellule);
         }

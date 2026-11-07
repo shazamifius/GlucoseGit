@@ -30,6 +30,7 @@ use glucose_core::store::Store;
 use glucose_core::types::Viewport;
 use glucose_desktop::interactions::tools::text_card;
 use glucose_desktop::params::{Pointer, SceneOverlay};
+use glucose_desktop::present::scene_gpu::Cle;
 use glucose_desktop::renderer::{Regard, Renderer};
 use glucose_desktop::ui::UiState;
 use std::collections::BTreeMap;
@@ -93,7 +94,7 @@ fn jouer(
     store: &mut Store,
     vue: impl Fn(usize) -> Viewport,
     budget: std::time::Duration,
-    connues: &mut std::collections::HashMap<String, String>,
+    connues: &mut std::collections::HashMap<Cle, Cle>,
 ) -> Geste {
     let board = store.project.active_board_id.clone();
     let mut dessous = Pixmap::new(ECRAN.0, ECRAN.1).expect("un pixmap");
@@ -154,7 +155,7 @@ fn jouer(
         }
         // La memoire oublie ce qui n'a pas servi, par IDENTITE : un composant garde son
         // ancien palier tant que le nouveau n'est pas pret.
-        let servies: std::collections::HashSet<&String> =
+        let servies: std::collections::HashSet<&Cle> =
             a_poser.iter().map(|t| &t.identite).collect();
         connues.retain(|id, _| servies.contains(id));
         glucose_desktop::perf::compteur("textures_rendues", rendues);
@@ -230,8 +231,7 @@ fn main() {
         // **La memoire de la carte survit d'un geste a l'autre**, comme dans l'application.
         // La reinitialiser ferait de chaque premiere image un pic legitime -- rien a garder,
         // donc rien a etaler -- et la cascade n'aurait rien a montrer.
-        let mut connues: std::collections::HashMap<String, String> =
-            std::collections::HashMap::new();
+        let mut connues: std::collections::HashMap<Cle, Cle> = std::collections::HashMap::new();
         // Une image de chauffe a l'echelle 1 : le cache se remplit une fois.
         let g = jouer(
             &mut renderer,

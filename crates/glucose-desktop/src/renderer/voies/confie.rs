@@ -4,7 +4,7 @@
 //! quarante lignes là où la fiche 05 en admet six cents. La coupure tombe là où la question
 //! change — là-bas *qu'est-ce que l'écran montre*, ici *qu'est-ce qui voyage vers la carte*.
 
-use crate::present::scene_gpu::Pose;
+use crate::present::scene_gpu::{Cle, Pose};
 
 /// **Ce que le processeur confie à la carte** pour une image.
 ///
@@ -28,18 +28,13 @@ pub struct Confie {
     /// Le champ des flèches visibles, dans l'ordre du modèle (FLECHE-2) : leurs étiquettes,
     /// badges et poignées restent dans la couche du dessus.
     pub fleches: Vec<glucose_core::arrow::champ::Champ>,
-    /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**.
-    pub photos: Vec<(String, Pose)>,
-    /// **Le niveau de chaque photo décodée**, par clé : son fichier, et combien de fois le
-    /// niveau que la carte reçoit est réduit (NIVEAU-GPU-1).
-    pub niveaux: std::collections::HashMap<String, (String, u32)>,
-    /// **Ce qui remplace une photo dont le niveau voulu n'est pas tenu**, par la clé de la
-    /// photo : la clé du meilleur niveau tenu, et sa pose (ETAGES-1). La carte ne le pose
-    /// que si elle ne détient rien d'autre pour cette photo.
-    pub replis: std::collections::HashMap<String, (String, Pose)>,
+    /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**. Une photo décodée
+    /// porte son niveau dans sa clé (NIVEAU-GPU-1), et, si ce niveau n'est pas tenu, le meilleur
+    /// qui l'est en repli (ETAGES-1).
+    pub photos: Vec<APoser>,
     /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
     /// annotations passent au-dessus (COMPOSANT-1).
-    pub cartes: Vec<(String, Pose)>,
+    pub cartes: Vec<APoser>,
     /// **La chrome permanente** — la bande, le fil d'Ariane, la minimap, le rail —, posée par la
     /// carte **après** la couche du dessus et avant les panneaux (CHROME-1) : des textures
     /// qu'elle ne reçoit qu'à leur changement, et le rectangle de la vue en filets.
@@ -90,9 +85,9 @@ pub struct Confie {
 #[derive(Debug, Clone)]
 pub struct APoser {
     /// Ce que la texture montre : une empreinte nouvelle est une texture nouvelle.
-    pub cle: String,
+    pub cle: Cle,
     /// Ce que le composant **est** : stable d'un palier à l'autre, d'une frappe à l'autre.
-    pub identite: String,
+    pub identite: Cle,
     /// Où la poser, à l'échelle de la vue.
     pub pose: Pose,
     /// **Ce que la carte pose à la place, tant qu'elle ne détient pas celle-ci** : pour la
@@ -105,62 +100,14 @@ impl Confie {
     /// **Tout ce que la carte pose comme texture**, dans l'ordre du modèle : les photos, puis
     /// les cartes de texte par-dessus — puis les panneaux, qui passent après la couche du
     /// dessus.
-    ///
-    /// Une photo est sa propre identité : ses octets ne changent pas, donc sa clé non plus.
-    /// Une carte de texte porte les deux, et elles diffèrent dès qu'elle change de palier.
     pub fn textures(&self) -> Vec<APoser> {
-        // **Les identités se relèvent une fois, et se lisent ensuite.**
-        //
-        // La première version de CASCADE-2 cherchait l'identité de chaque clé par un parcours
-        // linéaire des composants. Sur le document de l'utilisateur — quatre cent
-        // quatre-vingt-deux cartes — cela fait deux cent trente-deux mille comparaisons de
-        // chaînes par image, et la chronique du terrain les a chiffrées : le poste `textures`
-        // restait à **treize millisecondes** sur les images de zoom alors que son budget en
-        // vaut moins de deux, et que le rendu des textures, lui, était bien borné.
-        //
-        // C'est exactement ce que la fiche 05 interdit — la géométrie calculée deux fois —
-        // sous une autre forme : une correspondance recalculée à chaque élément.
-        let par_cle: std::collections::HashMap<&str, &crate::renderer::composants::Composant> =
-            self.composants
-                .iter()
-                .map(|c| (c.cle.as_str(), c))
-                .collect();
         self.photos
             .iter()
-            .chain(self.cartes.iter())
-            .map(|(cle, pose)| {
-                let composant = par_cle.get(cle.as_str());
-                // Une photo a pour identité son fichier : ses niveaux sont le même objet à
-                // deux finesses, et l'ancien se pose pendant que le nouveau se téléverse.
-                let identite = match (composant, self.niveaux.get(cle.as_str())) {
-                    (Some(c), _) => c.identite.clone(),
-                    (None, Some((src, _))) => src.clone(),
-                    (None, None) => cle.clone(),
-                };
-                // Le repli d'une photo a son identité à lui : sous celle de la photo, il
-                // remplacerait la texture nette que la carte a peut-être gardée (ETAGES-1).
-                let repli = match composant {
-                    Some(_) => None,
-                    None => self
-                        .replis
-                        .get(cle.as_str())
-                        .map(|(cle_du_repli, pose)| APoser {
-                            identite: format!("{identite}#repli"),
-                            cle: cle_du_repli.clone(),
-                            pose: *pose,
-                            repli: None,
-                        }),
-                };
-                APoser {
-                    identite,
-                    cle: cle.clone(),
-                    pose: *pose,
-                    repli: repli.map(Box::new),
-                }
-            })
-            .chain(self.chrome.sous_le_cadre().iter().cloned())
-            .chain(self.chrome.sur_le_cadre().iter().cloned())
-            .chain(self.panneaux.iter().cloned())
+            .chain(&self.cartes)
+            .chain(self.chrome.sous_le_cadre())
+            .chain(self.chrome.sur_le_cadre())
+            .chain(&self.panneaux)
+            .cloned()
             .collect()
     }
 
@@ -178,8 +125,9 @@ impl Confie {
     }
 
     /// Le composant qui porte cette clé, s'il y en a un : c'est lui qui sait se rendre.
-    pub fn composant(&self, cle: &str) -> Option<&crate::renderer::composants::Composant> {
-        self.composants.iter().find(|c| c.cle == cle)
+    pub fn composant(&self, cle: &Cle) -> Option<&crate::renderer::composants::Composant> {
+        let nom = cle.nom()?;
+        self.composants.iter().find(|c| c.cle == nom)
     }
 
     /// **Les pixels d'une texture que la carte ne connaît pas** : un composant se rend, une
@@ -190,19 +138,20 @@ impl Confie {
     pub fn pixels<'a>(
         &'a self,
         renderer: &'a crate::renderer::Renderer,
-        cle: &str,
+        cle: &Cle,
     ) -> Option<crate::present::scene_gpu::Pixels<'a>> {
         use crate::present::scene_gpu::Pixels;
-        if let Some(chrome) = self.chrome.pixels(cle) {
-            return Some(Pixels::Pretes(chrome));
-        }
-        if let Some(composant) = self.composant(cle) {
-            return composant.rendre(renderer.kit()).map(Pixels::Rendues);
-        }
         // Un niveau offert au système ne se prête pas (ETAGES-1) : la texture attend qu'il
         // soit repris, et l'ancienne se pose en attendant.
-        let (src, facteur) = self.niveaux.get(cle)?;
-        let entree = renderer.magasin.cache.get(src)?;
-        entree.pyramide.niveau(*facteur).map(Pixels::Pretes)
+        if let Cle::Niveau(numero, facteur) = cle {
+            let entree = renderer.magasin.cache.par_numero(*numero)?;
+            return entree.pyramide.niveau(*facteur).map(Pixels::Pretes);
+        }
+        if let Some(chrome) = cle.nom().and_then(|nom| self.chrome.pixels(nom)) {
+            return Some(Pixels::Pretes(chrome));
+        }
+        self.composant(cle)?
+            .rendre(renderer.kit())
+            .map(Pixels::Rendues)
     }
 }

@@ -55,7 +55,7 @@ struct Slot {
 
 pub struct SpatialHash {
     cell_size: f64,
-    grid: HashMap<(i32, i32), Vec<NodeIdx>>,
+    grid: HashMap<(i32, i32), Vec<NodeIdx>, crate::rapide::Rapide>,
     /// index -> identifiant (partagé avec `index_of` : une seule allocation par nœud).
     names: Vec<Rc<str>>,
     /// identifiant -> index.
@@ -87,7 +87,7 @@ impl SpatialHash {
     pub fn new(cell_size: f64) -> Self {
         Self {
             cell_size: if cell_size > 0.0 { cell_size } else { 2000.0 },
-            grid: HashMap::new(),
+            grid: HashMap::default(),
             names: Vec::new(),
             index_of: HashMap::new(),
             slots: Vec::new(),

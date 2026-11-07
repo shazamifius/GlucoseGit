@@ -11,7 +11,7 @@ use super::tenue::pose_tenue;
 use super::APoser;
 use crate::params::ViewPass;
 use crate::present::formes_gpu::{Formes, Suite, Tranche};
-use crate::present::scene_gpu::Pose;
+use crate::present::scene_gpu::Cle;
 use crate::renderer::composants::{Composant, Pieces, Regime};
 use crate::renderer::{PaintKit, SymbioticHueCache};
 use glucose_core::quadtree::Visibles;
@@ -23,7 +23,7 @@ use glucose_core::types::Viewport;
 #[derive(Default)]
 pub(in crate::renderer) struct Recolte {
     /// Où chaque texture se pose, dans l'ordre du modèle.
-    pub posees: Vec<(String, Pose)>,
+    pub posees: Vec<APoser>,
     /// Ce qui se rend **à la demande** : les cartes de texte, les photos en chemin, et leur
     /// texture à préparer.
     pub composants: Vec<Composant>,
@@ -39,7 +39,12 @@ impl Recolte {
     /// formes juste avant la texture qui le suivra ; et ce qui sait se rendre.
     fn ranger(&mut self, pieces: Pieces, tranche: Tranche) {
         if let Some(c) = pieces.posee {
-            self.posees.push((c.cle.clone(), c.pose));
+            self.posees.push(APoser {
+                cle: (&c.cle).into(),
+                identite: (&c.identite).into(),
+                pose: c.pose,
+                repli: None,
+            });
             self.composants.push(c);
         }
         if !pieces.formes.is_empty() {
@@ -53,8 +58,8 @@ impl Recolte {
         }
         if let Some(c) = pieces.a_preparer {
             self.a_preparer.push(APoser {
-                cle: c.cle.clone(),
-                identite: c.identite.clone(),
+                cle: (&c.cle).into(),
+                identite: (&c.identite).into(),
                 pose: c.pose,
                 repli: None,
             });
@@ -111,33 +116,32 @@ pub(in crate::renderer) fn poses_des_photos(
         &mut cran::EtatDeLaCarte,
     ),
     (vp, rangs, store): (&Viewport, &[u32], &Store),
-) -> PhotosAPoser {
+) -> Recolte {
     // Le cran de cette image d'abord, sur la vue qu'elle montre (ETAGES-3).
     carte.juger(magasin, store, (vp, rangs));
-    let mut photos = PhotosAPoser::default();
+    let mut photos = Recolte::default();
     let Some(board) = store.active_board() else {
         return photos;
     };
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
         match pose_tenue(magasin, img, (vp, carte.cran, carte.plafond_des_textures)) {
-            Some(tenue) => {
-                let cle = format!("{}@{}", tenue.src, tenue.facteur);
-                if let Some((facteur, pose)) = tenue.repli {
-                    let cle_du_repli = format!("{}@{facteur}", tenue.src);
-                    photos
-                        .niveaux
-                        .insert(cle_du_repli.clone(), (tenue.src.clone(), facteur));
-                    photos.replis.insert(cle.clone(), (cle_du_repli, pose));
-                }
-                photos
-                    .niveaux
-                    .insert(cle.clone(), (tenue.src, tenue.facteur));
-                photos.recolte.posees.push((cle, tenue.pose));
-            }
+            Some(tenue) => photos.posees.push(APoser {
+                cle: Cle::Niveau(tenue.numero, tenue.facteur),
+                identite: Cle::Photo(tenue.numero),
+                pose: tenue.pose,
+                repli: tenue.repli.map(|(facteur, pose)| {
+                    Box::new(APoser {
+                        cle: Cle::Niveau(tenue.numero, facteur),
+                        identite: Cle::Repli(tenue.numero),
+                        pose,
+                        repli: None,
+                    })
+                }),
+            }),
             None => {
                 if let Some(pieces) = regime.photo_en_chemin(kit, img) {
-                    photos.recolte.ranger(pieces, Tranche::Photos);
+                    photos.ranger(pieces, Tranche::Photos);
                     en_chemin += 1.0;
                 }
             }
@@ -145,15 +149,6 @@ pub(in crate::renderer) fn poses_des_photos(
     }
     crate::perf::compteur("photos_en_chemin", en_chemin);
     photos
-}
-
-/// **Ce que la passe des photos confie à la carte** : où chacune se pose, ce qui sait se
-/// rendre pour celles en chemin, et le niveau de chacune de celles qui sont là.
-#[derive(Default)]
-pub(in crate::renderer) struct PhotosAPoser {
-    pub recolte: Recolte,
-    pub niveaux: std::collections::HashMap<String, (String, u32)>,
-    pub replis: std::collections::HashMap<String, (String, Pose)>,
 }
 
 /// **Les cartes de texte que l'ecran montre**, comme composants (COMPOSANT-1).

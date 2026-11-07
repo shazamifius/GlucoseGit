@@ -283,13 +283,23 @@ impl Renderer {
         }
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
+        let rect = (min_wx, min_wy, max_wx, max_wy);
+        // **Une seule requête par image** (PHOTO-1) : le dessous, le confié et le dessus regardent
+        // la même vue du même document, et la refaisaient chacun.
+        if let Some((vu, rangs)) = &self.cadrage_de_l_image {
+            if *vu == rect {
+                return (vp, rangs.clone(), densite);
+            }
+        }
         // La marge du culling : ce qui déborde de sa boîte — un trait, une lueur — se voit encore.
-        let mut rangs =
-            self.visibles_du_present(store, (min_wx, min_wy, max_wx, max_wy), MARGE_DU_CULLING);
+        let mut rangs = self.visibles_du_present(store, rect, MARGE_DU_CULLING);
         // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
         self.focus.filtrer(&mut rangs);
         self.noeuds_visibles = rangs.len();
         crate::perf::stage("cull");
+        if self.garder_le_cadrage {
+            self.cadrage_de_l_image = Some((rect, rangs.clone()));
+        }
         (vp, rangs, densite)
     }
 
