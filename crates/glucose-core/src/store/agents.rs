@@ -40,7 +40,7 @@ pub mod domaines;
 
 pub(crate) use decrit::decrire_le_tableau;
 pub use decrit::Decrit;
-pub use domaines::{DomaineDecrit, Naissance, Voulu};
+pub use domaines::{sigle_de, DomaineDecrit, Naissance, Voulu};
 
 use super::Store;
 use crate::geometry::Rect;

@@ -200,6 +200,11 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 **Au PC** — `nix develop -c cargo run --release > sortie-essais.txt 2>&1` (ce qui parle de Windows ci-dessous attend une machine Windows) :
 
+* **Le domaine qui traverse les fichiers** (fiche 88) : dans un document, créer un domaine « Eau » au panneau
+  Domaines, le poser sur deux nœuds, enregistrer ; un document neuf : « Eau » est dans la liste, en gris,
+  « 2 · 1 fichier » ; le poser sur un nœud d'ici ; « où » : les trois places, un clic qui ouvre l'autre fichier
+  et y vole. Créer « eau » une seconde fois : refusé, la question. Et un agent (Claude, Protéo) qui
+  s'en sert : « range ce tableau par domaines ».
 * **Éteindre le PC avec Glucose ouvert** (fiche 82), puis rouvrir Glucose : le travail est là, et
   rien ne doit avoir demandé quoi que ce soit à l'extinction.
 * **Le texte de près** (fiches 72 et 73) : zoomer très près d'un texte, d'une formule, d'un
@@ -264,7 +269,10 @@ tableaux sur une Intel UHD 620 ; et la liste de « tant de choses ne marchent pa
 * **Ouvrir Glucose sur son téléphone** (encore en beta 3, muet depuis le 15/10) : la seule façon
   de savoir pourquoi le tableau de 6 000 images est mort (P0).
 * **Ses trois réponses de la partie 1** (§ 0) : l'iPad, les presets Figma et Miro, « avec des
-  utilisateurs ».
+  utilisateurs ». **Sa question du 7/11** : sa copine voudrait Glucose sur son iPad — aujourd'hui
+  impossible (aucune version pour iPad ; sans compte Apple payant, seule la voie de Safari reste) ; le
+  modèle de l'iPad, et s'il veut avancer l'iPad ; vérifier si l'interface de Glucose Tauri s'ouvre
+  dans Safari telle quelle, un raccourci possible.
 * **Sa clé SauceNAO** (la provenance des images).
 * **Le modèle de l'iPad**, les téléphones de ses testeurs Android (le plus ancien d'abord).
 * **Ordonner** : ce qu'il entend par « très très grandement ».

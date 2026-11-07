@@ -23,6 +23,7 @@
 use crate::app::GlucoseApp;
 use crate::dock::domains::{next_color, next_sigil, DomainIntent, DomainRename};
 use crate::interactions::text_entry::TextEntry;
+use glucose_core::store::agents::sigle_de;
 use glucose_core::store::DomainPatch;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, NamedKey};
@@ -69,8 +70,8 @@ impl GlucoseApp {
             .find(|nom| glucose_core::recensement::homonymes(&vue, nom).is_empty())
             .unwrap_or_default();
         let rank = self.store.project.domains.len();
-        let (color, icon) = crate::dock::domains::fresh_look(rank);
-        let allure = (color.to_string(), icon.to_string());
+        let color = crate::dock::domains::fresh_look(rank).0;
+        let allure = (color.to_string(), sigle_de(&nom));
         let created = self
             .store
             .creer_un_domaine(&nom, allure, crate::persist::now_millis());
@@ -314,7 +315,16 @@ impl GlucoseApp {
             return;
         }
         self.dock_manager.domains.rename = None;
-        self.patch_domain(&domain_id, DomainPatch::new().with_name(name));
+        // Un sigle tiré du nom suit le nom ; un sigle qu'on a choisi reste.
+        let tire_du_nom = self
+            .store
+            .domain(&domain_id)
+            .is_some_and(|d| d.icon == sigle_de(&d.name));
+        let mut patch = DomainPatch::new().with_name(&name);
+        if tire_du_nom {
+            patch = patch.with_icon(sigle_de(&name));
+        }
+        self.patch_domain(&domain_id, patch);
     }
 }
 

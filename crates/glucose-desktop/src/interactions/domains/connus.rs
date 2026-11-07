@@ -179,9 +179,10 @@ impl GlucoseApp {
             let Some(c) = vue.iter().find(|c| c.lignee == lignee) else {
                 continue;
             };
+            // La vue contient ce document : la définition qu'elle rend n'est jamais plus ancienne que
+            // la nôtre (RECENSE-1). Si elle dit la même chose, il n'y a rien à apprendre.
             let r = &c.definition;
-            let meme = (&r.name, &r.color, &r.icon) == (&d.name, &d.color, &d.icon);
-            if r.defini_a <= d.defini_a || meme {
+            if (&r.name, &r.color, &r.icon) == (&d.name, &d.color, &d.icon) {
                 continue;
             }
             let patch = DomainPatch::new()

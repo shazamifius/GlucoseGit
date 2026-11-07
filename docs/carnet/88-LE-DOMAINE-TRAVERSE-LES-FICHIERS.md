@@ -124,6 +124,9 @@ la date ou la taille a changé, et **le fichier ouvert ne se lit jamais** : il e
   lecture du disque est encore en route.
 * **Reposer un nœud garde ses domaines** : un agent qui récrivait un texte remplaçait le nœud entier, et
   les domaines que l'humain y avait mis disparaissaient sans un mot. Trouvé en écrivant ce chantier.
+* **Le sigle vient du nom** (« Eau » donne « EAU ») : un domaine créé par un agent prenait le sigle du
+  thème selon son rang, et « Eau » se montrait « SCI » sur le canevas — vu sur l'image de l'essai réel.
+  Au panneau, un sigle tiré du nom suit le nom quand on le renomme ; un sigle choisi au clic reste.
 
 ### Pour l'humain : le panneau Domaines (DOM-UI-4)
 
@@ -167,7 +170,13 @@ son document : les derniers gestes ne s'écrivaient pas (le vrai Glucose, lui, f
 * **Noyau : 972 épreuves**, dont `nom`, `recensement`, `agents::domaines`. **L'application** : les domaines,
   la porte, le fil (de vrais fichiers, son réveil, ce qu'il relit), le panneau par ses intentions, l'aller
   dans un autre fichier de bout en bout. Clippy strict à zéro.
-* **Sabotages** (`outils/sabotages/domaine-88.json`, 33 gardes) : voir ÉTAT pour le résultat.
+* **Sabotages** (`outils/sabotages/domaine-88.json`, joués dans un arbre détaché) : **34 tombent sur 34**.
+  Au premier passage, une garde était aveugle — l'accord ne prenait qu'une définition plus récente que
+  la sienne —, et une meilleure épreuve ne la voyait pas davantage : **elle était redondante**, la vue
+  contenant déjà ce document ne rend jamais une définition plus ancienne. Retirée. Deux sabotages ne
+  trouvaient plus leur texte, changé après leur écriture : rejoués.
+* **GitHub** : `218d7b3`, **dix vertes** (exécution 42411174857) ; sous Windows, 2 951 épreuves, dont
+  les 43 du domaine — les vrais fichiers déplacés, l'aller dans un autre fichier, le fil qui finit.
 
 ## 7. Le chiffre
 
@@ -196,6 +205,7 @@ son document : les derniers gestes ne s'écrivaient pas (le vrai Glucose, lui, f
   agents, qu'enregistrer ne change pas ; le fil, lui, le nommait par son fichier. Une chose, deux noms : il
   comptait double. *Ce qui se compare doit se nommer pareil des deux côtés.*
 * **Un essai réel avant « fini »**, encore : 137 épreuves vertes, et deux défauts trouvés en vingt
-  minutes de vrais fichiers.
+  minutes de vrais fichiers. **Et regarder l'image** : « Eau » marqué « SCI », qu'aucune épreuve ne
+  pouvait dire faux.
 * **Un chantier qui change un geste se relit plateforme par plateforme** (la leçon de la fiche 60, rejouée) :
   un nom d'attente retiré aurait fermé la création au téléphone.

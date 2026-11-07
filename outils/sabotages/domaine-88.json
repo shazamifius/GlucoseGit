@@ -302,21 +302,6 @@
   ]
  },
  {
-  "nom": "Accorder prend une définition plus ancienne",
-  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
-  "avant": "            if r.defini_a <= d.defini_a || meme {",
-  "apres": "            if meme {",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "connus::"
-  ]
- },
- {
   "nom": "Accorder pendant un geste",
   "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
   "avant": "        if self.store.in_live_edit() || self.disque.voyage.is_some() {",
@@ -495,6 +480,37 @@
    "--lib",
    "--",
    "pas_deux_fois"
+  ]
+ },
+ {
+  "nom": "Le sigle ne vient pas du nom",
+  "fichier": "crates/glucose-core/src/store/agents/domaines.rs",
+  "avant": "    pris.to_uppercase()\n}",
+  "apres": "    pris\n}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sigle",
+   "creer_et_poser"
+  ]
+ },
+ {
+  "nom": "Un sigle choisi suit le nom",
+  "fichier": "crates/glucose-desktop/src/interactions/domains.rs",
+  "avant": "            .is_some_and(|d| d.icon == sigle_de(&d.name));",
+  "apres": "            .is_some_and(|_| true);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "sigle"
   ]
  }
 ]

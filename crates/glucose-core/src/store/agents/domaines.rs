@@ -31,11 +31,28 @@ pub struct DomaineDecrit {
 }
 
 /// **Ce qu'un domaine neuf reçoit à sa naissance**, et que le noyau ne sait pas : le thème, qui donne
-/// sa couleur et son sigle selon son rang, et l'horloge.
+/// sa couleur selon son rang, et l'horloge. Son sigle, lui, vient de son nom (`sigle_de`) : un
+/// domaine « Eau » qui se montrerait « SCI » tromperait l'œil.
 #[derive(Debug, Clone, Copy)]
 pub struct Naissance {
-    pub allure: fn(usize) -> (String, String),
+    pub couleur: fn(usize) -> String,
     pub instant: i64,
+}
+
+/// **Le sigle qu'un nom donne** : ses trois premières lettres ou chiffres, en capitales (« Eau » donne
+/// « EAU », « Jeu vidéo » « JEU »). Un nom sans lettre garde ses premiers signes.
+pub fn sigle_de(nom: &str) -> String {
+    let lettres: String = nom
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .take(3)
+        .collect();
+    let pris = if lettres.is_empty() {
+        nom.trim().chars().take(3).collect()
+    } else {
+        lettres
+    };
+    pris.to_uppercase()
 }
 
 /// **Le domaine qu'un agent veut poser** (AGENT-5).
@@ -104,7 +121,10 @@ impl Store {
         let (id, ne) = match voulu {
             Voulu::Existant(d) => (self.adopter_un_domaine(d).map_err(refus_du_noyau)?, false),
             Voulu::Nouveau(nom) => {
-                let allure = (naissance.allure)(self.project.domains.len());
+                let allure = (
+                    (naissance.couleur)(self.project.domains.len()),
+                    sigle_de(nom),
+                );
                 let id = self
                     .creer_un_domaine(nom, allure, naissance.instant)
                     .map_err(refus_du_noyau)?;

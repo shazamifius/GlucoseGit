@@ -618,3 +618,28 @@ fn le_panneau_suit_le_catalogue() {
         "rouvert : à jour"
     );
 }
+
+/// **Un sigle tiré du nom suit le nom** : « Domaine 1 » montre « DOM », renommé « Eau » il montre
+/// « EAU ». Un sigle choisi au clic reste, quel que soit le nom.
+#[test]
+fn le_sigle_tire_du_nom_suit_le_nom() {
+    let mut app = app_au_panneau();
+    app.apply_domain_intent(DomainIntent::Create);
+    let id = app.store.project.domains[0].id.clone();
+    assert_eq!(app.store.domain(&id).unwrap().icon, "DOM");
+    effacer(&mut app, 20);
+    taper_le_nom(&mut app, "Eau");
+    assert_eq!(app.store.domain(&id).unwrap().icon, "EAU");
+
+    app.apply_domain_intent(DomainIntent::CycleSigil(id.clone()));
+    let choisi = app.store.domain(&id).unwrap().icon.clone();
+    assert_ne!(choisi, "EAU");
+    app.apply_domain_intent(DomainIntent::StartRename(id.clone()));
+    effacer(&mut app, 20);
+    taper_le_nom(&mut app, "Eau pure");
+    assert_eq!(
+        app.store.domain(&id).unwrap().icon,
+        choisi,
+        "choisi : il reste"
+    );
+}

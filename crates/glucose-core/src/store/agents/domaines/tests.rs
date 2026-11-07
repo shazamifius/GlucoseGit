@@ -2,14 +2,29 @@ use super::super::{Refus, Store};
 use super::*;
 use crate::types::{Annotation, BoardImage};
 
-fn allure(rang: usize) -> (String, String) {
-    (format!("#00000{rang}"), format!("S{rang}"))
+fn couleur(rang: usize) -> String {
+    format!("#00000{rang}")
 }
 
 const NAISSANCE: Naissance = Naissance {
-    allure,
+    couleur,
     instant: 42,
 };
+
+/// **Le sigle vient du nom** : « Eau » ne se montre pas « SCI ».
+#[test]
+fn le_sigle_vient_du_nom() {
+    for (nom, sigle) in [
+        ("Eau", "EAU"),
+        ("Jeu vidéo", "JEU"),
+        ("python code", "PYT"),
+        ("été", "ÉTÉ"),
+        ("C++", "C"),
+        (" ++ ", "++"),
+    ] {
+        assert_eq!(sigle_de(nom), sigle, "{nom}");
+    }
+}
 
 /// Deux textes et une photo ; le journal vide : chaque épreuve compte ses propres gestes.
 fn tableau() -> (Store, String) {
@@ -62,7 +77,7 @@ fn creer_et_poser_est_un_seul_geste() {
     assert_eq!(store.undo_depth(), 1, "un seul geste");
     assert_eq!(
         (d.name.as_str(), d.color.as_str(), d.icon.as_str()),
-        ("Eau", "#000000", "S0")
+        ("Eau", "#000000", "EAU")
     );
     assert_eq!(d.defini_a, 42, "l'heure vient de l'appelant");
     assert_eq!(poids(&store, &board, "p"), [(d.id.clone(), 0.8)]);

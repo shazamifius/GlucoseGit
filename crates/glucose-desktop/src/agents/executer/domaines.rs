@@ -15,15 +15,14 @@ use glucose_core::store::agents::{DomaineDecrit, Naissance, Refus, Voulu};
 use glucose_core::store::{lignee_de, DomainPatch, Store};
 use glucose_core::types::Domain;
 
-/// La couleur et le sigle d'un domaine neuf : le même thème que ceux qu'on crée au panneau.
-fn allure(rang: usize) -> (String, String) {
-    let (couleur, sigle) = crate::dock::domains::fresh_look(rang);
-    (couleur.to_string(), sigle.to_string())
+/// La couleur d'un domaine neuf : le même thème que ceux qu'on crée au panneau.
+fn couleur(rang: usize) -> String {
+    crate::dock::domains::fresh_look(rang).0.to_string()
 }
 
 fn naissance() -> Naissance {
     Naissance {
-        allure,
+        couleur,
         instant: crate::persist::now_millis(),
     }
 }
