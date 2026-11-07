@@ -174,6 +174,7 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 ## 3. La qualité, mesurée
 
+* **Au 7/11, sur ce PC** : `a01e9de`, clippy à zéro, 2 769 épreuves vertes, une tombée : `test_relire_la_memoire_est_assez_bon_marche_pour_chaque_image`, une épreuve de temps (20 µs pour une borne de 25) qui passe seule trois fois sur trois et tombe sous la charge de toute la suite, **sa borne non relevée**. **La CI de `a01e9de` a été lancée, son verdict reste à lire.** **Sabotages** (`outils/sabotages/huit-mille-2.json`, 75 gardes) : 53 tombés sur les 59 joués, les 6 aveugles corrigés, mais **seul le premier rejoué** ; **18 restent à jouer** : les 5 autres corrigés, et les 13 de JETER-1, JOURNAL-1 et de la marque de la sélection (METHODE § 5 pour les jouer à part).
 * **Au 6/11** : **`0138982` : dix vertes** (exécution 42216997831) : Windows 2 710 épreuves, Linux
   2 701, les deux Mac 2 677, aucun échec ; **84 épreuves de rendu par Direct3D 12 nommé** (WARP), et un
   vrai plantage qui fait tomber le moteur, sous Windows. **COURSE-1** : le plantage des épreuves dans
