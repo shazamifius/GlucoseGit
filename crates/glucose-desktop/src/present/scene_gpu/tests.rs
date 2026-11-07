@@ -1132,8 +1132,14 @@ fn pose_de(x: f32, y: f32, largeur: f32, hauteur: f32) -> Pose {
 
 /// **Les mêmes pixels avec et sans l'atlas** (ATLAS-1) : la promesse qui rend l'atlas permis. Des
 /// photos de bruit, voisines dans leur page, réduites, agrandies, tournées, recadrées, à demi
-/// transparentes : un texel lu chez la voisine se verrait aussitôt. Un écart d'une unité reste
-/// permis : la page lit la même place en coordonnées arrondies autrement.
+/// transparentes : un texel lu chez la voisine se verrait aussitôt.
+///
+/// **L'écart permis se déduit** : une carte lit à 1/2⁸ de texel près sur chaque axe
+/// (`D3D12_SUBPIXEL_FRACTIONAL_BIT_COUNT`, et le palier Roadmap 2022 de Vulkan), et la page arrondit
+/// la même place autrement que la texture seule. Sur du bruit, où deux voisins diffèrent de 255, cela
+/// fait au plus 255 × 2 / 2⁸ : moins de deux unités. Le « 1 » d'avant n'était qu'une supposition, que
+/// la carte de Windows sans matériel (WARP) a démentie (fiche 88). Une lecture du demi-texel
+/// voisin, elle, en coûte des dizaines.
 #[test]
 fn test_atlas_1_les_memes_pixels_avec_et_sans_l_atlas() {
     let cote = 128;
@@ -1184,9 +1190,10 @@ fn test_atlas_1_les_memes_pixels_avec_et_sans_l_atlas() {
         .map(|(a, b)| a.abs_diff(*b))
         .max()
         .unwrap_or(0);
+    let permis = (255.0_f32 * 2.0 / 256.0).ceil() as u8;
     assert!(
-        pire <= 1,
-        "un écart de {pire} sur 255 : une lecture hors de la cellule"
+        pire <= permis,
+        "un écart de {pire} sur 255, pour {permis} permis : une lecture hors de la cellule"
     );
 }
 
