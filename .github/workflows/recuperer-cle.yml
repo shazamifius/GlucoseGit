@@ -1,0 +1,37 @@
+# TEMPORAIRE : une copie chiffrée de la clé de mise à jour, à sa demande du 7/11/2026 (fiche 84 § 6).
+# Le secret ne sort que chiffré pour une clé publique donnée à la main ; seule la clé privée, restée
+# sur son ordinateur, peut le lire. Ce fichier se retire aussitôt après, comme l'exécution et son artefact.
+name: Copie chiffrée de la clé
+on:
+  workflow_dispatch:
+    inputs:
+      cle_publique:
+        description: "La clé publique RSA, en base64"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  copie:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chiffrer pour la clé donnée
+        env:
+          CLE: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          MOT_DE_PASSE: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          PUBLIQUE: ${{ inputs.cle_publique }}
+        run: |
+          set -eu
+          [ -n "$CLE" ] || { echo "::error::le secret manque"; exit 1; }
+          mkdir sortie
+          echo "$PUBLIQUE" | base64 -d > publique.pem
+          openssl rand -out aleatoire.bin 32
+          printf '%s' "$CLE" | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass file:aleatoire.bin -out sortie/cle.enc
+          printf '%s' "$MOT_DE_PASSE" | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass file:aleatoire.bin -out sortie/mot-de-passe.enc
+          openssl pkeyutl -encrypt -pubin -inkey publique.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -in aleatoire.bin -out sortie/aleatoire.enc
+          rm -f aleatoire.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: copie-chiffree
+          path: sortie/
+          retention-days: 1
