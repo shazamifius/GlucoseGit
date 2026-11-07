@@ -35,6 +35,12 @@ pub struct Confie {
     /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
     /// annotations passent au-dessus (COMPOSANT-1).
     pub cartes: Vec<APoser>,
+    /// **Les photos de cette image sont celles que la carte tient déjà** (LOT-1) : `photos` est
+    /// alors vide, et elles se posent à la similitude près.
+    pub lot: Option<super::LotEnPlace>,
+    /// **Cette image complète propose ses photos comme lot**, sous ce numéro : la carte le retient
+    /// si elle les a toutes, à jour.
+    pub lot_propose: Option<u64>,
     /// **La chrome permanente** — la bande, le fil d'Ariane, la minimap, le rail —, posée par la
     /// carte **après** la couche du dessus et avant les panneaux (CHROME-1) : des textures
     /// qu'elle ne reçoit qu'à leur changement, et le rectangle de la vue en filets.
@@ -114,7 +120,12 @@ impl Confie {
     /// Combien des textures demandées passent **sous** la couche du dessus : les photos et les
     /// cartes. Les panneaux viennent après.
     pub fn sous_le_dessus(&self) -> usize {
-        self.photos.len() + self.cartes.len()
+        self.nombre_de_photos() + self.cartes.len()
+    }
+
+    /// Combien de photos cette image pose, qu'elle les dise ou que la carte les tienne (LOT-1).
+    pub fn nombre_de_photos(&self) -> usize {
+        self.lot.map_or(self.photos.len(), |lot| lot.nombre)
     }
 
     /// Combien des textures demandées passent **sous le rectangle de la vue** de la minimap :

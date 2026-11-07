@@ -62,7 +62,22 @@ fn rendre_par(
     }
     let poses: Vec<APoser> = poses.iter().map(|(c, p)| a_poser(c, *p)).collect();
     let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), &poses);
+    Some(dessiner_la_scene(
+        (&peripherique, &file),
+        &mut envoi,
+        (&scene, &retenues),
+        cote,
+    ))
+}
 
+/// Dessine ce que la scène a retenu dans une cible de `cote` pixels, et rend ses octets RGBA.
+fn dessiner_la_scene(
+    (peripherique, file): (&wgpu::Device, &wgpu::Queue),
+    envoi: &mut crate::present::envoi::Envoi,
+    (scene, retenues): (&SceneGpu, &Retenues),
+    cote: u32,
+) -> Vec<u8> {
+    let format = wgpu::TextureFormat::Rgba8Unorm;
     let taille = wgpu::Extent3d {
         width: cote,
         height: cote,
@@ -112,7 +127,7 @@ fn rendre_par(
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        scene.poser(&mut passe, &retenues, 0..retenues.len());
+        scene.poser(&mut passe, retenues, 0..retenues.len());
     }
     encodeur.copy_texture_to_buffer(
         wgpu::TexelCopyTextureInfo {
@@ -144,7 +159,7 @@ fn rendre_par(
         .expect("la lecture")
         .to_vec();
     lecture.unmap();
-    Some(octets)
+    octets
 }
 
 fn pixel(octets: &[u8], cote: u32, x: u32, y: u32) -> [u8; 4] {
@@ -1313,5 +1328,315 @@ fn test_atlas_1_changer_de_niveau_ne_laisse_rien_derriere() {
         scene.octets(),
         128 * 128 * 4,
         "sa texture à elle : plus aucune page"
+    );
+}
+
+/// Un coin de photo à l'écran, pour une vue : la règle que `pose_tenue` applique.
+fn a_la_vue(pose: Pose, (vx, vy, s): (f32, f32, f32)) -> Pose {
+    Pose {
+        x: pose.x * s + vx,
+        y: pose.y * s + vy,
+        largeur: pose.largeur * s,
+        hauteur: pose.hauteur * s,
+        ..pose
+    }
+}
+
+/// Ce qui mène de la vue `a` à la vue `b`.
+fn lot_entre(
+    a: (f32, f32, f32),
+    b: (f32, f32, f32),
+    nombre: usize,
+) -> crate::renderer::voies::LotEnPlace {
+    let rapport = f64::from(b.2) / f64::from(a.2);
+    crate::renderer::voies::LotEnPlace {
+        nombre,
+        similitude: crate::renderer::voies::Similitude {
+            rapport,
+            tx: f64::from(b.0) - rapport * f64::from(a.0),
+            ty: f64::from(b.1) - rapport * f64::from(a.1),
+        },
+    }
+}
+
+/// **Un lot repris à une autre vue donne les pixels d'une image complète à cette vue** (LOT-1) : la
+/// promesse qui le rend permis. Des photos de bruit, dans une page et hors d'elle, tournées et
+/// recadrées, et ce qui n'est pas du lot — une carte de texte — reste où il est dit, sans similitude.
+#[test]
+fn test_lot_1_un_lot_repris_donne_les_pixels_d_une_image_complete() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let cote = 128;
+    let ecran = (cote as f32, cote as f32);
+    let sources = vec![
+        ("a", bruit(16, 16, 1)),
+        ("b", bruit(32, 16, 2)),
+        ("g", bruit(128, 128, 3)),
+        ("c", bruit(16, 16, 4)),
+    ];
+    let monde = [
+        (
+            "a",
+            Pose {
+                angle: 0.4,
+                ..pose_de(10.0, 20.0, 60.0, 60.0)
+            },
+        ),
+        ("b", pose_de(90.0, 10.0, 80.0, 40.0)),
+        ("g", pose_de(30.0, 90.0, 90.0, 90.0)),
+    ];
+    let (va, vb) = ((3.0, -2.0, 0.5), (-11.5, 7.25, 0.8125));
+    let poses_a = |v| -> Vec<APoser> {
+        monde
+            .iter()
+            .map(|(n, p)| a_poser(n, a_la_vue(*p, v)))
+            .collect()
+    };
+    let carte_de_texte = a_poser("c", pose_de(60.0, 60.0, 20.0, 20.0));
+    let charger = |scene: &mut SceneGpu, envoi: &mut crate::present::envoi::Envoi| {
+        scene.ouvrir();
+        for (nom, source) in &sources {
+            let cle = Cle::from(*nom);
+            scene.televerser(&peripherique, envoi, (&cle, &cle), source.as_ref());
+        }
+    };
+
+    // L'image complète à la vue B, le témoin.
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut temoin = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    charger(&mut temoin, &mut envoi);
+    let mut tout = poses_a(vb);
+    tout.push(carte_de_texte.clone());
+    let retenues = temoin.preparer(&peripherique, &file, ecran, &tout);
+    let attendu = dessiner_la_scene(
+        (&peripherique, &file),
+        &mut envoi,
+        (&temoin, &retenues),
+        cote,
+    );
+
+    // Une image complète à la vue A propose le lot, et la suivante le reprend à la vue B.
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    charger(&mut scene, &mut envoi);
+    let photos = poses_a(va);
+    scene.preparer_la_vue(&peripherique, &file, ecran, &photos, (None, Some((5, 3))));
+    assert_eq!(scene.lot_en_place(), Some(5), "complet : il est retenu");
+    let lot = lot_entre(va, vb, 3);
+    let reste = std::slice::from_ref(&carte_de_texte);
+    let retenues = scene.preparer_la_vue(&peripherique, &file, ecran, reste, (Some(lot), None));
+    assert_eq!(retenues.len(), 4);
+    assert_eq!(
+        retenues.avant(2),
+        2,
+        "les rangs du lot sont ceux de ses poses"
+    );
+    assert_eq!(retenues.avant(3), 3);
+    assert_eq!(retenues.avant(4), 4, "et ce qui suit vient après lui");
+    let obtenu = dessiner_la_scene(
+        (&peripherique, &file),
+        &mut envoi,
+        (&scene, &retenues),
+        cote,
+    );
+    let pire = attendu
+        .iter()
+        .zip(&obtenu)
+        .map(|(a, b)| a.abs_diff(*b))
+        .max()
+        .unwrap_or(0);
+    assert!(
+        pire <= 2,
+        "un écart de {pire} sur 255 entre le lot repris et l'image complète"
+    );
+
+    // À l'envers : sans similitude, les mêmes poses seraient restées à la vue A.
+    let fige = crate::renderer::voies::LotEnPlace {
+        nombre: 3,
+        similitude: crate::renderer::voies::Similitude::IDENTITE,
+    };
+    let retenues = scene.preparer_la_vue(&peripherique, &file, ecran, reste, (Some(fige), None));
+    let sans = dessiner_la_scene(
+        (&peripherique, &file),
+        &mut envoi,
+        (&scene, &retenues),
+        cote,
+    );
+    let pire = attendu
+        .iter()
+        .zip(&sans)
+        .map(|(a, b)| a.abs_diff(*b))
+        .max()
+        .unwrap_or(0);
+    assert!(
+        pire > 50,
+        "l'épreuve doit voir une vue qui n'a pas suivi : {pire}"
+    );
+}
+
+/// **Un lot n'existe que complet** (LOT-1) : une photo absente, périmée, ou de la cascade en attente,
+/// et la prochaine image doit de toute façon tout revoir.
+#[test]
+fn test_lot_1_un_lot_n_existe_que_complet() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let ecran = (8.0, 8.0);
+    let pose = pose_de(0.0, 0.0, 4.0, 4.0);
+    let (a, b) = (Cle::from("a"), Cle::from("b"));
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&a, &a),
+        photo(4, [1, 1, 1, 255]).as_ref(),
+    );
+    let demande = [a_poser("a", pose), a_poser("b", pose)];
+    scene.preparer_la_vue(&peripherique, &file, ecran, &demande, (None, Some((1, 2))));
+    assert_eq!(scene.lot_en_place(), None, "une photo manque");
+
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&b, &Cle::from("b:vieille")),
+        photo(4, [1, 1, 1, 255]).as_ref(),
+    );
+    scene.preparer_la_vue(&peripherique, &file, ecran, &demande, (None, Some((2, 2))));
+    assert_eq!(scene.lot_en_place(), None, "une photo est périmée");
+
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&b, &b),
+        photo(4, [1, 1, 1, 255]).as_ref(),
+    );
+    scene.preparer_la_vue(&peripherique, &file, ecran, &demande, (None, Some((3, 2))));
+    assert_eq!(scene.lot_en_place(), Some(3), "toutes là, à jour");
+
+    scene.preparer_la_vue(&peripherique, &file, ecran, &demande, (None, None));
+    assert_eq!(
+        scene.lot_en_place(),
+        None,
+        "une image complète sans proposition le retire"
+    );
+
+    scene.inachevee = true;
+    scene.preparer_la_vue(&peripherique, &file, ecran, &demande, (None, Some((4, 2))));
+    assert_eq!(scene.lot_en_place(), None, "la cascade attend encore");
+}
+
+/// **Une photo du lot qui part défait le lot** ; une photo hors de l'écran, non (LOT-1).
+#[test]
+fn test_lot_1_une_photo_du_lot_qui_part_le_defait() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let ecran = (8.0, 8.0);
+    let pose = pose_de(0.0, 0.0, 4.0, 4.0);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    let pretee = photo(4, [1, 1, 1, 255]);
+    let source = |_: &Cle| Some(Pixels::Pretes(pretee.as_ref()));
+    let demande = [a_poser("a", pose), a_poser("b", pose)];
+    let tout = |scene: &mut SceneGpu, envoi: &mut crate::present::envoi::Envoi, numero| {
+        scene.ouvrir();
+        scene.assurer(
+            &peripherique,
+            envoi,
+            (&demande, &[], std::time::Duration::MAX),
+            &source,
+        );
+        scene.preparer_la_vue(
+            &peripherique,
+            &file,
+            ecran,
+            &demande,
+            (None, Some((numero, 2))),
+        );
+    };
+    tout(&mut scene, &mut envoi, 1);
+    assert_eq!(scene.lot_en_place(), Some(1));
+
+    let ailleurs = Cle::from("hors de l'écran");
+    scene.image -= 1;
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&ailleurs, &ailleurs),
+        pretee.as_ref(),
+    );
+    scene.marquer_photo(&ailleurs);
+    scene.image += 1;
+    scene.oublier_la_texture(&ailleurs);
+    assert_eq!(scene.lot_en_place(), Some(1), "elle n'était pas à l'écran");
+
+    scene.oublier_la_texture(&"a".into());
+    assert_eq!(scene.lot_en_place(), None, "elle en faisait partie");
+
+    tout(&mut scene, &mut envoi, 2);
+    assert_eq!(scene.lot_en_place(), Some(2));
+    scene.rendre(true);
+    assert_eq!(scene.lot_en_place(), None, "la carte a tout rendu");
+}
+
+/// **Le tampon qui grandit garde le lot** (LOT-1) : sinon, une image où beaucoup de textures
+/// arrivent d'un coup perdrait toutes ses photos.
+#[test]
+fn test_lot_1_le_tampon_qui_grandit_garde_le_lot() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let cote = 64;
+    let ecran = (cote as f32, cote as f32);
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    let rouge = Cle::from("rouge");
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&rouge, &rouge),
+        photo(4, [200, 0, 0, 255]).as_ref(),
+    );
+    let (x, y, l, h) = (0.0, 0.0, 16.0, 16.0);
+    let lot = [a_poser("rouge", pose_de(x, y, l, h))];
+    scene.preparer_la_vue(&peripherique, &file, ecran, &lot, (None, Some((1, 1))));
+    let mut reste = Vec::new();
+    for i in 0..(POSES_AU_DEPART + 8) {
+        let nom = format!("t{i}");
+        let cle = Cle::from(&nom);
+        scene.televerser(
+            &peripherique,
+            &mut envoi,
+            (&cle, &cle),
+            photo(1, [0, 0, 200, 255]).as_ref(),
+        );
+        reste.push(a_poser(&nom, pose_de(40.0, 40.0, 4.0, 4.0)));
+    }
+    let en_place = lot_entre((0.0, 0.0, 1.0), (32.0, 0.0, 1.0), 1);
+    let retenues =
+        scene.preparer_la_vue(&peripherique, &file, ecran, &reste, (Some(en_place), None));
+    assert!(scene.capacite > POSES_AU_DEPART, "le tampon a dû grandir");
+    let octets = dessiner_la_scene(
+        (&peripherique, &file),
+        &mut envoi,
+        (&scene, &retenues),
+        cote,
+    );
+    assert_eq!(
+        pixel(&octets, cote, 40, 8),
+        [200, 0, 0, 255],
+        "le lot, décalé de 32"
+    );
+    assert_eq!(
+        pixel(&octets, cote, 42, 42),
+        [0, 0, 200, 255],
+        "ce qui suit le lot"
     );
 }

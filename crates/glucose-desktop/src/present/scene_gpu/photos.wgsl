@@ -10,7 +10,9 @@ struct Pose {
     bornes: vec4<f32>,
 };
 
-struct Ecran { taille: vec2<f32>, _r: vec2<f32> };
+// `lot` : les premières poses du tampon sont celles d'une image passée, et la similitude les mène à
+// celle-ci (LOT-1). Une image complète n'en a aucune.
+struct Ecran { taille: vec2<f32>, rapport: f32, lot: u32, translation: vec2<f32>, _r: vec2<f32> };
 
 @group(0) @binding(0) var<storage, read> poses: array<Pose>;
 @group(0) @binding(1) var<uniform> ecran: Ecran;
@@ -41,7 +43,10 @@ fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Sortie 
         ecart.x * cos(a) - ecart.y * sin(a),
         ecart.x * sin(a) + ecart.y * cos(a),
     );
-    let e = centre + tourne;
+    var e = centre + tourne;
+    if (i < ecran.lot) {
+        e = e * ecran.rapport + ecran.translation;
+    }
     var s: Sortie;
     s.position = vec4<f32>(e.x / ecran.taille.x * 2.0 - 1.0, 1.0 - e.y / ecran.taille.y * 2.0, 0.0, 1.0);
     // Le coin du quad se lit dans la fenetre de la source, et non dans la texture entiere :

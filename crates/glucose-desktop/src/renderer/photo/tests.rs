@@ -335,3 +335,45 @@ fn test_moyenne_1_l_arrondi_est_au_plus_proche() {
         Some([1, 1, 1, 255])
     );
 }
+
+/// **Les largeurs d'un niveau sont la règle du choix lue à l'envers** (LOT-1) : toute largeur dans
+/// l'intervalle choisit ce niveau, et aucune au-dehors. Une erreur ici, et une photo resterait à un
+/// niveau qu'une image complète n'aurait pas choisi.
+#[test]
+fn test_lot_1_les_largeurs_d_un_niveau_sont_celles_qui_le_choisissent() {
+    let pyramide = Pyramide::nouvelle(Pixmap::new(512, 300).expect("une image"));
+    let mut largeur = 0.25_f32;
+    while largeur < 4096.0 {
+        let rang = pyramide.rang_pour(largeur);
+        let (bas, haut) = pyramide.largeurs_du_meme_niveau(largeur);
+        assert!(
+            bas < largeur && largeur <= haut,
+            "{largeur} hors de ({bas}, {haut}]"
+        );
+        if haut.is_finite() {
+            assert_eq!(
+                pyramide.rang_pour(haut),
+                rang,
+                "le haut lui appartient, à {largeur}"
+            );
+            assert_ne!(
+                pyramide.rang_pour(haut * 1.001),
+                rang,
+                "au-delà, un autre, à {largeur}"
+            );
+        }
+        if bas > 1.0 {
+            assert_ne!(
+                pyramide.rang_pour(bas),
+                rang,
+                "le bas ne lui appartient pas, à {largeur}"
+            );
+            assert_eq!(
+                pyramide.rang_pour(bas * 1.001),
+                rang,
+                "juste au-dessus, si, à {largeur}"
+            );
+        }
+        largeur *= 1.07;
+    }
+}

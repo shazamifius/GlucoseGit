@@ -32,6 +32,8 @@ pub(in crate::renderer) struct Recolte {
     /// **Ce qui se prépare dans le temps qui reste**, sans jamais se poser : la texture d'un
     /// composant dessiné en formes, prête pour le dézoom.
     pub a_preparer: Vec<APoser>,
+    /// **Les échelles où chaque photo posée garde son niveau** (LOT-1).
+    pub echelles: super::lot::Intervalle,
 }
 
 impl Recolte {
@@ -126,19 +128,24 @@ pub(in crate::renderer) fn poses_des_photos(
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
         match pose_tenue(magasin, img, (vp, carte.cran, carte.plafond_des_textures)) {
-            Some(tenue) => photos.posees.push(APoser {
-                cle: Cle::Niveau(tenue.numero, tenue.facteur),
-                identite: Cle::Photo(tenue.numero),
-                pose: tenue.pose,
-                repli: tenue.repli.map(|(facteur, pose)| {
-                    Box::new(APoser {
-                        cle: Cle::Niveau(tenue.numero, facteur),
-                        identite: Cle::Repli(tenue.numero),
-                        pose,
-                        repli: None,
-                    })
-                }),
-            }),
+            Some(tenue) => {
+                photos
+                    .echelles
+                    .resserrer(tenue.echelles.0, tenue.echelles.1);
+                photos.posees.push(APoser {
+                    cle: Cle::Niveau(tenue.numero, tenue.facteur),
+                    identite: Cle::Photo(tenue.numero),
+                    pose: tenue.pose,
+                    repli: tenue.repli.map(|(facteur, pose)| {
+                        Box::new(APoser {
+                            cle: Cle::Niveau(tenue.numero, facteur),
+                            identite: Cle::Repli(tenue.numero),
+                            pose,
+                            repli: None,
+                        })
+                    }),
+                });
+            }
             None => {
                 if let Some(pieces) = regime.photo_en_chemin(kit, img) {
                     photos.ranger(pieces, Tranche::Photos);

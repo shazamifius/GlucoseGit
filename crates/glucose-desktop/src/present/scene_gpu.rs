@@ -35,6 +35,7 @@ mod atlas;
 mod cascade;
 mod cle;
 mod construction;
+mod lot;
 mod memoire;
 mod pose;
 pub use atlas::octets_d_une_texture;
@@ -103,6 +104,8 @@ pub struct SceneGpu {
     /// **La dernière cascade a-t-elle reporté quelque chose ?** (NETTETE-1) Ce qui attend
     /// demande l'image suivante, même quand plus rien ne bouge.
     inachevee: bool,
+    /// **Les poses que le tampon garde** (LOT-1) : les premières, écrites par une image complète.
+    lot: Option<lot::LotTenu>,
 }
 
 struct Televersee {
@@ -146,7 +149,7 @@ impl SceneGpu {
         let poses = Self::tampon_des_poses(peripherique, POSES_AU_DEPART);
         let ecran = peripherique.create_buffer(&wgpu::BufferDescriptor {
             label: Some("scene: ecran"),
-            size: 16,
+            size: 32,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -172,6 +175,7 @@ impl SceneGpu {
             sans_atlas: std::env::var_os("GLUCOSE_SANS_ATLAS").is_some(),
             debit: cascade::Debit::default(),
             inachevee: false,
+            lot: None,
         }
     }
 
@@ -316,24 +320,40 @@ impl SceneGpu {
         ecran: (f32, f32),
         photos: &[APoser],
     ) -> Retenues {
-        if photos.len() > self.capacite {
-            // Le tampon suit ce que l'ecran demande, comme le cache de tuiles : il grandit
-            // par doublements, donc il cesse de grandir en quelques images.
-            self.capacite = photos.len().next_power_of_two();
-            self.poses = Self::tampon_des_poses(peripherique, self.capacite);
-            let layout = self.pipeline.get_bind_group_layout(0);
-            self.commun = Self::liaison_commune(
-                peripherique,
-                &layout,
-                &self.poses,
-                &self.ecran,
-                &self.echantillonneur,
-            );
+        self.preparer_la_vue(peripherique, file, ecran, photos, (None, None))
+    }
+
+    /// **La même chose, avec le lot** (LOT-1) : `en_place` dit que les premières poses sont déjà
+    /// dans le tampon, et `propose` que les `nombre` premières demandées forment un lot neuf.
+    pub fn preparer_la_vue(
+        &mut self,
+        peripherique: &wgpu::Device,
+        file: &wgpu::Queue,
+        ecran: (f32, f32),
+        photos: &[APoser],
+        (en_place, propose): (
+            Option<crate::renderer::voies::LotEnPlace>,
+            Option<(u64, usize)>,
+        ),
+    ) -> Retenues {
+        // Le rendu n'a demandé ce lot qu'après avoir lu que la carte le tenait, et rien ne passe
+        // entre les deux. S'il manquait quand même, une image incomplète, et la suivante refait tout.
+        let en_place = en_place.filter(|_| self.lot.is_some());
+        if en_place.is_none() {
+            self.lot = None;
         }
+        let du_lot = en_place.map_or(0, |lot| lot.nombre);
+        self.assurer_la_capacite(
+            peripherique,
+            file,
+            du_lot + photos.len(),
+            en_place.is_some(),
+        );
         let mut octets = Vec::with_capacity(photos.len() * OCTETS_POSE);
-        let mut retenues = Retenues::default();
+        let mut retenues = self.retenues_du_lot(en_place);
         let image = self.image;
         let mut perimees = 0.0_f64;
+        let mut a_jour = 0;
         for (rang, t) in photos.iter().enumerate() {
             // **Le repli se garde tant que sa photo peut en avoir besoin** (ETAGES-1). Il ne se
             // pose qu'à la place d'une photo absente ; oublié à la fin de chaque image où elle
@@ -359,23 +379,25 @@ impl SceneGpu {
             };
             if televersee.cle != t.cle {
                 perimees += 1.0;
+            } else {
+                a_jour += 1;
             }
             televersee.vue = image;
             televersee
                 .cellule
                 .map_or(posee.pose, |c| c.dans_la_page(posee.pose))
                 .ecrire(&mut octets);
-            retenues.retenir(&posee.identite, rang, televersee);
+            retenues.retenir(&posee.identite, rang + du_lot, televersee);
+            // Le lot neuf ne se juge que sur ses photos : ce qui suit n'en fait pas partie.
+            if propose.is_some_and(|(_, nombre)| rang + 1 == nombre) {
+                self.retenir_le_lot(propose, a_jour, &retenues, &octets);
+            }
         }
         crate::perf::compteur("textures_perimees", perimees);
         if !octets.is_empty() {
-            file.write_buffer(&self.poses, 0, &octets);
+            file.write_buffer(&self.poses, (du_lot * OCTETS_POSE) as u64, &octets);
         }
-        let mut cadre = Vec::with_capacity(16);
-        for v in [ecran.0, ecran.1, 0.0, 0.0] {
-            cadre.extend_from_slice(&v.to_le_bytes());
-        }
-        file.write_buffer(&self.ecran, 0, &cadre);
+        self.ecrire_l_ecran(file, ecran, en_place);
         retenues
     }
 
@@ -415,8 +437,11 @@ impl SceneGpu {
 /// elle.
 #[derive(Debug, Clone, Default)]
 pub struct Retenues {
+    /// Ce que cette image a préparé : le lot en place n'y est pas (LOT-1).
     pub cles: Vec<Cle>,
     rangs: Vec<usize>,
+    /// Combien de poses viennent du lot en place : les premières.
+    du_lot: usize,
     /// **Les dessins de cette image** : une suite de poses consécutives d'un même lot en est un
     /// seul (ATLAS-1). L'ordre du modèle reste la loi : une pose d'ailleurs coupe la suite à sa
     /// place.
@@ -435,7 +460,7 @@ struct Suite {
 impl Retenues {
     /// Retient une pose de plus : elle prolonge le dernier dessin si elle lit le même lot.
     fn retenir(&mut self, identite: &Cle, rang: usize, televersee: &Televersee) {
-        let i = self.cles.len() as u32;
+        let i = (self.du_lot + self.cles.len()) as u32;
         match self.suites.last_mut() {
             Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,
             _ => self.suites.push(Suite {
@@ -451,19 +476,23 @@ impl Retenues {
 
     /// Combien de textures la carte posera.
     pub fn len(&self) -> usize {
-        self.cles.len()
+        self.du_lot + self.cles.len()
     }
 
     /// Aucune ?
     pub fn is_empty(&self) -> bool {
-        self.cles.is_empty()
+        self.len() == 0
     }
 
     /// **Combien des retenues viennent des `n` premières demandées** : là où la pose se coupe.
     ///
     /// Les rangs croissent avec la liste demandée, donc une dichotomie suffit.
     pub fn avant(&self, n: usize) -> usize {
-        self.rangs.partition_point(|&r| r < n)
+        // Le lot est complet : ses rangs sont ceux de ses poses.
+        if n <= self.du_lot {
+            return n;
+        }
+        self.du_lot + self.rangs.partition_point(|&r| r < n)
     }
 }
 

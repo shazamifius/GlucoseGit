@@ -477,3 +477,92 @@ fn test_memoire_2_au_retour_la_vue_d_ensemble_revient() {
     une_image(&mut magasin, montree_a(100.0, &montree));
     assert!(ensemble_tenu(&magasin), "après : elle est revenue");
 }
+
+/// **Une image qui reprend le lot n'offre rien, et ne fait rien tomber** (LOT-1) : elle ne réclame
+/// aucune photo, et l'étagement, s'il passait, lirait des voulus vides et offrirait tout ce que
+/// l'écran montre. L'épreuve à l'envers : la même image sans `reconduire` l'offre bien.
+#[test]
+#[cfg_attr(
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
+)]
+fn test_lot_1_une_image_reconduite_n_offre_rien() {
+    let src = grande_photo("etages-reconduite.png");
+    let mut magasin = Magasin::nouveau();
+    arrivee(&mut magasin, &src);
+    for _ in 0..3 {
+        une_image(&mut magasin, montree_a(100.0, &src));
+    }
+    let voulu = magasin.cache[&src].pyramide.rang_pour(100.0);
+    assert_eq!(magasin.cache[&src].pyramide.etat(voulu), Etat::Tenu);
+    let offerts = magasin.mouvements().offerts;
+    for _ in 0..3 {
+        une_image(&mut magasin, Magasin::reconduire);
+    }
+    assert_eq!(magasin.cache[&src].pyramide.etat(voulu), Etat::Tenu);
+    assert_eq!(magasin.mouvements().offerts, offerts, "rien n'est parti");
+
+    une_image(&mut magasin, |_| {});
+    une_image(&mut magasin, |_| {});
+    assert_ne!(
+        magasin.cache[&src].pyramide.etat(voulu),
+        Etat::Tenu,
+        "sans la reconduire, personne ne la réclame : elle s'offre"
+    );
+}
+
+/// **Ce que le magasin tient a changé, et il le dit** (LOT-1) : le lot se reprend tant que ce nombre
+/// ne bouge pas. Une arrivée, un niveau rentré doivent le faire bouger ; une image où rien n'arrive,
+/// non.
+#[test]
+fn test_lot_1_le_magasin_dit_quand_ce_qu_il_tient_change() {
+    let src = grande_photo("etages-changements.png");
+    let mut magasin = Magasin::nouveau();
+    let avant = magasin.changements();
+    arrivee(&mut magasin, &src);
+    assert!(magasin.changements() > avant, "une image arrivée");
+    // Le temps que ce que l'écran ne montre pas parte et rentre.
+    for _ in 0..4 {
+        une_image(&mut magasin, montree_a(100.0, &src));
+    }
+    let regle = magasin.changements();
+    for _ in 0..3 {
+        une_image(&mut magasin, montree_a(100.0, &src));
+    }
+    assert_eq!(magasin.changements(), regle, "plus rien ne bouge");
+    if cfg!(any(windows, target_os = "linux", target_os = "android")) {
+        // L'original redemandé rentre de chez le système.
+        for _ in 0..2 {
+            une_image(&mut magasin, montree_a(600.0, &src));
+        }
+        assert!(magasin.changements() > regle, "un niveau rentré");
+    }
+}
+
+/// **Une image réglée ne se réexamine pas, mais elle se réexamine dès que quelque chose change**
+/// (PHOTO-1) : un niveau voulu de plus, et il revient ; sans quoi la mémoire de l'examen laisserait
+/// une photo floue.
+#[test]
+#[cfg_attr(
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
+)]
+fn test_photo_1_une_image_reglee_se_reexamine_quand_ce_qu_elle_veut_change() {
+    let src = grande_photo("etages-reglee.png");
+    let mut magasin = Magasin::nouveau();
+    arrivee(&mut magasin, &src);
+    for _ in 0..4 {
+        une_image(&mut magasin, montree_a(100.0, &src));
+    }
+    assert!(
+        magasin.cache[&src].reglee.is_some(),
+        "rien à faire : réglée"
+    );
+    assert_eq!(magasin.cache[&src].pyramide.etat(0), Etat::Offert);
+    une_image(&mut magasin, montree_a(600.0, &src));
+    assert_eq!(
+        magasin.cache[&src].pyramide.etat(0),
+        Etat::Tenu,
+        "l'écran le veut : il revient"
+    );
+}

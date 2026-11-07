@@ -32,10 +32,11 @@ mkdir -p "$temp"
 printf 'output HEADLESS-1 resolution 1920x1080@60Hz\ndefault_border none\n' > "$compo/sway.conf"
 env -u WAYLAND_DISPLAY -u DISPLAY -u NIRI_SOCKET -u SWAYSOCK XDG_RUNTIME_DIR="$compo" \
   WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 \
-  nix shell nixpkgs#sway -c sway -c "$compo/sway.conf" > "$sortie/compositeur.txt" 2>&1 &
+  nix shell --inputs-from "$racine" nixpkgs#sway -c sway -c "$compo/sway.conf" \
+  > "$sortie/compositeur.txt" 2>&1 &
 pere_compo=$!
-for _ in $(seq 1 100); do
-  [ -S "$compo/wayland-1" ] && break
+# Le premier lancement peut télécharger `sway` : on attend tant que son processus vit.
+while kill -0 "$pere_compo" 2>/dev/null && ! [ -S "$compo/wayland-1" ]; do
   sleep 0.2
 done
 if ! [ -S "$compo/wayland-1" ]; then

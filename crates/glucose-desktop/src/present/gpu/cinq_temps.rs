@@ -127,7 +127,11 @@ fn preparer_la_scene(
 ) -> crate::present::scene_gpu::Retenues {
     // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
     let textures = confie.textures();
-    p.scene.ouvrir();
+    // **Une image qui reprend le lot n'en ouvre pas une nouvelle** (LOT-1) : ses photos restent
+    // celles de « cette image », et rien ne les croit hors de l'écran.
+    if confie.lot.is_none() {
+        p.scene.ouvrir();
+    }
     let a_preparer = &confie.a_preparer[..];
     p.scene.assurer(
         &p.device,
@@ -145,8 +149,12 @@ fn preparer_la_scene(
     // § 5.4). Trois fois le même piège, et trois fois il a désigné le mauvais coupable.
     crate::perf::stage("textures");
     let ecran = (dessous.width() as f32, dessous.height() as f32);
-    let retenues = p.scene.preparer(&p.device, &p.queue, ecran, &textures);
-    let photos = &confie.photos[..];
+    let propose = confie
+        .lot_propose
+        .map(|numero| (numero, confie.photos.len()));
+    let retenues =
+        p.scene
+            .preparer_la_vue(&p.device, &p.queue, ecran, &textures, (confie.lot, propose));
     p.passes.preparer((&p.device, &p.queue), ecran, confie);
     // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
     // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de
@@ -154,7 +162,7 @@ fn preparer_la_scene(
     crate::perf::stage("poses");
     // Le diagnostic qui dit OU la chaine se rompt : combien de photos la scene demande,
     // et combien la carte sait poser.
-    crate::perf::compteur("photos_vues", photos.len() as f64);
+    crate::perf::compteur("photos_vues", confie.nombre_de_photos() as f64);
     crate::perf::compteur("photos_posees", retenues.len() as f64);
     crate::perf::compteur("lueurs_posees", confie.lueurs.len() as f64);
     crate::perf::compteur("cartes_posees", confie.cartes.len() as f64);

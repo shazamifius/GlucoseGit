@@ -30,6 +30,7 @@ impl SceneGpu {
         if arriere_plan {
             self.photos.clear();
             self.atlas.vider();
+            self.lot = None;
             self.en_cache = 0;
         } else {
             self.fermer(0);

@@ -170,6 +170,11 @@ pub trait Presenter {
 
     /// **Le plus grand côté d'une texture que la carte accepte** (PLAFOND-1), ou rien si la
     /// présentation ne pose pas de textures.
+    /// **Le lot de poses que la carte tient** (LOT-1) ; rien pour ce qui ne pose pas les photos.
+    fn lot_en_place(&self) -> Option<u64> {
+        None
+    }
+
     fn plafond_des_textures(&self) -> Option<u32> {
         None
     }

@@ -482,6 +482,10 @@ impl Presenter for GpuPresenter {
         }
     }
 
+    fn lot_en_place(&self) -> Option<u64> {
+        self.scene.lot_en_place()
+    }
+
     fn plafond_des_textures(&self) -> Option<u32> {
         Some(self.device.limits().max_texture_dimension_2d)
     }

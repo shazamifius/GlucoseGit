@@ -44,6 +44,12 @@ pub struct EtatDeLaCarte {
     /// présentation ; `None` sans carte. Souvent 4 096 ou 8 192 sur un téléphone ou une vieille
     /// tablette, bien moins qu'une grande photo : une photo n'y demande jamais plus.
     pub plafond_des_textures: Option<u32>,
+    /// **Le lot que la carte tient** (LOT-1), dit par la présentation avant chaque image, comme la
+    /// part et le plafond ; `None` sans carte, et dans tout banc qui ne le demande pas.
+    pub lot_de_la_carte: Option<u64>,
+    /// **La part où ce cran reste le bon** : il tient dans le premier nombre, et le cran d'avant
+    /// ne tiendrait pas dans moins que le second (LOT-1).
+    pub part_valable: (u64, u64),
 }
 
 /// Au-delà, toute pyramide est à son dernier niveau : une image large de 2³² pixels — la plus
@@ -54,7 +60,7 @@ const CRAN_MAX: u32 = 32;
 ///
 /// `demande` décroît avec le cran (chaque cran divise la place par quatre, jusqu'au pixel) :
 /// le premier qui tient est donc le bon, et on s'arrête dès qu'on l'a.
-pub(crate) fn cran_qui_tient(part: u64, demande: impl Fn(u32) -> u64) -> Option<u32> {
+pub(crate) fn cran_qui_tient(part: u64, mut demande: impl FnMut(u32) -> u64) -> Option<u32> {
     (0..=CRAN_MAX).find(|&c| demande(c) <= part)
 }
 
@@ -102,12 +108,16 @@ impl EtatDeLaCarte {
         (vp, rangs): (&Viewport, &[u32]),
     ) {
         let plafond = self.plafond_des_textures;
+        let (mut tenue, mut d_avant) = (0, u64::MAX);
         let verdict = match self.part_des_photos {
             None => Some(0),
             Some(part) => cran_qui_tient(part, |c| {
-                demande_des_photos(magasin, store, (vp, rangs, plafond), c)
+                d_avant = if c == 0 { u64::MAX } else { tenue };
+                tenue = demande_des_photos(magasin, store, (vp, rangs, plafond), c);
+                tenue
             }),
         };
+        self.part_valable = (tenue, d_avant);
         self.cran = verdict.unwrap_or(CRAN_MAX);
         self.cran_pire = self.cran_pire.max(self.cran);
         self.debordee = verdict.is_none();

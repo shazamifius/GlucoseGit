@@ -13,6 +13,8 @@ pub(super) struct PhotoTenue {
     pub facteur: u32,
     pub pose: Pose,
     pub repli: Option<(u32, Pose)>,
+    /// **Les échelles où ce niveau reste le voulu** (LOT-1).
+    pub echelles: (f64, f64),
 }
 
 /// **Où la carte posera cette photo, et à quel niveau** — ou rien si le magasin ne tient
@@ -49,6 +51,11 @@ pub(super) fn pose_tenue(
     // repli trop grand ne se pose pas, le voulu attend.
     let voulu = pyramide.tenir_dans(pyramide.facteur_pour(largeur_source as f32), plafond);
     let (tenu, _) = pyramide.meilleur_pour(largeur_source as f32)?;
+    // La largeur demandée suit l'échelle, en proportion : l'intervalle du niveau, lu en largeurs,
+    // se lit en échelles par une seule règle de trois.
+    let (bas, haut) = pyramide.largeurs_du_meme_niveau(largeur_source as f32);
+    let par_largeur = vp.scale / largeur_source.max(f64::MIN_POSITIVE);
+    let echelles = (f64::from(bas) * par_largeur, f64::from(haut) * par_largeur);
     let tenu = pyramide.repli_qui_tient(tenu, voulu, plafond);
     let pose = |facteur: u32| Pose {
         x: x as f32,
@@ -72,5 +79,6 @@ pub(super) fn pose_tenue(
         facteur: voulu,
         pose: pose(voulu),
         repli: (tenu != voulu).then(|| (tenu, pose(tenu))),
+        echelles,
     })
 }

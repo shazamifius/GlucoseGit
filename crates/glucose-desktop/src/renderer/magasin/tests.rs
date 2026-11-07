@@ -197,3 +197,56 @@ fn test_l_eviction_s_arrete_des_que_la_borne_est_tenue() {
 }
 
 mod etages;
+
+/// **Une image reconduite garde ses photos à l'abri de l'éviction** (LOT-1) : elle ne les réclame
+/// pas, mais elle reprend le numéro de l'image qui les a réclamées. À l'envers : une image ouverte
+/// sans reconduire les croit hors de l'écran.
+#[test]
+fn test_lot_1_une_image_reconduite_garde_ses_photos() {
+    let mut magasin = Magasin::nouveau();
+    magasin.ouvrir();
+    let a_l_ecran = magasin.image;
+    poser_entree(&mut magasin, "visible", 256, 1, a_l_ecran);
+    magasin.ouvrir();
+    magasin.reconduire();
+    magasin.ramener_sous(0);
+    assert!(
+        magasin.cache.contains_key("visible"),
+        "reconduite : à l'abri"
+    );
+    magasin.ouvrir();
+    magasin.ramener_sous(0);
+    assert!(
+        !magasin.cache.contains_key("visible"),
+        "ouverte : elle part"
+    );
+}
+
+/// **Une image évincée se dit** (LOT-1) : un lot qui la poserait encore lirait une place vide.
+#[test]
+fn test_lot_1_une_eviction_se_dit() {
+    let mut magasin = Magasin::nouveau();
+    magasin.ouvrir();
+    let ancienne = magasin.image - 1;
+    poser_entree(&mut magasin, "oubliee", 256, 1, ancienne);
+    let avant = magasin.changements();
+    magasin.ramener_sous(0);
+    assert!(!magasin.cache.contains_key("oubliee"));
+    assert!(magasin.changements() > avant, "le lot doit le savoir");
+}
+
+/// **Un fichier qui ne donnera rien se dit aussi** (LOT-1) : sa photo change de forme à l'écran.
+#[test]
+fn test_lot_1_un_echec_se_dit() {
+    let mut magasin = Magasin::nouveau();
+    let absent = std::env::temp_dir()
+        .join("glucose-epreuve-lot-1-absent.png")
+        .to_string_lossy()
+        .into_owned();
+    let avant = magasin.changements();
+    assert!(magasin.pyramide(&absent).is_none());
+    magasin.attendre_le_chantier();
+    magasin.recolter();
+    assert!(magasin.echecs.contains(&absent), "l'échec est retenu");
+    assert!(magasin.changements() > avant, "le lot doit le savoir");
+}

@@ -171,6 +171,8 @@ pub struct Renderer {
     pub hue_cache: SymbioticHueCache,
     /// Combien de nœuds la dernière image a retenus à l'écran (CHARGE-1).
     pub noeuds_visibles: usize,
+    /// Le lot que le rendu a proposé à la carte (LOT-1).
+    lot: voies::Lot,
     /// **Ce que l'image en cours a déjà cadré** : la zone du monde et ses rangs, gardés le temps
     /// d'une seule image (PHOTO-1). Le dessous, le confié et le dessus regardent la même vue.
     cadrage_de_l_image: Option<CadrageGarde>,
@@ -231,6 +233,7 @@ impl Renderer {
             mises_en_page: Default::default(),
             hue_cache: SymbioticHueCache::new(),
             noeuds_visibles: 0,
+            lot: voies::Lot::default(),
             cadrage_de_l_image: None,
             garder_le_cadrage: false,
             domain_tints: DomainTints::new(),

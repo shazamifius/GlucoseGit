@@ -71,9 +71,8 @@ fn examiner(src: &str, entree: &mut Entree, voulus: u64, atelier: &mut Atelier) 
             }
             Etat::EnChemin => false,
         };
-        // Un niveau tenu qu'on ne garde pas attend d'être offrable : il faudra revenir le voir.
-        let en_attente = !garder && matches!(etat, Etat::Tenu);
-        regle &= !geste && !en_attente && !matches!(etat, Etat::EnChemin | Etat::Perdu);
+        // Un niveau tenu trop petit pour s'offrir le restera : être offrable ne change pas.
+        regle &= !geste && !matches!(etat, Etat::EnChemin | Etat::Perdu);
         if let Some(transit) = geste.then(|| entree.pyramide.sortir(rang)).flatten() {
             atelier.deplacer(Deplacement {
                 src: src.to_string(),

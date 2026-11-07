@@ -39,6 +39,13 @@ impl<'a> Visibles<'a> {
         Self { rangs, board }
     }
 
+    /// **Les rangs des images visibles** : les premiers, puisque les images viennent d'abord dans
+    /// les rangs du tableau.
+    pub fn rangs_des_images(self) -> &'a [u32] {
+        let images = self.board.images.len() as u32;
+        &self.rangs[..self.rangs.partition_point(|&r| r < images)]
+    }
+
     /// Les images visibles, dans l'ordre du tableau.
     pub fn images(self) -> impl Iterator<Item = &'a crate::types::BoardImage> {
         let board = self.board;

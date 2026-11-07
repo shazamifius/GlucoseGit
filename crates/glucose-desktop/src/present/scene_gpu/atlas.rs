@@ -255,7 +255,14 @@ impl SceneGpu {
     /// **Oublie la texture de cette identité**, et rend sa cellule si elle en avait une. Seul
     /// chemin qui retire : une cellule perdue serait de la mémoire qu'aucun compte ne voit.
     pub(super) fn oublier_la_texture(&mut self, identite: &Cle) {
-        if let Some(cellule) = self.photos.remove(identite).and_then(|t| t.cellule) {
+        let Some(partie) = self.photos.remove(identite) else {
+            return;
+        };
+        // Une photo du lot n'est plus là : ses poses ne valent plus rien (LOT-1).
+        if partie.vue == self.image && partie.photo {
+            self.lot = None;
+        }
+        if let Some(cellule) = partie.cellule {
             self.atlas.liberer(cellule);
         }
     }

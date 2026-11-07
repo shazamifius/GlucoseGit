@@ -350,9 +350,23 @@ impl Pyramide {
         let voulue = largeur_ecran.max(1.0);
         self.niveaux
             .iter()
-            .take_while(|n| n.largeur as f32 >= voulue || n.largeur <= 1)
+            .take_while(|n| n.largeur as f32 >= voulue)
             .count()
             .saturating_sub(1)
+    }
+
+    /// **Les largeurs d'écran qui choisissent le même niveau que celle-ci** (LOT-1) : ouvert en
+    /// bas, fermé en haut — la règle de [`Self::rang_pour`] lue à l'envers. Le niveau natif couvre
+    /// tout ce qui le dépasse, et le dernier tout ce qui tient en dessous.
+    pub(crate) fn largeurs_du_meme_niveau(&self, largeur_ecran: f32) -> (f32, f32) {
+        let rang = self.rang_pour(largeur_ecran);
+        let bas = self.niveaux.get(rang + 1).map_or(0.0, |n| n.largeur as f32);
+        let haut = if rang == 0 {
+            f32::INFINITY
+        } else {
+            self.niveaux[rang].largeur as f32
+        };
+        (bas, haut)
     }
 
     fn vouloir(&self, rang: usize) {

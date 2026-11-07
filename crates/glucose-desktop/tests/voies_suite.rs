@@ -1520,3 +1520,155 @@ fn test_storyboard_1_les_cases_se_posent_pareil_sur_les_deux_voies() {
         "les cases diffèrent entre les deux voies sur {ecarts} canaux"
     );
 }
+
+/// **LOT-1 par équivalence** : en balayant l'échelle au travers de plusieurs niveaux, chaque image
+/// qui reprend le lot demande exactement ce qu'une image complète aurait demandé. Une seule photo
+/// gardée à un mauvais niveau, une seule qui devrait entrer ou sortir, et l'épreuve tombe.
+#[test]
+fn test_lot_1_une_image_reprise_est_celle_qu_une_image_complete_aurait_demandee() {
+    use glucose_desktop::renderer::Renderer;
+    let mut store = glucose_core::store::Store::new("Lot");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+    }
+    for (i, (l, h)) in [(200.0, 200.0), (130.0, 170.0), (90.0, 60.0)]
+        .iter()
+        .enumerate()
+    {
+        let mut img = glucose_core::types::BoardImage::new(
+            format!("damier-{i}"),
+            120.0 + 220.0 * i as f64,
+            300.0,
+            *l,
+            *h,
+        );
+        img.src = Some(photo_damier().to_string_lossy().into_owned());
+        store.add_image(&board, img);
+    }
+    store.clear_selection();
+    let taille = (800, 600);
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let image = |renderer: &mut Renderer, ui: &mut UiState, store: &glucose_core::store::Store| {
+        let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        renderer.rendre_les_couches(
+            &mut dessous.as_mut(),
+            &mut dessus.as_mut(),
+            store,
+            (ui, Pointer { x: 0.0, y: 0.0 }),
+            SceneOverlay::sans_rien(&guides),
+            Regard::immobile(),
+        )
+    };
+    let (mut lot, mut complet) = (Renderer::new(), Renderer::new());
+    let (mut ui_lot, mut ui_complet) = (UiState::new(), UiState::new());
+    for r in [&mut lot, &mut complet] {
+        r.sync_spatial_index(&store);
+    }
+    // Tout décodé, des deux côtés, avant de comparer.
+    let _ = image(&mut lot, &mut ui_lot, &store);
+    let _ = image(&mut complet, &mut ui_complet, &store);
+    lot.magasin.attendre_le_chantier();
+    complet.magasin.attendre_le_chantier();
+
+    let (mut reprises, mut completes) = (0, 0);
+    let mut poses: Vec<glucose_desktop::renderer::voies::APoser> = Vec::new();
+    for pas in 0..240 {
+        // De 0,02 à 2 : plus de six octaves, à un pas plus fin que l'écart entre deux niveaux.
+        let echelle = 0.02 * 1.02_f64.powi(pas);
+        if let Some(b) = store.active_board_mut() {
+            b.viewport = glucose_core::types::Viewport {
+                x: 400.0 - 400.0 * echelle,
+                y: 300.0 - 300.0 * echelle,
+                scale: echelle,
+            };
+        }
+        let c = image(&mut lot, &mut ui_lot, &store);
+        match c.lot {
+            Some(en_place) => {
+                reprises += 1;
+                assert!(
+                    c.photos.is_empty(),
+                    "reprendre le lot, c'est n'en rien redire"
+                );
+                assert_eq!(en_place.nombre, poses.len());
+            }
+            None => {
+                completes += 1;
+                poses = c.photos.clone();
+                lot.carte.lot_de_la_carte = c.lot_propose;
+            }
+        }
+        lot.magasin.attendre_le_chantier();
+        let temoin = image(&mut complet, &mut ui_complet, &store);
+        complet.magasin.attendre_le_chantier();
+        let cles = |p: &[glucose_desktop::renderer::voies::APoser]| {
+            p.iter()
+                .map(|t| {
+                    t.cle.nom().map_or_else(
+                        || {
+                            format!("{:?}", t.cle)
+                                .split_once(',')
+                                .map_or(String::new(), |(_, f)| f.to_string())
+                        },
+                        str::to_string,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(cles(&poses), cles(&temoin.photos), "à l'échelle {echelle}");
+    }
+    assert!(
+        reprises > 100,
+        "seulement {reprises} images reprises : l'épreuve doit les exercer"
+    );
+    assert!(
+        completes > 3,
+        "seulement {completes} images complètes : aucun niveau franchi ?"
+    );
+}
+
+/// **Une seule requête spatiale par image** (PHOTO-1) : le dessous, ce qui est confié à la carte et
+/// le dessus regardent la même vue du même document, et la refaisaient chacun : huit mille rangs
+/// triés trois fois, à chaque image. Et cette mémoire ne survit pas à l'image : une vue neuve doit
+/// voir ce qu'elle montre.
+#[test]
+fn test_photo_1_une_seule_requete_spatiale_par_image() {
+    let mut store = document_damier(1.0);
+    let (taille, guides) = ((800, 600), glucose_core::smart_align::SnapGuides::default());
+    let mut renderer = Renderer::new();
+    renderer.sync_spatial_index(&store);
+    let mut ui = UiState::new();
+    let mut image = |renderer: &mut Renderer, store: &glucose_core::store::Store| {
+        let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        glucose_desktop::perf::frame_begin();
+        let confie = renderer.rendre_les_couches(
+            &mut dessous.as_mut(),
+            &mut dessus.as_mut(),
+            store,
+            (&mut ui, Pointer { x: 0.0, y: 0.0 }),
+            SceneOverlay::sans_rien(&guides),
+            Regard::immobile(),
+        );
+        let requetes = glucose_desktop::perf::postes()
+            .iter()
+            .filter(|(nom, _)| *nom == "cull")
+            .count();
+        (confie, requetes)
+    };
+    let (_, requetes) = image(&mut renderer, &store);
+    assert_eq!(requetes, 1);
+    renderer.magasin.attendre_le_chantier();
+    let (confie, _) = image(&mut renderer, &store);
+    assert_eq!(confie.photos.len(), 1, "la photo est à l'écran");
+    if let Some(b) = store.active_board_mut() {
+        b.viewport.x = 100_000.0;
+    }
+    let (confie, _) = image(&mut renderer, &store);
+    assert!(
+        confie.photos.is_empty(),
+        "une vue neuve voit ce qu'elle montre"
+    );
+}

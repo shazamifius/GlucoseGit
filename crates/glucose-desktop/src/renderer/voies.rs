@@ -24,10 +24,12 @@ use tiny_skia::PixmapMut;
 
 mod confie;
 pub mod cran;
+mod lot;
 mod recolte;
 mod tenue;
 pub use confie::{APoser, Confie};
-use recolte::{composants_de_texte, poses_des_photos};
+pub use lot::{Lot, LotEnPlace, Similitude};
+use recolte::{composants_de_texte, poses_des_photos, Recolte};
 
 /// **Ce qui passe sous les photos** : le fond, les membranes, les dossiers.
 ///
@@ -282,6 +284,38 @@ pub(super) fn lueurs_a_poser(
     lueurs
 }
 
+/// **Les photos de cette image** : celles que la carte tient déjà si rien ne change (LOT-1) — aucune
+/// ne se réclame, ne se juge ni ne se pose —, sinon toutes, et elles se proposent comme lot si aucune
+/// n'est encore en chemin.
+///
+/// Une fonction libre, comme ses voisines : `pass` tient déjà `&self.spatial_hash`.
+fn photos_de_l_image(
+    (regime, kit): (&super::composants::Regime, PaintKit<'_>),
+    (lot, magasin, carte): (
+        &mut Lot,
+        &mut super::magasin::Magasin,
+        &mut cran::EtatDeLaCarte,
+    ),
+    (store, vp, rangs): (&Store, &Viewport, &[u32]),
+) -> (Recolte, Option<LotEnPlace>, Option<u64>) {
+    // Les photos seules : une carte de texte qui entre à l'écran ne change rien à leurs poses.
+    let rangs_des_photos = store.active_board().map_or(&rangs[..0], |board| {
+        Visibles::nouvelles(rangs, board).rangs_des_images()
+    });
+    let changements = magasin.changements();
+    let vue = (vp, rangs_des_photos);
+    if let Some(en_place) = lot.reconduire(store, vue, changements, carte) {
+        magasin.reconduire();
+        return (Recolte::default(), Some(en_place), None);
+    }
+    let photos = poses_des_photos((regime, kit), (magasin, carte), (vp, rangs, store));
+    let lot_propose = photos.composants.is_empty().then(|| {
+        let a_retenir = (changements, photos.echelles, photos.posees.len());
+        lot.proposer(store, vue, a_retenir, carte)
+    });
+    (photos, None, lot_propose.flatten())
+}
+
 /// Les deux entrees de la voie graphique, posees ici pour que le moteur reste lisible.
 impl Renderer {
     /// **Rend la scene en deux couches, et dit ou les photos se posent.**
@@ -384,10 +418,10 @@ impl Renderer {
             tints: &self.domain_tints,
             theme: &self.theme,
         };
-        let des_photos = poses_des_photos(
+        let (des_photos, lot, lot_propose) = photos_de_l_image(
             (&regime, kit),
-            (&mut self.magasin, &mut self.carte),
-            (&vp, &rangs, store),
+            (&mut self.lot, &mut self.magasin, &mut self.carte),
+            (store, &vp, &rangs),
         );
         // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
         let contenants = super::card::Contenants::nouveaux(&self.theme, &membranes);
@@ -404,6 +438,8 @@ impl Renderer {
             zones,
             membranes,
             fleches,
+            lot,
+            lot_propose,
             dessous_porte_quelque_chose: true,
             // Les panneaux, le releve des bandes et le lisere appartiennent a la peinture : la
             // chrome se dessine APRES le renderer, donc rien de juste ne peut en etre dit ici.

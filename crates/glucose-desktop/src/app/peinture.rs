@@ -51,6 +51,7 @@ impl GlucoseApp {
         self.renderer.carte.part_des_photos = presentation.and_then(|p| p.part_pour_les_photos());
         self.renderer.carte.plafond_des_textures =
             presentation.and_then(|p| p.plafond_des_textures());
+        self.renderer.carte.lot_de_la_carte = presentation.and_then(|p| p.lot_en_place());
         if self.renderer.carte.debordee {
             let header_h = self.ui.header_height();
             self.renderer

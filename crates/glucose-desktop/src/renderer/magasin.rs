@@ -130,6 +130,11 @@ pub struct Magasin {
     a_revoir: Vec<Numero>,
     /// Le compteur des pyramides, pour dater chacune.
     generations: u64,
+    /// **Combien de fois ce que le magasin tient a changé** (LOT-1) : une image décodée ou évincée,
+    /// un niveau rentré, un échec. Tant qu'il ne bouge pas, ce qu'il a dit d'une photo reste vrai.
+    changements: u64,
+    /// Cette image reprend ce que la précédente a réclamé (LOT-1).
+    reconduite: bool,
     /// Ce que l'étagement a fait depuis le début.
     mouvements: Mouvements,
 }
@@ -158,7 +163,21 @@ impl Magasin {
     /// Ouvre une image du rendu.
     pub fn ouvrir(&mut self) {
         self.image += 1;
+        self.reconduite = false;
         self.vignettes.ouvrir();
+    }
+
+    /// **Cette image ne réclame rien de neuf** (LOT-1) : ce que la précédente a réclamé reste
+    /// réclamé, sous son numéro. Elle reprend donc celui-ci : rien de ce que l'écran montre ne
+    /// paraît oublié, et l'étagement, qui lirait des voulus que personne n'a écrits, ne passe pas.
+    pub fn reconduire(&mut self) {
+        self.image = self.image.saturating_sub(1);
+        self.reconduite = true;
+    }
+
+    /// Combien de fois ce que le magasin tient a changé (LOT-1).
+    pub fn changements(&self) -> u64 {
+        self.changements
     }
 
     /// **L'échelle où le tableau entier tiendrait dans l'écran** — ce qu'une vue d'ensemble
@@ -192,7 +211,9 @@ impl Magasin {
     /// la machine réclame.
     pub fn fermer(&mut self) {
         self.vignettes.fermer();
-        self.etager();
+        if !self.reconduite {
+            self.etager();
+        }
         self.ramener_sous_la_borne();
         // Un poste à lui (CEDER-1). Sans cette marque, son coût tombait dans celui des
         // panneaux, qui se posent juste après : la chronique accusait les panneaux de ce que
@@ -330,6 +351,7 @@ impl Magasin {
                 // Absent, illisible, ou trop grand pour tenir en mémoire : les trois se
                 // constatent de la même façon, et aucun ne se redemande.
                 Fait::Decodee((src, None, _)) => {
+                    self.changements += 1;
                     self.echecs.insert(src);
                 }
                 Fait::Deplace(d) => self.rentrer(d),
@@ -342,6 +364,7 @@ impl Magasin {
     /// disque ; née d'un aperçu, elle en vient.
     fn accueillir(&mut self, src: String, pyramide: Pyramide, cout: Duration) {
         self.generations += 1;
+        self.changements += 1;
         let a_ecrire = self.atelier.garde_les_apercus() && pyramide.entiere();
         let mut entree = Entree::nouvelle(pyramide, cout, self.image, self.generations);
         entree.apercu_a_ecrire = a_ecrire;
@@ -362,6 +385,7 @@ impl Magasin {
         if entree.generation != d.generation {
             return;
         }
+        self.changements += 1;
         match &d.charge {
             super::photo::Retour::Offerts(_) => self.mouvements.offerts += 1,
             super::photo::Retour::Repris(Some(_)) => self.mouvements.repris += 1,
@@ -434,7 +458,7 @@ impl Magasin {
     /// argument, et le comportement se verifie sur des valeurs choisies -- le meme test dit la
     /// meme chose sur un telephone et sur un serveur.
     fn ramener_sous(&mut self, borne: u64) {
-        let mut occupe = self.octets() as u64;
+        let mut occupe = self.cache.octets() as u64;
         if occupe <= borne {
             return;
         }
@@ -458,6 +482,7 @@ impl Magasin {
                 break;
             }
             self.cache.remove(&src);
+            self.changements += 1;
             self.evincees += 1;
             occupe = occupe.saturating_sub(octets);
         }
@@ -511,7 +536,7 @@ impl Magasin {
 
     /// Les octets que les images décodées représentent, où qu'ils soient.
     pub fn octets(&self) -> usize {
-        self.cache.values().map(|e| e.pyramide.octets()).sum()
+        self.cache.octets()
     }
 
     /// Les octets de leurs niveaux dans cet état — tenus, offerts, en chemin.

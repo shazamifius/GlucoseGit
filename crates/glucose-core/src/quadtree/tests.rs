@@ -83,3 +83,26 @@ fn test_une_photo_tournee_se_range_par_son_englobante() {
         "le haut de la photo debout"
     );
 }
+
+/// **Les rangs des images sont les premiers**, et rien d'autre (LOT-1) : une carte de texte qui entre
+/// à l'écran ne doit pas faire croire que les photos ont changé.
+#[test]
+fn test_visibles_les_rangs_des_images_sont_les_premiers() {
+    let mut board = crate::types::Board::new("b", "b");
+    board.images = vec![
+        crate::types::BoardImage::new("a", 0.0, 0.0, 1.0, 1.0),
+        crate::types::BoardImage::new("b", 0.0, 0.0, 1.0, 1.0),
+    ];
+    let rangs = [0, 1, 2, 3];
+    assert_eq!(
+        super::Visibles::nouvelles(&rangs, &board).rangs_des_images(),
+        [0, 1]
+    );
+    assert_eq!(
+        super::Visibles::nouvelles(&[1], &board).rangs_des_images(),
+        [1]
+    );
+    assert!(super::Visibles::nouvelles(&[2, 3], &board)
+        .rangs_des_images()
+        .is_empty());
+}

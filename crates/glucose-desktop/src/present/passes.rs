@@ -94,7 +94,7 @@ impl Passes {
             retenues,
             formes: &self.formes,
             suites: &confie.formes.suites,
-            photos: confie.photos.len(),
+            photos: confie.nombre_de_photos(),
             sous_le_dessus: confie.sous_le_dessus(),
             sous_le_cadre: confie.sous_le_cadre(),
         }

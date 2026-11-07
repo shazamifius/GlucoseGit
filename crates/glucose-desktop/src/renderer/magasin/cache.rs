@@ -29,6 +29,9 @@ pub struct Cache {
     places: Vec<(String, Option<Entree>)>,
     /// Combien de places portent une entrée.
     tenues: usize,
+    /// Ce que ces entrées occupent : la taille d'un niveau est fixée à sa naissance, et seul ce qui
+    /// entre ou sort la change. La compter balayait tout le cache à chaque image.
+    octets: usize,
 }
 
 impl Cache {
@@ -91,9 +94,11 @@ impl Cache {
     /// Pose cette entrée, et rend celle qu'elle remplace.
     pub fn insert(&mut self, src: String, entree: Entree) -> Option<Entree> {
         let n = self.numero(&src);
+        self.octets += entree.pyramide.octets();
         let ancienne = self.places[n.0 as usize].1.replace(entree);
-        if ancienne.is_none() {
-            self.tenues += 1;
+        match &ancienne {
+            Some(partie) => self.octets -= partie.pyramide.octets(),
+            None => self.tenues += 1,
         }
         ancienne
     }
@@ -102,10 +107,16 @@ impl Cache {
     pub fn remove(&mut self, src: &str) -> Option<Entree> {
         let n = self.numero_connu(src)?;
         let ancienne = self.places[n.0 as usize].1.take();
-        if ancienne.is_some() {
+        if let Some(partie) = &ancienne {
             self.tenues -= 1;
+            self.octets -= partie.pyramide.octets();
         }
         ancienne
+    }
+
+    /// Ce que les images occupent, tous états confondus.
+    pub fn octets(&self) -> usize {
+        self.octets
     }
 
     /// Combien d'images sont tenues.
@@ -159,5 +170,80 @@ impl<'a> IntoIterator for &'a Cache {
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::renderer::photo::Pyramide;
+    use std::time::Duration;
+
+    fn entree(cote: u32) -> Entree {
+        Entree::nouvelle(
+            Pyramide::nouvelle(tiny_skia::Pixmap::new(cote, cote).expect("une image")),
+            Duration::from_millis(1),
+            0,
+            0,
+        )
+    }
+
+    /// **Un numéro ne sert jamais à deux fichiers**, même évincé : la carte nomme ses textures
+    /// par lui, et une photo réattribuée y montrerait les pixels d'une autre.
+    #[test]
+    fn test_photo_1_un_numero_ne_sert_jamais_a_deux_fichiers() {
+        let mut cache = Cache::default();
+        cache.insert("a".into(), entree(4));
+        cache.insert("b".into(), entree(4));
+        let (na, nb) = (cache.numero("a"), cache.numero("b"));
+        assert_ne!(na, nb);
+        assert!(cache.remove("a").is_some());
+        assert!(
+            cache.par_numero(na).is_none(),
+            "évincée : rien sous ce numéro"
+        );
+        cache.insert("c".into(), entree(4));
+        assert_ne!(
+            cache.numero("c"),
+            na,
+            "la place d'une évincée ne se réattribue pas"
+        );
+        cache.insert("a".into(), entree(4));
+        assert_eq!(cache.numero("a"), na, "un fichier revenu retrouve le sien");
+        assert_eq!(cache.chemin(nb), Some("b"));
+    }
+
+    /// **Le compte suit ce qui entre et sort**, sans balayer : remplacer une entrée ne la compte
+    /// pas deux fois, et un retrait de trop ne le fait pas descendre.
+    #[test]
+    fn test_photo_1_le_compte_suit_ce_qui_entre_et_sort() {
+        let mut cache = Cache::default();
+        assert!(cache.is_empty());
+        cache.insert("a".into(), entree(8));
+        cache.insert("b".into(), entree(4));
+        let total: usize = cache.values().map(|e| e.pyramide.octets()).sum();
+        assert_eq!(cache.octets(), total);
+        assert_eq!(cache.len(), 2);
+        cache.insert("a".into(), entree(16));
+        let total: usize = cache.values().map(|e| e.pyramide.octets()).sum();
+        assert_eq!(
+            cache.octets(),
+            total,
+            "une entrée remplacée ne compte qu'une fois"
+        );
+        assert_eq!(cache.len(), 2);
+        cache.remove("a");
+        assert!(cache.remove("a").is_none());
+        assert!(cache.remove("jamais vue").is_none());
+        let total: usize = cache.values().map(|e| e.pyramide.octets()).sum();
+        assert_eq!(cache.octets(), total);
+        assert_eq!(cache.len(), 1);
+        assert_eq!(
+            cache
+                .iter()
+                .map(|(src, _)| src.as_str())
+                .collect::<Vec<_>>(),
+            ["b"]
+        );
     }
 }
