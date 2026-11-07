@@ -361,7 +361,8 @@ mod windows_seulement {
             };
             let Some(niveau) = niveau else { continue };
             let cle = format!("{src}@{}", niveau.width());
-            scene.televerser(peripherique, &mut envoi, (src, &cle), niveau);
+            let identite = glucose_desktop::present::scene_gpu::Cle::from(src);
+            scene.televerser(peripherique, &mut envoi, (&identite, &cle.into()), niveau);
         }
         envoi.soumettre();
         file.submit([]);
