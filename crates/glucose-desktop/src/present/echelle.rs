@@ -140,7 +140,7 @@ impl Habitee {
             let _ = std::fs::create_dir_all(dossier);
         }
         if let Err(e) = std::fs::write(&self.chemin, self.echelle.texte()) {
-            println!("[Glucose] l'échelle des moteurs ne s'écrit pas : {e}");
+            crate::dire!("[Glucose] l'échelle des moteurs ne s'écrit pas : {e}");
         }
     }
 
@@ -211,7 +211,7 @@ fn sonder_en_fond(moteurs: Vec<String>) {
                     .stderr(std::process::Stdio::null())
                     .status()
                     .is_ok_and(|s| s.success());
-                println!("[Glucose] sonde du moteur {moteur} : {}", dire(survit));
+                crate::dire!("[Glucose] sonde du moteur {moteur} : {}", dire(survit));
                 if survit {
                     avec_l_echelle(|e| e.oublier(&moteur));
                 }

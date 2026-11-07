@@ -49,7 +49,7 @@ impl GlucoseApp {
         // revient comme un partage, par le même chemin qu'une image envoyée de la galerie.
         #[cfg(target_os = "android")]
         if !crate::plateforme::partage::choisir_des_images() {
-            eprintln!("[Glucose] images : aucun selecteur de photos n'est branche");
+            crate::dire_erreur!("[Glucose] images : aucun selecteur de photos n'est branche");
         }
         #[cfg(not(target_os = "android"))]
         self.demander_un_fichier(

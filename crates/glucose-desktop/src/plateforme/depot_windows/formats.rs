@@ -34,10 +34,10 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
         return;
     }
     let Ok(enumerateur) = (unsafe { objet.EnumFormatEtc(DATADIR_GET.0 as u32) }) else {
-        eprintln!("[Glucose] depot : l'objet refuse d'enumerer ses formats");
+        crate::dire_erreur!("[Glucose] depot : l'objet refuse d'enumerer ses formats");
         return;
     };
-    eprintln!("[Glucose] depot : ce que l'objet porte --");
+    crate::dire_erreur!("[Glucose] depot : ce que l'objet porte --");
     let mut tampon = [FORMATETC::default(); 1];
     loop {
         let mut lus = 0u32;
@@ -46,7 +46,7 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
         // portait rien ou si Windows refusait de le dire.
         let lu = unsafe { enumerateur.Next(&mut tampon, Some(&mut lus)) };
         if lu.is_err() {
-            eprintln!("    l'enumeration s'arrete sur une erreur : {lu:?}");
+            crate::dire_erreur!("    l'enumeration s'arrete sur une erreur : {lu:?}");
             break;
         }
         if lus == 0 {
@@ -57,7 +57,7 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
         // Ce qui est **disponible** compte autant que ce qui est offert : un format annonce
         // qui refuse `QueryGetData` est un format qu'on ne peut pas lire.
         let lisible = unsafe { objet.QueryGetData(&f) }.is_ok();
-        eprintln!(
+        crate::dire_erreur!(
             "    {:5}  {:<34} tymed {:#06x}  index {:3}  {}",
             f.cfFormat,
             nom,
@@ -82,7 +82,7 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
 /// suit — la lire, ou devoir la chercher ailleurs.
 fn dire_les_adresses(objet: &IDataObject, format: u16) {
     for adresse in crate::plateforme::moisson::adresses_dans(&octets_du_format(objet, format)) {
-        eprintln!("           -> {adresse}");
+        crate::dire_erreur!("           -> {adresse}");
     }
 }
 

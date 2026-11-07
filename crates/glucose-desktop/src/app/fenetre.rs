@@ -53,7 +53,7 @@ impl GlucoseApp {
             None => "",
         };
         let carte = format!("{nom}{lien}");
-        println!("[Glucose] carte graphique : {carte}");
+        crate::dire!("[Glucose] carte graphique : {carte}");
         self.chronique.rythme.nommer_la_carte(carte);
     }
 
@@ -76,7 +76,7 @@ impl GlucoseApp {
         (largeur, hauteur): (u32, u32),
         echelle: f64,
     ) {
-        println!(
+        crate::dire!(
             "[Glucose] succession des images : {} -- l'ecran bat toutes les {:.2} ms",
             presenter.rythme(),
             self.cadence.periode().as_secs_f64() * 1000.0
@@ -88,7 +88,7 @@ impl GlucoseApp {
         // `succession::images_demandees`.
         let en_vol = presenter.images_en_vol();
         if en_vol > 0 {
-            println!("[Glucose] images gardees en vol par la chaine : {en_vol}");
+            crate::dire!("[Glucose] images gardees en vol par la chaine : {en_vol}");
         }
         // **La surface et l'echelle de l'interface**, sans lesquelles la chrome ne se relit
         // pas. Les postes `bande`, `minimap`, `ariane` et `ui` couvrent des rectangles dont
@@ -97,7 +97,7 @@ impl GlucoseApp {
         // le terrain a 0,86 -- l'ecart ne se comprend pas sans ce nombre, et aucune trace ne
         // le portait. C'est la lecon de la fiche 19 § 6.1 : une mesure qui ne dit pas ou elle
         // a ete prise ne se relit pas.
-        println!(
+        crate::dire!(
             "[Glucose] fenetre : {largeur} x {hauteur} pixels, interface a {:.0} % ({:.0} x {:.0} points)",
             echelle * 100.0,
             f64::from(largeur) / echelle,
@@ -105,7 +105,7 @@ impl GlucoseApp {
         );
         // Dit des le depart ou la chronique s'ecrira : la chercher apres coup dans un dossier
         // temporaire est decourageant, et une mesure qu'on ne retrouve pas ne sert a personne.
-        println!(
+        crate::dire!(
             "[Glucose] chronique de cette session : {}",
             Self::chemin_de_la_chronique().display()
         );
@@ -138,7 +138,7 @@ impl GlucoseApp {
         if crate::present::souvenir::lire(&self.souvenir_de_la_carte).is_some()
             && self.arbitre.is_some()
         {
-            println!(
+            crate::dire!(
                 "[Glucose] arbitre : la carte {} a ete retenue lors d'une session precedente",
                 depart.nom()
             );
@@ -148,19 +148,23 @@ impl GlucoseApp {
         // manque -- c'est-a-dire l'etat d'avant.
         self.depot.pont = crate::plateforme::installer(window);
         if self.depot.pont.is_some() {
-            println!("[Glucose] depot : les images glissees depuis un navigateur sont lues");
+            crate::dire!("[Glucose] depot : les images glissees depuis un navigateur sont lues");
         }
         // **Le pavé de précision** (fiche 53) : la ligne dit, dans sa sortie, que le pincement
         // ne passe plus par la molette.
         self.toucher.pave = crate::plateforme::installer_le_pave(window);
         if self.toucher.pave.is_some() {
-            println!("[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender");
+            crate::dire!(
+                "[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender"
+            );
         }
         // **L'extinction de Windows** finit Glucose au lieu de le tuer (FIN-SESSION-1).
         self.ui.cadre_maison = crate::plateforme::cadre::habiller(window);
         self.lancement.session = crate::plateforme::fin::veiller_sur_la_fenetre(window);
         if self.lancement.session.is_some() {
-            println!("[Glucose] fin : l'extinction de Windows finit Glucose au lieu de le tuer");
+            crate::dire!(
+                "[Glucose] fin : l'extinction de Windows finit Glucose au lieu de le tuer"
+            );
         }
         // La question de la télémétrie, une seule fois : la fenêtre existe, le dialogue s'y
         // accroche (DIAL-1).
@@ -254,7 +258,7 @@ impl GlucoseApp {
             .map_or_else(crate::cadence::Cadence::inconnue, |mhz| {
                 crate::cadence::Cadence::depuis_millihertz(mhz)
             });
-        println!(
+        crate::dire!(
             "[Glucose] cadence de l'ecran : {:.0} Hz, soit {:.2} ms par image",
             self.cadence.fps(),
             self.cadence.periode().as_secs_f64() * 1000.0
@@ -314,14 +318,14 @@ fn ouvrir_la_presentation(
 ) -> DesktopResult<Box<dyn crate::present::Presenter>> {
     match crate::present::GpuPresenter::new(window.clone(), w, h) {
         Ok(gpu) => {
-            println!(
+            crate::dire!(
                 "[Glucose] présentation par la carte graphique : {}",
                 gpu.adaptateur()
             );
             Ok(Box::new(gpu))
         }
         Err(e) => {
-            eprintln!(
+            crate::dire_erreur!(
                 "[Glucose] pas de carte graphique disponible ({e}) — présentation par le processeur"
             );
             Ok(Box::new(crate::present::CpuPresenter::new(window.clone())?))

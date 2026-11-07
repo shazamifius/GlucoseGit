@@ -37,7 +37,7 @@ pub fn servir_sans_fenetre(
         app.habiter(Path::new(&ici));
         app.demarrer_le_recensement(Arc::new(|| {}));
     }
-    println!("[porte] ouverte : {nom}");
+    crate::dire!("[porte] ouverte : {nom}");
     // Les gestes d'un utilisateur, s'il y en a à jouer (fiche 80) : `<dossier>/main.jsonl`.
     let mut main = super::main_d_epreuve::MainDEpreuve::nouvelle(dossier.join("main.jsonl"));
     let mut gestes = 0;
@@ -70,7 +70,7 @@ pub fn servir_sans_fenetre(
     for (nom, cadre) in cadres {
         let chemin = dossier.join(format!("{nom}.png"));
         rendre(&mut app, &board, cadre, taille, &chemin)?;
-        println!("[porte] {}", chemin.display());
+        crate::dire!("[porte] {}", chemin.display());
     }
     // Une flèche ancrée, survolée : ce qu'elle relie, et ses deux passages qui brillent.
     let ancree = decrits.iter().find(|d| {
@@ -85,7 +85,7 @@ pub fn servir_sans_fenetre(
             app.ui.fleche_survolee = Some(f.id.clone());
             let chemin = dossier.join("survol.png");
             rendre(&mut app, &board, a.union(b), taille, &chemin)?;
-            println!("[porte] {}", chemin.display());
+            crate::dire!("[porte] {}", chemin.display());
         }
     }
     rendre_les_autres_onglets(&mut app, dossier, taille)?;
@@ -122,7 +122,7 @@ fn rendre_les_autres_onglets(
         let rendu = rendre(app, id, tout, taille, &chemin);
         app.store.project.active_board_id = actif.clone();
         rendu?;
-        println!("[porte] {}", chemin.display());
+        crate::dire!("[porte] {}", chemin.display());
     }
     Ok(())
 }

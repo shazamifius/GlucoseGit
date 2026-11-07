@@ -131,7 +131,7 @@ impl GlucoseApp {
         let (l, h) = (img.original_width, img.original_height);
         let (g, t, d, b) = detecte.marges();
         let px = |part: f64, dim: f64| (part * dim).round() as i64;
-        println!(
+        crate::dire!(
             "[Glucose] bordures : {} ({} x {}) -- gauche {} haut {} droite {} bas {}{}",
             img.src.as_deref().unwrap_or("(sans fichier)"),
             l.round() as i64,

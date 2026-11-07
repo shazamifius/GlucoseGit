@@ -327,7 +327,7 @@ fn test_font_1_every_non_ascii_literal_of_the_crate_has_a_glyph() {
         found.contains(&'é'),
         "le scanner n'a pas vu la carte d'accueil de app.rs"
     );
-    println!(
+    crate::dire!(
         "[FONT-1] {} caractères non-ASCII dans les littéraux du crate : {}",
         found.len(),
         found.iter().collect::<String>()

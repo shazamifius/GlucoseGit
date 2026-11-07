@@ -209,3 +209,25 @@ son document : les derniers gestes ne s'écrivaient pas (le vrai Glucose, lui, f
   pouvait dire faux.
 * **Un chantier qui change un geste se relit plateforme par plateforme** (la leçon de la fiche 60, rejouée) :
   un nom d'attente retiré aurait fermé la création au téléphone.
+
+## 10. CONSOLE-1 — la console qui tuait Glucose
+
+**Vu en le lançant pour son essai** : *« la session précédente : tombée sur une panique, après 21 min
+2 s »*. Sa boîte noire du 5/11 dit où : `std/src/io/stdio.rs`, ligne 1166 — `println!`, qui panique
+quand la console a disparu (un terminal fermé, un tuyau dont le lecteur est parti). Glucose y écrivait à
+89 endroits ses lignes `[Glucose] …`.
+
+**Reproduit, puis réparé, au bit près de la cause** (`outils/console_disparue.sh`, le vrai Glucose dans un
+compositeur sans écran, un dossier jetable, une sortie dont le lecteur part après la première ligne) :
+le programme d'avant **meurt deux fois sur deux**, sur la même ligne que sa session du 5/11 ; le témoin
+(la même chose, une console qui reste) vit ; le réparé **vit deux fois sur deux** et finit proprement.
+Paires entrelacées.
+
+**La règle à la sortie** : tout ce que Glucose dit sur la console passe par `dire!` ou `dire_erreur!`,
+qui se taisent si personne n'écoute. Le **cliquet 13** interdit `println!` et ses cousins partout
+ailleurs ; ses deux sabotages tombent (`outils/sabotages/console-1.json`).
+
+**La leçon** : la première mesure disait « mort » pour un programme qui n'avait pas encore démarré. Un
+verdict se compte depuis le début de ce qu'on juge — ici le journal de la session —, jamais depuis la
+commande.
+

@@ -454,7 +454,7 @@ impl Chronique {
                 precedente
             }
             Err(e) => {
-                eprintln!("[Glucose] boîte noire non ouverte : {e}");
+                crate::dire_erreur!("[Glucose] boîte noire non ouverte : {e}");
                 None
             }
         }

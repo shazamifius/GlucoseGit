@@ -306,15 +306,15 @@ impl GlucoseApp {
         // dire, pour ne pas noyer un demarrage rate sous un tableau vide.
         let ecrit = self.ecrire_la_chronique();
         if self.chronique.rendues() >= 30 {
-            println!("\n{}", self.chronique.rapport());
+            crate::dire!("\n{}", self.chronique.rapport());
         }
         match ecrit {
-            Ok(chemin) => println!(
+            Ok(chemin) => crate::dire!(
                 "[Glucose] chronique de {} images ecrite dans {}",
                 self.chronique.rendues(),
                 chemin.display()
             ),
-            Err(e) => eprintln!("[Glucose] chronique non ecrite : {e}"),
+            Err(e) => crate::dire_erreur!("[Glucose] chronique non ecrite : {e}"),
         }
     }
 }
@@ -377,12 +377,12 @@ impl GlucoseApp {
     fn retenir_la_carte(&mut self, carte: crate::present::arbitre::Preference) {
         self.arbitre = None;
         match crate::present::souvenir::ecrire(&self.souvenir_de_la_carte, carte) {
-            Ok(()) => println!(
+            Ok(()) => crate::dire!(
                 "[Glucose] arbitre : cette carte gele -- la carte {} s'ouvrira au prochain \
                  lancement (en changer en cours de route fige l'affichage)",
                 carte.nom()
             ),
-            Err(e) => eprintln!(
+            Err(e) => crate::dire_erreur!(
                 "[Glucose] arbitre : la carte {} n'a pas pu etre retenue ({e})",
                 carte.nom()
             ),

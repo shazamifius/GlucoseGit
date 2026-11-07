@@ -1,0 +1,34 @@
+[
+ {
+  "nom": "CONSOLE-1 un println! revient",
+  "fichier": "crates/glucose-desktop/src/demarrage.rs",
+  "avant": "crate::dire!(\"[Glucose] la session précédente",
+  "apres": "println!(\"[Glucose] la session précédente",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "cliquets_suite",
+   "--",
+   "cliquet_13"
+  ]
+ },
+ {
+  "nom": "CONSOLE-1 un eprintln! revient",
+  "fichier": "crates/glucose-desktop/src/perf.rs",
+  "avant": "crate::dire_erreur!(\"[perf] --- frame begin ---\");",
+  "apres": "eprintln!(\"[perf] --- frame begin ---\");",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "cliquets_suite",
+   "--",
+   "cliquet_13"
+  ]
+ }
+]

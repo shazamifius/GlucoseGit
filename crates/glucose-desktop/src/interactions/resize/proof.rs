@@ -160,7 +160,7 @@ fn test_resize_proof_an_image_pulled_by_a_corner_keeps_its_ratio_on_screen() {
         "à l'écran aussi : {drawn_ratio}"
     );
     after.save_png(dir.join("image-apres.png")).expect("png");
-    println!(
+    crate::dire!(
         "[proof] image : {ink_before:?} -> {ink_after:?} ({})",
         dir.display()
     );
@@ -238,7 +238,7 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
 
     let (w_before, h_before) = (ink_before.2 - ink_before.0, ink_before.3 - ink_before.1);
     let (w_after, h_after) = (ink_after.2 - ink_after.0, ink_after.3 - ink_after.1);
-    println!(
+    crate::dire!(
         "[proof] carte : encre {w_before}x{h_before} -> {w_after}x{h_after} ({})",
         dir.display()
     );

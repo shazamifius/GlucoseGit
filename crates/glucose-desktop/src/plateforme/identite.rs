@@ -27,7 +27,7 @@ pub fn declarer() {
         if let Err(e) =
             unsafe { windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(&identite) }
         {
-            eprintln!("[Glucose] identité refusée par Windows : {e}");
+            crate::dire_erreur!("[Glucose] identité refusée par Windows : {e}");
         }
     }
 }

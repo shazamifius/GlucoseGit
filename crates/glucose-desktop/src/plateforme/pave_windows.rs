@@ -200,7 +200,7 @@ pub fn installer(hwnd: isize, taille: (u32, u32), reveil: super::Reveil) -> Opti
             .ok()?;
         let fil = Box::new(Fil { viewport, etat });
         if !sous_classer(fenetre, &*fil) {
-            eprintln!("[Glucose] pave : la fenetre refuse d'etre sous-classee");
+            crate::dire_erreur!("[Glucose] pave : la fenetre refuse d'etre sous-classee");
             return None;
         }
         Some(PaveWindows {
@@ -213,7 +213,7 @@ pub fn installer(hwnd: isize, taille: (u32, u32), reveil: super::Reveil) -> Opti
 }
 
 fn dire(quoi: &str, e: &windows::core::Error) {
-    eprintln!("[Glucose] pave : Direct Manipulation refuse {quoi} ({e})");
+    crate::dire_erreur!("[Glucose] pave : Direct Manipulation refuse {quoi} ({e})");
 }
 
 impl Pave for PaveWindows {

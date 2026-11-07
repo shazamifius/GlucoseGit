@@ -29,7 +29,7 @@ impl GlucoseApp {
         }
         // Le système peut maintenant tuer Glucose sans prévenir : la boîte noire le sait.
         self.chronique.noter_le_plan(true);
-        println!("[Glucose] vie : en arriere-plan, la surface est rendue au systeme");
+        crate::dire!("[Glucose] vie : en arriere-plan, la surface est rendue au systeme");
     }
 
     /// **Le système rend une surface** : la présentation s'y accorde, ou une neuve s'ouvre ;
@@ -50,17 +50,17 @@ impl GlucoseApp {
             )),
         };
         if let Err(e) = rendue {
-            eprintln!("[Glucose] vie : {e} -- une presentation neuve s'ouvre");
+            crate::dire_erreur!("[Glucose] vie : {e} -- une presentation neuve s'ouvre");
             let taille = window.inner_size();
             let w = NonZeroU32::new(taille.width).unwrap_or(NonZeroU32::MIN);
             let h = NonZeroU32::new(taille.height).unwrap_or(NonZeroU32::MIN);
             match self.presentation_neuve(&window, w, h) {
                 Ok(neuve) => self.presenter = Some(neuve),
-                Err(e) => eprintln!("[Glucose] vie : aucune presentation possible : {e}"),
+                Err(e) => crate::dire_erreur!("[Glucose] vie : aucune presentation possible : {e}"),
             }
         }
         self.mark_dirty();
-        println!(
+        crate::dire!(
             "[Glucose] vie : au premier plan, la surface revenue en {} ms",
             debut.elapsed().as_millis()
         );
@@ -83,9 +83,13 @@ impl GlucoseApp {
             return;
         }
         // Le journal le dit : ce que chaque téléphone annonce ne se devine pas ailleurs.
-        println!(
+        crate::dire!(
             "[Glucose] marges : haut {}, bas {}, gauche {}, droite {}, clavier {}",
-            marges.haut, marges.bas, marges.gauche, marges.droite, marges.clavier
+            marges.haut,
+            marges.bas,
+            marges.gauche,
+            marges.droite,
+            marges.clavier
         );
         self.ui.marges = marges;
         self.mark_dirty();

@@ -164,7 +164,9 @@ impl GlucoseApp {
             super::formes::rassembler(&depart.lot, &self.disque.objets, (depart.texte, false));
         self.redraw();
         if let Err(e) = crate::plateforme::glisser_la_selection(&fenetre, formes) {
-            eprintln!("[Glucose] le glisser vers une autre fenetre n'a pas pu partir : {e}");
+            crate::dire_erreur!(
+                "[Glucose] le glisser vers une autre fenetre n'a pas pu partir : {e}"
+            );
         }
         self.mark_dirty();
     }

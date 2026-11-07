@@ -122,18 +122,20 @@ pub fn installer(hwnd: isize, vers: Sender<Depot>, reveil: super::Reveil) -> boo
             Ok(()) => return true,
             Err(e) if e.code() == DRAGDROP_E_ALREADYREGISTERED => {}
             Err(e) => {
-                eprintln!("[Glucose] depot web : Windows a refuse la cible de depot ({e})");
+                crate::dire_erreur!(
+                    "[Glucose] depot web : Windows a refuse la cible de depot ({e})"
+                );
                 return false;
             }
         }
         if let Err(e) = RevokeDragDrop(fenetre) {
-            eprintln!("[Glucose] depot web : la cible de winit ne se retire pas ({e})");
+            crate::dire_erreur!("[Glucose] depot web : la cible de winit ne se retire pas ({e})");
             return false;
         }
         match RegisterDragDrop(fenetre, &cible) {
             Ok(()) => true,
             Err(e) => {
-                eprintln!("[Glucose] depot web : la place reprise reste refusee ({e})");
+                crate::dire_erreur!("[Glucose] depot web : la place reprise reste refusee ({e})");
                 false
             }
         }
@@ -249,7 +251,7 @@ fn dire_le_repli(adresses: &[String], repli: &Moisson) {
         .filter(|a| super::sources::variantes_pinterest(a).is_some())
         .count();
     let vignette = repli.recus.iter().any(|r| !r.est_un_raccourci());
-    println!(
+    crate::dire!(
         "[Glucose] depot : {} adresse(s), dont {pinterest} image(s) de Pinterest ; vignette glissee : {}",
         adresses.len(),
         if vignette { "oui" } else { "non" }
@@ -522,7 +524,7 @@ fn lire_le_flux(flux: &IStream) -> Option<Vec<u8>> {
         }
         tout.extend_from_slice(&tranche[..lu as usize]);
         if tout.len() > OCTETS_MAX {
-            eprintln!("[Glucose] depot web : le fichier promis depasse ce qu'on accepte");
+            crate::dire_erreur!("[Glucose] depot web : le fichier promis depasse ce qu'on accepte");
             return None;
         }
     }

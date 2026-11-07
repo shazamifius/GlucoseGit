@@ -54,7 +54,7 @@ thread_local! {
 pub fn frame_begin() {
     let now = Instant::now();
     if level() >= 2 {
-        eprintln!("[perf] --- frame begin ---");
+        crate::dire_erreur!("[perf] --- frame begin ---");
     }
     FRAME_START.with(|c| c.set(Some(now)));
     LAST_MARK.with(|c| c.set(Some(now)));
@@ -105,7 +105,7 @@ pub fn stage(label: &'static str) {
     if let Some(prev) = previous {
         let ms = now.duration_since(prev).as_secs_f64() * 1000.0;
         if level() >= 2 {
-            eprintln!("[perf]   {label}={ms:.2}ms");
+            crate::dire_erreur!("[perf]   {label}={ms:.2}ms");
         }
         STAGES.with(|s| {
             let mut postes = s.borrow_mut();
@@ -147,7 +147,7 @@ pub fn frame_end() {
             .map(|(label, valeur)| format!(" {label}={valeur:.1}"))
             .collect::<String>()
     });
-    eprintln!("[perf] frame #{index} total={total_ms:.2}ms {detail}{compteurs}");
+    crate::dire_erreur!("[perf] frame #{index} total={total_ms:.2}ms {detail}{compteurs}");
 }
 
 /// Écrit une mesure ponctuelle hors frame (démarrage, chargement, etc.).
@@ -156,7 +156,7 @@ pub fn event(label: &str, started: Instant) {
         return;
     }
     let ms = started.elapsed().as_secs_f64() * 1000.0;
-    eprintln!("[perf] {label}={ms:.2}ms");
+    crate::dire_erreur!("[perf] {label}={ms:.2}ms");
 }
 
 #[cfg(test)]

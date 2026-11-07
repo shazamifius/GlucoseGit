@@ -41,7 +41,7 @@ pub fn relayer() -> i32 {
         .ok()
         .filter(|n| !n.is_empty());
     let Some(nom) = instrument.clone().or_else(porte::nom_par_defaut) else {
-        eprintln!("[glucose --mcp] aucune porte pour ce compte");
+        crate::dire_erreur!("[glucose --mcp] aucune porte pour ce compte");
         return 1;
     };
     let mut entree = BufReader::new(std::io::stdin());
@@ -52,7 +52,7 @@ pub fn relayer() -> i32 {
     let flux = match brancher(&nom, instrument.is_none()) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("[glucose --mcp] {e}");
+            crate::dire_erreur!("[glucose --mcp] {e}");
             return 1;
         }
     };

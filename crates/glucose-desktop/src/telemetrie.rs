@@ -250,14 +250,16 @@ impl crate::app::GlucoseApp {
                 .stderr(std::process::Stdio::null())
                 .spawn();
             if let Err(e) = lance {
-                println!("[Glucose] journal technique : envoi remis ({e})");
+                crate::dire!("[Glucose] journal technique : envoi remis ({e})");
             }
         }
     }
 
     pub(crate) fn repondre_a_la_telemetrie(&mut self, oui: bool) {
         if let Err(e) = self.lancement.telemetrie.repondre(oui) {
-            eprintln!("[Glucose] journal technique : la reponse n'a pas pu s'ecrire ({e})");
+            crate::dire_erreur!(
+                "[Glucose] journal technique : la reponse n'a pas pu s'ecrire ({e})"
+            );
         }
     }
 }

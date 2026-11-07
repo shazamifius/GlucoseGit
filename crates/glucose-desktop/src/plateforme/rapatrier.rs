@@ -190,7 +190,7 @@ pub fn chercher_par_etapes<'m>(
                 }
                 match course(groupe, montrer.as_deref_mut()) {
                     Ok((url, arrivee)) => {
-                        println!(
+                        crate::dire!(
                             "[Glucose] depot : image rapatriee depuis {url} en {} ms, {pages} page(s) lue(s)",
                             depart.elapsed().as_millis()
                         );
@@ -227,7 +227,7 @@ pub fn chercher_par_etapes<'m>(
     };
     // **Toujours dit**, et plus seulement sous l'instrument : c'est la ligne qui aurait dit, le
     // 07/10, que le réseau ne répondait pas.
-    eprintln!("[Glucose] depot : aucune image rapatriee -- {raison}");
+    crate::dire_erreur!("[Glucose] depot : aucune image rapatriee -- {raison}");
     Err(raison)
 }
 
@@ -402,7 +402,7 @@ fn rapatrier_l_image(url: &str) -> Result<Recu, String> {
 /// souvent, et savoir lequel a répondu est ce qui dira si l'ordre des candidats est juste.
 fn dire(url: &str, raison: &str) {
     if std::env::var_os("GLUCOSE_DEPOT").is_some() {
-        eprintln!("[Glucose] depot : {url} -- {raison}");
+        crate::dire_erreur!("[Glucose] depot : {url} -- {raison}");
     }
 }
 

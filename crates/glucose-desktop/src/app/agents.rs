@@ -85,8 +85,8 @@ impl GlucoseApp {
             .and_then(|nom| Porte::ouvrir(nom, boite.clone()));
         // Le téléphone n'a pas de porte : le dire tel, et non comme un refus (fiche 83).
         match (&nom, &porte) {
-            (None, _) => println!("[Glucose] porte des agents : aucune sur ce système"),
-            (Some(_), None) => println!(
+            (None, _) => crate::dire!("[Glucose] porte des agents : aucune sur ce système"),
+            (Some(_), None) => crate::dire!(
                 "[Glucose] porte des agents : un autre Glucose la tient, ou le système la refuse"
             ),
             _ => {}

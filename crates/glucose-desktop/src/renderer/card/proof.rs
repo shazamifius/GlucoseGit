@@ -149,7 +149,7 @@ fn test_r45_the_drawn_text_keeps_the_same_share_of_the_card() {
             .expect("ecriture png");
     }
     std::fs::write(dir.join("ratios.txt"), &report).expect("rapport");
-    println!("{report}");
+    crate::dire!("{report}");
 
     // La référence est le zoom 1 : c'est le seul où, même avant le correctif, aucune borne
     // ne se déclenchait. Si les cinq zooms s'y ramènent, ils dessinent la même carte.

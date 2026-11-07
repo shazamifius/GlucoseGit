@@ -203,6 +203,7 @@
 | **Une cause qui dort faute d'appareil** : dix jours sans son téléphone ni son câble (fiche 83) | le téléphone virtuel de ce PC (§ 5), et un tableau fabriqué par le vrai dépôt |
 | **Une borne d'épreuve supposée** : « un écart d'une unité » entre l'atlas et une texture seule ; WARP lit 2, et Windows est tombé sur GitHub (fiche 88) | déduire la borne de ce que le matériel garantit (1/2⁸ de texel), et vérifier que le sabotage tombe encore |
 | **Une même chose sous deux noms** : le document ouvert se désignait par son identité (fiche 80), le fil qui lit les fichiers par son chemin — il se comptait deux fois ; 137 épreuves vertes, l'essai réel l'a vu en vingt minutes (fiche 88) | ce qui se compare se nomme pareil des deux côtés ; un essai réel sur de vrais fichiers avant « fini » |
+| **Un verdict compté depuis la commande** : « mort » pour un Glucose que `nix develop` n'avait pas encore lancé — deux essais, deux verdicts (fiche 88 § 10) | compter depuis le début de ce qu'on juge (son journal), et distinguer « jamais lancé » de « mort » ; un témoin dans les mêmes conditions |
 | **Un geste changé sur le papier pour une plateforme** : créer un domaine seulement une fois nommé fermait la création au téléphone, où le nom ne se tape pas (fiche 88) | relire, plateforme par plateforme, ce qu'un geste suppose (ici : un clavier) avant de le changer |
 
 ## 5. Les pièges pratiques

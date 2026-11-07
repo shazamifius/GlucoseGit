@@ -76,7 +76,7 @@ impl GlucoseApp {
         match lu {
             Ok(scenario) => self.lancement.scenario = Some(scenario),
             Err(e) => {
-                eprintln!("[Glucose] scénario illisible : {e}");
+                crate::dire_erreur!("[Glucose] scénario illisible : {e}");
                 return;
             }
         }
@@ -113,7 +113,7 @@ impl GlucoseApp {
         } else if let Some(commande) = Commande::de_l_id(&geste) {
             self.executer(commande);
         }
-        println!("[Glucose] scénario : {geste} en {:?}", debut.elapsed());
+        crate::dire!("[Glucose] scénario : {geste} en {:?}", debut.elapsed());
         self.mark_dirty();
         false
     }

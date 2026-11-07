@@ -1,7 +1,6 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 7/11/2026** (fiches 73 à 87 ; **la beta 8 publiée par lui le 6/11, la beta 9 prête à sa
-> parole** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
+> **Au 7/11/2026** (fiches 73 à 87 ; **la beta 8 publiée par lui le 6/11, la beta 9 publiée par lui le 7/11** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
 > ce que chacune porte, et ce qui la déclare finie. Tout y est à remettre en question — ses
 > paroles comprises. La direction vit dans [VISION](VISION.md), l'état vérifié dans
 > [ÉTAT](ETAT.md), chaque fonction et son bouton dans [INVENTAIRE](INVENTAIRE.md), la cible
@@ -102,6 +101,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 |---|---|---|
 | [~] | **BARRE-1 — La barre blanche de Windows disparaît** (sa demande du 6/11, fiche 85) : la bande déplace la fenêtre et porte réduire, agrandir, fermer | à l'écran d'un Windows réel : glisser, coller aux bords, couleurs inchangées une fois agrandie |
 | [~] | **Le domaine** (sa définition du 22/10, [VISION](VISION.md) ; fiche 88) : un domaine **traverse** les blocs, les membranes et les fichiers. **Fait** : chaque fichier garde ses domaines, Glucose met côte à côte ceux des documents qu'il connaît (sans y écrire) ; sa règle du 7/11, **deux domaines ne portent jamais le même nom** — on demande « même sujet » ou on précise le mot ; une IA les lit (`glucose_lire`, `glucose_domaines`) et les pose (`glucose_poser_domaine`) ; le panneau montre les autres fichiers, pose la question, et va à chaque place (« où »). **Essai réel hors écran** : trois blocs, deux fichiers, un domaine. **Reste** : les synonymes (« eau », « water ») ; sa visualisation (étape 5) | à son écran : créer « Eau » dans deux documents, « où », la question de deux « Python » ; et un agent qui s'en sert |
+| [ ] | **Les commandes Linux** (sa demande du 7/11 : *« des commandes Linux directement pour faire des trucs avec Glucose, plein plein de commandes, dont l'ouvrir »*) : `glucose` dans son terminal (le paquet Nix installé dans son profil), puis une commande par outil de la porte des agents — une seule table, deux portes, ce qu'une IA fait par MCP un humain le fait au terminal (`glucose lire`, `glucose domaines`, `glucose chercher`…) | `glucose fichier.glucose` ouvre ; chaque outil a sa commande, éprouvée |
 | [ ] | **La recherche, `Ctrl+F`** (sa décision du 13/10 : tout cadrer est passé à `Alt+F`) : chercher dans tout le document — textes, titres, noms de fichiers —, voler d'un résultat au suivant ; sur le noyau, pour tenir 10⁷ nœuds | à son écran, sur un gros tableau |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |
@@ -263,7 +263,7 @@ tableaux sur une Intel UHD 620 ; et la liste de « tant de choses ne marchent pa
 ## 3. Ce qui n'attend que lui
 
 * **La beta 8 est publiée par lui le 6/11** (barre blanche, teintes, sélection) : **ses essais à l'école** : le texte, la fenêtre glissée et collée au bord, les couleurs une fois agrandie.
-* **La beta 9** porte CHARGE-1 (serveur déjà déployé), la fiche 87 et JOURNAL-1 ; ses notes sont prêtes (`outils/publication/notes.md`). **Son clic.**
+* **La beta 9, publiée par lui le 7/11** (CHARGE-1, la fiche 87, JOURNAL-1). Le domaine (fiche 88) ira dans la suivante.
 * **La clé de mise à jour** : récupérée le 7/11 et rangée sur ses deux disques (fiche 87 § 7 sexies). **Une copie hors de cet ordinateur, sur une clé USB à lui, reste à faire.**
 * **`sauvegarde-profil-2026-10-31.7z`** (317 Mo : ses clés de serveur, son identité web3, ses brouillons) : où l'a-t-il mise ? Introuvable sur ce PC (fiche 84 § 6).
 * **Ouvrir Glucose sur son téléphone** (encore en beta 3, muet depuis le 15/10) : la seule façon

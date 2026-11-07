@@ -211,7 +211,7 @@ mod tests {
         .expect("une fenetre hors de l'ecran");
         let lu = imp::carte_de_la_poignee(fenetre);
         let _ = unsafe { DestroyWindow(fenetre) };
-        eprintln!("ECRAN-1 sur cette machine : {lu:x?}");
+        crate::dire_erreur!("ECRAN-1 sur cette machine : {lu:x?}");
         if let Some(((vendeur, _), _)) = lu {
             assert_ne!(vendeur, 0, "une carte sans vendeur : la lecture est fausse");
         }

@@ -777,7 +777,7 @@ mod tests {
         }
         let count = typo.cached_glyph_count();
         assert!(count <= GLYPH_CACHE_CAPACITY, "cache de {count} variantes");
-        println!("[R-46] variantes en cache apres un balayage complet : {count}");
+        crate::dire!("[R-46] variantes en cache apres un balayage complet : {count}");
     }
 
     #[test]

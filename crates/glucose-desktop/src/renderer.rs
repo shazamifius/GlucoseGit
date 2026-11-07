@@ -669,7 +669,7 @@ mod tests {
             "frame complète : {elapsed} ms (budget {FULL_FRAME_BUDGET_MS} ms)"
         );
         // Ce que la frame coûte au cache de glyphes, phases sous-pixel comprises (GLYPH-1).
-        println!(
+        crate::dire!(
             "[perf] frame complète : {elapsed} ms, {} variantes de glyphes en cache",
             renderer.typography.cached_glyph_count()
         );

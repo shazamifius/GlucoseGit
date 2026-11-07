@@ -28,22 +28,7 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     if let Some(clavier) = crate::plateforme::clavier::prendre() {
         app.lancement.clavier.brancher(clavier);
     }
-    // La boîte noire (fiche 45) : ce qui se passe, écrit au fil de l'eau ; et comment la
-    // session d'avant a fini.
-    let precedente = app.chronique.ouvrir_la_boite_noire(dossier);
-    if let Some(p) = &precedente {
-        println!("[Glucose] la session précédente : {}", p.dire());
-    }
-    if let Some(boite) = app.chronique.boite_noire() {
-        boite.temoigner_des_paniques();
-    }
-    // La boîte noire qui voyage (fiche 54) : avec son accord, les sessions closes partent.
-    let session = app
-        .chronique
-        .boite_noire()
-        .map(|b| b.chemin().to_path_buf());
-    app.lancement.telemetrie =
-        crate::telemetrie::Telemetrie::habiter(dossier.to_path_buf(), session);
+    let precedente = ouvrir_la_boite_noire(&mut app, dossier);
     // Comment ce Glucose est installé : celui qui ne sait pas se remplacer (NixOS, `cargo run`,
     // un téléphone) ne cherche aucune mise à jour. Après une session qui a mal fini, elle se
     // cherche AVANT tout ce qui peut tomber — la carte graphique, le document (fiche 48).
@@ -66,7 +51,9 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     // Après la reprise, dont les messages passeraient devant celui-ci (MOTEUR-1).
     let version = cycle::courante().to_string();
     if let Some(moteur) = crate::present::echelle::habiter(dossier, &version) {
-        println!("[Glucose] le moteur {moteur} a fait tomber la session d'avant : il est écarté");
+        crate::dire!(
+            "[Glucose] le moteur {moteur} a fait tomber la session d'avant : il est écarté"
+        );
         app.ui.show_toast_a_lire(
             "Le pilote de la carte graphique a fermé Glucose au dernier lancement : \
              Glucose passe maintenant par un autre chemin.",
@@ -87,6 +74,29 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     }
     event_loop.run_app(&mut app)?;
     Ok(())
+}
+
+/// **La boîte noire** (fiche 45) : ce qui se passe, écrit au fil de l'eau ; et comment la session
+/// d'avant a fini, rendu au lancement. Puis la boîte noire qui voyage (fiche 54) : avec son accord,
+/// les sessions closes partent.
+fn ouvrir_la_boite_noire(
+    app: &mut GlucoseApp,
+    dossier: &Path,
+) -> Option<crate::boite_noire::bilan::Bilan> {
+    let precedente = app.chronique.ouvrir_la_boite_noire(dossier);
+    if let Some(p) = &precedente {
+        crate::dire!("[Glucose] la session précédente : {}", p.dire());
+    }
+    if let Some(boite) = app.chronique.boite_noire() {
+        boite.temoigner_des_paniques();
+    }
+    let session = app
+        .chronique
+        .boite_noire()
+        .map(|b| b.chemin().to_path_buf());
+    app.lancement.telemetrie =
+        crate::telemetrie::Telemetrie::habiter(dossier.to_path_buf(), session);
+    precedente
 }
 
 /// **Ce qui réveille la boucle depuis un autre fil** : chacun reçoit le sien.

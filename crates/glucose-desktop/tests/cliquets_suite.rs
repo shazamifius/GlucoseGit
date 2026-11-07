@@ -1202,3 +1202,34 @@ fn test_cliquet_12_rfd_et_arboard_restent_derriere_leur_porte() {
         "rfd ou arboard hors de sa porte — passer par dialogue ou presse_papiers : {fautes:#?}"
     );
 }
+
+// ── Cliquet 13 : la console ne tue jamais Glucose ──────────────────────────────
+
+/// **Rien n'écrit sur la console que par `dire!` ou `dire_erreur!`** (CONSOLE-1, fiche 88).
+/// `println!` panique quand la console a disparu : un terminal fermé suffisait à faire tomber
+/// Glucose, et c'est arrivé, le 5/11/2026 au bout de 21 minutes. La porte, elle, se tait.
+#[test]
+fn test_cliquet_13_rien_n_ecrit_sur_la_console_hors_de_sa_porte() {
+    let interdits = ["println!(", "eprintln!(", "print!(", "eprint!("];
+    let fautes: Vec<String> = sources(&src_desktop())
+        .iter()
+        .flat_map(|s| {
+            s.texte
+                .lines()
+                .filter(|l| {
+                    let l = nue(l);
+                    interdits.iter().any(|i| {
+                        l.match_indices(i).any(|(k, _)| {
+                            !l[..k].ends_with(|c: char| c.is_alphanumeric() || c == '_')
+                        })
+                    })
+                })
+                .map(move |l| format!("{} : {}", s.chemin.display(), l.trim()))
+        })
+        .collect();
+    assert!(
+        fautes.is_empty(),
+        "une écriture sur la console hors de sa porte — passer par crate::dire! ou \
+         crate::dire_erreur! : {fautes:#?}"
+    );
+}

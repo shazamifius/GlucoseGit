@@ -41,7 +41,9 @@ pub(super) fn cadence_demandee() -> Option<wgpu::PresentMode> {
         "mailbox" => Some(wgpu::PresentMode::Mailbox),
         "fifo" => Some(wgpu::PresentMode::Fifo),
         autre => {
-            eprintln!("[Glucose] GLUCOSE_PRESENT={autre} inconnu (immediate, mailbox, fifo)");
+            crate::dire_erreur!(
+                "[Glucose] GLUCOSE_PRESENT={autre} inconnu (immediate, mailbox, fifo)"
+            );
             None
         }
     }
@@ -103,7 +105,7 @@ pub(super) fn images_demandees() -> Option<u32> {
     match brut.trim().parse::<u32>() {
         Ok(n) if (1..=8).contains(&n) => Some(n),
         _ => {
-            eprintln!("[Glucose] GLUCOSE_IMAGES={brut} ignore (un entier de 1 a 8)");
+            crate::dire_erreur!("[Glucose] GLUCOSE_IMAGES={brut} ignore (un entier de 1 a 8)");
             None
         }
     }
@@ -191,7 +193,7 @@ pub fn carte_imposee() -> Option<crate::present::arbitre::Preference> {
         Some("econome") => Some(Preference::Econome),
         None => None,
         Some(autre) => {
-            eprintln!("[Glucose] GLUCOSE_CARTE={autre} inconnu (rapide, econome)");
+            crate::dire_erreur!("[Glucose] GLUCOSE_CARTE={autre} inconnu (rapide, econome)");
             None
         }
     }
@@ -252,7 +254,9 @@ pub(super) fn cadencer(
             config.present_mode = voulue;
             return config;
         }
-        eprintln!("[Glucose] cadence {voulue:?} indisponible, on prend la meilleure offerte");
+        crate::dire_erreur!(
+            "[Glucose] cadence {voulue:?} indisponible, on prend la meilleure offerte"
+        );
     }
     config.present_mode = meilleure(&possibles).unwrap_or(config.present_mode);
     config

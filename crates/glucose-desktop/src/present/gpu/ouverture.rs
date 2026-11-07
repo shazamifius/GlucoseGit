@@ -94,9 +94,12 @@ pub(super) fn ouvrir(
     // **Ce que le journal du téléphone doit dire** (fiche 59) : ses rayures ne se reproduisent
     // sur aucun moteur de ce PC ; le moteur et le plafond de sa carte sont la première question.
     let info = adapter.get_info();
-    println!(
+    crate::dire!(
         "[Glucose] carte : {} — {:?}, pilote {} {}, textures jusqu'à {plafond}",
-        info.name, info.backend, info.driver, info.driver_info
+        info.name,
+        info.backend,
+        info.driver,
+        info.driver_info
     );
     // Ce que le journal technique en dira : ses numéros, jamais son nom (fiche 60).
     let numeros = Carte::de(&info, plafond);
@@ -128,7 +131,7 @@ pub(super) fn ouvrir(
     // fond de la pile graphique. Une erreur de pilote n'est pas un bogue de Glucose : elle
     // se dit, et l'image suivante réessaie.
     device.on_uncaptured_error(Arc::new(|e| {
-        eprintln!("[Glucose] la couche graphique a refusé une commande : {e}");
+        crate::dire_erreur!("[Glucose] la couche graphique a refusé une commande : {e}");
     }));
 
     Ok((adapter, device, queue, adaptateur, numeros))

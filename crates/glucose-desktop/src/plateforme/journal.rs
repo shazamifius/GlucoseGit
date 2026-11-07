@@ -251,7 +251,9 @@ mod tests {
         let jetable = std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true")
             && std::env::var("RUNNER_ENVIRONMENT").as_deref() == Ok("github-hosted");
         if !jetable {
-            eprintln!("sautée : elle ne fait tomber un processus que sur une machine de GitHub");
+            crate::dire_erreur!(
+                "sautée : elle ne fait tomber un processus que sur une machine de GitHub"
+            );
             return;
         }
         use std::os::windows::process::CommandExt;

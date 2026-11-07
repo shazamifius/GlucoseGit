@@ -109,7 +109,9 @@ impl GlucoseApp {
                 self.mark_dirty();
             }
             Err(e) => {
-                eprintln!("[GlucoseDesktop] presentation du framebuffer impossible : {e}");
+                crate::dire_erreur!(
+                    "[GlucoseDesktop] presentation du framebuffer impossible : {e}"
+                );
             }
         }
     }

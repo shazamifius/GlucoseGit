@@ -80,7 +80,7 @@ impl ApplicationHandler for GlucoseApp {
         }
         let started = std::time::Instant::now();
         if let Err(e) = self.init_window(event_loop) {
-            eprintln!("[GlucoseDesktop] initialisation de la fenêtre impossible : {e}");
+            crate::dire_erreur!("[GlucoseDesktop] initialisation de la fenêtre impossible : {e}");
             event_loop.exit();
             return;
         }
@@ -169,7 +169,9 @@ impl GlucoseApp {
                 if let Some(presenter) = &mut self.presenter {
                     if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
                         if let Err(e) = presenter.resize(w, h) {
-                            eprintln!("[GlucoseDesktop] redimensionnement de la surface : {e}");
+                            crate::dire_erreur!(
+                                "[GlucoseDesktop] redimensionnement de la surface : {e}"
+                            );
                         }
                     }
                 }

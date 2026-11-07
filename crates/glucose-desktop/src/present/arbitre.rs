@@ -280,7 +280,7 @@ impl Arbitre {
         // impossible ne vérifie pas le chemin qu'il prétend vérifier — il en invente un autre.
         if self.essai_force {
             self.essai_force = false;
-            println!("[Glucose] arbitre : essai force par GLUCOSE_ARBITRE");
+            crate::dire!("[Glucose] arbitre : essai force par GLUCOSE_ARBITRE");
             return self.juger();
         }
         self.courante.1.noter(present_us);

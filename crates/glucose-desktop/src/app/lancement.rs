@@ -129,7 +129,7 @@ impl GlucoseApp {
             .and_then(|v| v.installation().relance(installeur));
         if let Some((programme, arguments)) = relance {
             if let Err(e) = cycle::lancer(&programme, arguments) {
-                eprintln!("[Glucose] mise à jour : {e}");
+                crate::dire_erreur!("[Glucose] mise à jour : {e}");
             }
         }
         self.ui.fermer_la_fenetre = true;
@@ -200,7 +200,7 @@ impl GlucoseApp {
             .and_then(|relance| relance.ok_or_else(|| "rien à relancer".to_string()))
             .and_then(|(programme, arguments)| cycle::lancer(&programme, arguments));
         if let Err(e) = &relance {
-            eprintln!("[Glucose] mise à jour avant tout : {e}");
+            crate::dire_erreur!("[Glucose] mise à jour avant tout : {e}");
         }
         relance.is_ok()
     }

@@ -459,7 +459,7 @@ impl GlucoseApp {
                 &mut self.presenter,
             ) {
                 if let Err(e) = presenter.resize(w, h) {
-                    eprintln!("[GlucoseDesktop] redimensionnement de la surface : {e}");
+                    crate::dire_erreur!("[GlucoseDesktop] redimensionnement de la surface : {e}");
                 }
             }
 

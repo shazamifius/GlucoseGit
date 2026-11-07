@@ -165,7 +165,7 @@ fn test_the_filled_height_is_proportional_to_the_weight() {
             );
         }
     }
-    println!("{report}");
+    crate::dire!("{report}");
 }
 
 /// Deux poids différents se distinguent **par la hauteur seule**, sans rien lire d'autre.

@@ -163,7 +163,7 @@ fn discard(temp: &Path) {
     if temp.exists() {
         match std::fs::remove_file(temp) {
             Ok(()) => {}
-            Err(err) => eprintln!(
+            Err(err) => crate::dire_erreur!(
                 "[Glucose] temporaire d'enregistrement laissé sur le disque : {} ({err})",
                 temp.display()
             ),

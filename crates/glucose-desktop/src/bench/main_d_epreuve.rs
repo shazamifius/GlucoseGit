@@ -47,7 +47,7 @@ impl MainDEpreuve {
             let issue = Json::lire(ligne.trim())
                 .and_then(|g| geste(app, &g))
                 .unwrap_or_else(|e| format!("refusé : {e}"));
-            println!("[main] {issue}");
+            crate::dire!("[main] {issue}");
         }
         self.joues = lignes.len();
         neufs

@@ -120,16 +120,16 @@ pub fn courante() -> Version {
 pub fn commande(argument: Option<&str>, installeurs: &Path) -> Option<i32> {
     match argument? {
         "--version" => {
-            println!("Glucose {}", courante());
+            crate::dire!("Glucose {}", courante());
             Some(0)
         }
         "--mettre-a-jour" => match mettre_a_jour_en_silence(installeurs) {
             Ok(v) => {
-                println!("Glucose {v} : la mise à jour est posée");
+                crate::dire!("Glucose {v} : la mise à jour est posée");
                 Some(0)
             }
             Err(e) => {
-                println!("pas de mise à jour : {e}");
+                crate::dire!("pas de mise à jour : {e}");
                 Some(1)
             }
         },

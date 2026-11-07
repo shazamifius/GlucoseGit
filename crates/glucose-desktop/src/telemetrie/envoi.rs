@@ -250,12 +250,12 @@ fn envoyer_ces(adresse: &str, dossier: &Path, installation: &str, sessions: &[Se
         match reponse {
             Ok(200 | 201) => retenir(dossier, cle, "partie"),
             Ok(code) => {
-                println!("[Glucose] journal technique : {nom} refuse ({code})");
+                crate::dire!("[Glucose] journal technique : {nom} refuse ({code})");
                 retenir(dossier, cle, &format!("refusee {version}"));
             }
             // Le réseau manque : la suite attendra le lancement suivant.
             Err(e) => {
-                println!("[Glucose] journal technique : envoi remis ({e})");
+                crate::dire!("[Glucose] journal technique : envoi remis ({e})");
                 return;
             }
         }
@@ -290,7 +290,7 @@ fn retenir(dossier: &Path, nom: &str, comment: &str) {
         .open(dossier.join(ENVOYEES))
         .and_then(|mut f| writeln!(f, "{nom} {comment}"));
     if ecrit.is_ok() {
-        println!("[Glucose] journal technique : {nom} {comment}");
+        crate::dire!("[Glucose] journal technique : {nom} {comment}");
     }
 }
 
@@ -301,8 +301,10 @@ pub fn effacer_en_fond(adresse: String, installation: String) {
         .spawn(move || {
             let url = format!("{adresse}/v1/installations/{installation}");
             match crate::plateforme::envoyer(&url, Verbe::Effacer, &[]) {
-                Ok(200) => println!("[Glucose] journal technique : ce qui est parti est efface"),
-                autre => println!("[Glucose] journal technique : effacement rate ({autre:?})"),
+                Ok(200) => {
+                    crate::dire!("[Glucose] journal technique : ce qui est parti est efface")
+                }
+                autre => crate::dire!("[Glucose] journal technique : effacement rate ({autre:?})"),
             }
         });
 }
