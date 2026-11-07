@@ -394,8 +394,8 @@
  {
   "nom": "DOM-4 au panneau le nom d'un autre fichier passe",
   "fichier": "crates/glucose-desktop/src/interactions/domains.rs",
-  "avant": "        if let Some(question) = self.question_du_nom(&name, Some(&domain_id)) {",
-  "apres": "        if let Some(question) = None::<String> {",
+  "avant": "            self.question_du_nom(&name, Some(&domain_id))\n",
+  "apres": "            None\n",
   "cmd": [
    "cargo",
    "test",
@@ -470,8 +470,8 @@
  {
   "nom": "a_jour lu après la relance",
   "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
-  "avant": "        let a_jour = !self.recenseur.en_cours;\n        self.recenseur.relancer();",
-  "apres": "        self.recenseur.relancer();\n        let a_jour = !self.recenseur.en_cours;",
+  "avant": "        let a_jour = !self.disque.recenseur.en_cours;\n        self.disque.recenseur.relancer();",
+  "apres": "        self.disque.recenseur.relancer();\n        let a_jour = !self.disque.recenseur.en_cours;",
   "cmd": [
    "cargo",
    "test",

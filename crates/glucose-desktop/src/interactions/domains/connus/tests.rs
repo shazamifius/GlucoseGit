@@ -329,13 +329,23 @@ fn un_renommage_d_ailleurs_arrive_ici() {
     app.store.adopter_un_domaine(&venu).unwrap();
     let id = venu.id.clone();
 
-    // Une définition plus ancienne que la nôtre : rien.
+    // La même définition : rien.
     app.disque
         .recenseur
         .etat
         .poser(recenser("/ailleurs.glucose", &autre.project));
     app.accorder_les_domaines();
     assert_eq!(app.store.domain(&id).unwrap().name, "Python");
+
+    // Une définition plus ancienne que la nôtre, et différente : elle ne défait pas notre renommage.
+    let ici = DomainPatch::new().with_name("Python serpent").at(50);
+    app.store.try_update_domain(&id, ici).unwrap();
+    app.accorder_les_domaines();
+    assert_eq!(
+        app.store.domain(&id).unwrap().name,
+        "Python serpent",
+        "la nôtre est plus récente"
+    );
 
     let patch = DomainPatch::new()
         .with_name("Python code")
