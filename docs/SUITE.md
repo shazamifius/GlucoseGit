@@ -259,9 +259,8 @@ tableaux sur une Intel UHD 620 ; et la liste de « tant de choses ne marchent pa
 
 * **La beta 8 est publiée par lui le 6/11** (barre blanche, teintes, sélection) : **ses essais à l'école** : le texte, la fenêtre glissée et collée au bord, les couleurs une fois agrandie.
 * **La beta 9** porte CHARGE-1 (serveur déjà déployé), la fiche 87 et JOURNAL-1 ; ses notes sont prêtes (`outils/publication/notes.md`). **Son clic.**
-* **`sauvegarde-profil-2026-10-31.7z`** : il n'a pas accès à son ancien PC pour l'instant ; il n'a pas fait l'envoi sur le cloud. **La récupération de `TAURI_SIGNING_PRIVATE_KEY` par une tâche GitHub chiffrée lui reste à proposer** : seul exemplaire connu.
-* **`sauvegarde-profil-2026-10-31.7z`** (317 Mo : la clé de mise à jour, ses clés de serveur, son
-  identité web3, ses brouillons) : où l'a-t-il mise ? Introuvable sur ce PC (fiche 84 § 6).
+* **La clé de mise à jour** : récupérée le 7/11 et rangée sur ses deux disques (fiche 87 § 7 sexies). **Une copie hors de cet ordinateur, sur une clé USB à lui, reste à faire.**
+* **`sauvegarde-profil-2026-10-31.7z`** (317 Mo : ses clés de serveur, son identité web3, ses brouillons) : où l'a-t-il mise ? Introuvable sur ce PC (fiche 84 § 6).
 * **Ouvrir Glucose sur son téléphone** (encore en beta 3, muet depuis le 15/10) : la seule façon
   de savoir pourquoi le tableau de 6 000 images est mort (P0).
 * **Ses trois réponses de la partie 1** (§ 0) : l'iPad, les presets Figma et Miro, « avec des

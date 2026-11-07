@@ -33,7 +33,7 @@
 * **La télémétrie au 6/11** : 132 sessions, 7 installations, 29 fins anormales. L'utilisateur à la
   GTX 1660 revient toujours (39 sessions, dernière le 4/11, en beta 6). **Son téléphone reste muet
   depuis le 15/10.** Son PC Windows : dernière session le 23/10.
-* **Une clé n'a plus de copie connue** : voir § 4.
+* **La clé de mise à jour a retrouvé des copies** (7/11), toutes sur ce PC : voir § 4.
 * **Sa parole du 25/10 : Protéo en pause, la partie 1 de Glucose d'abord** — le logiciel complet,
   ultra optimisé, des utilisateurs, une ergonomie parfaite. SUITE § 0 en propose la ligne
   d'arrivée (la 2.1.0, six conditions) et cinq étapes ; trois questions attendent sa parole.
@@ -208,11 +208,7 @@ est venu depuis la fiche 62 attend son écran** : la liste unique est dans [SUIT
 
 * **La clé Android** : dans les secrets du dépôt, et dans
   `/stockage/ancien-windows/bureau/sauvegarde-documents-2026-10-31.7z` (chiffrée, testée le 6/11).
-* **La clé de mise à jour** (`glucose_updater.key`, celle de chaque version de Tauri) : dans les
-  secrets du dépôt, qui ne se relisent pas. **Sa copie, `sauvegarde-profil-2026-10-31.7z`, est
-  introuvable sur cette machine** (fiche 84 § 6) : les publications marchent, mais ce secret est son
-  seul exemplaire connu. La même archive portait ses clés de serveur, son identité web3 et ses
-  brouillons Glucose.
+* **La clé de mise à jour** (`glucose_updater.key`, celle de chaque version de Tauri) : le secret du dépôt, et **deux copies sur ce PC depuis le 7/11** (fiche 87 § 7 sexies), sur ses deux disques. **Aucune hors de cet ordinateur** : s'il disparaît, il ne reste que le secret, qui ne se relit que par une tâche. `sauvegarde-profil-2026-10-31.7z` reste introuvable : ses clés de serveur, son identité web3 et ses brouillons n'ont pas de copie connue ici.
 * Son dossier Glucose (`~/.local/state/glucose`, `%LOCALAPPDATA%\Glucose` sous Windows) ne se touche
   jamais ; un diagnostic se fait sur une copie de ses documents.
 * **Deux branches, et pas une de plus** (sa demande du 16/10) : `main` et `tauri-v1.0.1`, en local

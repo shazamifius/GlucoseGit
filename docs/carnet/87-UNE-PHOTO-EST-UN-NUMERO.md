@@ -168,6 +168,16 @@ partie pour toujours. Ce qui n'a pas pu partir part au lancement suivant, comme 
 (`fin` présente) juste après la fermeture, une seule fois. **La question d'accord et `docs/TELEMETRIE.md` le disent.** **Non prouvé** : un
 AppImage, dont le montage disparaît quand son programme finit ; le pire est un report au lancement suivant.
 
+## 7 sexies. La clé de mise à jour a retrouvé des copies
+
+Son seul exemplaire connu était le secret GitHub, qui ne se relit pas (fiche 84 § 6). **À sa demande du 7/11** : une tâche GitHub temporaire
+a chiffré `TAURI_SIGNING_PRIVATE_KEY` pour une clé RSA tirée ici, dont la moitié privée n'a jamais quitté cet ordinateur. Tâche, exécution et
+artefact retirés aussitôt, clé RSA effacée.
+
+**Prouvé** : elle s'ouvre (sa somme de contrôle), porte le numéro `AF7A8A0B124C1ABD`, et sa clé publique est exactement celle compilée dans
+Glucose. **Elle n'a pas de mot de passe.** Rangée, en lecture pour lui seul : `~/.local/share/glucose-cles/` et
+`/stockage/ancien-windows/bureau/`. **Aucune copie hors de cet ordinateur.**
+
 ## 8. Les leçons
 
 * **Profiler avec la pile d'appels avant de concevoir.** Une session entière a conçu un atlas et des poses gardées à
