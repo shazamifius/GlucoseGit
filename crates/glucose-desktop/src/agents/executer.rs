@@ -5,6 +5,8 @@
 //! ([`glucose_core::store::Store::geste_d_agent`] : AGENT-1, AGENT-2). Ce qu'il rend est du
 //! JSON que le modèle lit ; ce qui l'empêche, une phrase qu'il peut corriger.
 
+mod domaines;
+
 use super::json::Json;
 use super::lecture::{choisir, empreinte, premiere_phrase, Demande, Rendu};
 use crate::app::GlucoseApp;
@@ -75,6 +77,8 @@ impl GlucoseApp {
             "glucose_deplacer" => self.agent_deplacer(&board, &a),
             "glucose_retirer" => self.agent_retirer(&board, &a),
             "glucose_ouvrir_tableau" => self.agent_ouvrir_tableau(&a),
+            "glucose_poser_domaine" => self.agent_poser_domaine(&board, &a),
+            "glucose_domaines" => self.agent_lire_les_domaines(&a),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),
         };
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.
@@ -99,7 +103,9 @@ impl GlucoseApp {
                     .collect(),
             ),
         };
+        let domaine = self.domaine_a_lire(a)?;
         let demande = Demande {
+            domaine: domaine.as_deref(),
             dans: a.texte("dans"),
             ids,
             cherche: a.texte("cherche"),
@@ -122,11 +128,16 @@ impl GlucoseApp {
             .collect();
         Ok(Json::objet([
             ("document", Json::from(self.store.identite.as_str())),
+            (
+                "fichier",
+                Json::from(self.fichier_de_ce_document().as_str()),
+            ),
             ("tableau", Json::from(board)),
             ("visible", boite_en_json(self.ce_qu_il_voit())),
             ("selection", self.ce_qu_il_designe(board)),
             ("noeuds", Json::Liste(noeuds)),
             ("tableaux", Json::Liste(tableaux)),
+            ("domaines", self.catalogue_pour_un_agent()),
         ]))
     }
 
@@ -175,6 +186,7 @@ impl GlucoseApp {
     fn agent_poser_texte(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
         let texte = a.requis("texte")?;
         let couleur = a.couleur()?;
+        let voulus = self.domaines_voulus(a)?;
         let id = self.id_d_agent(a, "text");
         let avant = self.boite_existante(board, &id);
         let largeur = a
@@ -221,6 +233,7 @@ impl GlucoseApp {
                     (*width, *height, *color) = (Some(largeur), Some(hauteur), couleur);
                 }
                 s.poser_pour_un_agent(board, ann)?;
+                domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 Ok(boite)
             })
             .map_err(|r| r.to_string())?;
@@ -229,6 +242,7 @@ impl GlucoseApp {
 
     fn agent_poser_membrane(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
         let couleur = a.couleur()?;
+        let voulus = self.domaines_voulus(a)?;
         let id = self.id_d_agent(a, "membrane");
         let avant = self.boite_existante(board, &id);
         let (defaut_l, defaut_h) = crate::interactions::tools::NEW_CONTAINER_SIZE;
@@ -258,6 +272,7 @@ impl GlucoseApp {
                     (*text, *color) = (titre, couleur);
                 }
                 s.poser_pour_un_agent(board, ann)?;
+                domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 Ok(boite)
             })
             .map_err(|r| r.to_string())?;
@@ -370,6 +385,7 @@ impl GlucoseApp {
             Some(chemin) => Some(self.lire_une_capture(chemin)?),
             None => None,
         };
+        let voulus = self.domaines_voulus(a)?;
         let id = self.id_d_agent(a, "page");
         let legende = format!("{id}-texte");
         let largeur = a.nombre("largeur").unwrap_or(DEFAULT_TEXT_CARD_WIDTH);
@@ -421,6 +437,9 @@ impl GlucoseApp {
                     (*width, *height) = (Some(largeur), Some(hauteur_texte));
                 }
                 s.poser_pour_un_agent(board, ann)?;
+                let photo = capture.is_some().then_some(id.as_str());
+                let noeuds: Vec<&str> = photo.into_iter().chain([legende.as_str()]).collect();
+                domaines::poser_les_domaines(s, board, &noeuds, &voulus)?;
                 Ok(boite)
             })
             .map_err(|r| r.to_string())?;
@@ -529,6 +548,9 @@ fn decrit_en_json(d: &Decrit, rendu: &Rendu) -> Json {
             .into_iter()
             .filter_map(|(cle, v)| v.map(|v| (cle, Json::from(v)))),
     );
+    if !d.domaines.is_empty() {
+        champs.push(("domaines", domaines::domaines_en_json(&d.domaines)));
+    }
     Json::objet(champs)
 }
 

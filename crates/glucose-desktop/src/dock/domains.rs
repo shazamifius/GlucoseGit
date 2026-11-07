@@ -27,11 +27,20 @@
 //! relevé des pondérations de la sélection, qui seraient l'un et l'autre en O(nœuds) par frame
 //! (loi L2). La pondération d'un nœud se lit là où elle a un sens — sur le canevas, dans sa
 //! réglette. Ce que le panneau affiche de la sélection tient en un `len()`.
+//!
+//! # DOM-UI-4 — le panneau montre aussi ce que les autres fichiers portent (fiche 88)
+//!
+//! Un domaine traverse les fichiers : le panneau liste donc, sous ceux du document, ceux qu'on
+//! connaît d'ailleurs. [`Connus`] est une vue **déduite** du recensement, refaite quand il change : ce
+//! n'est pas une copie du document, et DOM-UI-1 tient. Un domaine dont le nom désigne aussi un autre
+//! sujet ailleurs ne reçoit plus aucun palier tant qu'on n'a pas répondu : **même sujet, ou mot à
+//! préciser** (sa règle du 7/11/2026).
 
 use crate::interactions::text_entry::TextEntry;
-use crate::params::{Pointer, ScaledRect};
+use crate::params::ScaledRect;
 use crate::theme::{DOMAIN_PALETTE, DOMAIN_SIGILS};
-use glucose_core::store::Store;
+use glucose_core::store::{lignee_de, Store};
+use glucose_core::types::Domain;
 
 use super::WidgetRect;
 
@@ -58,6 +67,7 @@ struct Metrics {
     segment_height: f32,
     segment_gap: f32,
     unassign_width: f32,
+    ou_width: f32,
     add_height: f32,
     hint_height: f32,
     title_size: f32,
@@ -83,6 +93,7 @@ impl Metrics {
             segment_height: 15.0,
             segment_gap: 4.0,
             unassign_width: 26.0,
+            ou_width: 22.0,
             add_height: 26.0,
             hint_height: 16.0,
             title_size: 13.0,
@@ -110,6 +121,7 @@ impl Metrics {
             segment_height: l.segment_height * s,
             segment_gap: l.segment_gap * s,
             unassign_width: l.unassign_width * s,
+            ou_width: l.ou_width * s,
             add_height: l.add_height * s,
             hint_height: l.hint_height * s,
             title_size: l.title_size * s,
@@ -130,21 +142,64 @@ pub struct DomainRename {
     pub entry: TextEntry,
 }
 
-/// L'état d'interaction du panneau DOMAINES (DOM-UI-1). Aucune donnée de domaine ici.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// **Un domaine connu d'un autre fichier**, que ce document ne porte pas.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Ailleurs {
+    pub lignee: String,
+    pub definition: Domain,
+    pub noeuds: usize,
+    pub fichiers: usize,
+}
+
+/// **Ce que les autres fichiers disent** (DOM-UI-4), déduit du recensement.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Connus {
+    pub ailleurs: Vec<Ailleurs>,
+    /// Les domaines de ce document dont le nom désigne aussi un autre sujet ailleurs.
+    pub homonymes: Vec<String>,
+    /// Pour un domaine de ce document : combien de nœuds et de fichiers le portent aussi ailleurs.
+    pub aussi: Vec<(String, usize, usize)>,
+}
+
+/// **Une place où vit un domaine.**
+#[derive(Debug, Clone, PartialEq)]
+pub struct LigneOu {
+    pub chemin: String,
+    pub tableau: String,
+    pub noeud: String,
+    /// La première phrase du nœud, ou ce qu'il est s'il n'a pas de texte.
+    pub texte: String,
+    /// Dans le document ouvert ?
+    pub ici: bool,
+}
+
+/// **« Où ? »** : chaque place où vit un domaine, tous fichiers confondus.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Ou {
+    pub nom: String,
+    pub lignes: Vec<LigneOu>,
+}
+
+/// L'état d'interaction du panneau DOMAINES (DOM-UI-1), et ce que le recensement en déduit
+/// (DOM-UI-4). Aucune copie du document ici.
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct DomainsUi {
     /// Domaine dont la suppression attend une confirmation.
     pub pending_delete: Option<String>,
     /// Saisie de renommage en cours.
     pub rename: Option<DomainRename>,
+    pub connus: Connus,
+    /// La liste « où ? », quand elle remplace les domaines.
+    pub ou: Option<Ou>,
+    /// La première rangée montrée : la molette fait défiler.
+    pub decalage: usize,
 }
 
 impl DomainsUi {
     /// Abandonne tout geste en cours — au changement de document, par exemple, où les
     /// identifiants retenus ici ne désignent plus rien.
     pub fn reset(&mut self) {
-        self.pending_delete = None;
-        self.rename = None;
+        *self = Self::default();
     }
 }
 
@@ -161,20 +216,50 @@ pub enum DomainIntent {
     AskDelete(String),
     CancelDelete,
     ConfirmDelete(String),
-    Assign { domain_id: String, weight: f64 },
+    Assign {
+        domain_id: String,
+        weight: f64,
+    },
     Unassign(String),
+    /// Un domaine d'un autre fichier, posé sur la sélection : il entre au catalogue de ce document.
+    Adopter {
+        lignee: String,
+        weight: f64,
+    },
+    /// « Même sujet » : ce domaine rejoint son homonyme d'un autre fichier.
+    MemeSujet(String),
+    /// « Autre sujet » : préciser le mot.
+    Preciser(String),
+    /// Où vit ce domaine, tous fichiers confondus ?
+    Ou(String),
+    FermerOu,
+    /// Aller à la place de ce rang dans la liste « où ? ».
+    Aller(usize),
 }
 
 // ── Mise en page ────────────────────────────────────────────────────────────
 
-/// Les rectangles d'une ligne de domaine. `index` désigne `store.project.domains[index]` :
-/// aucune chaîne n'est recopiée par frame (§ 4.3).
+/// **Ce qu'une rangée montre** : un domaine de ce document, par son identifiant, ou un domaine connu
+/// d'ailleurs, par sa lignée.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Cible {
+    Ici(String),
+    Ailleurs(String),
+}
+
+/// Les rectangles d'une ligne de domaine. `index` désigne `store.project.domains[index]`, puis, au-delà,
+/// `connus.ailleurs` (DOM-UI-4).
 #[derive(Debug, Clone, PartialEq)]
 pub struct DomainRowLayout {
     pub index: usize,
+    pub cible: Cible,
+    /// Sa lignée : ce que « où ? » demande.
+    pub lignee: String,
     pub swatch: WidgetRect,
     pub sigil: WidgetRect,
     pub name: WidgetRect,
+    /// « où ? » : les places où il vit.
+    pub ou: WidgetRect,
     pub delete: WidgetRect,
     /// Les cinq paliers, du plus faible au plus fort.
     pub steps: Vec<WidgetRect>,
@@ -182,14 +267,20 @@ pub struct DomainRowLayout {
     /// `Some((oui, non))` quand cette ligne attend une confirmation de suppression : les deux
     /// boutons prennent alors la place de la ligne des paliers.
     pub confirm: Option<(WidgetRect, WidgetRect)>,
+    /// `Some((oui, non))` quand ce nom désigne aussi un autre sujet ailleurs : même sujet, ou mot à
+    /// préciser. Tant qu'on n'a pas répondu, aucun palier (DOM-UI-4).
+    pub question: Option<(WidgetRect, WidgetRect)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DomainsPanelLayout {
     pub rows: Vec<DomainRowLayout>,
+    /// « + Nouveau domaine », ou « Retour » quand la liste « où ? » est ouverte.
     pub add_button: WidgetRect,
-    /// Domaines qui ne tiennent pas dans la hauteur du panneau.
+    /// Rangées qui ne tiennent pas dans la hauteur du panneau : la molette les amène.
     pub hidden: usize,
+    /// Les rangées de la liste « où ? », quand elle est ouverte : `.0` est le rang de la première.
+    pub ou: Option<(usize, Vec<WidgetRect>)>,
 }
 
 /// Produit l'unique liste de rectangles du panneau (DOM-UI-2).
@@ -209,25 +300,82 @@ pub fn layout_domains_panel(
         m.add_height,
     );
     let rows_bottom = add_button.y - m.hint_height - m.row_gap;
+    if let Some(ou) = &ui.ou {
+        let pitch = m.swatch + m.row_gap;
+        let room = ((rows_bottom - (py + m.rows_top)) / pitch).floor().max(0.0) as usize;
+        let premier = ui.decalage.min(ou.lignes.len().saturating_sub(room));
+        let montres = (ou.lignes.len() - premier).min(room);
+        let lignes = (0..montres)
+            .map(|k| {
+                let top = py + m.rows_top + k as f32 * pitch;
+                WidgetRect::new(px + m.pad, top, pw - 2.0 * m.pad, m.swatch)
+            })
+            .collect();
+        return DomainsPanelLayout {
+            rows: Vec::new(),
+            add_button,
+            hidden: ou.lignes.len() - montres,
+            ou: Some((premier, lignes)),
+        };
+    }
     let pitch = m.row_height + m.row_gap;
     let room = ((rows_bottom - (py + m.rows_top)) / pitch).floor().max(0.0) as usize;
-    let shown = store.project.domains.len().min(room);
+    let domaines = store.project.domains.len();
+    let total = domaines + ui.connus.ailleurs.len();
+    let premier = ui.decalage.min(total.saturating_sub(room));
+    let shown = (total - premier).min(room);
 
     let mut rows = Vec::with_capacity(shown);
-    for index in 0..shown {
-        let top = py + m.rows_top + index as f32 * pitch;
-        let pending = ui
-            .pending_delete
-            .as_deref()
-            .is_some_and(|id| store.project.domains.get(index).is_some_and(|d| d.id == id));
-        rows.push(layout_row(index, (px, top, pw), &m, pending));
+    for k in 0..shown {
+        let index = premier + k;
+        let top = py + m.rows_top + k as f32 * pitch;
+        let (cible, lignee, pending, question) = match store.project.domains.get(index) {
+            Some(d) => (
+                Cible::Ici(d.id.clone()),
+                lignee_de(d),
+                ui.pending_delete.as_deref() == Some(d.id.as_str()),
+                ui.connus.homonymes.contains(&d.id),
+            ),
+            None => {
+                let a = &ui.connus.ailleurs[index - domaines];
+                (
+                    Cible::Ailleurs(a.lignee.clone()),
+                    a.lignee.clone(),
+                    false,
+                    false,
+                )
+            }
+        };
+        let mut row = layout_row(index, (px, top, pw), &m, pending);
+        (row.cible, row.lignee) = (cible, lignee);
+        // La question prend la place de la confirmation, sauf si une suppression attend déjà.
+        row.question = (question && !pending).then(|| deux_reponses(&row, &m));
+        rows.push(row);
     }
 
     DomainsPanelLayout {
         rows,
         add_button,
-        hidden: store.project.domains.len() - shown,
+        hidden: total - shown,
+        ou: None,
     }
+}
+
+/// Les deux boutons d'une réponse, à droite de la seconde ligne : la question reste lisible à gauche,
+/// et les deux réponses ne se confondent pas avec un palier.
+fn deux_reponses(row: &DomainRowLayout, m: &Metrics) -> (WidgetRect, WidgetRect) {
+    let right = row.delete.x + row.delete.w;
+    let second = row.unassign.y;
+    let step = row.steps.first().map_or(0.0, |r| r.w);
+    let half = (m.unassign_width * 2.0).max(step);
+    let yes = WidgetRect::new(
+        right - 2.0 * half - m.segment_gap,
+        second,
+        half,
+        m.segment_height,
+    );
+    let no = WidgetRect::new(right - half, second, half, m.segment_height);
+    (yes, no)
 }
 
 /// Les deux lignes d'un domaine : identité en haut, pondérations en bas.
@@ -242,13 +390,19 @@ fn layout_row(index: usize, at: (f32, f32, f32), m: &Metrics, pending: bool) -> 
         m.swatch,
     );
     let delete = WidgetRect::new(right - m.icon_button, top, m.icon_button, m.icon_button);
+    let ou = WidgetRect::new(
+        delete.x - m.pad / 2.0 - m.ou_width,
+        top,
+        m.ou_width,
+        m.icon_button,
+    );
     // Le nom part de la fin du sigle plutôt que d'une abscisse recopiée : deux constantes de
     // mise en page qui doivent s'accorder finissent toujours par diverger (§ 5.2).
     let name_left = sigil.x + sigil.w + m.pad / 3.0;
     let name = WidgetRect::new(
         name_left,
         top,
-        (delete.x - name_left - m.pad / 2.0).max(0.0),
+        (ou.x - name_left - m.pad / 2.0).max(0.0),
         m.swatch,
     );
 
@@ -274,99 +428,23 @@ fn layout_row(index: usize, at: (f32, f32, f32), m: &Metrics, pending: bool) -> 
         })
         .collect();
 
-    // La confirmation occupe la moitié droite de la seconde ligne : la question reste lisible
-    // à gauche, et les deux réponses ne se confondent pas avec un palier.
-    let confirm = pending.then(|| {
-        let half = (m.unassign_width * 2.0).max(step_width);
-        let yes = WidgetRect::new(
-            right - 2.0 * half - m.segment_gap,
-            second,
-            half,
-            m.segment_height,
-        );
-        let no = WidgetRect::new(right - half, second, half, m.segment_height);
-        (yes, no)
-    });
-
-    DomainRowLayout {
+    let mut row = DomainRowLayout {
         index,
+        cible: Cible::Ici(String::new()),
+        lignee: String::new(),
         swatch,
         sigil,
         name,
+        ou,
         delete,
         steps,
         unassign,
-        confirm,
-    }
-}
-
-// ── Test de clic ────────────────────────────────────────────────────────────
-
-/// Traduit un clic en intention (DOM-UI-2). Rend `None` si le clic ne touche aucun widget.
-///
-/// `has_selection` grise les paliers et le retrait : un bouton dont l'action n'existe pas ne
-/// fait rien plutôt que de simuler (§ 5.4).
-pub fn hit_domains_panel(
-    layout: &DomainsPanelLayout,
-    store: &Store,
-    pointer: Pointer,
-    has_selection: bool,
-) -> Option<DomainIntent> {
-    let (mx, my) = (pointer.x, pointer.y);
-    if layout.add_button.contains(mx, my) {
-        return Some(DomainIntent::Create);
-    }
-    for row in &layout.rows {
-        let id = store.project.domains.get(row.index)?.id.clone();
-        if let Some((yes, no)) = row.confirm {
-            if yes.contains(mx, my) {
-                return Some(DomainIntent::ConfirmDelete(id));
-            }
-            if no.contains(mx, my) {
-                return Some(DomainIntent::CancelDelete);
-            }
-        }
-        if let Some(intent) = hit_row(row, &id, pointer, has_selection) {
-            return Some(intent);
-        }
-    }
-    None
-}
-
-fn hit_row(
-    row: &DomainRowLayout,
-    id: &str,
-    pointer: Pointer,
-    has_selection: bool,
-) -> Option<DomainIntent> {
-    let (mx, my) = (pointer.x, pointer.y);
-    if row.swatch.contains(mx, my) {
-        return Some(DomainIntent::CycleColor(id.to_string()));
-    }
-    if row.sigil.contains(mx, my) {
-        return Some(DomainIntent::CycleSigil(id.to_string()));
-    }
-    if row.name.contains(mx, my) {
-        return Some(DomainIntent::StartRename(id.to_string()));
-    }
-    if row.delete.contains(mx, my) {
-        return Some(DomainIntent::AskDelete(id.to_string()));
-    }
-    if !has_selection || row.confirm.is_some() {
-        return None;
-    }
-    if row.unassign.contains(mx, my) {
-        return Some(DomainIntent::Unassign(id.to_string()));
-    }
-    for (step, rect) in row.steps.iter().enumerate() {
-        if rect.contains(mx, my) {
-            return Some(DomainIntent::Assign {
-                domain_id: id.to_string(),
-                weight: WEIGHT_STEPS[step],
-            });
-        }
-    }
-    None
+        confirm: None,
+        question: None,
+    };
+    // La confirmation occupe la moitié droite de la seconde ligne.
+    row.confirm = pending.then(|| deux_reponses(&row, m));
+    row
 }
 
 // ── Les palettes d'édition ──────────────────────────────────────────────────
@@ -403,8 +481,10 @@ pub fn fresh_look(rank: usize) -> (&'static str, &'static str) {
     )
 }
 
+mod clic;
 pub mod paint;
 
+pub use clic::hit_domains_panel;
 pub use paint::render_domains_panel;
 
 #[cfg(test)]

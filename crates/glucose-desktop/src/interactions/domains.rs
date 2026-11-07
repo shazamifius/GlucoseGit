@@ -24,9 +24,10 @@ use crate::app::GlucoseApp;
 use crate::dock::domains::{next_color, next_sigil, DomainIntent, DomainRename};
 use crate::interactions::text_entry::TextEntry;
 use glucose_core::store::DomainPatch;
-use glucose_core::types::Domain;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, NamedKey};
+
+mod connus;
 
 impl GlucoseApp {
     /// Applique une intention du panneau DOMAINES.
@@ -44,30 +45,38 @@ impl GlucoseApp {
             DomainIntent::ConfirmDelete(id) => self.delete_domain(&id),
             DomainIntent::Assign { domain_id, weight } => self.assign_domain(&domain_id, weight),
             DomainIntent::Unassign(id) => self.unassign_domain(&id),
+            DomainIntent::Adopter { lignee, weight } => self.adopter_le_domaine(&lignee, weight),
+            DomainIntent::MemeSujet(id) => self.reunir_le_domaine(&id),
+            DomainIntent::Preciser(id) => self.start_domain_rename(&id),
+            DomainIntent::Ou(lignee) => self.ouvrir_le_ou(&lignee),
+            DomainIntent::FermerOu => {
+                self.dock_manager.domains.ou = None;
+                self.dock_manager.domains.decalage = 0;
+            }
+            DomainIntent::Aller(rang) => self.aller_a_la_place(rang),
         }
         self.mark_dirty();
     }
 
-    /// Crée un domaine et ouvre aussitôt son nom en saisie.
-    ///
-    /// L'identifiant vient du générateur monotone du store (§ 2.5) — jamais d'un `format!` sur
-    /// la longueur d'un `Vec`, qui produisait deux fois le même après une suppression.
+    /// **Crée un domaine sous le premier nom libre**, « Domaine N », et ouvre aussitôt son nom en
+    /// saisie. Libre dans tout ce qu'on connaît, il ne prend le nom de personne (DOM-4). Il naît tout
+    /// de suite parce qu'au téléphone, le nom d'un domaine ne se tape pas encore (INVENTAIRE) : un
+    /// domaine qui n'existerait qu'une fois nommé ne pourrait jamais y naître.
     fn create_domain(&mut self) {
+        let vue = self.vue_du_catalogue();
+        let nom = (1..)
+            .map(|n| format!("Domaine {n}"))
+            .find(|nom| glucose_core::recensement::homonymes(&vue, nom).is_empty())
+            .unwrap_or_default();
         let rank = self.store.project.domains.len();
         let (color, icon) = crate::dock::domains::fresh_look(rank);
-        let domain = Domain {
-            id: self.store.generate_id("domain"),
-            // Un libellé, pas un identifiant : il est là pour être remplacé tout de suite, et
-            // c'est pourquoi la saisie s'ouvre dans la foulée.
-            name: format!("Domaine {}", rank + 1),
-            color: color.to_string(),
-            icon: icon.to_string(),
-            created_at: crate::persist::now_millis(),
-        };
-        let id = domain.id.clone();
+        let allure = (color.to_string(), icon.to_string());
+        let created = self
+            .store
+            .creer_un_domaine(&nom, allure, crate::persist::now_millis());
         // Créé ou refusé : la même phrase, dite au même endroit (cliquet 2).
-        let dit = match self.store.try_add_domain(domain) {
-            Ok(()) => {
+        let dit = match created {
+            Ok(id) => {
                 self.dock_manager.domains.pending_delete = None;
                 self.start_domain_rename(&id);
                 "Domaine créé — tape son nom, Entrée pour valider".to_string()
@@ -109,6 +118,7 @@ impl GlucoseApp {
 
     /// Envoie un patch au noyau et dit pourquoi si le noyau refuse.
     fn patch_domain(&mut self, id: &str, patch: DomainPatch) {
+        let patch = patch.at(crate::persist::now_millis());
         if let Err(err) = self.store.try_update_domain(id, patch) {
             self.ui.show_toast(err.to_string());
         }
@@ -145,8 +155,20 @@ impl GlucoseApp {
     }
 
     fn assign_domain(&mut self, domain_id: &str, weight: f64) {
+        if self.store.domain(domain_id).is_some() {
+            self.poser_sur_la_selection(|_| Ok(domain_id.to_string()), weight);
+        }
+    }
+
+    /// **Pose un domaine sur la sélection, en un geste** (DOM-APP-1) : `domaine` le donne, dans ce
+    /// même geste, pour qu'un domaine venu d'un autre fichier entre et se pose d'un seul `Ctrl+Z`.
+    fn poser_sur_la_selection(
+        &mut self,
+        domaine: impl FnOnce(&mut glucose_core::store::Store) -> Result<String, String>,
+        weight: f64,
+    ) {
         let nodes = self.selected_nodes();
-        if nodes.is_empty() || self.store.domain(domain_id).is_none() {
+        if nodes.is_empty() {
             return;
         }
         let board = self.store.project.active_board_id.clone();
@@ -155,20 +177,25 @@ impl GlucoseApp {
         self.store.begin_live_edit();
         let mut done = 0usize;
         let mut failure = None;
-        for node in &nodes {
-            match self
-                .store
-                .try_assign_domain_to_node(&board, node, domain_id, weight)
-            {
-                Ok(()) => done += 1,
-                Err(err) => failure = Some(err),
+        match domaine(&mut self.store) {
+            Ok(domain_id) => {
+                for node in &nodes {
+                    match self
+                        .store
+                        .try_assign_domain_to_node(&board, node, &domain_id, weight)
+                    {
+                        Ok(()) => done += 1,
+                        Err(err) => failure = Some(err.to_string()),
+                    }
+                }
             }
+            Err(pourquoi) => failure = Some(pourquoi),
         }
         self.store.end_live_edit();
 
         let percent = (weight * 100.0).round() as i32;
         let dit = match (done, failure) {
-            (0, Some(err)) => Some(err.to_string()),
+            (0, Some(err)) => Some(err),
             (0, None) => None,
             (n, _) => Some(format!("Domaine assigné à {n} nœud(s) — {percent} %")),
         };
@@ -188,26 +215,26 @@ impl GlucoseApp {
                     .is_ok_and(|list| list.iter().any(|a| a.domain_id == domain_id))
             })
             .collect();
-        if carriers.is_empty() {
-            self.ui
-                .show_toast("Aucun nœud sélectionné ne porte ce domaine");
-            return;
-        }
-
-        self.store.begin_live_edit();
         let mut done = 0usize;
-        for node in &carriers {
-            if self
-                .store
-                .try_unassign_domain_from_node(&board, node, domain_id)
-                .is_ok()
-            {
-                done += 1;
+        if !carriers.is_empty() {
+            self.store.begin_live_edit();
+            for node in &carriers {
+                if self
+                    .store
+                    .try_unassign_domain_from_node(&board, node, domain_id)
+                    .is_ok()
+                {
+                    done += 1;
+                }
             }
+            self.store.end_live_edit();
         }
-        self.store.end_live_edit();
-        self.ui
-            .show_toast(format!("Domaine retiré de {done} nœud(s)"));
+        // Retiré, ou rien à retirer : la même phrase, dite au même endroit (cliquet 2).
+        let dit = match done {
+            0 => "Aucun nœud sélectionné ne porte ce domaine".to_string(),
+            n => format!("Domaine retiré de {n} nœud(s)"),
+        };
+        self.ui.show_toast(dit);
     }
 
     // ── Saisie du nom ───────────────────────────────────────────────────────
@@ -265,19 +292,29 @@ impl GlucoseApp {
         }
     }
 
-    /// Valide le nom saisi. Un nom vide est refusé : un domaine sans nom ne se distingue plus
-    /// de ses voisins dans le panneau et sa réglette ne se laisse plus identifier.
+    /// **Valide le nom saisi.** Un nom vide est refusé : un domaine sans nom ne se distingue plus de
+    /// ses voisins. **Un nom pris aussi** (DOM-4, sa règle) : la saisie reste ouverte, et la question
+    /// est posée — il n'y a plus qu'à préciser le mot, ou à choisir le domaine dans la liste.
     pub fn commit_domain_rename(&mut self) {
-        let Some(rename) = self.dock_manager.domains.rename.take() else {
+        let Some(rename) = &self.dock_manager.domains.rename else {
             return;
         };
-        let name = rename.entry.into_text().trim().to_string();
-        if name.is_empty() {
-            self.ui
-                .show_toast("Un domaine a besoin d'un nom — renommage abandonné");
+        let name = rename.entry.text().trim().to_string();
+        let domain_id = rename.domain_id.clone();
+        // Un nom vide abandonne ; un nom pris laisse la saisie ouverte, pour préciser le mot. Les deux
+        // refus se disent au même endroit (cliquet 2).
+        let refus = if name.is_empty() {
+            self.dock_manager.domains.rename = None;
+            Some("Un domaine a besoin d'un nom — renommage abandonné".to_string())
+        } else {
+            self.question_du_nom(&name, Some(&domain_id))
+        };
+        if let Some(refus) = refus {
+            self.ui.show_toast(refus);
             return;
         }
-        self.patch_domain(&rename.domain_id, DomainPatch::new().with_name(name));
+        self.dock_manager.domains.rename = None;
+        self.patch_domain(&domain_id, DomainPatch::new().with_name(name));
     }
 }
 

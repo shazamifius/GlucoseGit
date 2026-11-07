@@ -22,7 +22,7 @@ fn domain(id: &str, name: &str) -> Domain {
         name: name.into(),
         color: "#60a5fa".into(),
         icon: "SCI".into(),
-        created_at: 0,
+        defini_a: 0,
     }
 }
 
@@ -770,9 +770,9 @@ fn test_the_extreme_weights_survive_bit_for_bit() {
 
 // ── Fiche 09 § 6 — la structure d'un domaine, et la signature poly-sémantique ──
 
-/// § 6.1 — `Domain { id, name, color, icon, created_at }`, et § 6.2 — l'exemple même de la
+/// § 6.1 — `Domain { id, name, color, icon, defini_a }`, et § 6.2 — l'exemple même de la
 /// fiche : un nœud appartient à *Science* pour 0,7 et à *Histoire* pour 0,3, les deux à la
-/// fois, chacun avec son poids. `created_at` est un `i64`, comme toutes les dates du modèle
+/// fois, chacun avec son poids. `defini_a` est un `i64`, comme toutes les dates du modèle
 /// — la fiche disait `u64`, ce qui aurait interdit ce que le reste du modèle permet.
 #[test]
 fn test_a_node_carries_several_domains_each_with_its_own_weight() {
@@ -782,7 +782,7 @@ fn test_a_node_carries_several_domains_each_with_its_own_weight() {
         name: "Science".into(),
         color: "#3b82f6".into(),
         icon: "🔬".into(),
-        created_at: 1_700_000_000_000,
+        defini_a: 1_700_000_000_000,
     };
     store
         .try_add_domain(science.clone())

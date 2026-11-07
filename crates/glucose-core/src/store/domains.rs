@@ -32,6 +32,10 @@ use super::Store;
 use crate::error::{CoreError, CoreResult};
 use crate::types::{Board, Domain, DomainAssignment, Project};
 
+mod nom;
+
+pub use nom::{cle_de_domaine, lignee_de};
+
 /// Bornes admises pour une pondération, incluses.
 const WEIGHT_MIN: f64 = 0.0;
 const WEIGHT_MAX: f64 = 1.0;
@@ -46,6 +50,8 @@ pub struct DomainPatch {
     pub name: Option<String>,
     pub color: Option<String>,
     pub icon: Option<String>,
+    /// Quand ce changement a été écrit : le noyau ne lit jamais l'horloge.
+    pub defini_a: Option<i64>,
 }
 
 impl DomainPatch {
@@ -68,7 +74,13 @@ impl DomainPatch {
         self
     }
 
-    /// Le patch changerait-il quoi que ce soit à ce domaine ? (DOM-3)
+    /// La date de ce changement : d'un fichier à l'autre, la définition la plus récente l'emporte.
+    pub fn at(mut self, instant: i64) -> Self {
+        self.defini_a = Some(instant);
+        self
+    }
+
+    /// Le patch changerait-il quoi que ce soit à ce domaine ? (DOM-3) Sa date seule ne compte pas.
     fn changes(&self, domain: &Domain) -> bool {
         let differs = |field: &Option<String>, current: &String| {
             field.as_ref().is_some_and(|wanted| wanted != current)
@@ -88,6 +100,9 @@ impl DomainPatch {
         }
         if let Some(icon) = self.icon {
             domain.icon = icon;
+        }
+        if let Some(instant) = self.defini_a {
+            domain.defini_a = instant;
         }
     }
 }
@@ -193,6 +208,8 @@ impl Store {
 
     /// Ajoute un domaine au catalogue. Un identifiant déjà pris est refusé (DOM-1).
     pub fn try_add_domain(&mut self, domain: Domain) -> CoreResult<()> {
+        // Le nom d'abord (DOM-4) : c'est la seule faute que l'humain ou l'agent peut corriger.
+        self.nom_libre(&domain.name, None)?;
         if self.project.domains.iter().any(|d| d.id == domain.id) {
             return Err(CoreError::DuplicateDomainId(domain.id));
         }
@@ -217,6 +234,19 @@ impl Store {
         if !patch.changes(domain) {
             return Ok(());
         }
+        if let Some(nom) = &patch.name {
+            self.nom_libre(nom, Some(id))?;
+        }
+        // Un domaine d'avant lit son identité dans sa date (DOM-5) : changer sa couleur ne doit pas
+        // en faire un autre sujet.
+        let patch = if nom::ne_d_avant(id) {
+            DomainPatch {
+                defini_a: None,
+                ..patch
+            }
+        } else {
+            patch
+        };
         let Some(i) = self.project.domains.iter().position(|d| d.id == id) else {
             return Ok(());
         };
@@ -248,39 +278,51 @@ impl Store {
         let mut edits = vec![Edit::Domain {
             slot: Slot::removed(di, removed),
         }];
-        let mut detached = 0usize;
+        let (portes, detached) =
+            self.reecrire_les_porteurs(id, |liste| liste.retain(|a| a.domain_id != id));
+        edits.extend(portes);
 
-        // Meme ordre de visite que `for_each_assignment_list` : annotations, puis images.
+        self.record_as_one_gesture(edits);
+        Ok(detached)
+    }
+
+    /// **Change les assignations de chaque nœud qui porte ce domaine**, en éditions du journal, et
+    /// rend combien de nœuds ont changé. Seul un nœud qui le porte vraiment est cloné.
+    ///
+    /// Même ordre de visite que [`for_each_assignment_list`] : annotations, puis images.
+    fn reecrire_les_porteurs(
+        &mut self,
+        id: &str,
+        changer: impl Fn(&mut Vec<DomainAssignment>),
+    ) -> (Vec<Edit>, usize) {
+        let mut edits = Vec::new();
         for board in &mut self.project.boards {
             let bid = board.id.clone();
             for (i, ann) in board.annotations.iter_mut().enumerate() {
-                if !ann.domains_mut().iter().any(|a| a.domain_id == id) {
+                if !ann.domains().iter().any(|a| a.domain_id == id) {
                     continue;
                 }
                 let before = ann.clone();
-                ann.domains_mut().retain(|a| a.domain_id != id);
+                changer(ann.domains_mut());
                 edits.push(Edit::Annotation {
                     board: bid.clone(),
                     slot: Slot::changed(i, before, ann.clone()),
                 });
-                detached += 1;
             }
             for (i, img) in board.images.iter_mut().enumerate() {
                 if !img.domains.iter().any(|a| a.domain_id == id) {
                     continue;
                 }
                 let before = img.clone();
-                img.domains.retain(|a| a.domain_id != id);
+                changer(&mut img.domains);
                 edits.push(Edit::Image {
                     board: bid.clone(),
                     slot: Slot::changed(i, before, img.clone()),
                 });
-                detached += 1;
             }
         }
-
-        self.record_as_one_gesture(edits);
-        Ok(detached)
+        let n = edits.len();
+        (edits, n)
     }
 
     /// Affecte un domaine à un nœud — annotation **ou** image — avec sa pondération.
@@ -506,7 +548,7 @@ mod tests {
             name: "Science".into(),
             color: "#60a5fa".into(),
             icon: "SCI".into(),
-            created_at: 0,
+            defini_a: 0,
         };
         assert!(!DomainPatch::new().changes(&domain));
         assert!(!DomainPatch::new().with_name("Science").changes(&domain));

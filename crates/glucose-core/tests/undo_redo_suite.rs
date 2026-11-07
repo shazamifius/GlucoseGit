@@ -538,7 +538,7 @@ fn test_preset_and_domain_roundtrip() {
         name: "Maths".into(),
         color: "#60a5fa".into(),
         icon: "🔬".into(),
-        created_at: 0,
+        defini_a: 0,
     };
     store.try_add_domain(dom).expect("catalogue vide");
     assert_eq!(store.project.domains.len(), 1);

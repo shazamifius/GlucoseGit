@@ -95,6 +95,8 @@ fn brancher_les_reveils(app: &mut GlucoseApp, event_loop: &EventLoop<()>) {
     crate::plateforme::marges::brancher(reveil_de(event_loop));
     // Quand un agent appelle un outil par sa porte (fiche 75).
     app.ouvrir_la_porte_des_agents(reveil_de(event_loop));
+    // Quand un fichier connu dit quelque chose de neuf de ses domaines (fiche 88).
+    app.demarrer_le_recensement(reveil_de(event_loop));
     // Quand un sélecteur de fichiers rend son choix (DIAL-2).
     crate::dialogue::brancher(reveil_de(event_loop));
     // Quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).

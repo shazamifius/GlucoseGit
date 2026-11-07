@@ -349,7 +349,7 @@ mod tests {
             name: id.into(),
             color: color.into(),
             icon: icon.into(),
-            created_at: 0,
+            defini_a: 0,
         }
     }
 

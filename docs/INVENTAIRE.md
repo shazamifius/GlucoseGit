@@ -99,6 +99,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Ajouter une case, renuméroter | « + Ajouter », « Re-numéroter les panels » | ✅ |
 | **Insérer une case entre deux** — les suivantes glissent d'un cran avec leurs images (P2, fiche 66) | les deux « + » de la case choisie, au milieu de ses bords : avant, après | ✅ (les mêmes, au doigt) |
 | Domaines (créer, éditer, attribuer) | panneau Domaines | 🟡 le nom d'un domaine ne se tape pas (même cause) |
+| **Un domaine qui traverse les fichiers** (fiche 88) : les domaines des autres documents connus, les poser ici ; « Même sujet ? » quand un nom désigne deux sujets ; « où » : chaque place où il vit, et y aller | panneau Domaines : les rangées sous ceux du document, « Oui / Non », « où », la molette | ✅ (les mêmes ; le nom ne se tape pas) |
 | Timer Pomodoro | panneau Timer | ✅ |
 
 ### Les agents (fiche 75)
@@ -107,6 +108,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 |---|---|---|
 | **Laisser un agent travailler dans le tableau** (Protéo, Claude…) : il lit, pose des textes, des membranes, des pages web, des flèches ancrées à des phrases — chaque geste s'annule par `Ctrl+Z` | la question qui s'ouvre à sa première demande : Autoriser, Refuser, Plus tard | — (aucune porte au téléphone) |
 | Brancher un agent sur Glucose | `glucose --mcp` dans sa configuration MCP (Glucose s'ouvre s'il ne l'est pas) | — |
+| **Un agent lit et pose les domaines** (fiche 88) : ceux de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers ; il ne crée jamais un nom pris, il le précise | `glucose_lire`, `glucose_poser_domaine`, `glucose_domaines` | — |
 
 ---
 

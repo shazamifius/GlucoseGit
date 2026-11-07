@@ -244,6 +244,10 @@ impl GlucoseApp {
             self.defiler_l_ancrage(points as f32);
             return;
         }
+        // Sur le panneau Domaines, la molette fait défiler ses rangées (fiche 88).
+        if self.molette_sur_les_domaines(deltas(delta).1) {
+            return;
+        }
         // Le `Ctrl` d'un pincement est virtuel : il vit dans le message du systeme, pas dans
         // l'etat du clavier que `winit` rapporte. Les deux disent la meme chose -- « ce
         // defilement veut zoomer » -- et se lisent donc ici, et nulle part ailleurs, pour que

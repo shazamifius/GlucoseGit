@@ -32,12 +32,20 @@ pub fn servir_sans_fenetre(
     let boite = Boite::nouvelle(Arc::new(|| {}));
     let _porte = Porte::ouvrir(nom, boite.clone()).ok_or("la porte ne s'ouvre pas")?;
     app.lancement.agents = Agents::avec_la_boite(boite);
+    // Le dossier d'essai, s'il est donné : on y vit, et les fichiers connus s'y lisent (fiche 88).
+    if let Some(ici) = std::env::var_os("GLUCOSE_DOSSIER_ESSAI") {
+        app.habiter(Path::new(&ici));
+        app.demarrer_le_recensement(Arc::new(|| {}));
+    }
     println!("[porte] ouverte : {nom}");
     // Les gestes d'un utilisateur, s'il y en a à jouer (fiche 80) : `<dossier>/main.jsonl`.
     let mut main = super::main_d_epreuve::MainDEpreuve::nouvelle(dossier.join("main.jsonl"));
     let mut gestes = 0;
     while !arret.exists() {
         main.jouer(&mut app);
+        // Ce qu'une image ferait : écrire ce qui a changé, relever ce que le fil a lu.
+        app.consigner();
+        app.suivre_le_recensement();
         let avant = app.store.undo_depth();
         app.suivre_les_agents();
         if matches!(app.ui.question, Some((_, Suite::Agent(_)))) {
@@ -81,6 +89,9 @@ pub fn servir_sans_fenetre(
         }
     }
     rendre_les_autres_onglets(&mut app, dossier, taille)?;
+    // Le dernier geste s'écrit, et le fichier se ferme, comme à la fin d'un vrai Glucose.
+    app.consigner();
+    app.fermer_le_document();
     Ok(gestes)
 }
 

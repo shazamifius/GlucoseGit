@@ -19,6 +19,11 @@ pub enum CoreError {
     /// Un domaine porte déjà cet identifiant (R-47 : deux domaines homonymes rendaient
     /// l'assignation ambiguë et la suppression destructrice).
     DuplicateDomainId(String),
+    /// Un domaine porte déjà ce nom (sa règle du 7/11/2026, fiche 88) : même sujet, ou mot à
+    /// préciser — on le demande, on ne devine pas.
+    NomDeDomainePris(String),
+    /// Un domaine sans nom ne se distingue de rien.
+    NomDeDomaineVide,
     /// Pondération hors de `0.0..=1.0`, infinie ou `NaN`.
     InvalidWeight(f64),
     /// Le nœud ne porte pas ce domaine : il n'y a rien à retirer.
@@ -58,6 +63,13 @@ impl fmt::Display for CoreError {
                 "Domaine en double : '{}' — cet identifiant est déjà pris, demandes-en un neuf au générateur du store",
                 id
             ),
+            Self::NomDeDomainePris(nom) => write!(
+                f,
+                "« {nom} » existe déjà — si c'est le même sujet, prends ce domaine ; sinon, précise le mot : « {nom} … »"
+            ),
+            Self::NomDeDomaineVide => {
+                write!(f, "Un domaine a besoin d'un nom — écris le sujet qu'il désigne")
+            }
             Self::InvalidWeight(weight) => write!(
                 f,
                 "Pondération invalide : {} — un poids est un nombre fini de 0,0 à 1,0",

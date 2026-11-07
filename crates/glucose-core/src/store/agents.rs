@@ -35,6 +35,13 @@
 //! un identifiant déjà porté par un nœud de même sorte le remplace. Le serveur MCP de tldraw
 //! ne le garantit pas, et ses écritures retentées dupliquent les formes.
 
+mod decrit;
+pub mod domaines;
+
+pub(crate) use decrit::decrire_le_tableau;
+pub use decrit::Decrit;
+pub use domaines::{DomaineDecrit, Naissance, Voulu};
+
 use super::Store;
 use crate::geometry::Rect;
 use crate::text_anchors::create_anchor;
@@ -79,22 +86,6 @@ impl Sorte {
     }
 }
 
-/// **Un nœud, tel qu'un agent le lit** : ce qu'il est, où il est, ce qu'il dit.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Decrit {
-    pub id: String,
-    pub sorte: Sorte,
-    pub boite: Rect,
-    pub texte: Option<String>,
-    pub membrane: Option<String>,
-    /// Pour une flèche : ce qu'elle relie, et la relation qu'elle dit.
-    pub source: Option<String>,
-    pub cible: Option<String>,
-    pub relation: Option<ArrowPredicate>,
-    /// Pour une photo : l'adresse d'où elle vient — la page qu'elle montre.
-    pub adresse: Option<String>,
-}
-
 /// **Pourquoi un appel n'a rien fait**, dans des mots qu'un agent peut corriger.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refus {
@@ -104,6 +95,8 @@ pub enum Refus {
         id: String,
         est: &'static str,
     },
+    /// Ce qu'un domaine ne permet pas : le noyau dit pourquoi, et quoi faire.
+    Domaine(String),
     /// L'identifiant est déjà porté ailleurs — sur un autre tableau, ou par un dossier.
     Pris(String),
     PassageAbsent {
@@ -122,6 +115,7 @@ impl std::fmt::Display for Refus {
             Self::AutreSorte { id, est } => {
                 write!(f, "« {id} » est déjà un nœud d'une autre sorte ({est})")
             }
+            Self::Domaine(pourquoi) => f.write_str(pourquoi),
             Self::Pris(id) => write!(f, "l'identifiant « {id} » est déjà pris ailleurs"),
             Self::PassageAbsent { noeud, passage } => write!(
                 f,
@@ -201,19 +195,7 @@ impl Store {
             .iter()
             .find(|b| b.id == board_id)
             .ok_or_else(|| Refus::TableauInconnu(board_id.to_string()))?;
-        let photos = board.images.iter().map(|i| Decrit {
-            id: i.id.clone(),
-            sorte: Sorte::Photo,
-            boite: i.rect(),
-            texte: None,
-            membrane: i.membrane_id.clone(),
-            source: None,
-            cible: None,
-            relation: None,
-            adresse: i.source_url.clone(),
-        });
-        let annotations = board.annotations.iter().map(decrire_une_annotation);
-        Ok(photos.chain(annotations).collect())
+        Ok(decrit::decrire_le_tableau(board, &self.project.domains))
     }
 
     /// **Pose une annotation**, ou met à jour celle qui porte déjà son identifiant (AGENT-4).
@@ -241,6 +223,8 @@ impl Store {
         self.update_annotation(board_id, &id, |a| {
             *a = ann;
             a.set_membrane_id(membrane);
+            // Les domaines que l'humain y a mis restent (fiche 88) : le nœud neuf n'en dit rien.
+            *a.domains_mut() = ancienne.domains().to_vec();
         });
         Ok(())
     }
@@ -259,9 +243,10 @@ impl Store {
             return Ok(());
         }
         self.update_image(board_id, &id, |i| {
-            let membrane = i.membrane_id.take();
+            let (membrane, domaines) = (i.membrane_id.take(), std::mem::take(&mut i.domains));
             *i = img;
             i.membrane_id = membrane;
+            i.domains = domaines;
         });
         Ok(())
     }
@@ -538,30 +523,6 @@ fn texte_porte(a: &Annotation) -> Option<String> {
     match a {
         Annotation::Arrow { text, .. } => text.clone(),
         _ => a.own_text(),
-    }
-}
-
-fn decrire_une_annotation(a: &Annotation) -> Decrit {
-    let (source, cible, relation) = match a {
-        Annotation::Arrow {
-            source_id,
-            target_id,
-            predicate,
-            ..
-        } => (source_id.clone(), target_id.clone(), *predicate),
-        _ => (None, None, None),
-    };
-    let texte = texte_porte(a);
-    Decrit {
-        id: a.id().to_string(),
-        sorte: Sorte::de(a),
-        boite: a.bounds(),
-        texte,
-        membrane: a.membrane_id().map(str::to_string),
-        source,
-        cible,
-        relation,
-        adresse: None,
     }
 }
 

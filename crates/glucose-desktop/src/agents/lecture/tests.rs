@@ -13,6 +13,7 @@ fn texte(id: &str, membrane: Option<&str>, t: &str) -> Decrit {
         cible: None,
         relation: None,
         adresse: None,
+        domaines: Vec::new(),
     }
 }
 
@@ -57,6 +58,7 @@ fn le_sommaire_d_abord_puis_ce_qu_on_choisit() {
     ];
     let d =
         |ids: Option<Vec<&'static str>>, cherche: Option<&'static str>, dans, complet| Demande {
+            domaine: None,
             dans,
             ids,
             cherche,
@@ -116,4 +118,36 @@ fn l_empreinte_suit_le_texte_et_lui_seul() {
         "e3b0c44298fc1c14",
         "le début du sha256 du vide"
     );
+}
+
+/// **`domaine` ne garde que ceux qui le portent**, et se combine avec le reste.
+#[test]
+fn domaine_ne_garde_que_ses_porteurs() {
+    let porte = |d: Decrit, id: &str| Decrit {
+        domaines: vec![glucose_core::store::agents::domaines::DomaineDecrit {
+            id: id.into(),
+            nom: id.into(),
+            poids: 1.0,
+        }],
+        ..d
+    };
+    let tous = [
+        porte(texte("a", Some("bulle"), "L'eau mouille."), "eau"),
+        porte(texte("b", None, "L'eau est H2O."), "eau"),
+        porte(texte("c", None, "Le feu brûle."), "feu"),
+        texte("d", None, "Rien."),
+    ];
+    let demande = |dans, cherche| Demande {
+        domaine: Some("eau"),
+        dans,
+        ids: None,
+        cherche,
+        complet: false,
+    };
+    let ids = |pris: Vec<(&Decrit, Rendu)>| -> Vec<String> {
+        pris.into_iter().map(|(n, _)| n.id.clone()).collect()
+    };
+    assert_eq!(ids(choisir(&tous, &demande(None, None))), ["a", "b"]);
+    assert_eq!(ids(choisir(&tous, &demande(Some("bulle"), None))), ["a"]);
+    assert_eq!(ids(choisir(&tous, &demande(None, Some("H2O")))), ["b"]);
 }

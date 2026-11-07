@@ -333,14 +333,14 @@ pub(super) fn write_domain(w: &mut Writer, domain: &Domain) {
         name,
         color,
         icon,
-        created_at,
+        defini_a,
     } = domain;
 
     w.text(id);
     w.text(name);
     w.text(color);
     w.text(icon);
-    w.i64(*created_at);
+    w.i64(*defini_a);
 }
 
 pub(super) fn read_domain(r: &mut Reader<'_>) -> CoreResult<Domain> {
@@ -349,7 +349,7 @@ pub(super) fn read_domain(r: &mut Reader<'_>) -> CoreResult<Domain> {
         name: r.text()?,
         color: r.text()?,
         icon: r.text()?,
-        created_at: r.i64()?,
+        defini_a: r.i64()?,
     })
 }
 

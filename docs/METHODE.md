@@ -201,6 +201,9 @@
 | **Un travail qui rend une ressource attendait derrière celui qui la consomme** : l'offre des niveaux passait après six mille décodages — « rien ne l'attend », disait le code ; la mémoire l'attendait (fiche 83) | demander, pour chaque file, ce que son retard coûte, et à qui |
 | **Un état intermédiaire que personne ne compte** : « en chemin » n'était ni tenu ni offert, et le journal disait 2,7 Go « inconnus » (fiche 83) | tout état d'une ressource entre dans un compte ; `dumpsys meminfo` (tas natif, « Unknown », propre ou sale) dit lequel manque |
 | **Une cause qui dort faute d'appareil** : dix jours sans son téléphone ni son câble (fiche 83) | le téléphone virtuel de ce PC (§ 5), et un tableau fabriqué par le vrai dépôt |
+| **Une borne d'épreuve supposée** : « un écart d'une unité » entre l'atlas et une texture seule ; WARP lit 2, et Windows est tombé sur GitHub (fiche 88) | déduire la borne de ce que le matériel garantit (1/2⁸ de texel), et vérifier que le sabotage tombe encore |
+| **Une même chose sous deux noms** : le document ouvert se désignait par son identité (fiche 80), le fil qui lit les fichiers par son chemin — il se comptait deux fois ; 137 épreuves vertes, l'essai réel l'a vu en vingt minutes (fiche 88) | ce qui se compare se nomme pareil des deux côtés ; un essai réel sur de vrais fichiers avant « fini » |
+| **Un geste changé sur le papier pour une plateforme** : créer un domaine seulement une fois nommé fermait la création au téléphone, où le nom ne se tape pas (fiche 88) | relire, plateforme par plateforme, ce qu'un geste suppose (ici : un clavier) avant de le changer |
 
 ## 5. Les pièges pratiques
 

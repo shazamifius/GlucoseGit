@@ -23,6 +23,8 @@ pub fn empreinte(texte: &str) -> String {
 
 /// Ce qu'un agent demande à lire.
 pub struct Demande<'a> {
+    /// Seulement les nœuds qui portent ce domaine (son identifiant dans ce document).
+    pub domaine: Option<&'a str>,
     /// Seulement ce qu'une membrane contient (elle comprise).
     pub dans: Option<&'a str>,
     /// Ces nœuds, en entier.
@@ -87,6 +89,8 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
     let dans = |n: &Decrit| {
         d.dans
             .is_none_or(|m| n.membrane.as_deref() == Some(m) || n.id == m)
+            && d.domaine
+                .is_none_or(|x| n.domaines.iter().any(|p| p.id == x))
     };
     let pris = decrits.iter().filter(|n| dans(n));
     if let Some(ids) = &d.ids {

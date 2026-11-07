@@ -20,7 +20,7 @@ fn document_riche() -> Project {
             name: "Art".into(),
             color: "#ff0000".into(),
             icon: "A".into(),
-            created_at: 0,
+            defini_a: 0,
         })
         .expect("un domaine");
     store

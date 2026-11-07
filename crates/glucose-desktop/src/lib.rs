@@ -45,6 +45,7 @@ pub mod perf;
 pub mod persist;
 pub mod plateforme;
 pub mod present;
+pub mod recensement;
 pub mod renderer;
 pub mod resolution;
 pub mod salissure;

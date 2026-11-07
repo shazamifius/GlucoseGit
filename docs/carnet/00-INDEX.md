@@ -121,6 +121,11 @@ pour décider · *→* = remplacée par le document indiqué.
 | 81 | [Le carnet en réel](81-LE-CARNET-EN-REEL.md) | **Objectif 3** : l'essai réel du carnet de Protéo (une leçon posée, corrigée depuis l'autre onglet, relue) ; l'image montre la carte d'accueil choisie d'office, que Protéo prenait pour un geste de l'utilisateur — **ACCUEIL-1** ; son usage réel compté : 444 gestes, aucun refus, un seul manque, la porte publiée |
 | 82 | [La fin que le système demande](82-LA-FIN-QUE-LE-SYSTEME-DEMANDE.md) | **Partie 1, étape 1** (Protéo en pause, sa parole du 25/10) : **FIN-1** (la fin, quelle qu'elle soit, écrite une fois), **FIN-SESSION-1** (l'extinction de Windows, le Restart Manager, `SIGTERM` : Glucose finit au lieu d'être tué) ; l'essai réel échoue — **la fenêtre sourde du moteur OpenGL de `wgpu`**, ouvert pour rien : **FENETRES-1** ; prouvé par le Restart Manager, la beta 6 à l'envers |
 | 83 | [Les six mille images](83-LES-SIX-MILLE-IMAGES.md) | **P0** : un téléphone virtuel sur ce PC (Android 14, 4 Go, sans fenêtre), un grand tableau fabriqué par le vrai dépôt ; « Tout cadrer » sur 6 000 images tue Glucose à 3,1 Go — **la mort des deux téléphones du 15/10, reproduite** ; l'autopsie (« Unknown », les niveaux « en chemin » jamais comptés, l'offre derrière les décodages) ; **MEMOIRE-4** : ce qui rend la mémoire passe devant ce qui en prend — Glucose survit, les 6 000 images dessinées |
+| 84 | [L'échelle des moteurs](84-L-ECHELLE-DES-MOTEURS.md) | **MOTEUR-1** : un pilote qui fait tomber Glucose à son ouverture ne l'exclut plus, jusqu'au processeur s'il le faut ; OpenGL réparé sous Wayland ; ACCUEIL-2 ; le passage au VivoBook sous NixOS |
+| 85 | [La barre blanche](85-LA-BARRE-BLANCHE.md) | **BARRE-1** : la fenêtre sans la barre du système, sous Windows |
+| 86 | [Huit mille images](86-HUIT-MILLE-IMAGES.md) | ce que coûte un tableau entier à l'écran ; un banc sans fenêtre |
+| 87 | [Une photo est un numéro](87-UNE-PHOTO-EST-UN-NUMERO.md) | ATLAS-1, PHOTO-1, LOT-1, JETER-1, JOURNAL-1 ; **sa décision : on arrête l'optimisation graphique** |
+| 88 | [Le domaine traverse les fichiers](88-LE-DOMAINE-TRAVERSE-LES-FICHIERS.md) | **Le domaine** : sa règle (deux domaines ne portent jamais le même nom, DOM-4), l'identité qui naît une fois (DOM-5), le recensement des fichiers connus sans écrire (RECENSE-1, 2), `glucose_poser_domaine` et `glucose_domaines` (AGENT-5, 6), le panneau qui montre les autres fichiers et pose la question (DOM-UI-4) ; essai réel : trois blocs, deux fichiers, un domaine |
 
 ## Les décisions — **foi**
 
@@ -139,4 +144,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **88**.
+La prochaine fiche porte le numéro **89**.

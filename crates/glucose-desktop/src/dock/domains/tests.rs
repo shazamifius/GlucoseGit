@@ -4,7 +4,7 @@
 use super::*;
 use crate::dock::paint::Brush;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DockManager, PanelClickResult, TabId};
-use crate::params::ScreenFrame;
+use crate::params::{Pointer, ScreenFrame};
 use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::types::{Annotation, BoardImage, Domain};
@@ -25,7 +25,7 @@ fn domain_at(rank: usize, id: &str, name: &str) -> Domain {
         name: name.into(),
         color: color.into(),
         icon: icon.into(),
-        created_at: 0,
+        defini_a: 0,
     }
 }
 
@@ -157,6 +157,7 @@ fn test_dom_ui_1_the_interface_state_holds_gestures_not_data() {
             domain_id: "d-2".into(),
             entry: TextEntry::new("En cours"),
         }),
+        ..DomainsUi::default()
     };
     ui.reset();
     assert_eq!(
@@ -437,7 +438,7 @@ fn test_the_panel_draws_in_every_state_within_its_own_frame() {
         DomainsUi::default(),
         DomainsUi {
             pending_delete: Some("d-2".into()),
-            rename: None,
+            ..DomainsUi::default()
         },
         DomainsUi {
             pending_delete: None,
@@ -445,6 +446,7 @@ fn test_the_panel_draws_in_every_state_within_its_own_frame() {
                 domain_id: "d-1".into(),
                 entry: TextEntry::new("Épistémologie"),
             }),
+            ..DomainsUi::default()
         },
     ];
     for (index, ui) in states.into_iter().enumerate() {
@@ -491,7 +493,7 @@ fn test_domains_panel_png_capture() {
             "confirmation",
             DomainsUi {
                 pending_delete: Some("d-2".into()),
-                rename: None,
+                ..DomainsUi::default()
             },
         ),
         (
@@ -502,8 +504,24 @@ fn test_domains_panel_png_capture() {
                     domain_id: "d-3".into(),
                     entry: TextEntry::new("Conlang"),
                 }),
+                ..DomainsUi::default()
             },
         ),
+        ("ailleurs", DomainsUi {
+            connus: connus_d_ailleurs(),
+            ..DomainsUi::default()
+        }),
+        ("ou", DomainsUi {
+            ou: Some(Ou {
+                nom: "Science".into(),
+                lignes: vec![
+                    ligne_ou("physique", "L'eau, ça mouille.", false),
+                    ligne_ou("ici", "Eau = H2O, deux hydrogènes et un oxygène, et une phrase longue qui ne tient pas.", true),
+                    ligne_ou("moteur", "photo", false),
+                ],
+            }),
+            ..DomainsUi::default()
+        }),
     ] {
         dock.domains = ui;
         let frame = domains_frame(&dock);
@@ -524,5 +542,30 @@ fn test_domains_panel_png_capture() {
         pixmap
             .save_png(dir.join(format!("panneau-{name}.png")))
             .expect("écriture du png");
+    }
+}
+
+/// Ce que les autres fichiers disent, pour la capture : un domaine d'ailleurs, un homonyme, un
+/// domaine d'ici qui vit aussi ailleurs.
+fn connus_d_ailleurs() -> Connus {
+    Connus {
+        ailleurs: vec![Ailleurs {
+            lignee: "eau@7".into(),
+            definition: domain_at(3, "eau@7", "Eau"),
+            noeuds: 4,
+            fichiers: 2,
+        }],
+        homonymes: vec!["d-2".into()],
+        aussi: vec![("d-1".into(), 3, 2)],
+    }
+}
+
+fn ligne_ou(fichier: &str, texte: &str, ici: bool) -> LigneOu {
+    LigneOu {
+        chemin: format!("/projets/{fichier}.glucose"),
+        tableau: "main".into(),
+        noeud: "n".into(),
+        texte: texte.into(),
+        ici,
     }
 }

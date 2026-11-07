@@ -479,6 +479,12 @@ pub fn panneau_sous(
     cadres(dock, screen).find(|(_, f)| WidgetRect::new(f.x, f.y, f.w, f.h).contains(p.x, p.y))
 }
 
+/// Les panneaux ouverts et leurs cadres : ce que le dessin et le clic lisent.
+#[cfg(test)]
+pub fn cadres_ouverts(dock: &DockManager, screen: ScreenFrame) -> Vec<(TabId, ScaledRect)> {
+    cadres(dock, screen).collect()
+}
+
 /// Les panneaux ouverts et leurs cadres, à l'échelle bornée.
 fn cadres(dock: &DockManager, screen: ScreenFrame) -> impl Iterator<Item = (TabId, ScaledRect)> {
     let s = crate::theme::clamp_ui_scale(screen.scale);

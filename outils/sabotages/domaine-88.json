@@ -1,0 +1,500 @@
+[
+ {
+  "nom": "DOM-4 la création ne regarde pas le nom",
+  "fichier": "crates/glucose-core/src/store/domains.rs",
+  "avant": "        self.nom_libre(&domain.name, None)?;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_4",
+   "nom_pris"
+  ]
+ },
+ {
+  "nom": "DOM-4 le renommage ne regarde pas le nom",
+  "fichier": "crates/glucose-core/src/store/domains.rs",
+  "avant": "            self.nom_libre(nom, Some(id))?;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_4"
+  ]
+ },
+ {
+  "nom": "DOM-4 la casse compte",
+  "fichier": "crates/glucose-core/src/store/domains/nom.rs",
+  "avant": "    nom_propre(nom).to_lowercase()",
+  "apres": "    nom_propre(nom)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "nom::"
+  ]
+ },
+ {
+  "nom": "DOM-4 les blancs comptent",
+  "fichier": "crates/glucose-core/src/store/domains/nom.rs",
+  "avant": "    nom.split_whitespace().collect::<Vec<_>>().join(\" \")",
+  "apres": "    nom.to_string()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "nom::"
+  ]
+ },
+ {
+  "nom": "DOM-5 un domaine d'avant garde son numéro",
+  "fichier": "crates/glucose-core/src/store/domains/nom.rs",
+  "avant": "    if ne_d_avant(&d.id) {",
+  "apres": "    if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "d_avant"
+  ]
+ },
+ {
+  "nom": "DOM-5 même milliseconde, même identité",
+  "fichier": "crates/glucose-core/src/store/domains/nom.rs",
+  "avant": ".find(|i| !pris(&format!(\"{cle}@{i}\")))",
+  "apres": ".find(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_5"
+  ]
+ },
+ {
+  "nom": "DOM-5 adopter par le numéro",
+  "fichier": "crates/glucose-core/src/store/domains/nom.rs",
+  "avant": ".find(|d| lignee_de(d) == lignee)",
+  "apres": ".find(|d| d.id == definition.id)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "adopter"
+  ]
+ },
+ {
+  "nom": "Réunir laisse les porteurs derrière",
+  "fichier": "crates/glucose-core/src/store/domains/nom.rs",
+  "avant": "                a.domain_id = lignee.clone();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "reunir"
+  ]
+ },
+ {
+  "nom": "RECENSE-1 la définition la plus récente ne gagne pas",
+  "fichier": "crates/glucose-core/src/recensement.rs",
+  "avant": "if d.defini_a > c.definition.defini_a {",
+  "apres": "if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recensement::"
+  ]
+ },
+ {
+  "nom": "RECENSE-1 les nœuds ne se trient pas par poids",
+  "fichier": "crates/glucose-core/src/recensement.rs",
+  "avant": "            b.poids\n                .total_cmp(&a.poids)",
+  "apres": "            a.chemin\n                .cmp(b.chemin)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recensement::"
+  ]
+ },
+ {
+  "nom": "RECENSE-1 les homonymes par le nom exact",
+  "fichier": "crates/glucose-core/src/recensement.rs",
+  "avant": ".filter(|c| cle_de_domaine(&c.definition.name) == cle)",
+  "apres": ".filter(|c| c.definition.name == nom)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recensement::"
+  ]
+ },
+ {
+  "nom": "Décrire oublie les domaines d'une annotation",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "        domaines: decrire_les_domaines(catalogue, a.domains()),",
+  "apres": "        domaines: Vec::new(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "decrire_dit_les_domaines"
+  ]
+ },
+ {
+  "nom": "Décrire oublie les domaines d'une photo",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "        domaines: decrire_les_domaines(catalogue, &i.domains),",
+  "apres": "        domaines: Vec::new(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "decrire_dit_les_domaines"
+  ]
+ },
+ {
+  "nom": "Reposer un texte jette ses domaines",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            *a.domains_mut() = ancienne.domains().to_vec();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "reposer"
+  ]
+ },
+ {
+  "nom": "Reposer une photo jette ses domaines",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            i.domains = domaines;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "reposer"
+  ]
+ },
+ {
+  "nom": "AGENT-6 un poids nul assigne",
+  "fichier": "crates/glucose-core/src/store/agents/domaines.rs",
+  "avant": "        if poids == 0.0 {",
+  "apres": "        if poids < 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "poids_nul"
+  ]
+ },
+ {
+  "nom": "AGENT-6 retirer ce qu'on ne porte pas",
+  "fichier": "crates/glucose-core/src/store/agents/domaines.rs",
+  "avant": "            if porte {",
+  "apres": "            if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "poids_nul"
+  ]
+ },
+ {
+  "nom": "RECENSE-2 tout se relit à chaque passe",
+  "fichier": "crates/glucose-desktop/src/recensement.rs",
+  "avant": "            if vus.get(&chemin) == Some(&empreinte) {",
+  "apres": "            if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recensement::"
+  ]
+ },
+ {
+  "nom": "RECENSE-2 le fichier ouvert se lit",
+  "fichier": "crates/glucose-desktop/src/recensement.rs",
+  "avant": "            if passe.ouvert.as_ref() == Some(&chemin) {",
+  "apres": "            if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recensement::"
+  ]
+ },
+ {
+  "nom": "RECENSE-2 une vieille passe finit tout",
+  "fichier": "crates/glucose-desktop/src/recensement.rs",
+  "avant": "Arrivee::Fin(rang) => self.en_cours = rang != self.demandee,",
+  "apres": "Arrivee::Fin(_) => self.en_cours = false,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recensement::",
+   "a_jour"
+  ]
+ },
+ {
+  "nom": "Accorder prend une définition plus ancienne",
+  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
+  "avant": "            if r.defini_a <= d.defini_a || meme {",
+  "apres": "            if meme {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "connus::"
+  ]
+ },
+ {
+  "nom": "Accorder pendant un geste",
+  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
+  "avant": "        if self.store.in_live_edit() || self.disque.voyage.is_some() {",
+  "apres": "        if self.disque.voyage.is_some() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "connus::"
+  ]
+ },
+ {
+  "nom": "DOM-UI-4 l'homonyme n'est pas marqué",
+  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
+  "avant": "                    if homonymes(&vue, &c.definition.name).len() > 1 {",
+  "apres": "                    if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "connus::"
+  ]
+ },
+ {
+  "nom": "DOM-UI-4 l'homonyme a sa rangée",
+  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
+  "avant": "                None if self.store.trouver_un_domaine(&c.definition.name).is_none() => {",
+  "apres": "                None if true => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "connus::"
+  ]
+ },
+ {
+  "nom": "DOM-UI-4 la molette ne s'arrête pas",
+  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
+  "avant": "        } else if en_dessous > 0 {",
+  "apres": "        } else if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "molette"
+  ]
+ },
+ {
+  "nom": "DOM-UI-4 la question laisse les paliers",
+  "fichier": "crates/glucose-desktop/src/dock/domains/clic.rs",
+  "avant": "    if !has_selection || row.confirm.is_some() || row.question.is_some() {",
+  "apres": "    if !has_selection || row.confirm.is_some() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "homonyme"
+  ]
+ },
+ {
+  "nom": "DOM-4 au panneau le nom d'un autre fichier passe",
+  "fichier": "crates/glucose-desktop/src/interactions/domains.rs",
+  "avant": "        if let Some(question) = self.question_du_nom(&name, Some(&domain_id)) {",
+  "apres": "        if let Some(question) = None::<String> {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "connus::"
+  ]
+ },
+ {
+  "nom": "DOM-4 au panneau le nom d'attente est pris",
+  "fichier": "crates/glucose-desktop/src/interactions/domains.rs",
+  "avant": ".find(|nom| glucose_core::recensement::homonymes(&vue, nom).is_empty())",
+  "apres": ".find(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_creating_a_domain"
+  ]
+ },
+ {
+  "nom": "Lire par domaine ne filtre pas",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "            && d.domaine\n                .is_none_or(|x| n.domaines.iter().any(|p| p.id == x))",
+  "apres": "            && d.domaine.is_none_or(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecture",
+   "lire_par_domaine"
+  ]
+ },
+ {
+  "nom": "AGENT-5 créer un nom pris passe",
+  "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+  "avant": "(None, Some(nom)) => match homonymes(vue, nom).first() {",
+  "apres": "(None, Some(nom)) => match homonymes(vue, \"\").first() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "executer::domaines"
+  ]
+ },
+ {
+  "nom": "AGENT-5 deux homonymes, le premier est pris",
+  "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+  "avant": "plusieurs => Err(self.question_des_homonymes(courant, plusieurs)),",
+  "apres": "plusieurs => Ok(Choisi::Existant(plusieurs[0].definition.clone())),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "executer::domaines"
+  ]
+ },
+ {
+  "nom": "a_jour lu après la relance",
+  "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+  "avant": "        let a_jour = !self.recenseur.en_cours;\n        self.recenseur.relancer();",
+  "apres": "        self.recenseur.relancer();\n        let a_jour = !self.recenseur.en_cours;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "a_jour"
+  ]
+ },
+ {
+  "nom": "Le document ouvert se compte sous son identité",
+  "fichier": "crates/glucose-desktop/src/interactions/domains/connus.rs",
+  "avant": "            |e| e.chemin.display().to_string(),",
+  "apres": "            |_| self.store.identite.clone(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pas_deux_fois"
+  ]
+ }
+]

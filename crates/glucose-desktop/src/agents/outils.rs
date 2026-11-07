@@ -24,7 +24,13 @@ membrane (dans), ou à droite de tout le tableau : range ton travail dans des me
 tes propres identifiants (« proteo-rapport ») : poser deux fois le même met à jour au lieu de \
 dupliquer. Une flèche peut partir d'une phrase exacte d'un texte et arriver à une phrase exacte \
 d'un autre (passage_source, passage_cible) : ces phrases sont surlignées, et doivent s'y trouver \
-mot pour mot.";
+mot pour mot. Un domaine est un sujet qui traverse les membranes et les fichiers (« eau » : un texte \
+sur H2O, un autre sur l'eau dans les jeux vidéo) ; un nœud y appartient avec un poids de 0 à 1, sans \
+rapport avec ses autres domaines. Quand tu ne sais pas ce que tu cherches, commence par \
+glucose_domaines : c'est la table des matières de tout ce que Glucose connaît. Deux domaines ne portent \
+jamais le même nom : si « python » existe et que tu parles d'autre chose, précise le mot (« python \
+serpent »). Le sens d'un tableau ne tient pas dans les positions : écris ce qui compte en membrane, \
+en flèche ou en domaine.";
 
 /// Chaque outil : son nom, sa description, le schéma de ses arguments.
 const OUTILS: &[(&str, &str, &str)] = &[
@@ -35,22 +41,23 @@ const OUTILS: &[(&str, &str, &str)] = &[
          la première phrase de son texte (debut), sa taille et son empreinte (qui change quand \
          le texte change), sans le texte entier. « ids » rend le texte entier de ces nœuds ; \
          « cherche » rend la phrase (passage) de chaque nœud qui contient ces mots ; « dans » ne \
-         garde qu'une membrane ; niveau « complet » rend tous les textes. Rend aussi ce que \
-         l'utilisateur a sélectionné (selection), la partie visible à l'écran et la liste des \
-         tableaux.",
-        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"niveau":{"type":"string","enum":["sommaire","complet"]}}}"##,
+         garde qu'une membrane ; « domaine » ne garde que les nœuds qui le portent ; niveau \
+         « complet » rend tous les textes. Chaque nœud dit ses domaines et leur poids. Rend aussi ce \
+         que l'utilisateur a sélectionné (selection), la partie visible à l'écran, la liste des \
+         tableaux et les domaines de ce document (domaines).",
+        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet"]}}}"##,
     ),
     (
         "glucose_poser_texte",
         "Pose un texte (Markdown, LaTeX entre $…$) ou un post-it, ou met à jour celui qui porte \
          déjà cet identifiant. Rend son identifiant et sa boîte.",
-        r##"{"type":"object","properties":{"id":{"type":"string"},"texte":{"type":"string"},"post_it":{"type":"boolean"},"dans":{"type":"string","description":"identifiant de la membrane où le poser ; elle grandit pour le contenir"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb"},"tableau":{"type":"string"}},"required":["texte"]}"##,
+        r##"{"type":"object","properties":{"id":{"type":"string"},"texte":{"type":"string"},"post_it":{"type":"boolean"},"dans":{"type":"string","description":"identifiant de la membrane où le poser ; elle grandit pour le contenir"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb"},"domaines":{"type":"array","description":"les domaines de ce nœud, posés dans le même geste : [{\"domaine\":\"eau\",\"poids\":0.8}] s'il existe, [{\"nouveau\":\"eau chaude\"}] pour le créer","items":{}},"tableau":{"type":"string"}},"required":["texte"]}"##,
     ),
     (
         "glucose_poser_membrane",
         "Pose une membrane — une bulle qui regroupe des nœuds, avec un titre — ou met à jour celle \
          qui porte cet identifiant.",
-        r##"{"type":"object","properties":{"id":{"type":"string"},"titre":{"type":"string"},"dans":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"hauteur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb"},"tableau":{"type":"string"}}}"##,
+        r##"{"type":"object","properties":{"id":{"type":"string"},"titre":{"type":"string"},"dans":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"hauteur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb"},"domaines":{"type":"array","description":"les domaines de ce nœud, posés dans le même geste : [{\"domaine\":\"eau\",\"poids\":0.8}] s'il existe, [{\"nouveau\":\"eau chaude\"}] pour le créer","items":{}},"tableau":{"type":"string"}}}"##,
     ),
     (
         "glucose_ecrire",
@@ -71,7 +78,7 @@ const OUTILS: &[(&str, &str, &str)] = &[
          la page dans le navigateur au double-clic, et sous elle un texte avec son titre et son \
          adresse, où écrire ensuite les citations qu'on y a lues. Rend l'identifiant de la \
          photo et celui du texte.",
-        r##"{"type":"object","properties":{"id":{"type":"string"},"adresse":{"type":"string","description":"http:// ou https://"},"titre":{"type":"string"},"capture":{"type":"string","description":"chemin d'un fichier PNG, JPEG ou WebP"},"texte":{"type":"string","description":"ce qui s'écrit sous le titre — les citations lues"},"dans":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"tableau":{"type":"string"}},"required":["adresse"]}"##,
+        r##"{"type":"object","properties":{"id":{"type":"string"},"adresse":{"type":"string","description":"http:// ou https://"},"titre":{"type":"string"},"capture":{"type":"string","description":"chemin d'un fichier PNG, JPEG ou WebP"},"texte":{"type":"string","description":"ce qui s'écrit sous le titre — les citations lues"},"dans":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"domaines":{"type":"array","description":"les domaines de ce nœud, posés dans le même geste : [{\"domaine\":\"eau\",\"poids\":0.8}] s'il existe, [{\"nouveau\":\"eau chaude\"}] pour le créer","items":{}},"tableau":{"type":"string"}},"required":["adresse"]}"##,
     ),
     (
         "glucose_deplacer",
@@ -85,6 +92,26 @@ const OUTILS: &[(&str, &str, &str)] = &[
          tableau à toi (un carnet, des archives), où poser ensuite avec « tableau ». L'onglet que \
          l'utilisateur regarde ne change pas. Le même nom rend toujours le même onglet.",
         r##"{"type":"object","properties":{"nom":{"type":"string"}},"required":["nom"]}"##,
+    ),
+    (
+        "glucose_poser_domaine",
+        "Pose un domaine sur des nœuds, en un geste. « domaine » prend un domaine qui existe, ici ou \
+         dans un autre fichier ; « nouveau » en crée un. Un nom déjà pris est refusé et la réponse dit \
+         ce qu'il désigne : même sujet, redonne-le dans « domaine » ; sinon, précise le mot. poids : de \
+         0 à 1, sans rapport avec ses autres domaines ; 0 le retire. « renommer » change son nom ; \
+         « meme_sujet » : true réunit deux domaines créés séparément sous le même nom.",
+        r##"{"type":"object","properties":{"domaine":{"type":"string"},"nouveau":{"type":"string"},"ids":{"type":"array","items":{"type":"string"}},"poids":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb"},"renommer":{"type":"string"},"meme_sujet":{"type":"boolean"},"tableau":{"type":"string"}}}"##,
+    ),
+    (
+        "glucose_domaines",
+        "La table des matières de tout ce que Glucose connaît : chaque domaine, à travers tous les \
+         fichiers déjà ouverts et leurs voisins, combien de nœuds le portent et où. Rien ne s'ouvre à \
+         l'écran. « domaine » rend ses nœuds, du plus lourd au plus léger, dans tous les fichiers : \
+         leur première phrase et leur taille ; « entier » : true leur texte ; « cherche » la phrase qui \
+         contient ces mots. a_preciser dit qu'un nom désigne plusieurs sujets : demande lequel. \
+         a_jour : false dit qu'une lecture du disque est en route : rappelle pour la suite. fichier \
+         est le chemin d'un fichier ; fichier_ouvert celui que l'utilisateur regarde.",
+        r##"{"type":"object","properties":{"domaine":{"type":"string"},"entier":{"type":"boolean"},"cherche":{"type":"string"}}}"##,
     ),
     (
         "glucose_retirer",

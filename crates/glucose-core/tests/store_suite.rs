@@ -250,7 +250,7 @@ fn test_try_assign_domain_to_node_signale_un_noeud_introuvable() {
             name: "Science".into(),
             color: "#60a5fa".into(),
             icon: "SCI".into(),
-            created_at: 0,
+            defini_a: 0,
         })
         .expect("catalogue vide");
 

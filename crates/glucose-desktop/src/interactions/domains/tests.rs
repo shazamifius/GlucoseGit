@@ -82,7 +82,8 @@ fn character(text: &str) -> Key {
 
 // ── Création ────────────────────────────────────────────────────────────────
 
-/// R-47, refermé : le bouton « + Nouveau domaine » écrit **dans le document**.
+/// R-47, refermé : le bouton « + Nouveau domaine » écrit **dans le document**, sous le premier nom
+/// libre (DOM-4), et ouvre aussitôt la saisie de son nom.
 #[test]
 fn test_creating_a_domain_writes_it_into_the_document() {
     let mut app = app_with_panel();
@@ -96,6 +97,7 @@ fn test_creating_a_domain_writes_it_into_the_document() {
         "le domaine doit être dans le document"
     );
     let created = &app.store.project.domains[0];
+    assert_eq!(created.name, "Domaine 1");
     assert!(!created.color.is_empty(), "un domaine neuf a une couleur");
     assert!(!created.icon.is_empty(), "un domaine neuf a un sigle");
     assert!(app.is_dirty(), "créer un domaine modifie le document");
@@ -108,12 +110,16 @@ fn test_creating_a_domain_writes_it_into_the_document() {
             .map(|r| r.domain_id.as_str()),
         Some(created.id.as_str())
     );
+    // Le suivant prend le premier nom libre : jamais deux « Domaine 1 ».
+    app.commit_domain_rename();
+    app.apply_domain_intent(DomainIntent::Create);
+    assert_eq!(app.store.project.domains[1].name, "Domaine 2");
 }
 
-/// § 2.5 — l'identifiant vient du générateur monotone, pas de la longueur d'un `Vec`. Le
-/// `format!("domain-{}", len + 1)` d'avant produisait deux fois le même après une suppression.
+/// **L'identité naît du nom et de l'instant** (DOM-5) : deux domaines vivants ne la partagent jamais,
+/// même créés dans la même milliseconde, même quand un nom libéré se reprend.
 #[test]
-fn test_domain_ids_come_from_the_monotonic_generator_not_from_a_length() {
+fn test_each_domain_has_its_own_identity() {
     let mut app = app_with_panel();
     let first = create_domain(&mut app);
     let second = create_domain(&mut app);
@@ -121,8 +127,9 @@ fn test_domain_ids_come_from_the_monotonic_generator_not_from_a_length() {
 
     app.apply_domain_intent(DomainIntent::ConfirmDelete(second.clone()));
     let third = create_domain(&mut app);
-    assert_ne!(third, first, "un identifiant ne se réutilise jamais");
-    assert_ne!(third, second, "surtout pas celui qu'on vient de supprimer");
+    assert_ne!(third, first);
+    let ids: Vec<_> = app.store.project.domains.iter().map(|d| &d.id).collect();
+    assert_eq!(ids.len(), 2);
 }
 
 // ── Renommage ───────────────────────────────────────────────────────────────
@@ -130,10 +137,10 @@ fn test_domain_ids_come_from_the_monotonic_generator_not_from_a_length() {
 #[test]
 fn test_typing_a_name_and_pressing_enter_renames_the_domain() {
     let mut app = app_with_panel();
-    app.apply_domain_intent(DomainIntent::Create);
-    let id = app.store.project.domains[0].id.clone();
+    let id = create_domain(&mut app);
+    app.apply_domain_intent(DomainIntent::StartRename(id.clone()));
 
-    // Le libellé par défaut est effacé puis remplacé, touche par touche.
+    // Le nom est effacé puis remplacé, touche par touche.
     for _ in 0..40 {
         app.handle_domain_rename_input(&key(NamedKey::Backspace));
     }
@@ -215,8 +222,8 @@ fn test_an_empty_name_is_refused_and_says_so() {
 #[test]
 fn test_a_control_chord_commits_the_name_and_falls_through() {
     let mut app = app_with_panel();
-    app.apply_domain_intent(DomainIntent::Create);
-    let id = app.store.project.domains[0].id.clone();
+    let id = create_domain(&mut app);
+    app.apply_domain_intent(DomainIntent::StartRename(id.clone()));
     for _ in 0..40 {
         app.handle_domain_rename_input(&key(NamedKey::Backspace));
     }

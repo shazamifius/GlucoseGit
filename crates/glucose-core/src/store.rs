@@ -58,7 +58,7 @@ mod undo;
 pub mod zones;
 
 pub use annotations::Reglage;
-pub use domains::DomainPatch;
+pub use domains::{cle_de_domaine, lignee_de, DomainPatch};
 pub use groupe::Depart;
 pub use journal::UNDO_DEPTH;
 pub use lot::{inventaire, Inventaire, Provenance};

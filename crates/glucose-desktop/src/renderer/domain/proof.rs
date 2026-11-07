@@ -61,7 +61,7 @@ fn proof_store(weights: &[f64]) -> Store {
                 name: (*id).into(),
                 color: (*color).into(),
                 icon: (*icon).into(),
-                created_at: 0,
+                defini_a: 0,
             })
             .expect("identifiants distincts");
         if let Some(weight) = weights.get(index) {

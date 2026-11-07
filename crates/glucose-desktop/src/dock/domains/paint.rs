@@ -5,9 +5,8 @@
 //! ne décide de rien : il lit la liste que [`super::layout_domains_panel`] a produite et le
 //! document, et il peint. Aucune coordonnée n'est recalculée ici (loi L4).
 
-use super::{
-    layout_domains_panel, DomainRowLayout, DomainsPanelLayout, DomainsUi, Metrics, WEIGHT_STEPS,
-};
+use super::{layout_domains_panel, Cible, DomainRowLayout, DomainsUi, Metrics, WEIGHT_STEPS};
+use crate::interactions::text_entry::TextEntry;
 use crate::params::ScaledRect;
 use crate::typography::{Face, TextStyle};
 use glucose_core::store::Store;
@@ -17,14 +16,17 @@ use tiny_skia::{Color, PixmapMut};
 use crate::dock::paint::Brush;
 use crate::dock::WidgetRect;
 
-/// Ce que le dessin du panneau garde constant.
+mod pied;
+
+use pied::{coupe, draw_footer, draw_ou};
+
 /// Ce que le dessin du panneau garde constant.
 ///
 /// Il emprunte le [`Brush`] du dock plutôt que de recopier ses champs : c'était un second
 /// pinceau, et il écrivait son texte en court-circuitant le premier. Tant que les deux
 /// existaient, l'origine du tampon d'un panneau mis en cache n'était appliquée que par l'un
 /// des deux, et le texte des domaines atterrissait à côté (DOCK-CACHE-1).
-struct Painter<'a> {
+pub(super) struct Painter<'a> {
     brush: &'a Brush<'a>,
     m: Metrics,
 }
@@ -43,19 +45,25 @@ pub fn render_domains_panel(
         m: Metrics::scaled(s),
     };
     let layout = layout_domains_panel(frame, store, ui);
+    if let Some(ou) = &ui.ou {
+        draw_ou(&p, pixmap, frame, &layout, ou);
+        return;
+    }
     let selected = store.selected_annotation_ids.len() + store.selected_image_ids.len();
 
     draw_header(&p, pixmap, frame, store.project.domains.len(), selected);
-    if store.project.domains.is_empty() {
+    if store.project.domains.is_empty() && ui.connus.ailleurs.is_empty() {
         draw_empty_state(&p, pixmap, frame);
     }
+    let domaines = store.project.domains.len();
     for row in &layout.rows {
-        let Some(domain) = store.project.domains.get(row.index) else {
-            continue;
+        let domain = match store.project.domains.get(row.index) {
+            Some(d) => d,
+            None => &ui.connus.ailleurs[row.index - domaines].definition,
         };
         draw_row(&p, pixmap, row, domain, ui, selected > 0);
     }
-    draw_footer(&p, pixmap, frame, &layout, selected);
+    draw_footer(&p, pixmap, frame, (&layout, ui), selected);
 }
 
 fn draw_header(
@@ -136,6 +144,11 @@ fn draw_row(
 
     draw_mark(p, pixmap, row, domain, (r, g, b));
     draw_name(p, pixmap, row, domain, ui);
+    draw_ou_button(p, pixmap, row);
+    if matches!(row.cible, Cible::Ailleurs(_)) {
+        draw_steps(p, pixmap, row, tint, enabled);
+        return;
+    }
 
     // Croix de suppression.
     let delete_hot = p.brush.hovered(row.delete) || row.confirm.is_some();
@@ -156,10 +169,36 @@ fn draw_row(
         },
     );
 
-    match row.confirm {
-        Some((yes, no)) => draw_confirm(p, pixmap, row, (yes, no)),
-        None => draw_steps(p, pixmap, row, tint, enabled),
+    match (row.confirm, row.question) {
+        (Some(reponses), _) => draw_confirm(p, pixmap, row, reponses, ("Supprimer ?", true)),
+        (None, Some(reponses)) => draw_confirm(p, pixmap, row, reponses, ("Même sujet ?", false)),
+        (None, None) => {
+            draw_steps(p, pixmap, row, tint, enabled);
+            draw_unassign(p, pixmap, row, enabled);
+        }
     }
+}
+
+/// Le bouton « où ? » d'une rangée : les places où vit ce domaine.
+fn draw_ou_button(p: &Painter, pixmap: &mut PixmapMut, row: &DomainRowLayout) {
+    let m = &p.m;
+    let (width, _) = p.brush.typo.measure_text("où", m.step_size, Face::Regular);
+    let color = if p.brush.hovered(row.ou) {
+        p.brush.theme.text_primary
+    } else {
+        p.brush.theme.text_muted
+    };
+    p.brush.text_styled(
+        pixmap,
+        "où",
+        row.ou.x + (row.ou.w - width) / 2.0,
+        row.ou.y + row.ou.h / 2.0 - m.step_size * 0.7,
+        TextStyle {
+            size: m.step_size,
+            color,
+            face: Face::Regular,
+        },
+    );
 }
 
 /// La marque d'un domaine : sa pastille de couleur et son sigle.
@@ -222,24 +261,95 @@ fn draw_name(
 ) {
     let m = &p.m;
     let editing = ui.rename.as_ref().filter(|r| r.domain_id == domain.id);
-    let text = editing.map_or(domain.name.as_str(), |r| r.entry.text());
-    let baseline = row.name.y + row.name.h / 2.0 - m.name_size * 0.7;
-
-    if editing.is_some() {
-        p.brush
-            .fill(pixmap, row.name, m.pad / 4.0, p.brush.theme.input_bg);
-        p.brush.stroke(
-            pixmap,
-            row.name,
-            m.pad / 4.0,
-            p.brush.theme.border_accent,
-            m.pad / 12.0,
-        );
+    if let Some(rename) = editing {
+        draw_entry(p, pixmap, row.name, &rename.entry);
+        return;
     }
+    let baseline = row.name.y + row.name.h / 2.0 - m.name_size * 0.7;
+    let (nom, compte) = (&domain.name, compte_de(row, ui));
+    let (largeur_du_compte, _) = p
+        .brush
+        .typo
+        .measure_text(&compte, m.hint_size, Face::Regular);
+    let place = row.name.w - m.pad / 3.0;
+    let tient = !compte.is_empty()
+        && p.brush.typo.measure_text(nom, m.name_size, Face::Regular).0 + largeur_du_compte + m.pad
+            <= place;
+    let largeur_du_nom = if tient {
+        place - largeur_du_compte - m.pad
+    } else {
+        place
+    };
     p.brush.text_styled(
         pixmap,
-        text,
+        &coupe(p, nom, largeur_du_nom, m.name_size, Face::Regular),
         row.name.x + m.pad / 3.0,
+        baseline,
+        TextStyle {
+            size: m.name_size,
+            // Un domaine d'un autre fichier n'est pas encore dans celui-ci : il se lit en retrait.
+            color: match row.cible {
+                Cible::Ici(_) => p.brush.theme.text_primary,
+                Cible::Ailleurs(_) => p.brush.theme.text_muted,
+            },
+            face: Face::Regular,
+        },
+    );
+    if tient {
+        p.brush.text_styled(
+            pixmap,
+            &compte,
+            row.name.x + row.name.w - largeur_du_compte,
+            row.name.y + row.name.h / 2.0 - m.hint_size * 0.7,
+            TextStyle {
+                size: m.hint_size,
+                color: p.brush.theme.text_muted,
+                face: Face::Regular,
+            },
+        );
+    }
+}
+
+/// Ce qu'une rangée dit de ce qui vit ailleurs. Un domaine d'ici : combien de nœuds le portent aussi
+/// dans d'autres fichiers (« +3 ailleurs »), rien s'il ne vit qu'ici. Un domaine d'ailleurs : ses
+/// nœuds et ses fichiers.
+fn compte_de(row: &DomainRowLayout, ui: &DomainsUi) -> String {
+    let fichiers = |f: usize| if f > 1 { "fichiers" } else { "fichier" };
+    match &row.cible {
+        Cible::Ici(id) => ui
+            .connus
+            .aussi
+            .iter()
+            .find(|(d, _, _)| d == id)
+            .map_or_else(String::new, |(_, n, _)| format!("+{n} ailleurs")),
+        Cible::Ailleurs(lignee) => ui
+            .connus
+            .ailleurs
+            .iter()
+            .find(|a| a.lignee == *lignee)
+            .map_or_else(String::new, |a| {
+                format!("{} · {} {}", a.noeuds, a.fichiers, fichiers(a.fichiers))
+            }),
+    }
+}
+
+/// Un nom en cours de frappe, dans son cadre, et son curseur.
+fn draw_entry(p: &Painter, pixmap: &mut PixmapMut, rect: WidgetRect, entry: &TextEntry) {
+    let m = &p.m;
+    let baseline = rect.y + rect.h / 2.0 - m.name_size * 0.7;
+    p.brush
+        .fill(pixmap, rect, m.pad / 4.0, p.brush.theme.input_bg);
+    p.brush.stroke(
+        pixmap,
+        rect,
+        m.pad / 4.0,
+        p.brush.theme.border_accent,
+        m.pad / 12.0,
+    );
+    p.brush.text_styled(
+        pixmap,
+        entry.text(),
+        rect.x + m.pad / 3.0,
         baseline,
         TextStyle {
             size: m.name_size,
@@ -247,17 +357,14 @@ fn draw_name(
             face: Face::Regular,
         },
     );
-    let Some(rename) = editing else {
-        return;
-    };
     // Caret plein, sans clignotement : une animation demanderait un réveil périodique de la
     // boucle d'événements, et un caret fixe dit exactement la même chose.
-    let (prefix, _) =
-        p.brush
-            .typo
-            .measure_text(rename.entry.before_cursor(), m.name_size, Face::Regular);
+    let (prefix, _) = p
+        .brush
+        .typo
+        .measure_text(entry.before_cursor(), m.name_size, Face::Regular);
     let caret = WidgetRect::new(
-        row.name.x + m.pad / 3.0 + prefix,
+        rect.x + m.pad / 3.0 + prefix,
         baseline,
         (m.pad / 8.0).max(1.0),
         m.name_size * 1.2,
@@ -310,8 +417,6 @@ fn draw_steps(
             },
         );
     }
-
-    draw_unassign(p, pixmap, row, enabled);
 }
 
 /// Le bouton qui détache la sélection de ce domaine — le « − » au bout de la rangée.
@@ -356,12 +461,13 @@ fn draw_confirm(
     pixmap: &mut PixmapMut,
     row: &DomainRowLayout,
     buttons: (WidgetRect, WidgetRect),
+    (question, grave): (&str, bool),
 ) {
     let m = &p.m;
     let (yes, no) = buttons;
     p.brush.text_styled(
         pixmap,
-        "Supprimer ?",
+        question,
         row.steps.first().map_or(row.unassign.x, |r| r.x),
         yes.y + yes.h / 2.0 - m.step_size * 0.7,
         TextStyle {
@@ -370,7 +476,7 @@ fn draw_confirm(
             face: Face::Regular,
         },
     );
-    for (rect, label, danger) in [(yes, "Oui", true), (no, "Non", false)] {
+    for (rect, label, danger) in [(yes, "Oui", grave), (no, "Non", false)] {
         let hovered = p.brush.hovered(rect);
         let background = match (danger, hovered) {
             (true, true) => p.brush.theme.danger,
@@ -399,62 +505,4 @@ fn draw_confirm(
             },
         );
     }
-}
-
-fn draw_footer(
-    p: &Painter,
-    pixmap: &mut PixmapMut,
-    frame: ScaledRect,
-    layout: &DomainsPanelLayout,
-    selected: usize,
-) {
-    let m = &p.m;
-    let hint = match (layout.hidden, selected) {
-        (0, 0) => "Selectionne un noeud pour lui donner une ponderation.".to_string(),
-        (0, _) => "Palier 20-100 % : assigne. Bouton - : retire. Nom : renomme.".to_string(),
-        (n, _) => format!("{n} domaine(s) de plus — agrandis la fenetre pour les voir."),
-    };
-    p.brush.text_styled(
-        pixmap,
-        &hint,
-        frame.x + m.pad,
-        layout.add_button.y - m.hint_height,
-        TextStyle {
-            size: m.hint_size,
-            color: p.brush.theme.text_muted,
-            face: Face::Regular,
-        },
-    );
-
-    let hovered = p.brush.hovered(layout.add_button);
-    p.brush.fill(
-        pixmap,
-        layout.add_button,
-        m.pad / 3.0,
-        if hovered {
-            p.brush.theme.bg_hover
-        } else {
-            p.brush.theme.btn_bg
-        },
-    );
-    p.brush.stroke(
-        pixmap,
-        layout.add_button,
-        m.pad / 3.0,
-        p.brush.theme.btn_border,
-        m.pad / 12.0,
-    );
-    let label = "+ Nouveau domaine";
-    let (width, _) = p.brush.typo.measure_text(label, m.name_size, Face::Regular);
-    p.brush.text_styled(
-        pixmap,
-        label,
-        layout.add_button.x + (layout.add_button.w - width) / 2.0,
-        layout.add_button.y + layout.add_button.h / 2.0 - m.name_size * 0.7,
-        TextStyle {
-            size: m.name_size,
-            color: p.brush.theme.text_secondary,
-            face: Face::Regular,
-        },
-    );
 }

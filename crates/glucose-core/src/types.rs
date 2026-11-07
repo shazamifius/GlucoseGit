@@ -24,14 +24,21 @@ pub const DEFAULT_STICKY_WIDTH: f64 = 160.0;
 pub const DEFAULT_STICKY_HEIGHT: f64 = 120.0;
 
 // ── Domaines (Phase 3) ───────────────────────────────────────────────────────
-/// Un domaine est une catégorie sémantique (Science, Art, JV, Conlang…).
+/// Un domaine est un sujet qui **traverse** les nœuds, les membranes et les fichiers (sa définition,
+/// `docs/VISION.md` ; fiche 88). Son nom est unique : deux sujets différents portent deux noms
+/// (« Python code », « Python serpent »).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Domain {
+    /// Son identité d'un fichier à l'autre : née une fois (`eau@1762500000000`), jamais changée,
+    /// même quand on le renomme.
     pub id: Id,
     pub name: String,
     pub color: String,
     pub icon: String,
-    pub created_at: i64,
+    /// Quand ce nom, cette couleur et ce sigle ont été écrits, en millisecondes : d'un fichier à
+    /// l'autre, la définition la plus récente l'emporte. Le format garde ici la date de création
+    /// des anciens domaines, qui se lit de la même façon.
+    pub defini_a: i64,
 }
 
 /// Pondération d'un nœud dans un domaine (0.0..1.0).

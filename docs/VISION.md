@@ -134,6 +134,10 @@ depuis Glucose.
 > fait partie du domaine de l'eau.** Aujourd'hui, sur Glucose, on ne peut tout simplement pas le
 > faire : c'est pour ça que le domaine existe.
 
+**Sa règle du nom, le 7/11/2026** : *« on ne peut pas inscrire deux domaines avec le même nom ; ils
+doivent impérativement demander à l'IA ou à l'humain la spécification ou la spécialisation du mot — ça
+donnerait python code et python serpent. »* (Écrite dans le code : DOM-4, fiche 88.)
+
 **Pour l'instant, on se concentre sur le domaine** — mais pas sur sa visualisation : *« ça va dans
 la catégorie ergonomie de l'application, et l'ergonomie, ce n'est pas pour tout de suite »*.
 
@@ -157,6 +161,8 @@ infinité de dimensions, plus une couleur).
   noyau a déjà cette forme pour un document (`Project.domains`, chaque nœud porte ses domaines avec
   un poids de 0 à 1 : une appartenance graduée) ; il lui manque de **traverser les fichiers**, d'être
   **vu** (filtrer, colorer) et d'être **lu par une IA** (`glucose_lire` ne dit pas les domaines).
+  **Depuis la fiche 88** : il traverse les fichiers (chaque fichier garde les siens ; Glucose met côte à
+  côte ceux qu'il connaît), et une IA le lit et le pose comme l'humain ; reste qu'on le **voie**.
 * **« Lu de la même façon » oblige à une règle** : le sens d'un tableau ne doit jamais tenir
   **seulement** dans la position. Un humain lit la proximité ; une IA reçoit des coordonnées qu'elle
   n'interprète pas. Ce qui compte s'écrit donc aussi dans une structure explicite — une membrane, une

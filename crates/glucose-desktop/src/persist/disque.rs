@@ -57,6 +57,8 @@ pub struct Disque {
     /// **Pourquoi ce fichier ne doit pas se réécrire**, s'il ne doit pas : il ne s'est pas lu,
     /// ou porte des lignes fausses — écrites à la main, qu'on n'efface pas en silence.
     pub raccourcis_proteges: Option<String>,
+    /// Ce que les autres fichiers disent de leurs domaines, lu sans y écrire (fiche 88).
+    pub recenseur: crate::recensement::Recenseur,
 }
 
 impl Disque {
@@ -73,6 +75,7 @@ impl Disque {
             raccourcis: crate::app::accueil::dossier_hors_lancement()
                 .join(crate::commandes::utilisateur::FICHIER),
             raccourcis_proteges: None,
+            recenseur: crate::recensement::Recenseur::default(),
         }
     }
 }

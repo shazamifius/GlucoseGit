@@ -433,6 +433,7 @@ impl GlucoseApp {
         // Ce que le dernier événement a changé dans le document s'écrit (JRN-5) — avant le
         // titre, qu'un document enregistré au fil de l'eau ne marque plus « modifié ».
         self.consigner();
+        self.suivre_le_recensement();
         self.appliquer_le_pincement_de_fenetre();
         // Le marqueur « modifié » du titre suit l'état réel du document (INVARIANT SAVE-2).
         // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;

@@ -19,7 +19,7 @@ fn scene() -> Store {
         name: "Art".into(),
         color: "#ff0000".into(),
         icon: "A".into(),
-        created_at: 0,
+        defini_a: 0,
     })
     .expect("un domaine");
     s.add_annotation(B, Annotation::membrane("m", 0.0, 0.0, 400.0, 300.0));

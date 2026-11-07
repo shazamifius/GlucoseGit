@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 7/11/2026** (fiches 73 à 87). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 7/11/2026** (fiches 73 à 88). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 84 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -9,7 +9,8 @@
 
 ## 1. En une page
 
-* **Sa décision du 7/11 : on arrête l'optimisation graphique ici** (*« ce n'est pas le but premier de Glucose »*, fiche 87 § 7 ter). **Le prochain chantier est le domaine** (SUITE, étape 2).
+* **Le domaine traverse les fichiers, et une IA le lit comme l'humain** (fiche 88, 7/11). Chaque fichier garde ses domaines ; Glucose met côte à côte ceux des documents qu'il connaît, sans jamais y écrire. **Sa règle du 7/11 : deux domaines ne portent jamais le même nom** — « même sujet », ou préciser le mot (« Python code », « Python serpent »). Un agent lit les domaines de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers, et les pose (`glucose_poser_domaine`, `glucose_domaines`) ; le panneau montre les autres fichiers, pose la question, et va à chaque place (« où »). **Essai réel hors écran, tout passe** ; **pas vu à son écran**, pas publié.
+* **Sa décision du 7/11 : on arrête l'optimisation graphique ici** (*« ce n'est pas le but premier de Glucose »*, fiche 87 § 7 ter). **Le brouillon de la beta 9** (`b04ccef`, sans le domaine) attend son clic.
 * **Un tableau entier à l'écran ne coûte plus par photo à chaque image** (fiche 87) : ATLAS-1, PHOTO-1, LOT-1, JETER-1. En paires entrelacées, 8 000 images, Intel UHD 620, **sur secteur** : un vol 18 → 4,9 ms, un zoom 23 → 9,7 ms, un focus revenu au tableau 33 → 4,9 ms ; un focus pendant son zoom reste à 16 ms, le pire d'un zoom à 28 ms. **Ni sa GTX 1660, ni son téléphone, ni la batterie n'ont été mesurés.** **Part en beta 9.**
 * **Sélectionner 8 000 images coûte encore 28 ms par image** (3,9 sinon), reproduit, **pas réparé** : fiche 87 § 7 bis.
 * **Une session part dès sa fermeture** (JOURNAL-1, fiche 87), et non plus au lancement suivant ; essayé en réel contre un faux serveur. **Part en beta 9.**
@@ -84,7 +85,7 @@
   l'utilisateur (« il désigne : Bienvenue dans Glucose ») — corrigé, ACCUEIL-1. Son usage réel,
   compté dans son journal : 444 gestes, aucun refus, un seul manque — la porte publiée.
 * **La porte des agents** (fiche 75, P10, sa demande du 17/10) : `glucose --mcp`, le protocole MCP,
-  huit outils ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
+  huit outils (onze depuis la fiche 88) ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
   sous-question avec les pages lues en capture (le double-clic les ouvre), les citations exactes,
   le rapport relié phrase par phrase aux citations, qui brillent au survol. Chaque geste s'annule
   par `Ctrl+Z` ; rien sans son accord. Prouvé hors écran sur deux recherches neuves du vrai Protéo

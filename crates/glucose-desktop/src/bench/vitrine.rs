@@ -75,7 +75,7 @@ fn poser_les_domaines(app: &mut GlucoseApp, board: &str) {
         name: "Information".into(),
         color: "#f472b6".into(),
         icon: "inf".into(),
-        created_at: 0,
+        defini_a: 0,
     };
     app.store.try_add_domain(domaine).expect("un domaine");
     for (noeud, poids) in [("s-kraft", 0.6), ("degrade", 0.3), ("s-membrane", 1.0)] {

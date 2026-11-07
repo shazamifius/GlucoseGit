@@ -10,6 +10,10 @@
 //! {"recrire": {"id": "…", "texte": "…", "tableau": "…"}} il récrit un texte (un autre onglet, s'il le dit)
 //! {"poser_post_it": {"id": "…", "texte": "…", "x": 0, "y": 0}}
 //! {"retirer": ["id", …]}
+//! {"enregistrer": "chemin"}                              Ctrl+S sous ce nom
+//! {"ouvrir": "chemin"}                                   Ctrl+O
+//! {"nouveau_document": true}                             Ctrl+N
+//! {"panneau_domaines": true}                             ouvre le panneau, et dit ce qu'il montre
 //! ```
 
 use crate::agents::json::Json;
@@ -59,9 +63,41 @@ fn ids(v: &Json) -> Vec<String> {
         .collect()
 }
 
+/// Un geste sur le document lui-même, par les chemins de la main (fiche 88).
+fn geste_de_document(app: &mut GlucoseApp, g: &Json) -> Option<String> {
+    if let Some(chemin) = g.get("enregistrer").and_then(Json::as_str) {
+        app.save_to(PathBuf::from(chemin));
+        return Some(format!("enregistre {chemin}"));
+    }
+    if let Some(chemin) = g.get("ouvrir").and_then(Json::as_str) {
+        app.open_from(PathBuf::from(chemin));
+        return Some(format!("ouvre {chemin}"));
+    }
+    if g.get("nouveau_document").is_some() {
+        app.nouveau_document();
+        // La question de NOUVEAU-1 : « Créer », ce qu'il répondrait.
+        if app.ui.question.is_some() {
+            app.repondre_a_la_question(Some(crate::ui::question::Reponse::Oui));
+        }
+        return Some("nouveau document".to_string());
+    }
+    if g.get("panneau_domaines").is_some() {
+        app.dock_manager.top_tabs = vec![crate::dock::TabId::Domains];
+        app.dock_manager.domains.connus = app.domaines_connus();
+        return Some(format!(
+            "le panneau montre {:?}",
+            app.dock_manager.domains.connus
+        ));
+    }
+    None
+}
+
 /// Un geste de la main : la sélection n'entre pas au journal (UNDO-1) ; le reste est un geste,
 /// comme ceux qu'on fait à la souris et au clavier.
 fn geste(app: &mut GlucoseApp, g: &Json) -> Result<String, String> {
+    if let Some(dit) = geste_de_document(app, g) {
+        return Ok(dit);
+    }
     let board = app.store.project.active_board_id.clone();
     let s = &mut app.store;
     if let Some(l) = g.get("selectionner") {

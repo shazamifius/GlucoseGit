@@ -359,14 +359,14 @@ pub fn rich_project() -> Project {
             name: "Science".into(),
             color: "#22c55e".into(),
             icon: "🔬".into(),
-            created_at: 1,
+            defini_a: 1,
         },
         Domain {
             id: "dom-art".into(),
             name: "Art".into(),
             color: "#a855f7".into(),
             icon: "🎨".into(),
-            created_at: -1,
+            defini_a: -1,
         },
     ];
     project.collab_url = Some("wss://example.invalid/salle".into());

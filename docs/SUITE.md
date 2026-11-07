@@ -81,7 +81,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **P8 — Le texte de près par la carte graphique** (fiche 73) : Slug, CADRE-1, SLUG-1 ; ~1 ms par image de près, contre ~20 et le flou | de près, aucun flou, sur sa machine et au téléphone |
 | [~] | **P8 bis — Un nœud immense, de près** (fiche 73 § 7) : LIGNE-1 et la mémoire des mises en page — 10,5 ms → 0,72 ms à 17 600 mots | un très long texte, de près ; un tableau plein de textes |
 | [~] | **P4 — Tes raccourcis** (fiches 72, 74) : la table des commandes, la palette, la couche de l'utilisateur | `Ctrl+Maj+P` ; changer un raccourci, relancer |
-| [~] | **P10 — La porte des agents** (fiche 75) : `glucose --mcp`, huit outils, chaque geste annulable, rien sans son accord ; lire par niveaux, `selection`, `empreinte`, `document`, `glucose_ouvrir_tableau` (fiches 79, 80) | un agent travaille dans son Glucose, sous ses yeux |
+| [~] | **P10 — La porte des agents** (fiche 75) : `glucose --mcp`, onze outils (les domaines depuis la fiche 88), chaque geste annulable, rien sans son accord ; lire par niveaux, `selection`, `empreinte`, `document`, `glucose_ouvrir_tableau` (fiches 79, 80) | un agent travaille dans son Glucose, sous ses yeux |
 
 ### Étape 1 — Ne rien perdre
 
@@ -96,12 +96,12 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
-**Le prochain chantier est ici : le domaine.** Choisi par la session du 7/11, à qui il a laissé la décision : VISION dit *« pour l'instant, on se concentre sur le domaine »*, et il reste à faire les deux moitiés que personne ne peut voir sans lui, traverser les fichiers et le lire par une IA.
+**Le domaine est fait, il attend son écran** (fiche 88). **Le prochain chantier est `Ctrl+F`**, puis P6.
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
 | [~] | **BARRE-1 — La barre blanche de Windows disparaît** (sa demande du 6/11, fiche 85) : la bande déplace la fenêtre et porte réduire, agrandir, fermer | à l'écran d'un Windows réel : glisser, coller aux bords, couleurs inchangées une fois agrandie |
-| [ ] | **Le domaine** (sa définition du 22/10, [VISION](VISION.md)) : un domaine **traverse** les blocs, les membranes et les fichiers (« l'eau, ça mouille », « eau = H₂O », « l'eau dans un jeu vidéo » : trois blocs loin les uns des autres, un seul domaine). Ce qui existe : le catalogue d'un document, l'appartenance pondérée de chaque nœud, le panneau, les badges. Ce qui manque : **traverser les fichiers** (un catalogue qui ne soit plus celui d'un seul document) ; **une IA qui lit et pose les domaines** (`glucose_lire` ne les dit pas — contraire à « lisible pareil par l'humain et par l'IA », une règle de Glucose, pas de Protéo). Sa visualisation (le voir, le filtrer, sa couleur) va à l'étape 5 | un domaine relie des nœuds de deux fichiers ; un agent lit et pose les domaines |
+| [~] | **Le domaine** (sa définition du 22/10, [VISION](VISION.md) ; fiche 88) : un domaine **traverse** les blocs, les membranes et les fichiers. **Fait** : chaque fichier garde ses domaines, Glucose met côte à côte ceux des documents qu'il connaît (sans y écrire) ; sa règle du 7/11, **deux domaines ne portent jamais le même nom** — on demande « même sujet » ou on précise le mot ; une IA les lit (`glucose_lire`, `glucose_domaines`) et les pose (`glucose_poser_domaine`) ; le panneau montre les autres fichiers, pose la question, et va à chaque place (« où »). **Essai réel hors écran** : trois blocs, deux fichiers, un domaine. **Reste** : les synonymes (« eau », « water ») ; sa visualisation (étape 5) | à son écran : créer « Eau » dans deux documents, « où », la question de deux « Python » ; et un agent qui s'en sert |
 | [ ] | **La recherche, `Ctrl+F`** (sa décision du 13/10 : tout cadrer est passé à `Alt+F`) : chercher dans tout le document — textes, titres, noms de fichiers —, voler d'un résultat au suivant ; sur le noyau, pour tenir 10⁷ nœuds | à son écran, sur un gros tableau |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |

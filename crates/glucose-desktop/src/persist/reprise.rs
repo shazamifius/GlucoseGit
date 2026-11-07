@@ -51,7 +51,8 @@ enum Interrompu {
 impl GlucoseApp {
     /// Retient ce document comme le dernier utilisé : le lancement suivant le rouvrira. Un
     /// souvenir qui ne s'écrit pas ne coûte qu'une réouverture à la main — l'échec se tait.
-    pub(crate) fn retenir_le_document(&self, chemin: &Path) {
+    pub(crate) fn retenir_le_document(&mut self, chemin: &Path) {
+        self.disque.recenseur.connaitre(chemin);
         let dossier = &self.disque.brouillons;
         if std::fs::create_dir_all(dossier).is_ok() {
             let _ = super::atomic::write_atomic(
@@ -147,6 +148,7 @@ impl GlucoseApp {
         let adoption = self.adopter_un_ouvert(&ouvert, chemin.to_path_buf());
         // Le même brouillon, rouvert : la même identité (fiche 80).
         self.store.identite = chemin.display().to_string();
+        self.disque.recenseur.connaitre(chemin);
         if let Some(e) = self.disque.ecriture.as_mut() {
             e.brouillon = true;
         }
