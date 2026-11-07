@@ -208,6 +208,7 @@ mod tests {
             na,
             "la place d'une évincée ne se réattribue pas"
         );
+        assert_ne!(cache.numero("c"), nb, "ni celle d'une autre");
         cache.insert("a".into(), entree(4));
         assert_eq!(cache.numero("a"), na, "un fichier revenu retrouve le sien");
         assert_eq!(cache.chemin(nb), Some("b"));

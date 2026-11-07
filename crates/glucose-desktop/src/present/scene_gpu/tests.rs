@@ -70,11 +70,22 @@ fn rendre_par(
     ))
 }
 
-/// Dessine ce que la scène a retenu dans une cible de `cote` pixels, et rend ses octets RGBA.
+/// Dessine tout ce que la scène a retenu.
 fn dessiner_la_scene(
-    (peripherique, file): (&wgpu::Device, &wgpu::Queue),
+    carte: (&wgpu::Device, &wgpu::Queue),
     envoi: &mut crate::present::envoi::Envoi,
     (scene, retenues): (&SceneGpu, &Retenues),
+    cote: u32,
+) -> Vec<u8> {
+    dessiner_la_tranche(carte, envoi, (scene, retenues, 0..retenues.len()), cote)
+}
+
+/// Dessine cette tranche de ce que la scène a retenu dans une cible de `cote` pixels, et rend ses
+/// octets RGBA.
+fn dessiner_la_tranche(
+    (peripherique, file): (&wgpu::Device, &wgpu::Queue),
+    envoi: &mut crate::present::envoi::Envoi,
+    (scene, retenues, tranche): (&SceneGpu, &Retenues, std::ops::Range<usize>),
     cote: u32,
 ) -> Vec<u8> {
     let format = wgpu::TextureFormat::Rgba8Unorm;
@@ -127,7 +138,7 @@ fn dessiner_la_scene(
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        scene.poser(&mut passe, retenues, 0..retenues.len());
+        scene.poser(&mut passe, retenues, tranche);
     }
     encodeur.copy_texture_to_buffer(
         wgpu::TexelCopyTextureInfo {
@@ -1639,4 +1650,53 @@ fn test_lot_1_le_tampon_qui_grandit_garde_le_lot() {
         [0, 0, 200, 255],
         "ce qui suit le lot"
     );
+}
+
+/// **Une tranche ne dessine que ses poses, même au milieu d'un seul dessin** (ATLAS-1) : les lueurs
+/// passent entre les photos et les cartes, et une photo et une carte peuvent vivre dans la même page.
+/// Sans cette coupe, la carte passerait sous la lueur qui devait la suivre.
+#[test]
+fn test_atlas_1_une_tranche_ne_dessine_que_ses_poses() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let cote = 64;
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    let (a, b) = (Cle::from("a"), Cle::from("b"));
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&a, &a),
+        photo(8, [200, 0, 0, 255]).as_ref(),
+    );
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&b, &b),
+        photo(8, [0, 200, 0, 255]).as_ref(),
+    );
+    let poses = [
+        a_poser("a", pose_de(0.0, 0.0, 16.0, 16.0)),
+        a_poser("b", pose_de(32.0, 0.0, 16.0, 16.0)),
+    ];
+    let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), &poses);
+    assert_eq!(retenues.suites.len(), 1, "la même page : un seul dessin");
+    let carte_a = (&peripherique, &file);
+    let premiere = dessiner_la_tranche(carte_a, &mut envoi, (&scene, &retenues, 0..1), cote);
+    assert_eq!(pixel(&premiere, cote, 8, 8), [200, 0, 0, 255]);
+    assert_eq!(
+        pixel(&premiere, cote, 40, 8),
+        [0, 0, 0, 0],
+        "la seconde n'en est pas"
+    );
+    let seconde = dessiner_la_tranche(carte_a, &mut envoi, (&scene, &retenues, 1..2), cote);
+    assert_eq!(
+        pixel(&seconde, cote, 8, 8),
+        [0, 0, 0, 0],
+        "la première non plus"
+    );
+    assert_eq!(pixel(&seconde, cote, 40, 8), [0, 200, 0, 255]);
 }

@@ -1,0 +1,368 @@
+diff --git a/crates/glucose-desktop/src/present/couches.rs b/crates/glucose-desktop/src/present/couches.rs
+index 6b88407..6dfb5c4 100644
+--- a/crates/glucose-desktop/src/present/couches.rs
++++ b/crates/glucose-desktop/src/present/couches.rs
+@@ -357,6 +357,8 @@ pub struct Temps<'a> {
+     pub zones: &'a super::zones_gpu::Zones,
+     /// Le rectangle de la vue sur la minimap (CHROME-1), entre le fond de la minimap et le rail.
+     pub cadre: &'a super::zones_gpu::Zones,
++    /// Les filets des images choisies (CADRES-1), sous la couche du dessus.
++    pub cadres_choisis: &'a super::zones_gpu::Zones,
+     pub membranes: &'a super::membranes_gpu::Membranes,
+     pub fleches: &'a super::fleches_gpu::FlechesGpu,
+     pub lisere: &'a super::lisere_gpu::LisereGpu,
+@@ -465,6 +467,8 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView,
+     // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
+     // poignées qui sont dans la couche du dessus (FLECHE-2).
+     temps.fleches.poser(&mut passe);
++    // Les cadres des images choisies : sur tout ce qui se pose, sous leurs poignées (CADRES-1).
++    temps.cadres_choisis.poser(&mut passe);
+     temps.couches.poser_le_dessus(&mut passe);
+     // La chrome, après tout ce que la couche du dessus porte — la bande, le fil, le fond de la
+     // minimap, puis le rectangle de la vue, puis le rail (CHROME-1) —, et les panneaux après
+diff --git a/crates/glucose-desktop/src/present/passes.rs b/crates/glucose-desktop/src/present/passes.rs
+index 2cd4b30..68f9d4b 100644
+--- a/crates/glucose-desktop/src/present/passes.rs
++++ b/crates/glucose-desktop/src/present/passes.rs
+@@ -26,6 +26,7 @@ pub struct Passes {
+     /// Le rectangle de la vue sur la minimap, en filets (CHROME-1) : les mêmes rectangles unis
+     /// que les zones, posés à un autre rang.
+     cadre: zones_gpu::Zones,
++    cadres_choisis: zones_gpu::Zones,
+     membranes: membranes_gpu::Membranes,
+     fleches: fleches_gpu::FlechesGpu,
+     lisere: lisere_gpu::LisereGpu,
+@@ -40,6 +41,7 @@ impl Passes {
+             lueurs: lueurs_gpu::Lueurs::nouvelles(peripherique, format),
+             zones: zones_gpu::Zones::nouvelles(peripherique, format),
+             cadre: zones_gpu::Zones::nouvelles(peripherique, format),
++            cadres_choisis: zones_gpu::Zones::nouvelles(peripherique, format),
+             membranes: membranes_gpu::Membranes::nouvelles(peripherique, format),
+             fleches: fleches_gpu::FlechesGpu::nouvelles(peripherique, format),
+             lisere: lisere_gpu::LisereGpu::nouveau(peripherique, format),
+@@ -61,6 +63,8 @@ impl Passes {
+             .preparer(peripherique, file, ecran, &confie.zones);
+         self.cadre
+             .preparer(peripherique, file, ecran, confie.chrome.cadre());
++        self.cadres_choisis
++            .preparer(peripherique, file, ecran, &confie.cadres_choisis);
+         self.membranes
+             .preparer(peripherique, file, ecran, &confie.membranes);
+         self.fleches
+@@ -86,6 +90,7 @@ impl Passes {
+             lueurs: &self.lueurs,
+             zones: &self.zones,
+             cadre: &self.cadre,
++            cadres_choisis: &self.cadres_choisis,
+             membranes: &self.membranes,
+             fleches: &self.fleches,
+             lisere: &self.lisere,
+diff --git a/crates/glucose-desktop/src/renderer/grille.rs b/crates/glucose-desktop/src/renderer/grille.rs
+index 5889ff6..4721446 100644
+--- a/crates/glucose-desktop/src/renderer/grille.rs
++++ b/crates/glucose-desktop/src/renderer/grille.rs
+@@ -43,7 +43,7 @@
+ //! dessinent par-dessus, en direct ; le dernier fait que la tuile n'est **pas gardée**, pour
+ //! qu'elle se repeigne dès que les octets arrivent.
+ 
+-use super::scene::image::{draw_image_ornaments, draw_images, PasseImages};
++use super::scene::image::{draw_image_ornaments, draw_images, filets_des_choisies, PasseImages};
+ use super::tuiles::{a_l_ecran, ce_que_porte, Portee, Tuiles, COTE_TUILE};
+ #[allow(unused_imports)]
+ use super::Regard;
+@@ -499,21 +499,52 @@ pub(super) fn dessiner_les_ornements(
+     pixmap: &mut PixmapMut,
+     store: &Store,
+     pass: ViewPass<'_>,
++    cadres_sur_la_carte: bool,
+ ) {
+     let Some(board) = store.active_board() else {
+         return;
+     };
+     let images: Vec<_> = Visibles::nouvelles(pass.visibles, board)
+         .images()
+-        .map(|img| {
+-            let (wx, wy) =
+-                world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
+-            let sw = (img.width * pass.vp.scale) as f32;
+-            let sh = (img.height * pass.vp.scale) as f32;
+-            (img, (wx as f32, wy as f32, sw, sh))
+-        })
++        .map(|img| (img, boite_a_l_ecran(img, &pass.vp)))
+         .collect();
+-    draw_image_ornaments(kit, pixmap, store, pass.echelle(), &images);
++    draw_image_ornaments(
++        kit,
++        pixmap,
++        store,
++        pass.echelle(),
++        &images,
++        cadres_sur_la_carte,
++    );
++}
++
++/// La boîte d'une image à l'écran : le modèle la place par son centre.
++fn boite_a_l_ecran(
++    img: &glucose_core::types::BoardImage,
++    vp: &glucose_core::types::Viewport,
++) -> (f32, f32, f32, f32) {
++    let (x, y) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, vp);
++    let (l, h) = (img.width * vp.scale, img.height * vp.scale);
++    (x as f32, y as f32, l as f32, h as f32)
++}
++
++/// **Les filets des images choisies à l'écran**, que la carte pose (CADRES-1). Rien de choisi, rien
++/// à parcourir.
++pub(super) fn cadres_a_poser(
++    theme: &super::Theme,
++    store: &Store,
++    pass: ViewPass<'_>,
++) -> Vec<super::zone::Rectangle> {
++    let Some(board) = store
++        .active_board()
++        .filter(|_| !store.selected_image_ids.is_empty())
++    else {
++        return Vec::new();
++    };
++    let images = Visibles::nouvelles(pass.visibles, board)
++        .images()
++        .map(|img| (img, boite_a_l_ecran(img, &pass.vp)));
++    filets_des_choisies(theme, store, pass.echelle(), images)
+ }
+ 
+ /// Les compteurs de la chronique, tels que l'**écran** les vit — et non la dernière tuile.
+diff --git a/crates/glucose-desktop/src/renderer/scene/image.rs b/crates/glucose-desktop/src/renderer/scene/image.rs
+index d82813d..a95ee5c 100644
+--- a/crates/glucose-desktop/src/renderer/scene/image.rs
++++ b/crates/glucose-desktop/src/renderer/scene/image.rs
+@@ -15,7 +15,7 @@ use glucose_core::occlusion::{self, Calque};
+ use glucose_core::quadtree::Visibles;
+ use glucose_core::report;
+ use glucose_core::store::Store;
+-pub(in crate::renderer) use ornement::draw_image_ornaments;
++pub(in crate::renderer) use ornement::{draw_image_ornaments, filets_des_choisies};
+ use ornement::{draw_missing_image, mode_de_report};
+ use prevision::{calque_de, prevoir_la_scene, Chemin};
+ use tiny_skia::{FilterQuality, PixmapMut, PixmapPaint, Transform};
+diff --git a/crates/glucose-desktop/src/renderer/scene/image/ornement.rs b/crates/glucose-desktop/src/renderer/scene/image/ornement.rs
+index e870ee4..c522f20 100644
+--- a/crates/glucose-desktop/src/renderer/scene/image/ornement.rs
++++ b/crates/glucose-desktop/src/renderer/scene/image/ornement.rs
+@@ -220,6 +220,24 @@ impl Cadres {
+         }
+     }
+ 
++    /// **Les filets des cadres droits**, pour la carte (CADRES-1) : les mêmes que ceux que le
++    /// processeur remplirait, écrits une fois.
++    fn en_filets(&self, theme: &Theme) -> Vec<crate::renderer::zone::Rectangle> {
++        let encres = [theme.selection_frame, theme.alert];
++        let mut filets = Vec::with_capacity(self.droits.len() * 4);
++        for (rect, epaisseur, verrouille) in &self.droits {
++            let encre = encres[usize::from(*verrouille)];
++            let (rects, couleur) = filets_d_un_cadre((*rect, *epaisseur), encre);
++            filets.extend(
++                rects
++                    .into_iter()
++                    .flatten()
++                    .map(|rect| crate::renderer::zone::Rectangle { rect, couleur }),
++            );
++        }
++        filets
++    }
++
+     /// Pose tous les cadres ajoutés : les droits en filets, les penchés en un tracé par encre.
+     pub(super) fn poser(self, pixmap: &mut PixmapMut, theme: &Theme) {
+         let encres = [theme.selection_frame, theme.alert];
+@@ -250,11 +268,19 @@ impl Cadres {
+ /// 0,2 px couvre le cinquième d'un pixel, il en reçoit donc le cinquième de l'encre — ce que
+ /// l'anti-crénelage aurait donné, sans en payer le prix. La sélection reste lisible de loin,
+ /// sans faire de grille.
+-fn poser_un_cadre_droit(
+-    pixmap: &mut PixmapMut,
++fn poser_un_cadre_droit(pixmap: &mut PixmapMut, cadre: (Rect, f32), encre: tiny_skia::Color) {
++    let (filets, encre) = filets_d_un_cadre(cadre, encre);
++    for filet in filets.into_iter().flatten() {
++        fill_crisp(pixmap, filet, encre);
++    }
++}
++
++/// **Les quatre filets d'un cadre droit, et leur encre** : une seule loi, que le processeur remplit
++/// et que la carte pose (CADRES-1). Rien si le cadre est trop petit pour avoir un dedans.
++fn filets_d_un_cadre(
+     (rect, epaisseur): (Rect, f32),
+     mut encre: tiny_skia::Color,
+-) {
++) -> ([Option<Rect>; 4], tiny_skia::Color) {
+     if epaisseur < 1.0 {
+         encre.apply_opacity(epaisseur);
+     }
+@@ -262,18 +288,33 @@ fn poser_un_cadre_droit(
+     let (x, y) = ((rect.x() - e / 2.0).round(), (rect.y() - e / 2.0).round());
+     let (l, h) = ((rect.width() + e).round(), (rect.height() + e).round());
+     if l <= 2.0 * e || h <= 2.0 * e {
+-        return;
++        return ([None; 4], encre);
+     }
+-    for (fx, fy, fl, fh) in [
+-        (x, y, l, e),
+-        (x, y + h - e, l, e),
+-        (x, y + e, e, h - 2.0 * e),
+-        (x + l - e, y + e, e, h - 2.0 * e),
+-    ] {
+-        if let Some(filet) = Rect::from_xywh(fx, fy, fl, fh) {
+-            fill_crisp(pixmap, filet, encre);
+-        }
++    let filets = [
++        Rect::from_xywh(x, y, l, e),
++        Rect::from_xywh(x, y + h - e, l, e),
++        Rect::from_xywh(x, y + e, e, h - 2.0 * e),
++        Rect::from_xywh(x + l - e, y + e, e, h - 2.0 * e),
++    ];
++    (filets, encre)
++}
++
++/// **Les filets des images choisies**, pour la carte (CADRES-1). Tout choisir sur huit mille images
++/// peignait trente-deux mille filets au processeur, puis envoyait toute la couche du dessus à la
++/// carte, à chaque image : de 3,9 à 28 ms. Elle les pose comme le rectangle de la minimap. Un cadre
++/// penché, rare, reste un tracé du processeur.
++pub(in crate::renderer) fn filets_des_choisies<'a>(
++    theme: &Theme,
++    store: &Store,
++    scale: WorldScale,
++    images: impl Iterator<Item = Posee<'a>>,
++) -> Vec<crate::renderer::zone::Rectangle> {
++    let mut cadres = Cadres::a_l_echelle(scale);
++    for (img, ecran) in images.filter(|(img, _)| store.selected_image_ids.contains(img.id.as_str()))
++    {
++        cadres.ajouter(img, ecran);
+     }
++    cadres.en_filets(theme)
+ }
+ 
+ /// **Une image visible, et sa boite a l'ecran** : `(x, y, largeur, hauteur)` en pixels.
+@@ -300,23 +341,21 @@ pub(in crate::renderer) fn draw_image_ornaments(
+     store: &Store,
+     scale: WorldScale,
+     images: &[Posee<'_>],
++    droits_sur_la_carte: bool,
+ ) {
+-    // La selection se lit une fois : la chercher dans une liste pour chaque image faisait
+-    // autant de comparaisons que le produit des deux.
+-    let choisies: std::collections::HashSet<&str> = store
+-        .selected_image_ids
+-        .iter()
+-        .map(String::as_str)
+-        .collect();
+     let selectionnees = || {
+         images
+             .iter()
+-            .filter(|(img, _)| choisies.contains(img.id.as_str()))
++            .filter(|(img, _)| store.selected_image_ids.contains(img.id.as_str()))
+     };
+     let mut cadres = Cadres::a_l_echelle(scale);
+     for (img, ecran) in selectionnees() {
+         cadres.ajouter(img, *ecran);
+     }
++    // Sur la voie graphique, la carte a déjà posé les droits, sous cette couche (CADRES-1).
++    if droits_sur_la_carte {
++        cadres.droits.clear();
++    }
+     cadres.poser(pixmap, kit.theme);
+     // Une image verrouillee se signale par la couleur de son cadre et par l'absence de ses
+     // poignees (fiche 06 § 4.3) : les deux disent le meme fait, l'un de loin, l'autre au
+diff --git a/crates/glucose-desktop/src/renderer/voies.rs b/crates/glucose-desktop/src/renderer/voies.rs
+index 48d86b6..e2b16a5 100644
+--- a/crates/glucose-desktop/src/renderer/voies.rs
++++ b/crates/glucose-desktop/src/renderer/voies.rs
+@@ -155,7 +155,7 @@ pub(super) fn dessiner_sur_les_photos(
+     // les posait a un rang et l'autre au-dessus.
+     // Pendant une lecture, aucune prise : rien ne se prend, la case se regarde (fiche 67).
+     if ui.lecture.is_none() {
+-        grille::dessiner_les_ornements(kit, pixmap, store, pass);
++        grille::dessiner_les_ornements(kit, pixmap, store, pass, cartes_par_la_carte);
+         super::handles::dessiner_le_cadre_du_groupe(kit.theme, pixmap, store, pass);
+         // La zone de gabarit choisie : ses prises, comme celles d'un nœud choisi (PRESET-1).
+         let choisie = ui.zones.choisie.as_deref();
+@@ -438,6 +438,7 @@ impl Renderer {
+             zones,
+             membranes,
+             fleches,
++            cadres_choisis: grille::cadres_a_poser(&self.theme, store, pass),
+             lot,
+             lot_propose,
+             dessous_porte_quelque_chose: true,
+diff --git a/crates/glucose-desktop/src/renderer/voies/confie.rs b/crates/glucose-desktop/src/renderer/voies/confie.rs
+index 138f937..db43b5e 100644
+--- a/crates/glucose-desktop/src/renderer/voies/confie.rs
++++ b/crates/glucose-desktop/src/renderer/voies/confie.rs
+@@ -28,6 +28,9 @@ pub struct Confie {
+     /// Le champ des flèches visibles, dans l'ordre du modèle (FLECHE-2) : leurs étiquettes,
+     /// badges et poignées restent dans la couche du dessus.
+     pub fleches: Vec<glucose_core::arrow::champ::Champ>,
++    /// **Les filets des images choisies** (CADRES-1) : au-dessus des cartes et des flèches, sous la
++    /// couche du dessus et ses poignées.
++    pub cadres_choisis: Vec<crate::renderer::zone::Rectangle>,
+     /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**. Une photo décodée
+     /// porte son niveau dans sa clé (NIVEAU-GPU-1), et, si ce niveau n'est pas tenu, le meilleur
+     /// qui l'est en repli (ETAGES-1).
+diff --git a/crates/glucose-desktop/tests/voies_suite.rs b/crates/glucose-desktop/tests/voies_suite.rs
+index d44e1cd..4ff6e0d 100644
+--- a/crates/glucose-desktop/tests/voies_suite.rs
++++ b/crates/glucose-desktop/tests/voies_suite.rs
+@@ -1672,3 +1672,56 @@ fn test_photo_1_une_seule_requete_spatiale_par_image() {
+         "une vue neuve voit ce qu'elle montre"
+     );
+ }
++
++/// **Les cadres des images choisies passent par la carte** (CADRES-1) : tout choisir sur huit mille
++/// images peignait trente-deux mille filets, et toute la couche du dessus repartait à chaque image.
++/// La couche du dessus ne les porte plus, et les deux voies montrent le même trait.
++#[test]
++fn test_cadres_1_les_cadres_droits_passent_par_la_carte() {
++    let Some((peripherique, file)) = banc_gpu::carte() else {
++        banc_gpu::sans_carte();
++        return;
++    };
++    let taille = (800, 600);
++    let mut store = document_damier(1.0);
++    let board = store.project.active_board_id.clone();
++    let id = store
++        .project
++        .boards
++        .iter()
++        .find(|b| b.id == board)
++        .expect("le tableau")
++        .images[0]
++        .id
++        .clone();
++    store.select_image(id, false);
++    let (renderer, dessous, dessus, confie) = les_deux_couches_decodees(taille, &store);
++    assert_eq!(
++        confie.cadres_choisis.len(),
++        4,
++        "quatre filets pour une photo choisie"
++    );
++    let carte = banc_gpu::composer_les_cinq_temps(
++        (&peripherique, &file),
++        taille,
++        &confie,
++        (&dessous, &dessus),
++        &|cle| confie.pixels(&renderer, cle),
++    )
++    .expect("la composition");
++    let processeur = par_le_processeur_decode(taille, &store);
++    // Le milieu du filet du haut, sur la boîte de la photo (x = 300 à 500, y = 200).
++    let filet = confie.cadres_choisis[0].rect;
++    let (x, y) = ((filet.x() + filet.width() / 2.0) as u32, filet.y() as u32);
++    let encre = pixel(&processeur, x, y);
++    assert_eq!(pixel(&carte, x, y), encre, "le même trait, à la même place");
++    assert_eq!(
++        dessus.pixel(x, y).map(|p| p.alpha()),
++        Some(0),
++        "la couche du dessus ne le porte plus"
++    );
++    // Rien de choisi : rien à poser, et rien de parcouru.
++    store.clear_selection();
++    let (_, _, _, sans) = les_deux_couches_decodees(taille, &store);
++    assert!(sans.cadres_choisis.is_empty());
++}

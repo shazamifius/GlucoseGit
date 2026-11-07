@@ -291,6 +291,7 @@ impl Renderer {
                 return (vp, rangs.clone(), densite);
             }
         }
+        self.requetes_spatiales += 1;
         // La marge du culling : ce qui déborde de sa boîte — un trait, une lueur — se voit encore.
         let mut rangs = self.visibles_du_present(store, rect, MARGE_DU_CULLING);
         // En focus, seules la membrane et son contenu se dessinent (MEMB-2).

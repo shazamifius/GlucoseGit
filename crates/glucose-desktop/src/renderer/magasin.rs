@@ -373,18 +373,33 @@ impl Magasin {
             (entree.queue, entree.queue_vue) = (ancienne.queue, ancienne.queue_vue);
         }
         let numero = self.cache.numero(&src);
-        self.cache.insert(src, entree);
+        if let Some(ancienne) = self.cache.insert(src, entree) {
+            self.jeter(ancienne.pyramide);
+        }
         self.remettre_a_revoir(numero);
     }
 
-    /// Un niveau rentre de chez un ouvrier, s'il appartient encore à la même pyramide.
+    /// **Rend cette pyramide à la mémoire, sur un ouvrier** (JETER-1). Ce qu'elle tient encore reste
+    /// compté jusque-là.
+    fn jeter(&mut self, pyramide: Pyramide) {
+        let octets = pyramide.octets_en(Etat::Tenu) + pyramide.octets_en(Etat::EnChemin);
+        self.atelier.jeter(pyramide, octets);
+    }
+
+    /// Un niveau rentre de chez un ouvrier, s'il appartient encore à la même pyramide. Sinon il
+    /// repart aussitôt : ses octets se rendent sur un ouvrier eux aussi.
     fn rentrer(&mut self, d: Deplacement<super::photo::Retour>) {
+        let vivante = self
+            .cache
+            .get(&d.src)
+            .is_some_and(|entree| entree.generation == d.generation);
+        if !vivante {
+            self.atelier.jeter(d, 0);
+            return;
+        }
         let Some(entree) = self.cache.get_mut(&d.src) else {
             return;
         };
-        if entree.generation != d.generation {
-            return;
-        }
         self.changements += 1;
         match &d.charge {
             super::photo::Retour::Offerts(_) => self.mouvements.offerts += 1,
@@ -481,7 +496,9 @@ impl Magasin {
             if occupe <= borne {
                 break;
             }
-            self.cache.remove(&src);
+            if let Some(partie) = self.cache.remove(&src) {
+                self.jeter(partie.pyramide);
+            }
             self.changements += 1;
             self.evincees += 1;
             occupe = occupe.saturating_sub(octets);
@@ -551,7 +568,7 @@ impl Magasin {
     /// emporte pour les offrir ou les reprendre — encore là, dans sa file (MEMOIRE-4, fiche 82).
     /// Compter les seuls tenus laissait 2,7 Go « inconnus » au journal du téléphone virtuel.
     pub fn octets_en_memoire(&self) -> usize {
-        self.octets_en(Etat::Tenu) + self.octets_en(Etat::EnChemin)
+        self.octets_en(Etat::Tenu) + self.octets_en(Etat::EnChemin) + self.atelier.octets_a_jeter()
     }
 }
 

@@ -284,6 +284,7 @@ fn test_memoire_4_ce_qui_rend_la_memoire_passe_devant_les_decodages() {
             Travail::Deplacer(d) if matches!(d.charge, Transit::AReprendre(_)) => "reprise",
             Travail::Deplacer(_) => "offre",
             Travail::Ecrire(..) => "aperçu",
+            Travail::Jeter(..) => "jet",
             Travail::Decoder(..) => "décodage",
             Travail::Adopter(..) => "promesse",
         })

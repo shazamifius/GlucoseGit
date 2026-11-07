@@ -566,3 +566,28 @@ fn test_photo_1_une_image_reglee_se_reexamine_quand_ce_qu_elle_veut_change() {
         "l'écran le veut : il revient"
     );
 }
+
+/// **Une image remise deux fois à revoir ne s'examine qu'une** (PHOTO-1) : ce qui arrive quand elle est
+/// redécodée entre deux images. La seconde fois lirait des voulus déjà pris, et offrirait au système ce
+/// que l'écran montre.
+#[test]
+#[cfg_attr(
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
+)]
+fn test_photo_1_une_image_remise_deux_fois_ne_s_examine_qu_une() {
+    let src = grande_photo("etages-deux-fois.png");
+    let mut magasin = Magasin::nouveau();
+    arrivee(&mut magasin, &src);
+    let voulu = magasin.cache[&src].pyramide.rang_pour(600.0);
+    une_image(&mut magasin, |m| {
+        montree_a(600.0, &src)(m);
+        let numero = m.cache.numero(&src);
+        m.a_revoir.push(numero);
+    });
+    assert_eq!(
+        magasin.cache[&src].pyramide.etat(voulu),
+        Etat::Tenu,
+        "l'écran le montre : il reste"
+    );
+}

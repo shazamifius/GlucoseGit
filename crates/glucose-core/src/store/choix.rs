@@ -14,12 +14,24 @@ use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::Deref;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Des identifiants choisis, dans l'ordre où ils l'ont été.
 #[derive(Debug, Clone, Default)]
 pub struct Choix {
     ordre: Vec<String>,
     ensemble: HashSet<String>,
+    /// **La marque de ce contenu** : neuve à chaque écriture, partagée par ses copies. Dire si une
+    /// sélection a changé ne la relit donc pas : l'emprise du groupe hachait huit mille noms à
+    /// chaque image (fiche 87). Tirée d'un compteur commun : deux sélections ne la partagent jamais
+    /// sans être la même, même remplacées l'une par l'autre.
+    marque: u64,
+}
+
+/// La marque suivante.
+fn marque_neuve() -> u64 {
+    static SUIVANTE: AtomicU64 = AtomicU64::new(1);
+    SUIVANTE.fetch_add(1, Ordering::Relaxed)
 }
 
 impl Choix {
@@ -36,12 +48,14 @@ impl Choix {
     pub fn push(&mut self, id: String) {
         if self.ensemble.insert(id.clone()) {
             self.ordre.push(id);
+            self.marque = marque_neuve();
         }
     }
 
     pub fn clear(&mut self) {
         self.ordre.clear();
         self.ensemble.clear();
+        self.marque = marque_neuve();
     }
 
     /// Ne garde que ceux que `garder` accepte, dans leur ordre.
@@ -54,6 +68,13 @@ impl Choix {
             }
             garde
         });
+        self.marque = marque_neuve();
+    }
+
+    /// La marque de ce contenu : une autre marque dit qu'il a pu changer ; la même, qu'il n'a pas
+    /// changé.
+    pub fn marque(&self) -> u64 {
+        self.marque
     }
 
     /// La liste, pour qui la veut à lui.
@@ -145,6 +166,33 @@ mod tests {
 
     fn choix(ids: &[&str]) -> Choix {
         ids.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    /// **La marque dit si la sélection a changé, sans la relire** (fiche 87) : neuve à chaque écriture,
+    /// même quand le compte ne bouge pas, et une sélection remplacée par une autre n'en hérite pas.
+    #[test]
+    fn test_choix_1_la_marque_suit_ce_qui_change() {
+        let mut a = Choix::default();
+        let vide = a.marque();
+        a.push("x".to_string());
+        let un = a.marque();
+        assert_ne!(un, vide, "ajouter");
+        a.push("x".to_string());
+        assert_eq!(a.marque(), un, "un doublon ne change rien");
+        assert_eq!(a.clone().marque(), un, "une copie est le même contenu");
+        a.retain(|_| false);
+        let retire = a.marque();
+        assert_ne!(retire, un, "retirer");
+        a.push("x".to_string());
+        a.clear();
+        assert_ne!(a.marque(), retire, "vider");
+        let b: Choix = vec!["y".to_string()].into();
+        let c: Choix = vec!["z".to_string()].into();
+        assert_ne!(
+            b.marque(),
+            c.marque(),
+            "même compte d'écritures, autre contenu"
+        );
     }
 
     #[test]

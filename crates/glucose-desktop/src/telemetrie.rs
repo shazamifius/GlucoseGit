@@ -10,7 +10,8 @@
 //!    que le menu ouvre.
 //! 3. **Aucun mot de l'utilisateur** : vrai par le type des lignes
 //!    ([`crate::boite_noire::enregistrement`]), et le serveur refuse toute autre valeur.
-//! 4. **Des lots, au lancement suivant**, sur un fil à part : jamais pendant qu'on dessine.
+//! 4. **À la fin de la session**, par un processus à part, et ce qui n'a pas pu partir **au
+//!    lancement suivant**, sur un fil à part : jamais pendant qu'on dessine (JOURNAL-1, fiche 87).
 //! 5. **Un identifiant tiré au hasard**, renouvelé quand on efface ce qui est parti.
 //! 6. **Aucune adresse IP gardée**, et une page publique qui dit tout : `docs/TELEMETRIE.md`.
 
@@ -25,12 +26,23 @@ pub const ADRESSE: &str = "https://glucose-boite-noire.ferme-nilslamber.workers.
 
 /// **Le serveur du programme** — jamais celui d'une épreuve : aucune épreuve n'atteint le réseau
 /// (celles qui envoient se donnent un serveur local, [`Telemetrie::habiter_avec`]).
-pub fn serveur() -> Option<&'static str> {
+/// `GLUCOSE_SERVEUR_JOURNAL` : un instrument, pour jouer l'envoi réel contre un serveur à soi.
+pub fn serveur() -> Option<String> {
     if cfg!(test) {
         None
     } else {
-        Some(ADRESSE)
+        Some(std::env::var("GLUCOSE_SERVEUR_JOURNAL").unwrap_or_else(|_| ADRESSE.to_string()))
     }
+}
+
+/// `glucose --envoyer-le-journal <fichier>` : **la session qui vient de finir**, si l'accord tient
+/// toujours. Rend le code de sortie du processus.
+pub fn envoyer_la_session(dossier: PathBuf, nom: &str) -> i32 {
+    let accord = Accord::charger(&dossier);
+    if let (Some(adresse), Some(true)) = (serveur(), accord.envoyer) {
+        envoi::envoyer_une(&adresse, &dossier, &accord.installation, nom);
+    }
+    0
 }
 
 /// Ce que la télémétrie sait de cette machine.
@@ -50,7 +62,7 @@ impl Telemetrie {
     /// **Au lancement** : le dossier de l'application et la session qui commence. L'accord se
     /// relit ; un accord donné fait partir les sessions closes, sur un fil à part.
     pub fn habiter(dossier: PathBuf, courante: Option<PathBuf>) -> Self {
-        Self::habiter_avec(dossier, courante, serveur().map(str::to_string))
+        Self::habiter_avec(dossier, courante, serveur())
     }
 
     /// [`Self::habiter`], vers ce serveur.
@@ -100,6 +112,20 @@ impl Telemetrie {
         Ok(())
     }
 
+    /// **La session qui vient de finir, si elle doit partir** (JOURNAL-1) : le nom de son fichier,
+    /// une fois. Finir deux fois ne l'envoie pas deux fois.
+    pub fn a_envoyer_en_partant(&mut self) -> Option<String> {
+        let accorde = self
+            .accord
+            .as_ref()
+            .is_some_and(|a| a.envoyer == Some(true));
+        if !accorde || self.serveur.is_none() {
+            return None;
+        }
+        let courante = self.courante.take()?;
+        Some(courante.file_name()?.to_string_lossy().into_owned())
+    }
+
     /// Le dossier de la boîte noire, que « voir ce qui part » ouvre.
     pub fn dossier_de_la_boite_noire(&self) -> Option<PathBuf> {
         self.dossier
@@ -129,8 +155,8 @@ macro_rules! la_question {
     ($geste:expr) => {
         concat!(
             "Aider à améliorer Glucose ?\n\n",
-            "À chaque lancement, Glucose peut envoyer le journal technique de la session ",
-            "précédente : le temps que chaque image a pris, le système et le processeur, la façon ",
+            "À la fin de chaque session, Glucose peut envoyer son journal technique : le temps ",
+            "que chaque image a pris, le système et le processeur, la façon ",
             "dont la session a fini. Jamais le contenu de tes documents, ni un nom, ni un fichier, ",
             "ni ton adresse.\n\n",
             "Tu peux changer d'avis à tout moment (",
@@ -202,6 +228,30 @@ impl crate::app::GlucoseApp {
     pub(crate) fn voir_ce_qui_part(&mut self) {
         if let Some(dossier) = self.lancement.telemetrie.dossier_de_la_boite_noire() {
             crate::interactions::links::ouvrir_un_dossier(&dossier);
+        }
+    }
+
+    /// **La session qui vient de finir part tout de suite** (JOURNAL-1) : une session unique sur
+    /// un PC prêté n'avait pas de « lancement suivant », et n'arrivait jamais. Un processus à part :
+    /// la fenêtre n'attend pas le réseau, et sa mort n'est qu'un report au lancement suivant.
+    /// Android n'a pas d'exécutable à relancer, et y revient toujours : il attend le lancement.
+    pub(crate) fn envoyer_le_journal_en_partant(&mut self) {
+        let Some(nom) = self.lancement.telemetrie.a_envoyer_en_partant() else {
+            return;
+        };
+        if cfg!(target_os = "android") {
+            return;
+        }
+        if let Ok(moi) = std::env::current_exe() {
+            let lance = std::process::Command::new(moi)
+                .args(["--envoyer-le-journal", &nom])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn();
+            if let Err(e) = lance {
+                println!("[Glucose] journal technique : envoi remis ({e})");
+            }
         }
     }
 

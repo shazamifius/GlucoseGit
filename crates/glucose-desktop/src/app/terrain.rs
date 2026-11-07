@@ -289,7 +289,9 @@ impl GlucoseApp {
         if !self.chronique.du_neuf() {
             return;
         }
-        let _ = self.ecrire_la_chronique();
+        // Le texte se fait ici ; le disque, sur son fil (JETER-1).
+        let (chemin, rapport) = (Self::chemin_de_la_chronique(), self.chronique.rapport());
+        self.chronique.ecrivain.confier(chemin, rapport);
     }
 
     /// Ecrit la chronique et la dit, au moment de fermer.
@@ -297,7 +299,8 @@ impl GlucoseApp {
     /// Sur la console **et** dans un fichier : la console sert a qui lance depuis un terminal
     /// et veut voir tout de suite ; le fichier sert a qui lance l'application normalement, et
     /// pourra le retrouver ensuite.
-    pub(super) fn clore_la_chronique(&self) {
+    pub(super) fn clore_la_chronique(&mut self) {
+        self.chronique.ecrivain.finir();
         // Le fichier s'ecrit TOUJOURS, meme pour une poignee d'images : c'est la trace, et
         // elle ne coute rien. Seul l'affichage sur la console attend d'avoir quelque chose a
         // dire, pour ne pas noyer un demarrage rate sous un tableau vide.

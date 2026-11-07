@@ -30,6 +30,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Avant toute fenêtre et tout dialogue : qui est Glucose pour la barre des tâches.
     glucose_desktop::plateforme::identite::declarer();
     let dossier = glucose_desktop::present::souvenir::dossier();
+    // `glucose --envoyer-le-journal <fichier>` : la session qui vient de finir (JOURNAL-1, fiche 87).
+    if std::env::args().nth(1).as_deref() == Some("--envoyer-le-journal") {
+        let nom = std::env::args().nth(2).unwrap_or_default();
+        std::process::exit(glucose_desktop::telemetrie::envoyer_la_session(
+            dossier, &nom,
+        ));
+    }
     // `--version`, `--mettre-a-jour` : ce que les épreuves de GitHub demandent, sans fenêtre.
     if let Some(code) = cycle::commande(
         std::env::args().nth(1).as_deref(),

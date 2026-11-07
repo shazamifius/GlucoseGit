@@ -1,6 +1,6 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 6/11/2026** (fiches 73 à 84 ; la 2.0.3-beta.6 publiée le 23/10, **la beta 7 prête à sa
+> **Au 7/11/2026** (fiches 73 à 87 ; **la beta 8 publiée par lui le 6/11, la beta 9 prête à sa
 > parole** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
 > ce que chacune porte, et ce qui la déclare finie. Tout y est à remettre en question — ses
 > paroles comprises. La direction vit dans [VISION](VISION.md), l'état vérifié dans
@@ -96,6 +96,8 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
+**Le prochain chantier est ici : le domaine.** Choisi par la session du 7/11, à qui il a laissé la décision : VISION dit *« pour l'instant, on se concentre sur le domaine »*, et il reste à faire les deux moitiés que personne ne peut voir sans lui, traverser les fichiers et le lire par une IA.
+
 | | chantier | ce qui le déclare fini |
 |---|---|---|
 | [~] | **BARRE-1 — La barre blanche de Windows disparaît** (sa demande du 6/11, fiche 85) : la bande déplace la fenêtre et porte réduire, agrandir, fermer | à l'écran d'un Windows réel : glisser, coller aux bords, couleurs inchangées une fois agrandie |
@@ -118,7 +120,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
-| [ ] | **Huit mille images : le coût par nœud visible** (sa parole du 6/11, fiche 86, **en premier** : 3 images par seconde avec le CPU à 18 % et le GPU à 1 %) : **ATLAS-1 en cours, non envoyé, la suite au § 4 quinquies** ; 110 → 65 ms sur un vol, une seule paire ; options au § 5 | les 8 000 à l'écran et un focus sans lag, par `GLUCOSE_SCENARIO`, puis à son écran |
+| [~] | **Huit mille images : le coût par nœud visible** (fiche 87) : ATLAS-1, PHOTO-1, LOT-1, JETER-1 ; 8 000 images sous 10 ms en vue d'ensemble, sur cette machine, sur secteur. **Arrêté par sa décision du 7/11** : le reste (fiche 87 § 9) n'est repris que si un usage réel le demande | à son écran, sur 8 000 images, à l'école |
 | [ ] | **P3 — Ce que son téléphone dira** : 16,4 ms par image ordinaire sur sa PowerVR (la télémétrie), 885 ms au pire ; POSTES-1 (les lignes `poste`), puis DESSUS-1 et RASTER-1 si elles les désignent ; et **P8 au téléphone**, jamais mesuré | les postes lus, le coupable nommé par la mesure, puis tenu |
 | [ ] | **La fluidité de son PC** : ses zooms chargés à 11-24 ms (345 images sur 13 886 au-dessus de 10 ms) ; **sur batterie**, 30 images par seconde par moments ; les gels de l'Intel Arc ; la coupure du pavé de 7 à 10 s ; le plantage d'une épreuve dans `vulkan-1.dll` (fiche 49 § 4) | chaque point mesuré, puis tenu ou pixelisé — jamais une dégradation qui se voit |
 | [ ] | **Le texte de près, la suite** (fiche 73 § 7) : les titres des membranes, des zones et des cases en formes ; la frontière « plus grand que l'écran » remise en question par la mesure | mesuré, puis aucun flou pendant un zoom |
@@ -256,7 +258,7 @@ tableaux sur une Intel UHD 620 ; et la liste de « tant de choses ne marchent pa
 ## 3. Ce qui n'attend que lui
 
 * **La beta 8 est publiée par lui le 6/11** (barre blanche, teintes, sélection) : **ses essais à l'école** : le texte, la fenêtre glissée et collée au bord, les couleurs une fois agrandie.
-* **La beta 9** portera CHARGE-1 (`charge` dans le journal, serveur déjà déployé), et ATLAS-1 s'il est prouvé.
+* **La beta 9** porte CHARGE-1 (serveur déjà déployé), la fiche 87 et JOURNAL-1 ; ses notes sont prêtes (`outils/publication/notes.md`). **Son clic.**
 * **`sauvegarde-profil-2026-10-31.7z`** : il n'a pas accès à son ancien PC pour l'instant ; il n'a pas fait l'envoi sur le cloud. **La récupération de `TAURI_SIGNING_PRIVATE_KEY` par une tâche GitHub chiffrée lui reste à proposer** : seul exemplaire connu.
 * **`sauvegarde-profil-2026-10-31.7z`** (317 Mo : la clé de mise à jour, ses clés de serveur, son
   identité web3, ses brouillons) : où l'a-t-il mise ? Introuvable sur ce PC (fiche 84 § 6).

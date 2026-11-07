@@ -211,24 +211,47 @@ pub(super) fn envoyer_tout(
         .and_then(Path::file_name)
         .map(|n| n.to_string_lossy().into_owned());
     let envoyees = elaguer(dossier, &sessions);
-    let url = format!("{adresse}/v1/sessions");
     let lourde = |(nom, _): &Session| {
         std::fs::read_to_string(journal.join(nom)).is_ok_and(|t| poids_entier(&t) > POIDS_MAX)
     };
     let version = env!("CARGO_PKG_VERSION");
-    for (nom, cle) in a_envoyer(&sessions, (courante.as_deref(), version), &envoyees, lourde) {
-        let Ok(texte) = std::fs::read_to_string(journal.join(&nom)) else {
+    let liste = a_envoyer(&sessions, (courante.as_deref(), version), &envoyees, lourde);
+    envoyer_ces(adresse, dossier, installation, &liste);
+}
+
+/// **Envoie cette session-là, et aucune autre** (JOURNAL-1) : le processus qui part à la fermeture
+/// ne doit pas prendre pour close la session d'un Glucose relancé entre-temps. Envoyée à moitié,
+/// elle serait retenue « partie », et son journal entier ne partirait jamais.
+pub(super) fn envoyer_une(adresse: &str, dossier: &Path, installation: &str, session: &str) {
+    let journal = dossier.join(crate::boite_noire::DOSSIER);
+    let sessions = sessions_du_journal(&journal);
+    let envoyees = std::fs::read_to_string(dossier.join(ENVOYEES)).unwrap_or_default();
+    let version = env!("CARGO_PKG_VERSION");
+    let liste: Vec<Session> = a_envoyer(&sessions, (None, version), &envoyees, |_| false)
+        .into_iter()
+        .filter(|(nom, _)| nom == session)
+        .collect();
+    envoyer_ces(adresse, dossier, installation, &liste);
+}
+
+/// Envoie ces sessions, dans l'ordre, jusqu'à ce que le réseau manque.
+fn envoyer_ces(adresse: &str, dossier: &Path, installation: &str, sessions: &[Session]) {
+    let journal = dossier.join(crate::boite_noire::DOSSIER);
+    let url = format!("{adresse}/v1/sessions");
+    let version = env!("CARGO_PKG_VERSION");
+    for (nom, cle) in sessions {
+        let Ok(texte) = std::fs::read_to_string(journal.join(nom)) else {
             continue;
         };
-        let reponse = match corps(installation, &cle, &texte) {
+        let reponse = match corps(installation, cle, &texte) {
             Some(c) => crate::plateforme::envoyer(&url, Verbe::Deposer, c.as_bytes()),
             None => Ok(0),
         };
         match reponse {
-            Ok(200 | 201) => retenir(dossier, &cle, "partie"),
+            Ok(200 | 201) => retenir(dossier, cle, "partie"),
             Ok(code) => {
                 println!("[Glucose] journal technique : {nom} refuse ({code})");
-                retenir(dossier, &cle, &format!("refusee {version}"));
+                retenir(dossier, cle, &format!("refusee {version}"));
             }
             // Le réseau manque : la suite attendra le lancement suivant.
             Err(e) => {

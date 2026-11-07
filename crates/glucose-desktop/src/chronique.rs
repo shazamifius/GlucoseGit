@@ -32,6 +32,7 @@
 //! gardées entières, avec leur geste, leurs postes et leurs quantités — c'est là que se lit la
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
+pub mod ecrivain;
 pub mod entracte;
 pub mod etages;
 pub mod geste;
@@ -83,6 +84,8 @@ pub struct Chronique {
     rendues: u64,
     /// Une image est entree dans les pires depuis la derniere sauvegarde.
     du_neuf: bool,
+    /// Le fil qui l'écrit en cours de session (JETER-1).
+    pub ecrivain: ecrivain::Ecrivain,
     /// Ce que la navigation vit : ce que le doigt demande, et le temps qu'il faut pour que
     /// l'écran le montre (NAV-3).
     pub navigation: navigation::Navigation,
@@ -312,6 +315,7 @@ impl Chronique {
             noms_des_postes: Vec::new(),
             rendues: 0,
             du_neuf: false,
+            ecrivain: ecrivain::Ecrivain::default(),
             navigation: navigation::Navigation::nouvelle(),
             veille: Veille::default(),
             entracte: Entracte::nouveau(),

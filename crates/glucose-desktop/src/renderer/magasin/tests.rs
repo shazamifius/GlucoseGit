@@ -250,3 +250,49 @@ fn test_lot_1_un_echec_se_dit() {
     assert!(magasin.echecs.contains(&absent), "l'échec est retenu");
     assert!(magasin.changements() > avant, "le lot doit le savoir");
 }
+
+/// **Ce que le magasin évince part sur un ouvrier, et reste compté** (JETER-1) : le fil qui dessine
+/// faisait jusqu'à 2 900 `munmap` dans une seule image. Sans ouvriers, ce qu'on confie reste dans les
+/// files, et on voit ce qui s'est passé : rien n'a été rendu ici.
+#[test]
+fn test_jeter_1_ce_qui_part_part_sur_un_ouvrier_et_reste_compte() {
+    let mut magasin = Magasin::nouveau();
+    magasin.atelier = Atelier::sans_ouvriers();
+    magasin.ouvrir();
+    let ancienne = magasin.image - 1;
+    poser_entree(&mut magasin, "oubliee", 64, 1, ancienne);
+    let avant = magasin.octets_en_memoire();
+    assert!(avant > 0);
+    magasin.ramener_sous(0);
+    assert!(
+        !magasin.cache.contains_key("oubliee"),
+        "elle est partie du cache"
+    );
+    assert_eq!(
+        magasin.atelier.octets_a_jeter(),
+        avant,
+        "elle attend un ouvrier"
+    );
+    assert_eq!(
+        magasin.octets_en_memoire(),
+        avant,
+        "et elle occupe encore la mémoire"
+    );
+    assert_eq!(magasin.atelier.en_route(), 1, "un état fini l'attend");
+}
+
+/// **Un atelier avec ses ouvriers finit par tout rendre**, et son compte revient à zéro.
+#[test]
+fn test_jeter_1_les_ouvriers_rendent_tout() {
+    let mut magasin = Magasin::nouveau();
+    magasin.ouvrir();
+    let ancienne = magasin.image - 1;
+    for i in 0..8 {
+        poser_entree(&mut magasin, &format!("oubliee-{i}"), 64, 1, ancienne);
+    }
+    magasin.ramener_sous(0);
+    magasin.attendre_le_chantier();
+    assert_eq!(magasin.atelier.octets_a_jeter(), 0);
+    assert_eq!(magasin.atelier.en_route(), 0);
+    assert_eq!(magasin.octets_en_memoire(), 0);
+}

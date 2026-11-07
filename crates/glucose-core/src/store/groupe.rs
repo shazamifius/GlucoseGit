@@ -107,9 +107,11 @@ impl Store {
     pub fn emprise_du_groupe(&self, board_id: &str) -> Option<Rect> {
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
+        // Les marques, et non les noms : huit mille noms hachés à chaque image coûtaient plus que le
+        // calcul qu'ils évitaient (fiche 87).
         (
-            &self.selected_image_ids,
-            &self.selected_annotation_ids,
+            self.selected_image_ids.marque(),
+            self.selected_annotation_ids.marque(),
             &self.selected_folder_id,
         )
             .hash(&mut h);

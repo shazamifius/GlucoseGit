@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 6/11/2026** (fiches 59 à 84). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 7/11/2026** (fiches 59 à 87). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -218,6 +218,16 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
   **Dire à l'avance le nombre EXACT de fenêtres** : il a vu Glucose se relancer quatre fois quand deux
   étaient annoncées, et a cru à un défaut. Un tableau neuf décode ; `perf` ralentit : ne comparer que deux
   mesures faites dans les mêmes conditions.
+* **Mesurer sans le déranger** : `bash outils/banc_hors_ecran.sh <scénario> <sortie> [VAR=valeur…]` : le vrai Glucose et sa
+  vraie carte dans un compositeur sans écran. **Aucune fenêtre chez lui.** Comparer deux programmes par `GLUCOSE_EXE`, en paires
+  entrelacées : **le même programme a varié d'un facteur 3 d'un jour à l'autre** (secteur ou batterie, fiche 87), et une compilation à côté
+  double tout. Un temps ne se compare qu'à son voisin.
+* **Ce qui calcule, ce qui attend** : `perf record -e cpu-clock:u --call-graph dwarf,16384 --user-callchains` (sans `--user-callchains`,
+  refusé ici) ; `strace -T` sur le seul fil qui dessine dit ce que `perf` ne voit pas. Un poste haut avec un processeur à 1 % attend.
+* **Les sabotages, à part** : un arbre détaché (`git worktree add --detach`), avec `CARGO_TARGET_DIR` à lui, `CARGO_PROFILE_DEV_OPT_LEVEL=0`,
+  `CARGO_PROFILE_DEV_DEBUG=0` et `nice -n 19` : quelques minutes chacun au lieu de dix, et l'arbre principal reste libre. **Le retirer ensuite.** Un saboteur
+  lancé par `nohup … &` ignore `SIGINT` : le tuer laisse sa garde cassée, à rétablir et à vérifier.
+* **`undefined reference` à l'édition de liens après une coupure** : des objets à moitié écrits, `cargo clean -p glucose-desktop`.
 * **Faire tomber un moteur** : `GLUCOSE_TOMBER=vulkan` (ou `gl`) ; l'échelle se joue en relançant.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>` ; la connexion est dans CLAUDE.md
   (le mode « lien et code » : la page automatique a mis dix minutes à s'ouvrir, et l'autre mode

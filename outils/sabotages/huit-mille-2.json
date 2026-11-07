@@ -1,0 +1,1058 @@
+[
+ {
+  "nom": "ATLAS-1 le filtre lit la voisine (borne haute)",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "v(vmax.min(1.0 - 0.5 / h)),",
+  "apres": "v(vmax),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 la pose ne lit pas sa cellule",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": ".map_or(posee.pose, |c| c.dans_la_page(posee.pose))",
+  "apres": ".map_or(posee.pose, |_| posee.pose)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 un seul dessin pour tous les lots",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,",
+  "apres": "Some(suite) => suite.fin = i + 1,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 un dessin par pose",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "Some(suite) if suite.lot == televersee.lot => suite.fin = i + 1,",
+  "apres": "Some(suite) if suite.lot == u64::MAX => suite.fin = i + 1,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une page vide ne se rend pas",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        if page.occupees == 0 {\n            self.pages.remove(&cellule.lot);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une cellule rendue ne se reprend pas",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        page.libres.push(cellule.rang);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une texture oubliée garde sa cellule",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        if let Some(cellule) = partie.cellule {\n            self.atlas.liberer(cellule);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une page partielle ne compte que ses cellules",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "textures + self.atlas.octets_vides()",
+  "apres": "textures",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une cellule n'est pas une puissance de deux",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "let cote = largeur.max(hauteur).next_power_of_two();",
+  "apres": "let cote = largeur.max(hauteur);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_atlas_1"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une cellule trop grande pour toute carte",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "const COTE_MAX: u32 = 64;",
+  "apres": "const COTE_MAX: u32 = 128;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_atlas_1"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 le cran ignore la cellule",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/cran.rs",
+  "avant": "Some(crate::present::scene_gpu::octets_d_une_texture(l, h))",
+  "apres": "Some(u64::from(l) * u64::from(h) * 4)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_atlas_1_la_demande"
+  ]
+ },
+ {
+  "nom": "ATLAS-1 une tranche dessine toute la suite",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "let (d, f) = (suite.debut.max(debut), suite.fin.min(fin));",
+  "apres": "let (d, f) = (suite.debut, suite.fin);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "present::"
+  ]
+ },
+ {
+  "nom": "MEMOIRE-2 l'arrière-plan garde les pages",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "            self.atlas.vider();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 un numéro se réattribue",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/cache.rs",
+  "avant": "let n = Numero(self.places.len() as u32);",
+  "apres": "let n = Numero(self.tenues as u32);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_photo_1"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 le compte n'enlève pas ce qu'il remplace",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/cache.rs",
+  "avant": "            Some(partie) => self.octets -= partie.pyramide.octets(),\n",
+  "apres": "            Some(_) => {}\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_photo_1"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 le compte oublie un retrait",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/cache.rs",
+  "avant": "            self.octets -= partie.pyramide.octets();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_photo_1"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 une image réglée ne se réexamine jamais",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/etagement.rs",
+  "avant": "if entree.reglee != Some((voulus, entree.queue)) {",
+  "apres": "if entree.reglee.is_none() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "magasin"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 une image s'examine deux fois",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/etagement.rs",
+  "avant": "            if !std::mem::take(&mut entree.a_revoir) {\n                continue;\n            }\n",
+  "apres": "            entree.a_revoir = false;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "magasin"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 un niveau rentré n'oublie pas l'examen",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "            entree.reglee = None;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "magasin"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 le hachage perd le bout d'une clé",
+  "fichier": "crates/glucose-core/src/rapide.rs",
+  "avant": "        dernier[7] = octets.len() as u8;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "rapide"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 le hachage perd le haut du produit",
+  "fichier": "crates/glucose-core/src/rapide.rs",
+  "avant": "self.0 = (produit as u64) ^ ((produit >> 64) as u64);",
+  "apres": "self.0 = produit as u64;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "rapide"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 la cascade oublie ce qui est en retard",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": ".filter(|t| !self.connait(&t.identite, &t.cle))",
+  "apres": ".filter(|_| false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 le cadrage se garde d'une image à l'autre",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        self.garder_le_cadrage = false;\n        self.cadrage_de_l_image = None;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "test_photo_1"
+  ]
+ },
+ {
+  "nom": "PHOTO-1 trois requêtes spatiales par image",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        self.garder_le_cadrage = true;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "test_photo_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 la version du document n'est pas lue",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.version == store.version\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 un geste ouvert n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && store.journal.en_cours().is_none()\n            && f.tableau",
+  "apres": "            && f.tableau",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le tableau n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.tableau == store.project.active_board_id\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le magasin n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.magasin == magasin\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le cran n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.cran == carte.cran\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le plafond n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.plafond == carte.plafond_des_textures\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 la part n'est pas lue",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && part_valable\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 l'échelle n'est pas lue",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.echelles.contient(vp.scale)\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 l'ensemble visible n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            && f.rangs == rangs;\n",
+  "apres": ";\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 la carte n'est pas écoutée",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "let permis = carte.lot_de_la_carte == Some(f.numero)\n            && f.version",
+  "apres": "let permis = f.version",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 la borne basse appartient à l'intervalle",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "self.bas < echelle && echelle <= self.haut",
+  "apres": "self.bas <= echelle && echelle <= self.haut",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 la borne haute n'appartient pas à l'intervalle",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "self.bas < echelle && echelle <= self.haut",
+  "apres": "self.bas < echelle && echelle < self.haut",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le nombre de poses vient des rangs",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "            nombre: f.nombre,\n",
+  "apres": "            nombre: f.rangs.len() + 1,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 une proposition pendant un geste",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "if store.journal.en_cours().is_some() || carte.debordee {",
+  "apres": "if carte.debordee {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 une proposition quand la carte déborde",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+  "avant": "if store.journal.en_cours().is_some() || carte.debordee {",
+  "apres": "if store.journal.en_cours().is_some() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 les largeurs du niveau sont fausses en bas",
+  "fichier": "crates/glucose-desktop/src/renderer/photo.rs",
+  "avant": "let bas = self.niveaux.get(rang + 1).map_or(0.0, |n| n.largeur as f32);",
+  "apres": "let bas = self.niveaux.get(rang + 2).map_or(0.0, |n| n.largeur as f32);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 les largeurs du niveau sont fausses en haut",
+  "fichier": "crates/glucose-desktop/src/renderer/photo.rs",
+  "avant": "            self.niveaux[rang].largeur as f32\n        };\n        (bas, haut)",
+  "apres": "            self.niveaux[rang - 1].largeur as f32\n        };\n        (bas, haut)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 une image ne resserre pas l'intervalle",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/recolte.rs",
+  "avant": "photos\n                    .echelles\n                    .resserrer(tenue.echelles.0, tenue.echelles.1);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 l'échelle de la photo ne suit pas sa largeur",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/tenue.rs",
+  "avant": "let par_largeur = vp.scale / largeur_source.max(f64::MIN_POSITIVE);",
+  "apres": "let par_largeur = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le rendu ne reconduit pas le magasin",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        magasin.reconduire();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le magasin étage quand même",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "        if !self.reconduite {\n            self.etager();\n        }\n",
+  "apres": "        self.etager();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 une image reconduite avance le numéro",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "        self.image = self.image.saturating_sub(1);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 une image arrivée ne compte pas",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "        self.generations += 1;\n        self.changements += 1;\n",
+  "apres": "        self.generations += 1;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 un niveau rentré ne compte pas",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "        self.changements += 1;\n        match &d.charge {",
+  "apres": "        match &d.charge {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "lot_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 une éviction ne compte pas",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "            self.changements += 1;\n            self.evincees += 1;\n",
+  "apres": "            self.evincees += 1;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_lot_1_une_eviction"
+  ]
+ },
+ {
+  "nom": "LOT-1 un échec ne compte pas",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "                    self.changements += 1;\n                    self.echecs.insert(src);\n",
+  "apres": "                    self.echecs.insert(src);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_lot_1_un_echec"
+  ]
+ },
+ {
+  "nom": "JETER-1 l'éviction rend sur le fil qui dessine",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "                self.jeter(partie.pyramide);\n",
+  "apres": "                drop(partie);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_jeter_1"
+  ]
+ },
+ {
+  "nom": "JETER-1 ce qui part ne reste pas compté",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": " + self.atelier.octets_a_jeter()",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_jeter_1"
+  ]
+ },
+ {
+  "nom": "JETER-1 l'atelier ne compte pas ce qu'on lui confie",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier.rs",
+  "avant": "        self.partis.octets.fetch_add(octets, Relaxed);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_jeter_1"
+  ]
+ },
+ {
+  "nom": "JETER-1 l'ouvrier oublie de décompter",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier.rs",
+  "avant": "                partis.octets.fetch_sub(octets, Relaxed);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_jeter_1"
+  ]
+ },
+ {
+  "nom": "JETER-1 un état fini n'attend pas les jets",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier.rs",
+  "avant": "            + self.partis.jets.load(Relaxed)\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_jeter_1"
+  ]
+ },
+ {
+  "nom": "JETER-1 finir n'attend pas l'écrivain",
+  "fichier": "crates/glucose-desktop/src/chronique/ecrivain.rs",
+  "avant": "            let _ = fil.join();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_jeter_1"
+  ]
+ },
+ {
+  "nom": "JOURNAL-1 sans l'accord",
+  "fichier": "crates/glucose-desktop/src/telemetrie.rs",
+  "avant": "if !accorde || self.serveur.is_none() {",
+  "apres": "if self.serveur.is_none() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_journal_1"
+  ]
+ },
+ {
+  "nom": "JOURNAL-1 sans serveur",
+  "fichier": "crates/glucose-desktop/src/telemetrie.rs",
+  "avant": "if !accorde || self.serveur.is_none() {",
+  "apres": "if !accorde {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_journal_1"
+  ]
+ },
+ {
+  "nom": "JOURNAL-1 elle part deux fois",
+  "fichier": "crates/glucose-desktop/src/telemetrie.rs",
+  "avant": "let courante = self.courante.take()?;",
+  "apres": "let courante = self.courante.clone()?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_journal_1"
+  ]
+ },
+ {
+  "nom": "JOURNAL-1 toutes les sessions partent",
+  "fichier": "crates/glucose-desktop/src/telemetrie/envoi.rs",
+  "avant": ".filter(|(nom, _)| nom == session)",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "test_journal_1"
+  ]
+ },
+ {
+  "nom": "CHOIX-1 ajouter ne change pas la marque",
+  "fichier": "crates/glucose-core/src/store/choix.rs",
+  "avant": "            self.ordre.push(id);\n            self.marque = marque_neuve();\n",
+  "apres": "            self.ordre.push(id);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "test_choix_1"
+  ]
+ },
+ {
+  "nom": "CHOIX-1 vider ne change pas la marque",
+  "fichier": "crates/glucose-core/src/store/choix.rs",
+  "avant": "        self.ensemble.clear();\n        self.marque = marque_neuve();\n",
+  "apres": "        self.ensemble.clear();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "test_choix_1"
+  ]
+ },
+ {
+  "nom": "CHOIX-1 retirer ne change pas la marque",
+  "fichier": "crates/glucose-core/src/store/choix.rs",
+  "avant": "            garde\n        });\n        self.marque = marque_neuve();\n",
+  "apres": "            garde\n        });\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "test_choix_1"
+  ]
+ },
+ {
+  "nom": "LOT-1 le nuanceur oublie la similitude",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/photos.wgsl",
+  "avant": "        e = e * ecran.rapport + ecran.translation;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 le nuanceur applique la similitude à tout",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/photos.wgsl",
+  "avant": "    if (i < ecran.lot) {",
+  "apres": "    if (i < 100000u) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 l'écran ne dit pas le nombre de poses",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/lot.rs",
+  "avant": "cadre.extend_from_slice(&(nombre as u32).to_le_bytes());",
+  "apres": "cadre.extend_from_slice(&0u32.to_le_bytes());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 un lot incomplet est retenu",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/lot.rs",
+  "avant": ".filter(|(_, nombre)| a_jour == *nombre && !self.inachevee)",
+  "apres": ".filter(|_| !self.inachevee)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 un lot retenu pendant que la cascade attend",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/lot.rs",
+  "avant": ".filter(|(_, nombre)| a_jour == *nombre && !self.inachevee)",
+  "apres": ".filter(|(_, nombre)| a_jour == *nombre)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 une image complète garde le lot d'avant",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "        if en_place.is_none() {\n            self.lot = None;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 une photo du lot part sans le défaire",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        if partie.vue == self.image && partie.photo {\n            self.lot = None;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 toute texture oubliée défait le lot",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "if partie.vue == self.image && partie.photo {",
+  "apres": "if partie.photo {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 l'arrière-plan garde le lot",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/memoire.rs",
+  "avant": "            self.lot = None;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 le tampon qui grandit perd le lot",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/lot.rs",
+  "avant": "            file.write_buffer(&self.poses, 0, &lot.octets);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 ce qui suit le lot s'écrit au début du tampon",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "file.write_buffer(&self.poses, (du_lot * OCTETS_POSE) as u64, &octets);",
+  "apres": "file.write_buffer(&self.poses, 0, &octets);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ },
+ {
+  "nom": "LOT-1 les rangs du lot ne sont pas les siens",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu.rs",
+  "avant": "        if n <= self.du_lot {\n            return n;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "scene_gpu"
+  ]
+ }
+]

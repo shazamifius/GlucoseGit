@@ -1631,8 +1631,8 @@ fn test_lot_1_une_image_reprise_est_celle_qu_une_image_complete_aurait_demandee(
 
 /// **Une seule requête spatiale par image** (PHOTO-1) : le dessous, ce qui est confié à la carte et
 /// le dessus regardent la même vue du même document, et la refaisaient chacun : huit mille rangs
-/// triés trois fois, à chaque image. Et cette mémoire ne survit pas à l'image : une vue neuve doit
-/// voir ce qu'elle montre.
+/// triés trois fois, à chaque image. **Et cette mémoire ne survit pas à l'image** : un nœud posé
+/// ensuite, à la même vue, doit se voir, même par une question posée hors d'une image.
 #[test]
 fn test_photo_1_une_seule_requete_spatiale_par_image() {
     let mut store = document_damier(1.0);
@@ -1640,35 +1640,90 @@ fn test_photo_1_une_seule_requete_spatiale_par_image() {
     let mut renderer = Renderer::new();
     renderer.sync_spatial_index(&store);
     let mut ui = UiState::new();
+    let header = ui.header_height();
     let mut image = |renderer: &mut Renderer, store: &glucose_core::store::Store| {
         let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
         let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
-        glucose_desktop::perf::frame_begin();
-        let confie = renderer.rendre_les_couches(
+        renderer.rendre_les_couches(
             &mut dessous.as_mut(),
             &mut dessus.as_mut(),
             store,
             (&mut ui, Pointer { x: 0.0, y: 0.0 }),
             SceneOverlay::sans_rien(&guides),
             Regard::immobile(),
-        );
-        let requetes = glucose_desktop::perf::postes()
-            .iter()
-            .filter(|(nom, _)| *nom == "cull")
-            .count();
-        (confie, requetes)
+        )
     };
-    let (_, requetes) = image(&mut renderer, &store);
-    assert_eq!(requetes, 1);
-    renderer.magasin.attendre_le_chantier();
-    let (confie, _) = image(&mut renderer, &store);
-    assert_eq!(confie.photos.len(), 1, "la photo est à l'écran");
-    if let Some(b) = store.active_board_mut() {
-        b.viewport.x = 100_000.0;
-    }
-    let (confie, _) = image(&mut renderer, &store);
-    assert!(
-        confie.photos.is_empty(),
-        "une vue neuve voit ce qu'elle montre"
+    let avant = renderer.requetes_spatiales;
+    let _ = image(&mut renderer, &store);
+    assert_eq!(
+        renderer.requetes_spatiales - avant,
+        1,
+        "une seule, pour toute l'image"
     );
+    renderer.magasin.attendre_le_chantier();
+    let confie = image(&mut renderer, &store);
+    assert_eq!(confie.photos.len(), 1, "la photo est à l'écran");
+    assert_eq!(renderer.noeuds_visibles, 1);
+
+    let board = store.project.active_board_id.clone();
+    store.add_image(
+        &board,
+        glucose_core::types::BoardImage::new("voisine", 420.0, 320.0, 50.0, 50.0),
+    );
+    renderer.rejuger_la_carte(&store, taille, header);
+    assert_eq!(
+        renderer.noeuds_visibles, 2,
+        "la vue est la même, le document non"
+    );
+}
+
+/// **Une image qui reprend le lot ne touche pas au magasin** (LOT-1) : elle ne réclame aucune photo, et
+/// si l'étagement passait quand même, il lirait des voulus vides, et offrirait au système tout ce que
+/// l'écran montre. Rien ne doit partir, ni bouger, image après image.
+#[test]
+fn test_lot_1_une_image_reprise_ne_touche_pas_au_magasin() {
+    let store = document_damier(0.3);
+    let (taille, guides) = ((800, 600), glucose_core::smart_align::SnapGuides::default());
+    let mut renderer = Renderer::new();
+    renderer.sync_spatial_index(&store);
+    let mut ui = UiState::new();
+    let mut image = |renderer: &mut Renderer| {
+        let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let confie = renderer.rendre_les_couches(
+            &mut dessous.as_mut(),
+            &mut dessus.as_mut(),
+            &store,
+            (&mut ui, Pointer { x: 0.0, y: 0.0 }),
+            SceneOverlay::sans_rien(&guides),
+            Regard::immobile(),
+        );
+        renderer.magasin.attendre_le_chantier();
+        confie
+    };
+    // Jusqu'à ce que tout soit décodé et réglé : plus rien ne bouge d'une image complète à l'autre.
+    let mut propose = None;
+    let mut vus = u64::MAX;
+    for _ in 0..50 {
+        propose = image(&mut renderer).lot_propose;
+        if renderer.magasin.changements() == vus {
+            break;
+        }
+        vus = renderer.magasin.changements();
+    }
+    assert!(propose.is_some(), "une image complète propose son lot");
+    renderer.carte.lot_de_la_carte = propose;
+    let offerts = renderer.magasin.mouvements().offerts;
+    for _ in 0..4 {
+        assert!(
+            image(&mut renderer).lot.is_some(),
+            "rien ne change : il se reprend"
+        );
+    }
+    assert_eq!(
+        renderer.magasin.mouvements().offerts,
+        offerts,
+        "rien n'est parti"
+    );
+    assert_eq!(renderer.magasin.changements(), vus, "et rien n'a bougé");
 }

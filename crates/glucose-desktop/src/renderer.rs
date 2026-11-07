@@ -171,6 +171,8 @@ pub struct Renderer {
     pub hue_cache: SymbioticHueCache,
     /// Combien de nœuds la dernière image a retenus à l'écran (CHARGE-1).
     pub noeuds_visibles: usize,
+    /// Combien de requêtes spatiales ont été faites : une par image sur la voie graphique (PHOTO-1).
+    pub requetes_spatiales: u64,
     /// Le lot que le rendu a proposé à la carte (LOT-1).
     lot: voies::Lot,
     /// **Ce que l'image en cours a déjà cadré** : la zone du monde et ses rangs, gardés le temps
@@ -233,6 +235,7 @@ impl Renderer {
             mises_en_page: Default::default(),
             hue_cache: SymbioticHueCache::new(),
             noeuds_visibles: 0,
+            requetes_spatiales: 0,
             lot: voies::Lot::default(),
             cadrage_de_l_image: None,
             garder_le_cadrage: false,

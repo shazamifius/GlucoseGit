@@ -13,8 +13,9 @@ change dans le programme. Tu peux changer d'avis à tout moment : clic droit sur
 
 ## Ce qui part
 
-À chaque lancement, et seulement si tu as dit oui, Glucose envoie le journal des sessions
-précédentes. On y trouve :
+À la fin de chaque session, et seulement si tu as dit oui, Glucose envoie le journal de cette
+session ; ce qui n'a pas pu partir, faute de réseau par exemple, part au lancement suivant. On y
+trouve :
 
 * le temps que chaque image a pris à dessiner, geste par geste (déplacer la vue, zoomer, glisser
   un nœud…) ;

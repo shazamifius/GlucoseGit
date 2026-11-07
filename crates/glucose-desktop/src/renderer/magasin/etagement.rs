@@ -4,7 +4,7 @@
 //! ici ce que chaque niveau devient, là-bas ce que le magasin tient.
 
 use super::super::atelier::{Atelier, Deplacement};
-use super::super::photo::Etat;
+use super::super::photo::{Etat, Transit};
 use super::{Entree, Magasin};
 
 impl Magasin {
@@ -23,6 +23,7 @@ impl Magasin {
             ..
         } = self;
         let mut encore = Vec::with_capacity(a_revoir.len());
+        let mut deplacements = Vec::new();
         for numero in std::mem::take(a_revoir) {
             let Some((src, entree)) = cache.chemin_et_entree(numero) else {
                 continue;
@@ -37,13 +38,14 @@ impl Magasin {
             // examen rendrait le même résultat, et il coûtait 10 % du fil qui dessine sur huit
             // mille images à l'écran.
             if entree.reglee != Some((voulus, entree.queue)) {
-                let regle = examiner(src, entree, voulus, atelier);
+                let regle = examiner(src, entree, voulus, (atelier, &mut deplacements));
                 entree.reglee = regle.then_some((voulus, entree.queue));
             }
             if voulus != 0 {
                 encore.push(numero);
             }
         }
+        atelier.deplacer_tout(deplacements);
         for numero in &encore {
             if let Some(entree) = cache.par_numero_mut(*numero) {
                 entree.a_revoir = true;
@@ -56,7 +58,12 @@ impl Magasin {
 /// **Un examen** : pour chaque niveau, ce qu'il doit devenir. Rend vrai si tout est réglé — rien
 /// n'est parti, rien n'est en route, rien ne manque : tant que rien ne change, un nouvel examen ne
 /// ferait rien de plus.
-fn examiner(src: &str, entree: &mut Entree, voulus: u64, atelier: &mut Atelier) -> bool {
+fn examiner(
+    src: &str,
+    entree: &mut Entree,
+    voulus: u64,
+    (atelier, deplacements): (&mut Atelier, &mut Vec<Deplacement<Transit>>),
+) -> bool {
     let mut regle = true;
     let mut redecoder = false;
     for rang in 0..entree.pyramide.niveaux_construits() {
@@ -74,7 +81,7 @@ fn examiner(src: &str, entree: &mut Entree, voulus: u64, atelier: &mut Atelier) 
         // Un niveau tenu trop petit pour s'offrir le restera : être offrable ne change pas.
         regle &= !geste && !matches!(etat, Etat::EnChemin | Etat::Perdu);
         if let Some(transit) = geste.then(|| entree.pyramide.sortir(rang)).flatten() {
-            atelier.deplacer(Deplacement {
+            deplacements.push(Deplacement {
                 src: src.to_string(),
                 generation: entree.generation,
                 rang,

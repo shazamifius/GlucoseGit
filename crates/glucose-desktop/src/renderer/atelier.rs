@@ -60,6 +60,7 @@ pub struct Partage {
     apercus: Option<Arc<std::path::Path>>,
 }
 use std::collections::{HashSet, VecDeque};
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
@@ -107,6 +108,9 @@ enum Travail {
         Option<Arc<crate::persist::objets::Objets>>,
     ),
     Deplacer(Deplacement<Transit>),
+    /// **Ce qui part de la mémoire** : le rendre coûte un `munmap` par niveau, et le fil qui
+    /// dessine en faisait des milliers en une image (JETER-1, fiche 87). Et ce que ça occupe.
+    Jeter(Box<dyn Send>, usize),
     /// La vue d'ensemble d'une image à garder sur le disque (ETAGES-4) : la source, le
     /// dossier, l'aperçu, et l'empreinte de ses octets si un document les porte (APERCU-5).
     Ecrire(
@@ -141,7 +145,7 @@ impl Files {
                 Transit::AReprendre(_) => self.reprises.push_back(travail),
                 Transit::AOffrir(_) => self.offres.push_back(travail),
             },
-            Travail::Ecrire(..) => self.offres.push_back(travail),
+            Travail::Ecrire(..) | Travail::Jeter(..) => self.offres.push_back(travail),
         }
     }
 
@@ -154,6 +158,15 @@ impl Files {
             .or_else(|| self.offres.pop_front())
             .or_else(|| self.decodages.pop_front())
     }
+}
+
+/// **Ce qui est parti chez les ouvriers sans rien leur demander de rendre.**
+#[derive(Default)]
+struct Partis {
+    ecritures: AtomicUsize,
+    jets: AtomicUsize,
+    /// Ce que les jets occupent encore.
+    octets: AtomicUsize,
 }
 
 #[derive(Default)]
@@ -180,8 +193,8 @@ pub struct Atelier {
     /// l'atelier ne touche jamais au disque que pour lire les sources — ce que veulent les
     /// épreuves, qui ne doivent rien écrire chez l'utilisateur.
     apercus: Option<std::sync::Arc<std::path::Path>>,
-    /// Les écritures parties : comme les offres, un état fini les attend.
-    ecritures: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// Les écritures et ce qui est à jeter : comme les offres, un état fini les attend.
+    partis: Arc<Partis>,
     /// Où sont les octets de chaque image (HISTOIRE-1). Sans lui — les épreuves —, une clé
     /// se lit comme un chemin de fichier, ce qu'elle était avant le registre.
     objets: Option<Arc<crate::persist::objets::Objets>>,
@@ -208,16 +221,23 @@ impl Drop for Atelier {
 impl Atelier {
     /// Ouvre l'atelier et lance ses ouvriers.
     pub fn nouveau() -> Self {
+        Self::avec(ouvriers())
+    }
+
+    /// Un atelier où rien ne se fait : ce qu'on lui confie reste dans ses files, à regarder.
+    #[cfg(test)]
+    pub fn sans_ouvriers() -> Self {
+        Self::avec(0)
+    }
+
+    fn avec(combien: usize) -> Self {
         let commandes = Arc::new(Commandes::default());
         let (retour, prets) = channel::<Fait>();
-        let ecritures: Arc<std::sync::atomic::AtomicUsize> = Default::default();
-        for _ in 0..ouvriers() {
-            let (commandes, retour, ecritures) = (
-                Arc::clone(&commandes),
-                retour.clone(),
-                Arc::clone(&ecritures),
-            );
-            std::thread::spawn(move || ouvrier(&commandes, &retour, &ecritures));
+        let partis: Arc<Partis> = Arc::default();
+        for _ in 0..combien {
+            let (commandes, retour, partis) =
+                (Arc::clone(&commandes), retour.clone(), Arc::clone(&partis));
+            std::thread::spawn(move || ouvrier(&commandes, &retour, &partis));
         }
         Self {
             commandes,
@@ -226,7 +246,7 @@ impl Atelier {
             reprises: 0,
             offres: 0,
             apercus: None,
-            ecritures,
+            partis,
             objets: None,
         }
     }
@@ -330,8 +350,7 @@ impl Atelier {
         };
         let empreinte = self.objets.as_ref().and_then(|o| o.empreinte(src));
         if self.confier(Travail::Ecrire(src.to_string(), dossier, apercu, empreinte)) {
-            self.ecritures
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.partis.ecritures.fetch_add(1, Relaxed);
         }
     }
 
@@ -344,6 +363,42 @@ impl Atelier {
                 false => self.offres += 1,
             }
         }
+    }
+
+    /// **Confie plusieurs niveaux d'un coup** : un seul verrou, un seul réveil. Un vol peut changer
+    /// le niveau de milliers de photos dans la même image.
+    pub fn deplacer_tout(&mut self, deplacements: Vec<Deplacement<Transit>>) {
+        if deplacements.is_empty() {
+            return;
+        }
+        let Ok(mut files) = self.commandes.files.lock() else {
+            return;
+        };
+        for deplacement in deplacements {
+            match deplacement.charge {
+                Transit::AReprendre(_) => self.reprises += 1,
+                Transit::AOffrir(_) => self.offres += 1,
+            }
+            files.ranger(Travail::Deplacer(deplacement));
+        }
+        drop(files);
+        self.commandes.reveil.notify_all();
+    }
+
+    /// **Rend ceci à la mémoire, sur un ouvrier** (JETER-1). Ces `octets` restent comptés tant
+    /// qu'il ne l'a pas fait : un état que personne ne compte a déjà tué Glucose (fiche 83).
+    pub fn jeter(&mut self, ce_qui_part: impl Send + 'static, octets: usize) {
+        self.partis.jets.fetch_add(1, Relaxed);
+        self.partis.octets.fetch_add(octets, Relaxed);
+        if !self.confier(Travail::Jeter(Box::new(ce_qui_part), octets)) {
+            self.partis.jets.fetch_sub(1, Relaxed);
+            self.partis.octets.fetch_sub(octets, Relaxed);
+        }
+    }
+
+    /// Ce qu'un ouvrier doit encore rendre à la mémoire.
+    pub fn octets_a_jeter(&self) -> usize {
+        self.partis.octets.load(Relaxed)
     }
 
     fn confier(&self, travail: Travail) -> bool {
@@ -388,16 +443,15 @@ impl Atelier {
 
     /// Tout ce qui est parti et pas revenu, offres et écritures comprises.
     pub fn en_route(&self) -> usize {
-        self.en_travail() + self.offres + self.ecritures.load(std::sync::atomic::Ordering::Relaxed)
+        self.en_travail()
+            + self.offres
+            + self.partis.ecritures.load(Relaxed)
+            + self.partis.jets.load(Relaxed)
     }
 }
 
 /// La vie d'un ouvrier : prendre le plus urgent, le faire, le rendre — jusqu'à la fermeture.
-fn ouvrier(
-    commandes: &Commandes,
-    retour: &Sender<Fait>,
-    ecritures: &std::sync::atomic::AtomicUsize,
-) {
+fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Partis) {
     // Le cœur « laissé au fil qui dessine » ne lui est réservé par rien : il faut le lui
     // céder (CEDER-1).
     crate::plateforme::priorite::ceder_au_fil_qui_dessine();
@@ -435,7 +489,13 @@ fn ouvrier(
                 if let Some(chemin) = chemin {
                     let _ = apercu::ecrire(&chemin, &a);
                 }
-                ecritures.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                partis.ecritures.fetch_sub(1, Relaxed);
+                continue;
+            }
+            Travail::Jeter(ce_qui_part, octets) => {
+                drop(ce_qui_part);
+                partis.octets.fetch_sub(octets, Relaxed);
+                partis.jets.fetch_sub(1, Relaxed);
                 continue;
             }
             Travail::Deplacer(d) => Fait::Deplace(Deplacement {

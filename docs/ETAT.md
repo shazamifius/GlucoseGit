@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 6/11/2026** (fiches 73 à 84). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 7/11/2026** (fiches 73 à 87). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 84 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -9,12 +9,11 @@
 
 ## 1. En une page
 
-* **La session du 6/11 s'est arrêtée au milieu d'ATLAS-1** : l'atelier est décrit dans la fiche 86 § 4 quinquies,
-  et son code n'est que sur ce PC (arbre de travail, et `~/.cache/glucose-bancs/atlas-en-cours.patch`).
-* **Le problème le plus visible, au 6/11 : un tableau entier à l'écran coûte par nœud, à chaque image**
-  (fiche 86) : 46 ms pour 8 000 images ici, 3 images par seconde dit-il à l'école, le fil qui dessine
-  saturé et la carte qui attend. Enquête ouverte ; **passe avant le domaine**. **La beta 8, publiée par
-  lui le 6/11**, retire la barre blanche de Windows et les coûts au carré du texte (fiches 85 et 86).
+* **Sa décision du 7/11 : on arrête l'optimisation graphique ici** (*« ce n'est pas le but premier de Glucose »*, fiche 87 § 7 ter). **Le prochain chantier est le domaine** (SUITE, étape 2).
+* **Un tableau entier à l'écran ne coûte plus par photo à chaque image** (fiche 87) : ATLAS-1, PHOTO-1, LOT-1, JETER-1. En paires entrelacées, 8 000 images, Intel UHD 620, **sur secteur** : un vol 18 → 4,9 ms, un zoom 23 → 9,7 ms, un focus revenu au tableau 33 → 4,9 ms ; un focus pendant son zoom reste à 16 ms, le pire d'un zoom à 28 ms. **Ni sa GTX 1660, ni son téléphone, ni la batterie n'ont été mesurés.** **Part en beta 9.**
+* **Sélectionner 8 000 images coûte encore 28 ms par image** (3,9 sinon), reproduit, **pas réparé** : fiche 87 § 7 bis.
+* **Une session part dès sa fermeture** (JOURNAL-1, fiche 87), et non plus au lancement suivant ; essayé en réel contre un faux serveur. **Part en beta 9.**
+* **La beta 8, publiée par lui le 6/11**, retire la barre blanche de Windows et les coûts au carré du texte (fiches 85 et 86).
 * **Depuis le 6/11, on travaille sur son VivoBook sous NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et
   MX150, écran 60 Hz, Wayland) : le PC Windows des fiches précédentes est cassé. Le code n'a rien
   perdu. **Windows ne s'essaie plus qu'à travers la CI**, alors que ses utilisateurs connus y sont

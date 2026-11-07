@@ -1,16 +1,10 @@
 **Glucose {version}** — Glucose, réécrit en Rust.
 
-**Ce qui change depuis la 2.0.3-beta.7**
+**Ce qui change depuis la 2.0.3-beta.8**
 
-* **Sous Windows, la barre blanche disparaît.** La bande de Glucose monte jusqu'en haut de la fenêtre : on
-  la glisse pour déplacer la fenêtre, et elle porte réduire, agrandir et fermer. Coller aux bords de
-  l'écran, double-cliquer pour agrandir et `Win + flèches` restent les gestes de Windows.
-* **Beaucoup de textes proches les uns des autres ne ralentissent plus autant.** La teinte d'un texte
-  dépend de ses voisins, et tout se recalculait d'un coup à chaque changement : plus d'une seconde pour
-  une image sur un très grand tableau de textes. Elles se recalculent maintenant par petites tranches,
-  sans jamais arrêter l'image ; une teinte peut donc arriver à sa valeur exacte quelques images plus tard.
-* **Sélectionner beaucoup de nœuds ne coûte plus davantage à chaque image.** Le dessin parcourait toute
-  la sélection pour chaque nœud visible.
+* **Un très grand tableau vu en entier est bien plus fluide.** Avec des milliers d'images à l'écran, Glucose refaisait le même travail pour chaque photo à chaque image, quand seule la vue bougeait. Il ne le refait plus tant que rien ne change.
+* **Moins d'à-coups pendant un zoom sur un grand tableau.** Ce qui quitte la mémoire ne bloque plus le dessin.
+* **Le journal technique part à la fin de la session**, et non plus au lancement suivant, pour ceux qui ont dit oui : une session sur un ordinateur où l'on ne revient pas arrive aussi. Il contient la même chose qu'avant.
+* **Le journal dit aussi ce que l'ordinateur fait** pendant que Glucose dessine (en pourcentages), et combien de nœuds a le tableau.
 
-**Encore connu** : un tableau de plusieurs milliers d'images entièrement à l'écran reste lent, surtout
-pendant un focus (`F`, signets). C'est le prochain chantier.
+**Encore connu** : sélectionner plusieurs milliers d'images d'un coup reste lent à chaque image.

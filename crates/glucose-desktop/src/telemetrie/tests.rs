@@ -534,3 +534,70 @@ fn test_poids_1_un_refus_se_retient_avec_sa_version() {
     let attendu = format!(" refusee {}", env!("CARGO_PKG_VERSION"));
     assert!(envoyees.trim_end().ends_with(&attendu), "{envoyees}");
 }
+
+/// **JOURNAL-1 — la session qui finit part une fois, et seulement avec l'accord** : finir deux fois
+/// (l'extinction, puis la sortie) ne l'envoie pas deux fois.
+#[test]
+fn test_journal_1_la_session_qui_finit_part_une_fois_avec_l_accord() {
+    let dossier = crate::epreuve::Dossier::nouveau("journal-1");
+    let session = dossier.join("2026-11-07 12h00m00 (1).txt");
+    let serveur = Some("http://127.0.0.1:9".to_string());
+    let mut sans_reponse = Telemetrie::habiter_avec(
+        dossier.to_path_buf(),
+        Some(session.clone()),
+        serveur.clone(),
+    );
+    assert_eq!(
+        sans_reponse.a_envoyer_en_partant(),
+        None,
+        "personne n'a répondu"
+    );
+
+    let mut sans_serveur =
+        Telemetrie::habiter_avec(dossier.to_path_buf(), Some(session.clone()), None);
+    assert_eq!(sans_serveur.a_envoyer_en_partant(), None, "aucun serveur");
+
+    let mut t = Telemetrie::habiter_avec(dossier.to_path_buf(), Some(session.clone()), serveur);
+    t.repondre(false).expect("écrit");
+    assert_eq!(t.a_envoyer_en_partant(), None, "il a dit non");
+    t.accord.as_mut().expect("l'accord").envoyer = Some(true);
+    assert_eq!(
+        t.a_envoyer_en_partant().as_deref(),
+        Some("2026-11-07 12h00m00 (1).txt"),
+        "il a dit oui : le nom du fichier, sans son dossier"
+    );
+    assert_eq!(t.a_envoyer_en_partant(), None, "une seule fois");
+}
+
+/// **Le processus de la fin n'envoie que la session qu'on lui nomme** (JOURNAL-1) : un Glucose relancé
+/// entre-temps écrit la sienne, et l'envoyer à moitié la marquerait partie pour toujours.
+#[test]
+fn test_journal_1_seule_la_session_nommee_part() {
+    let dossier = crate::epreuve::Dossier::nouveau("journal-1-une");
+    let journal = dossier.join(crate::boite_noire::DOSSIER);
+    std::fs::create_dir_all(&journal).expect("le journal");
+    let nom = |n: u32| format!("2026-11-07 12h00m0{n} ({n}).txt");
+    for n in 1..=2 {
+        let debut = format!("{{\"type\":\"debut\",\"instant_ms\":0,\"epoque_ms\":{n}}}\n");
+        std::fs::write(journal.join(nom(n)), debut).expect("une session");
+    }
+    let (racine, recu) = serveur_local(201);
+    super::envoi::envoyer_une(&racine, &dossier, "abc", &nom(1));
+    assert!(
+        recu.recv_timeout(std::time::Duration::from_secs(5)).is_ok(),
+        "elle part"
+    );
+    assert!(
+        recu.recv_timeout(std::time::Duration::from_millis(300))
+            .is_err(),
+        "et aucune autre"
+    );
+    let retenues = std::fs::read_to_string(dossier.join(super::envoi::ENVOYEES)).expect("retenue");
+    assert_eq!(retenues.lines().count(), 1);
+    // Une seconde fois : elle est retenue, rien ne repart.
+    let (racine, recu) = serveur_local(201);
+    super::envoi::envoyer_une(&racine, &dossier, "abc", &nom(1));
+    assert!(recu
+        .recv_timeout(std::time::Duration::from_millis(300))
+        .is_err());
+}

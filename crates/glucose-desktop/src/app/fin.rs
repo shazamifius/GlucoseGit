@@ -35,6 +35,7 @@ impl GlucoseApp {
         self.clore_la_chronique();
         self.vider_les_signes_du_pave();
         self.chronique.clore_la_boite_noire();
+        self.envoyer_le_journal_en_partant();
     }
 
     /// **FIN-SESSION-1 — Windows finit la session** : Glucose finit maintenant, pendant
