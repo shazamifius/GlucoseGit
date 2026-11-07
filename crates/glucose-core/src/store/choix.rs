@@ -181,11 +181,11 @@ mod tests {
         assert_eq!(a.marque(), un, "un doublon ne change rien");
         assert_eq!(a.clone().marque(), un, "une copie est le même contenu");
         a.retain(|_| false);
-        let retire = a.marque();
-        assert_ne!(retire, un, "retirer");
+        assert_ne!(a.marque(), un, "retirer");
         a.push("x".to_string());
+        let plein = a.marque();
         a.clear();
-        assert_ne!(a.marque(), retire, "vider");
+        assert_ne!(a.marque(), plein, "vider");
         let b: Choix = vec!["y".to_string()].into();
         let c: Choix = vec!["z".to_string()].into();
         assert_ne!(

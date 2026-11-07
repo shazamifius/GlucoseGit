@@ -553,8 +553,11 @@ fn test_journal_1_la_session_qui_finit_part_une_fois_avec_l_accord() {
         "personne n'a répondu"
     );
 
+    // Il a dit oui : seul l'absence de serveur peut encore la retenir.
+    let ailleurs = crate::epreuve::Dossier::nouveau("journal-1-sans-serveur");
     let mut sans_serveur =
-        Telemetrie::habiter_avec(dossier.to_path_buf(), Some(session.clone()), None);
+        Telemetrie::habiter_avec(ailleurs.to_path_buf(), Some(session.clone()), None);
+    sans_serveur.repondre(true).expect("écrit");
     assert_eq!(sans_serveur.a_envoyer_en_partant(), None, "aucun serveur");
 
     let mut t = Telemetrie::habiter_avec(dossier.to_path_buf(), Some(session.clone()), serveur);

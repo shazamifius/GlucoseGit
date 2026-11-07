@@ -175,6 +175,11 @@ impl Magasin {
         self.reconduite = true;
     }
 
+    /// Le numéro de l'image en cours : une image reconduite garde celui de la précédente (LOT-1).
+    pub fn image(&self) -> u64 {
+        self.image
+    }
+
     /// Combien de fois ce que le magasin tient a changé (LOT-1).
     pub fn changements(&self) -> u64 {
         self.changements

@@ -1665,6 +1665,9 @@ fn test_photo_1_une_seule_requete_spatiale_par_image() {
     assert_eq!(confie.photos.len(), 1, "la photo est à l'écran");
     assert_eq!(renderer.noeuds_visibles, 1);
 
+    // Une question hors d'une image, puis la même après un changement : si la première restait en
+    // mémoire, la seconde lirait le document d'avant.
+    renderer.rejuger_la_carte(&store, taille, header);
     let board = store.project.active_board_id.clone();
     store.add_image(
         &board,
@@ -1714,10 +1717,16 @@ fn test_lot_1_une_image_reprise_ne_touche_pas_au_magasin() {
     assert!(propose.is_some(), "une image complète propose son lot");
     renderer.carte.lot_de_la_carte = propose;
     let offerts = renderer.magasin.mouvements().offerts;
+    let numero = renderer.magasin.image();
     for _ in 0..4 {
         assert!(
             image(&mut renderer).lot.is_some(),
             "rien ne change : il se reprend"
+        );
+        assert_eq!(
+            renderer.magasin.image(),
+            numero,
+            "elle reprend le numéro de l'image qui a réclamé ses photos"
         );
     }
     assert_eq!(
