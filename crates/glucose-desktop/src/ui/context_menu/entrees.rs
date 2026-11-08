@@ -97,6 +97,16 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "",
         )));
     }
+    // Une membrane choisie, ou qui porte ce qu'on a choisi, range ce qu'elle porte (COLONNES-1,
+    // fiche 92).
+    let membrane_choisie = !store.membranes_de_la_selection().is_empty();
+    if membrane_choisie {
+        defs.push(Some((
+            MenuAction::DisposerEnColonnes,
+            "Disposer en colonnes",
+            "",
+        )));
+    }
     if images > 0 {
         let board = store.active_board()?;
         let toutes_fermees = board

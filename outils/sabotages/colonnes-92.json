@@ -1,0 +1,139 @@
+[
+ {
+  "nom": "COLONNES-1 la bissection s'arrête une colonne trop tôt",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "        if colonnes_pour(h, milieu, ecart).len() <= k {",
+  "apres": "        if colonnes_pour(h, milieu, ecart).len() < k {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 le voisin de la frontière n'est pas comparé",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "        if ecart(r0) <= ecart(r) {",
+  "apres": "        if ecart(r0) < 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 le bandeau du titre est oublié",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "        let mut y = m.titre;",
+  "apres": "        let mut y = m.ecart;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 l'ordre de lecture est inversé",
+  "fichier": "crates/glucose-core/src/store/colonnes.rs",
+  "avant": "            a.0.top\n                .total_cmp(&b.0.top)",
+  "apres": "            b.0.top\n                .total_cmp(&a.0.top)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 une membrane ne prend pas sa taille",
+  "fichier": "crates/glucose-core/src/store/colonnes.rs",
+  "avant": "            } => (*x, *y, *width, *height) = (r.left, r.top, r.width, r.height),",
+  "apres": "            } => (*x, *y) = (r.left, r.top),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 la proportion de l'écran est renversée",
+  "fichier": "crates/glucose-desktop/src/interactions/colonnes.rs",
+  "avant": "        f64::from(l) / f64::from(utile)",
+  "apres": "        f64::from(utile) / f64::from(l)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "colonnes",
+   "disposer"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 le menu n'offre pas de disposer",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    let membrane_choisie = !store.membranes_de_la_selection().is_empty();",
+  "apres": "    let membrane_choisie = store.membranes_de_la_selection().is_empty() && false;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "context_menu"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 un agent range ce qui n'est pas une membrane",
+  "fichier": "crates/glucose-desktop/src/agents/executer/disposer.rs",
+  "avant": "        if !matches!(",
+  "apres": "        if false && !matches!(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "colonnes",
+   "disposer"
+  ]
+ },
+ {
+  "nom": "COLONNES-1 un nœud choisi ne désigne pas sa membrane",
+  "fichier": "crates/glucose-core/src/store/colonnes.rs",
+  "avant": "                porteuses.push(m.to_string());",
+  "apres": "                let _ = m;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "colonnes"
+  ]
+ }
+]

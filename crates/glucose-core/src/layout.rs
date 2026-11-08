@@ -5,6 +5,7 @@
 
 use crate::types::BoardImage;
 
+pub mod colonnes;
 mod zones;
 pub use zones::ranger_dans_les_zones;
 

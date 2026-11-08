@@ -79,6 +79,8 @@ pub enum Commande {
     // Naviguer.
     ToutCadrer,
     CadrerLaSelection,
+    /// Ranger en colonnes ce que portent les membranes choisies (COLONNES-1, fiche 92).
+    DisposerEnColonnes,
     ModeReference,
     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
     Naviguer,
@@ -128,7 +130,7 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
 ];
 
 /// Les commandes sans paramètre : leur identifiant et leur nom.
-const SIMPLES: [(Commande, &str, &str); 41] = [
+const SIMPLES: [(Commande, &str, &str); 42] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -173,6 +175,11 @@ const SIMPLES: [(Commande, &str, &str); 41] = [
         Commande::CadrerLaSelection,
         "cadrer-la-selection",
         "Cadrer la sélection",
+    ),
+    (
+        Commande::DisposerEnColonnes,
+        "disposer-en-colonnes",
+        "Disposer en colonnes",
     ),
     (Commande::ModeReference, "mode-reference", "Mode référence"),
     (

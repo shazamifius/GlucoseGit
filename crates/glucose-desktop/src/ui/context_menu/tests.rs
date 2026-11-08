@@ -460,3 +460,19 @@ fn test_lire_le_storyboard_n_existe_que_s_il_y_a_des_cases() {
         "après la lecture : {offertes:?}"
     );
 }
+
+/// **« Disposer en colonnes » n'existe que sur une membrane choisie** (COLONNES-1, fiche 92) : un
+/// texte choisi n'en a pas, une membrane choisie, si.
+#[test]
+fn test_disposer_en_colonnes_n_existe_que_sur_une_membrane() {
+    let mut store = store_with(0, 1, true);
+    assert!(!actions(&menu(&store, (400.0, 300.0))).contains(&MenuAction::DisposerEnColonnes));
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::membrane("m", 1000.0, 0.0, 300.0, 200.0));
+    store.select_annotation("m".to_string(), true);
+    assert!(actions(&menu(&store, (400.0, 300.0))).contains(&MenuAction::DisposerEnColonnes));
+    assert_eq!(
+        MenuAction::DisposerEnColonnes.commande(),
+        Some(crate::commandes::Commande::DisposerEnColonnes)
+    );
+}

@@ -1,5 +1,6 @@
 //! Chaque outil, joué sur une application d'épreuve — sans fenêtre, sans porte.
 
+mod disposer;
 mod plan;
 
 use crate::agents::json::Json;

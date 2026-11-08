@@ -11,6 +11,7 @@ pub mod bord;
 pub mod champ;
 pub mod chrome;
 pub mod clipboard;
+pub mod colonnes;
 pub mod cursor;
 pub mod depot_web;
 pub mod domains;

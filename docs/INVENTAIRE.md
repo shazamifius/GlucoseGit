@@ -78,6 +78,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 
 | fonction | au PC | au téléphone |
 |---|---|---|
+| **Disposer en colonnes** (fiche 92, COLONNES-1) : une membrane range ce qu'elle porte, sous-membranes comprises, en colonnes de journal, dans l'ordre de lecture, à la proportion de l'écran | **menu d'une membrane choisie**, la palette ; un agent : `glucose_disposer` ; au terminal : `glucose disposer <membrane>` | ✅ menu |
 | Ordonner (cinq dispositions, huit tris, champs) | panneau Ordonner | 🟡 les champs se glissent, **ne se tapent pas** (le clavier d'Android ne sert pas les champs du dock) |
 | **Mood board** (l'ancien « Presets » de Tauri, renommé à sa parole, fiche 71) : poser un gabarit, ses zones, « Par mood board » dans Ordonner | panneau Mood board | ✅ |
 | **Storyboard** : poser la grille (« Activer », un clic), « Mettre à jour » le storyboard courant, effacer le courant (×) | panneau Storyboard | ✅ (STORYBOARD-1, fiche 64 — à juger) |

@@ -127,6 +127,16 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"cherche":{"type":"string","description":"les mots à trouver"},"depuis":{"type":"number","description":"le rang du premier résultat rendu ; 0 par défaut"},"combien":{"type":"number","description":"le nombre de résultats rendus ; dix par défaut, comme la palette"}},"required":["cherche"]}"##,
     ),
     (
+        "glucose_disposer",
+        "Range en colonnes de journal ce que porte une membrane, ses sous-membranes comprises : \
+         dans l'ordre de lecture (de haut en bas, puis de gauche à droite), chaque membrane prenant \
+         la proportion de l'écran ; son coin haut-gauche ne bouge pas, chaque nœud reste dans sa \
+         membrane. Un seul geste, que l'utilisateur défait par Ctrl+Z. À faire après avoir posé un \
+         long contenu (un article, un rapport) : posé, il s'empile en une seule colonne. Rend le \
+         nombre de nœuds rangés et la boîte de la membrane.",
+        r##"{"type":"object","properties":{"dans":{"type":"string","description":"la membrane à ranger"},"proportion":{"type":"number","description":"largeur sur hauteur visée ; par défaut celle de l'écran"},"tableau":{"type":"string"}},"required":["dans"]}"##,
+    ),
+    (
         "glucose_retirer",
         "Retire des nœuds, et les flèches qui n'ont plus de bout.",
         r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"}},"tableau":{"type":"string"}},"required":["ids"]}"##,

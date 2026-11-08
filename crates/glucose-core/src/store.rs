@@ -38,6 +38,7 @@ mod annotations;
 mod boards;
 mod catalog;
 pub mod choix;
+mod colonnes;
 mod domains;
 mod folders;
 mod glisser;

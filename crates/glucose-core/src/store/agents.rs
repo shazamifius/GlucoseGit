@@ -49,11 +49,11 @@ use crate::types::{Annotation, ArrowPredicate, BoardImage, TextAnchor, TextSelec
 
 /// L'écart entre deux nœuds qu'un agent pose l'un après l'autre : celui du rangement des zones,
 /// pour qu'un tableau rempli par un agent se lise comme un tableau rangé par Glucose.
-const ECART: f64 = super::zones::ECART;
+pub(super) const ECART: f64 = super::zones::ECART;
 
 /// La place que le titre d'une membrane occupe au-dessus de son contenu : la bande de ses
 /// zones, plus son écart.
-const TITRE_DE_MEMBRANE: f64 = super::zones::ECART + super::zones::MARGE;
+pub(super) const TITRE_DE_MEMBRANE: f64 = super::zones::ECART + super::zones::MARGE;
 
 /// La sorte d'un nœud, dans les mots qu'un agent lit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

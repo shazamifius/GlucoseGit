@@ -129,6 +129,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 89 | [Chercher](89-CHERCHER.md) | **`Ctrl+F`** : la palette, dont les rangées sont des nœuds ; sans majuscules ni accents (PLI-1), chaque mot n'importe où, le début d'un mot d'abord (TROUVE-1) ; Entrée y va, `F3` au suivant (TROUVE-2) ; l'index : une lettre 110-218 → 4-8 ms sur 24 000 textes ; VOL-1, une flèche trouvée fait voler la vue |
 | 90 | [Les commandes du terminal](90-LES-COMMANDES-DU-TERMINAL.md) | **`glucose lire`, `glucose chercher eau`** : une commande par outil de la porte des agents, une seule table (TERMINAL-1), la même porte et le même accord (TERMINAL-2) ; `glucose_chercher`, l'agent cherche comme `Ctrl+F` (AGENT-7) ; `glucose document.glucose` et le double-clic (OUVRIR-1) ; essai réel, tout passe |
 | 91 | [Un article de Wikipédia](91-UN-ARTICLE-DE-WIKIPEDIA.md) | « Eau » posé par les commandes : **MEMB-7** (une membrane qui grandit fait grandir la sienne : trois niveaux au lieu de huit), **le plan** pour un agent (12 000 caractères au lieu de 140 000), **COORD-1** ; pour un humain, illisible — un prototype en colonnes de journal (partition linéaire) ; sa question : l'héritage des domaines par les membranes |
+| 92 | [Disposer en colonnes](92-DISPOSER-EN-COLONNES.md) | **COLONNES-1** : une membrane range ce qu'elle porte en colonnes de journal, dans l'ordre de lecture, à la proportion de l'écran — deux bissections, l'optimum exact (contre la force brute) ; au menu, à la palette, `glucose_disposer`, `glucose disposer eau` ; « Eau » : 251 nœuds en une commande |
 
 ## Les décisions — **foi**
 
@@ -147,4 +148,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **92**.
+La prochaine fiche porte le numéro **93**.

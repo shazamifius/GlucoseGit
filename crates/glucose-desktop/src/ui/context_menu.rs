@@ -89,6 +89,7 @@ impl MenuAction {
             MenuAction::Retablir => Commande::Retablir,
             MenuAction::ToutCadrer => Commande::ToutCadrer,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
+            MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
             MenuAction::Signets => Commande::Signets,
             MenuAction::Enregistrer => Commande::Enregistrer,
             MenuAction::EnregistrerSous => Commande::EnregistrerSous,
@@ -176,6 +177,8 @@ pub enum MenuAction {
     /// Le vol qui montre tout le tableau, ou la sélection (`Alt+F`, `F`).
     ToutCadrer,
     CadrerLaSelection,
+    /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
+    DisposerEnColonnes,
     /// Les signets de vue : y voler, en poser un (fiche 53 ; ACCES-1).
     Signets,
     /// Le document : un jalon, ou un autre nom (`Ctrl+S`, `Ctrl+Maj+S`).
