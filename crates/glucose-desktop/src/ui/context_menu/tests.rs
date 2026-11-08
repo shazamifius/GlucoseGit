@@ -64,6 +64,7 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
             MenuAction::SelectAll,
             MenuAction::ToutCadrer,
             MenuAction::Signets,
+            MenuAction::Chercher,
             MenuAction::Palette,
             MenuAction::NouveauDocument,
             MenuAction::OuvrirUnDocument,

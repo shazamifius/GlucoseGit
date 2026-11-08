@@ -46,42 +46,9 @@ pub enum Rendu {
     Passage(String),
 }
 
-/// Les phrases d'un texte : coupées après `.`, `!` ou `?` suivis d'un blanc, et à chaque ligne.
-pub fn phrases(texte: &str) -> Vec<&str> {
-    let mut v = Vec::new();
-    let mut debut = 0;
-    let mut precedent: Option<char> = None;
-    for (i, c) in texte.char_indices() {
-        let fin_de_phrase = c.is_whitespace() && matches!(precedent, Some('.' | '!' | '?'));
-        if c == '\n' || fin_de_phrase {
-            v.push(&texte[debut..i]);
-            debut = i + c.len_utf8();
-        }
-        precedent = Some(c);
-    }
-    v.push(&texte[debut..]);
-    v.into_iter()
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-        .collect()
-}
-
-/// La première phrase d'un texte.
-pub fn premiere_phrase(texte: &str) -> Option<&str> {
-    phrases(texte).into_iter().next()
-}
-
-/// La première phrase qui contient `cherche`, sans tenir compte des majuscules.
-pub fn passage(texte: &str, cherche: &str) -> Option<String> {
-    let c = cherche.trim().to_lowercase();
-    if c.is_empty() {
-        return None;
-    }
-    phrases(texte)
-        .into_iter()
-        .find(|p| p.to_lowercase().contains(&c))
-        .map(str::to_string)
-}
+// La phrase est l'unité, celle du texte lui-même, et la même loi sert `Ctrl+F` : elle vit dans le
+// noyau (`glucose_core::recherche`), sans majuscules ni accents (PLI-1).
+pub use glucose_core::recherche::{passage, phrases, premiere_phrase};
 
 /// Les nœuds à rendre, et comment : `ids` d'abord, sinon `cherche`, sinon tous en sommaire (ou
 /// en entier, si l'agent l'a demandé).

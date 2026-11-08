@@ -281,22 +281,8 @@ impl GlucoseApp {
         if self.store.project.active_board_id != ligne.tableau {
             self.store.set_active_board_id(&ligne.tableau);
         }
-        let Some(boite) = self
-            .store
-            .active_board()
-            .and_then(|b| glucose_core::arrow::node_rect(b, &ligne.noeud))
-        else {
-            return;
-        };
-        let (l, h) = self.taille_de_la_fenetre();
-        let ecran = glucose_core::membrane_focus::ScreenSize {
-            width: f64::from(l),
-            height: f64::from(h),
-        };
-        let bandeau = f64::from(self.ui.header_height());
-        let vue = crate::interactions::vol::vue_sur(boite, ecran, bandeau);
-        self.vol.voler_vers(vue);
         self.mark_dirty();
+        self.voler_vers_le_noeud(&ligne.noeud);
     }
 
     /// **La molette sur le panneau Domaines** fait défiler ses rangées, d'une par cran. Rend vrai si

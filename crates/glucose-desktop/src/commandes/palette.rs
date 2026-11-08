@@ -21,6 +21,7 @@ use crate::app::GlucoseApp;
 use crate::persist::documents::MONTRES;
 use crate::ui::question::{Champ, Question, Reponse, Suite};
 
+mod chercher;
 mod defiler;
 
 /// **L'état de la palette** : le filtre que ses rangées montrent, la première commande de sa
@@ -32,6 +33,8 @@ pub struct Etat {
     pub choisie: usize,
     /// Ce que la commande choisie devient : lancée, ou celle dont on change le raccourci.
     pub but: But,
+    /// Ce que la recherche a trouvé pour ce filtre (`Ctrl+F`, fiche 89) : vide pour les commandes.
+    pub trouves: Vec<glucose_core::recherche::Trouve>,
 }
 
 /// **Ce que la palette fait de la commande choisie** (P4, fiche 74).
@@ -42,6 +45,9 @@ pub enum But {
     Lancer,
     /// Changer son raccourci : la palette sert à la trouver, toutes les commandes comprises.
     ChangerLeRaccourci,
+    /// **Chercher dans le document** (`Ctrl+F`, fiche 89) : ses rangées sont des nœuds, et Entrée y
+    /// va. La même palette, une autre source — comme `Ctrl+P` et `Ctrl+Maj+P` dans VS Code.
+    Chercher,
 }
 
 impl GlucoseApp {
@@ -61,6 +67,7 @@ impl GlucoseApp {
                 "Changer un raccourci",
                 "Choisis la commande dont tu veux changer le raccourci.",
             ),
+            But::Chercher => ("Chercher", chercher::AIDE),
         };
         let question = Question {
             titre: titre.into(),
@@ -95,20 +102,29 @@ impl GlucoseApp {
             Some((_, Suite::Palette(etat))) => etat.but,
             _ => But::Lancer,
         };
+        let trouves = match but {
+            But::Chercher => self.chercher_dans_le_document(&ecrit),
+            _ => Vec::new(),
+        };
         self.poser_la_palette(Etat {
             filtre: ecrit,
             debut: 0,
             choisie: 0,
             but,
+            trouves,
         });
     }
 
     /// **Pose cet état** : ses rangées, son évidence, et lui-même dans la question.
     pub(super) fn poser_la_palette(&mut self, etat: Etat) {
         let (choix, focus) = self.rangees_de_la_palette(&etat);
+        let dit = (etat.but == But::Chercher).then(|| chercher::compte(&etat));
         if let Some((q, suite)) = &mut self.ui.question {
             q.choix = choix;
             q.focus = focus;
+            if let Some(dit) = dit {
+                q.texte = dit;
+            }
             *suite = Suite::Palette(etat);
         }
         self.mark_dirty();
@@ -117,12 +133,16 @@ impl GlucoseApp {
     /// **La réponse de la palette** : la commande de ce rang, parmi celles que ce filtre trouve.
     pub(crate) fn lancer_depuis_la_palette(&mut self, etat: &Etat, reponse: Reponse) {
         if let Reponse::Choix(i) = reponse {
+            if etat.but == But::Chercher {
+                self.aller_au_resultat(&etat.filtre, &etat.trouves, i);
+                return;
+            }
             match (trouvees_pour(&etat.filtre, etat.but).get(i), etat.but) {
                 (Some(&commande), But::Lancer) => {
                     self.executer(commande);
                 }
                 (Some(&commande), But::ChangerLeRaccourci) => self.demander_le_raccourci(commande),
-                (None, _) => {}
+                (Some(_), But::Chercher) | (None, _) => {}
             }
         }
     }
@@ -131,7 +151,26 @@ impl GlucoseApp {
     /// commandes au-dessus de la fenêtre, ses commandes avec leur raccourci, « ↓ n plus bas »
     /// s'il en reste dessous.
     fn rangees_de_la_palette(&self, etat: &Etat) -> (Vec<(String, Reponse)>, usize) {
-        let toutes = trouvees_pour(&etat.filtre, etat.but);
+        let toutes: Vec<String> = match etat.but {
+            // La phrase d'un résultat ne se calcule que pour les rangées montrées (fiche 89).
+            But::Chercher => etat
+                .trouves
+                .iter()
+                .enumerate()
+                .map(|(i, t)| {
+                    let montree = (etat.debut..etat.debut + MONTRES).contains(&i);
+                    if montree {
+                        self.dire_le_trouve(t, &etat.filtre)
+                    } else {
+                        String::new()
+                    }
+                })
+                .collect(),
+            _ => trouvees_pour(&etat.filtre, etat.but)
+                .into_iter()
+                .map(|c| self.libelle(c))
+                .collect(),
+        };
         let fin = (etat.debut + MONTRES).min(toutes.len());
         let mut rangees = Vec::new();
         if etat.debut > 0 {
@@ -142,8 +181,8 @@ impl GlucoseApp {
             ));
         }
         let premiere = rangees.len();
-        for (i, c) in toutes.iter().enumerate().take(fin).skip(etat.debut) {
-            rangees.push((self.libelle(*c), Reponse::Choix(i)));
+        for (i, libelle) in toutes.iter().enumerate().take(fin).skip(etat.debut) {
+            rangees.push((libelle.clone(), Reponse::Choix(i)));
         }
         if fin < toutes.len() {
             let n = toutes.len() - fin;
@@ -165,9 +204,20 @@ impl GlucoseApp {
     }
 }
 
+/// **Combien de rangées cet état porte** : les nœuds trouvés, ou les commandes.
+pub(crate) fn total(etat: &Etat) -> usize {
+    match etat.but {
+        But::Chercher => etat.trouves.len(),
+        _ => trouvees_pour(&etat.filtre, etat.but).len(),
+    }
+}
+
 /// **Les commandes que ce filtre trouve, pour ce but**, les meilleures d'abord : pour en lancer une, la palette ne se
 /// trouve pas elle-même ; pour changer un raccourci, toutes — le sien compris.
 pub(crate) fn trouvees_pour(filtre: &str, but: But) -> Vec<Commande> {
+    if but == But::Chercher {
+        return Vec::new();
+    }
     let mut v: Vec<(u8, usize, Commande)> = Commande::toutes()
         .into_iter()
         .filter(|c| but == But::ChangerLeRaccourci || *c != Commande::Palette)
@@ -208,19 +258,7 @@ pub(crate) fn rang_de(filtre: &str, nom: &str, id: &str) -> Option<u8> {
     (dans_l_ordre(&nom) || dans_l_ordre(&id)).then_some(3)
 }
 
-/// Le texte sans majuscules ni accents du français.
+/// Le texte sans majuscules ni accents : la loi de la recherche (PLI-1).
 fn simple(t: &str) -> String {
-    t.to_lowercase()
-        .chars()
-        .map(|c| match c {
-            'à' | 'â' | 'ä' => 'a',
-            'é' | 'è' | 'ê' | 'ë' => 'e',
-            'î' | 'ï' => 'i',
-            'ô' | 'ö' => 'o',
-            'ù' | 'û' | 'ü' => 'u',
-            'ç' => 'c',
-            'ÿ' => 'y',
-            autre => autre,
-        })
-        .collect()
+    glucose_core::recherche::pli(t)
 }

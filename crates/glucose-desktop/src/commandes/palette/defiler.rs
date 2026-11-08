@@ -4,7 +4,7 @@
 //! fenêtre ne bouge que si l'évidence en sort. La molette et les rangées « ↑ / ↓ » déplacent la
 //! fenêtre, et l'évidence les suit à son bord.
 
-use super::{trouvees_pour, Etat};
+use super::{total, Etat};
 use crate::app::GlucoseApp;
 use crate::persist::documents::MONTRES;
 use crate::ui::question::Suite;
@@ -45,7 +45,7 @@ impl GlucoseApp {
             Key::Named(NamedKey::PageUp) => -(MONTRES as isize),
             _ => return false,
         };
-        let total = trouvees_pour(&etat.filtre, etat.but).len();
+        let total = total(&etat);
         etat.choisie = etat.choisie.saturating_add_signed(pas);
         suivre_l_evidence(&mut etat, total);
         self.poser_la_palette(etat);
@@ -58,7 +58,7 @@ impl GlucoseApp {
         let Some(mut etat) = self.etat_de_la_palette() else {
             return;
         };
-        let total = trouvees_pour(&etat.filtre, etat.but).len();
+        let total = total(&etat);
         let dernier_debut = total.saturating_sub(MONTRES);
         etat.debut = etat.debut.saturating_add_signed(rangees).min(dernier_debut);
         etat.choisie = etat

@@ -138,6 +138,19 @@ pub fn node_rect(board: &Board, id: &str) -> Option<Rect> {
         .map(CanvasFolder::rect)
 }
 
+/// **L'emprise d'un nœud** : sa boîte, ou, pour une flèche, l'enveloppe de son encre
+/// ([`Annotation::bounds`]) — la boîte que `F` cadre (`Store::selection_bounds`), et celle vers
+/// laquelle on vole. [`node_rect`] reste la boîte où une flèche s'accroche : une flèche n'en a pas.
+pub fn emprise(board: &Board, id: &str) -> Option<Rect> {
+    node_rect(board, id).or_else(|| {
+        board
+            .annotations
+            .iter()
+            .find(|a| a.id() == id)
+            .map(Annotation::bounds)
+    })
+}
+
 /// **La boîte d'un nœud, retrouvée par l'index spatial** — en temps constant, là où
 /// [`node_rect`] parcourt le tableau.
 ///

@@ -76,5 +76,10 @@ Ctrl+7          signet.poser.7
 Ctrl+8          signet.poser.8
 Ctrl+9          signet.poser.9
 
+# Chercher (fiche 89)
+Ctrl+F          chercher
+F3              chercher.suivant
+Maj+F3          chercher.precedent
+
 # L'interface
 Ctrl+Maj+P      palette

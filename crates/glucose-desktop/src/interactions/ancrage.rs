@@ -102,21 +102,7 @@ impl GlucoseApp {
         else {
             return;
         };
-        let Some(boite) = self
-            .store
-            .active_board()
-            .and_then(|b| glucose_core::arrow::node_rect(b, &carte))
-        else {
-            return;
-        };
-        let (l, h) = self.taille_de_la_fenetre();
-        let ecran = glucose_core::membrane_focus::ScreenSize {
-            width: f64::from(l),
-            height: f64::from(h),
-        };
-        let bandeau = f64::from(self.ui.header_height());
-        let vue = crate::interactions::vol::vue_sur(boite, ecran, bandeau);
-        self.vol.voler_vers(vue);
+        self.voler_vers_le_noeud(&carte);
     }
 
     /// **La fenêtre de l'éditeur**, telle que le dessin la pose — le clic la lit (loi L4).

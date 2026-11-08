@@ -452,3 +452,24 @@ fn test_fleche_6_le_chemin_ancre_arrive_a_la_hauteur_du_passage() {
         .unwrap();
     assert!(sans.1 < 0.0, "sans passage, le bord du haut : {:?}", sans);
 }
+
+/// **L'emprise d'une flèche est l'enveloppe de son encre** : `F` la cadre, et l'on vole vers elle
+/// (`Ctrl+F` trouve ce qu'elle dit). La preuve à l'envers : elle n'a pas de boîte où s'accrocher.
+#[test]
+fn l_emprise_d_une_fleche_est_son_encre() {
+    let mut board = crate::types::Board::new("b", "b");
+    board
+        .annotations
+        .push(coudee("f", (0.0, 0.0), &[(50.0, -40.0)], (100.0, 20.0)));
+    board
+        .annotations
+        .push(Annotation::sticky("note", 300.0, 300.0, "note"));
+    assert_eq!(node_rect(&board, "f"), None, "pas de boîte où s'accrocher");
+    assert_eq!(
+        emprise(&board, "f"),
+        Some(Rect::new(0.0, -40.0, 100.0, 60.0)),
+        "les deux bouts et le coude"
+    );
+    assert_eq!(emprise(&board, "note"), node_rect(&board, "note"));
+    assert_eq!(emprise(&board, "absent"), None);
+}

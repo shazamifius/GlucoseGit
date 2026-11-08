@@ -164,6 +164,11 @@ pub struct UiState {
     /// **Ce que la molette a parcouru sur la palette sans faire une rangée** : le pavé avance
     /// par fractions, le geste suivant les complète (fiche 72).
     pub reste_de_la_molette: f32,
+    /// **La dernière recherche** et le résultat où l'on est allé : `F3` va au suivant (fiche 89).
+    pub derniere_recherche: Option<(String, usize)>,
+    /// **L'index de la recherche**, et le document et la version qu'il plie : il se refait quand le
+    /// document change, pas à chaque lettre (fiche 89).
+    pub index_de_recherche: Option<((String, u64), glucose_core::recherche::Index)>,
     /// **Les documents se rangent d'eux-mêmes** dans `documents/` et se rouvrent par une
     /// liste, là où le système n'a pas de sélecteur de fichiers qu'on appelle — Android
     /// (DOCUMENTS-1).
@@ -236,6 +241,8 @@ impl UiState {
             menu_au_doigt: false,
             question: None,
             reste_de_la_molette: 0.0,
+            derniere_recherche: None,
+            index_de_recherche: None,
             documents_ranges: cfg!(target_os = "android"),
             fermer_la_fenetre: false,
             scale_factor: 1.0,

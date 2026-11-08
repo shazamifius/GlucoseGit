@@ -38,6 +38,7 @@ pub mod quadtree;
 pub mod raccourcis;
 pub mod rapide;
 pub mod recensement;
+pub mod recherche;
 pub mod report;
 pub mod resize;
 pub mod rotate;

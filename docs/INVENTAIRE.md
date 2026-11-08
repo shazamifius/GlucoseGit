@@ -43,6 +43,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Se déplacer, zoomer (jusqu'à ×256, fiche 72) — de près, le texte dessiné net par la carte graphique dès la première image (P8, fiche 73) | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
 | **La palette de commandes** — chaque commande cherchée par son nom, lancée par Entrée ; la liste défile (molette, pavé, flèches, « ↑ / ↓ » au doigt) (fiche 72) | **menu du vide**, `Ctrl+Maj+P` | ✅ menu (deux touchers sur le vide) |
 | **Changer un raccourci** — choisir la commande, frapper le nouvel accord ; le retirer, ou rendre celui de Glucose ; « Rétablir tous les raccourcis de Glucose » ; écrits dans `raccourcis.txt`, relus au lancement (fiche 74) | la palette (`Ctrl+Maj+P`, « raccourci ») | ✅ la palette (au doigt : retirer, rétablir ; un accord demande un clavier) |
+| **Chercher dans tout le document** (fiche 89) : les textes, les post-it, les membranes, les photos par leurs étiquettes, les tableaux et les dossiers, sans majuscules ni accents ; y aller, puis au suivant | **`Ctrl+F`** (la palette), `F3` / `Maj+F3`, **menu du vide** « Chercher… » | ✅ menu |
 | Tout cadrer | **menu du vide** (ACCES-1), **`Alt+F`** (`Ctrl+F` jusqu'au 13/10, rendu à la recherche — fiche 65) | ✅ menu |
 | Cadrer la sélection | **menu de la sélection** (ACCES-1), `F` | ✅ menu |
 | Signets de vue (poser, y voler, remplacer) | **menu du vide « Signets… »** (ACCES-1), `Ctrl+1…9`, `1…9` | ✅ menu |
@@ -135,7 +136,6 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Les choix à l'utilisateur** : planche claire ou sombre, champs sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux (fiche 71) | sa parole | la question d'export, le panneau Storyboard | à faire |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
 | **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | barre d'action, panneau | noyau écrit (`timeline`), à brancher |
-| **Recherche** dans tout le document | Tauri (`Ctrl+F`) | bande, menu, **`Ctrl+F`** (sa décision du 13/10 : tout cadrer passe à `Alt+F`) | à concevoir — `Ctrl+F` lui est gardé |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it | **se dessinent déjà**, aucun geste ne les pose |

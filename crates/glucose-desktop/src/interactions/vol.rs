@@ -334,6 +334,28 @@ impl crate::app::GlucoseApp {
         self.mark_dirty();
     }
 
+    /// **Vole jusqu'à ce nœud du tableau actif, à sa taille de lecture** ([`vue_sur`] de son
+    /// emprise, flèches comprises) : un résultat de `Ctrl+F`, une place d'un domaine, l'étape d'un
+    /// ancrage. Rend faux si le tableau actif ne le porte pas — la vue reste alors où elle est.
+    pub fn voler_vers_le_noeud(&mut self, id: &str) -> bool {
+        let Some(boite) = self
+            .store
+            .active_board()
+            .and_then(|b| glucose_core::arrow::emprise(b, id))
+        else {
+            return false;
+        };
+        let (l, h) = self.taille_de_la_fenetre();
+        let ecran = ScreenSize {
+            width: f64::from(l),
+            height: f64::from(h),
+        };
+        let bandeau = f64::from(self.ui.header_height());
+        self.vol.voler_vers(vue_sur(boite, ecran, bandeau));
+        self.mark_dirty();
+        true
+    }
+
     /// Vise le point du monde que la minimap désigne, en gardant l'échelle courante.
     ///
     /// Appelé à l'appui **et à chaque mouvement tant que le bouton tient** : la destination

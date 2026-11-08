@@ -126,6 +126,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 86 | [Huit mille images](86-HUIT-MILLE-IMAGES.md) | ce que coûte un tableau entier à l'écran ; un banc sans fenêtre |
 | 87 | [Une photo est un numéro](87-UNE-PHOTO-EST-UN-NUMERO.md) | ATLAS-1, PHOTO-1, LOT-1, JETER-1, JOURNAL-1 ; **sa décision : on arrête l'optimisation graphique** |
 | 88 | [Le domaine traverse les fichiers](88-LE-DOMAINE-TRAVERSE-LES-FICHIERS.md) | **Le domaine** : sa règle (deux domaines ne portent jamais le même nom, DOM-4), l'identité qui naît une fois (DOM-5), le recensement des fichiers connus sans écrire (RECENSE-1, 2), `glucose_poser_domaine` et `glucose_domaines` (AGENT-5, 6), le panneau qui montre les autres fichiers et pose la question (DOM-UI-4) ; essai réel : trois blocs, deux fichiers, un domaine |
+| 89 | [Chercher](89-CHERCHER.md) | **`Ctrl+F`** : la palette, dont les rangées sont des nœuds ; sans majuscules ni accents (PLI-1), chaque mot n'importe où, le début d'un mot d'abord (TROUVE-1) ; Entrée y va, `F3` au suivant (TROUVE-2) ; l'index : une lettre 110-218 → 4-8 ms sur 24 000 textes |
 
 ## Les décisions — **foi**
 
@@ -144,4 +145,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver.
 
-La prochaine fiche porte le numéro **89**.
+La prochaine fiche porte le numéro **90**.

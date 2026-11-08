@@ -1,0 +1,182 @@
+[
+ {
+  "nom": "PLI-1 les capitales ASCII comptent",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "            out.push(c.to_ascii_lowercase());",
+  "apres": "            out.push(c);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "PLI-1 les e accentués comptent",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "        0xC8..=0xCB | 0xE8..=0xEB | 0x112..=0x11B => \"e\",",
+  "apres": "        0x112..=0x11B => \"e\",",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "PLI-1 l'accent écrit à part compte",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "        if ('\\u{300}'..='\\u{36f}').contains(&c) {",
+  "apres": "        if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "TROUVE-1 tout est un début de mot",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "                .is_none_or(|c| !c.is_alphanumeric())",
+  "apres": "                .is_none_or(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "TROUVE-1 un mot absent n'écarte pas",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "        if !present {\n            return None;\n        }",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "TROUVE-1 le meilleur n'est pas devant",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "        trouves.sort_by_key(|t| std::cmp::Reverse(t.debuts));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "Les photos ne se cherchent pas",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "                    Genre::Noeud(Sorte::Photo),\n                    &texte_d_une_photo(i),",
+  "apres": "                    Genre::Noeud(Sorte::Photo),\n                    \"\",",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "recherche::"
+  ]
+ },
+ {
+  "nom": "L'index ne suit pas le document",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/chercher.rs",
+  "avant": "        let a_jour = matches!(&self.ui.index_de_recherche, Some((c, _)) if *c == cle);",
+  "apres": "        let a_jour = self.ui.index_de_recherche.is_some();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chercher"
+  ]
+ },
+ {
+  "nom": "Un résultat dans un dossier ne s'atteint pas",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/chercher.rs",
+  "avant": "                .try_set_active_board_id(t.tableau.clone())",
+  "apres": "                .try_set_active_board_id(String::new())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chercher"
+  ]
+ },
+ {
+  "nom": "F3 reste sur place",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/chercher.rs",
+  "avant": "        let suivant = (rang as isize + pas).rem_euclid(n) as usize;",
+  "apres": "        let suivant = (rang as isize).rem_euclid(n) as usize;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chercher"
+  ]
+ },
+ {
+  "nom": "F3 oublie où l'on est allé",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/chercher.rs",
+  "avant": "        self.ui.derniere_recherche = Some((requete.to_string(), rang));",
+  "apres": "        self.ui.derniere_recherche = Some((requete.to_string(), 0));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chercher"
+  ]
+ },
+ {
+  "nom": "Ctrl+F n'est pas à la recherche",
+  "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+  "avant": "Ctrl+F          chercher\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chercher"
+  ]
+ }
+]

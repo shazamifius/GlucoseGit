@@ -135,6 +135,8 @@ fn entrees_du_vide(store: &Store) -> Vec<Def> {
         Some((MenuAction::SelectAll, "Tout sélectionner", "")),
         Some((MenuAction::ToutCadrer, "Tout cadrer", "")),
         Some((MenuAction::Signets, "Signets…", "1…9")),
+        // Chercher (fiche 89) : au doigt, il n'y a pas de `Ctrl+F`.
+        Some((MenuAction::Chercher, "Chercher…", "Ctrl+F")),
         // La palette (P4, fiche 72) : au doigt, il n'y a pas de `Ctrl+Maj+P`.
         Some((MenuAction::Palette, "Palette de commandes…", "")),
     ];

@@ -94,6 +94,7 @@ impl MenuAction {
             MenuAction::EnregistrerSous => Commande::EnregistrerSous,
             MenuAction::Exporter => Commande::Exporter,
             MenuAction::Palette => Commande::Palette,
+            MenuAction::Chercher => Commande::Chercher,
             MenuAction::RenommerOnglet | MenuAction::SupprimerOnglet => return None,
         })
     }
@@ -184,6 +185,8 @@ pub enum MenuAction {
     Exporter,
     /// Chaque commande, cherchée par son nom (P4, fiche 72).
     Palette,
+    /// Chercher dans le document (`Ctrl+F`, fiche 89).
+    Chercher,
 }
 
 /// Une ligne du menu : soit une entrée, soit un filet.

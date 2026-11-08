@@ -102,6 +102,10 @@ pub enum Commande {
     ImporterUnDocument,
     JournalTechnique,
     VoirCeQuiPart,
+    // Chercher (fiche 89).
+    Chercher,
+    ResultatSuivant,
+    ResultatPrecedent,
     // L'interface.
     Palette,
     /// Changer le raccourci d'une commande (P4, fiche 74).
@@ -124,7 +128,7 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
 ];
 
 /// Les commandes sans paramètre : leur identifiant et leur nom.
-const SIMPLES: [(Commande, &str, &str); 38] = [
+const SIMPLES: [(Commande, &str, &str); 41] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -218,6 +222,17 @@ const SIMPLES: [(Commande, &str, &str); 38] = [
         Commande::VoirCeQuiPart,
         "voir-ce-qui-part",
         "Voir ce qui part",
+    ),
+    (Commande::Chercher, "chercher", "Chercher…"),
+    (
+        Commande::ResultatSuivant,
+        "chercher.suivant",
+        "Résultat suivant",
+    ),
+    (
+        Commande::ResultatPrecedent,
+        "chercher.precedent",
+        "Résultat précédent",
     ),
     (Commande::Palette, "palette", "Palette de commandes"),
     (
