@@ -53,7 +53,9 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use tiny_skia::{Color, FillRule, Paint, Path, PathBuilder, PixmapMut, Transform};
+use tiny_skia::{
+    Color, FillRule, LineJoin, Paint, Path, PathBuilder, PixmapMut, Stroke, Transform,
+};
 
 /// Le contour d'un glyphe, dans les unités de sa police (l'axe des ordonnées vers le haut).
 struct Bati(PathBuilder);
@@ -144,6 +146,47 @@ impl Contours {
     }
 }
 
+impl Contours {
+    /// **Détoure ce glyphe** (TITRE-2, fiche 95) : un trait de la teinte du contour autour de lui,
+    /// de `demi` pixels de part et d'autre de son bord, aux joints ronds, puis le glyphe rempli
+    /// par-dessus — deux passes.
+    ///
+    /// Une petite lettre se détoure par ses huit copies décalées ([`super::DETOURAGE`]) : son
+    /// image est en cache, chaque copie ne coûte qu'une composition. Une lettre tracée, non : ses
+    /// neuf copies se rastérisaient chacune sur toute sa surface, et le titre d'une grande
+    /// région, mille pixels de haut, coûtait 12 ms par image de zoom (l'article « Eau », sur
+    /// cette machine). Le trait ne coûte que son périmètre. Les huit copies tiennent le contour
+    /// à 1,5 pixel dans leurs huit directions, à 1,4 entre elles ; le trait, à 1,5 partout :
+    /// le même détourage au dixième de pixel.
+    pub fn detourer(
+        &self,
+        pixmap: &mut PixmapMut,
+        glyphe: (usize, u16),
+        (x, base): (f32, f32),
+        (corps, demi): (f32, f32),
+        (couleur, contour): (Color, Color),
+    ) {
+        let (police, indice) = glyphe;
+        let Some(forme) = self.contour(police, indice) else {
+            return;
+        };
+        let s = corps / f32::from(self.polices[police].units_per_em());
+        let mut paint = Paint::default();
+        paint.set_color(contour);
+        paint.anti_alias = true;
+        let pose = Transform::from_row(s, 0.0, 0.0, -s, x, base);
+        // Le trait se trace dans les unités de la police, puis la pose l'agrandit de `s`.
+        let trait_ = Stroke {
+            width: 2.0 * demi / s,
+            line_join: LineJoin::Round,
+            ..Stroke::default()
+        };
+        pixmap.stroke_path(&forme, &paint, &trait_, pose, None);
+        paint.set_color(couleur);
+        pixmap.fill_path(&forme, &paint, FillRule::Winding, pose, None);
+    }
+}
+
 /// **Cette lettre se trace-t-elle ?** Plus grande qu'un demi-carré : son image coûte alors
 /// plus que son tracé (le journal des mesures est en tête du module).
 pub fn se_trace(corps: f32) -> bool {
@@ -220,9 +263,9 @@ mod tests {
         assert!(typo.get_glyph('A', seuil + 1.0, Face::Regular).is_none());
     }
 
-    /// **Un titre détouré, de près, se trace aussi** : neuf passes d'une lettre de dix millions
-    /// de pixels dans un petit tampon se font en un temps borné par le tampon — par son image,
-    /// elles demanderaient cent téraoctets. Le H est centré sur le tampon par sa propre boîte :
+    /// **Un titre détouré, de près, se trace aussi** : une lettre de dix millions de pixels, son
+    /// trait et son remplissage (TITRE-2), dans un petit tampon, se font en un temps borné par le
+    /// tampon — par son image, ils demanderaient cent téraoctets. Le H est centré sur le tampon par sa propre boîte :
     /// sa barre le couvre.
     #[test]
     fn test_grand_1_le_texte_detoure_se_trace_aussi() {
@@ -263,5 +306,59 @@ mod tests {
         typo.draw_text(&mut direct.as_mut(), "Ag", 13.25, 24.5, style);
         assert!(encre(&direct).is_some());
         assert!(decale.data() == direct.data());
+    }
+
+    /// **TITRE-2 — le détourage en deux passes est celui des neuf copies** (fiche 95). La même
+    /// lettre, ronde et droite, détourée par l'ancienne voie (huit copies décalées, puis elle,
+    /// toutes tracées) et par la nouvelle (le trait, puis elle) : la même encre au pixel près, le
+    /// même corps, le même anneau de contour — à la composition des bords près, où huit copies
+    /// qui se recouvrent s'additionnent.
+    #[test]
+    fn test_titre_2_le_trait_detoure_comme_les_neuf_copies() {
+        let typo = Typography::new();
+        let corps = 300.0;
+        let (noir, blanc) = (Color::BLACK, Color::WHITE);
+        let style = TextStyle {
+            size: corps,
+            color: noir,
+            face: Face::Bold,
+        };
+        let (x, y) = (40.0, 20.0);
+        let mut neuve = Pixmap::new(560, 360).expect("tampon");
+        typo.draw_text_with_outline(&mut neuve.as_mut(), "OH", x, y, style, blanc);
+        let mut ancienne = Pixmap::new(560, 360).expect("tampon");
+        let mut plume = x;
+        for ch in "OH".chars() {
+            let (choisi, indice) = typo.choix(ch, Face::Bold);
+            let glyphe = (choisi.map_or(Face::ALL.len(), Face::index), indice);
+            for (ox, oy) in crate::typography::DETOURAGE {
+                let a = (plume + ox, y + corps + oy);
+                typo.contours
+                    .remplir(&mut ancienne.as_mut(), glyphe, a, corps, blanc);
+            }
+            let a = (plume, y + corps);
+            typo.contours
+                .remplir(&mut ancienne.as_mut(), glyphe, a, corps, noir);
+            plume += typo.advance(ch, corps, Face::Bold);
+        }
+        assert_eq!(encre(&neuve), encre(&ancienne), "la même encre");
+        let corps_noir = |p: &Pixmap| {
+            let noir = |c: &&tiny_skia::PremultipliedColorU8| c.alpha() == 255 && c.red() < 40;
+            p.pixels().iter().filter(noir).count()
+        };
+        assert_eq!(corps_noir(&neuve), corps_noir(&ancienne), "le même corps");
+        // L'anneau par sa surface (sa blancheur couvrante) : un trait de 1,5 pixel et huit copies
+        // à 1,4 – 1,5 pixel diffèrent d'au plus un dixième de pixel sur sa largeur — 1/15 de sa
+        // surface. Ses pixels opaques, eux, diffèrent davantage : huit bords antialiasés qui se
+        // recouvrent s'additionnent (mesuré : 1 791 pixels contre 2 265, pour 1,3 % de surface).
+        let surface = |p: &Pixmap| {
+            p.pixels()
+                .iter()
+                .map(|c| f64::from(c.demultiply().red()) * f64::from(c.alpha()) / 65025.0)
+                .sum::<f64>()
+        };
+        let (n, a) = (surface(&neuve), surface(&ancienne));
+        assert!(a > 1000.0, "l'anneau existe : {a}");
+        assert!((n - a).abs() / a <= 0.1 / 1.5, "l'anneau : {n} contre {a}");
     }
 }

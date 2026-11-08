@@ -1,0 +1,414 @@
+[
+ {
+  "nom": "TITRE-1 une petite membrane rapetisse son titre",
+  "fichier": "crates/glucose-core/src/membrane_titre.rs",
+  "avant": "        rapport.sqrt().max(1.0)",
+  "apres": "        rapport.sqrt()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 le titre grandit comme la surface, et non sa racine",
+  "fichier": "crates/glucose-core/src/membrane_titre.rs",
+  "avant": "        rapport.sqrt().max(1.0)",
+  "apres": "        rapport.max(1.0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 l'encre oublie le titre",
+  "fichier": "crates/glucose-core/src/membrane_titre.rs",
+  "avant": "                let e = elevation(b.width, b.height);",
+  "apres": "                let e = 0.0 * elevation(b.width, b.height);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 un titre vide compte comme un titre",
+  "fichier": "crates/glucose-core/src/membrane_titre.rs",
+  "avant": "    texte.is_some_and(|t| !t.is_empty())",
+  "apres": "    texte.is_some()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 tout cadrer oublie le titre",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "            .chain(board.annotations.iter().map(Annotation::encre))",
+  "apres": "            .chain(board.annotations.iter().map(Annotation::bounds))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 F oublie le titre",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "                    .map(Annotation::encre),",
+  "apres": "                    .map(Annotation::bounds),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 le vol oublie le titre",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "        .map(Annotation::encre)\n",
+  "apres": "        .map(Annotation::bounds)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 la bande de clic ne grandit pas",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "            let bande = pick_consts::MEMBRANE_LABEL_BAND * crate::membrane_titre::echelle(w, h);",
+  "apres": "            let bande = pick_consts::MEMBRANE_LABEL_BAND;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite",
+   "--",
+   "titre_1"
+  ]
+ },
+ {
+  "nom": "TITRE-1 un titre vide a sa bande de clic",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "            let on_label = crate::membrane_titre::porte_un_titre(text.as_deref())",
+  "apres": "            let on_label = text.is_some()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite",
+   "--",
+   "titre_1"
+  ]
+ },
+ {
+  "nom": "TITRE-1 les colonnes ne réservent pas la place du titre",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "            y += f.dessus;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 une membrane disposée oublie son titre",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "        dessus: dessus(b, x, bas),",
+  "apres": "        dessus: 0.0,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 la partition ignore la place des titres",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "    let hauteurs: Vec<f64> = fils.iter().map(|f| f.dessus + f.hauteur).collect();",
+  "apres": "    let hauteurs: Vec<f64> = fils.iter().map(|f| f.hauteur).collect();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 le document ne dit pas qu'une membrane est titrée",
+  "fichier": "crates/glucose-core/src/store/colonnes.rs",
+  "avant": "            Some(Annotation::Membrane { text, .. }) => porte_un_titre(text.as_deref()),",
+  "apres": "            Some(Annotation::Membrane { text, .. }) => porte_un_titre(text.as_deref()) && false,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "membrane_titre",
+   "colonnes"
+  ]
+ },
+ {
+  "nom": "TITRE-1 l'index oublie le titre",
+  "fichier": "crates/glucose-core/src/quadtree.rs",
+  "avant": "        let r = ann.encre();",
+  "apres": "        let r = ann.bounds();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 le dessin écarte une membrane sous l'écran",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "        if clip.rejects(coin.0, coin.1 - titre, layout.width, layout.height + titre) {",
+  "apres": "        if clip.rejects(coin.0, coin.1 + 0.0 * titre, layout.width, layout.height) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 un titre se cache de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "        let label = self.text.filter(|l| porte_un_titre(Some(l)))?;",
+  "apres": "        let label = self\n            .text\n            .filter(|l| porte_un_titre(Some(l)) && self.scale.draws_detail())?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 le corps ne suit pas la loi",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "            label_font: (titre::CORPS * s) as f32,",
+  "apres": "            label_font: (titre::CORPS * s / s) as f32,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 un titre déborde de sa membrane",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "        let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);",
+  "apres": "        let ajuste = (l.width / (large + 2.0 * l.label_dx)).max(1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 glisser ne salit que la boîte",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "        let Some(base) = self.drag_selection_base.map(|b| b.encre) else {",
+  "apres": "        let Some(base) = self\n            .drag_selection_base\n            .map(|b| Rect::new(b.boite.left, b.boite.top, b.boite.width, b.boite.height))\n        else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 l'encre de l'emport oublie le titre",
+  "fichier": "crates/glucose-core/src/store/membranes.rs",
+  "avant": "            .map(Annotation::encre);",
+  "apres": "            .map(Annotation::bounds);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-1 le rectangle de sélection ignore le titre",
+  "fichier": "crates/glucose-desktop/src/interactions/selection.rs",
+  "avant": "            .filter(|ann| lasso.overlaps(ann.encre()))",
+  "apres": "            .filter(|ann| lasso.overlaps(ann.bounds()))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "CHANTIER-2 des teintes en retard ne salissent rien",
+  "fichier": "crates/glucose-desktop/src/app/reveil.rs",
+  "avant": "        if teintes {\n            self.mark_dirty();",
+  "apres": "        if teintes {\n            self.demander_une_image();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-2 le halo ne compose pas les copies",
+  "fichier": "crates/glucose-desktop/src/typography/glyph.rs",
+  "avant": "                transparence[(rang + dy) * largeur + col + dx] *= 1.0 - c;",
+  "apres": "                transparence[(rang + dy) * largeur + col + dx] *= 1.0 - c * c;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-2 le halo prend la clé de la lettre",
+  "fichier": "crates/glucose-desktop/src/typography/detoure.rs",
+  "avant": "        let cle = (face, ch, size_key, glyph::HALO | phase);",
+  "apres": "        let cle = (face, ch, size_key, phase);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ },
+ {
+  "nom": "TITRE-2 une grande lettre perd son contour",
+  "fichier": "crates/glucose-desktop/src/typography/trace.rs",
+  "avant": "        pixmap.stroke_path(&forme, &paint, &trait_, pose, None);",
+  "apres": "        let _ = (&trait_, pose);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_1",
+   "titre_2",
+   "chantier_2"
+  ]
+ }
+]

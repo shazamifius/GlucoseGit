@@ -15,6 +15,7 @@
 use super::Store;
 use crate::geometry::Rect;
 use crate::layout::colonnes::{disposer, Bloc, Marges};
+use crate::membrane_titre::porte_un_titre;
 use crate::types::Annotation;
 
 impl Store {
@@ -116,11 +117,16 @@ impl Store {
                 false => Some(feuille(e, r)),
             })
             .collect::<Option<Vec<Bloc>>>()?;
+        let titree = match self.project.annotation(board_id, id) {
+            Some(Annotation::Membrane { text, .. }) => porte_un_titre(text.as_deref()),
+            _ => false,
+        };
         Some(Bloc {
             id: id.to_string(),
             largeur: boite.width,
             hauteur: boite.height,
             enfants,
+            titree,
         })
     }
 
@@ -157,6 +163,7 @@ fn feuille(id: String, r: Rect) -> Bloc {
         largeur: r.width,
         hauteur: r.height,
         enfants: Vec::new(),
+        titree: false,
     }
 }
 

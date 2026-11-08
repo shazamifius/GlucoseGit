@@ -254,7 +254,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// avant/après, agrandis trois fois (fiche 71).
 /// **Puis** (fiche 71) : « Preset » devient « Mood board » dans la bande — 2 764 pixels, le
 /// groupe de droite qui glisse (1314-1671 × 19-31). Regardé.
-const EMPREINTE_TEMOIN: &str = "541a45aa34794693";
+/// **Puis, le 8/11** (TITRE-1, fiche 95) : le titre de la membrane témoin (420 × 300, plus grande
+/// qu'une neuve) grandit de 28 % ; 473 pixels, tous dans sa bande (795-982 × 94-115) ; le contour
+/// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
+const EMPREINTE_TEMOIN: &str = "d57b175b0b0d1e3c";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -344,7 +347,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// Regardé.
 /// **Puis** (fiche 70) : le bandeau du dossier, 1 608 pixels, rien d'autre — regardé.
 /// **Puis** (fiche 71) : « Mood board » dans la bande, 2 764 pixels — regardé.
-const EMPREINTE_TEMOIN_SELECTION: &str = "59a417f6daf87fcb";
+/// **Puis, le 8/11** (TITRE-1, fiche 95) : le titre de la membrane témoin (420 × 300, plus grande
+/// qu'une neuve) grandit de 28 % ; 473 pixels, tous dans sa bande (795-982 × 94-115) ; le contour
+/// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
+const EMPREINTE_TEMOIN_SELECTION: &str = "38bb32100a0720f4";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -420,7 +426,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// bordures », regardé.
 /// **Puis** (fiche 70) : le bandeau du dossier sous le menu, 1 324 pixels — regardé.
 /// **Puis** (fiche 71) : « Mood board » dans la bande, 2 764 pixels — regardé.
-const EMPREINTE_TEMOIN_MENU: &str = "599d9b062fccdafe";
+/// **Puis, le 8/11** (TITRE-1, fiche 95) : le titre de la membrane témoin (420 × 300, plus grande
+/// qu'une neuve) grandit de 28 % ; 473 pixels, tous dans sa bande (795-982 × 94-115) ; le contour
+/// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
+const EMPREINTE_TEMOIN_MENU: &str = "65d52fbff59521a2";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

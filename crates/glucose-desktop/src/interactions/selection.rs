@@ -51,7 +51,7 @@ impl GlucoseApp {
         let annotations: Vec<String> = board
             .annotations
             .iter()
-            .filter(|ann| lasso.overlaps(ann.bounds()))
+            .filter(|ann| lasso.overlaps(ann.encre()))
             .filter(|ann| self.renderer.focus.laisse_voir(ann.id()))
             .map(|ann| ann.id().to_string())
             .collect();

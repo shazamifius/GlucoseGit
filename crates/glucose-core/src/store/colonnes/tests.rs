@@ -144,3 +144,45 @@ fn colonnes_1_rien_a_ranger() {
     );
     assert_eq!(store.project, avant);
 }
+
+/// **TITRE-1 dans le document** : les membranes d'un article portent leur titre, et « Disposer en
+/// colonnes » réserve au-dessus de chacune ce que son nom prend en plus d'un titre ordinaire —
+/// aucun ne couvre le bloc du dessus, ni le bandeau de l'article.
+#[test]
+fn titre_1_disposer_ne_laisse_aucun_nom_couvrir_son_voisin() {
+    use crate::membrane_titre::{elevation, surcroit, ELEVATION};
+    let (mut store, board) = un_article();
+    for i in 0..14 {
+        let id = format!("t{i}");
+        poser(&mut store, &board, &id, Some("section"), 140.0, false);
+    }
+    for id in ["article", "section", "vide"] {
+        store.update_annotation(&board, id, |a| {
+            if let Annotation::Membrane { text, .. } = a {
+                *text = Some(format!("Le titre de {id}"));
+            }
+        });
+    }
+    store.disposer_en_colonnes(&board, "article", 1.6);
+    let parent = boite(&store, &board, "article");
+    let section = boite(&store, &board, "section");
+    assert!(
+        surcroit(section.width, section.height) > 10.0,
+        "l'épreuve exerce un grand titre : {section:?}"
+    );
+    let mut enfants: Vec<Rect> = ["p0", "p1", "p2", "p3", "p4", "p5", "section", "vide"]
+        .iter()
+        .map(|id| boite(&store, &board, id))
+        .collect();
+    enfants.sort_by(|a, b| a.left.total_cmp(&b.left).then(a.top.total_cmp(&b.top)));
+    for (k, r) in enfants.iter().enumerate() {
+        let dessus = match k.checked_sub(1).map(|j| enfants[j]) {
+            Some(a) if a.left == r.left => a.bottom() + ECART,
+            _ => parent.top + TITRE_DE_MEMBRANE,
+        };
+        if *r == section {
+            let haut_du_titre = r.top - elevation(r.width, r.height) + ELEVATION;
+            assert!(haut_du_titre >= dessus - 1e-9, "le titre couvre {dessus}");
+        }
+    }
+}

@@ -19,3 +19,14 @@ python3 -I outils/wikipedia/en_colonnes.py target/debug/glucose-desktop eau 1.6 
 target/debug/glucose-desktop lire niveau=plan                                     # la carte
 : > $W/arret   # Glucose finit, et rend le tableau en images dans $W/images
 ```
+
+## Le squelette (fiche 95)
+
+Les cent articles vitaux du niveau 2, rangés comme Wikipédia les range (neuf thèmes, des articles
+emboîtés), chacun une membrane à son titre français avec ses deux premières phrases ; « Eau » et
+« Hydrogène » entiers à leur place ; puis `glucose disposer wiki`. Les réponses de Wikipédia sont
+gardées dans le dossier de travail : une seconde pose ne redemande rien.
+
+```bash
+python3 -I outils/wikipedia/squelette.py target/debug/glucose-desktop <dossier de travail>
+```

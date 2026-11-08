@@ -277,3 +277,44 @@ fn test_nettete_1_une_scene_inachevee_redemande_une_image_sans_rien_repeindre() 
         "une scene finie ne demande plus rien"
     );
 }
+
+/// **CHANTIER-2 — des teintes en retard font redessiner, et la cascade finit** (fiche 95).
+///
+/// Une teinte ne se refait que dans une image qui redessine les nœuds. Le chantier demandait
+/// une image sans rien salir : elle n'avait rien à redessiner, ne consultait pas le cache, et
+/// son retard ne retombait jamais — Glucose redessinait à vide, tableau immobile. L'épreuve
+/// suit l'ordre réel : l'attente demande, puis l'image ne peint que ce qui est sali. La tranche
+/// est nulle : une teinte par image ; la cascade doit finir, et l'image lui être due.
+#[test]
+fn test_chantier_2_des_teintes_en_retard_font_redessiner_jusqu_au_bout() {
+    use glucose_core::types::Annotation;
+    let mut app = GlucoseApp::new();
+    app.ui.current_toast = None;
+    let board = app.store.project.active_board_id.clone();
+    for i in 0..6 {
+        let t = Annotation::text(format!("t{i}"), 40.0 + 60.0 * f64::from(i), 300.0, "eau");
+        app.store.add_annotation(&board, t);
+    }
+    app.renderer
+        .hue_cache
+        .accorder_la_tranche(Some(std::time::Duration::ZERO));
+    app.une_image_sans_fenetre((800, 600));
+    assert!(
+        app.renderer.hue_cache.en_retard(),
+        "l'épreuve part d'un cache en retard"
+    );
+    let mut images = 0;
+    while app.renderer.hue_cache.en_retard() && images < 50 {
+        let _ = app.prochain_reveil();
+        assert!(
+            app.provenance.raisons & Raison::Chantier.bit() != 0,
+            "l'image est due au chantier, pas au système"
+        );
+        app.peindre_ce_qui_a_change((800, 600), false);
+        images += 1;
+    }
+    assert!(
+        !app.renderer.hue_cache.en_retard(),
+        "après {images} images, les teintes sont toujours en retard"
+    );
+}

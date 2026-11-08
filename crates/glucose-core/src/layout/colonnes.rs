@@ -20,6 +20,10 @@
 //!
 //! Les marges sont celles d'une membrane de Glucose (son bord, l'écart entre deux nœuds, le bandeau de
 //! son titre), reçues telles quelles : le module n'en choisit aucune.
+//!
+//! **Le titre d'une membrane grandit avec elle** (TITRE-1, fiche 95) et se pose au-dessus de son bord :
+//! chaque sous-membrane titrée réserve au-dessus d'elle ce que son titre prend en plus d'un titre
+//! ordinaire ([`crate::membrane_titre::surcroit`]), pour qu'aucun nom ne couvre le bloc du dessus.
 
 use crate::geometry::Rect;
 
@@ -32,6 +36,8 @@ pub struct Bloc {
     pub hauteur: f64,
     /// Vide pour un nœud ; pour une membrane, ce qu'elle contient. Une membrane vide garde sa taille.
     pub enfants: Vec<Bloc>,
+    /// Une membrane qui porte un titre, posé au-dessus de son bord (TITRE-1).
+    pub titree: bool,
 }
 
 /// **Les marges d'une membrane** : à gauche, à droite, en bas et entre deux blocs, `ecart` ; en haut,
@@ -50,11 +56,21 @@ pub fn disposer(racine: &Bloc, proportion: f64, m: Marges) -> Vec<(String, Rect)
     boites
 }
 
-/// Un bloc disposé : sa taille, et la boîte de chacun de ses descendants, relative à son coin.
+/// Un bloc disposé : sa taille, la place que son titre prend au-dessus de lui en plus d'un titre
+/// ordinaire, et la boîte de chacun de ses descendants, relative à son coin.
 struct Dispose {
     largeur: f64,
     hauteur: f64,
+    dessus: f64,
     places: Vec<(String, Rect)>,
+}
+
+/// Ce que le titre d'un bloc de cette taille prend au-dessus de lui (TITRE-1).
+fn dessus(b: &Bloc, largeur: f64, hauteur: f64) -> f64 {
+    match b.titree {
+        true => crate::membrane_titre::surcroit(largeur, hauteur),
+        false => 0.0,
+    }
 }
 
 fn disposer_bloc(b: &Bloc, proportion: f64, m: Marges) -> Dispose {
@@ -62,6 +78,7 @@ fn disposer_bloc(b: &Bloc, proportion: f64, m: Marges) -> Dispose {
         return Dispose {
             largeur: b.largeur,
             hauteur: b.hauteur,
+            dessus: dessus(b, b.largeur, b.hauteur),
             places: Vec::new(),
         };
     }
@@ -70,7 +87,7 @@ fn disposer_bloc(b: &Bloc, proportion: f64, m: Marges) -> Dispose {
         .iter()
         .map(|e| disposer_bloc(e, proportion, m))
         .collect();
-    let hauteurs: Vec<f64> = fils.iter().map(|f| f.hauteur).collect();
+    let hauteurs: Vec<f64> = fils.iter().map(|f| f.dessus + f.hauteur).collect();
     let coupes = meilleures_coupes(&fils, &hauteurs, proportion, m);
     let mut places = Vec::new();
     let mut x = m.ecart;
@@ -79,6 +96,7 @@ fn disposer_bloc(b: &Bloc, proportion: f64, m: Marges) -> Dispose {
         let mut y = m.titre;
         let mut large: f64 = 0.0;
         for (e, f) in b.enfants[debut..fin].iter().zip(&fils[debut..fin]) {
+            y += f.dessus;
             places.push((e.id.clone(), Rect::new(x, y, f.largeur, f.hauteur)));
             places.extend(f.places.iter().map(|(id, r)| {
                 (
@@ -95,6 +113,7 @@ fn disposer_bloc(b: &Bloc, proportion: f64, m: Marges) -> Dispose {
     Dispose {
         largeur: x,
         hauteur: bas,
+        dessus: dessus(b, x, bas),
         places,
     }
 }

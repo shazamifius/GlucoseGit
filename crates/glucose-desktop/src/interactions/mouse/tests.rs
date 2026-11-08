@@ -663,3 +663,28 @@ fn test_la_barre_tient_dans_toute_fenetre() {
         }
     }
 }
+
+/// **TITRE-1 — un rectangle qui ne touche que le nom d'une membrane la prend** : la sélection
+/// élastique regarde l'encre, et le titre d'une grande membrane, posé au-dessus de son bord, en
+/// est. Le rectangle reste au-dessus de la boîte de la membrane.
+#[test]
+fn test_titre_1_le_rectangle_qui_touche_le_titre_prend_la_membrane() {
+    use glucose_core::types::Annotation;
+    let mut app = canvas_app();
+    let board = app.store.project.active_board_id.clone();
+    let mut m = Annotation::membrane("M", 0.0, 0.0, 3200.0, 2400.0);
+    if let Annotation::Membrane { text, .. } = &mut m {
+        *text = Some("Eau".to_string());
+    }
+    app.store.add_annotation(&board, m);
+    app.store.clear_selection();
+    let titre = glucose_core::membrane_titre::elevation(3200.0, 2400.0);
+    let (x1, y1) = screen_of(&app, 100.0, -titre * 0.8);
+    let (x2, y2) = screen_of(&app, 900.0, -titre * 0.2);
+    app.selection_box = Some((x1, y1, x2, y2));
+    app.finish_selection_box();
+    assert_eq!(
+        app.store.selected_annotation_ids.to_vec(),
+        vec!["M".to_string()]
+    );
+}

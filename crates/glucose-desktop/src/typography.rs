@@ -55,8 +55,11 @@
 
 #[cfg(test)]
 pub(crate) mod coverage;
+mod detoure;
 pub mod glyph;
 pub(crate) mod trace;
+
+pub use detoure::DETOURAGE;
 
 use fontdue::{Font, FontSettings};
 use glyph::{
@@ -428,58 +431,6 @@ impl Typography {
         x
     }
 
-    /// Dessine une chaîne avec un contour net ou une ombre en une seule consultation de glyphes (R-26).
-    pub fn draw_text_with_outline(
-        &self,
-        pixmap: &mut PixmapMut,
-        text: &str,
-        mut x: f32,
-        y: f32,
-        style: TextStyle,
-        outline_color: Color,
-    ) -> f32 {
-        let TextStyle { color, face, .. } = style;
-        let size = clamp_font_size(style.size);
-        let shadow_offsets = DETOURAGE;
-
-        let out_r = outline_color.red() * 255.0;
-        let out_g = outline_color.green() * 255.0;
-        let out_b = outline_color.blue() * 255.0;
-        let out_a = outline_color.alpha();
-
-        let r = color.red() * 255.0;
-        let g = color.green() * 255.0;
-        let b = color.blue() * 255.0;
-        let a = color.alpha();
-
-        for ch in text.chars() {
-            if ch == '\n' {
-                continue;
-            }
-            let advance = {
-                // 1. Passe contour : chaque décalage a sa propre phase, comme n'importe
-                //    quelle position. Les huit offsets n'en produisent que quatre distinctes.
-                for &(ox, oy) in &shadow_offsets {
-                    self.blend_positioned(
-                        pixmap,
-                        (ch, size, face),
-                        (x + ox, y + size + oy),
-                        (outline_color, (out_r, out_g, out_b, out_a)),
-                    );
-                }
-                // 2. Passe principale
-                self.blend_positioned(
-                    pixmap,
-                    (ch, size, face),
-                    (x, y + size),
-                    (color, (r, g, b, a)),
-                )
-            };
-            x += advance;
-        }
-        x
-    }
-
     /// Compose un glyphe à une position fractionnaire et rend son avance — tracé s'il est plus
     /// grand qu'un demi-carré (GRAND-1).
     fn blend_positioned(
@@ -522,19 +473,6 @@ impl Typography {
         (width, height)
     }
 }
-
-/// **Le détourage d'un texte** ([`Typography::draw_text_with_outline`]) : les huit copies, de la
-/// teinte du contour, qui passent sous le texte — le SVG pose les mêmes (P5, fiche 70).
-pub const DETOURAGE: [(f32, f32); 8] = [
-    (-1.5, 0.0),
-    (1.5, 0.0),
-    (0.0, -1.5),
-    (0.0, 1.5),
-    (-1.0, -1.0),
-    (1.0, -1.0),
-    (-1.0, 1.0),
-    (1.0, 1.0),
-];
 
 /// Normalise une taille de police : `NaN` devient 1, et rien ne descend sous un pixel.
 ///
@@ -807,5 +745,53 @@ mod tests {
         let pre_count = typo.cached_glyph_count();
         typo.get_glyph('A', 10.0, Face::Regular).expect("une image");
         assert_eq!(typo.cached_glyph_count(), pre_count);
+    }
+
+    /// **TITRE-2 — le halo composé une fois vaut les huit copies** (fiche 95). Aux seize phases
+    /// d'une lettre, sur un fond opaque : le texte détouré en deux passes, et le même en neuf
+    /// (huit copies du contour, puis la lettre). Chaque copie d'avant tronquait sa composition à
+    /// l'octet : l'écart est d'au plus un niveau par copie, huit — et aucun pixel n'est encré
+    /// d'un côté seulement.
+    #[test]
+    fn test_titre_2_le_halo_vaut_les_huit_copies() {
+        let typo = Typography::new();
+        let (texte, corps) = ("Eau — Wikipédia", 40.0);
+        let style = TextStyle {
+            size: corps,
+            color: Color::from_rgba8(96, 165, 250, 255),
+            face: Face::Bold,
+        };
+        let fond = Color::from_rgba8(17, 19, 24, 255);
+        let mut pire = 0u8;
+        for phase in 0..16 {
+            let (x, y) = (
+                10.0 + (phase % 4) as f32 / 4.0,
+                10.0 + (phase / 4) as f32 / 4.0,
+            );
+            let mut neuve = Pixmap::new(420, 80).expect("tampon");
+            neuve.fill(fond);
+            typo.draw_text_with_outline(&mut neuve.as_mut(), texte, x, y, style, Color::BLACK);
+            let mut ancienne = Pixmap::new(420, 80).expect("tampon");
+            ancienne.fill(fond);
+            let (noir, bleu) = ((0.0, 0.0, 0.0, 1.0), (96.0, 165.0, 250.0, 1.0));
+            let mut plume = x;
+            for ch in texte.chars() {
+                let lettre = (ch, corps, Face::Bold);
+                for (ox, oy) in DETOURAGE {
+                    let a = (plume + ox, y + corps + oy);
+                    typo.blend_positioned(&mut ancienne.as_mut(), lettre, a, (Color::BLACK, noir));
+                }
+                let a = (plume, y + corps);
+                plume +=
+                    typo.blend_positioned(&mut ancienne.as_mut(), lettre, a, (style.color, bleu));
+            }
+            for (n, a) in neuve.data().iter().zip(ancienne.data()) {
+                pire = pire.max(n.abs_diff(*a));
+            }
+        }
+        assert!(
+            pire <= 8,
+            "le halo s'écarte de {pire} niveaux des huit copies"
+        );
     }
 }

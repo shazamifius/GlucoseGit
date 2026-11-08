@@ -108,10 +108,12 @@ fn push_annotation(
         } => {
             let (w, h) = (*width, *height);
             let area = (w * h).abs();
-            let on_label = text.is_some()
+            // La bande du titre grandit avec lui (TITRE-1) : on saisit une membrane par son nom.
+            let bande = pick_consts::MEMBRANE_LABEL_BAND * crate::membrane_titre::echelle(w, h);
+            let on_label = crate::membrane_titre::porte_un_titre(text.as_deref())
                 && wx >= *x
                 && wx <= *x + w
-                && wy >= *y - pick_consts::MEMBRANE_LABEL_BAND
+                && wy >= *y - bande
                 && wy <= *y;
 
             let (kind, rank) = if on_label || on_rect_edge(wx, wy, *x, *y, w, h, band) {

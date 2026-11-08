@@ -2,8 +2,18 @@
 
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
+use glucose_core::geometry::Rect;
 use glucose_core::smart_align::{snap_move_sur, union_rect, AlignRect, SnapGuides};
 use std::collections::HashSet;
+
+/// **La base d'un glisser**, notée à l'appui : ce que l'aimant regarde — les boîtes de ce qui est
+/// emporté —, et ce que chaque pas salit — leur encre, le titre des membranes compris (TITRE-1).
+/// Un grand titre bouge avec sa membrane ; l'aimant, lui, aligne des bords.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BaseDuGlisser {
+    pub boite: AlignRect,
+    pub encre: Rect,
+}
 
 impl GlucoseApp {
     /// Initialise une session de drag pour les éléments sélectionnés.
@@ -22,13 +32,17 @@ impl GlucoseApp {
         if let Some(board) = self.store.active_board() {
             let mut exclude: HashSet<String> = emport.ids().cloned().collect();
             let mut rects = emport.boites(board);
+            let mut encre = emport.encre(board);
             if let Some(fid) = &self.store.selected_folder_id {
                 exclude.insert(fid.clone());
                 if let Some(f) = board.folders.iter().find(|f| &f.id == fid) {
                     rects.push(f.rect());
+                    encre = Some(encre.map_or(f.rect(), |e| e.union(f.rect())));
                 }
             }
-            self.drag_selection_base = union_rect(&rects);
+            self.drag_selection_base = union_rect(&rects)
+                .zip(encre)
+                .map(|(boite, encre)| BaseDuGlisser { boite, encre });
             self.drag_exclus = exclude;
         }
     }
@@ -45,7 +59,7 @@ impl GlucoseApp {
         let mut target_dy = raw_dy;
 
         if self.ui.smart_align {
-            if let Some(base) = self.drag_selection_base {
+            if let Some(base) = self.drag_selection_base.map(|b| b.boite) {
                 let proposed = AlignRect {
                     left: base.left + raw_dx,
                     top: base.top + raw_dy,
@@ -93,7 +107,8 @@ impl GlucoseApp {
     /// * **la base du geste est inconnue** : sans elle, on ne sait pas d'ou la selection
     ///   vient. Le doute vaut `Tout`, c'est la regle de surete.
     fn salir_le_deplacement(&self, cumul: (f64, f64), pas: (f64, f64)) {
-        let Some(base) = self.drag_selection_base else {
+        // L'encre, et non la boîte : le grand titre d'une membrane bouge avec elle (TITRE-1).
+        let Some(base) = self.drag_selection_base.map(|b| b.encre) else {
             self.mark_dirty();
             return;
         };
@@ -101,7 +116,7 @@ impl GlucoseApp {
             self.mark_dirty();
             return;
         }
-        let rect = |dx: f64, dy: f64| glucose_core::geometry::Rect {
+        let rect = |dx: f64, dy: f64| Rect {
             left: base.left + dx,
             top: base.top + dy,
             width: base.width,

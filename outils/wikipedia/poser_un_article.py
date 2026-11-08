@@ -4,14 +4,16 @@
 # les catégories de l'article comme domaines de ses paragraphes. Les positions : celles que Glucose
 # choisit lui-même (sous le contenu de la membrane).
 #
-#   python3 -I poser_un_article.py <article.json de l'API> <programme glucose> <préfixe des ids> [paragraphes]
+#   python3 -I poser_un_article.py <article.json de l'API> <programme glucose> <préfixe des ids> [paragraphes] [dans=<membrane>]
 #
 # Les catégories se posent sur la membrane de l'article (DOM-6, fiche 94 : son nom vaut pour ce qu'elle
-# contient) ; « paragraphes » les pose sur chaque paragraphe, comme avant la fiche 94.
+# contient) ; « paragraphes » les pose sur chaque paragraphe, comme avant la fiche 94. « dans= » pose
+# l'article dans une membrane qui existe déjà (le squelette de la fiche 95).
 import json, re, subprocess, sys, time
 
 source, glucose, prefixe = sys.argv[1], sys.argv[2], sys.argv[3]
-sur_chaque = len(sys.argv) > 4 and sys.argv[4] == 'paragraphes'
+sur_chaque = 'paragraphes' in sys.argv[4:]
+dans = next((a[len('dans='):] for a in sys.argv[4:] if a.startswith('dans=')), None)
 page = list(json.load(open(source, encoding='utf-8'))['query']['pages'].values())[0]
 titre, texte = page['title'], page['extract']
 IGNOREES = {'Notes et références', 'Voir aussi', 'Bibliographie', 'Liens externes', 'Articles connexes',
@@ -30,7 +32,7 @@ def glucose_(*mots, entree=None):
     return json.loads(r.stdout)
 
 
-glucose_('poser-membrane', f'id={prefixe}', f'titre={titre} — Wikipédia')
+glucose_('poser-membrane', f'id={prefixe}', f'titre={titre} — Wikipédia', *([f'dans={dans}'] if dans else []))
 pile = [(1, prefixe)]  # (niveau, membrane)
 paragraphes, n, ignore = [], 0, False
 courant = prefixe

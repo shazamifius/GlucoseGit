@@ -35,12 +35,9 @@ pub const NEW_FOLDER: &str = "Dossier";
 /// dessine par glisser (fiche 12, 2.B.1).
 pub const NEW_ARROW_VECTOR: (f64, f64) = (120.0, 80.0);
 
-/// La taille d'une membrane et d'un dossier posés d'un clic, en unités monde.
-///
-/// La même pour les deux : ce sont les deux conteneurs du canevas, et rien ne justifierait
-/// qu'ils naissent de tailles différentes. Le minimum de la fiche 06 § 8.1 est 180 × 120 ;
-/// celle-ci laisse de quoi poser quelque chose dedans — en attendant le dessin par glisser.
-pub const NEW_CONTAINER_SIZE: (f64, f64) = (320.0, 240.0);
+/// La taille d'une membrane et d'un dossier posés d'un clic, en unités monde — celle du noyau, d'où
+/// la loi du titre des membranes part (TITRE-1).
+pub const NEW_CONTAINER_SIZE: (f64, f64) = glucose_core::membrane_titre::NAISSANCE;
 
 /// En deçà de cette longueur, en unités monde, une flèche tracée est tenue pour un simple
 /// clic et reprend son vecteur de naissance.

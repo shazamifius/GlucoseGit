@@ -5,7 +5,7 @@
 
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Board, FolderTreeNode, TemporalAnchor, Viewport};
+use crate::types::{Annotation, Board, FolderTreeNode, TemporalAnchor, Viewport};
 
 /// Reconstruit la pile de dossiers UI menant au board actif.
 pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(String, String)> {
@@ -306,7 +306,7 @@ impl Store {
                     .annotations
                     .iter()
                     .filter(|a| choisi(&self.selected_annotation_ids, a.id()))
-                    .map(|a| a.bounds()),
+                    .map(Annotation::encre),
             )
             .reduce(|acc, r| acc.union(r))
     }
@@ -318,7 +318,8 @@ impl Store {
             .iter()
             .map(|img| img.rect())
             .chain(board.folders.iter().map(|f| f.rect()))
-            .chain(board.annotations.iter().map(|a| a.bounds()))
+            // Le titre d'une membrane compris (TITRE-1) : cadrer tout, et l'exporter, montre son nom.
+            .chain(board.annotations.iter().map(Annotation::encre))
             // BORNES-2 (fiche 70) : les zones d'un gabarit et les cases d'un storyboard sont du
             // contenu — un tableau qui ne porte qu'un storyboard se cadre, et s'exporte entier.
             .chain(board.zones.iter().map(|z| z.rect()))

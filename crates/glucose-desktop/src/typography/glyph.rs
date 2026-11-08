@@ -188,6 +188,56 @@ pub(super) fn blend_glyph(
     }
 }
 
+/// Le bit qui distingue, dans la clé du cache, le halo d'une lettre de ses variantes (TITRE-2).
+pub(super) const HALO: u8 = 0x80;
+
+/// **Le halo d'une lettre** (TITRE-2, fiche 95) : ses huit copies du détourage
+/// ([`super::DETOURAGE`]), composées une fois.
+///
+/// Composer une teinte sur elle-même ne change que son opacité — la loi de MEMB-FORME-1 : huit
+/// passes d'une même couleur valent une passe d'opacité `1 − Π(1 − cₖ)`. Un texte détouré se
+/// compose donc en deux passes, le halo puis la lettre, au lieu de neuf : le profil d'un zoom sur
+/// l'article « Eau », ses titres à la taille de leur région, mettait [`blend_glyph`] à 32 % du
+/// temps. Chaque passe d'avant tronquait sa composition à l'octet : le halo en diffère d'au plus
+/// un niveau par copie qui se recouvre.
+///
+/// `copies` : l'image de chaque copie, et son coin relatif à la cellule de la lettre.
+pub(super) fn halo(copies: &[(Rc<GlyphEntry>, (i32, i32))], modele: &Metrics) -> GlyphEntry {
+    let gauche = copies.iter().map(|(_, c)| c.0).min().unwrap_or(0);
+    let haut = copies.iter().map(|(_, c)| c.1).min().unwrap_or(0);
+    let droite = copies.iter().map(|(e, c)| c.0 + e.width as i32);
+    let bas = copies.iter().map(|(e, c)| c.1 + e.height as i32);
+    let largeur = (droite.max().unwrap_or(0) - gauche).max(0) as usize;
+    let hauteur = (bas.max().unwrap_or(0) - haut).max(0) as usize;
+    let mut transparence = vec![1.0f32; largeur * hauteur];
+    for (e, (x, y)) in copies {
+        let (dx, dy) = ((x - gauche) as usize, (y - haut) as usize);
+        for rang in 0..e.height {
+            for col in 0..e.width {
+                let c = f32::from(e.bitmap[rang * e.width + col]) / 255.0;
+                transparence[(rang + dy) * largeur + col + dx] *= 1.0 - c;
+            }
+        }
+    }
+    let bitmap = transparence
+        .iter()
+        .map(|t| ((1.0 - t) * 255.0).round() as u8)
+        .collect();
+    let metrics = Metrics {
+        xmin: gauche,
+        ymin: -haut - hauteur as i32,
+        width: largeur,
+        height: hauteur,
+        ..*modele
+    };
+    GlyphEntry {
+        metrics,
+        bitmap,
+        width: largeur,
+        height: hauteur,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

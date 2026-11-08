@@ -286,10 +286,11 @@ impl SpatialHash {
         (r.left, r.top, r.right(), r.bottom())
     }
 
-    /// Boîte englobante d'une annotation : celle du modèle, points de passage d'une flèche
-    /// compris.
+    /// Boîte englobante d'une annotation : son encre — points de passage d'une flèche et titre
+    /// d'une membrane compris (TITRE-1) : un grand titre au-dessus d'une membrane encore hors de
+    /// l'écran se voit, et se dessine.
     fn annotation_bbox(ann: &crate::types::Annotation) -> (f64, f64, f64, f64) {
-        let r = ann.bounds();
+        let r = ann.encre();
         (r.left, r.top, r.right(), r.bottom())
     }
 

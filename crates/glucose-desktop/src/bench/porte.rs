@@ -59,12 +59,18 @@ pub fn servir_sans_fenetre(
         .store
         .decrire_pour_un_agent(&board)
         .map_err(|r| r.to_string())?;
+    // Chaque image cadre ce que `F` cadrerait : l'encre, le titre des membranes compris (TITRE-1).
+    let encre = |id: &str| {
+        app.store
+            .active_board()
+            .and_then(|b| glucose_core::arrow::emprise(b, id))
+    };
     let mut cadres: Vec<(String, Rect)> = decrits
         .iter()
         .filter(|d| d.sorte == Sorte::Membrane && d.membrane.is_none())
-        .map(|d| (d.id.clone(), d.boite))
+        .filter_map(|d| Some((d.id.clone(), encre(&d.id)?)))
         .collect();
-    if let Some(tout) = decrits.iter().map(|d| d.boite).reduce(|a, b| a.union(b)) {
+    if let Some(tout) = app.store.content_bounds(&board) {
         cadres.insert(0, ("tableau".to_string(), tout));
     }
     for (nom, cadre) in cadres {

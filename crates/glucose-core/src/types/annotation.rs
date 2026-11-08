@@ -410,8 +410,8 @@ impl Annotation {
     }
 
     /// La boîte englobante de l'annotation : sa boîte ([`Annotation::rect`]) — ou, pour une
-    /// flèche, l'enveloppe de ses extrémités et de ses points de passage. C'est ce que le
-    /// culling et la sélection élastique regardent : tout ce qui a de l'encre est dedans.
+    /// flèche, l'enveloppe de ses extrémités et de ses points de passage. Le culling et la
+    /// sélection élastique regardent [`Annotation::encre`], qui y ajoute le titre d'une membrane.
     pub fn bounds(&self) -> Rect {
         if let Some(rect) = self.rect() {
             return rect;

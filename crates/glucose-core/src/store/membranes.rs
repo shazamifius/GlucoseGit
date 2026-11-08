@@ -78,8 +78,25 @@ impl Emport {
         self.images.iter().chain(&self.annotations)
     }
 
-    /// Les boîtes de ce qui est emporté, sur ce tableau : ce que la zone à redessiner et
-    /// l'aimantation demandent. Une flèche n'a pas de boîte.
+    /// **Tout ce qui a de l'encre dans ce qui est emporté** : les boîtes, l'enveloppe des flèches
+    /// et le titre des membranes (TITRE-1) — ce que la zone à redessiner demande, quand l'aimant ne
+    /// regarde que les boîtes.
+    pub fn encre(&self, board: &Board) -> Option<Rect> {
+        let images = board
+            .images
+            .iter()
+            .filter(|i| self.images.contains(&i.id))
+            .map(|i| i.rect());
+        let annotations = board
+            .annotations
+            .iter()
+            .filter(|a| self.annotations.contains(a.id()))
+            .map(Annotation::encre);
+        images.chain(annotations).reduce(|a, b| a.union(b))
+    }
+
+    /// Les boîtes de ce qui est emporté, sur ce tableau : ce que l'aimantation demande. Une
+    /// flèche n'a pas de boîte.
     pub fn boites(&self, board: &Board) -> Vec<Rect> {
         let images = board
             .images

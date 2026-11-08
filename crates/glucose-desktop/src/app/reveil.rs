@@ -98,7 +98,7 @@ impl Raison {
             Self::Elan => "la vue glisse encore",
             Self::Vol => "vol de camera",
             Self::Decodage => "images en decodage",
-            Self::Chantier => "vignettes a construire",
+            Self::Chantier => "vignettes ou teintes a refaire",
             Self::Pomodoro => "minuteur",
             Self::Commande => "une commande attend ses images",
             Self::Pave => "le pave tactile",
@@ -446,23 +446,31 @@ impl GlucoseApp {
         Some(self.animation_interval_ms())
     }
 
-    /// Des vignettes attendent leur tour au chantier (CASCADE-1).
+    /// Des vignettes attendent leur tour au chantier (CASCADE-1), ou des teintes le leur
+    /// (TEINTES-1, fiche 86).
     ///
-    /// **Rien n'est sali, et c'est voulu** : une vignette donne exactement les mêmes pixels que
-    /// le chemin général, donc l'image à l'écran est déjà juste. Elle ne la rend pas plus
+    /// **Une vignette ne salit rien, et c'est voulu** : elle donne exactement les mêmes pixels
+    /// que le chemin général, donc l'image à l'écran est déjà juste. Elle ne la rend pas plus
     /// belle, elle la rend beaucoup moins chère — il faut donc seulement revenir, pour que
     /// l'atelier dispose d'une nouvelle tranche de temps libre.
+    ///
+    /// **CHANTIER-2 — une teinte en retard salit la scène** (fiche 95) : elle ne se refait que
+    /// dans une image qui redessine les nœuds, et la teinte d'avant n'a pas ses pixels. Une image
+    /// demandée sans rien salir n'avait rien à redessiner, ne consultait pas le cache, et son
+    /// retard ne retombait jamais : Glucose redessinait à vide, tableau immobile, jusqu'à 128
+    /// images par seconde (mesuré sur l'article « Eau »), au compte du « système ».
     ///
     /// Sans ce réveil, une application immobile s'endormirait avec son chantier en plan, et le
     /// premier geste suivant paierait tout ce qui n'a pas été fait.
     fn attente_du_chantier(&mut self) -> Option<u64> {
-        if self.renderer.magasin.vignettes.en_chantier() == 0
-            && !self.renderer.hue_cache.en_retard()
-        {
+        let teintes = self.renderer.hue_cache.en_retard();
+        if self.renderer.magasin.vignettes.en_chantier() == 0 && !teintes {
             return None;
         }
-        if let Some(window) = &self.window {
-            window.request_redraw();
+        if teintes {
+            self.mark_dirty();
+        } else {
+            self.demander_une_image();
         }
         Some(self.animation_interval_ms())
     }

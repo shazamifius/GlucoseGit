@@ -468,7 +468,7 @@ fn test_memb_1_une_membrane_garde_ce_qu_on_y_lache_et_l_emporte() {
     let vp = app.store.viewport();
     let (sx, sy) = world_to_screen(650.0, -150.0, &vp);
     app.init_item_drag(650.0, -150.0);
-    let base = app.drag_selection_base.expect("une zone");
+    let base = app.drag_selection_base.expect("une zone").encre;
     assert!(
         base.left + base.width >= 1200.0,
         "la zone redessinée couvre ce qui déborde : {base:?}"
@@ -487,4 +487,33 @@ fn test_memb_1_une_membrane_garde_ce_qu_on_y_lache_et_l_emporte() {
         None,
         "un Ctrl+Z rend la position ET la liberté"
     );
+}
+
+/// **TITRE-1 — glisser une grande membrane redessine aussi son nom**, posé au-dessus de son bord :
+/// la zone sale suit l'encre de ce qu'on emporte ; l'aimant, lui, ne regarde que la boîte.
+#[test]
+fn test_titre_1_glisser_une_grande_membrane_redessine_son_titre() {
+    use crate::salissure::Salissure;
+    let mut app = app();
+    app.ui.smart_align = false;
+    let board = app.store.project.active_board_id.clone();
+    let mut m = glucose_core::types::Annotation::membrane("M", 0.0, 0.0, 3200.0, 2400.0);
+    if let glucose_core::types::Annotation::Membrane { text, .. } = &mut m {
+        *text = Some("Eau".to_string());
+    }
+    app.store.add_annotation(&board, m);
+    app.store.clear_selection();
+    app.store.select_annotation("M".into(), false);
+    let vp = app.store.viewport();
+    let (sx, sy) = world_to_screen(100.0, 100.0, &vp);
+    app.init_item_drag(100.0, 100.0);
+    let base = app.drag_selection_base.expect("une boîte").boite;
+    assert_eq!(base.top, 0.0, "l'aimant regarde la boîte");
+    let _ = app.prendre_la_salissure();
+    app.handle_item_drag_move(sx + 10.0 * vp.scale, sy);
+    let haut_du_titre = -glucose_core::membrane_titre::elevation(3200.0, 2400.0);
+    match app.prendre_la_salissure() {
+        Salissure::Zone(r) => assert!(r.top <= haut_du_titre + 1e-9, "le titre reste sale : {r:?}"),
+        autre => panic!("une zone attendue : {autre:?}"),
+    }
 }

@@ -75,6 +75,7 @@ fn feuille(id: &str, largeur: f64, hauteur: f64) -> Bloc {
         largeur,
         hauteur,
         enfants: Vec::new(),
+        titree: false,
     }
 }
 
@@ -121,6 +122,7 @@ fn colonnes_1_l_ordre_et_l_emboitement() {
             .enumerate()
             .map(|(i, h)| feuille(&format!("{id}-p{i}"), 240.0, h))
             .collect(),
+        titree: true,
     };
     let mut racine = section("article", 5, 9);
     racine.enfants.insert(2, section("s1", 12, 7));
@@ -130,6 +132,7 @@ fn colonnes_1_l_ordre_et_l_emboitement() {
         largeur: 320.0,
         hauteur: 140.0,
         enfants: Vec::new(),
+        titree: true,
     });
     let boites: std::collections::HashMap<String, Rect> =
         disposer(&racine, 1.6, M).into_iter().collect();
@@ -174,4 +177,81 @@ fn colonnes_1_l_ordre_et_l_emboitement() {
         }
     }
     verifier(&racine, &boites, &dedans);
+}
+
+/// Un article : des sections titrées de tailles très diverses — de quoi faire grandir leurs titres.
+fn article(titree: bool) -> Bloc {
+    let section = |i: usize, n: usize| Bloc {
+        id: format!("s{i}"),
+        largeur: 300.0,
+        hauteur: 100.0,
+        enfants: hauteurs(i as u64 + 3, n)
+            .into_iter()
+            .enumerate()
+            .map(|(j, h)| feuille(&format!("s{i}-p{j}"), 240.0, h))
+            .collect(),
+        titree,
+    };
+    Bloc {
+        id: "article".into(),
+        largeur: 300.0,
+        hauteur: 100.0,
+        enfants: [1, 30, 2, 18, 4, 40, 1, 9]
+            .iter()
+            .enumerate()
+            .map(|(i, &n)| section(i, n))
+            .collect(),
+        titree: true,
+    }
+}
+
+/// Le haut du titre de chaque sous-membrane titrée, et ce qui est juste au-dessus d'elle : le bas
+/// du bloc précédent de sa colonne, ou le bandeau de la membrane qui la porte.
+fn titres_et_dessus(b: &Bloc, boites: &std::collections::HashMap<String, Rect>) -> Vec<(f64, f64)> {
+    let parent = boites[&b.id];
+    let mut paires = Vec::new();
+    let mut avant: Option<Rect> = None;
+    for e in &b.enfants {
+        let r = boites[&e.id];
+        let dessus = match avant.filter(|a| a.left == r.left) {
+            Some(a) => a.bottom() + M.ecart,
+            None => parent.top + M.titre,
+        };
+        let haut_du_titre = r.top - crate::membrane_titre::elevation(r.width, r.height);
+        // Un titre ordinaire (celui d'une membrane neuve) vit dans l'écart, comme avant la loi.
+        paires.push((haut_du_titre + crate::membrane_titre::ELEVATION, dessus));
+        avant = Some(r);
+    }
+    paires
+}
+
+/// **TITRE-1 dans les colonnes : aucun titre ne couvre le bloc du dessus.** Chaque section réserve
+/// au-dessus d'elle ce que son titre prend en plus d'un titre ordinaire. La preuve à l'envers : les
+/// mêmes sections disposées sans cette réserve font monter de grands titres sur leurs voisines.
+#[test]
+fn titre_1_un_grand_titre_ne_couvre_jamais_le_bloc_du_dessus() {
+    let racine = article(true);
+    let boites: std::collections::HashMap<String, Rect> =
+        disposer(&racine, 1.6, M).into_iter().collect();
+    let paires = titres_et_dessus(&racine, &boites);
+    let grands = racine.enfants.iter().filter(|e| {
+        let r = boites[&e.id];
+        crate::membrane_titre::surcroit(r.width, r.height) > 10.0
+    });
+    assert!(grands.count() >= 2, "l'épreuve n'exerce pas de grand titre");
+    for (titre, dessus) in &paires {
+        assert!(
+            titre >= &(dessus - 1e-9),
+            "un titre en haut à {titre} couvre {dessus}"
+        );
+    }
+    let sans: std::collections::HashMap<String, Rect> =
+        disposer(&article(false), 1.6, M).into_iter().collect();
+    let couvre = titres_et_dessus(&racine, &sans)
+        .iter()
+        .any(|(titre, dessus)| titre < &(dessus - 1e-9));
+    assert!(
+        couvre,
+        "sans la réserve, un grand titre aurait dû couvrir son voisin"
+    );
 }

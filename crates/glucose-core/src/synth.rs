@@ -385,8 +385,10 @@ fn witness_containers(store: &mut Store) {
 pub const WITNESS_SIZE: (u32, u32) = (1800, 900);
 
 /// La boîte englobante du contenu de la scène témoin, en unités monde — ce que le cadrage doit
-/// contenir, et ce qu'un test peut vérifier sans dessiner.
-pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -270.0, 780.0, 500.0);
+/// contenir, et ce qu'un test peut vérifier sans dessiner. Depuis TITRE-1 (fiche 95), le titre de
+/// la membrane témoin, posé au-dessus de son bord, en fait partie : 420 × 300, un titre qui monte
+/// à 23 au-dessus de son bord (−260), donc jusqu'à −283.
+pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -290.0, 780.0, 500.0);
 
 /// **Le témoin, avec quelque chose de sélectionné.**
 ///

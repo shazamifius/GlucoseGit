@@ -239,3 +239,44 @@ fn test_collect_candidates_indexed_matches_naive() {
     let empty_indexed = collect_candidates_indexed(&empty_input, &hash);
     assert!(empty_indexed.is_empty());
 }
+
+/// **TITRE-1 — on saisit une grande membrane par son nom** : la bande du titre, au-dessus du bord,
+/// grandit avec lui. 250 au-dessus d'une membrane de 3 200 × 2 400 (un titre de 180 de haut) la
+/// prend ; 250 au-dessus d'une membrane neuve (un titre de 18), rien ; sans titre, rien.
+#[test]
+fn test_titre_1_la_bande_du_titre_grandit_avec_lui() {
+    let clic = |m: Annotation, wy: f64| {
+        let annotations = [m];
+        let (images, folders): ([BoardImage; 0], [glucose_core::types::CanvasFolder; 0]) = ([], []);
+        let rien: [String; 0] = [];
+        let input = PickInput {
+            wx: 100.0,
+            wy,
+            scale: 1.0,
+            images: &images,
+            annotations: &annotations,
+            folders: &folders,
+            selected_image_ids: &glucose_core::store::choix::Choix::from(rien.to_vec()),
+            selected_annotation_ids: &glucose_core::store::choix::Choix::from(rien.to_vec()),
+            selected_folder_id: None,
+            noeuds: None,
+        };
+        collect_candidates(&input).first().map(|c| c.kind)
+    };
+    let grande = membrane("G", 0.0, 0.0, 3200.0, 2400.0, Some("Eau"));
+    assert_eq!(clic(grande, -250.0), Some(PickKind::MembraneEdge));
+    let neuve = membrane("N", 0.0, 0.0, 320.0, 240.0, Some("Eau"));
+    assert_eq!(
+        clic(neuve, -250.0),
+        None,
+        "la bande d'une membrane neuve reste la sienne"
+    );
+    let muette = membrane("M", 0.0, 0.0, 3200.0, 2400.0, None);
+    assert_eq!(clic(muette, -250.0), None, "sans titre, pas de bande");
+    let vide = membrane("V", 0.0, 0.0, 3200.0, 2400.0, Some(""));
+    assert_eq!(
+        clic(vide, -20.0),
+        None,
+        "un titre vide ne se dessine pas : pas de bande"
+    );
+}

@@ -106,8 +106,8 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **Un morceau de Wikipédia** (fiche 91) : « Eau » posé par les commandes ; MEMB-7 réparé, le plan pour un agent, COORD-1 ; un prototype de disposition en colonnes | la question de l'héritage des domaines, sa parole |
 | [~] | **La disposition en colonnes** (fiche 92) : « Disposer en colonnes » au menu d'une membrane et à la palette, `glucose_disposer`, `glucose disposer` ; récursive, dans l'ordre de lecture, un seul `Ctrl+Z` | à son écran, sur l'article « Eau » ; les titres, sa parole |
 | [~] | **DOM-6 — l'héritage des domaines par les membranes** (fiche 94 § 3 et 5) : un nœud appartient aux domaines de ses membranes, sauf son propre poids ; à la lecture, rien d'écrit ; le sommaire de « Eau » de 135 376 à 70 287 caractères ; 8 sabotages sur 8 | sa visualisation (étape 5) ; à son écran, un agent qui pose un article |
-| [ ] | **Les titres des membranes à la taille de leur région** (fiche 94, principe 2 ; **aucun ne se cache**), dessinés depuis leur forme | à son écran, sur un squelette de Wikipédia |
-| [ ] | **Revoir les membranes pour qu'elles soient plus intéressantes** (sa parole du 8/11) : recherche, puis propositions en prose, **sans rien simplifier** | sa parole sur les propositions |
+| [~] | **Les titres des membranes à la taille de leur région** (fiche 95, TITRE-1 ; **aucun ne se cache**) : la même part de surface qu'une membrane neuve, l'encre, la bande de clic, les colonnes, un nom qui tient dans sa région ; TITRE-2, le halo ; CHANTIER-2 réparé. **Reste** : le coût d'un zoom sur une très grande région (~19 ms contre ~9, fiche 95 § 8) — par la carte (Slug, sans le halo en neuf copies) ou en textures à paliers, à choisir à son écran | à son écran, sur « Eau » ; puis un squelette de Wikipédia |
+| [~] | **Revoir les membranes pour qu'elles soient plus intéressantes** (sa parole du 8/11) : **propositions faites** (fiche 95 § 3 et 4) — B, une membrane dit ce qu'elle porte ; C, un fil « où je suis » ; D, une teinte par grande région ; E, plus tard (GMap, Bubble Sets) ; et deux questions : **le Focus en geste**, **le gris des lignes** | sa parole sur les propositions |
 | [ ] | **Un squelette de Wikipédia** (fiche 94 § 4) : les articles vitaux des niveaux 1 et 2 en membranes, « Eau » et « Hydrogène » dedans ; puis **les liens**, choisis par l'agent comme un cartographe | à son écran |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |
@@ -206,6 +206,7 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 **Au PC** — `nix develop -c cargo run --release > sortie-essais.txt 2>&1` (ce qui parle de Windows ci-dessous attend une machine Windows) :
 
+* **Les titres des membranes** (fiche 95) : ouvrir un document où une membrane est grande (l'article « Eau » des commandes, ou une membrane tirée très grande avec un titre) ; dézoomer jusqu'au bout : **chaque titre reste**, à la taille de sa région ; zoomer et dézoomer : dire si c'est fluide ; un clic sur un grand titre prend la membrane.
 * **Disposer en colonnes** (fiche 92) : choisir une membrane qui porte plusieurs textes (ou un texte dedans), clic droit, « Disposer en colonnes » ; `Ctrl+Z` la remet.
 * **Ses commandes** (fiche 90), dans son terminal : `glucose aide` ; `glucose chercher eau` ; la première
   commande demande l'accord dans Glucose, au nom du « terminal » ; `glucose poser-texte "Bonjour"` apparaît

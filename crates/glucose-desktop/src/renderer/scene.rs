@@ -24,6 +24,7 @@ use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle};
 use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
+use glucose_core::membrane_titre::porte_un_titre;
 use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::smart_align::SnapGuides;
@@ -35,12 +36,6 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 const MEMBRANE_RADIUS: f32 = 60.0;
 /// Débords des deux couches de halo d'une membrane, en unités monde.
 const MEMBRANE_GLOW: [(f32, u8); 2] = [(20.0, 8), (10.0, 14)];
-/// Décalage horizontal du titre depuis le bord gauche, en unités monde.
-const MEMBRANE_LABEL_DX: f32 = 16.0;
-/// Élévation du titre au-dessus du bord haut, en unités monde.
-const MEMBRANE_LABEL_DY: f32 = 18.0;
-/// Corps du titre d'une membrane, en unités monde.
-const MEMBRANE_LABEL_FONT: f32 = 16.0;
 /// Épaisseur du cadre d'une membrane, en unités monde.
 const MEMBRANE_BORDER: f32 = 2.0;
 /// Longueur d'un tiret du pointillé, en unités monde.
@@ -62,14 +57,18 @@ struct MembraneLayout {
 }
 
 impl MembraneLayout {
+    /// Le titre suit la loi du noyau (TITRE-1) : chacune de ses mesures grandit comme la racine de
+    /// la surface de la membrane, à partir de celles d'une membrane neuve.
     fn new(width: f32, height: f32) -> Self {
+        use glucose_core::membrane_titre as titre;
+        let s = titre::echelle(f64::from(width), f64::from(height));
         Self {
             width,
             height,
             radius: MEMBRANE_RADIUS,
-            label_dx: MEMBRANE_LABEL_DX,
-            label_dy: MEMBRANE_LABEL_DY,
-            label_font: MEMBRANE_LABEL_FONT,
+            label_dx: (titre::RETRAIT * s) as f32,
+            label_dy: (titre::ELEVATION * s) as f32,
+            label_font: (titre::CORPS * s) as f32,
             border: MEMBRANE_BORDER,
             dash: MEMBRANE_DASH,
         }
@@ -157,7 +156,10 @@ fn pour_chaque_membrane(
         let layout = MembraneLayout::new(*width as f32, *height as f32).scaled(scale);
         let (wx, wy) = world_to_screen(*x, *y, &pass.vp);
         let coin = (wx as f32, wy as f32);
-        if clip.rejects(coin.0, coin.1, layout.width, layout.height) {
+        // Le titre au-dessus du bord compte (TITRE-1) : une membrane encore sous l'écran peut y
+        // montrer son nom.
+        let titre = layout.label_dy;
+        if clip.rejects(coin.0, coin.1 - titre, layout.width, layout.height + titre) {
             continue;
         }
         faire(MembraneVue {
@@ -173,7 +175,30 @@ fn pour_chaque_membrane(
     }
 }
 
-impl MembraneVue<'_> {
+impl<'a> MembraneVue<'a> {
+    /// **Le titre tel qu'il se pose** : son texte, son corps, son retrait et son élévation à
+    /// l'écran — ou rien pour une membrane sans titre. **Aucun ne se cache**, à aucune distance (TITRE-1, sa parole
+    /// du 8/11/2026). Le corps est celui de la loi, ramené s'il le faut au plus grand qui tient
+    /// dans la largeur de la membrane (un retrait de chaque côté) — un nom ne déborde jamais sur
+    /// la région voisine, la règle des cartes. Il ne fait que rétrécir : ce que la disposition et
+    /// l'encre réservent au titre de la loi lui suffit toujours. Toutes ses mesures rétrécissent
+    /// ensemble — le corps, le retrait de chaque côté, l'élévation —, comme une membrane plus
+    /// petite : sa ligne de base garde sa proportion.
+    ///
+    /// Rend le texte, puis le corps, le retrait et l'élévation, en pixels.
+    fn titre(&self, kit: PaintKit<'_>) -> Option<(&'a str, [f32; 3])> {
+        let label = self.text.filter(|l| porte_un_titre(Some(l)))?;
+        let l = &self.layout;
+        let large = kit
+            .typography
+            .measure_text(label, l.label_font, Face::Bold)
+            .0;
+        let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);
+        let [corps, retrait, elevation] =
+            [l.label_font, l.label_dx, l.label_dy].map(|v| v * ajuste);
+        Some((label, [corps, retrait, elevation]))
+    }
+
     /// **La membrane telle que la loi la décrit** (MEMB-FORME-1) : deux halos, le fond
     /// translucide, le contour — une seule teinte, donc un seul champ d'opacité.
     fn forme(&self) -> Membrane {
@@ -293,13 +318,13 @@ pub(super) fn membranes_en_svg(
 fn ornements_en_svg(kit: PaintKit<'_>, svg: &mut super::svg::Svg, m: &MembraneVue<'_>) {
     let (sx, sy) = m.coin;
     let (layout, (r, g, b)) = (m.layout, m.teinte);
-    if let Some(label) = m.text.filter(|l| !l.is_empty() && m.scale.draws_detail()) {
+    if let Some((label, [corps, retrait, elevation])) = m.titre(kit) {
         let style = TextStyle {
-            size: layout.label_font,
+            size: corps,
             color: Color::from_rgba8(r, g, b, 255),
             face: Face::Bold,
         };
-        let at = (sx + layout.label_dx, sy - layout.label_dy);
+        let at = (sx + retrait, sy - elevation);
         svg.texte_detoure(kit.typography, at, label, (style, kit.theme.bg_canvas));
     }
     let gauge_x = sx + layout.width - gauge_width(m.scale, m.domains.len());
@@ -355,14 +380,14 @@ fn poser_les_ornements(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVu
     let (sx, sy) = m.coin;
     let (layout, (r, g, b)) = (m.layout, m.teinte);
     let mut encre = !m.domains.is_empty();
-    if let Some(label) = m.text.filter(|l| !l.is_empty() && m.scale.draws_detail()) {
+    if let Some((label, [corps, retrait, elevation])) = m.titre(kit) {
         kit.typography.draw_text_with_outline(
             pixmap,
             label,
-            sx + layout.label_dx,
-            sy - layout.label_dy,
+            sx + retrait,
+            sy - elevation,
             TextStyle {
-                size: layout.label_font,
+                size: corps,
                 color: Color::from_rgba8(r, g, b, 255),
                 face: Face::Bold,
             },
@@ -488,6 +513,9 @@ pub(super) fn draw_selection_box(
         None,
     );
 }
+
+#[cfg(test)]
+mod titres;
 
 #[cfg(test)]
 mod tests {
