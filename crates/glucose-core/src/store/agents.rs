@@ -37,6 +37,7 @@
 
 mod decrit;
 pub mod domaines;
+mod rattacher;
 
 pub(crate) use decrit::decrire_le_tableau;
 pub use decrit::{Decrit, Herite};
@@ -105,6 +106,16 @@ pub enum Refus {
     },
     /// L'utilisateur est au milieu d'un geste : l'appel attend qu'il finisse.
     GesteEnCours,
+    /// On ne pose rien « dans » ce qui n'est pas une membrane (MEMB-8).
+    PasUneMembrane {
+        id: String,
+        est: &'static str,
+    },
+    /// Une membrane ne se pose pas dans ce qu'elle contient (MEMB-8).
+    Emboitement {
+        membrane: String,
+        dans: String,
+    },
 }
 
 impl std::fmt::Display for Refus {
@@ -122,6 +133,13 @@ impl std::fmt::Display for Refus {
                 "le passage « {passage} » n'est pas, mot pour mot, dans le nœud « {noeud} »"
             ),
             Self::GesteEnCours => write!(f, "l'utilisateur est au milieu d'un geste"),
+            Self::PasUneMembrane { id, est } => {
+                write!(f, "« {id} » n'est pas une membrane ({est}) : rien ne se pose dedans")
+            }
+            Self::Emboitement { membrane, dans } => write!(
+                f,
+                "« {dans} » est dans « {membrane} » : une membrane ne se pose pas dans ce qu'elle contient"
+            ),
         }
     }
 }
@@ -198,11 +216,23 @@ impl Store {
         Ok(decrit::decrire_le_tableau(board, &self.project.domains))
     }
 
-    /// **Pose une annotation**, ou met à jour celle qui porte déjà son identifiant (AGENT-4).
-    ///
-    /// Une mise à jour garde l'appartenance du nœud, et écrit son texte par
+    /// **Pose une annotation `dans` cette membrane** — ou là où sa naissance la met (MEMB-1) —, ou
+    /// met à jour celle qui porte déjà son identifiant (AGENT-4). Ce que l'agent nomme l'emporte
+    /// sur la géométrie (MEMB-8).
+    pub fn poser_pour_un_agent(
+        &mut self,
+        board_id: &str,
+        ann: Annotation,
+        dans: Option<&str>,
+    ) -> Result<(), Refus> {
+        let id = ann.id().to_string();
+        self.poser_une_annotation(board_id, ann)?;
+        self.rattacher(board_id, &id, dans)
+    }
+
+    /// La pose elle-même. Une mise à jour garde l'appartenance du nœud, et écrit son texte par
     /// [`Store::ecrire_le_texte`] : les flèches ancrées à un passage le suivent.
-    pub fn poser_pour_un_agent(&mut self, board_id: &str, ann: Annotation) -> Result<(), Refus> {
+    fn poser_une_annotation(&mut self, board_id: &str, ann: Annotation) -> Result<(), Refus> {
         self.tableau_existe(board_id)?;
         let id = ann.id().to_string();
         let Some(ancienne) = self.project.annotation(board_id, &id).cloned() else {
@@ -229,26 +259,28 @@ impl Store {
         Ok(())
     }
 
-    /// **Pose une photo**, ou met à jour celle qui porte déjà son identifiant (AGENT-4).
+    /// **Pose une photo `dans` cette membrane** — ou là où sa naissance la met —, ou met à jour
+    /// celle qui porte déjà son identifiant (AGENT-4) ; ce que l'agent nomme l'emporte (MEMB-8).
     pub fn poser_une_photo_pour_un_agent(
         &mut self,
         board_id: &str,
         img: BoardImage,
+        dans: Option<&str>,
     ) -> Result<(), Refus> {
         self.tableau_existe(board_id)?;
         let id = img.id.clone();
         if self.image(board_id, &id).is_none() {
             self.identifiant_libre(board_id, &id)?;
             self.add_image(board_id, img);
-            return Ok(());
+        } else {
+            self.update_image(board_id, &id, |i| {
+                let (membrane, domaines) = (i.membrane_id.take(), std::mem::take(&mut i.domains));
+                *i = img;
+                i.membrane_id = membrane;
+                i.domains = domaines;
+            });
         }
-        self.update_image(board_id, &id, |i| {
-            let (membrane, domaines) = (i.membrane_id.take(), std::mem::take(&mut i.domains));
-            *i = img;
-            i.membrane_id = membrane;
-            i.domains = domaines;
-        });
-        Ok(())
+        self.rattacher(board_id, &id, dans)
     }
 
     /// **Écrit le texte d'un nœud** : le remplace, ou l'allonge — un document qu'un agent
@@ -298,7 +330,7 @@ impl Store {
             *predicate = lien.relation;
             *text = lien.texte.map(str::to_string);
         }
-        self.poser_pour_un_agent(board_id, fleche)
+        self.poser_pour_un_agent(board_id, fleche, None)
     }
 
     /// **Déplace un nœud** pour que le coin haut gauche de sa boîte soit en `(x, y)` ; il

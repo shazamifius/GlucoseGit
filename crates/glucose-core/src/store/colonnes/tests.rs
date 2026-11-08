@@ -23,7 +23,7 @@ fn poser(store: &mut Store, board: &str, id: &str, dans: Option<&str>, h: f64, m
                 }
                 t
             };
-            s.poser_pour_un_agent(board, n)
+            s.poser_pour_un_agent(board, n, dans)
         })
         .expect("posé");
 }

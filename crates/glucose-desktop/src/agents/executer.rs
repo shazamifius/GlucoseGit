@@ -248,7 +248,7 @@ impl GlucoseApp {
                 {
                     (*width, *height, *color) = (Some(largeur), Some(hauteur), couleur);
                 }
-                s.poser_pour_un_agent(board, ann)?;
+                s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 Ok(boite)
             })
@@ -287,7 +287,7 @@ impl GlucoseApp {
                 if let Annotation::Membrane { text, color, .. } = &mut ann {
                     (*text, *color) = (titre, couleur);
                 }
-                s.poser_pour_un_agent(board, ann)?;
+                s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 Ok(boite)
             })
@@ -446,13 +446,13 @@ impl GlucoseApp {
                     img.src = Some(cle.clone());
                     (img.original_width, img.original_height) = (*w, *h);
                     img.source_url = Some(adresse.to_string());
-                    s.poser_une_photo_pour_un_agent(board, img)?;
+                    s.poser_une_photo_pour_un_agent(board, img, dans)?;
                 }
                 let mut ann = Annotation::text(&legende, x, y + hauteur_photo + ecart, texte);
                 if let Annotation::Text { width, height, .. } = &mut ann {
                     (*width, *height) = (Some(largeur), Some(hauteur_texte));
                 }
-                s.poser_pour_un_agent(board, ann)?;
+                s.poser_pour_un_agent(board, ann, dans)?;
                 let photo = capture.is_some().then_some(id.as_str());
                 let noeuds: Vec<&str> = photo.into_iter().chain([legende.as_str()]).collect();
                 domaines::poser_les_domaines(s, board, &noeuds, &voulus)?;

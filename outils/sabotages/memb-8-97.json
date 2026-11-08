@@ -1,0 +1,47 @@
+[
+ {
+  "nom": "MEMB-8 la pose ignore la membrane que l'agent nomme",
+  "fichier": "crates/glucose-core/src/store/agents/rattacher.rs",
+  "avant": "        let Some(m) = dans else {\n            return Ok(());\n        };",
+  "apres": "        let Some(m) = dans.filter(|_| false) else {\n            return Ok(());\n        };",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "memb_8"
+  ]
+ },
+ {
+  "nom": "MEMB-8 on pose dans ce qui n'est pas une membrane",
+  "fichier": "crates/glucose-core/src/store/agents/rattacher.rs",
+  "avant": "            Some(Annotation::Membrane { .. }) => {}",
+  "apres": "            Some(_) if true => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "memb_8"
+  ]
+ },
+ {
+  "nom": "MEMB-8 une membrane se pose dans ce qu'elle contient",
+  "fichier": "crates/glucose-core/src/store/agents/rattacher.rs",
+  "avant": "            if c == id {",
+  "apres": "            if c == id && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "memb_8"
+  ]
+ }
+]

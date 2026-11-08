@@ -30,3 +30,14 @@ gardées dans le dossier de travail : une seconde pose ne redemande rien.
 ```bash
 python3 -I outils/wikipedia/squelette.py target/debug/glucose-desktop <dossier de travail>
 ```
+
+**En une commande, dans le vrai Glucose sans fenêtre** (fiche 97) — la pose, le tableau entier, les
+neuf thèmes et les deux articles en images (`GLUCOSE_VUES` nomme d'autres membranes à rendre), le
+plan, et le document à ouvrir dans un essai isolé :
+
+```bash
+nix develop -c bash outils/wikipedia/essai_squelette.sh <dossier de sortie>
+```
+
+Ce qu'un agent pose `dans=` une membrane lui appartient, même si un voisin grandi la recouvre
+(MEMB-8, fiche 97) : c'est ce qui rend le squelette juste.

@@ -367,10 +367,10 @@ lettres (`agents::Boite`) ; la boucle demande l'accord (AGENTS-1, `app/agents.rs
 l'exécute (`agents/executer.rs`) — douze outils, dont la recherche de `Ctrl+F` (`executer/chercher.rs`, AGENT-7, fiche 90) et les domaines (`executer/domaines.rs`, fiche 88 :
 `glucose_poser_domaine`, `glucose_domaines`, AGENT-5 et 6) — en **un geste du journal** : le noyau
 (`core/store/agents.rs`) tient AGENT-1 à 4 (un geste atomique, la sélection rendue, le passage mot
-pour mot, l'identifiant qui met à jour). Une page web est une photo qui garde son adresse
+pour mot, l'identifiant qui met à jour) ; et **MEMB-8** (fiche 97, `core/store/agents/rattacher.rs`) : ce qu'un agent pose `dans` une membrane lui appartient, même là où un voisin grandi la recouvre — la géométrie (MEMB-1) ne décide que lorsque rien n'est nommé. Une page web est une photo qui garde son adresse
 (`source_url`) : le double-clic l'ouvre (`interactions/links.rs`). Une flèche ancrée à un passage arrive à sa hauteur, par le côté qui fait face (FLECHE-6, `core/arrow_anchor.rs`, fiche 76). Côté Protéo, chaque demande est triée (`tri.rs`) et posée sur une toile par demande (`toile/dessin.rs`). Le banc
 `bench/porte.rs` (exemple `porte_sans_fenetre`) sert la porte sans fenêtre et rend le tableau en
-images.
+images (et les membranes que `GLUCOSE_VUES` nomme ; `outils/wikipedia/essai_squelette.sh`).
 
 **Le terminal, la seconde porte** (fiche 90, `agents/terminal.rs`) : `glucose <commande>` est un
 outil de la même table (TERMINAL-1 — `poser-texte` pour `glucose_poser_texte`, ses arguments lus par le

@@ -284,7 +284,7 @@ fn reposer_un_texte_garde_ses_domaines() {
     let neuf = Annotation::text("a", 0.0, 0.0, "L'eau mouille encore.");
     assert!(neuf.domains().is_empty(), "ce qu'il pose n'en dit rien");
     store
-        .geste_d_agent(|s| s.poser_pour_un_agent(&board, neuf))
+        .geste_d_agent(|s| s.poser_pour_un_agent(&board, neuf, None))
         .expect("reposé");
     let reposee = store.project.annotation(&board, "a").expect("a");
     assert_eq!(reposee.own_text().as_deref(), Some("L'eau mouille encore."));
@@ -298,7 +298,7 @@ fn reposer_une_photo_garde_ses_domaines() {
     let neuve = BoardImage::new("p", 10.0, 200.0, 50.0, 50.0);
     assert!(neuve.domains.is_empty(), "ce qu'il pose n'en dit rien");
     store
-        .geste_d_agent(|s| s.poser_une_photo_pour_un_agent(&board, neuve))
+        .geste_d_agent(|s| s.poser_une_photo_pour_un_agent(&board, neuve, None))
         .expect("reposée");
     assert_eq!(poids(&store, &board, "p"), [(d.id, 0.8)]);
 }

@@ -43,7 +43,7 @@ fn son_tableau() -> (Store, String) {
 }
 
 fn poser(store: &mut Store, board: &str, ann: Annotation) -> Result<(), Refus> {
-    store.geste_d_agent(|s| s.poser_pour_un_agent(board, ann))
+    store.geste_d_agent(|s| s.poser_pour_un_agent(board, ann, None))
 }
 
 /// Ce que l'ancre d'un côté de la flèche désigne, dans le texte de son nœud.
@@ -73,8 +73,8 @@ fn agent_1_un_appel_est_un_seul_geste_que_ctrl_z_defait() {
     let (mut store, board) = son_tableau();
     store
         .geste_d_agent(|s| {
-            s.poser_pour_un_agent(&board, Annotation::text("a", 0.0, 300.0, "un"))?;
-            s.poser_pour_un_agent(&board, Annotation::text("b", 0.0, 600.0, "deux"))
+            s.poser_pour_un_agent(&board, Annotation::text("a", 0.0, 300.0, "un"), None)?;
+            s.poser_pour_un_agent(&board, Annotation::text("b", 0.0, 600.0, "deux"), None)
         })
         .expect("posés");
     assert_eq!(store.undo_depth(), 1, "deux nœuds, un seul geste");
@@ -89,7 +89,7 @@ fn agent_1_un_appel_qui_echoue_ne_laisse_rien() {
     let (mut store, board) = son_tableau();
     let version = store.version;
     let refus = store.geste_d_agent(|s| {
-        s.poser_pour_un_agent(&board, Annotation::text("a", 0.0, 300.0, "un"))?;
+        s.poser_pour_un_agent(&board, Annotation::text("a", 0.0, 300.0, "un"), None)?;
         s.relier_pour_un_agent(
             &board,
             Lien {
@@ -331,7 +331,7 @@ fn le_prochain_noeud_se_pose_sous_le_contenu_de_sa_membrane_qui_grandit() {
             if let Annotation::Text { width, height, .. } = &mut texte {
                 (*width, *height) = (Some(300.0), Some(500.0));
             }
-            s.poser_pour_un_agent(&board, texte)
+            s.poser_pour_un_agent(&board, texte, None)
         })
         .expect("posé");
     let cadre = store
@@ -434,7 +434,7 @@ fn une_photo_dit_la_page_d_ou_elle_vient() {
     let mut img = BoardImage::new("page", 0.0, 0.0, 320.0, 200.0);
     img.source_url = Some("https://fr.wikipedia.org/wiki/Glucose".to_string());
     store
-        .geste_d_agent(|s| s.poser_une_photo_pour_un_agent(&board, img))
+        .geste_d_agent(|s| s.poser_une_photo_pour_un_agent(&board, img, None))
         .expect("posée");
     let decrit = store.decrire_pour_un_agent(&board).expect("lu");
     let page = decrit.iter().find(|d| d.id == "page").expect("la photo");
@@ -606,7 +606,7 @@ fn memb_7_une_membrane_qui_grandit_fait_grandir_la_sienne() {
             if let Annotation::Text { width, height, .. } = &mut texte {
                 (*width, *height) = (Some(300.0), Some(5000.0));
             }
-            s.poser_pour_un_agent(&board, texte)
+            s.poser_pour_un_agent(&board, texte, None)
         })
         .expect("posé");
 
@@ -636,5 +636,131 @@ fn memb_7_une_membrane_qui_grandit_fait_grandir_la_sienne() {
         parente(&store, "moyenne").as_deref(),
         Some("grande"),
         "toujours"
+    );
+}
+
+/// **MEMB-8 — un nœud qu'un agent pose « dans » une membrane lui appartient**, même quand la
+/// géométrie dirait autre chose (fiche 97). Le squelette de Wikipédia l'a montré : un article qui
+/// grandit (MEMB-7) recouvre ses voisins sans les pousser, et un nœud posé sous son contenu tombait
+/// dans la boîte d'un voisin plus petit — la plus petite membrane qui contient son centre (MEMB-1)
+/// l'emportait sur ce que l'agent avait dit. Les sections d'« Eau » finissaient dans un autre
+/// article, celles d'« Hydrogène » au fond d'« Eau ».
+#[test]
+fn memb_8_ce_qu_un_agent_pose_dans_une_membrane_lui_appartient() {
+    let mut store = Store::new("squelette");
+    let board = store.project.active_board_id.clone();
+    store
+        .geste_d_agent(|s| {
+            s.poser_pour_un_agent(
+                &board,
+                Annotation::membrane("theme", 0.0, 0.0, 2000.0, 1000.0),
+                None,
+            )?;
+            for (id, x) in [("a", 30.0), ("b", 360.0)] {
+                s.agrandir_la_membrane_pour(&board, "theme", Rect::new(x, 60.0, 300.0, 240.0))?;
+                let m = Annotation::membrane(id, x, 60.0, 300.0, 240.0);
+                s.poser_pour_un_agent(&board, m, Some("theme"))?;
+            }
+            Ok(())
+        })
+        .expect("le thème et ses deux articles");
+    // Comme `glucose poser-texte dans=…` : la place sous le contenu, la membrane qui grandit, la pose.
+    let mut poser = |id: &str, dans: &str, (largeur, hauteur): (f64, f64)| {
+        let (x, y) = store
+            .place_pour_un_agent(&board, Some(dans))
+            .expect("une place");
+        store
+            .geste_d_agent(|s| {
+                s.agrandir_la_membrane_pour(&board, dans, Rect::new(x, y, largeur, hauteur))?;
+                let mut texte = Annotation::text(id, x, y, "un paragraphe");
+                if let Annotation::Text { width, height, .. } = &mut texte {
+                    (*width, *height) = (Some(largeur), Some(hauteur));
+                }
+                s.poser_pour_un_agent(&board, texte, Some(dans))
+            })
+            .expect("posé");
+    };
+    // B s'allonge vers le bas ; A s'élargit par-dessus B, puis s'allonge à son tour.
+    for k in 0..3 {
+        poser(&format!("b{k}"), "b", (300.0, 400.0));
+    }
+    for k in 0..4 {
+        poser(&format!("a{k}"), "a", (700.0, 300.0));
+    }
+    let parente = |id: &str| {
+        store
+            .project
+            .annotation(&board, id)
+            .and_then(Annotation::membrane_id)
+            .map(str::to_string)
+    };
+    let cadre = |id: &str| store.project.annotation(&board, id).expect(id).bounds();
+    assert!(
+        cadre("a").overlaps(cadre("b")),
+        "l'épreuve exige que A recouvre B, ce que fait un article qui grandit"
+    );
+    for k in 0..3 {
+        assert_eq!(parente(&format!("b{k}")).as_deref(), Some("b"), "b{k}");
+    }
+    for k in 0..4 {
+        assert_eq!(parente(&format!("a{k}")).as_deref(), Some("a"), "a{k}");
+    }
+    assert_eq!(parente("a").as_deref(), Some("theme"));
+    assert_eq!(parente("b").as_deref(), Some("theme"));
+}
+
+/// **MEMB-8 — on ne pose rien dans ce qui n'est pas une membrane, ni une membrane dans ce qu'elle
+/// contient** ; une membrane inconnue est dite telle.
+#[test]
+fn memb_8_les_refus_de_dans() {
+    let mut store = Store::new("refus");
+    let board = store.project.active_board_id.clone();
+    store
+        .geste_d_agent(|s| {
+            s.poser_pour_un_agent(
+                &board,
+                Annotation::membrane("m", 0.0, 0.0, 900.0, 900.0),
+                None,
+            )?;
+            s.poser_pour_un_agent(
+                &board,
+                Annotation::membrane("dedans", 30.0, 60.0, 300.0, 240.0),
+                Some("m"),
+            )?;
+            s.poser_pour_un_agent(
+                &board,
+                Annotation::text("t", 500.0, 500.0, "un texte"),
+                None,
+            )
+        })
+        .expect("posés");
+    let refus = |store: &mut Store, ann: Annotation, dans: &str| {
+        store
+            .geste_d_agent(|s| s.poser_pour_un_agent(&board, ann, Some(dans)))
+            .expect_err("refusé")
+    };
+    assert!(matches!(
+        refus(&mut store, Annotation::text("u", 0.0, 0.0, "x"), "t"),
+        Refus::PasUneMembrane { .. }
+    ));
+    assert!(matches!(
+        refus(&mut store, Annotation::text("v", 0.0, 0.0, "x"), "personne"),
+        Refus::NoeudInconnu(_)
+    ));
+    assert!(matches!(
+        refus(
+            &mut store,
+            Annotation::membrane("m", 0.0, 0.0, 900.0, 900.0),
+            "dedans"
+        ),
+        Refus::Emboitement { .. }
+    ));
+    assert_eq!(
+        store
+            .project
+            .annotation(&board, "m")
+            .and_then(Annotation::membrane_id),
+        None,
+        "le refus n'a rien écrit"
     );
 }
