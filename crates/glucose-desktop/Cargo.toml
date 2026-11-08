@@ -53,6 +53,11 @@ rfd = "0.15"
 [target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))'.dependencies]
 x11rb = "0.13"
 libc = "0.2"
+# Le pincement du pavé sous Wayland, que `winit` 0.30 ne transmet pas (fiche 93,
+# `decisions/14`) : les caisses que `winit` apporte déjà, et le protocole `pointer-gestures`.
+wayland-client = "0.31"
+wayland-backend = { version = "0.3", features = ["client_system"] }
+wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 
 # Android : la fenêtre et la boucle par `GameActivity`, la seule porte où le clavier virtuel
 # marche (fiche 50 § 3) — une fonctionnalité de `winit`, aucune caisse de plus.

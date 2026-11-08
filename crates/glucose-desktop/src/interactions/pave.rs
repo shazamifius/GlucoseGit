@@ -53,6 +53,18 @@ pub struct Mouvement {
 }
 
 impl Mouvement {
+    /// **Un pincement** (fiche 93) : le contenu grandit de `echelle` autour de `centre` — le
+    /// centre des doigts, en pixels de la fenêtre —, et le suit quand il glisse de `glissement`.
+    /// Chaque point va en `r · (q − c) + c + d` : la similitude `r · q + (1 − r) · c + d`. C'est ce
+    /// que Wayland (`pointer-gestures`) et macOS disent d'un pincement, pas à pas.
+    pub fn pincement(echelle: f64, centre: (f64, f64), glissement: (f64, f64)) -> Self {
+        let k = 1.0 - echelle;
+        Self {
+            echelle,
+            decalage: (k * centre.0 + glissement.0, k * centre.1 + glissement.1),
+        }
+    }
+
     /// **La même similitude, dite comme Glucose l'applique** : un déplacement `p`, puis un zoom de
     /// tant d'octaves autour de `ancre` ([`crate::app::GlucoseApp::appliquer_l_elan`] fait dans
     /// cet ordre). De `r · (q + p − a) + a = r · q + b` : `p = (b − (1 − r) · a) / r`.
@@ -205,6 +217,19 @@ impl GlucoseApp {
             .unwrap_or_default();
         for signe in signes {
             self.chronique.signe_du_pave(signe);
+        }
+    }
+
+    /// **Le pincement que `winit` donne sous macOS et iOS** (`PinchGesture`, fiche 93) : `delta` est
+    /// ce que l'échelle a gagné depuis le pas précédent, autour du curseur. Glucose ne l'écoutait
+    /// pas : sur un Mac, pincer ne zoomait pas.
+    pub(crate) fn pincement_du_systeme(&mut self, delta: f64) {
+        let echelle = 1.0 + delta;
+        if echelle > 0.0 && echelle.is_finite() {
+            let centre = self.ancre_du_zoom();
+            self.toucher
+                .attendre(Mouvement::pincement(echelle, centre, (0.0, 0.0)));
+            self.mark_dirty();
         }
     }
 

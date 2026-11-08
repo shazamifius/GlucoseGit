@@ -40,7 +40,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 
 | fonction | au PC | au téléphone |
 |---|---|---|
-| Se déplacer, zoomer (jusqu'à ×256, fiche 72) — de près, le texte dessiné net par la carte graphique dès la première image (P8, fiche 73) | souris, pavé, `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
+| Se déplacer, zoomer (jusqu'à ×256, fiche 72) — de près, le texte dessiné net par la carte graphique dès la première image (P8, fiche 73) | souris, pavé (le pincement : *Direct Manipulation* sous Windows, `pointer-gestures` sous Wayland, `PinchGesture` sous macOS — fiche 93 ; rien encore sous X11), `Espace`, outil Main | ✅ un doigt sur le vide, deux doigts |
 | **La palette de commandes** — chaque commande cherchée par son nom, lancée par Entrée ; la liste défile (molette, pavé, flèches, « ↑ / ↓ » au doigt) (fiche 72) | **menu du vide**, `Ctrl+Maj+P` | ✅ menu (deux touchers sur le vide) |
 | **Changer un raccourci** — choisir la commande, frapper le nouvel accord ; le retirer, ou rendre celui de Glucose ; « Rétablir tous les raccourcis de Glucose » ; écrits dans `raccourcis.txt`, relus au lancement (fiche 74) | la palette (`Ctrl+Maj+P`, « raccourci ») | ✅ la palette (au doigt : retirer, rétablir ; un accord demande un clavier) |
 | **Chercher dans tout le document** (fiche 89) : les textes, les post-it, les membranes, les photos par leurs étiquettes, les tableaux et les dossiers, sans majuscules ni accents ; y aller, puis au suivant | **`Ctrl+F`** (la palette), `F3` / `Maj+F3`, **menu du vide** « Chercher… » | ✅ menu |

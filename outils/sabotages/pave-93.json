@@ -1,0 +1,77 @@
+[
+ {
+  "nom": "PINCE-1 l'échelle d'un pas n'est pas relative au pas d'avant",
+  "fichier": "crates/glucose-desktop/src/plateforme/pave_wayland.rs",
+  "avant": "        let r = echelle / self.echelle;",
+  "apres": "        let r = echelle;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pave"
+  ]
+ },
+ {
+  "nom": "PINCE-1 le centre ne suit pas les doigts",
+  "fichier": "crates/glucose-desktop/src/plateforme/pave_wayland.rs",
+  "avant": "        self.centre = (self.centre.0 + glissement.0, self.centre.1 + glissement.1);",
+  "apres": "        self.centre = (self.centre.0 + 0.0 * glissement.0, self.centre.1);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pave"
+  ]
+ },
+ {
+  "nom": "PINCE-1 le facteur d'échelle de l'écran est oublié",
+  "fichier": "crates/glucose-desktop/src/plateforme/pave_wayland.rs",
+  "avant": "        let centre = (self.centre.0 * k, self.centre.1 * k);",
+  "apres": "        let centre = (self.centre.0, self.centre.1);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pave"
+  ]
+ },
+ {
+  "nom": "PINCE-1 la similitude oublie son centre",
+  "fichier": "crates/glucose-desktop/src/interactions/pave.rs",
+  "avant": "            decalage: (k * centre.0 + glissement.0, k * centre.1 + glissement.1),",
+  "apres": "            decalage: (glissement.0 + 0.0 * k * centre.0, glissement.1),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pave"
+  ]
+ },
+ {
+  "nom": "PINCE-1 le pincement de macOS prend delta pour l'échelle",
+  "fichier": "crates/glucose-desktop/src/interactions/pave.rs",
+  "avant": "        let echelle = 1.0 + delta;",
+  "apres": "        let echelle = delta;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pave"
+  ]
+ }
+]

@@ -55,6 +55,8 @@ pub mod telechargements;
 mod depot_windows;
 #[cfg(windows)]
 mod glisser_windows;
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+pub mod pave_wayland;
 #[cfg(windows)]
 mod pave_windows;
 #[cfg(windows)]
@@ -238,8 +240,34 @@ pub fn installer_le_pave(
     Some(Box::new(pave))
 }
 
+/// **Le pincement du pavé sous Wayland** (fiche 93) : `winit` ne le transmet pas, le protocole
+/// `pointer-gestures` le donne. Sous X11, ou sans ce protocole, `None` : le pavé reste ce que
+/// `winit` en dit.
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+pub fn installer_le_pave(
+    fenetre: &std::sync::Arc<winit::window::Window>,
+) -> Option<Box<dyn crate::interactions::pave::Pave>> {
+    use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
+    let poignee = fenetre.display_handle().ok()?.as_raw();
+    let RawDisplayHandle::Wayland(w) = poignee else {
+        crate::dire!("[Glucose] pave : hors de Wayland, le pincement reste ce que winit en dit");
+        return None;
+    };
+    let pour_le_reveil = std::sync::Arc::clone(fenetre);
+    let reveil: Reveil = std::sync::Arc::new(move || pour_le_reveil.request_redraw());
+    let pour_l_echelle = std::sync::Arc::clone(fenetre);
+    let facteur = Box::new(move || pour_l_echelle.scale_factor());
+    match pave_wayland::installer(w.display, facteur, reveil) {
+        Ok(pave) => Some(Box::new(pave)),
+        Err(raison) => {
+            crate::dire!("[Glucose] pave : le pincement de Wayland n'est pas pris : {raison}");
+            None
+        }
+    }
+}
+
 /// Ailleurs, le pavé arrive comme le système le donne : `winit` le dit déjà en pixels.
-#[cfg(not(windows))]
+#[cfg(any(target_os = "macos", target_os = "android"))]
 pub fn installer_le_pave(
     _fenetre: &std::sync::Arc<winit::window::Window>,
 ) -> Option<Box<dyn crate::interactions::pave::Pave>> {

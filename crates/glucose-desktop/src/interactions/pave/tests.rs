@@ -329,3 +329,35 @@ fn test_alt_et_pincer_au_mode_reference_agrandit_la_fenetre() {
         "le canevas garde son échelle"
     );
 }
+
+/// **Le pincement de macOS zoome autour du curseur** (fiche 93) : `PinchGesture` donne ce que
+/// l'échelle a gagné ; la vue grandit d'autant, et le point du monde sous le curseur y reste.
+/// Glucose ne l'écoutait pas.
+#[test]
+fn test_le_pincement_du_systeme_zoome_autour_du_curseur() {
+    let pave = Factice::default();
+    let mut app = application(&pave);
+    let avant = app.store.viewport();
+    let curseur = app.mouse_pos;
+    let monde = (
+        (curseur.0 - avant.x) / avant.scale,
+        (curseur.1 - avant.y) / avant.scale,
+    );
+    app.pincement_du_systeme(0.25);
+    app.bouger_la_camera(1280, 720);
+    let apres = app.store.viewport();
+    assert!(
+        (apres.scale / avant.scale - 1.25).abs() < 1e-9,
+        "{} → {}",
+        avant.scale,
+        apres.scale
+    );
+    let montre = (
+        monde.0 * apres.scale + apres.x,
+        monde.1 * apres.scale + apres.y,
+    );
+    assert!(
+        (montre.0 - curseur.0).abs() < 1e-6 && (montre.1 - curseur.1).abs() < 1e-6,
+        "sous le curseur : {montre:?}"
+    );
+}

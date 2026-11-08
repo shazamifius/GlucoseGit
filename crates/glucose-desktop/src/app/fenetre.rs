@@ -155,7 +155,8 @@ impl GlucoseApp {
         self.toucher.pave = crate::plateforme::installer_le_pave(window);
         if self.toucher.pave.is_some() {
             crate::dire!(
-                "[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender"
+                "[Glucose] pave : le pincement est pris au systeme (Direct Manipulation sous \
+                 Windows, pointer-gestures sous Wayland)"
             );
         }
         // **L'extinction de Windows** finit Glucose au lieu de le tuer (FIN-SESSION-1).

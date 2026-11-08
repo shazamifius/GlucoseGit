@@ -46,6 +46,8 @@ impl GlucoseApp {
                 self.handle_cursor_moved(*position);
             }
             WindowEvent::MouseWheel { delta, .. } => self.handle_mouse_wheel(*delta),
+            // Le pincement de macOS et d'iOS ; sous Wayland, il arrive par le pavé natif (fiche 93).
+            WindowEvent::PinchGesture { delta, .. } => self.pincement_du_systeme(*delta),
             WindowEvent::MouseInput { button, state, .. } => self.clic(*button, *state),
             WindowEvent::KeyboardInput { event, .. } => self.handle_key(event),
             // Hors de Windows : là, Windows simule aussi la souris du premier doigt (fiche 54).

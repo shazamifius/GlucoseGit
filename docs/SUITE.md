@@ -203,6 +203,7 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 **Au PC** — `nix develop -c cargo run --release > sortie-essais.txt 2>&1` (ce qui parle de Windows ci-dessous attend une machine Windows) :
 
+* **Le pincement du pavé** (fiche 93) : pincer pour zoomer et dézoomer, dans Glucose installé (`nix profile upgrade --refresh GlucoseGit`) ou `cargo run`.
 * **Disposer en colonnes** (fiche 92) : choisir une membrane qui porte plusieurs textes (ou un texte dedans), clic droit, « Disposer en colonnes » ; `Ctrl+Z` la remet.
 * **Ses commandes** (fiche 90), dans son terminal : `glucose aide` ; `glucose chercher eau` ; la première
   commande demande l'accord dans Glucose, au nom du « terminal » ; `glucose poser-texte "Bonjour"` apparaît
