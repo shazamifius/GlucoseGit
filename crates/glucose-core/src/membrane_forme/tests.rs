@@ -380,3 +380,77 @@ fn test_rien_ne_se_pose_hors_de_l_image_ni_sur_une_taille_fausse() {
     assert!(!peindre(&loin, &mut img, 64, 48));
     assert_eq!(img, image(64, 48));
 }
+
+// ── Le rectangle droit, à la couverture exacte (fiche 97) ──────────────────────────────────
+
+/// L'encre posée par un rectangle blanc d'opacité 1 sur une image vide : la somme du canal
+/// d'opacité, sur 255, et le nombre de pixels touchés.
+fn encre_d_un_rectangle(boite: (f32, f32, f32, f32)) -> (f32, usize) {
+    let (l, h) = (40u32, 20u32);
+    let mut image: Vec<Pixel> = vec![[0, 0, 0, 0]; (l * h) as usize];
+    peindre_un_rectangle(boite, ([1.0, 1.0, 1.0], 1.0), &mut image, (l, h));
+    let touches = image.iter().filter(|p| p[3] > 0).count();
+    (
+        image.iter().map(|p| f32::from(p[3])).sum::<f32>() / 255.0,
+        touches,
+    )
+}
+
+/// **Sur la grille, le rectangle est net** : ses pixels pleins, rien autour.
+#[test]
+fn rectangle_sur_la_grille_des_pixels() {
+    let (encre, touches) = encre_d_un_rectangle((3.0, 2.0, 13.0, 7.0));
+    assert_eq!(touches, 50);
+    assert_eq!(encre, 50.0);
+}
+
+/// **L'encre posée est l'aire du rectangle**, à toute place et à toute épaisseur — à moins d'un
+/// demi-niveau par pixel touché, ce que l'arrondi d'un octet garantit. La loi des membranes ne
+/// le tenait pas sous le pixel : un filet d'un dixième y prenait jusqu'à cinq dixièmes.
+#[test]
+fn rectangle_l_encre_est_l_aire_a_toute_epaisseur() {
+    let mut graine = 7u64;
+    let mut tirer = |borne: f32| {
+        graine = graine
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (graine >> 40) as f32 / (1u64 << 24) as f32 * borne
+    };
+    for _ in 0..300 {
+        let (x, y) = (1.0 + tirer(20.0), 1.0 + tirer(10.0));
+        let (w, hh) = (0.05 + tirer(15.0), 0.05 + tirer(6.0));
+        let (encre, touches) = encre_d_un_rectangle((x, y, x + w, y + hh));
+        assert!(
+            (encre - w * hh).abs() <= touches as f32 * 0.5 / 255.0 + 1e-4,
+            "({x}, {y}) {w} × {hh} : encre {encre}, aire {}",
+            w * hh
+        );
+    }
+    // Un filet d'un dixième de pixel, centré sur une rangée de pixels : un dixième, pas plus.
+    let (filet, _) = encre_d_un_rectangle((5.0, 9.45, 25.0, 9.55));
+    assert!(
+        (filet - 2.0).abs() < 0.05,
+        "le filet d'un dixième garde 2,0 : {filet}"
+    );
+    let loi = Membrane::plein(Arrondi::nouveau(5.0, 9.45, 20.0, 0.1, 0.0), [1.0; 3], 1.0);
+    let mut image: Vec<Pixel> = vec![[0, 0, 0, 0]; 800];
+    peindre(&loi, &mut image, 40, 20);
+    let par_la_loi: f32 = image.iter().map(|p| f32::from(p[3])).sum::<f32>() / 255.0;
+    assert!(
+        par_la_loi > 5.0,
+        "la preuve à l'envers : la loi des membranes y prenait {par_la_loi}"
+    );
+}
+
+/// **Une boîte vide ou non finie ne dessine rien.**
+#[test]
+fn rectangle_vide_ou_non_fini() {
+    for boite in [
+        (5.0, 5.0, 5.0, 9.0),
+        (5.0, 5.0, 2.0, 9.0),
+        (f32::NAN, 1.0, 9.0, 9.0),
+        (1.0, 1.0, f32::INFINITY, 9.0),
+    ] {
+        assert_eq!(encre_d_un_rectangle(boite), (0.0, 0), "{boite:?}");
+    }
+}

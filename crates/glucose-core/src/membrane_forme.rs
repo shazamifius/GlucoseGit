@@ -48,7 +48,7 @@
 
 mod peindre;
 
-pub use peindre::peindre;
+pub use peindre::{peindre, peindre_un_rectangle};
 
 use std::f32::consts::FRAC_PI_2;
 

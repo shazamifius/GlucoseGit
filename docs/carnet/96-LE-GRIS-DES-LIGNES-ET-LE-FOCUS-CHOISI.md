@@ -58,8 +58,10 @@ chaque ornement, l'a dit d'un coup : **4,7 niveaux de trop**, de loin. Deux caus
 * les ornements n'étaient pas posés (réparé : `ornement_de_loin`, aux places de `draw_ornament`) ;
 * une fois posés, **la grille des pixels** (SCALE-3, `fill_crisp`) ramène à un pixel entier tout
   rectangle plus fin — net de près, dix fois trop d'encre de loin pour un filet d'un dixième de pixel.
-  De loin, chaque ornement se peint donc par **la loi des membranes**, à la couverture exacte de chaque
-  pixel ; la puce, comme un rectangle arrondi en disque. Écart après : **0,1 niveau**.
+  De loin, chaque ornement se peint donc par **la loi des membranes** ; la puce, comme un rectangle
+  arrondi en disque. Écart après : **0,1 niveau**. (*Corrigé par la fiche 97 : la loi des membranes
+  n'est pas exacte sous le pixel — un filet d'un dixième y prenait trois fois son encre ; les
+  rectangles droits passent depuis par un peintre exact.*)
 
 **Une géométrie, deux peintres** : ce qu'un nœud montre de loin se décrit une fois, en formes
 (`formes_de_loin`) ; le canevas les peint à la couverture exacte, le dessin vectoriel les pose tels

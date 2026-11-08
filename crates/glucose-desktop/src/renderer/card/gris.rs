@@ -16,11 +16,10 @@
 //!
 //! Ce qu'un nœud montre de loin se décrit une fois, en formes ([`formes_de_loin`]) : chacune sa
 //! géométrie et son encre, dont l'opacité dit déjà la part de sa place que l'encre couvre. Le
-//! canevas les peint à la **couverture exacte** de chaque pixel, par la loi des membranes
-//! (MEMB-FORME-1) — un filet d'un dixième de pixel y garde un dixième de son encre, là où la grille
-//! des pixels (SCALE-3, nette de près) le ramènerait à un pixel entier, dix fois trop ; le dessin
-//! vectoriel (l'export SVG, la carte graphique pour un nœud plus grand que l'écran) les pose tels
-//! quels.
+//! canevas les peint à la **couverture exacte** de chaque pixel ([`crate::typography::peindre_exact`])
+//! — un filet d'un dixième de pixel y garde un dixième de son encre, là où la grille des pixels
+//! (SCALE-3, nette de près) le ramènerait à un pixel entier, dix fois trop ; le dessin vectoriel
+//! (la carte graphique pour un nœud plus grand que l'écran) les pose tels quels.
 
 use super::{CardLayout, TextCard};
 use crate::renderer::pass::Pass;

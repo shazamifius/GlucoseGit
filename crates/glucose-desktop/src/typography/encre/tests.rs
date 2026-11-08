@@ -92,3 +92,21 @@ fn gris_2_sur_la_carte_graphique_une_lettre_illisible_pose_son_gris() {
         "au corps lisible, ses lettres"
     );
 }
+
+/// **Un filet d'un dixième de pixel, vu de loin, garde un dixième de son encre** (fiche 97) : le
+/// gris passe par le peintre exact des rectangles droits, et non par la loi des membranes, qui lui
+/// en donnait en moyenne trois fois plus.
+#[test]
+fn gris_2_un_filet_d_un_dixieme_de_pixel_garde_sa_juste_encre() {
+    use glucose_core::membrane_forme::Arrondi;
+    for decalage in [0.0f32, 0.25, 0.45, 0.5, 0.7] {
+        let mut p = Pixmap::new(60, 20).expect("un tampon");
+        let filet = Arrondi::nouveau(10.0, 9.0 + decalage, 40.0, 0.1, 0.0);
+        super::peindre_exact(&mut p.as_mut(), (filet, Color::WHITE));
+        let encre: f32 = p.pixels().iter().map(|c| f32::from(c.alpha())).sum::<f32>() / 255.0;
+        assert!(
+            (encre - 4.0).abs() < 0.1,
+            "décalé de {decalage} : {encre} au lieu de 4,0 (40 pixels × un dixième)"
+        );
+    }
+}

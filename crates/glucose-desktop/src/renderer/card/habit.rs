@@ -48,6 +48,9 @@ pub(crate) fn fond_du_canevas(theme: &Theme) -> (u8, u8, u8) {
 pub(crate) struct Contenants<'a> {
     fond: (u8, u8, u8),
     membranes: &'a [Membrane],
+    /// L'enveloppe de chaque membrane ([`Membrane::enveloppe`]), relevée une fois par image :
+    /// hors d'elle, sa loi vaut zéro au bit près.
+    enveloppes: Vec<glucose_core::membrane_forme::Arrondi>,
 }
 
 impl<'a> Contenants<'a> {
@@ -55,16 +58,24 @@ impl<'a> Contenants<'a> {
         Self {
             fond: fond_du_canevas(theme),
             membranes,
+            enveloppes: membranes.iter().map(Membrane::enveloppe).collect(),
         }
     }
 
     /// **Le fond vu au point `(x, y)` de l'écran** : celui du canevas, sur lequel chaque
     /// membrane se compose dans l'ordre du modèle — sa loi même, lue en ce point
     /// ([`Membrane::alpha`]), donc la couleur exacte qu'elle y peint.
+    ///
+    /// Une membrane dont l'enveloppe ne contient pas le point n'y pose rien : sa loi y vaut zéro,
+    /// et la composer ne changerait pas un bit (fiche 97). Sur le squelette de Wikipédia, chaque
+    /// nœud lisait les 190 membranes du tableau, deux fois par image.
     pub(crate) fn fond_en(&self, (x, y): (f32, f32)) -> (u8, u8, u8) {
         let (r, g, b) = self.fond;
         let mut c = [r, g, b].map(|v| f32::from(v) / 255.0);
-        for m in self.membranes {
+        for (m, e) in self.membranes.iter().zip(&self.enveloppes) {
+            if !(x >= e.gauche && x <= e.droite && y >= e.haut && y <= e.bas) {
+                continue;
+            }
             let a = m.alpha(x, y);
             for (canal, teinte) in c.iter_mut().zip(m.teinte) {
                 *canal = *canal * (1.0 - a) + teinte * a;
@@ -162,4 +173,74 @@ pub(crate) fn boite_de_la_carte(
         sur_la_grille(largeur),
         sur_la_grille(hauteur),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Contenants;
+    use crate::theme::Theme;
+    use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
+
+    /// **Sauter une membrane loin du point ne change pas un bit du fond** (fiche 97) : des
+    /// membranes emboîtées et voisines, à lueurs et à bord épais, et le fond lu en des milliers de
+    /// points — dedans, au bord, dans les lueurs, dehors — égal au calcul qui les lit toutes.
+    #[test]
+    fn le_fond_saute_les_membranes_loin_du_point_sans_rien_changer() {
+        let membrane = |x: f32, y: f32, l: f32, h: f32| {
+            let fond = Arrondi::nouveau(x, y, l, h, 24.0);
+            let halo = |pad: f32| {
+                Arrondi::nouveau(
+                    x - pad,
+                    y - pad,
+                    l + 2.0 * pad,
+                    h + 2.0 * pad,
+                    24.0 + pad / 2.0,
+                )
+            };
+            Membrane {
+                remplissages: [(halo(20.0), 0.03), (halo(10.0), 0.05), (fond, 0.03)],
+                bord: Bord {
+                    forme: fond,
+                    demi_largeur: 3.0,
+                    pointille: None,
+                    alpha: 0.45,
+                },
+                teinte: [0.38, 0.65, 0.98],
+            }
+        };
+        let membranes = [
+            membrane(50.0, 40.0, 500.0, 300.0),
+            membrane(80.0, 90.0, 200.0, 120.0),
+            membrane(300.0, 90.0, 220.0, 200.0),
+            membrane(600.0, 50.0, 100.0, 100.0),
+        ];
+        let theme = Theme::dark();
+        let contenants = Contenants::nouveaux(&theme, &membranes);
+        let toutes = |(x, y): (f32, f32)| {
+            let (r, g, b) = super::fond_du_canevas(&theme);
+            let mut c = [r, g, b].map(|v| f32::from(v) / 255.0);
+            for m in &membranes {
+                let a = m.alpha(x, y);
+                for (canal, teinte) in c.iter_mut().zip(m.teinte) {
+                    *canal = *canal * (1.0 - a) + teinte * a;
+                }
+            }
+            let [r, g, b] = c.map(|v| (v * 255.0).round().clamp(0.0, 255.0) as u8);
+            (r, g, b)
+        };
+        let mut teintes = std::collections::HashSet::new();
+        for i in 0..400 {
+            for j in 0..200 {
+                let p = (i as f32 * 1.87 + 0.3, j as f32 * 1.91 + 0.7);
+                let fond = contenants.fond_en(p);
+                assert_eq!(fond, toutes(p), "au point {p:?}");
+                teintes.insert(fond);
+            }
+        }
+        assert!(
+            teintes.len() > 20,
+            "l'épreuve doit traverser lueurs et bords : {}",
+            teintes.len()
+        );
+    }
 }

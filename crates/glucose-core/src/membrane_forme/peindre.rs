@@ -50,6 +50,52 @@ pub fn peindre(m: &Membrane, image: &mut [Pixel], largeur: u32, hauteur: u32) ->
     encre
 }
 
+/// **Compose un rectangle droit plein, à la couverture exacte de chaque pixel** : la part du
+/// pixel qu'il recouvre, produit de deux recouvrements — en largeur et en hauteur — à toute
+/// épaisseur (fiche 97). La loi des membranes (`½ − d`) est exacte pour un bord franc, pas pour une
+/// forme plus fine qu'un pixel : un trait d'un dixième de pixel y prenait en moyenne trois fois son
+/// encre. C'est le peintre de ce qu'on voit de loin (GRIS-1, GRIS-2) : le gris des lignes, les
+/// filets, les plaques. `(gauche, haut, droite, bas)` en pixels ; une boîte vide ou non finie ne
+/// dessine rien. Rend vrai s'il a posé de l'encre.
+pub fn peindre_un_rectangle(
+    (gauche, haut, droite, bas): (f32, f32, f32, f32),
+    (teinte, alpha): ([f32; 3], f32),
+    image: &mut [Pixel],
+    (largeur, hauteur): (u32, u32),
+) -> bool {
+    let (l, h) = (largeur as usize, hauteur as usize);
+    let boite = [gauche, haut, droite, bas];
+    if !(alpha > 0.0 && gauche < droite && haut < bas && boite.iter().all(|v| v.is_finite())) {
+        return false;
+    }
+    if l == 0 || image.len() != l * h {
+        return false;
+    }
+    // Le recouvrement de `[p, p + 1]` et de `[a, b]` : exact, et nul hors de la boîte.
+    let recouvrement =
+        |p: usize, (a, b): (f32, f32)| ((p as f32 + 1.0).min(b) - (p as f32).max(a)).max(0.0);
+    let pixels =
+        |a: f32, b: f32, n: usize| (a.floor().max(0.0) as usize, (b.ceil() as usize).min(n));
+    let ((x0, x1), (y0, y1)) = (pixels(gauche, droite, l), pixels(haut, bas, h));
+    let mut encre = false;
+    for y in y0..y1 {
+        let cy = recouvrement(y, (haut, bas));
+        let ligne = &mut image[y * l..(y + 1) * l];
+        // L'intérieur de la ligne a une seule couverture : un seul mélange.
+        let plein = Melange::de(teinte, alpha * cy);
+        for (x, pixel) in ligne.iter_mut().enumerate().take(x1).skip(x0) {
+            let cx = recouvrement(x, (gauche, droite));
+            if cx >= 1.0 {
+                plein.poser(pixel);
+            } else if cx * cy > 0.0 {
+                Melange::de(teinte, alpha * cx * cy).poser(pixel);
+            }
+        }
+        encre |= cy > 0.0 && x0 < x1;
+    }
+    encre
+}
+
 /// Les zones de bord d'une ligne, en pixels, et l'étendue de ce que la membrane y touche.
 #[derive(Default)]
 struct Ligne {

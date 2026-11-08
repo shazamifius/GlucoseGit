@@ -1,0 +1,47 @@
+[
+ {
+  "nom": "FOND-1 le fond saute des membranes qui touchent le point",
+  "fichier": "crates/glucose-desktop/src/renderer/card/habit.rs",
+  "avant": "            if !(x >= e.gauche && x <= e.droite && y >= e.haut && y <= e.bas) {",
+  "apres": "            if !(x >= e.gauche + 2.0 && x <= e.droite && y >= e.haut && y <= e.bas) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "le_fond_saute"
+  ]
+ },
+ {
+  "nom": "RECT-1 le rectangle couvre le pixel entier",
+  "fichier": "crates/glucose-core/src/membrane_forme/peindre.rs",
+  "avant": "            let cx = recouvrement(x, (gauche, droite));",
+  "apres": "            let cx = recouvrement(x, (gauche, droite)).ceil();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "rectangle"
+  ]
+ },
+ {
+  "nom": "RECT-1 le gris de loin repasse par la loi des membranes",
+  "fichier": "crates/glucose-desktop/src/typography/encre.rs",
+  "avant": "    if forme.rayon <= 0.0 {",
+  "apres": "    if false && forme.rayon <= 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2_un_filet"
+  ]
+ }
+]

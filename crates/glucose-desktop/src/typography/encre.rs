@@ -12,12 +12,12 @@
 //! Une lettre plus petite que [`LETTRE_LISIBLE`] ne porte plus sa forme : tout texte que le canevas
 //! écrit à cette taille — le nom d'une zone, d'un dossier, l'étiquette d'une flèche, le mot d'un
 //! opérateur, le sigle d'un domaine — se peint du gris de son encre, à la couverture exacte de
-//! chaque pixel ([`Typography::griser`]). Chaque dessin s'en remettait à un seuil de zoom pour se
+//! chaque pixel ([`Typography::griser`], [`peindre_exact`]). Chaque dessin s'en remettait à un seuil de zoom pour se
 //! **taire** de loin (SCALE-2) ; il écrit désormais toujours, et la typographie décide comment.
 //! L'export SVG, qui s'agrandit sans perte, n'a pas de pixels : il garde ses lettres.
 
 use super::{Face, TextStyle, Typography};
-use glucose_core::membrane_forme::{peindre, Arrondi, Membrane};
+use glucose_core::membrane_forme::{peindre, peindre_un_rectangle, Arrondi, Membrane};
 use tiny_skia::{Color, PixmapMut};
 
 /// **Le corps, en pixels, sous lequel une lettre ne se lit plus** : moins que l'épaisseur d'un
@@ -137,14 +137,22 @@ pub fn forme_grise(
     Some((Arrondi::nouveau(x, y, largeur, hauteur, 0.0), c))
 }
 
-/// **Peint une forme pleine à la couverture exacte de chaque pixel** : la loi des membranes
-/// (MEMB-FORME-1). Un filet d'un dixième de pixel y garde un dixième de son encre, là où la grille
-/// des pixels (SCALE-3, nette de près) le ramènerait à un pixel entier, dix fois trop.
+/// **Peint une forme pleine vue de loin.** Un rectangle droit — le gris d'une ligne, un filet, une
+/// plaque — à la **couverture exacte** de chaque pixel, à toute épaisseur
+/// ([`peindre_un_rectangle`]) : un filet d'un dixième de pixel y garde un dixième de son encre, là
+/// où la grille des pixels (SCALE-3, nette de près) le ramènerait à un pixel entier, dix fois trop,
+/// et la loi des membranes à trois fois en moyenne (fiche 97). Un disque (la puce) par la loi des
+/// membranes (MEMB-FORME-1), juste dès qu'il fait un pixel.
 pub fn peindre_exact(pixmap: &mut PixmapMut, (forme, c): (Arrondi, Color)) {
     let (l, h) = (pixmap.width(), pixmap.height());
     let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
-    let plein = Membrane::plein(forme, [c.red(), c.green(), c.blue()], c.alpha());
-    peindre(&plein, pixels, l, h);
+    let teinte = [c.red(), c.green(), c.blue()];
+    if forme.rayon <= 0.0 {
+        let boite = (forme.gauche, forme.haut, forme.droite, forme.bas);
+        peindre_un_rectangle(boite, (teinte, c.alpha()), pixels, (l, h));
+    } else {
+        peindre(&Membrane::plein(forme, teinte, c.alpha()), pixels, l, h);
+    }
 }
 
 #[cfg(test)]
