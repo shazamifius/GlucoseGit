@@ -18,6 +18,31 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// **Les vues à rendre** : le tableau entier, chaque membrane qui n'est dans aucune autre, et celles
+/// que `GLUCOSE_VUES` nomme (des identifiants séparés par des virgules) — de quoi regarder un thème
+/// ou un article de près. Chacune cadre ce que `F` cadrerait : l'encre, le titre des membranes
+/// compris (TITRE-1).
+fn les_vues(
+    app: &GlucoseApp,
+    decrits: &[glucose_core::store::agents::Decrit],
+) -> Vec<(String, Rect)> {
+    let Some(tableau) = app.store.active_board() else {
+        return Vec::new();
+    };
+    let nommees = std::env::var("GLUCOSE_VUES").unwrap_or_default();
+    let nommees: Vec<&str> = nommees.split(',').filter(|v| !v.is_empty()).collect();
+    let membranes = decrits
+        .iter()
+        .filter(|d| d.sorte == Sorte::Membrane)
+        .filter(|d| d.membrane.is_none() || nommees.contains(&d.id.as_str()))
+        .filter_map(|d| Some((d.id.clone(), glucose_core::arrow::emprise(tableau, &d.id)?)));
+    let tout = app.store.content_bounds(&tableau.id);
+    tout.map(|t| ("tableau".to_string(), t))
+        .into_iter()
+        .chain(membranes)
+        .collect()
+}
+
 /// **Sert les agents** sur la porte `nom` jusqu'à ce que le fichier `arret` existe, puis rend le
 /// tableau entier, et chaque membrane qui n'est dans aucune autre, en PNG dans `dossier`. Rend le
 /// nombre de gestes reçus. Les gestes d'un utilisateur écrits dans `dossier/main.jsonl` sont
@@ -59,21 +84,7 @@ pub fn servir_sans_fenetre(
         .store
         .decrire_pour_un_agent(&board)
         .map_err(|r| r.to_string())?;
-    // Chaque image cadre ce que `F` cadrerait : l'encre, le titre des membranes compris (TITRE-1).
-    let encre = |id: &str| {
-        app.store
-            .active_board()
-            .and_then(|b| glucose_core::arrow::emprise(b, id))
-    };
-    let mut cadres: Vec<(String, Rect)> = decrits
-        .iter()
-        .filter(|d| d.sorte == Sorte::Membrane && d.membrane.is_none())
-        .filter_map(|d| Some((d.id.clone(), encre(&d.id)?)))
-        .collect();
-    if let Some(tout) = app.store.content_bounds(&board) {
-        cadres.insert(0, ("tableau".to_string(), tout));
-    }
-    for (nom, cadre) in cadres {
+    for (nom, cadre) in les_vues(&app, &decrits) {
         let chemin = dossier.join(format!("{nom}.png"));
         rendre(&mut app, &board, cadre, taille, &chemin)?;
         crate::dire!("[porte] {}", chemin.display());

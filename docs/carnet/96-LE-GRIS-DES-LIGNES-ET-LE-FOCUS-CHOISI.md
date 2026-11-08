@@ -133,8 +133,12 @@ borne de 1,4 que deux images de 8 bits garantissent) — un nom ne change pas de
 * **Sabotages** : `colonnes-96.json` **3 sur 3** ; `focus-gris-96.json` **15 sur 16** au premier tour —
   l'aveugle : « de loin, la plaque d'un bloc de code disparaît ». Une ligne de code parmi vingt-cinq,
   une plaque presque de la couleur du fond : son absence changeait la moyenne de moins d'un niveau.
-  Une épreuve dont le texte n'est presque qu'un bloc de code la garde désormais. `gris-2-96.json` :
-  *à compléter*.
+  Une épreuve dont le texte n'est presque qu'un bloc de code la garde désormais : **16 sur 16**.
+  `gris-2-96.json` : **13 sur 14** au premier tour — l'aveugle : « la lueur d'un dossier choisi
+  s'éteint de loin ». L'épreuve comptait les pixels encrés, et un dossier choisi en a plus par son
+  seul trait ; puis, mesurée au-dessus du cadre, elle lisait la poignée du milieu du bord. Elle
+  regarde désormais la rangée que la lueur seule atteint, entre les poignées : **14 sur 14**.
+  **En tout : 33 sabotages sur 33.**
 
 ## 7. La recherche (consultée le 8/11/2026)
 
@@ -159,6 +163,8 @@ borne de 1,4 que deux images de 8 bits garantissent) — un nom ne change pas de
   pas en binaire.
 * **« Le même nombre » calculé deux fois n'est pas le même nombre** : ce qui se compare se calcule par
   une seule fonction (la leçon de la fiche 88, « une même chose sous deux noms », en arithmétique).
+* **Une épreuve qui compte « plus d'encre » ne dit pas d'où vient l'encre** : un dossier choisi en a
+  plus par son trait et ses poignées. Regarder l'endroit que seul ce qu'on garde peut atteindre.
 * **Une épreuve dont le texte porte tout ce qu'un texte peut porter** a trouvé deux défauts d'un coup
   (les ornements absents, puis trop lourds) : le texte de la première version n'avait ni code, ni
   trait, ni citation.

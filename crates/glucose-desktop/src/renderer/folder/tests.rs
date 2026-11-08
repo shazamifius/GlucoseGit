@@ -218,12 +218,12 @@ fn test_un_dossier_selectionne_se_distingue() {
     );
 }
 
-/// **Très dézoomé, rien ne se tait** (GRIS-2, fiche 96) : le cadre reste, le nom montre le gris de
-/// son encre — un dossier nommé et un dossier sans nom ne se dessinent pas pareil —, et un dossier
-/// choisi garde sa lueur. Jusqu'ici, sous le seuil de détail, le bandeau et la lueur se taisaient.
+/// **Très dézoomé, rien ne se tait** (GRIS-2, fiche 96) : le cadre reste, et le nom montre le gris de
+/// son encre — un dossier nommé et un dossier sans nom ne se dessinent pas pareil. Jusqu'ici, sous
+/// le seuil de détail, le bandeau se taisait.
 #[test]
 fn test_gris_2_tres_dezoome_rien_ne_se_tait() {
-    let loin = |nom: &str, choisi: bool| {
+    let loin = |nom: &str| {
         let mut store = store_avec_dossier(10.0, 10.0, 3_000.0, 2_000.0);
         if let Some(board) = store.project.boards.first_mut() {
             board.folders[0].name = nom.into();
@@ -233,27 +233,53 @@ fn test_gris_2_tres_dezoome_rien_ne_se_tait() {
                 scale: 0.1,
             };
         }
-        if choisi {
-            store.selected_folder_id = Some("fold-1".into());
-        }
         encre(&store)
     };
     assert!(
         !WorldScale::new(0.1, 1.0).draws_detail(),
         "0,1 est sous le seuil de détail"
     );
-    let (nomme, encres) = loin("Recherches et lectures", false);
+    let (nomme, encres) = loin("Recherches et lectures");
     assert!(encres > 100, "{encres} : le cadre se dessine encore");
-    let (sans_nom, _) = loin("", false);
+    let (sans_nom, _) = loin("");
     assert_ne!(
         nomme.data(),
         sans_nom.data(),
         "de loin, le nom montre le gris de son encre"
     );
-    let (_, choisi) = loin("Recherches et lectures", true);
+}
+
+/// **De loin, un dossier choisi garde sa lueur** (GRIS-2, fiche 96). Juste sous le seuil (0,19), son
+/// bord haut posé au milieu d'un pixel (100,5) : le trait du cadre reste dans la rangée 100, la
+/// lueur — trois unités au-dessus, d'une épaisseur et demie — atteint seule la rangée 99, entre les
+/// poignées (le cadre va de 190 à 760, la poignée du milieu est en 475). Compter les pixels encrés
+/// ne suffisait pas : un dossier choisi en a plus par son seul trait.
+#[test]
+fn test_gris_2_de_loin_un_dossier_choisi_garde_sa_lueur() {
+    let zoom = 0.19;
+    assert!(!WorldScale::new(zoom, 1.0).draws_detail());
+    let rangee_99 = |choisi: bool| {
+        let mut store = store_avec_dossier(1_000.0, 100.5 / zoom, 3_000.0, 2_000.0);
+        if let Some(board) = store.project.boards.first_mut() {
+            board.viewport = Viewport {
+                x: 0.0,
+                y: 0.0,
+                scale: zoom,
+            };
+        }
+        if choisi {
+            store.selected_folder_id = Some("fold-1".into());
+        }
+        let (p, _) = encre(&store);
+        (250..420)
+            .map(|x| p.pixel(x, 99).map_or(0, |c| c.blue()))
+            .max()
+            .unwrap_or(0)
+    };
+    assert_eq!(rangee_99(false), 0, "au repos, rien au-dessus du cadre");
     assert!(
-        choisi > encres,
-        "de loin, un dossier choisi garde sa lueur ({choisi} contre {encres})"
+        rangee_99(true) > 0,
+        "de loin, la lueur d'un dossier choisi se voit au-dessus de son cadre"
     );
 }
 
