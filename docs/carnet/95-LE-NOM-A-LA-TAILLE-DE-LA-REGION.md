@@ -147,3 +147,53 @@ avec lui, à son écran : sa parole du 7/11 ne veut pas d'un chantier de rendu s
   les titres moyens, neuf fois composés. Mesurer avant d'écrire la réparation.
 * **Une borne d'épreuve se déduit** : l'anneau du trait contre les huit copies — un dixième de pixel
   sur 1,5, pas un pourcentage choisi pour passer.
+
+## 11. Sa parole, le soir même — et ce qui en est écrit, pas encore compilé
+
+*« Effectivement, le mode Focus, je préférais que ce soit un geste choisi »* ; *« je suis carrément
+d'accord pour le gris des lignes »* (VISION). **La session s'est arrêtée à sa demande avant la
+compilation** : tout ce qui suit est écrit dans **`95-focus-et-gris-a-reprendre.patch`** (19
+fichiers, il s'applique sur `f50499b` : `git apply docs/carnet/95-focus-et-gris-a-reprendre.patch`),
+**jamais compilé dans l'application** (le noyau, lui, a passé ses 66 épreuves). À reprendre : compiler,
+éprouver, saboter, regarder, puis enregistrer — et retirer le correctif du carnet.
+
+### FOCUS-1 — on entre dans une membrane par un geste choisi
+
+« Entrer dans la membrane », au menu d'une membrane choisie (ou qui porte la sélection) et à la
+palette ; « Sortir de la membrane » à la palette, `Échap` (après un menu ouvert et un tracé en cours),
+ou dézoomer et s'éloigner, comme avant. Le noyau ne décide plus que les sorties (`decider`) ; l'entrée
+est `entrer(carte, membrane, écran, instant)`, au cadrage d'avant. **Disparaissent**, avec l'entrée
+par le zoom : le seuil de 92 %, `coverage` et `to_screen`, la « vue » de chaque membrane et le calcul
+des membranes minimisées qui ne nourrissait qu'elle ; `FocusInput` perd `resolved`. L'application
+applique toute décision par une seule fonction (`appliquer_le_focus`). Épreuves réécrites : zoomer
+n'entre plus ; le geste entre (même petite et emboîtée, au cadrage de six pour cent) ; Échap sort ;
+dézoomer sort ; l'image décide des sorties, jamais des entrées. **À vérifier** : l'empreinte du menu
+témoin (« Entrer dans la membrane » s'ajoute si la sélection du témoin porte une membrane) ; les
+cliquets (le couplage du menu au modèle, les toasts) ; un double-clic sur une membrane édite toujours
+son titre (gardé exprès).
+
+### GRIS-1 — de loin, le gris de chaque ligne
+
+Sous un cinquième de zoom, un nœud de texte posait son cadre vide (SCALE-2). Il montre le gris de
+chaque ligne : un rectangle de la largeur de son texte, de la couleur de son encre, à l'opacité de
+**son encre sur sa place** — la surface que ses lettres couvrent (`Typography::encre`, lue une fois
+par lettre sur son image au demi-carré, puis × corps²), sur sa largeur fois la hauteur d'une ligne —,
+peint par la loi des membranes (`Membrane::plein`, la couverture exacte de chaque pixel). Largeur et
+encre se notent une fois, quand la ligne se coupe (`VisualLine::largeur`, `encre`), dans la mise en
+page gardée en mémoire. Les tableaux : la largeur sur les taquets, l'en-tête en gras. Les formules :
+le gris d'un texte de leur largeur, à la densité de la police (`Typography::densite`, l'alphabet) — une
+approximation, dite. Les post-it : la même loi (`ligne_grise`, partagée), leurs lignes recalculées à
+chaque image. **Pas encore** : la pilule des opérateurs (ET, OU…), dont le mot se cache encore de loin.
+L'épreuve écrite (`card/gris/tests.rs`) compare la couleur moyenne d'un nœud vu à 0,1 à celle de son
+dessin à 1 : sa borne (25 % de l'écart du texte à la brume) est **provisoire** — la mesurer, puis la
+déduire.
+
+### Les sabotages de la fiche 95 : 24 sur 25
+
+`titre-95.json`, joués dans un arbre détaché : 24 tombent. **Aveugle** : « la partition ignore la
+place des titres ». Une épreuve neuve est dans le correctif (`titre_1_les_coupes_comptent_la_place_des_titres`,
+des membranes larges et basses dont les titres pèsent) — et **elle tombe sur le code juste** (graine 0 :
+la plus haute colonne 2 196, l'optimum de la force brute 1 211 pour le nombre de colonnes retenu).
+Deux possibilités, à trancher par la mesure : l'épreuve compte mal (le nombre de colonnes lu sur les
+abscisses ?), ou la disposition a un vrai défaut quand les boîtes sont de largeurs très diverses.
+**Ne pas relever la borne : comprendre.**

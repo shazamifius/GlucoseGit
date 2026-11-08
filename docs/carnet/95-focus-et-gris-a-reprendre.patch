@@ -1,0 +1,1409 @@
+diff --git a/crates/glucose-core/src/layout/colonnes/tests.rs b/crates/glucose-core/src/layout/colonnes/tests.rs
+index 36103bf..86781e1 100644
+--- a/crates/glucose-core/src/layout/colonnes/tests.rs
++++ b/crates/glucose-core/src/layout/colonnes/tests.rs
+@@ -255,3 +255,48 @@ fn titre_1_un_grand_titre_ne_couvre_jamais_le_bloc_du_dessus() {
+         "sans la réserve, un grand titre aurait dû couvrir son voisin"
+     );
+ }
++
++/// **TITRE-1 — les coupes comptent la place des titres** : des sous-membranes titrées, de
++/// surfaces très diverses ; la plus haute colonne, titres compris, est l'optimum exact (la force
++/// brute) pour le nombre de colonnes retenu. Des coupes calculées sur les seules boîtes
++/// laisseraient une colonne plus haute que nécessaire.
++#[test]
++fn titre_1_les_coupes_comptent_la_place_des_titres() {
++    for graine in 0..20u64 {
++        let enfants: Vec<Bloc> = hauteurs(graine, 9)
++            .into_iter()
++            .enumerate()
++            // Larges et basses, de largeurs très diverses : leurs titres pèsent autant que leurs
++            // boîtes, et changent les coupes — des membranes de surface ordinaire ne les changeaient
++            // pas, et l'épreuve passait par la chance de ses données.
++            .map(|(i, h)| Bloc {
++                id: format!("m{i}"),
++                largeur: 300.0 * (1 + (i * 7 + graine as usize) % 40) as f64,
++                hauteur: h,
++                enfants: Vec::new(),
++                titree: true,
++            })
++            .collect();
++        let reelles: Vec<f64> = enfants
++            .iter()
++            .map(|b| crate::membrane_titre::surcroit(b.largeur, b.hauteur) + b.hauteur)
++            .collect();
++        let racine = Bloc {
++            id: "r".into(),
++            largeur: 300.0,
++            hauteur: 100.0,
++            enfants,
++            titree: true,
++        };
++        let boites: std::collections::HashMap<String, Rect> =
++            disposer(&racine, 1.6, M).into_iter().collect();
++        let mut gauches: Vec<f64> = (0..9).map(|i| boites[&format!("m{i}")].left).collect();
++        gauches.dedup();
++        let haute = boites["r"].height - M.titre - M.ecart;
++        let juste = optimum(&reelles, gauches.len());
++        assert!(
++            (haute - juste).abs() < 1e-6,
++            "graine {graine} : la plus haute colonne {haute}, l'optimum {juste}"
++        );
++    }
++}
+diff --git a/crates/glucose-core/src/membrane_focus.rs b/crates/glucose-core/src/membrane_focus.rs
+index 2485bd9..605ed70 100644
+--- a/crates/glucose-core/src/membrane_focus.rs
++++ b/crates/glucose-core/src/membrane_focus.rs
+@@ -1,5 +1,16 @@
+-//! MEMB-2 — Mode Focus : « zoomer assez sur une membrane et n'avoir plus qu'elle ».
++//! MEMB-2 — Mode Focus : n'avoir plus qu'une membrane, son contenu, sur un fond à sa couleur.
+ //! 100% Rust Standard Library (0 dépendance).
++//!
++//! # FOCUS-1 — on y entre par un geste choisi (fiche 95)
++//!
++//! Glucose Tauri y entrait quand une membrane couvrait 92 % de l'écran : zoomer suffisait, la
++//! caméra se calait, et tout le reste disparaissait. Sa parole du 8/11/2026 : *« pas de système de
++//! LOD, pas de simplification possible »* — rien ne se cache selon la distance —, puis, devant la
++//! proposition : *« le mode Focus, je préférais que ce soit un geste choisi »*. On y entre donc par
++//! [`entrer`], pour la membrane qu'on désigne ; la décision de chaque image ([`decider`]) ne fait
++//! plus que sortir — en dézoomant, en s'éloignant —, et l'application sort aussi par `Échap`. Le
++//! seuil de 92 % disparaît, et la recherche de « la plus petite membrane qui remplit l'écran » avec
++//! lui : c'est l'utilisateur qui désigne.
+ 
+ use crate::geometry::{Point, Rect};
+ use crate::membrane_space::{contained_in, content_extent, parent_map, SpaceItem};
+@@ -7,10 +18,9 @@ use crate::types::{Annotation, Viewport};
+ use std::collections::{HashMap, HashSet};
+ 
+ mod tableau;
+-pub use tableau::{decider, masque_du_focus, CarteDesMembranes, MasqueFocus};
++pub use tableau::{decider, entrer, masque_du_focus, CarteDesMembranes, MasqueFocus};
+ 
+ pub mod focus_consts {
+-    pub const ENTER_COVERAGE: f64 = 0.92;
+     pub const EXIT_SCALE_RATIO: f64 = 0.8;
+     pub const EXIT_CENTER_MARGIN: f64 = 0.35;
+     pub const COOLDOWN_MS: i64 = 400;
+@@ -41,26 +51,6 @@ impl Default for FocusState {
+     }
+ }
+ 
+-pub fn to_screen(b: Rect, vp: Viewport) -> Rect {
+-    Rect {
+-        left: b.left * vp.scale + vp.x,
+-        top: b.top * vp.scale + vp.y,
+-        width: b.width * vp.scale,
+-        height: b.height * vp.scale,
+-    }
+-}
+-
+-pub fn coverage(b: Rect, vp: Viewport, screen: ScreenSize) -> f64 {
+-    let total = screen.width * screen.height;
+-    if total <= 0.0 {
+-        return 0.0;
+-    }
+-    let s = to_screen(b, vp);
+-    let ix = 0.0f64.max((s.left + s.width).min(screen.width) - s.left.max(0.0));
+-    let iy = 0.0f64.max((s.top + s.height).min(screen.height) - s.top.max(0.0));
+-    (ix * iy) / total
+-}
+-
+ pub fn screen_center_world(vp: Viewport, screen: ScreenSize) -> Point {
+     Point {
+         x: (screen.width / 2.0 - vp.x) / vp.scale,
+@@ -93,7 +83,6 @@ pub fn fit_viewport(b: Rect, screen: ScreenSize, pad: f64) -> Viewport {
+ #[derive(Debug, Clone)]
+ pub struct FocusInput<'a> {
+     pub items: &'a [SpaceItem],
+-    pub resolved: &'a HashMap<String, crate::membrane_space::ResolvedItem>,
+     pub vp: Viewport,
+     pub screen: ScreenSize,
+     pub state: FocusState,
+@@ -122,7 +111,6 @@ fn children_of<'a>(items: &'a [SpaceItem], membrane_id: &str) -> Vec<&'a SpaceIt
+ pub fn focus_decision(input: FocusInput) -> FocusAction {
+     let FocusInput {
+         items,
+-        resolved,
+         vp,
+         screen,
+         state,
+@@ -133,7 +121,6 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
+         .filter(|i| i.kind == crate::membrane_space::SpaceItemKind::Membrane)
+         .map(|m| MembraneVue {
+             id: m.id.clone(),
+-            vue: resolved.get(&m.id).map(|r| r.rect()),
+             cadre: focus_box(m, &children_of(items, &m.id)),
+         })
+         .collect();
+@@ -145,12 +132,12 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
+ #[derive(Debug, Clone, PartialEq)]
+ struct MembraneVue {
+     id: String,
+-    /// `None` si sa géométrie affichée n'est pas connue : elle ne peut pas être choisie.
+-    vue: Option<Rect>,
+     cadre: Rect,
+ }
+ 
+-fn hors_focus(now: i64) -> FocusState {
++/// **Hors du focus** — ce que rend une sortie, et ce que l'application pose quand on sort par
++/// `Échap`.
++pub fn hors_focus(now: i64) -> FocusState {
+     FocusState {
+         membrane_id: None,
+         enter_scale: 0.0,
+@@ -192,42 +179,29 @@ fn decider_sur(
+         return FocusAction::Stay(state);
+     }
+ 
+-    // ── Hors focus : chercher la membrane qui remplit l'écran ───────────────
+-    let center = screen_center_world(vp, screen);
+-    let mut best: Option<&MembraneVue> = None;
+-    let mut best_area = f64::INFINITY;
+-    for m in membranes {
+-        let Some(b) = m.vue else {
+-            continue;
+-        };
+-        if center.x < b.left || center.x > b.right() || center.y < b.top || center.y > b.bottom() {
+-            continue;
+-        }
+-        if coverage(b, vp, screen) < focus_consts::ENTER_COVERAGE {
+-            continue;
+-        }
+-        let a = (b.width * b.height).abs();
+-        if a < best_area {
+-            best = Some(m);
+-            best_area = a;
+-        }
+-    }
++    // ── Hors focus : rien ne fait entrer, sinon un geste choisi (FOCUS-1, [`entrer`]) ──
++    FocusAction::Stay(state)
++}
+ 
+-    match best {
+-        Some(target) => {
+-            let fit = fit_viewport(target.cadre, screen, focus_consts::FIT_PADDING);
+-            FocusAction::Enter {
+-                state: FocusState {
+-                    membrane_id: Some(target.id.clone()),
+-                    enter_scale: fit.scale,
+-                    t: now,
+-                },
+-                membrane_id: target.id.clone(),
+-                fit,
+-            }
+-        }
+-        None => FocusAction::Stay(state),
+-    }
++/// **FOCUS-1 — entrer dans cette membrane, par un geste choisi** : le cadrage qui la montre
++/// entière, avec la marge du focus, et l'état qui s'en souvient. Rien si elle n'existe pas.
++fn entrer_sur(
++    membranes: &[MembraneVue],
++    id: &str,
++    screen: ScreenSize,
++    now: i64,
++) -> Option<FocusAction> {
++    let m = membranes.iter().find(|m| m.id == id)?;
++    let fit = fit_viewport(m.cadre, screen, focus_consts::FIT_PADDING);
++    Some(FocusAction::Enter {
++        state: FocusState {
++            membrane_id: Some(m.id.clone()),
++            enter_scale: fit.scale,
++            t: now,
++        },
++        membrane_id: m.id.clone(),
++        fit,
++    })
+ }
+ 
+ pub fn focus_frame_of(items: &[SpaceItem], focused_id: Option<&str>) -> Option<Rect> {
+@@ -420,29 +394,6 @@ mod tests {
+     use super::*;
+     use crate::membrane_space::SpaceItemKind;
+ 
+-    #[test]
+-    fn test_coverage() {
+-        let b = Rect::new(0.0, 0.0, 1000.0, 1000.0);
+-        let screen = ScreenSize {
+-            width: 1000.0,
+-            height: 1000.0,
+-        };
+-        let vp = Viewport {
+-            x: 0.0,
+-            y: 0.0,
+-            scale: 1.0,
+-        };
+-        assert!((coverage(b, vp, screen) - 1.0).abs() < 1e-6);
+-
+-        let vp_half = Viewport {
+-            x: 0.0,
+-            y: 0.0,
+-            scale: 0.5,
+-        };
+-        // 500x500 sur 1000x1000 = 0.25
+-        assert!((coverage(b, vp_half, screen) - 0.25).abs() < 1e-6);
+-    }
+-
+     #[test]
+     fn test_asymmetric_exit() {
+         let m = SpaceItem {
+@@ -456,21 +407,6 @@ mod tests {
+             membrane_id: None,
+         };
+         let items = [m];
+-        let mut resolved = HashMap::new();
+-        resolved.insert(
+-            "M1".into(),
+-            crate::membrane_space::ResolvedItem {
+-                id: "M1".into(),
+-                x: 0.0,
+-                y: 0.0,
+-                width: 1000.0,
+-                height: 1000.0,
+-                scale: 1.0,
+-                membrane_id: None,
+-                content_scale: None,
+-            },
+-        );
+-
+         let screen = ScreenSize {
+             width: 1000.0,
+             height: 1000.0,
+@@ -484,7 +420,6 @@ mod tests {
+         // Dézoom à 0.79 (< 0.8 * enter_scale) -> Sortie
+         let action = focus_decision(FocusInput {
+             items: &items,
+-            resolved: &resolved,
+             vp: Viewport {
+                 x: 0.0,
+                 y: 0.0,
+@@ -499,7 +434,6 @@ mod tests {
+         // Dézoom à 0.85 (>= 0.8 * enter_scale) -> Reste
+         let action2 = focus_decision(FocusInput {
+             items: &items,
+-            resolved: &resolved,
+             vp: Viewport {
+                 x: 0.0,
+                 y: 0.0,
+diff --git a/crates/glucose-core/src/membrane_focus/tableau.rs b/crates/glucose-core/src/membrane_focus/tableau.rs
+index 4f08030..774bc54 100644
+--- a/crates/glucose-core/src/membrane_focus/tableau.rs
++++ b/crates/glucose-core/src/membrane_focus/tableau.rs
+@@ -12,8 +12,8 @@ use crate::geometry::Rect;
+ use crate::types::{Annotation, Viewport};
+ use std::collections::{HashMap, HashSet};
+ 
+-/// **Ce que la décision du focus retient d'un tableau** : chaque membrane, la boîte qu'on voit
+-/// d'elle et celle de son contenu.
++/// **Ce que la décision du focus retient d'un tableau** : chaque membrane, et la boîte de son
++/// contenu — ce que le focus cadre.
+ ///
+ /// # Pourquoi elle existe
+ ///
+@@ -22,9 +22,6 @@ use std::collections::{HashMap, HashSet};
+ /// change pendant un zoom. La carte se calcule donc une fois par état du document, en un seul
+ /// passage qui ne recopie aucun identifiant de nœud ; la décision, à chaque image, ne parcourt
+ /// plus que les membranes ([`decider`]).
+-///
+-/// La géométrie affichée ne diffère des coordonnées que sous une membrane minimisée : c'est
+-/// seulement là que le repère complet des membranes est calculé.
+ #[derive(Debug, Clone, Default, PartialEq)]
+ pub struct CarteDesMembranes {
+     membranes: Vec<MembraneVue>,
+@@ -34,18 +31,13 @@ impl CarteDesMembranes {
+     pub fn du_tableau(board: &crate::types::Board) -> Self {
+         let mut membranes: Vec<MembraneVue> = Vec::new();
+         let mut rang: HashMap<&str, usize> = HashMap::new();
+-        let mut minimisee = false;
+         for a in &board.annotations {
+-            if let Annotation::Membrane { mode, .. } = a {
+-                minimisee |= *mode == crate::types::MembraneMode::Minimized;
+-                if let Some(r) = a.rect() {
+-                    rang.insert(a.id(), membranes.len());
+-                    membranes.push(MembraneVue {
+-                        id: a.id().to_string(),
+-                        vue: Some(r),
+-                        cadre: r,
+-                    });
+-                }
++            if let (Annotation::Membrane { .. }, Some(r)) = (a, a.rect()) {
++                rang.insert(a.id(), membranes.len());
++                membranes.push(MembraneVue {
++                    id: a.id().to_string(),
++                    cadre: r,
++                });
+             }
+         }
+         if membranes.is_empty() {
+@@ -74,13 +66,6 @@ impl CarteDesMembranes {
+             m.cadre.width = m.cadre.width.max(w);
+             m.cadre.height = m.cadre.height.max(h);
+         }
+-        if minimisee {
+-            let items = crate::membrane_space::items_of_board(board);
+-            let vus = crate::membrane_space::resolve_items(&items, Default::default());
+-            for m in &mut membranes {
+-                m.vue = vus.get(&m.id).map(|r| r.rect());
+-            }
+-        }
+         Self { membranes }
+     }
+ 
+@@ -89,7 +74,18 @@ impl CarteDesMembranes {
+     }
+ }
+ 
+-/// La décision du focus pour cette vue, sur la carte d'un tableau.
++/// **FOCUS-1 — entrer dans la membrane `id`**, par un geste choisi : le cadrage qui la montre
++/// entière, et l'état du focus. Rien si elle n'est pas sur la carte.
++pub fn entrer(
++    carte: &CarteDesMembranes,
++    id: &str,
++    screen: ScreenSize,
++    now: i64,
++) -> Option<FocusAction> {
++    super::entrer_sur(&carte.membranes, id, screen, now)
++}
++
++/// La décision du focus pour cette vue, sur la carte d'un tableau : ne fait que sortir (FOCUS-1).
+ pub fn decider(
+     carte: &CarteDesMembranes,
+     vp: Viewport,
+diff --git a/crates/glucose-core/tests/membrane_focus_suite.rs b/crates/glucose-core/tests/membrane_focus_suite.rs
+index f9da09a..fb3eeac 100644
+--- a/crates/glucose-core/tests/membrane_focus_suite.rs
++++ b/crates/glucose-core/tests/membrane_focus_suite.rs
+@@ -2,11 +2,11 @@
+ 
+ use glucose_core::geometry::Rect;
+ use glucose_core::membrane_focus::{
+-    annotation_visible_under_focus, arrow_visible_under_focus, coverage, fit_viewport,
++    annotation_visible_under_focus, arrow_visible_under_focus, entrer, fit_viewport,
+     focus_background, focus_box, focus_consts, focus_decision, focus_frame_of, screen_center_world,
+-    visible_under_focus, FocusAction, FocusInput, FocusState, ScreenSize,
++    visible_under_focus, CarteDesMembranes, FocusAction, FocusInput, FocusState, ScreenSize,
+ };
+-use glucose_core::membrane_space::{resolve_items, ResolveOptions, SpaceItem, SpaceItemKind};
++use glucose_core::membrane_space::{SpaceItem, SpaceItemKind};
+ use glucose_core::types::{Annotation, MembraneMode, Viewport};
+ use std::collections::HashSet;
+ 
+@@ -62,10 +62,8 @@ fn centered_on(cx: f64, cy: f64, scale: f64) -> Viewport {
+ }
+ 
+ fn decide(items: &[SpaceItem], vp: Viewport, state: FocusState, now: i64) -> FocusAction {
+-    let resolved = resolve_items(items, ResolveOptions::default());
+     focus_decision(FocusInput {
+         items,
+-        resolved: &resolved,
+         vp,
+         screen: SCREEN,
+         state,
+@@ -74,7 +72,7 @@ fn decide(items: &[SpaceItem], vp: Viewport, state: FocusState, now: i64) -> Foc
+ }
+ 
+ #[test]
+-fn test_fit_viewport_and_coverage() {
++fn test_fit_viewport() {
+     let vp = fit_viewport(
+         Rect::new(0.0, 0.0, 500.0, 400.0),
+         SCREEN,
+@@ -99,113 +97,74 @@ fn test_fit_viewport_and_coverage() {
+         focus_box(&m_large, &[&enfant_small]),
+         Rect::new(0.0, 0.0, 900.0, 900.0)
+     );
++}
+ 
+-    assert!(approx_eq(
+-        coverage(
+-            Rect::new(0.0, 0.0, 500.0, 400.0),
+-            centered_on(250.0, 200.0, 2.0),
+-            SCREEN
+-        ),
+-        1.0
+-    ));
++/// Une carte des membranes faite d'un tableau qui ne porte que ces membranes.
++fn carte(membranes: &[(&str, (f64, f64, f64, f64), Option<&str>)]) -> CarteDesMembranes {
++    let mut board = glucose_core::types::Board::new("b", "Tableau");
++    for &(id, (x, y, l, h), parente) in membranes {
++        let mut m = Annotation::membrane(id, x, y, l, h);
++        m.set_membrane_id(parente.map(str::to_string));
++        board.annotations.push(m);
++    }
++    CarteDesMembranes::du_tableau(&board)
+ }
+ 
++/// **FOCUS-1 — zoomer ne fait plus entrer** (fiche 95, sa parole : un geste choisi). La vue qui
++/// faisait entrer — une membrane qui couvre l'écran, son centre dedans — reste hors du focus.
+ #[test]
+-fn test_enter_focus() {
++fn test_focus_1_zoomer_ne_fait_plus_entrer() {
+     let m = memb("M", 0.0, 0.0, 500.0, 400.0, MembraneMode::Classic, None);
+-    let items = [m.clone()];
+-
+     let r = decide(
+-        &items,
++        &[m],
+         centered_on(250.0, 200.0, 2.0),
+         FocusState::default(),
+         10_000,
+     );
+-    if let FocusAction::Enter {
++    assert!(matches!(r, FocusAction::Stay(_)), "{r:?}");
++}
++
++/// **FOCUS-1 — le geste choisi entre** dans la membrane qu'on désigne, au cadrage du focus (la
++/// marge de six pour cent), même petite et emboîtée ; une membrane inconnue, rien.
++#[test]
++fn test_focus_1_le_geste_choisi_entre() {
++    let c = carte(&[("M", (0.0, 0.0, 500.0, 400.0), None)]);
++    let Some(FocusAction::Enter {
+         membrane_id,
+         fit,
+         state,
+-    } = r
+-    {
+-        assert_eq!(membrane_id, "M");
+-        assert!(approx_eq(fit.scale, 1.76));
+-        assert!(approx_eq(state.enter_scale, 1.76));
+-    } else {
+-        panic!("Should have entered focus");
+-    }
+-
+-    // Pas assez zoomé -> reste
+-    let r_zoom = decide(
+-        &items,
+-        centered_on(250.0, 200.0, 1.5),
+-        FocusState::default(),
+-        10_000,
+-    );
+-    assert!(matches!(r_zoom, FocusAction::Stay(_)));
+-
+-    // Centre hors membrane -> reste
+-    let r_off = decide(
+-        &items,
+-        centered_on(5000.0, 5000.0, 2.0),
+-        FocusState::default(),
+-        10_000,
+-    );
+-    assert!(matches!(r_off, FocusAction::Stay(_)));
+-
+-    // Plus petite membrane qui remplit l'écran
+-    let grande = memb(
+-        "GRANDE",
+-        0.0,
+-        0.0,
+-        2000.0,
+-        1600.0,
+-        MembraneMode::Classic,
+-        None,
+-    );
+-    let petite = memb(
+-        "PETITE",
+-        200.0,
+-        100.0,
+-        500.0,
+-        400.0,
+-        MembraneMode::Classic,
+-        Some("GRANDE"),
+-    );
+-    let r_nest = decide(
+-        &[grande, petite],
+-        centered_on(450.0, 300.0, 2.0),
+-        FocusState::default(),
+-        10_000,
+-    );
+-    if let FocusAction::Enter { membrane_id, .. } = r_nest {
+-        assert_eq!(membrane_id, "PETITE");
+-    } else {
+-        panic!("Should have entered PETITE");
+-    }
++    }) = entrer(&c, "M", SCREEN, 10_000)
++    else {
++        panic!("le geste devait faire entrer");
++    };
++    assert_eq!(membrane_id, "M");
++    assert!(approx_eq(fit.scale, 1.76));
++    assert!(approx_eq(state.enter_scale, 1.76));
++    assert_eq!(state.membrane_id.as_deref(), Some("M"));
++
++    let c = carte(&[
++        ("GRANDE", (0.0, 0.0, 2000.0, 1600.0), None),
++        ("PETITE", (200.0, 100.0, 500.0, 400.0), Some("GRANDE")),
++    ]);
++    let entre = |id| match entrer(&c, id, SCREEN, 10_000) {
++        Some(FocusAction::Enter { membrane_id, .. }) => Some(membrane_id),
++        _ => None,
++    };
++    assert_eq!(entre("GRANDE").as_deref(), Some("GRANDE"));
++    assert_eq!(entre("PETITE").as_deref(), Some("PETITE"));
++    assert_eq!(entre("PERSONNE"), None);
+ }
+ 
++/// Une fois entré, la vue du cadrage n'en fait pas sortir : pas d'oscillation.
+ #[test]
+ fn test_no_oscillation_after_cadrage() {
+     let m = memb("M", 0.0, 0.0, 500.0, 400.0, MembraneMode::Classic, None);
+-    let items = [m.clone()];
+-
+-    let fit = fit_viewport(focus_box(&m, &[]), SCREEN, focus_consts::FIT_PADDING);
+-    let cov = coverage(Rect::new(0.0, 0.0, 500.0, 400.0), fit, SCREEN);
+-    assert!(cov < focus_consts::ENTER_COVERAGE);
+-    assert!(approx_eq(cov, 0.88 * 0.88));
+-
+-    let enter = decide(
+-        &items,
+-        centered_on(250.0, 200.0, 2.0),
+-        FocusState::default(),
+-        10_000,
+-    );
+-    if let FocusAction::Enter { state, fit, .. } = enter {
+-        let after = decide(&items, fit, state, 10_000 + focus_consts::COOLDOWN_MS + 1);
+-        assert!(matches!(after, FocusAction::Stay(_)));
+-    } else {
++    let c = carte(&[("M", (0.0, 0.0, 500.0, 400.0), None)]);
++    let Some(FocusAction::Enter { state, fit, .. }) = entrer(&c, "M", SCREEN, 10_000) else {
+         panic!("Expected Enter");
+-    }
++    };
++    let after = decide(&[m], fit, state, 10_000 + focus_consts::COOLDOWN_MS + 1);
++    assert!(matches!(after, FocusAction::Stay(_)));
+ }
+ 
+ #[test]
+diff --git a/crates/glucose-desktop/src/app/focus.rs b/crates/glucose-desktop/src/app/focus.rs
+index 1b49d6c..40ac7be 100644
+--- a/crates/glucose-desktop/src/app/focus.rs
++++ b/crates/glucose-desktop/src/app/focus.rs
+@@ -1,18 +1,19 @@
+-//! **MEMB-2 — le mode Focus**, du côté de l'application : « zoomer assez sur une membrane et
+-//! n'avoir plus qu'elle ».
++//! **MEMB-2 — le mode Focus**, du côté de l'application : n'avoir plus qu'une membrane.
+ //!
+-//! Toute la décision vit dans le noyau ([`glucose_core::membrane_focus`]) : on entre quand une
+-//! membrane couvre presque tout l'écran et en contient le centre, on sort en dézoomant ou en
+-//! s'éloignant, et un temps mort empêche d'osciller. Il ne reste ici qu'à la demander quand la
+-//! vue a bougé, puis à l'appliquer : caler la caméra sur la membrane — par le vol de `F`, une
+-//! seule géométrie de vol dans tout le programme — et dire au rendu ce qui se voit.
++//! **FOCUS-1 (fiche 95) — on y entre par un geste choisi** : « Entrer dans la membrane », au menu
++//! d'une membrane et à la palette — plus jamais en zoomant (sa parole du 8/11 : *« pas de LOD »*,
++//! puis *« je préférais que ce soit un geste choisi »*). On en sort par `Échap`, « Sortir de la
++//! membrane », ou en dézoomant et en s'éloignant, que le noyau décide
++//! ([`glucose_core::membrane_focus`]), un temps mort empêchant d'osciller. Il ne reste ici qu'à
++//! appliquer : caler la caméra sur la membrane — par le vol de `F`, une seule géométrie de vol
++//! dans tout le programme — et dire au rendu ce qui se voit.
+ //!
+ //! Le noyau raisonne sur un écran qui commence en haut du canevas. Le bandeau du haut le
+ //! recouvre ici : la vue et le cadrage se décalent de sa hauteur, à l'aller et au retour.
+ 
+ use crate::app::GlucoseApp;
+ use glucose_core::membrane_focus::{
+-    decider, CarteDesMembranes, FocusAction, FocusState, ScreenSize,
++    decider, entrer, hors_focus, CarteDesMembranes, FocusAction, FocusState, ScreenSize,
+ };
+ use glucose_core::types::Viewport;
+ 
+@@ -81,6 +82,12 @@ impl GlucoseApp {
+         );
+         self.focus.carte = Some((cle, carte));
+         self.focus.vu = Some(vu);
++        self.appliquer_le_focus(action, bandeau);
++    }
++
++    /// **Applique une décision du focus**, d'où qu'elle vienne — l'image qui sort, ou le geste
++    /// qui entre. Le cadrage du noyau commence en haut du canevas : il descend de la bande.
++    fn appliquer_le_focus(&mut self, action: FocusAction, bandeau: f64) {
+         match action {
+             FocusAction::Stay(etat) => self.focus.etat = etat,
+             FocusAction::Exit(etat) => {
+@@ -97,6 +104,41 @@ impl GlucoseApp {
+             }
+         }
+     }
++
++    /// **FOCUS-1 — entrer dans la membrane choisie**, ou dans celle qui porte la sélection : la
++    /// caméra vole jusqu'à la montrer entière, et le rendu comme le clic ne voient plus qu'elle.
++    pub(crate) fn entrer_dans_la_membrane(&mut self) {
++        let Some(id) = self.store.membranes_de_la_selection().into_iter().next() else {
++            return;
++        };
++        let Some(tableau) = self.store.active_board() else {
++            return;
++        };
++        let carte = CarteDesMembranes::du_tableau(tableau);
++        let (largeur, hauteur) = self.taille_de_la_fenetre();
++        let bandeau = f64::from(self.ui.header_height());
++        let ecran = ScreenSize {
++            width: f64::from(largeur),
++            height: (f64::from(hauteur) - bandeau).max(1.0),
++        };
++        if let Some(action) = entrer(&carte, &id, ecran, crate::persist::now_millis()) {
++            self.appliquer_le_focus(action, bandeau);
++            let membrane = self.focus.membrane().map(str::to_string);
++            self.renderer
++                .regler_le_focus(&self.store, membrane.as_deref());
++        }
++    }
++
++    /// **Sortir du focus** — `Échap`, ou « Sortir de la membrane ». Rend vrai s'il y en avait un.
++    pub(crate) fn sortir_de_la_membrane(&mut self) -> bool {
++        if self.focus.membrane().is_none() {
++            return false;
++        }
++        let sortie = FocusAction::Exit(hors_focus(crate::persist::now_millis()));
++        self.appliquer_le_focus(sortie, 0.0);
++        self.renderer.regler_le_focus(&self.store, None);
++        true
++    }
+ }
+ 
+ #[cfg(test)]
+diff --git a/crates/glucose-desktop/src/app/focus/tests.rs b/crates/glucose-desktop/src/app/focus/tests.rs
+index 14ef9f1..4d1e838 100644
+--- a/crates/glucose-desktop/src/app/focus/tests.rs
++++ b/crates/glucose-desktop/src/app/focus/tests.rs
+@@ -1,5 +1,6 @@
+-//! **Le mode Focus, par la vraie application** : la vue qui se remplit d'une membrane y entre,
+-//! le rendu et le clic ne voient plus qu'elle, et dézoomer en sort.
++//! **Le mode Focus, par la vraie application** : on y entre par un geste choisi (FOCUS-1, fiche
++//! 95) — plus en zoomant —, le rendu et le clic ne voient plus que la membrane, et `Échap` ou
++//! dézoomer en sort.
+ 
+ use crate::app::GlucoseApp;
+ use glucose_core::types::{Annotation, BoardImage, Viewport};
+@@ -44,16 +45,25 @@ fn regarder_m(app: &mut GlucoseApp, e: f64) {
+     );
+ }
+ 
++/// Le geste choisi : `M` désignée, « Entrer dans la membrane ».
++fn entrer_dans_m(app: &mut GlucoseApp) {
++    app.store.clear_selection();
++    app.store.select_annotation("M".into(), false);
++    app.executer(crate::commandes::Commande::EntrerDansLaMembrane);
++}
++
++/// **FOCUS-1 — remplir l'écran d'une membrane n'y fait plus entrer** ; le geste choisi y entre, et
++/// ne montre qu'elle.
+ #[test]
+-fn test_remplir_l_ecran_d_une_membrane_y_entre_et_ne_montre_qu_elle() {
++fn test_focus_1_le_geste_choisi_entre_et_ne_montre_qu_elle() {
+     let mut app = app();
+     let fond = app.renderer.theme.bg_canvas;
+-    regarder_m(&mut app, 0.5);
+-    app.suivre_le_focus(ECRAN);
+-    assert_eq!(app.focus.membrane(), None, "de loin, pas de focus");
+-
+     regarder_m(&mut app, 3.0);
+     app.suivre_le_focus(ECRAN);
++    assert_eq!(app.focus.membrane(), None, "zoomer ne fait plus entrer");
++    assert!(app.renderer.focus.laisse_voir("dehors"));
++
++    entrer_dans_m(&mut app);
+     assert_eq!(app.focus.membrane(), Some("M"));
+     assert!(app.vol.en_cours(), "la caméra se cale sur la membrane");
+     let f = &app.renderer.focus;
+@@ -69,10 +79,24 @@ fn test_remplir_l_ecran_d_une_membrane_y_entre_et_ne_montre_qu_elle() {
+     assert!(!app.pick_candidates_at(500.0, 300.0).is_empty());
+ }
+ 
++/// **FOCUS-1 — `Échap` sort du focus**, et tout se revoit.
++#[test]
++fn test_focus_1_echap_sort_du_focus() {
++    let mut app = app();
++    let fond = app.renderer.theme.bg_canvas;
++    entrer_dans_m(&mut app);
++    assert_eq!(app.focus.membrane(), Some("M"));
++    app.escape_gesture();
++    assert_eq!(app.focus.membrane(), None);
++    assert!(app.renderer.focus.laisse_voir("dehors"));
++    assert_eq!(app.renderer.theme.bg_canvas, fond, "le fond revient");
++}
++
+ #[test]
+ fn test_dezoomer_sort_du_focus_et_rend_tout() {
+     let mut app = app();
+     let fond = app.renderer.theme.bg_canvas;
++    entrer_dans_m(&mut app);
+     regarder_m(&mut app, 3.0);
+     app.suivre_le_focus(ECRAN);
+     assert_eq!(app.focus.membrane(), Some("M"));
+@@ -91,8 +115,10 @@ fn test_dezoomer_sort_du_focus_et_rend_tout() {
+ #[test]
+ fn test_le_rectangle_ne_ramasse_que_ce_qui_se_voit() {
+     let mut app = app();
++    entrer_dans_m(&mut app);
+     regarder_m(&mut app, 3.0);
+     app.suivre_le_focus(ECRAN);
++    app.store.clear_selection();
+     let vp = app.store.viewport();
+     let (x1, y1) = crate::canvas::world_to_screen(-100.0, -100.0, &vp);
+     let (x2, y2) = crate::canvas::world_to_screen(6000.0, 700.0, &vp);
+@@ -143,8 +169,8 @@ fn test_ce_que_le_focus_cache_ne_se_dessine_pas() {
+         "hors focus, l'image se voit"
+     );
+ 
+-    regarder_m(&mut app, 3.0);
+-    app.suivre_le_focus(ECRAN);
++    entrer_dans_m(&mut app);
++    app.store.clear_selection();
+     assert_eq!(app.focus.membrane(), Some("M"));
+     regarder_m(&mut app, 1.2);
+     let teinte = app.renderer.theme.bg_canvas.to_color_u8();
+@@ -156,12 +182,17 @@ fn test_ce_que_le_focus_cache_ne_se_dessine_pas() {
+     );
+ }
+ 
+-/// La décision se prend **à chaque image où la vue a bougé**, sans qu'aucun geste n'ait à la
+-/// demander : c'est l'étape du mouvement de l'image qui la porte.
++/// La sortie se décide **à chaque image où la vue a bougé**, sans qu'aucun geste n'ait à la
++/// demander : c'est l'étape du mouvement de l'image qui la porte. L'entrée, jamais (FOCUS-1).
+ #[test]
+ fn test_l_image_decide_du_focus_d_elle_meme() {
+     let mut app = app();
+     regarder_m(&mut app, 3.0);
+     app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+-    assert_eq!(app.focus.membrane(), Some("M"));
++    assert_eq!(app.focus.membrane(), None, "l'image ne fait pas entrer");
++    entrer_dans_m(&mut app);
++    app.focus.etat.t -= 10_000;
++    regarder_m(&mut app, 0.5);
++    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
++    assert_eq!(app.focus.membrane(), None, "l'image fait sortir");
+ }
+diff --git a/crates/glucose-desktop/src/commandes.rs b/crates/glucose-desktop/src/commandes.rs
+index d720b24..8afa203 100644
+--- a/crates/glucose-desktop/src/commandes.rs
++++ b/crates/glucose-desktop/src/commandes.rs
+@@ -81,6 +81,10 @@ pub enum Commande {
+     CadrerLaSelection,
+     /// Ranger en colonnes ce que portent les membranes choisies (COLONNES-1, fiche 92).
+     DisposerEnColonnes,
++    /// N'avoir plus que la membrane choisie, et la quitter (FOCUS-1, fiche 95) : un geste
++    /// choisi, plus un effet du zoom.
++    EntrerDansLaMembrane,
++    SortirDeLaMembrane,
+     ModeReference,
+     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
+     Naviguer,
+@@ -130,7 +134,7 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
+ ];
+ 
+ /// Les commandes sans paramètre : leur identifiant et leur nom.
+-const SIMPLES: [(Commande, &str, &str); 42] = [
++const SIMPLES: [(Commande, &str, &str); 44] = [
+     (
+         Commande::NouveauDocument,
+         "nouveau-document",
+@@ -181,6 +185,16 @@ const SIMPLES: [(Commande, &str, &str); 42] = [
+         "disposer-en-colonnes",
+         "Disposer en colonnes",
+     ),
++    (
++        Commande::EntrerDansLaMembrane,
++        "entrer-dans-la-membrane",
++        "Entrer dans la membrane",
++    ),
++    (
++        Commande::SortirDeLaMembrane,
++        "sortir-de-la-membrane",
++        "Sortir de la membrane",
++    ),
+     (Commande::ModeReference, "mode-reference", "Mode référence"),
+     (
+         Commande::Naviguer,
+diff --git a/crates/glucose-desktop/src/commandes/executer.rs b/crates/glucose-desktop/src/commandes/executer.rs
+index cab2782..dbf9031 100644
+--- a/crates/glucose-desktop/src/commandes/executer.rs
++++ b/crates/glucose-desktop/src/commandes/executer.rs
+@@ -35,6 +35,10 @@ impl GlucoseApp {
+             Commande::ToutCadrer => self.cadrer(false),
+             Commande::CadrerLaSelection => self.cadrer(true),
+             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
++            Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),
++            Commande::SortirDeLaMembrane => {
++                self.sortir_de_la_membrane();
++            }
+             Commande::ModeReference => self.basculer_le_mode_reference(),
+             Commande::Naviguer => self.enter_pan_mode(),
+             Commande::Echap => self.escape_gesture(),
+diff --git a/crates/glucose-desktop/src/interactions/shortcuts.rs b/crates/glucose-desktop/src/interactions/shortcuts.rs
+index 0c43166..5faa79a 100644
+--- a/crates/glucose-desktop/src/interactions/shortcuts.rs
++++ b/crates/glucose-desktop/src/interactions/shortcuts.rs
+@@ -191,6 +191,10 @@ impl GlucoseApp {
+         if self.renoncer_au_trace() || self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {
+             return;
+         }
++        // Puis le focus, où l'on est entré par un geste choisi (FOCUS-1, fiche 95).
++        if self.sortir_de_la_membrane() {
++            return;
++        }
+         // Échap rend toujours l'outil Sélection, comme dans Glucose Tauri : c'est la
+         // sortie du mode Pan où la barre d'espace fait entrer, et le seul geste qui ramène
+         // à un état connu quel que soit l'outil courant.
+diff --git a/crates/glucose-desktop/src/renderer/card.rs b/crates/glucose-desktop/src/renderer/card.rs
+index 57368e0..782c69f 100644
+--- a/crates/glucose-desktop/src/renderer/card.rs
++++ b/crates/glucose-desktop/src/renderer/card.rs
+@@ -68,6 +68,7 @@ use crate::renderer::math::MathRenderer;
+ use crate::typography::Typography;
+ 
+ mod dessus;
++pub(crate) mod gris;
+ mod habit;
+ mod memoire;
+ mod ornament;
+@@ -314,9 +315,12 @@ fn dessiner_le_contenu(
+     card: &TextCard,
+ ) {
+     draw_card_brume(pixmap, at, layout, card);
+-    // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
++    // SCALE-2 — sous le seuil, une lettre ne se lit plus : la carte montre le gris de chaque
++    // ligne (GRIS-1, fiche 95), jamais un cadre vide.
+     if ctx.scale.draws_detail() {
+         draw_card_body(ctx, pixmap, at, layout, text, card);
++    } else {
++        gris::draw_card_gris(ctx, pixmap, at, (layout, text, card));
+     }
+ }
+ 
+diff --git a/crates/glucose-desktop/src/renderer/card/gris.rs b/crates/glucose-desktop/src/renderer/card/gris.rs
+new file mode 100644
+index 0000000..d8bade9
+--- /dev/null
++++ b/crates/glucose-desktop/src/renderer/card/gris.rs
+@@ -0,0 +1,63 @@
++//! **GRIS-1 — de loin, le gris de chaque ligne** (fiche 95).
++//!
++//! Sous un cinquième de zoom, une lettre fait moins de trois pixels : elle ne se lit plus. Glucose
++//! posait alors le cadre vide du nœud (SCALE-2) — un long article et un nœud vide se
++//! ressemblaient. Sa parole du 8/11 : *« pas de LOD, pas de simplification »* ; devant la
++//! proposition, *« carrément d'accord pour le gris des lignes »*.
++//!
++//! Vu de loin, un texte **est** un gris : l'encre de ses lettres répartie sur la place de ses
++//! lignes. Chaque ligne se peint donc comme un rectangle de son encre, à l'opacité de son encre
++//! sur sa place — sa largeur fois la hauteur d'une ligne —, par la loi des membranes, qui donne à
++//! chaque pixel sa couverture exacte (MEMB-FORME-1) : un paragraphe garde sa forme, ses lignes
++//! courtes, son retrait, ses titres plus sombres ; rien n'est remplacé ni caché.
++
++use super::{CardLayout, TextCard};
++use crate::renderer::pass::Pass;
++use crate::renderer::richtext::{indent_of, ink_of, TextLayout};
++use glucose_core::membrane_forme::{peindre, Arrondi, Membrane};
++use tiny_skia::{Color, PixmapMut};
++
++/// **Une ligne vue de loin** : le rectangle `(x, y, largeur, hauteur)` de l'écran, peint de cette
++/// encre à l'opacité de son `encre` sur sa `place` — la surface de ses lettres sur celle de sa
++/// ligne, toutes deux à la taille du monde. La loi des nœuds de texte et celle des post-it.
++pub(crate) fn ligne_grise(
++    pixmap: &mut PixmapMut,
++    (x, y, largeur, hauteur): (f32, f32, f32, f32),
++    (encre, place): (f32, f32),
++    couleur: Color,
++) {
++    if !(encre > 0.0 && place > 0.0) {
++        return;
++    }
++    let forme = Arrondi::nouveau(x, y, largeur, hauteur, 0.0);
++    let opacite = (encre / place).min(1.0) * couleur.alpha();
++    let teinte = [couleur.red(), couleur.green(), couleur.blue()];
++    let (l, h) = (pixmap.width(), pixmap.height());
++    let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
++    peindre(&Membrane::plein(forme, teinte, opacite), pixels, l, h);
++}
++
++/// **Le gris des lignes de ce nœud**, sous son cadre et sa brume déjà posés.
++pub(super) fn draw_card_gris(
++    ctx: &Pass,
++    pixmap: &mut PixmapMut,
++    at: (f32, f32),
++    (layout, text, _card): (&CardLayout, &TextLayout, &TextCard),
++) {
++    let zoom = ctx.scale.world(1.0);
++    if zoom <= 0.0 || layout.line_height <= 0.0 {
++        return;
++    }
++    let hauteur_monde = layout.line_height / zoom;
++    let mut y = at.1 + layout.pad_y;
++    for line in &text.lines {
++        let x = at.0 + layout.pad_x + indent_of(line.kind, layout.indent);
++        let boite = (x, y, line.largeur * zoom, layout.line_height);
++        let mesure = (line.encre, line.largeur * hauteur_monde);
++        ligne_grise(pixmap, boite, mesure, ink_of(line.kind, ctx.theme));
++        y += layout.line_height;
++    }
++}
++
++#[cfg(test)]
++mod tests;
+diff --git a/crates/glucose-desktop/src/renderer/card/gris/tests.rs b/crates/glucose-desktop/src/renderer/card/gris/tests.rs
+new file mode 100644
+index 0000000..de4053c
+--- /dev/null
++++ b/crates/glucose-desktop/src/renderer/card/gris/tests.rs
+@@ -0,0 +1,104 @@
++//! GRIS-1 — de loin, un nœud montre le gris de ses lignes, et ce gris est ce que ses lettres
++//! couvrent : la moyenne de son dessin de près.
++
++use crate::app::GlucoseApp;
++use glucose_core::types::{Annotation, Viewport};
++
++const TAILLE: (u32, u32) = (900, 700);
++/// Le nœud : 600 × 400 du monde, son coin à (0, 0).
++const NOEUD: (f64, f64) = (600.0, 400.0);
++
++const TEXTE: &str = "# L'eau\n\nL'eau est un composé chimique ubiquitaire sur la Terre, essentiel \
++pour tous les organismes vivants connus. Elle se trouve en général dans son état liquide et \
++possède à température ambiante des propriétés uniques : c'est notamment un solvant efficace.\n\n\
++- une molécule polaire\n- trois états\n- un cycle";
++
++/// La couleur moyenne de l'intérieur du nœud, vu à ce zoom — son coin posé à (100, 150) de
++/// l'écran. L'intérieur : le nœud sans le dixième de chaque bord, là où ni coin arrondi ni
++/// liseré ne tombent.
++fn moyenne(zoom: f64) -> [f64; 3] {
++    let mut app = GlucoseApp::new();
++    let board = app.store.project.active_board_id.clone();
++    if let Some(b) = app.store.active_board_mut() {
++        b.annotations.clear();
++    }
++    let mut t = Annotation::text("t", 0.0, 0.0, TEXTE);
++    if let Annotation::Text { width, height, .. } = &mut t {
++        (*width, *height) = (Some(NOEUD.0), Some(NOEUD.1));
++    }
++    app.store.add_annotation(&board, t);
++    app.store.clear_selection();
++    let (x0, y0) = (100.0, 150.0);
++    app.store.set_viewport(
++        &board,
++        Viewport {
++            x: x0,
++            y: y0,
++            scale: zoom,
++        },
++    );
++    app.une_image_sans_fenetre(TAILLE);
++    let p = app.pixmap.as_ref().expect("une image");
++    let (l, h) = (NOEUD.0 * zoom, NOEUD.1 * zoom);
++    let (gauche, haut) = ((x0 + l * 0.1) as usize, (y0 + h * 0.1) as usize);
++    let (droite, bas) = ((x0 + l * 0.9) as usize, (y0 + h * 0.9) as usize);
++    let mut somme = [0.0f64; 3];
++    for y in haut..bas {
++        for x in gauche..droite {
++            let c = p.pixels()[y * p.width() as usize + x].demultiply();
++            for (s, v) in somme.iter_mut().zip([c.red(), c.green(), c.blue()]) {
++                *s += f64::from(v);
++            }
++        }
++    }
++    let n = ((droite - gauche) * (bas - haut)) as f64;
++    somme.map(|s| s / n)
++}
++
++/// **Vu de loin, le nœud a la couleur moyenne de son dessin de près**, à quelques pour cent de
++/// l'écart que le texte fait à la brume. Le cadre vide d'avant (SCALE-2) n'en montrait que la
++/// brume : la preuve à l'envers est l'écart lui-même, qu'il faut d'abord voir exister.
++#[test]
++fn gris_1_de_loin_le_noeud_garde_la_couleur_de_ses_lettres() {
++    let pres = moyenne(1.0);
++    let loin = moyenne(0.1);
++    let brume = moyenne_d_une_brume();
++    let ecart_du_texte: f64 = (0..3).map(|k| (pres[k] - brume[k]).abs()).sum();
++    assert!(
++        ecart_du_texte > 6.0,
++        "le texte doit se voir de près : {pres:?} contre {brume:?}"
++    );
++    let ecart: f64 = (0..3).map(|k| (loin[k] - pres[k]).abs()).sum();
++    eprintln!("MESURE gris : loin {loin:?}, près {pres:?}, brume {brume:?}, écart {ecart:.2} sur {ecart_du_texte:.2}");
++    assert!(
++        ecart < ecart_du_texte * 0.25,
++        "de loin {loin:?}, de près {pres:?}, la brume {brume:?}"
++    );
++}
++
++/// La couleur moyenne du même nœud, vide : sa brume seule.
++fn moyenne_d_une_brume() -> [f64; 3] {
++    let mut app = GlucoseApp::new();
++    let board = app.store.project.active_board_id.clone();
++    if let Some(b) = app.store.active_board_mut() {
++        b.annotations.clear();
++    }
++    let mut t = Annotation::text("t", 0.0, 0.0, " ");
++    if let Annotation::Text { width, height, .. } = &mut t {
++        (*width, *height) = (Some(NOEUD.0), Some(NOEUD.1));
++    }
++    app.store.add_annotation(&board, t);
++    app.store.clear_selection();
++    app.store.set_viewport(
++        &board,
++        Viewport {
++            x: 100.0,
++            y: 150.0,
++            scale: 1.0,
++        },
++    );
++    app.une_image_sans_fenetre(TAILLE);
++    let p = app.pixmap.as_ref().expect("une image");
++    let c = p.pixels()[200 * p.width() as usize + 400].demultiply();
++    [c.red(), c.green(), c.blue()].map(f64::from)
++}
+diff --git a/crates/glucose-desktop/src/renderer/note.rs b/crates/glucose-desktop/src/renderer/note.rs
+index 3a2a925..ae09e70 100644
+--- a/crates/glucose-desktop/src/renderer/note.rs
++++ b/crates/glucose-desktop/src/renderer/note.rs
+@@ -188,15 +188,51 @@ fn draw_paper(
+         ring(ctx, pixmap, &path, (layout.width, layout.height));
+     }
+ 
+-    // SCALE-2 — l'unique niveau de détail : sous le seuil, le pense-bête s'arrête là.
++    // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
++    let lines = sticky_lines(ctx.typography, paper.text, paper.world_width);
++    // SCALE-2 — sous le seuil, une lettre ne se lit plus : le gris de chaque ligne (GRIS-1).
+     if !ctx.scale.draws_detail() {
++        draw_paper_gris(ctx, pixmap, at, layout, (paper, &lines));
+         return;
+     }
+-    // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
+-    let lines = sticky_lines(ctx.typography, paper.text, paper.world_width);
+     draw_paper_text(ctx, pixmap, at, layout, paper, &lines);
+ }
+ 
++/// **GRIS-1 — de loin, le gris de chaque ligne du papier** (fiche 95) : la loi des nœuds de texte
++/// ([`super::card::gris::ligne_grise`]), sur les lignes que le papier montre — celles qui
++/// tiennent au-dessus de sa marge du bas (STICKY-FIT-1).
++fn draw_paper_gris(
++    ctx: &Pass,
++    pixmap: &mut PixmapMut,
++    at: (f32, f32),
++    layout: &StickyLayout,
++    (paper, lines): (&Paper<'_>, &[(usize, usize)]),
++) {
++    let zoom = ctx.scale.world(1.0);
++    if zoom <= 0.0 {
++        return;
++    }
++    let floor = at.1 + layout.height - layout.pad;
++    let mut y = at.1 + layout.pad;
++    for &(start, end) in lines {
++        if y + layout.line_height > floor + 1e-3 {
++            break;
++        }
++        let (mut avance, mut largeur, mut encre) = (0.0f32, 0.0f32, 0.0f32);
++        for ch in paper.text[start..end].chars() {
++            avance += ctx.typography.advance(ch, STICKY_FONT, Face::Regular);
++            encre += ctx.typography.encre(ch, STICKY_FONT, Face::Regular);
++            if !ch.is_whitespace() {
++                largeur = avance;
++            }
++        }
++        let boite = (at.0 + layout.pad, y, largeur * zoom, layout.line_height);
++        let place = largeur * layout.line_height / zoom;
++        super::card::gris::ligne_grise(pixmap, boite, (encre, place), paper.ink);
++        y += layout.line_height;
++    }
++}
++
+ /// La pilule d'un opérateur logique (fiche 06 § 5.3) : coins en demi-cercle, fond à sa
+ /// couleur à 12 %, bord de 1,5 à sa couleur, et son mot centré en gras.
+ fn draw_pill(
+diff --git a/crates/glucose-desktop/src/renderer/richtext.rs b/crates/glucose-desktop/src/renderer/richtext.rs
+index 4e4705a..079fd47 100644
+--- a/crates/glucose-desktop/src/renderer/richtext.rs
++++ b/crates/glucose-desktop/src/renderer/richtext.rs
+@@ -205,6 +205,11 @@ pub struct VisualLine {
+     pub paragraph_start: usize,
+     /// Les fragments de cette ligne, comme plage dans [`TextLayout::fragments`].
+     pub fragments: std::ops::Range<usize>,
++    /// **Ce que la ligne montre de loin** (GRIS-1, fiche 95), à la taille du monde où le texte se
++    /// met en page : la largeur de son texte (sans ses blancs de fin), et son **encre** — la
++    /// surface que ses lettres couvrent ([`Typography::encre`]). Son gris est l'encre sur la place.
++    pub largeur: f32,
++    pub encre: f32,
+ }
+ 
+ /// Le texte d'une boîte, mis en page : des lignes, et les fragments qu'elles portent.
+@@ -342,9 +347,13 @@ pub fn layout_rich_text(
+             // deux cas la hauteur du résultat et posait la source en un seul fragment. Deux
+             // conséquences : une source plus large que la carte débordait sans se couper, et
+             // ses `$` n'étaient pas des signes, donc rien ne pouvait les colorer.
+-            BlockKind::Math { display } if mode == TextMode::Rendered => {
+-                layout_formula(&mut out, math, source, block, display)
+-            }
++            BlockKind::Math { display } if mode == TextMode::Rendered => layout_formula(
++                &mut out,
++                (typography, math),
++                source,
++                block,
++                (display, bx.body),
++            ),
+             // Un trait, une clôture : rien à mesurer. Au repos la clôture ne prend même pas
+             // de place — on n'a pas à voir un blanc là où un signe s'est effacé. En édition
+             // elle redevient une ligne comme une autre, parce qu'on doit pouvoir la corriger.
+@@ -365,6 +374,8 @@ fn bare_line(block: Block, kind: BlockKind) -> VisualLine {
+         first: true,
+         paragraph_start: block.start,
+         fragments: 0..0,
++        largeur: 0.0,
++        encre: 0.0,
+     }
+ }
+ 
+@@ -384,16 +395,32 @@ fn layout_paragraph(
+     let font = font_of(block.kind, bx.body);
+     let usable = (bx.usable - indent_of(block.kind, bx.bullet_indent)).max(bx.body);
+ 
+-    let advance = |at: usize, ch: char| {
++    // MODE-1 : au repos, un signe n'occupe aucune place — c'est tout ce qui distingue les deux
++    // vues, et la coupe des lignes en découle sans autre traitement.
++    let face_de = |at: usize| -> Option<Face> {
+         let span = span_at(&spans, at);
+-        // MODE-1 : au repos, un signe n'occupe aucune place — c'est tout ce qui distingue
+-        // les deux vues, et la coupe des lignes en découle sans autre traitement.
+         if mode == TextMode::Rendered && span.is_some_and(|s| s.role == SpanRole::Marker) {
+-            return 0.0;
++            return None;
+         }
+         let emphasis = span.map_or(Emphasis::NONE, |s| s.emphasis);
+-        let face = Face::from(base.union(emphasis));
+-        typography.advance(ch, font, face)
++        Some(Face::from(base.union(emphasis)))
++    };
++    let advance =
++        |at: usize, ch: char| face_de(at).map_or(0.0, |f| typography.advance(ch, font, f));
++    // GRIS-1 : la largeur d'une ligne, sans ses blancs de fin, et l'encre de ses lettres.
++    let gris = |s: usize, e: usize| -> (f32, f32) {
++        let (mut avance, mut largeur, mut encre) = (0.0f32, 0.0f32, 0.0f32);
++        for (i, ch) in paragraph[s..e].char_indices() {
++            let Some(face) = face_de(s + i) else {
++                continue;
++            };
++            avance += typography.advance(ch, font, face);
++            encre += typography.encre(ch, font, face);
++            if !ch.is_whitespace() {
++                largeur = avance;
++            }
++        }
++        (largeur, encre)
+     };
+ 
+     for (i, (s, e)) in wrap_paragraph(paragraph, usable, advance)
+@@ -421,6 +448,7 @@ fn layout_paragraph(
+                 role: span.role,
+             });
+         }
++        let (largeur, encre) = gris(s, e);
+         out.lines.push(VisualLine {
+             start: offset + s,
+             end: offset + e,
+@@ -428,6 +456,8 @@ fn layout_paragraph(
+             first: i == 0,
+             paragraph_start: offset,
+             fragments: from..out.fragments.len(),
++            largeur,
++            encre,
+         });
+     }
+ }
+@@ -465,12 +495,18 @@ pub fn place_d_une_formule(
+ /// particulier ailleurs.
+ fn layout_formula(
+     out: &mut TextLayout,
+-    math: &MathRenderer,
++    (typography, math): (&Typography, &MathRenderer),
+     source: &str,
+     block: Block,
+-    display: bool,
++    (display, corps): (bool, f32),
+ ) {
+     let (rangs, _) = place_d_une_formule(math, block.body_slice(source), mode_of(display));
++    // GRIS-1 : de loin, une formule a le gris d'un texte de sa largeur, sur chaque ligne qu'elle
++    // occupe — son encre n'est pas celle de lettres qu'on lit une à une.
++    let largeur = math
++        .measure(block.body_slice(source), mode_of(display), 1.0)
++        .map_or(0.0, |(l, _, _)| l * corps);
++    let encre = largeur * corps * typography.densite(Face::Regular);
+     for i in 0..rangs {
+         let from = out.fragments.len();
+         if i == 0 {
+@@ -490,6 +526,8 @@ fn layout_formula(
+             first: i == 0,
+             paragraph_start: block.start,
+             fragments: from..out.fragments.len(),
++            largeur,
++            encre,
+         });
+     }
+ }
+diff --git a/crates/glucose-desktop/src/renderer/richtext/table.rs b/crates/glucose-desktop/src/renderer/richtext/table.rs
+index e707055..8d2d670 100644
+--- a/crates/glucose-desktop/src/renderer/richtext/table.rs
++++ b/crates/glucose-desktop/src/renderer/richtext/table.rs
+@@ -71,10 +71,15 @@ pub(super) fn layout_table(
+ 
+     for (rang, (row, plages)) in rows.iter().zip(&cellules).enumerate() {
+         let from = out.fragments.len();
++        let (mut largeur, mut encre) = (0.0, 0.0);
+         if !row.kind.silent() {
+             let gras = entete == Some(rang);
+             for (c, plage) in plages.iter().enumerate() {
+                 pose_cellule(out, source, plage.clone(), taquet(c), mode, gras);
++                // GRIS-1 : la rangée s'étend jusqu'au bout de sa dernière cellule, sur son taquet.
++                let mesure = mesure_cellule(typography, source, plage.clone(), bx);
++                largeur = taquet(c) * bx.body + mesure;
++                encre += encre_cellule(typography, source, plage.clone(), (bx, gras));
+             }
+         }
+         out.lines.push(VisualLine {
+@@ -84,10 +89,36 @@ pub(super) fn layout_table(
+             first: true,
+             paragraph_start: row.start,
+             fragments: from..out.fragments.len(),
++            largeur,
++            encre,
+         });
+     }
+ }
+ 
++/// **L'encre d'une cellule** (GRIS-1) : celle de ses lettres, comme elle sera dessinée.
++fn encre_cellule(
++    typography: &Typography,
++    source: &str,
++    plage: std::ops::Range<usize>,
++    (bx, gras): (TextBox, bool),
++) -> f32 {
++    let texte = &source[plage];
++    let gras = if gras {
++        glucose_core::text::Emphasis::BOLD
++    } else {
++        glucose_core::text::Emphasis::NONE
++    };
++    inline_spans(texte)
++        .iter()
++        .filter(|s| s.role == SpanRole::Text)
++        .flat_map(|s| {
++            let face = Face::from(s.emphasis.union(gras));
++            s.slice(texte).chars().map(move |ch| (ch, face))
++        })
++        .map(|(ch, face)| typography.encre(ch, bx.body, face))
++        .sum()
++}
++
+ /// La largeur qu'une cellule occupe, mesurée comme elle sera dessinée.
+ fn mesure_cellule(
+     typography: &Typography,
+diff --git a/crates/glucose-desktop/src/typography.rs b/crates/glucose-desktop/src/typography.rs
+index ad9254f..27120a5 100644
+--- a/crates/glucose-desktop/src/typography.rs
++++ b/crates/glucose-desktop/src/typography.rs
+@@ -56,6 +56,7 @@
+ #[cfg(test)]
+ pub(crate) mod coverage;
+ mod detoure;
++mod encre;
+ pub mod glyph;
+ pub(crate) mod trace;
+ 
+@@ -186,6 +187,8 @@ pub struct Typography {
+     /// Les contours des mêmes polices, dans le même ordre, le repli des emojis en dernier :
+     /// une grande lettre se trace (GRAND-1, fiche 72).
+     contours: trace::Contours,
++    /// L'encre de chaque lettre, lue une fois (GRIS-1, fiche 95) : [`Typography::encre`].
++    encres: RefCell<HashMap<(Face, char), f32>>,
+ }
+ 
+ /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
+@@ -212,6 +215,7 @@ impl Typography {
+             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
+             access_counter: Cell::new(0),
+             contours: trace::Contours::de(&octets),
++            encres: RefCell::new(HashMap::new()),
+         }
+     }
+ 
+diff --git a/crates/glucose-desktop/src/typography/encre.rs b/crates/glucose-desktop/src/typography/encre.rs
+new file mode 100644
+index 0000000..b7f084a
+--- /dev/null
++++ b/crates/glucose-desktop/src/typography/encre.rs
+@@ -0,0 +1,44 @@
++//! **L'encre d'une lettre** (GRIS-1, fiche 95) : la surface qu'elle couvre — ce qu'un texte montre
++//! quand il est trop loin pour que ses lettres se lisent.
++//!
++//! Vu de loin, un texte n'est plus des lettres : c'est un gris, celui de l'encre de ses lettres
++//! répartie sur la place qu'elles occupent. Glucose remplaçait ce texte par le cadre vide de son
++//! nœud (SCALE-2) ; sa parole du 8/11 : *« pas de LOD, pas de simplification »*, puis, devant la
++//! proposition, *« carrément d'accord pour le gris des lignes »*. Le gris se lit sur la police
++//! elle-même, aucune densité n'est choisie.
++
++use super::{Face, Typography};
++
++impl Typography {
++    /// **L'encre de `ch` à ce corps**, en pixels carrés : la somme de la couverture de son image,
++    /// lue une fois par lettre au plus grand corps qui garde son image (un demi-carré, GRAND-1),
++    /// puis mise à l'échelle du carré du corps — une surface croît comme lui.
++    pub fn encre(&self, ch: char, size: f32, face: Face) -> f32 {
++        let reference = (glucose_core::tuile::COTE / 2) as f32;
++        let surface = *self
++            .encres
++            .borrow_mut()
++            .entry((face, ch))
++            .or_insert_with(|| {
++                let (font, indice) = self.police(ch, face);
++                let (_, image) = font.rasterize_indexed(indice, reference);
++                image.iter().map(|&c| f32::from(c)).sum::<f32>() / 255.0
++            });
++        surface * (size / reference).powi(2)
++    }
++
++    /// **La densité d'un texte courant** dans ce visage : l'encre de l'alphabet sur la place
++    /// qu'il occupe — ses avances fois son corps. Elle ne dépend pas du corps (l'encre croît comme
++    /// son carré, la place aussi). C'est le gris d'une formule vue de loin, dont l'encre n'est pas
++    /// celle de lettres qu'on sait lire une à une.
++    pub fn densite(&self, face: Face) -> f32 {
++        let corps = (glucose_core::tuile::COTE / 2) as f32;
++        let (encre, place) = ('a'..='z').fold((0.0, 0.0), |(e, p), c| {
++            (
++                e + self.encre(c, corps, face),
++                p + self.advance(c, corps, face) * corps,
++            )
++        });
++        encre / place
++    }
++}
+diff --git a/crates/glucose-desktop/src/ui/context_menu.rs b/crates/glucose-desktop/src/ui/context_menu.rs
+index bdc9b65..f05c849 100644
+--- a/crates/glucose-desktop/src/ui/context_menu.rs
++++ b/crates/glucose-desktop/src/ui/context_menu.rs
+@@ -90,6 +90,7 @@ impl MenuAction {
+             MenuAction::ToutCadrer => Commande::ToutCadrer,
+             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
+             MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
++            MenuAction::EntrerDansLaMembrane => Commande::EntrerDansLaMembrane,
+             MenuAction::Signets => Commande::Signets,
+             MenuAction::Enregistrer => Commande::Enregistrer,
+             MenuAction::EnregistrerSous => Commande::EnregistrerSous,
+@@ -179,6 +180,8 @@ pub enum MenuAction {
+     CadrerLaSelection,
+     /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
+     DisposerEnColonnes,
++    /// N'avoir plus que la membrane choisie (FOCUS-1, fiche 95).
++    EntrerDansLaMembrane,
+     /// Les signets de vue : y voler, en poser un (fiche 53 ; ACCES-1).
+     Signets,
+     /// Le document : un jalon, ou un autre nom (`Ctrl+S`, `Ctrl+Maj+S`).
+diff --git a/crates/glucose-desktop/src/ui/context_menu/entrees.rs b/crates/glucose-desktop/src/ui/context_menu/entrees.rs
+index 80a96ae..c4a653d 100644
+--- a/crates/glucose-desktop/src/ui/context_menu/entrees.rs
++++ b/crates/glucose-desktop/src/ui/context_menu/entrees.rs
+@@ -106,6 +106,12 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
+             "Disposer en colonnes",
+             "",
+         )));
++        // Le mode Focus, par un geste choisi (FOCUS-1, fiche 95) : plus jamais par le zoom.
++        defs.push(Some((
++            MenuAction::EntrerDansLaMembrane,
++            "Entrer dans la membrane",
++            "",
++        )));
+     }
+     if images > 0 {
+         let board = store.active_board()?;

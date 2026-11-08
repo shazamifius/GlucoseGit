@@ -189,6 +189,15 @@ Devant la fiche 94 (« comprendre Wikipédia d'un regard »), deux précisions :
    intéressantes. »** La membrane peut changer : c'est une porte ouverte, à concevoir avec lui, avec la
    recherche et des propositions argumentées.
 
+Le même soir, devant les propositions de la fiche 95 :
+
+* **Le mode Focus** (zoomer jusqu'à ce qu'une membrane remplisse l'écran, et tout le reste disparaissait) :
+  *« effectivement, le mode Focus, je préférais que ce soit un geste choisi »*. On y entre par un geste ;
+  le zoom ne cache plus rien.
+* **Un nœud vu de loin** (son texte remplacé par un cadre vide sous un cinquième de zoom) : *« je suis
+  carrément d'accord pour le gris des lignes »* — de loin, un texte montre le gris de ses lignes, ce que
+  ses lettres couvrent.
+
 ## Ce qui est encore à définir — sa parole
 
 * ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
