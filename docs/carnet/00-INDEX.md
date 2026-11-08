@@ -133,6 +133,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 93 | [Le pincement du pavé sous Linux](93-LE-PINCEMENT-DU-PAVE-SOUS-LINUX.md) | `winit` 0.30 ne transmet le pincement que sous macOS : **un pavé natif Wayland** (`pointer-gestures`, sur la connexion de la fenêtre) remplit le contrat de *Direct Manipulation* ; PINCE-1, la similitude du pincement ; sous macOS, `PinchGesture`, que Glucose n'écoutait pas non plus |
 | 94 | [Comprendre Wikipédia d'un regard](94-COMPRENDRE-WIKIPEDIA-D-UN-REGARD.md) | **Son critère** : comment un cerveau humain comprend Wikipédia entier sur un canevas, avec le plus de facilité. La recherche (quatre morceaux en mémoire de travail, les articles vitaux par niveaux de dix, la hiérarchie des noms des cartes, la mémoire spatiale) ; quatre principes ; les deux questions de la fiche 91 tranchées : **l'héritage des domaines**, **les titres à la taille de leur région** |
 | 95 | [Le nom à la taille de la région](95-LE-NOM-A-LA-TAILLE-DE-LA-REGION.md) | **Revoir les membranes** : la recherche (régions d'un seul tenant, mémoire par régions, brouillard du désert, Bubble Sets), trois endroits où Glucose cachait selon la distance, cinq propositions en prose ; **TITRE-1**, chaque membrane consacre à son nom la même part de sa surface qu'une neuve, aucun titre ne se cache, l'encre d'une membrane ; **CHANTIER-2**, des redessins à vide depuis la fiche 86 ; **TITRE-2**, détourer en deux passes ; le coût d'un zoom qui reste |
+| 96 | [Le gris des lignes et le Focus choisi](96-LE-GRIS-DES-LIGNES-ET-LE-FOCUS-CHOISI.md) | **FOCUS-1**, on entre dans une membrane par un geste choisi ; **GRIS-1**, de loin le gris de chaque ligne, ornements compris, à la couverture exacte (0,1 niveau de la couleur de près) ; **GRIS-2**, neuf dessins ne se taisent plus de loin, la loi dans la typographie, le SVG garde ses lettres ; **COLONNES-2**, une colonne de trop née d'un arrondi, et une épreuve qui ne faisait jamais de coupe |
 
 ## Les décisions — **foi**
 
@@ -152,4 +153,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver ·
 [14](decisions/14-LE-PINCEMENT-WAYLAND-PAR-WAYLAND-CLIENT.md) le pincement sous Wayland, par `wayland-client`, déjà apporté par `winit`.
 
-La prochaine fiche porte le numéro **96**.
+La prochaine fiche porte le numéro **97**.

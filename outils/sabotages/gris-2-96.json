@@ -1,0 +1,215 @@
+[
+ {
+  "nom": "GRIS-2 la typographie écrit une lettre illisible",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "        if style.size < encre::LETTRE_LISIBLE {",
+  "apres": "        if false && style.size < encre::LETTRE_LISIBLE {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 un texte illisible ne peint rien",
+  "fichier": "crates/glucose-desktop/src/typography/encre.rs",
+  "avant": "            peindre_exact(pixmap, forme);",
+  "apres": "            let _ = forme;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 le gris est plein, quelle que soit son encre",
+  "fichier": "crates/glucose-desktop/src/typography/encre.rs",
+  "avant": "    let opacite = (encre / place).min(1.0) * couleur.alpha();",
+  "apres": "    let opacite = couleur.alpha();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_"
+  ]
+ },
+ {
+  "nom": "GRIS-2 le nom d'une zone se tait de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/zone.rs",
+  "avant": "    let scale = pass.echelle();\n    let zones = visibles(store, pass, ecran);",
+  "apres": "    let scale = pass.echelle();\n    if !scale.draws_detail() {\n        return false;\n    }\n    let zones = visibles(store, pass, ecran);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 les cases se taisent de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/storyboard.rs",
+  "avant": "    let scale = pass.echelle();\n    let cases = visibles(store, pass, ecran);",
+  "apres": "    let scale = pass.echelle();\n    if !scale.draws_detail() {\n        return false;\n    }\n    let cases = visibles(store, pass, ecran);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 le bandeau d'un dossier se tait de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    draw_header(p, at, layout, f, etat);",
+  "apres": "    if etat.scale.draws_detail() {\n        draw_header(p, at, layout, f, etat);\n    }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2",
+   "dossier"
+  ]
+ },
+ {
+  "nom": "GRIS-2 la lueur d'un dossier choisi s'éteint de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    if selected {",
+  "apres": "    if selected && scale.draws_detail() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2",
+   "dossier"
+  ]
+ },
+ {
+  "nom": "GRIS-2 l'étiquette d'une flèche se tait de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow_label.rs",
+  "avant": "    // encre (GRIS-2, fiche 96).\n",
+  "apres": "    // encre (GRIS-2, fiche 96).\n    if !scale.draws_detail() && caret.is_none() {\n        return;\n    }\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 le mot d'un opérateur se tait de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/note.rs",
+  "avant": "    let font = ctx.scale.world(PILL_FONT);",
+  "apres": "    if !ctx.scale.draws_detail() {\n        return;\n    }\n    let font = ctx.scale.world(PILL_FONT);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 la pastille d'un prédicat se retire de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/predicate.rs",
+  "avant": "    if opacite <= 0.0 {",
+  "apres": "    if opacite <= 0.0 || !ctx.scale.draws_detail() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 le sigle d'un domaine se tait de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/domain.rs",
+  "avant": "    if tint.sigil.is_empty() {",
+  "apres": "    if tint.sigil.is_empty() || layout.sigil_font < crate::typography::LETTRE_LISIBLE {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2",
+   "gauge"
+  ]
+ },
+ {
+  "nom": "GRIS-2 la lueur d'une membrane s'éteint de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "            let alpha = f32::from(alpha) / 255.0;",
+  "apres": "            let alpha = if self.scale.draws_detail() {\n                f32::from(alpha) / 255.0\n            } else {\n                0.0\n            };",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ },
+ {
+  "nom": "GRIS-2 le SVG perd ses lettres de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/vectoriel.rs",
+  "avant": "    fn a_des_pixels(&self) -> bool {\n        false\n    }",
+  "apres": "    fn a_des_pixels(&self) -> bool {\n        true\n    }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ },
+ {
+  "nom": "GRIS-2 la carte graphique écrit une lettre illisible",
+  "fichier": "crates/glucose-desktop/src/renderer/vectoriel.rs",
+  "avant": "        if self.a_des_pixels() && style.size < crate::typography::LETTRE_LISIBLE {",
+  "apres": "        if false && style.size < crate::typography::LETTRE_LISIBLE {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_2"
+  ]
+ }
+]

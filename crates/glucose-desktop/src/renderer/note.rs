@@ -199,7 +199,7 @@ fn draw_paper(
 }
 
 /// **GRIS-1 — de loin, le gris de chaque ligne du papier** (fiche 95) : la loi des nœuds de texte
-/// ([`super::card::gris::ligne_grise`]), sur les lignes que le papier montre — celles qui
+/// ([`crate::typography::forme_grise`]), sur les lignes que le papier montre — celles qui
 /// tiennent au-dessus de sa marge du bas (STICKY-FIT-1).
 fn draw_paper_gris(
     ctx: &Pass,
@@ -214,7 +214,6 @@ fn draw_paper_gris(
     }
     let floor = at.1 + layout.height - layout.pad;
     let mut y = at.1 + layout.pad;
-    let mut peindre = super::card::gris::peintre(pixmap);
     for &(start, end) in lines {
         if y + layout.line_height > floor + 1e-3 {
             break;
@@ -225,8 +224,8 @@ fn draw_paper_gris(
         let (largeur, encre) = ctx.typography.gris(lettres, STICKY_FONT);
         let boite = (at.0 + layout.pad, y, largeur * zoom, layout.line_height);
         let place = largeur * layout.line_height / zoom;
-        if let Some(ligne) = super::card::gris::ligne_grise(boite, (encre, place), paper.ink) {
-            peindre(ligne);
+        if let Some(ligne) = crate::typography::forme_grise(boite, (encre, place), paper.ink) {
+            crate::typography::peindre_exact(pixmap, ligne);
         }
         y += layout.line_height;
     }
@@ -257,10 +256,7 @@ fn draw_pill(
     if highlighted {
         ring(ctx, pixmap, &path, (layout.width, layout.height));
     }
-    if !ctx.scale.draws_detail() {
-        return;
-    }
-
+    // Le mot, à toute distance : de loin, le gris de son encre (GRIS-2, fiche 96).
     let font = ctx.scale.world(PILL_FONT);
     let label = op.label();
     let (text_w, line_h) = ctx.typography.measure_text(label, font, Face::Bold);

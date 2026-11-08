@@ -46,6 +46,8 @@ pub mod passages;
 pub mod photo;
 pub mod predicate;
 pub mod richtext;
+#[cfg(test)]
+mod rien_ne_se_tait_tests;
 pub mod scale;
 pub mod scene;
 pub mod storyboard;

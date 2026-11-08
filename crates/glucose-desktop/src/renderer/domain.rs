@@ -253,7 +253,7 @@ pub(super) fn reglette(
         };
         let x = node_top_left.0 + column as f32 * (layout.bar_width + layout.bar_gap);
         draw_column(p, (x, track_top), &layout, tint, assignment.weight);
-        draw_sigil(p, scale, (x, track_top), &layout, tint);
+        draw_sigil(p, (x, track_top), &layout, tint);
     }
 }
 
@@ -292,16 +292,11 @@ fn draw_column(
 }
 
 /// Le sigle du domaine, centré au-dessus de sa colonne.
-fn draw_sigil(
-    p: &mut impl Surface,
-    scale: WorldScale,
-    at: (f32, f32),
-    layout: &GaugeLayout,
-    tint: &DomainTint,
-) {
-    // SCALE-2 — sous le seuil, la réglette garde ses colonnes et laisse tomber son texte,
-    // exactement comme une carte garde son cadre et laisse tomber le sien.
-    if !scale.draws_detail() || tint.sigil.is_empty() {
+///
+/// De loin, il s'écrit comme tout texte du canevas : trop petit pour se lire, il montre le gris de
+/// son encre (GRIS-2, fiche 96) — il ne se tait plus.
+fn draw_sigil(p: &mut impl Surface, at: (f32, f32), layout: &GaugeLayout, tint: &DomainTint) {
+    if tint.sigil.is_empty() {
         return;
     }
     let (width, _) = p

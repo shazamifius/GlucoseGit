@@ -225,26 +225,32 @@ fn test_scale_1_the_gauge_keeps_its_share_of_the_node_at_every_zoom() {
     }
 }
 
-/// SCALE-2 — sous le seuil de détail, la réglette garde ses colonnes et laisse tomber ses
-/// sigles, comme la carte garde son cadre et laisse tomber son texte.
+/// **Sous le seuil de détail, la réglette garde ses colonnes, et ses sigles montrent le gris de
+/// leur encre** (GRIS-2, fiche 96) — aucune lettre ne s'y rastérise, et rien ne se tait. Jusqu'ici,
+/// les sigles disparaissaient, comme le texte d'une carte (SCALE-2).
 #[test]
-fn test_scale_2_below_the_threshold_the_gauge_keeps_its_bars_and_drops_its_sigils() {
+fn test_gris_2_below_the_threshold_the_gauge_keeps_its_bars_and_greys_its_sigils() {
     let typo = Typography::new();
     let below = f64::from(WorldScale::SIMPLIFIED_BELOW) / 2.0;
     let weights = [1.0, 1.0, 1.0];
 
-    // Sous le seuil, un sigle vide et un sigle plein donnent la même image.
     let mut naked = proof_store(&weights);
     for (id, _, _) in PROOF_DOMAINS {
         naked
             .try_update_domain(id, DomainPatch::new().with_icon(""))
             .expect("le domaine est au catalogue");
     }
-    let with_sigils = render(&typo, &proof_store(&weights), below);
     let without = render(&typo, &naked, below);
+    let lettres = typo.cached_glyph_count();
+    let with_sigils = render(&typo, &proof_store(&weights), below);
+    assert_eq!(
+        typo.cached_glyph_count(),
+        lettres,
+        "sous le seuil, aucune lettre ne se rastérise"
+    );
     assert!(
-        ink_bbox(&with_sigils, &without).is_none(),
-        "sous le seuil, aucun glyphe ne doit être rastérisé"
+        ink_bbox(&with_sigils, &without).is_some(),
+        "sous le seuil, les sigles montrent le gris de leur encre"
     );
 
     // Les colonnes, elles, restent : la réglette est simplifiée, pas absente.

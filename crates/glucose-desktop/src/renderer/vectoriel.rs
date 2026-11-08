@@ -37,6 +37,14 @@ pub(crate) trait Vectoriel {
         true
     }
 
+    /// **Ce dessin finit-il en pixels ?** La carte graphique, oui : une lettre trop petite pour s'y
+    /// lire ([`crate::typography::LETTRE_LISIBLE`]) y montre le gris de son encre (GRIS-1, GRIS-2).
+    /// Le SVG, non : il s'agrandit sans perte, et garde ses lettres à leur taille, quelle qu'elle
+    /// soit (fiche 96).
+    fn a_des_pixels(&self) -> bool {
+        true
+    }
+
     /// Le rectangle `(x, y, largeur, hauteur)` aux coins de `rayon`, plein de `couleur`.
     fn rectangle(&mut self, boite: (f32, f32, f32, f32), rayon: f32, couleur: Color);
 
@@ -82,7 +90,21 @@ pub(crate) trait Vectoriel {
         texte: &str,
         style: TextStyle,
     ) {
-        let corps = clamp_font_size(style.size);
+        if self.a_des_pixels() && style.size < crate::typography::LETTRE_LISIBLE {
+            if let (Some((f, c)), _) = typographie.gris_d_un_texte(texte, (x, y), style) {
+                let boite = (f.gauche, f.haut, f.droite - f.gauche, f.bas - f.haut);
+                self.rectangle(boite, 0.0, c);
+            }
+            return;
+        }
+        // Sur des pixels, une lettre a ici au moins le corps lisible ; le SVG garde le sien.
+        let corps = if self.a_des_pixels() {
+            clamp_font_size(style.size)
+        } else if style.size.is_finite() && style.size > 0.0 {
+            style.size
+        } else {
+            return;
+        };
         self.groupe(texte, style.color);
         let mut plume = x;
         for ch in texte.chars().filter(|&ch| ch != '\n') {
@@ -105,6 +127,10 @@ pub(crate) fn sur_la_grille_des_pixels(
 }
 
 impl Vectoriel for Svg {
+    fn a_des_pixels(&self) -> bool {
+        false
+    }
+
     fn rectangle(&mut self, boite: (f32, f32, f32, f32), rayon: f32, c: Color) {
         let (teinte, a) = couleur(c);
         Svg::rectangle(self, boite, rayon, (&teinte, a));

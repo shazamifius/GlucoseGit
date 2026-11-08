@@ -16,12 +16,14 @@
 //! le TSX applique à ses guides : ce qui doit garder une **taille écran constante** ne passe
 //! pas par la mise à l'échelle, il est écrit en pixels et ne bouge pas.
 //!
-//! # SCALE-2 — un seul niveau de détail, décidé pour l'élément entier
+//! # SCALE-2 — une seule borne de lisibilité, et rien ne se tait (GRIS-1, GRIS-2)
 //!
-//! Si une borne de lisibilité est souhaitée, elle porte sur la transformation entière et
-//! nulle part ailleurs : sous [`WorldScale::SIMPLIFIED_BELOW`], un élément se dessine
-//! **simplifié** — son cadre, sans son texte. C'est un niveau de détail assumé, nommé et
-//! testé, pas six bornes qui se déclenchent chacune dans son coin.
+//! La borne de lisibilité est une taille de lettre, [`crate::typography::LETTRE_LISIBLE`], et
+//! nulle part ailleurs : sous elle, une lettre ne porte plus sa forme, et le texte montre **le
+//! gris de son encre**. Un nœud de texte la lit par [`WorldScale::draws_detail`] (le gris de ses
+//! lignes, fiche 95) ; tout autre texte du canevas, par sa taille, dans la typographie (fiche 96).
+//! Jusqu'aux fiches 95 et 96, un élément se dessinait **simplifié** sous ce seuil — son cadre,
+//! sans son texte ; sa parole du 8/11 : *« pas de LOD, pas de simplification »*.
 
 /// Le facteur de zoom d'une passe de rendu, et la seule façon d'en dériver une longueur.
 ///
@@ -41,13 +43,15 @@ pub struct WorldScale {
 }
 
 impl WorldScale {
-    /// Échelle sous laquelle un élément se dessine simplifié, sans son texte (SCALE-2).
+    /// Échelle sous laquelle les lettres d'un nœud de texte ne se lisent plus (SCALE-2), et où il
+    /// montre le gris de ses lignes (GRIS-1, fiche 95).
     ///
-    /// Le corps d'une carte mesure 14 unités monde : à ce seuil il vaut 2,8 px à l'écran,
-    /// soit moins que l'épaisseur d'un jambage. En deçà, le glyphe ne transporte plus
-    /// d'information — le rastériser remplirait le cache de tailles que personne ne lit,
-    /// et le composer coûterait une passe de mélange pour un gris uniforme.
-    pub const SIMPLIFIED_BELOW: f32 = 0.2;
+    /// **Elle se déduit, elle ne se choisit pas** (GRIS-2, fiche 96) : c'est le zoom où le corps
+    /// d'un nœud ([`super::card::BODY_FONT`], 14 unités monde) tombe sous
+    /// [`crate::typography::LETTRE_LISIBLE`] — 2,8 px, un cinquième. En deçà, le glyphe ne
+    /// transporte plus d'information — le rastériser remplirait le cache de tailles que personne
+    /// ne lit, et le composer coûterait une passe de mélange pour un gris.
+    pub const SIMPLIFIED_BELOW: f32 = crate::typography::LETTRE_LISIBLE / super::card::BODY_FONT;
 
     /// Adopte le zoom d'un viewport, et la densité de l'écran où il se dessine : combien de
     /// pixels physiques font un pixel logique.

@@ -21,8 +21,8 @@ use glucose_core::text::{BlockKind, Selection};
 use tiny_skia::Color;
 
 /// **Dessine cette carte** : sa brume, puis son texte — au-dessus du seuil de détail (SCALE-2), ses
-/// lettres ; au-dessous, le gris de ses lignes et ce qui n'est pas une lettre (GRIS-1, fiche 95),
-/// les mêmes formes que le canevas.
+/// lettres ; au-dessous, sur la carte graphique, le gris de ses lignes et ce qui n'est pas une
+/// lettre (GRIS-1, fiche 95), les mêmes formes que le canevas. Le SVG garde ses lettres.
 pub(in crate::renderer) fn carte_en_vecteurs<V: Vectoriel>(ctx: &Pass, card: TextCard, v: &mut V) {
     let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
@@ -33,7 +33,8 @@ pub(in crate::renderer) fn carte_en_vecteurs<V: Vectoriel>(ctx: &Pass, card: Tex
     let boite = boite_de_la_carte(at, (layout.width, layout.height));
     v.rectangle(boite, layout.radius, voile);
     passages_en_vecteurs(ctx, v, &text, &card);
-    if ctx.scale.draws_detail() {
+    // Le SVG, qui n'a pas de pixels, garde ses lettres à toute distance (fiche 96).
+    if ctx.scale.draws_detail() || !v.a_des_pixels() {
         corps_en_vecteurs(ctx, v, at, &layout, &text, &card);
     } else {
         super::gris::gris_en_vecteurs(ctx, v, at, (&layout, &text, &card));

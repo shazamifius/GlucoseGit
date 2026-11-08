@@ -142,8 +142,8 @@ pub(super) fn draw_arrow_predicate(
     else {
         return;
     };
-    // SCALE-2 : sous le seuil de détail, la pastille se retire avec les autres détails.
-    if opacite <= 0.0 || !ctx.scale.draws_detail() {
+    // De loin, la pastille reste, et son sigle montre le gris de son encre (GRIS-2, fiche 96).
+    if opacite <= 0.0 {
         return;
     }
     let (sx, sy) = world_to_screen(wx, wy, &ctx.vp);

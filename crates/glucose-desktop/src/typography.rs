@@ -57,6 +57,7 @@
 pub(crate) mod coverage;
 mod detoure;
 mod encre;
+pub use encre::{forme_grise, peindre_exact, LETTRE_LISIBLE};
 pub mod glyph;
 pub(crate) mod trace;
 
@@ -398,6 +399,11 @@ impl Typography {
         offset: (i32, i32),
         style: TextStyle,
     ) -> f32 {
+        // GRIS-2 : une lettre qui ne se lit plus montre le gris de son encre.
+        if style.size < encre::LETTRE_LISIBLE {
+            let coin = (x + offset.0 as f32, y + offset.1 as f32);
+            return self.griser(pixmap, text, coin, style) - offset.0 as f32;
+        }
         let TextStyle { color, face, .. } = style;
         let size = clamp_font_size(style.size);
         let r = color.red() * 255.0;

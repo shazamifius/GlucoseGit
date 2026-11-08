@@ -153,16 +153,14 @@ pub(super) fn ecrire_les_textes(
 }
 
 /// **Les textes des zones, sur n'importe quel peintre** — le canevas, ou le SVG d'un export
-/// (P5, fiche 70). Rend vrai si une zone en a reçu.
+/// (P5, fiche 70) —, à toute distance : de loin, le canevas les peint du gris de leur encre
+/// (GRIS-2, fiche 96). Rend vrai si une zone en a reçu.
 pub(super) fn textes(
     p: &mut impl Surface,
     (store, pass): (&Store, ViewPass<'_>),
     ecran: (f32, f32),
 ) -> bool {
     let scale = pass.echelle();
-    if !scale.draws_detail() {
-        return false;
-    }
     let zones = visibles(store, pass, ecran);
     for (zone, boite) in &zones {
         ecrire(p, *boite, &ce_que_montre(zone, &store.project), scale);

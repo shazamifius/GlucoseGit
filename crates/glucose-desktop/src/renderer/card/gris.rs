@@ -26,7 +26,8 @@ use super::{CardLayout, TextCard};
 use crate::renderer::pass::Pass;
 use crate::renderer::richtext::{indent_of, ink_of, TextLayout};
 use crate::renderer::vectoriel::Vectoriel;
-use glucose_core::membrane_forme::{peindre, Arrondi, Membrane};
+use crate::typography::{forme_grise, peindre_exact};
+use glucose_core::membrane_forme::Arrondi;
 use glucose_core::text::BlockKind;
 use tiny_skia::{Color, PixmapMut};
 
@@ -34,36 +35,9 @@ use tiny_skia::{Color, PixmapMut};
 /// puce —, et son encre.
 pub(crate) type FormeDeLoin = (Arrondi, Color);
 
-/// **Une ligne vue de loin** : le rectangle `(x, y, largeur, hauteur)` de l'écran, de cette encre
-/// à l'opacité de son `encre` sur sa `place` — la surface de ses lettres sur celle de sa ligne, à
-/// la même échelle. La loi des lignes d'un nœud de texte, de ses numéros, et des post-it. Rien
-/// pour une ligne sans encre.
-pub(crate) fn ligne_grise(
-    (x, y, largeur, hauteur): (f32, f32, f32, f32),
-    (encre, place): (f32, f32),
-    couleur: Color,
-) -> Option<FormeDeLoin> {
-    if !(encre > 0.0 && place > 0.0) {
-        return None;
-    }
-    let opacite = (encre / place).min(1.0) * couleur.alpha();
-    let c = Color::from_rgba(couleur.red(), couleur.green(), couleur.blue(), opacite)?;
-    Some((Arrondi::nouveau(x, y, largeur, hauteur, 0.0), c))
-}
-
 /// **Un rectangle plein vu de loin** : un filet, une barre, une plaque.
 pub(crate) fn plein((x, y, l, h): (f32, f32, f32, f32), c: Color) -> FormeDeLoin {
     (Arrondi::nouveau(x, y, l, h, 0.0), c)
-}
-
-/// **Le peintre du canevas** : chaque forme vue de loin, à la couverture exacte de chaque pixel.
-pub(crate) fn peintre<'p>(pixmap: &'p mut PixmapMut<'_>) -> impl FnMut(FormeDeLoin) + 'p {
-    let (l, h) = (pixmap.width(), pixmap.height());
-    let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
-    move |(forme, c)| {
-        let membrane = Membrane::plein(forme, [c.red(), c.green(), c.blue()], c.alpha());
-        peindre(&membrane, pixels, l, h);
-    }
 }
 
 /// **Ce qu'un nœud de texte montre de loin**, sous son cadre et sa brume, forme par forme : la
@@ -93,7 +67,7 @@ pub(super) fn formes_de_loin(
             let x = gauche + indent_of(line.kind, layout.indent);
             let boite = (x, y, line.largeur * zoom, layout.line_height);
             let mesure = (line.encre, line.largeur * hauteur_monde);
-            if let Some(ligne) = ligne_grise(boite, mesure, ink_of(line.kind, ctx.theme)) {
+            if let Some(ligne) = forme_grise(boite, mesure, ink_of(line.kind, ctx.theme)) {
                 poser(ligne);
             }
         }
@@ -109,7 +83,9 @@ pub(super) fn draw_card_gris(
     (layout, text, card): (&CardLayout, &TextLayout, &TextCard),
 ) {
     super::draw_passages(ctx, pixmap, text, card);
-    formes_de_loin(ctx, at, (layout, text, card), &mut peintre(pixmap));
+    formes_de_loin(ctx, at, (layout, text, card), &mut |f| {
+        peindre_exact(pixmap, f)
+    });
 }
 
 /// **Le gris de ce nœud, en vecteurs** : les mêmes formes, posées telles quelles.

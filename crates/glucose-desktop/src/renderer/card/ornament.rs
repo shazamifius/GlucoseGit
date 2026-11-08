@@ -71,7 +71,7 @@ pub(super) fn ornement_de_loin(
     line: &VisualLine,
     card: &TextCard,
 ) -> bool {
-    use super::gris::{ligne_grise, plein};
+    use super::gris::plein;
     let encre = encre_d_ornement(card.tint);
     match line.kind {
         BlockKind::Bullet if line.first => {
@@ -91,7 +91,7 @@ pub(super) fn ornement_de_loin(
             let (largeur, encre) = ctx.typography.gris(chiffres, style.size);
             let boite = (x, y, largeur, layout.line_height);
             let place = largeur * layout.line_height;
-            if let Some(gris) = ligne_grise(boite, (encre, place), style.color) {
+            if let Some(gris) = crate::typography::forme_grise(boite, (encre, place), style.color) {
                 poser(gris);
             }
         }

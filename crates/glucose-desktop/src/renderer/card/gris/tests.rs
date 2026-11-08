@@ -86,9 +86,9 @@ fn moyenne(noeud: Annotation, zoom: f64) -> [f64; 3] {
 /// la preuve à l'envers est l'écart du texte à son fond, qu'il faut d'abord voir dépasser deux fois
 /// la borne sur un canal au moins — sinon l'épreuve ne verrait pas un nœud vide (un post-it jaune
 /// à l'encre sombre ne bouge presque pas dans le bleu).
-fn garde_la_couleur_de_ses_lettres(faire: fn(&str) -> Annotation) {
-    let pres = moyenne(faire(TEXTE), 1.0);
-    let loin = moyenne(faire(TEXTE), 0.1);
+fn garde_la_couleur_de_ses_lettres(faire: fn(&str) -> Annotation, corps: &str) {
+    let pres = moyenne(faire(corps), 1.0);
+    let loin = moyenne(faire(corps), 0.1);
     let fond = moyenne(faire(" "), 1.0);
     eprintln!("MESURE gris : loin {loin:?}, près {pres:?}, fond {fond:?}");
     let marque = (0..3)
@@ -108,25 +108,39 @@ fn garde_la_couleur_de_ses_lettres(faire: fn(&str) -> Annotation) {
 
 #[test]
 fn gris_1_de_loin_le_noeud_garde_la_couleur_de_ses_lettres() {
-    garde_la_couleur_de_ses_lettres(texte);
+    garde_la_couleur_de_ses_lettres(texte, TEXTE);
+}
+
+/// **Un bloc de code garde sa plaque de loin** : un nœud qui n'est presque qu'un bloc de code — la
+/// plaque y pèse assez pour que son absence se voie, ce qu'une ligne de code parmi vingt-cinq ne
+/// faisait pas (le sabotage de la plaque passait).
+#[test]
+fn gris_1_de_loin_un_bloc_de_code_garde_sa_plaque() {
+    let lignes: Vec<String> = (1..=20)
+        .map(|i| format!("let eau_{i} = H2O::nouvelle({i}); // une molécule"))
+        .collect();
+    let code = format!("```\n{}\n```", lignes.join("\n"));
+    garde_la_couleur_de_ses_lettres(texte, &code);
 }
 
 /// **Le post-it aussi**, par la même loi, sur les lignes que son papier montre.
 #[test]
 fn gris_1_de_loin_le_post_it_garde_la_couleur_de_ses_lettres() {
-    garde_la_couleur_de_ses_lettres(post_it);
+    garde_la_couleur_de_ses_lettres(post_it, TEXTE);
 }
 
-/// **Le dessin vectoriel pose le même gris** (l'export SVG, la carte graphique pour un nœud plus
-/// grand que l'écran) : de loin, aucune lettre, et les formes de chaque ligne — jamais la seule
-/// brume du nœud.
+/// **Le dessin vectoriel suit son support** (fiche 96) : la carte graphique, qui finit en pixels
+/// (un nœud plus grand que l'écran), pose de loin le gris des lignes et aucune lettre — jamais la
+/// seule brume du nœud ; le SVG, qui s'agrandit sans perte, garde ses lettres à toute distance.
 #[test]
-fn gris_1_le_dessin_vectoriel_pose_le_gris_des_lignes() {
+fn gris_1_le_dessin_vectoriel_suit_son_support() {
+    use crate::present::formes_gpu::Genre;
     use crate::renderer::card::vecteurs::carte_en_vecteurs;
     use crate::renderer::card::TextCard;
     use crate::renderer::pass::{Clip, Pass};
     use crate::renderer::scale::WorldScale;
     use crate::renderer::svg::Svg;
+    use crate::renderer::vectoriel::Releve;
     let renderer = crate::renderer::Renderer::new();
     let kit = renderer.kit();
     let ecran = (900.0f32, 700.0f32);
@@ -160,16 +174,26 @@ fn gris_1_le_dessin_vectoriel_pose_le_gris_des_lignes() {
         selected: false,
         editing: None,
     };
-    let dessin = |corps| {
-        let mut svg = Svg::new();
-        carte_en_vecteurs(&ctx, carte(corps), &mut svg);
-        svg.finir((ecran.0 as u32, ecran.1 as u32))
+    let releve = |corps| {
+        let mut r = Releve::nouveau(ecran);
+        carte_en_vecteurs(&ctx, carte(corps), &mut r);
+        let formes = r.primitives.iter();
+        let lettres = formes
+            .clone()
+            .filter(|p| matches!(p.genre, Genre::Courbes { .. }));
+        (r.primitives.len(), lettres.count())
     };
-    let (plein, vide) = (dessin(TEXTE), dessin(" "));
-    let rectangles = |s: &str| s.matches("<rect").count();
+    let ((plein, lettres), (vide, _)) = (releve(TEXTE), releve(" "));
     assert!(
-        rectangles(&plein) > rectangles(&vide) + 10,
-        "de loin, le texte pose le gris de ses lignes :\n{plein}"
+        plein > vide + 10,
+        "de loin, la carte graphique pose le gris des lignes : {plein} formes contre {vide}"
     );
-    assert!(!plein.contains("<use"), "de loin, aucune lettre ne se pose");
+    assert_eq!(lettres, 0, "de loin, aucune lettre sur la carte graphique");
+    let mut svg = Svg::new();
+    carte_en_vecteurs(&ctx, carte(TEXTE), &mut svg);
+    let svg = svg.finir((ecran.0 as u32, ecran.1 as u32));
+    assert!(
+        svg.matches("<use").count() > 100,
+        "le SVG garde ses lettres à toute distance"
+    );
 }

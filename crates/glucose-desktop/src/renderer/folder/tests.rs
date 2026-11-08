@@ -218,24 +218,43 @@ fn test_un_dossier_selectionne_se_distingue() {
     );
 }
 
-/// Sous le seuil de détail, le cadre reste et le texte disparaît : c'est SCALE-2, appliqué à
-/// l'élément entier et non à chacune de ses parties.
+/// **Très dézoomé, rien ne se tait** (GRIS-2, fiche 96) : le cadre reste, le nom montre le gris de
+/// son encre — un dossier nommé et un dossier sans nom ne se dessinent pas pareil —, et un dossier
+/// choisi garde sa lueur. Jusqu'ici, sous le seuil de détail, le bandeau et la lueur se taisaient.
 #[test]
-fn test_tres_dezoome_le_cadre_reste_et_le_texte_disparait() {
-    let mut store = store_avec_dossier(10.0, 10.0, 3_000.0, 2_000.0);
-    if let Some(board) = store.project.boards.first_mut() {
-        board.viewport = Viewport {
-            x: 0.0,
-            y: 0.0,
-            scale: 0.1,
-        };
-    }
+fn test_gris_2_tres_dezoome_rien_ne_se_tait() {
+    let loin = |nom: &str, choisi: bool| {
+        let mut store = store_avec_dossier(10.0, 10.0, 3_000.0, 2_000.0);
+        if let Some(board) = store.project.boards.first_mut() {
+            board.folders[0].name = nom.into();
+            board.viewport = Viewport {
+                x: 0.0,
+                y: 0.0,
+                scale: 0.1,
+            };
+        }
+        if choisi {
+            store.selected_folder_id = Some("fold-1".into());
+        }
+        encre(&store)
+    };
     assert!(
         !WorldScale::new(0.1, 1.0).draws_detail(),
         "0,1 est sous le seuil de détail"
     );
-    let (_, encres) = encre(&store);
+    let (nomme, encres) = loin("Recherches et lectures", false);
     assert!(encres > 100, "{encres} : le cadre se dessine encore");
+    let (sans_nom, _) = loin("", false);
+    assert_ne!(
+        nomme.data(),
+        sans_nom.data(),
+        "de loin, le nom montre le gris de son encre"
+    );
+    let (_, choisi) = loin("Recherches et lectures", true);
+    assert!(
+        choisi > encres,
+        "de loin, un dossier choisi garde sa lueur ({choisi} contre {encres})"
+    );
 }
 
 // ── La minimap ───────────────────────────────────────────────────────────────

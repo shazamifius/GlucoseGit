@@ -149,10 +149,10 @@
   ]
  },
  {
-  "nom": "GRIS-1 une ligne est pleine, quelle que soit son encre",
+  "nom": "GRIS-1 la place d'une ligne se mesure à l'écran et non au monde",
   "fichier": "crates/glucose-desktop/src/renderer/card/gris.rs",
-  "avant": "    let opacite = (encre / place).min(1.0) * couleur.alpha();",
-  "apres": "    let opacite = couleur.alpha();",
+  "avant": "            let mesure = (line.encre, line.largeur * hauteur_monde);",
+  "apres": "            let mesure = (line.encre, line.largeur * layout.line_height);",
   "cmd": [
    "cargo",
    "test",
@@ -211,7 +211,7 @@
  {
   "nom": "GRIS-1 le post-it ne peint plus ses lignes",
   "fichier": "crates/glucose-desktop/src/renderer/note.rs",
-  "avant": "            peindre(ligne);",
+  "avant": "            crate::typography::peindre_exact(pixmap, ligne);",
   "apres": "            let _ = ligne;",
   "cmd": [
    "cargo",

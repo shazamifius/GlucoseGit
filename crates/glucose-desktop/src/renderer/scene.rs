@@ -204,8 +204,8 @@ impl<'a> MembraneVue<'a> {
     fn forme(&self) -> Membrane {
         let (l, (x, y)) = (&self.layout, self.coin);
         let fond = Arrondi::nouveau(x, y, l.width, l.height, l.radius);
-        // Le halo appartient au cadre, donc il le suit ; vu de trop loin pour qu'on lise un
-        // titre, il n'y a plus de halo à voir non plus.
+        // Le halo appartient au cadre, donc il le suit, à toute distance : il se cachait de loin
+        // avec le titre, et aucun titre ne se cache plus (TITRE-1, GRIS-2).
         let halo = |(pad_monde, alpha): (f32, u8)| {
             let pad = self.scale.world(pad_monde);
             let forme = Arrondi::nouveau(
@@ -215,11 +215,7 @@ impl<'a> MembraneVue<'a> {
                 l.height + pad * 2.0,
                 l.radius + pad * 0.5,
             );
-            let alpha = if self.scale.draws_detail() {
-                f32::from(alpha) / 255.0
-            } else {
-                0.0
-            };
+            let alpha = f32::from(alpha) / 255.0;
             (forme, alpha)
         };
         let (r, g, b) = self.teinte;

@@ -105,11 +105,8 @@ pub(super) fn draw_arrow_label(
         return;
     };
     let (typography, theme, scale) = (ctx.typography, ctx.theme, ctx.scale);
-    // SCALE-2 : sous le seuil de détail, une étiquette n'a plus rien à dire — sauf celle qu'on
-    // est en train d'écrire.
-    if !scale.draws_detail() && caret.is_none() {
-        return;
-    }
+    // De loin, l'étiquette reste : trop petite pour se lire, son texte montre le gris de son
+    // encre (GRIS-2, fiche 96).
     let leve = if lifted { LABEL_LIFT } else { 0.0 };
     let (sx, sy) = world_to_screen(wx, wy - leve, &ctx.vp);
     let (cx, cy) = (sx as f32, sy as f32);

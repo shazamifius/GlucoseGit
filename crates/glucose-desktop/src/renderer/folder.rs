@@ -206,12 +206,11 @@ pub(super) fn dossiers_en_svg(
     }
 }
 
-/// Un dossier : son cadre, puis — quand l'échelle dessine le détail — son bandeau.
+/// Un dossier : son cadre, puis son bandeau — à toute distance : de loin, son nom montre le gris
+/// de son encre (GRIS-2, fiche 96).
 fn dessiner(p: &mut impl Surface, f: &CanvasFolder, at: (f32, f32), layout: &Layout, etat: &Etat) {
     draw_frame(p, at, layout, etat);
-    if etat.scale.draws_detail() {
-        draw_header(p, at, layout, f, etat);
-    }
+    draw_header(p, at, layout, f, etat);
 }
 
 /// Un rectangle aux coins arrondis, en tracé.
@@ -231,7 +230,7 @@ fn draw_frame(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat
     } = *etat;
     let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
 
-    if selected && scale.draws_detail() {
+    if selected {
         let pad = scale.world(GLOW.0);
         let boite = (
             at.0 - pad,

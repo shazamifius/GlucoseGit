@@ -134,16 +134,14 @@ pub(super) fn ecrire_les_textes(
 }
 
 /// **Les textes des cases, sur n'importe quel peintre** — le canevas, ou le SVG d'un export
-/// (P5, fiche 70). Rend vrai si une case en a reçu.
+/// (P5, fiche 70) —, à toute distance : de loin, le canevas les peint du gris de leur encre
+/// (GRIS-2, fiche 96). Rend vrai si une case en a reçu.
 pub(super) fn textes(
     p: &mut impl Surface,
     (store, pass): (&Store, ViewPass<'_>),
     ecran: (f32, f32),
 ) -> bool {
     let scale = pass.echelle();
-    if !scale.draws_detail() {
-        return false;
-    }
     let cases = visibles(store, pass, ecran);
     for (case, boite) in &cases {
         ecrire(p, (case, *boite), scale);
