@@ -40,7 +40,7 @@ fn android_main(app: AndroidApp) {
             return;
         }
     };
-    if let Err(e) = glucose_desktop::demarrage::lancer(boucle, &dossier) {
+    if let Err(e) = glucose_desktop::demarrage::lancer(boucle, &dossier, None) {
         eprintln!("[Glucose] le lancement a echoue : {e}");
     }
 }

@@ -75,3 +75,21 @@ fn json_1_une_entree_hostile_rend_une_erreur_sans_tomber() {
         "la borne laisse passer ce qu'elle annonce"
     );
 }
+
+/// **L'écriture en retrait** (fiche 90) : chaque élément sur sa ligne, et elle se relit en la même
+/// valeur que l'écriture d'une ligne — une suite vide reste sur la sienne.
+#[test]
+fn l_ecriture_en_retrait_se_relit_pareil() {
+    let v = Json::lire(r#"{"total":2,"vide":[],"rien":{},"resultats":[{"id":"a","phrase":"L'eau\nmouille."},true,null]}"#)
+        .expect("JSON");
+    let ecrit = v.ecrire_en_retrait();
+    assert_eq!(Json::lire(&ecrit), Ok(v.clone()), "la même valeur");
+    assert_eq!(
+        ecrit,
+        "{\n  \"total\": 2,\n  \"vide\": [],\n  \"rien\": {},\n  \"resultats\": [\n    {\n      \"id\": \"a\",\n      \"phrase\": \"L'eau\\nmouille.\"\n    },\n    true,\n    null\n  ]\n}"
+    );
+    assert!(
+        !v.ecrire().contains('\n'),
+        "l'écriture d'une ligne n'a pas bougé"
+    );
+}

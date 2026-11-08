@@ -8,8 +8,13 @@ use crate::mise_a_jour::installation::Installation;
 use std::path::Path;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-/// **Lance Glucose** sur cette boucle, dans ce dossier, jusqu'à la fermeture.
-pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn std::error::Error>> {
+/// **Lance Glucose** sur cette boucle, dans ce dossier, jusqu'à la fermeture — sur `document` s'il
+/// en demande un (`glucose document.glucose`, un double-clic : OUVRIR-1, fiche 90).
+pub fn lancer(
+    event_loop: EventLoop<()>,
+    dossier: &Path,
+    document: Option<std::path::PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
     event_loop.set_control_flow(ControlFlow::Wait);
     // Où se posent les installeurs d'une mise à jour, et ce qu'on y range (fiche 48).
     let installeurs = dossier.join("mises-a-jour");
@@ -47,7 +52,7 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     // `SIGTERM`, `Ctrl+C`, le terminal qui se ferme : Glucose finit au lieu d'être tué — sous
     // Linux (FIN-SESSION-1).
     app.lancement.signaux = crate::plateforme::fin::ecouter_les_signaux(reveil_de(&event_loop));
-    app.retrouver_le_travail();
+    app.retrouver_le_travail(document);
     // Après la reprise, dont les messages passeraient devant celui-ci (MOTEUR-1).
     let version = cycle::courante().to_string();
     if let Some(moteur) = crate::present::echelle::habiter(dossier, &version) {

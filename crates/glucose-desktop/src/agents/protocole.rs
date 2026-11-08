@@ -21,8 +21,8 @@ pub const VERSION_MODERNE: &str = "2026-07-28";
 /// `tools/list` ni à `tools/call` tels que Glucose les emploie.
 const VERSIONS_ANCIENNES: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 /// La version qu'une requête moderne demande à lire dans `_meta`.
-const CLE_VERSION: &str = "io.modelcontextprotocol/protocolVersion";
-const CLE_CLIENT: &str = "io.modelcontextprotocol/clientInfo";
+pub(crate) const CLE_VERSION: &str = "io.modelcontextprotocol/protocolVersion";
+pub(crate) const CLE_CLIENT: &str = "io.modelcontextprotocol/clientInfo";
 
 /// Les codes d'erreur de JSON-RPC, et celui que la spécification moderne réserve à une version
 /// inconnue.

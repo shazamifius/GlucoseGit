@@ -5,6 +5,7 @@
 //! ([`glucose_core::store::Store::geste_d_agent`] : AGENT-1, AGENT-2). Ce qu'il rend est du
 //! JSON que le modèle lit ; ce qui l'empêche, une phrase qu'il peut corriger.
 
+mod chercher;
 mod domaines;
 
 use super::json::Json;
@@ -79,6 +80,7 @@ impl GlucoseApp {
             "glucose_ouvrir_tableau" => self.agent_ouvrir_tableau(&a),
             "glucose_poser_domaine" => self.agent_poser_domaine(&board, &a),
             "glucose_domaines" => self.agent_lire_les_domaines(&a),
+            "glucose_chercher" => self.agent_chercher(&a),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),
         };
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.

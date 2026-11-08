@@ -25,7 +25,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | fonction | au PC | au téléphone |
 |---|---|---|
 | Nouveau document | menu du vide, `Ctrl+N` | ✅ menu |
-| Ouvrir un document | menu du vide, `Ctrl+O` | ✅ menu (la liste des documents rangés) |
+| Ouvrir un document | menu du vide, `Ctrl+O` ; **`glucose document.glucose`** au terminal, **un double-clic** sur un `.glucose` (OUVRIR-1, fiche 90 — sous Linux) | ✅ menu (la liste des documents rangés) |
 | Enregistrer (un jalon) | **menu du vide** (ACCES-1), `Ctrl+S` | ✅ menu (range un travail sans nom) |
 | Enregistrer sous | **menu du vide** (ACCES-1), `Ctrl+Maj+S` | ✅ menu (un autre nom) |
 | Renommer, dupliquer, supprimer un document | l'explorateur du système | ✅ appui long dans la liste |
@@ -110,6 +110,8 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | **Laisser un agent travailler dans le tableau** (Protéo, Claude…) : il lit, pose des textes, des membranes, des pages web, des flèches ancrées à des phrases — chaque geste s'annule par `Ctrl+Z` | la question qui s'ouvre à sa première demande : Autoriser, Refuser, Plus tard | — (aucune porte au téléphone) |
 | Brancher un agent sur Glucose | `glucose --mcp` dans sa configuration MCP (Glucose s'ouvre s'il ne l'est pas) | — |
 | **Un agent lit et pose les domaines** (fiche 88) : ceux de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers ; il ne crée jamais un nom pris, il le précise | `glucose_lire`, `glucose_poser_domaine`, `glucose_domaines` | — |
+| **Un agent cherche comme `Ctrl+F`** (fiche 90, AGENT-7) : les mêmes résultats, dans le même ordre, la même page de dix | `glucose_chercher` | — |
+| **Chaque outil, au terminal** (fiche 90, TERMINAL-1 et 2) : `glucose lire`, `glucose chercher eau`, `glucose domaines`, `glucose poser-texte "…"`, `cat notes.md \| glucose poser-texte -` ; la même porte et le même accord que les agents | **`glucose aide`** les dit toutes ; sous Windows, la sortie ne se lit que redirigée | — |
 
 ---
 

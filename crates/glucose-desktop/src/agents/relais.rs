@@ -37,10 +37,7 @@ const ESSAI: Duration = Duration::from_millis(100);
 
 /// **Relaie** jusqu'à ce que le client ferme l'entrée ; rend le code de sortie du processus.
 pub fn relayer() -> i32 {
-    let instrument = std::env::var("GLUCOSE_PORTE")
-        .ok()
-        .filter(|n| !n.is_empty());
-    let Some(nom) = instrument.clone().or_else(porte::nom_par_defaut) else {
+    let Some((nom, ouvrir)) = porte_a_joindre() else {
         crate::dire_erreur!("[glucose --mcp] aucune porte pour ce compte");
         return 1;
     };
@@ -49,7 +46,7 @@ pub fn relayer() -> i32 {
     let Some((prelude, premier)) = repondre_seul(&mut entree, &mut std::io::stdout()) else {
         return 0;
     };
-    let flux = match brancher(&nom, instrument.is_none()) {
+    let flux = match brancher(&nom, ouvrir) {
         Ok(f) => f,
         Err(e) => {
             crate::dire_erreur!("[glucose --mcp] {e}");
@@ -117,8 +114,21 @@ fn a_une_reponse(ligne: &str) -> bool {
     Json::lire(ligne).is_ok_and(|m| m.get("id").is_some())
 }
 
+/// **La porte à joindre**, et s'il faut ouvrir Glucose quand elle ne répond pas : celle de ce
+/// compte, ou celle que nomme `GLUCOSE_PORTE` — un instrument d'épreuve, qui n'ouvre jamais Glucose.
+/// Le relais et les commandes du terminal (fiche 90) la joignent pareil.
+pub(super) fn porte_a_joindre() -> Option<(String, bool)> {
+    let instrument = std::env::var("GLUCOSE_PORTE")
+        .ok()
+        .filter(|n| !n.is_empty());
+    match instrument {
+        Some(nom) => Some((nom, false)),
+        None => porte::nom_par_defaut().map(|nom| (nom, true)),
+    }
+}
+
 /// Se branche à la porte — et ouvre Glucose, s'il le faut et si on le peut.
-fn brancher(nom: &str, ouvrir: bool) -> Result<porte::Flux, String> {
+pub(super) fn brancher(nom: &str, ouvrir: bool) -> Result<porte::Flux, String> {
     match porte::connecter(nom) {
         Ok(f) => Ok(f),
         Err(_) if ouvrir => lancer_glucose().and_then(|()| attendre(nom)),

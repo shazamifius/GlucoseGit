@@ -73,6 +73,18 @@ impl Store {
             .map_or_else(|| board_id.to_string(), |(parent, _)| parent.clone())
     }
 
+    /// **Le nom de l'onglet qui porte ce tableau** — le sien, ou celui de l'onglet dont un dossier
+    /// le contient : ce qu'une rangée de `Ctrl+F` dit d'un résultat, et ce qu'un agent qui cherche
+    /// en apprend (fiches 89 et 90).
+    pub fn nom_de_l_onglet(&self, board_id: &str) -> Option<&str> {
+        let racine = self.racine_de(board_id);
+        self.project
+            .boards
+            .iter()
+            .find(|b| b.id == racine)
+            .map(|b| b.name.as_str())
+    }
+
     /// **Range l'onglet `id` juste avant l'onglet `avant`**, ou au bout (BOARDS-1).
     ///
     /// Seul lui bouge : tout le reste garde sa place relative, le contenu des dossiers

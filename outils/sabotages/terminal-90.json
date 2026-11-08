@@ -1,0 +1,242 @@
+[
+ {
+  "nom": "VOL-1 on vole vers la boîte d'accroche, pas vers l'emprise",
+  "fichier": "crates/glucose-desktop/src/interactions/vol.rs",
+  "avant": ".and_then(|b| glucose_core::arrow::emprise(b, id))",
+  "apres": ".and_then(|b| glucose_core::arrow::node_rect(b, id))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chercher::"
+  ]
+ },
+ {
+  "nom": "VOL-1 l'emprise d'une flèche n'est pas son encre",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "            .map(Annotation::bounds)",
+  "apres": "            .and_then(Annotation::rect)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "arrow::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 le nom d'une commande garde ses soulignés",
+  "fichier": "crates/glucose-desktop/src/agents/terminal.rs",
+  "avant": "    outil.trim_start_matches(\"glucose_\").replace('_', \"-\")",
+  "apres": "    outil.trim_start_matches(\"glucose_\").to_string()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 un nombre reste un texte",
+  "fichier": "crates/glucose-desktop/src/agents/terminal/arguments.rs",
+  "avant": "        \"number\" => ecrit",
+  "apres": "        \"nombre\" => ecrit",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 la clé répétée remplace au lieu d'ajouter",
+  "fichier": "crates/glucose-desktop/src/agents/terminal/arguments.rs",
+  "avant": "        Some((_, Json::Liste(l))) => l.extend(elements),",
+  "apres": "        Some((_, Json::Liste(l))) => *l = elements,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 les mots nus ne vont nulle part",
+  "fichier": "crates/glucose-desktop/src/agents/terminal/arguments.rs",
+  "avant": "        Some([seul]) => seul.as_str().map(str::to_string),",
+  "apres": "        Some([_]) => None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 « - » ne lit pas l'entrée standard",
+  "fichier": "crates/glucose-desktop/src/agents/terminal/arguments.rs",
+  "avant": "        let ecrit = if ecrit == \"-\" {",
+  "apres": "        let ecrit = if ecrit == \"--\" {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 une clé inconnue passe",
+  "fichier": "crates/glucose-desktop/src/agents/terminal/arguments.rs",
+  "avant": "    let Some(type_) = type_de(schema, cle) else {",
+  "apres": "    let Some(type_) = type_de(schema, cle).or(Some(String::new())) else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-1 une faute de frappe ouvre Glucose",
+  "fichier": "crates/glucose-desktop/src/agents/terminal.rs",
+  "avant": "    if chemin.is_file() {",
+  "apres": "    if !premier.is_empty() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-2 un refus de Glucose passe pour une réussite",
+  "fichier": "crates/glucose-desktop/src/agents/terminal.rs",
+  "avant": "    if resultat.get(\"isError\").and_then(Json::as_bool) == Some(true) {",
+  "apres": "    if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "TERMINAL-2 la commande ne dit pas qui elle est",
+  "fichier": "crates/glucose-desktop/src/agents/terminal.rs",
+  "avant": "                (\"name\", Json::from(CLIENT)),",
+  "apres": "                (\"name\", Json::from(\"un agent\")),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "terminal::"
+  ]
+ },
+ {
+  "nom": "AGENT-7 l'agent ne lit pas dans l'ordre de la palette",
+  "fichier": "crates/glucose-desktop/src/agents/executer/chercher.rs",
+  "avant": "            .iter()\n            .skip(depuis)",
+  "apres": "            .iter()\n            .rev()\n            .skip(depuis)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "executer::chercher::"
+  ]
+ },
+ {
+  "nom": "AGENT-7 depuis est ignoré",
+  "fichier": "crates/glucose-desktop/src/agents/executer/chercher.rs",
+  "avant": "        let depuis = entier(\"depuis\", 0);",
+  "apres": "        let depuis = 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "executer::chercher::"
+  ]
+ },
+ {
+  "nom": "JSON l'écriture en retrait colle la clé à sa valeur",
+  "fichier": "crates/glucose-desktop/src/agents/json.rs",
+  "avant": "            s.push_str(if interieur.is_some() { \": \" } else { \":\" });",
+  "apres": "            s.push_str(\":\");",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "json::"
+  ]
+ },
+ {
+  "nom": "OUVRIR-1 le document demandé est ignoré",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "        if let Some(chemin) = demande {",
+  "apres": "        if let Some(chemin) = demande.filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "reprise::"
+  ]
+ },
+ {
+  "nom": "OUVRIR-1 le brouillon devancé attend en silence",
+  "fichier": "crates/glucose-desktop/src/persist/reprise.rs",
+  "avant": "                usize::from(matches!(devance, Some(Interrompu::Brouillon(_))));",
+  "apres": "                usize::from(devance.is_none());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "reprise::"
+  ]
+ }
+]

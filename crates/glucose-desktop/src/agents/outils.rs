@@ -27,7 +27,8 @@ d'un autre (passage_source, passage_cible) : ces phrases sont surlignées, et do
 mot pour mot. Un domaine est un sujet qui traverse les membranes et les fichiers (« eau » : un texte \
 sur H2O, un autre sur l'eau dans les jeux vidéo) ; un nœud y appartient avec un poids de 0 à 1, sans \
 rapport avec ses autres domaines. Quand tu ne sais pas ce que tu cherches, commence par \
-glucose_domaines : c'est la table des matières de tout ce que Glucose connaît. Deux domaines ne portent \
+glucose_domaines : c'est la table des matières de tout ce que Glucose connaît ; quand tu sais les \
+mots, glucose_chercher les trouve dans tout le document, comme Ctrl+F pour l'utilisateur. Deux domaines ne portent \
 jamais le même nom : si « python » existe et que tu parles d'autre chose, précise le mot (« python \
 serpent »). Le sens d'un tableau ne tient pas dans les positions : écris ce qui compte en membrane, \
 en flèche ou en domaine.";
@@ -114,6 +115,17 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"domaine":{"type":"string"},"entier":{"type":"boolean"},"cherche":{"type":"string"}}}"##,
     ),
     (
+        "glucose_chercher",
+        "Cherche dans tout le document, comme Ctrl+F pour l'utilisateur : les mêmes résultats, dans \
+         le même ordre, la même page de dix. Sans majuscules ni accents ; chaque mot doit être dans \
+         le texte, ceux qui commencent un mot passent devant. Cherche dans les textes, les post-it, \
+         les titres de membranes, ce que disent les flèches, les étiquettes et l'adresse des photos, \
+         les noms des tableaux et des dossiers. Rend total, et pour chaque résultat son tableau, son \
+         onglet, son id, sa sorte et la phrase trouvée ; « depuis » donne la page suivante. Lis \
+         ensuite un nœud en entier par glucose_lire (tableau, ids).",
+        r##"{"type":"object","properties":{"cherche":{"type":"string","description":"les mots à trouver"},"depuis":{"type":"number","description":"le rang du premier résultat rendu ; 0 par défaut"},"combien":{"type":"number","description":"le nombre de résultats rendus ; dix par défaut, comme la palette"}},"required":["cherche"]}"##,
+    ),
+    (
         "glucose_retirer",
         "Retire des nœuds, et les flèches qui n'ont plus de bout.",
         r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"}},"tableau":{"type":"string"}},"required":["ids"]}"##,
@@ -125,16 +137,32 @@ pub fn noms() -> impl Iterator<Item = &'static str> {
     OUTILS.iter().map(|(nom, _, _)| *nom)
 }
 
+/// Ce que fait cet outil, tel qu'un agent le lit — et `glucose aide` (fiche 90).
+pub fn description(nom: &str) -> Option<&'static str> {
+    OUTILS
+        .iter()
+        .find(|(n, _, _)| *n == nom)
+        .map(|(_, d, _)| *d)
+}
+
+/// La forme des arguments de cet outil — ce que lit `tools/list`, et la ligne de commande (fiche 90).
+pub fn schema(nom: &str) -> Option<Json> {
+    OUTILS
+        .iter()
+        .find(|(n, _, _)| *n == nom)
+        .and_then(|(_, _, s)| Json::lire(s).ok())
+}
+
 /// Ce que `tools/list` rend.
 pub fn liste() -> Json {
     let outils = OUTILS
         .iter()
-        .map(|(nom, description, schema)| {
+        .map(|(nom, description, _)| {
             Json::objet([
                 ("name", Json::from(*nom)),
                 ("description", Json::from(*description)),
                 // Écrits à la main ci-dessus et éprouvés : ils se lisent toujours.
-                ("inputSchema", Json::lire(schema).unwrap_or(Json::Nul)),
+                ("inputSchema", schema(nom).unwrap_or(Json::Nul)),
             ])
         })
         .collect();

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Le type des documents de Glucose (fiche 90, OUVRIR-1) : ce qui fait qu'un double-clic sur un
+     .glucose ouvre Glucose. Le même nom de famille que le lot du presse-papiers
+     (application/x-glucose-lot), qui est un .glucose tel quel. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-glucose">
+    <comment>Glucose document</comment>
+    <comment xml:lang="fr">Document Glucose</comment>
+    <icon name="glucose"/>
+    <glob pattern="*.glucose"/>
+  </mime-type>
+</mime-info>

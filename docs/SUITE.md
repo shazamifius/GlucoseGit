@@ -80,7 +80,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **P8 — Le texte de près par la carte graphique** (fiche 73) : Slug, CADRE-1, SLUG-1 ; ~1 ms par image de près, contre ~20 et le flou | de près, aucun flou, sur sa machine et au téléphone |
 | [~] | **P8 bis — Un nœud immense, de près** (fiche 73 § 7) : LIGNE-1 et la mémoire des mises en page — 10,5 ms → 0,72 ms à 17 600 mots | un très long texte, de près ; un tableau plein de textes |
 | [~] | **P4 — Tes raccourcis** (fiches 72, 74) : la table des commandes, la palette, la couche de l'utilisateur | `Ctrl+Maj+P` ; changer un raccourci, relancer |
-| [~] | **P10 — La porte des agents** (fiche 75) : `glucose --mcp`, onze outils (les domaines depuis la fiche 88), chaque geste annulable, rien sans son accord ; lire par niveaux, `selection`, `empreinte`, `document`, `glucose_ouvrir_tableau` (fiches 79, 80) | un agent travaille dans son Glucose, sous ses yeux |
+| [~] | **P10 — La porte des agents** (fiche 75) : `glucose --mcp`, douze outils (les domaines depuis la fiche 88, `glucose_chercher` depuis la fiche 90), et chacun une commande du terminal, chaque geste annulable, rien sans son accord ; lire par niveaux, `selection`, `empreinte`, `document`, `glucose_ouvrir_tableau` (fiches 79, 80) | un agent travaille dans son Glucose, sous ses yeux |
 
 ### Étape 1 — Ne rien perdre
 
@@ -95,13 +95,13 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
-**Le domaine et `Ctrl+F` sont faits, ils attendent son écran** (fiches 88 et 89). **Le prochain chantier : les commandes Linux**, puis un morceau de Wikipédia pour voir ce qui manque, puis P6.
+**Le domaine, `Ctrl+F` et les commandes du terminal sont faits, ils attendent son écran** (fiches 88 à 90). **Le prochain chantier : un morceau de Wikipédia posé par les commandes, pour voir ce qui manque**, puis P6.
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
 | [~] | **BARRE-1 — La barre blanche de Windows disparaît** (sa demande du 6/11, fiche 85) : la bande déplace la fenêtre et porte réduire, agrandir, fermer | à l'écran d'un Windows réel : glisser, coller aux bords, couleurs inchangées une fois agrandie |
 | [~] | **Le domaine** (sa définition du 22/10, [VISION](VISION.md) ; fiche 88) : un domaine **traverse** les blocs, les membranes et les fichiers. **Fait** : chaque fichier garde ses domaines, Glucose met côte à côte ceux des documents qu'il connaît (sans y écrire) ; sa règle du 7/11, **deux domaines ne portent jamais le même nom** — on demande « même sujet » ou on précise le mot ; une IA les lit (`glucose_lire`, `glucose_domaines`) et les pose (`glucose_poser_domaine`) ; le panneau montre les autres fichiers, pose la question, et va à chaque place (« où »). **Essai réel hors écran** : trois blocs, deux fichiers, un domaine. **Reste** : les synonymes (« eau », « water ») ; sa visualisation (étape 5) | à son écran : créer « Eau » dans deux documents, « où », la question de deux « Python » ; et un agent qui s'en sert |
-| [ ] | **Les commandes Linux** (sa demande du 7/11 : *« des commandes Linux directement pour faire des trucs avec Glucose, plein plein de commandes, dont l'ouvrir »*) : `glucose` dans son terminal (le paquet Nix installé dans son profil), puis une commande par outil de la porte des agents — une seule table, deux portes, ce qu'une IA fait par MCP un humain le fait au terminal (`glucose lire`, `glucose domaines`, `glucose chercher`…) | `glucose fichier.glucose` ouvre ; chaque outil a sa commande, éprouvée |
+| [~] | **Les commandes Linux** (sa demande du 7/11 : *« des commandes Linux directement pour faire des trucs avec Glucose, plein plein de commandes, dont l'ouvrir »* ; fiche 90) : **fait** — `glucose document.glucose` et le double-clic ouvrent ; une commande par outil de la porte des agents, une seule table, la même porte et le même accord (`glucose aide`, `lire`, `chercher`, `domaines`, `poser-texte`…) ; `glucose_chercher`, l'agent cherche comme `Ctrl+F`. Essai réel, tout passe. **Reste** : la sortie dans une console Windows (un second petit programme, la CI pour juge) | à son écran : `glucose aide`, `glucose chercher …` dans son terminal, un double-clic sur un `.glucose` dans Nautilus |
 | [~] | **La recherche, `Ctrl+F`** (fiche 89) : la palette, dont les rangées sont des nœuds de tout le document, sans majuscules ni accents ; Entrée y va (son onglet, le nœud choisi, la caméra qui vole), `F3` et `Maj+F3` au suivant et au précédent ; « Chercher… » au menu du vide. Sur le noyau ; l'index de trigrammes pour 10⁷ nœuds viendra sans changer ce qu'elle rend | à son écran, sur un gros tableau |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |
@@ -199,6 +199,12 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 *« si j'ai absolument tout testé, normalement 100 % des fonctionnalités sont validées »*.
 
 **Au PC** — `nix develop -c cargo run --release > sortie-essais.txt 2>&1` (ce qui parle de Windows ci-dessous attend une machine Windows) :
+
+* **Ses commandes** (fiche 90), dans son terminal : `glucose aide` ; `glucose chercher eau` ; la première
+  commande demande l'accord dans Glucose, au nom du « terminal » ; `glucose poser-texte "Bonjour"` apparaît
+  sous ses yeux, `Ctrl+Z` le défait ; un double-clic sur un `.glucose` dans Nautilus l'ouvre.
+* **`Ctrl+F`** (fiche 89), sur un gros tableau : écrire, Entrée y va (même dans un autre onglet, même sur
+  une flèche), `F3` au suivant.
 
 * **Le domaine qui traverse les fichiers** (fiche 88) : dans un document, créer un domaine « Eau » au panneau
   Domaines, le poser sur deux nœuds, enregistrer ; un document neuf : « Eau » est dans la liste, en gris,

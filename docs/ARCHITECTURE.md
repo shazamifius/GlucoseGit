@@ -361,13 +361,21 @@ E/S superposée (`porte/tuyau.rs`, TUYAU-1) ; une prise Unix ailleurs ; aucune a
 **protocole** (`agents/protocole.rs`, MCP du 28/07/2026 et les versions d'avant) est pur ; le JSON
 est écrit ici (`agents/json.rs`, JSON-1). Un appel d'outil arrive à la boucle par une boîte aux
 lettres (`agents::Boite`) ; la boucle demande l'accord (AGENTS-1, `app/agents.rs`), puis
-l'exécute (`agents/executer.rs`) — onze outils, dont les domaines (`executer/domaines.rs`, fiche 88 :
+l'exécute (`agents/executer.rs`) — douze outils, dont la recherche de `Ctrl+F` (`executer/chercher.rs`, AGENT-7, fiche 90) et les domaines (`executer/domaines.rs`, fiche 88 :
 `glucose_poser_domaine`, `glucose_domaines`, AGENT-5 et 6) — en **un geste du journal** : le noyau
 (`core/store/agents.rs`) tient AGENT-1 à 4 (un geste atomique, la sélection rendue, le passage mot
 pour mot, l'identifiant qui met à jour). Une page web est une photo qui garde son adresse
 (`source_url`) : le double-clic l'ouvre (`interactions/links.rs`). Une flèche ancrée à un passage arrive à sa hauteur, par le côté qui fait face (FLECHE-6, `core/arrow_anchor.rs`, fiche 76). Côté Protéo, chaque demande est triée (`tri.rs`) et posée sur une toile par demande (`toile/dessin.rs`). Le banc
 `bench/porte.rs` (exemple `porte_sans_fenetre`) sert la porte sans fenêtre et rend le tableau en
 images.
+
+**Le terminal, la seconde porte** (fiche 90, `agents/terminal.rs`) : `glucose <commande>` est un
+outil de la même table (TERMINAL-1 — `poser-texte` pour `glucose_poser_texte`, ses arguments lus par le
+schéma de l'outil, `glucose aide` tirée de sa description), envoyé par la même porte en **une** ligne du
+protocole moderne, sous le nom « le terminal », donc par le même accord (TERMINAL-2). `main.rs` aiguille
+la ligne de commande avant toute fenêtre ; un document demandé (`glucose document.glucose`, le
+double-clic du type `application/x-glucose`, `outils/paquets/`) passe devant la reprise (OUVRIR-1,
+`persist/reprise.rs`).
 
 ## 9. Distribuer et se mettre à jour
 

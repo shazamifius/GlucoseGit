@@ -18,6 +18,8 @@
 //! * **Le relais** ([`relais`]) : un client MCP lance un programme et lui parle par ses flux
 //!   standard. `glucose --mcp` est ce programme ; il ne fait que recopier les lignes entre ses
 //!   flux et la porte — et ouvre Glucose s'il ne l'est pas.
+//! * **Le terminal** ([`terminal`], fiche 90) : `glucose lire`, `glucose chercher eau` — chaque
+//!   outil est aussi une commande, qui passe par la même porte et le même accord.
 //! * **Le protocole** ([`protocole`]) est pur : il lit une ligne et dit quoi faire.
 //! * **La boucle** est le seul fil qui touche au document : un appel d'outil y arrive par une
 //!   boîte aux lettres ([`Boite`]), comme le choix d'un sélecteur de fichiers (DIAL-2).
@@ -43,6 +45,8 @@ pub mod porte;
 pub mod protocole;
 #[cfg(not(target_os = "android"))]
 pub mod relais;
+#[cfg(not(target_os = "android"))]
+pub mod terminal;
 
 use crate::plateforme::Reveil;
 use std::collections::VecDeque;

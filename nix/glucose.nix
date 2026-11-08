@@ -7,8 +7,6 @@
   lib,
   rustPlatform,
   pkg-config,
-  copyDesktopItems,
-  makeDesktopItem,
   gtk3,
   libxkbcommon,
   wayland,
@@ -56,30 +54,26 @@ rustPlatform.buildRustPackage {
   ];
   doCheck = false;
 
-  nativeBuildInputs = [
-    pkg-config
-    copyDesktopItems
-  ];
+  nativeBuildInputs = [ pkg-config ];
   # `rfd` ouvre les dialogues de fichiers par GTK 3.
   buildInputs = [ gtk3 ] ++ ouvertes;
 
+  # Ce que posent aussi le .deb, le .rpm et l'AppImage (`outils/paquets`), depuis les mêmes
+  # fichiers : un seul raccourci de bureau, qui ouvre un .glucose d'un double-clic, et le type
+  # des .glucose (fiche 90, OUVRIR-1).
   postInstall = ''
     ln -s glucose-desktop $out/bin/glucose
+    install -Dm644 ${../outils/paquets/Glucose.desktop} $out/share/applications/glucose.desktop
+    install -Dm644 ${../outils/paquets/glucose-mime.xml} $out/share/mime/packages/glucose.xml
+    for taille in 32x32 128x128 256x256; do
+      install -Dm644 ${../outils/paquets/icones}/$taille.png \
+        $out/share/icons/hicolor/$taille/apps/glucose.png
+    done
   '';
 
   postFixup = ''
     patchelf --add-rpath ${lib.makeLibraryPath ouvertes} $out/bin/glucose-desktop
   '';
-
-  desktopItems = [
-    (makeDesktopItem {
-      name = "glucose";
-      desktopName = "Glucose";
-      comment = "La toile infinie des idées et des images";
-      exec = "glucose";
-      categories = [ "Graphics" ];
-    })
-  ];
 
   meta = {
     description = "Glucose — la toile infinie des idées et des images, en Rust natif";

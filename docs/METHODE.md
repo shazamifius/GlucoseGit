@@ -232,6 +232,14 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
   `CARGO_PROFILE_DEV_DEBUG=0` et `nice -n 19` : quelques minutes chacun au lieu de dix, et l'arbre principal reste libre. **Le retirer ensuite.** Un saboteur
   lancé par `nohup … &` ignore `SIGINT` : le tuer laisse sa garde cassée, à rétablir et à vérifier.
 * **`undefined reference` à l'édition de liens après une coupure** : des objets à moitié écrits, `cargo clean -p glucose-desktop`.
+* **Les commandes du terminal, en réel** (fiche 90) : `nix develop -c bash outils/essai_terminal.sh <dossier jetable>` — le vrai
+  Glucose sans fenêtre, le vrai `glucose` contre sa porte (`GLUCOSE_PORTE`), puis un document ouvert par son nom dans un
+  compositeur sans écran, sa capture à regarder. Une prise Unix tient en 108 caractères : un chemin du scratchpad est trop long.
+* **Nix ne voit que ce que git connaît** : un fichier neuf que le paquet nomme (`outils/paquets/…`) empêche `nix develop` de
+  s'ouvrir tant qu'il n'est pas ajouté (`git add`).
+* **Préparer pendant que la suite tourne, hors du dépôt** : les cliquets lisent tous les fichiers, même ceux qu'aucun `mod` ne
+  nomme. Copier au scratchpad ce qu'on va changer, l'y éditer, puis le recopier d'un coup (en vérifiant d'abord que seul notre
+  changement diffère).
 * **Faire tomber un moteur** : `GLUCOSE_TOMBER=vulkan` (ou `gl`) ; l'échelle se joue en relançant.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>` ; la connexion est dans CLAUDE.md
   (le mode « lien et code » : la page automatique a mis dix minutes à s'ouvrir, et l'autre mode

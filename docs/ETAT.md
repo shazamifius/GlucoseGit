@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 7/11/2026** (fiches 73 à 88). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
+> **Au 8/11/2026** (fiches 73 à 90). L'état **vérifié** du projet, en une lecture. Il se réécrit à chaque
 > fin de session qui change quelque chose d'important ; l'histoire, session par session, vit dans
 > le [carnet](carnet/00-INDEX.md) (fiches 51 à 84 pour la V2). La direction : [VISION](VISION.md).
 > La suite : [SUITE](SUITE.md). Chaque fonction et son bouton : [INVENTAIRE](INVENTAIRE.md).
@@ -9,8 +9,9 @@
 
 ## 1. En une page
 
+* **Ses commandes au terminal** (fiche 90, 8/11, sa demande du 7/11) : `glucose document.glucose` et un double-clic ouvrent un document ; **chaque outil de la porte des agents est une commande** (`glucose aide`, `lire`, `chercher eau`, `domaines`, `poser-texte "…"`, `cat notes.md | glucose poser-texte -`) — une seule table, la même porte, le même accord, chaque geste annulable ; et **l'agent cherche comme `Ctrl+F`** (`glucose_chercher`, douze outils). **Essai réel, tout passe** (`outils/essai_terminal.sh` : le vrai Glucose sans fenêtre, le vrai programme, un document ouvert par son nom dans un écran invisible, la capture regardée) ; 2 874 épreuves, clippy à zéro. **Pas vu à son écran** ; sous Windows, la sortie ne se lit que redirigée.
 * **Le domaine traverse les fichiers, et une IA le lit comme l'humain** (fiche 88, 7/11). Chaque fichier garde ses domaines ; Glucose met côte à côte ceux des documents qu'il connaît, sans jamais y écrire. **Sa règle du 7/11 : deux domaines ne portent jamais le même nom** — « même sujet », ou préciser le mot (« Python code », « Python serpent »). Un agent lit les domaines de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers, et les pose (`glucose_poser_domaine`, `glucose_domaines`) ; le panneau montre les autres fichiers, pose la question, et va à chaque place (« où »). **Essai réel hors écran, tout passe** (`outils/essai_domaine.py`) ; 2 845 épreuves, clippy à zéro, 34 sabotages tombés sur 34 (`domaine-88.json`), **dix vertes sur GitHub** (`218d7b3`, exécution 42411174857 ; Windows 2 951 épreuves, dont les 43 du domaine) ; **pas vu à son écran**, pas publié.
-* **`Ctrl+F`** (fiche 89) : chercher dans tout le document, sans majuscules ni accents, Entrée y va, `F3` au suivant ; « Chercher… » au menu du vide. Une lettre tapée coûte 4 à 8 ms sur 24 000 textes (110 à 218 avant l'index). **Pas vu à son écran.**
+* **`Ctrl+F`** (fiche 89, enregistré le 8/11, `58657ab`) : chercher dans tout le document, sans majuscules ni accents, Entrée y va, `F3` au suivant ; « Chercher… » au menu du vide. Une lettre tapée coûte 4 à 8 ms sur 24 000 textes (110 à 218 avant l'index). **VOL-1**, trouvé en relisant : une flèche trouvée ne faisait pas voler la vue. **Pas vu à son écran.**
 * **CONSOLE-1** (fiche 88 § 10) : sa session du 5/11 sur ce PC est tombée d'une panique, `println!` sur une console disparue ; reproduit sans écran (le programme d'avant meurt deux fois sur deux, le réparé vit deux fois sur deux), réparé partout, gardé par le cliquet 13.
 * **Sa décision du 7/11 : on arrête l'optimisation graphique ici** (*« ce n'est pas le but premier de Glucose »*, fiche 87 § 7 ter). **La beta 9, publiée par lui le 7/11** (`b04ccef`) : la fiche 87 et JOURNAL-1, sans le domaine.
 * **Un tableau entier à l'écran ne coûte plus par photo à chaque image** (fiche 87) : ATLAS-1, PHOTO-1, LOT-1, JETER-1. En paires entrelacées, 8 000 images, Intel UHD 620, **sur secteur** : un vol 18 → 4,9 ms, un zoom 23 → 9,7 ms, un focus revenu au tableau 33 → 4,9 ms ; un focus pendant son zoom reste à 16 ms, le pire d'un zoom à 28 ms. **Ni sa GTX 1660, ni son téléphone, ni la batterie n'ont été mesurés.** **Dans la beta 9, publiée le 7/11.**
@@ -33,6 +34,7 @@
   journaux du PC de l'école** : c'est très probablement lui. Son contenu : MEMOIRE-4 (les 6 000 images), FIN-SESSION-1,
   MOTEUR-1, ACCUEIL-2, `rustls` 0.23.46 (ferme les 4 alertes de GitHub, aucune n'atteignait Glucose).
   Le garde-fou NOTES-1 arrête une publication dont les notes parlent d'une autre version.
+* **La télémétrie au 8/11** : 142 sessions, 8 installations. **Son téléphone a reparlé le 6/11** (3 sessions, encore en beta 4, aucune mort) ; la « panique » de ce PC le 7/11 est celle que CONSOLE-1 a réparée.
 * **La télémétrie au 6/11** : 132 sessions, 7 installations, 29 fins anormales. L'utilisateur à la
   GTX 1660 revient toujours (39 sessions, dernière le 4/11, en beta 6). **Son téléphone reste muet
   depuis le 15/10.** Son PC Windows : dernière session le 23/10.
@@ -87,7 +89,7 @@
   l'utilisateur (« il désigne : Bienvenue dans Glucose ») — corrigé, ACCUEIL-1. Son usage réel,
   compté dans son journal : 444 gestes, aucun refus, un seul manque — la porte publiée.
 * **La porte des agents** (fiche 75, P10, sa demande du 17/10) : `glucose --mcp`, le protocole MCP,
-  huit outils (onze depuis la fiche 88) ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
+  huit outils (douze depuis la fiche 90, et chacun une commande du terminal) ; **Protéo pose sa recherche dans Glucose, en direct** — sa demande, une colonne par
   sous-question avec les pages lues en capture (le double-clic les ouvre), les citations exactes,
   le rapport relié phrase par phrase aux citations, qui brillent au survol. Chaque geste s'annule
   par `Ctrl+Z` ; rien sans son accord. Prouvé hors écran sur deux recherches neuves du vrai Protéo

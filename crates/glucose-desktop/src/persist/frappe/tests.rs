@@ -65,7 +65,7 @@ fn test_le_texte_tape_survit_a_un_arret() {
     drop(app);
 
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert_eq!(
         relance.project_path.as_deref(),
         Some(&*d.join("notes.glucose"))
@@ -225,7 +225,7 @@ fn test_un_fichier_en_lecture_seule_tape_dans_un_brouillon() {
     );
 
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert!(
         relance.project_path.is_none(),
         "c'est le brouillon qui revient"
@@ -276,7 +276,7 @@ fn test_fermer_la_fenetre_pendant_une_frappe_valide_le_texte() {
 /// est sur le disque.
 fn relancer(d: &Path) -> GlucoseApp {
     let mut relance = application(d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     relance
 }
 

@@ -49,38 +49,33 @@ impl Json {
     /// `\n`, ce que le cadrage du protocole exige (un message par ligne).
     pub fn ecrire(&self) -> String {
         let mut s = String::new();
-        self.ecrire_dans(&mut s);
+        self.ecrire_dans(&mut s, None);
         s
     }
 
-    fn ecrire_dans(&self, s: &mut String) {
+    /// **Écrit** la valeur pour un œil : chaque élément sur sa ligne, en retrait de deux blancs par
+    /// niveau — ce qu'une commande montre dans un terminal (fiche 90). Elle se relit en la même
+    /// valeur que [`Self::ecrire`] : seuls les blancs diffèrent.
+    pub fn ecrire_en_retrait(&self) -> String {
+        let mut s = String::new();
+        self.ecrire_dans(&mut s, Some(0));
+        s
+    }
+
+    /// `retrait` : rien pour une seule ligne, sinon le niveau où l'on est.
+    fn ecrire_dans(&self, s: &mut String, retrait: Option<usize>) {
         match self {
             Json::Nul => s.push_str("null"),
             Json::Bool(b) => s.push_str(if *b { "true" } else { "false" }),
             Json::Nombre(n) => ecrire_un_nombre(*n, s),
             Json::Texte(t) => ecrire_une_chaine(t, s),
-            Json::Liste(l) => {
-                s.push('[');
-                for (k, v) in l.iter().enumerate() {
-                    if k > 0 {
-                        s.push(',');
-                    }
-                    v.ecrire_dans(s);
-                }
-                s.push(']');
-            }
-            Json::Objet(o) => {
-                s.push('{');
-                for (k, (cle, v)) in o.iter().enumerate() {
-                    if k > 0 {
-                        s.push(',');
-                    }
-                    ecrire_une_chaine(cle, s);
-                    s.push(':');
-                    v.ecrire_dans(s);
-                }
-                s.push('}');
-            }
+            Json::Liste(l) => ecrire_une_suite(s, retrait, ['[', ']'], l.iter().map(|v| (None, v))),
+            Json::Objet(o) => ecrire_une_suite(
+                s,
+                retrait,
+                ['{', '}'],
+                o.iter().map(|(cle, v)| (Some(cle.as_str()), v)),
+            ),
         }
     }
 
@@ -157,6 +152,41 @@ impl From<String> for Json {
     fn from(t: String) -> Self {
         Json::Texte(t)
     }
+}
+
+/// **Une liste ou un objet** : ses éléments séparés par des virgules — chacun sur sa ligne quand on
+/// écrit en retrait. Une suite vide reste `[]` ou `{}`.
+fn ecrire_une_suite<'a>(
+    s: &mut String,
+    retrait: Option<usize>,
+    [ouvre, ferme]: [char; 2],
+    elements: impl Iterator<Item = (Option<&'a str>, &'a Json)>,
+) {
+    let a_la_ligne = |s: &mut String, niveau: usize| {
+        s.push('\n');
+        s.push_str(&"  ".repeat(niveau));
+    };
+    let interieur = retrait.map(|n| n + 1);
+    let mut vide = true;
+    s.push(ouvre);
+    for (k, (cle, v)) in elements.enumerate() {
+        vide = false;
+        if k > 0 {
+            s.push(',');
+        }
+        if let Some(n) = interieur {
+            a_la_ligne(s, n);
+        }
+        if let Some(cle) = cle {
+            ecrire_une_chaine(cle, s);
+            s.push_str(if interieur.is_some() { ": " } else { ":" });
+        }
+        v.ecrire_dans(s, interieur);
+    }
+    if let (Some(n), false) = (retrait, vide) {
+        a_la_ligne(s, n);
+    }
+    s.push(ferme);
 }
 
 /// Un nombre entier s'écrit sans « .0 » — un identifiant de requête revient tel qu'il est

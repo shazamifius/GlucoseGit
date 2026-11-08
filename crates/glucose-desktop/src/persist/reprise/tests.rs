@@ -20,7 +20,7 @@ fn test_le_dernier_document_se_rouvre_au_lancement() {
     drop(app);
 
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert_eq!(relance.project_path.as_deref(), Some(chemin.as_path()));
     assert_eq!(relance.store.project, attendu);
 }
@@ -47,7 +47,7 @@ fn test_le_plus_recent_l_emporte() {
     drop(sans_nom);
 
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert!(relance.project_path.is_none(), "le brouillon, plus récent");
     assert_eq!(relance.store.project, attendu);
 }
@@ -64,7 +64,7 @@ fn test_un_document_tenu_ailleurs_n_est_pas_repris() {
 
     let mut seconde = application(&d);
     let accueil = seconde.store.project.clone();
-    seconde.retrouver_le_travail();
+    seconde.retrouver_le_travail(None);
     if cfg!(windows) {
         assert!(seconde.project_path.is_none());
         assert_eq!(
@@ -114,7 +114,7 @@ fn test_un_brouillon_passe_avant_un_document_plus_recent() {
     drop(nomme);
 
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert!(relance.project_path.is_none(), "le brouillon d'abord");
     assert_eq!(relance.store.project, attendu);
     assert!(
@@ -135,7 +135,7 @@ fn test_les_autres_brouillons_se_disent_et_reparaissent_a_leur_tour() {
     assert_eq!(brouillons(&d), 2);
 
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert_eq!(relance.store.project, second, "le plus récent d'abord");
     assert!(
         toast(&relance).contains("un autre brouillon attend"),
@@ -147,7 +147,7 @@ fn test_les_autres_brouillons_se_disent_et_reparaissent_a_leur_tour() {
     drop(relance);
 
     let mut encore = application(&d);
-    encore.retrouver_le_travail();
+    encore.retrouver_le_travail(None);
     assert_eq!(encore.store.project, premier, "puis l'autre, à son tour");
     assert!(
         !toast(&encore).contains("autre brouillon"),
@@ -211,7 +211,7 @@ fn test_reprise_1_ce_que_le_lancement_rouvre_s_ecrit() {
 
     let mut relance = application(&d);
     relance.chronique.ouvrir_la_boite_noire(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert_eq!(relance.store.project.toutes_les_images().count(), 3);
     let boite = relance.chronique.boite_noire().expect("ouverte");
     boite.synchroniser();
@@ -245,7 +245,7 @@ fn test_libere_1_un_brouillon_tenu_au_lancement_revient_quand_on_le_lache() {
 
     let mut neuf = application(&d);
     neuf.chronique.ouvrir_la_boite_noire(&d);
-    neuf.retrouver_le_travail();
+    neuf.retrouver_le_travail(None);
     assert_eq!(
         neuf.store.project.toutes_les_images().count(),
         0,
@@ -283,7 +283,7 @@ fn test_libere_1_un_brouillon_libere_ne_remplace_pas_un_travail_commence() {
     image_suivante(&mut mourant);
 
     let mut neuf = application(&d);
-    neuf.retrouver_le_travail();
+    neuf.retrouver_le_travail(None);
     noter(&mut neuf, "c2", "le nouveau, déjà commencé");
     image_suivante(&mut neuf);
     let avant = neuf.store.project.clone();
@@ -302,5 +302,42 @@ fn test_libere_1_un_brouillon_libere_ne_remplace_pas_un_travail_commence() {
     assert!(
         !attend(&neuf),
         "le brouillon libéré attend le prochain lancement, et le dit"
+    );
+}
+
+/// **Un document demandé passe devant ce qui attend** (OUVRIR-1, fiche 90 : `glucose document.glucose`,
+/// le double-clic) — même devant un brouillon, qui attend son tour, le dit, et reparaît ensuite. La
+/// preuve à l'envers : sans la demande, le brouillon passait devant (BROUILLON-1).
+#[test]
+fn ouvrir_1_un_document_demande_passe_devant_le_brouillon() {
+    let d = dossier("reprise-demande");
+    let chemin = d.join("demande.glucose");
+    let mut nomme = application(&d);
+    noter(&mut nomme, "c1", "le document demandé");
+    nomme.save_to(chemin.clone());
+    image_suivante(&mut nomme);
+    assert!(crate::persist::close::tests::fermer(&mut nomme));
+    let demande = nomme.store.project.clone();
+    drop(nomme);
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    let brouillon = un_plantage_sans_nom(&d, "b1");
+
+    let mut relance = application(&d);
+    relance.retrouver_le_travail(Some(chemin.clone()));
+    assert_eq!(relance.project_path.as_deref(), Some(chemin.as_path()));
+    assert_eq!(relance.store.project, demande);
+    assert!(
+        toast(&relance).contains("un autre brouillon attend"),
+        "{}",
+        toast(&relance)
+    );
+    assert!(crate::persist::close::tests::fermer(&mut relance));
+    drop(relance);
+
+    let mut encore = application(&d);
+    encore.retrouver_le_travail(None);
+    assert_eq!(
+        encore.store.project, brouillon,
+        "puis le brouillon, à son tour"
     );
 }

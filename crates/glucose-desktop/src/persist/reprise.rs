@@ -66,8 +66,17 @@ impl GlucoseApp {
     /// nom, ou le document d'un texte en cours de frappe. Puis le texte en cours dont le
     /// document est introuvable revient dans une carte neuve (FRAPPE-1). Tout se dit d'un seul
     /// compte rendu : le lancement est un geste.
-    pub fn retrouver_le_travail(&mut self) {
-        let attentes = ce_qui_attend(&self.disque.brouillons);
+    ///
+    /// **OUVRIR-1** (fiche 90) : un document `demande` — `glucose document.glucose`, un double-clic —
+    /// passe devant tout cela. Un brouillon qui serait passé devant attend son tour, et le compte
+    /// rendu le dit : rien n'attend en silence.
+    pub fn retrouver_le_travail(&mut self, demande: Option<PathBuf>) {
+        let mut attentes = ce_qui_attend(&self.disque.brouillons);
+        if let Some(chemin) = demande {
+            let devance = attentes.premier.replace(Interrompu::Document(chemin));
+            attentes.autres_brouillons +=
+                usize::from(matches!(devance, Some(Interrompu::Brouillon(_))));
+        }
         let trouve = liberes::Trouve {
             brouillons: attentes.autres_brouillons
                 + usize::from(matches!(attentes.premier, Some(Interrompu::Brouillon(_)))),

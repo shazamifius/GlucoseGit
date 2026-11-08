@@ -151,7 +151,7 @@ fn test_un_brouillon_nait_au_premier_geste_et_se_retrouve() {
     assert_eq!(brouillons.len(), 1, "le premier geste ouvre un brouillon");
 
     let mut voisine = application(&d);
-    voisine.retrouver_le_travail();
+    voisine.retrouver_le_travail(None);
     assert!(
         voisine.store.project != app.store.project,
         "un brouillon tenu par une autre fenêtre ne se vole pas"
@@ -160,7 +160,7 @@ fn test_un_brouillon_nait_au_premier_geste_et_se_retrouve() {
     let attendu = app.store.project.clone();
     drop(app);
     let mut relance = application(&d);
-    relance.retrouver_le_travail();
+    relance.retrouver_le_travail(None);
     assert_eq!(relance.store.project, attendu);
     assert!(relance.is_dirty(), "du travail sans nom est « modifié »");
     assert!(relance.project_path.is_none());

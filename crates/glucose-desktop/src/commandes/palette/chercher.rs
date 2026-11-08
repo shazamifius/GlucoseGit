@@ -63,9 +63,8 @@ impl GlucoseApp {
         let genre = t.genre.nom();
         // L'onglet qui le porte : un tableau rangé dans un dossier se dit par son onglet racine.
         let plusieurs = self.store.onglets().nth(1).is_some();
-        let racine = self.store.racine_de(&t.tableau);
-        match self.store.onglets().find(|(id, _, _)| *id == racine) {
-            Some((_, nom, _)) if plusieurs && t.genre != Genre::Tableau => {
+        match self.store.nom_de_l_onglet(&t.tableau) {
+            Some(nom) if plusieurs && t.genre != Genre::Tableau => {
                 format!("{phrase}   — {genre}, {nom}")
             }
             _ => format!("{phrase}   — {genre}"),

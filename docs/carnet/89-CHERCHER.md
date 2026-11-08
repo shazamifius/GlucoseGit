@@ -73,7 +73,7 @@ se calcule que pour les rangées montrées ; une lettre ASCII se met en minuscul
 
 La session suivante a relu ce chantier avant de l'enregistrer : **une flèche trouvée par ce qu'elle dit
 ne faisait pas voler la vue**. Entrée la choisissait, puis rien — pas même une image redessinée. « Voler
-jusqu'à un nœud » était écrit quatre fois (ici, le panneau Domaines, l'éditeur d'ancres), chacune par
+jusqu'à un nœud » était écrit trois fois (ici, le panneau Domaines, l'éditeur d'ancres), chacune par
 `node_rect`, la boîte où une flèche **s'accroche** ; une flèche n'en a pas. Une seule fonction désormais
 (`GlucoseApp::voler_vers_le_noeud`), qui vole vers l'**emprise** du nœud (`glucose_core::arrow::emprise` :
 sa boîte, ou l'enveloppe de l'encre d'une flèche — ce que `F` cadre déjà). Les épreuves

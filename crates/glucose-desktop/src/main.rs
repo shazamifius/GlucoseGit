@@ -21,6 +21,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().nth(1).as_deref() == Some("--mcp") {
         std::process::exit(glucose_desktop::agents::relais::relayer());
     }
+    // `glucose lire`, `glucose aide`, `glucose document.glucose` : une commande par outil de la
+    // porte, sans fenêtre ; ou le document à ouvrir (fiche 90, TERMINAL-1, OUVRIR-1).
+    #[cfg(not(target_os = "android"))]
+    let document = {
+        let mots: Vec<String> = std::env::args().skip(1).collect();
+        match glucose_desktop::agents::terminal::aiguiller(&mots) {
+            Ok(document) => document,
+            Err(code) => std::process::exit(code),
+        }
+    };
+    #[cfg(target_os = "android")]
+    let document = None;
     // `glucose --sonder-moteur vulkan` : un moteur écarté survit-il ? (MOTEUR-1, fiche 84).
     #[cfg(not(target_os = "android"))]
     if std::env::args().nth(1).as_deref() == Some("--sonder-moteur") {
@@ -48,5 +60,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Ce que le pavé tactile dit du pincement passe à côté de `winit` : le pont doit être en
     // place avant que la boucle existe, sinon le premier geste est déjà perdu.
     pincement::brancher(&mut constructeur);
-    glucose_desktop::demarrage::lancer(constructeur.build()?, &dossier)
+    glucose_desktop::demarrage::lancer(constructeur.build()?, &dossier, document)
 }

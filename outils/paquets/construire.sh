@@ -32,6 +32,8 @@ trap 'rm -rf "$TRAVAIL"' EXIT
 poser() {
   install -Dm755 "$BINAIRE" "$1/usr/bin/glucose"
   install -Dm644 "$ICI/Glucose.desktop" "$1/usr/share/applications/Glucose.desktop"
+  # Le type des .glucose : un double-clic les ouvre (fiche 90, OUVRIR-1).
+  install -Dm644 "$ICI/glucose-mime.xml" "$1/usr/share/mime/packages/glucose.xml"
   for taille in 32x32 128x128 256x256; do
     install -Dm644 "$ICI/icones/$taille.png" "$1/usr/share/icons/hicolor/$taille/apps/glucose.png"
   done
@@ -79,6 +81,7 @@ cp -a "$TRAVAIL/racine/." %{buildroot}/
 %files
 /usr/bin/glucose
 /usr/share/applications/Glucose.desktop
+/usr/share/mime/packages/glucose.xml
 /usr/share/icons/hicolor/32x32/apps/glucose.png
 /usr/share/icons/hicolor/128x128/apps/glucose.png
 /usr/share/icons/hicolor/256x256/apps/glucose.png
