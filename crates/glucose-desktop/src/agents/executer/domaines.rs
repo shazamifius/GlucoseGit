@@ -109,7 +109,7 @@ impl GlucoseApp {
         self.disque
             .recenseur
             .etat
-            .noeuds_du_domaine(Some(courant), &connu.lignee)
+            .noeuds_du_domaine(Some(courant), &connu.lignee, false)
             .iter()
             .find_map(|t| t.decrit.texte.as_deref().and_then(premiere_phrase))
             .map_or_else(String::new, |p| format!(", par exemple « {p} »"))
@@ -409,11 +409,11 @@ impl GlucoseApp {
         };
         let mut noeuds = Vec::new();
         for connu in &h {
-            for t in self
-                .disque
-                .recenseur
-                .etat
-                .noeuds_du_domaine(Some(&courant), &connu.lignee)
+            for t in
+                self.disque
+                    .recenseur
+                    .etat
+                    .noeuds_du_domaine(Some(&courant), &connu.lignee, true)
             {
                 if let Some(r) = rendu(&t) {
                     noeuds.push(trouve_en_json(&t, &r));
@@ -465,6 +465,10 @@ fn trouve_en_json(t: &NoeudTrouve<'_>, rendu: &Rendu) -> Json {
         ("tableau".to_string(), Json::from(t.tableau)),
         ("poids".to_string(), Json::Nombre(t.poids)),
     ];
+    // DOM-6 : il appartient au domaine par cette membrane, sans le porter lui-même.
+    if let Some(m) = t.herite_de {
+        champs.push(("herite_de".to_string(), Json::from(m)));
+    }
     if let Json::Objet(reste) = decrit_en_json(t.decrit, rendu) {
         champs.extend(reste);
     }

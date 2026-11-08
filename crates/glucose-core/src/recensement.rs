@@ -37,8 +37,8 @@ pub struct DocumentRecense {
     pub noeuds: Vec<NoeudRecense>,
 }
 
-/// **Lit ce qu'un document dit de ses domaines.** Un nœud sans domaine n'y entre pas : le recensement
-/// ne pèse que ce qui sert.
+/// **Lit ce qu'un document dit de ses domaines.** Un nœud sans domaine, ni porté ni hérité de ses
+/// membranes (DOM-6), n'y entre pas : le recensement ne pèse que ce qui sert.
 pub fn recenser(chemin: &str, projet: &Project) -> DocumentRecense {
     let noeuds = projet
         .boards
@@ -46,7 +46,7 @@ pub fn recenser(chemin: &str, projet: &Project) -> DocumentRecense {
         .flat_map(|tableau| {
             decrire_le_tableau(tableau, &projet.domains)
                 .into_iter()
-                .filter(|d| !d.domaines.is_empty())
+                .filter(|d| !d.domaines.is_empty() || !d.herites.is_empty())
                 .map(|decrit| NoeudRecense {
                     tableau: tableau.id.clone(),
                     decrit,
@@ -91,6 +91,8 @@ pub struct NoeudTrouve<'a> {
     pub tableau: &'a str,
     pub decrit: &'a Decrit,
     pub poids: f64,
+    /// La membrane qui le lui donne, s'il en hérite (DOM-6).
+    pub herite_de: Option<&'a str>,
 }
 
 /// **Les fichiers lus jusqu'ici**, par chemin.
@@ -161,10 +163,13 @@ impl Recensement {
 
     /// **Chaque nœud qui porte cette lignée**, dans tous les fichiers, du plus lourd au plus léger ;
     /// à poids égal, dans l'ordre des fichiers, pour qu'une même question rende la même réponse.
+    /// `herites` : avec ceux qui l'héritent de leurs membranes (DOM-6) — ce qu'un agent lit ; sans,
+    /// les seuls endroits où il est posé — où l'humain vole (« où »).
     pub fn noeuds_du_domaine<'a>(
         &'a self,
         courant: Option<&'a DocumentRecense>,
         lignee: &str,
+        herites: bool,
     ) -> Vec<NoeudTrouve<'a>> {
         let mut trouves: Vec<NoeudTrouve<'a>> = Vec::new();
         for document in self.documents(courant) {
@@ -173,13 +178,17 @@ impl Recensement {
                 continue;
             };
             for n in &document.noeuds {
-                if let Some(p) = n.decrit.domaines.iter().find(|p| p.id == ici.id) {
-                    trouves.push(NoeudTrouve {
-                        chemin: &document.chemin,
-                        tableau: &n.tableau,
-                        decrit: &n.decrit,
-                        poids: p.poids,
-                    });
+                match n.decrit.poids_dans(&ici.id) {
+                    Some((poids, herite_de)) if herites || herite_de.is_none() => {
+                        trouves.push(NoeudTrouve {
+                            chemin: &document.chemin,
+                            tableau: &n.tableau,
+                            decrit: &n.decrit,
+                            poids,
+                            herite_de,
+                        });
+                    }
+                    _ => {}
                 }
             }
         }

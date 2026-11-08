@@ -95,7 +95,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
-**Le domaine, `Ctrl+F` et les commandes du terminal sont faits, ils attendent son écran** (fiches 88 à 90). **Un article de Wikipédia posé par les commandes a montré ce qui manque** (fiche 91). **La disposition en colonnes est faite** (fiche 92). **Le prochain chantier : les liens entre deux articles** (« Eau » et « Hydrogène », fiche 91 § 5), puis P6.
+**Le domaine, `Ctrl+F` et les commandes du terminal sont faits, ils attendent son écran** (fiches 88 à 90). **Un article de Wikipédia posé par les commandes a montré ce qui manque** (fiche 91). **La disposition en colonnes est faite** (fiche 92). **Sa parole du 8/11** : *« travailler sur comment le cerveau humain serait capable de comprendre Wikipédia tout entier sur un canva 2D sans que ce soit trop brouillon, avec le maximum de facilité »* — la fiche 94 en tire quatre principes et l'ordre : DOM-6, l'héritage des domaines par les membranes (**fait**) ; **le prochain : les titres des membranes à la taille de leur région ; puis un squelette de Wikipédia (les articles vitaux) ; puis les liens ; puis P6.
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
@@ -105,7 +105,9 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **La recherche, `Ctrl+F`** (fiche 89) : la palette, dont les rangées sont des nœuds de tout le document, sans majuscules ni accents ; Entrée y va (son onglet, le nœud choisi, la caméra qui vole), `F3` et `Maj+F3` au suivant et au précédent ; « Chercher… » au menu du vide. Sur le noyau ; l'index de trigrammes pour 10⁷ nœuds viendra sans changer ce qu'elle rend | à son écran, sur un gros tableau |
 | [~] | **Un morceau de Wikipédia** (fiche 91) : « Eau » posé par les commandes ; MEMB-7 réparé, le plan pour un agent, COORD-1 ; un prototype de disposition en colonnes | la question de l'héritage des domaines, sa parole |
 | [~] | **La disposition en colonnes** (fiche 92) : « Disposer en colonnes » au menu d'une membrane et à la palette, `glucose_disposer`, `glucose disposer` ; récursive, dans l'ordre de lecture, un seul `Ctrl+Z` | à son écran, sur l'article « Eau » ; les titres, sa parole |
-| [ ] | **Les liens entre deux articles** (fiche 91 § 5) : « Eau » et « Hydrogène » posés côte à côte, leurs liens en flèches | à son écran |
+| [~] | **DOM-6 — l'héritage des domaines par les membranes** (fiche 94 § 3 et 5) : un nœud appartient aux domaines de ses membranes, sauf son propre poids ; à la lecture, rien d'écrit ; le sommaire de « Eau » de 135 376 à 70 287 caractères ; 8 sabotages sur 8 | sa visualisation (étape 5) ; à son écran, un agent qui pose un article |
+| [ ] | **Les titres des membranes à la taille de leur région** (fiche 94, principe 2), dessinés depuis leur forme | à son écran, sur un squelette de Wikipédia |
+| [ ] | **Un squelette de Wikipédia** (fiche 94 § 4) : les articles vitaux des niveaux 1 et 2 en membranes, « Eau » et « Hydrogène » dedans ; puis **les liens**, choisis par l'agent comme un cartographe | à son écran |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |
 | [ ] | **Les opérateurs des post-it** (ET, OU, MAIS, PARCE QUE — `Alt+0…4`) : ils se dessinent déjà, aucun geste ne les pose | à son écran |

@@ -87,8 +87,8 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
     let dans = |n: &Decrit| {
         d.dans
             .is_none_or(|m| n.membrane.as_deref() == Some(m) || n.id == m)
-            && d.domaine
-                .is_none_or(|x| n.domaines.iter().any(|p| p.id == x))
+            // DOM-6 : ceux qui le portent, et ceux qui l'héritent de leurs membranes.
+            && d.domaine.is_none_or(|x| n.poids_dans(x).is_some())
     };
     let plan = d.niveau == Niveau::Plan;
     let pris = decrits

@@ -58,7 +58,7 @@ fn un_domaine_relie_les_noeuds_de_deux_fichiers() {
             },
         ]
     );
-    let trouves = r.noeuds_du_domaine(None, &vue[0].lignee);
+    let trouves = r.noeuds_du_domaine(None, &vue[0].lignee, true);
     let places: Vec<_> = trouves
         .iter()
         .map(|t| (t.chemin, t.decrit.id.as_str(), t.poids))
@@ -147,7 +147,7 @@ fn le_document_courant_remplace_ce_qu_on_en_avait_lu() {
     assert_eq!(r.vue(None)[0].noeuds(), 0, "ce qui a été lu");
     assert_eq!(r.vue(Some(&courant))[0].noeuds(), 1, "ce qui est");
     assert_eq!(r.vue(Some(&courant))[0].fichiers.len(), 1, "pas de double");
-    assert_eq!(r.noeuds_du_domaine(Some(&courant), "eau@1").len(), 1);
+    assert_eq!(r.noeuds_du_domaine(Some(&courant), "eau@1", true).len(), 1);
 }
 
 /// **Un fichier disparu ne se compte plus**, et un domaine qu'il portait seul disparaît avec lui.
@@ -205,4 +205,52 @@ fn les_numeros_d_avant_ne_se_confondent_pas() {
         2,
         "une autre date : on demande"
     );
+}
+
+/// **DOM-6 dans le recensement** : un domaine posé sur une membrane d'un fichier fermé est lu sur ce
+/// qu'elle contient — avec la membrane qui le donne —, mais le compte des endroits ne dit que la
+/// membrane, et la liste « où » de l'humain aussi.
+#[test]
+fn dom_6_l_heritage_traverse_les_fichiers() {
+    let mut store = crate::store::Store::new("ferme");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(
+        &board,
+        crate::types::Annotation::membrane("article", 0.0, 0.0, 1000.0, 1000.0),
+    );
+    for (i, id) in ["p0", "p1", "p2"].iter().enumerate() {
+        let mut t =
+            crate::types::Annotation::text(*id, 100.0, 100.0 + 200.0 * i as f64, "Un paragraphe.");
+        t.set_membrane_id(Some("article".into()));
+        store.add_annotation(&board, t);
+    }
+    let naissance = crate::store::agents::Naissance {
+        couleur: |_| "#336699".to_string(),
+        instant: 7,
+    };
+    store
+        .geste_d_agent(|s| {
+            s.poser_un_domaine_pour_un_agent(
+                &board,
+                &["article"],
+                (crate::store::agents::Voulu::Nouveau("Eau"), 1.0),
+                naissance,
+            )
+        })
+        .expect("posé");
+    let mut r = Recensement::default();
+    r.poser(recenser("ferme.glucose", &store.project));
+    let vue = r.vue(None);
+    assert_eq!(vue[0].noeuds(), 1, "un seul endroit : la membrane");
+    let tous = r.noeuds_du_domaine(None, &vue[0].lignee, true);
+    assert_eq!(tous.len(), 4, "la membrane et ses trois paragraphes");
+    assert_eq!(
+        tous.iter()
+            .filter(|t| t.herite_de == Some("article"))
+            .count(),
+        3
+    );
+    let ou = r.noeuds_du_domaine(None, &vue[0].lignee, false);
+    assert_eq!(ou.len(), 1, "où : la membrane seule");
+    assert_eq!(ou[0].decrit.id, "article");
 }

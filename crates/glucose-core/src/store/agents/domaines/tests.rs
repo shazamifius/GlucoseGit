@@ -302,3 +302,80 @@ fn reposer_une_photo_garde_ses_domaines() {
         .expect("reposée");
     assert_eq!(poids(&store, &board, "p"), [(d.id, 0.8)]);
 }
+
+/// **DOM-6 : le nom d'une région vaut pour ce qu'elle contient** (fiche 94). Une membrane « article »
+/// porte Eau, sa section porte Chimie ; un paragraphe de la section hérite des deux, de la plus
+/// proche d'abord ; un autre, qui porte Eau lui-même à 0,3, garde son propre poids ; ce qui est hors
+/// de l'article n'hérite de rien. Rien ne s'écrit sur les nœuds.
+#[test]
+fn dom_6_le_nom_d_une_region_vaut_pour_ce_qu_elle_contient() {
+    let mut store = Store::new("heritage");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(
+        &board,
+        Annotation::membrane("article", 0.0, 0.0, 2000.0, 2000.0),
+    );
+    let mut dans = |a: Annotation, m: &str| {
+        let mut a = a;
+        a.set_membrane_id(Some(m.into()));
+        store.add_annotation(&board, a);
+    };
+    dans(
+        Annotation::membrane("section", 100.0, 100.0, 800.0, 800.0),
+        "article",
+    );
+    dans(Annotation::text("p", 200.0, 200.0, "H2O."), "section");
+    dans(
+        Annotation::text("q", 200.0, 400.0, "Ça mouille."),
+        "section",
+    );
+    dans(Annotation::text("r", 1200.0, 200.0, "La mer."), "article");
+    store.add_annotation(&board, Annotation::text("dehors", 5000.0, 0.0, "Le feu."));
+    let eau = nouveau(&mut store, &board, &["article"], "Eau", 0.8);
+    let chimie = nouveau(&mut store, &board, &["section"], "Chimie", 1.0);
+    poser(&mut store, &board, &["q"], Voulu::Existant(&eau), 0.3).expect("posé");
+    let avant: Vec<_> = ["p", "r", "dehors"]
+        .iter()
+        .map(|n| poids(&store, &board, n))
+        .collect();
+
+    let decrits = store.decrire_pour_un_agent(&board).expect("décrit");
+    let de = |id: &str| decrits.iter().find(|d| d.id == id).expect(id);
+    assert_eq!(de("p").poids_dans(&chimie.id), Some((1.0, Some("section"))));
+    assert_eq!(de("p").poids_dans(&eau.id), Some((0.8, Some("article"))));
+    let ordre: Vec<&str> = de("p").herites.iter().map(|h| h.de.as_str()).collect();
+    assert_eq!(ordre, ["section", "article"], "la plus proche d'abord");
+    assert_eq!(
+        de("q").poids_dans(&eau.id),
+        Some((0.3, None)),
+        "son propre poids"
+    );
+    assert_eq!(de("r").poids_dans(&eau.id), Some((0.8, Some("article"))));
+    assert_eq!(de("r").poids_dans(&chimie.id), None, "pas sa section");
+    assert!(de("dehors").herites.is_empty(), "hors de l'article");
+    assert!(
+        de("article").herites.is_empty(),
+        "elle porte, elle n'hérite pas"
+    );
+    let apres: Vec<_> = ["p", "r", "dehors"]
+        .iter()
+        .map(|n| poids(&store, &board, n))
+        .collect();
+    assert_eq!(apres, avant, "rien ne s'écrit sur les nœuds");
+    assert!(avant.iter().all(Vec::is_empty));
+    assert!(
+        de("q").herites.iter().all(|h| h.domaine.id != eau.id),
+        "ce qu'il porte, il ne l'hérite pas"
+    );
+
+    // Deux membranes portent Eau : la plus proche l'emporte, une seule fois.
+    poser(&mut store, &board, &["section"], Voulu::Existant(&eau), 0.5).expect("posé");
+    let decrits = store.decrire_pour_un_agent(&board).expect("décrit");
+    let p = decrits.iter().find(|d| d.id == "p").expect("p");
+    assert_eq!(p.poids_dans(&eau.id), Some((0.5, Some("section"))));
+    assert_eq!(
+        p.herites.iter().filter(|h| h.domaine.id == eau.id).count(),
+        1,
+        "une seule fois"
+    );
+}

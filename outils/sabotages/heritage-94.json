@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "DOM-6 on n'hérite que de sa membrane directe",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "            membrane = decrits[j].membrane.clone();",
+  "apres": "            membrane = None;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 ce qu'on porte s'hérite aussi",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "                let deja = decrits[i].domaines.iter().any(|q| q.id == p.id)\n                    || herites",
+  "apres": "                let deja = false\n                    || herites",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 un domaine s'hérite deux fois",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "                    || herites.iter().any(|h| h.domaine.id == p.id);",
+  "apres": "                    || herites.iter().any(|h| h.domaine.id == p.id && false);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 le recensement oublie les nœuds qui héritent",
+  "fichier": "crates/glucose-core/src/recensement.rs",
+  "avant": "                .filter(|d| !d.domaines.is_empty() || !d.herites.is_empty())",
+  "apres": "                .filter(|d| !d.domaines.is_empty())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 l'agent ne lit pas l'héritage",
+  "fichier": "crates/glucose-core/src/recensement.rs",
+  "avant": "                    Some((poids, herite_de)) if herites || herite_de.is_none() => {",
+  "apres": "                    Some((poids, herite_de)) if herite_de.is_none() || (herites && false) => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 « où » montre chaque paragraphe hérité",
+  "fichier": "crates/glucose-core/src/recensement.rs",
+  "avant": "                    Some((poids, herite_de)) if herites || herite_de.is_none() => {",
+  "apres": "                    Some((poids, herite_de)) if herites || herite_de.is_some() || herite_de.is_none() => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 le filtre de lecture ignore l'héritage",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "            && d.domaine.is_none_or(|x| n.poids_dans(x).is_some())",
+  "apres": "            && d.domaine.is_none_or(|x| n.domaines.iter().any(|p| p.id == x))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ },
+ {
+  "nom": "DOM-6 l'agent ne sait pas de quelle membrane",
+  "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+  "avant": "    if let Some(m) = t.herite_de {",
+  "apres": "    if let Some(m) = t.herite_de.filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dom_6"
+  ]
+ }
+]

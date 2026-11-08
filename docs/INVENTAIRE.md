@@ -110,7 +110,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 |---|---|---|
 | **Laisser un agent travailler dans le tableau** (Protéo, Claude…) : il lit, pose des textes, des membranes, des pages web, des flèches ancrées à des phrases — chaque geste s'annule par `Ctrl+Z` | la question qui s'ouvre à sa première demande : Autoriser, Refuser, Plus tard | — (aucune porte au téléphone) |
 | Brancher un agent sur Glucose | `glucose --mcp` dans sa configuration MCP (Glucose s'ouvre s'il ne l'est pas) | — |
-| **Un agent lit et pose les domaines** (fiche 88) : ceux de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers ; il ne crée jamais un nom pris, il le précise | `glucose_lire`, `glucose_poser_domaine`, `glucose_domaines` | — |
+| **Un agent lit et pose les domaines** (fiche 88) : ceux de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers ; il ne crée jamais un nom pris, il le précise ; **un domaine posé sur une membrane vaut pour ce qu'elle contient** (DOM-6, fiche 94 : `herite_de`) | `glucose_lire`, `glucose_poser_domaine`, `glucose_domaines` | — |
 | **Un agent cherche comme `Ctrl+F`** (fiche 90, AGENT-7) : les mêmes résultats, dans le même ordre, la même page de dix | `glucose_chercher` | — |
 | **Chaque outil, au terminal** (fiche 90, TERMINAL-1 et 2) : `glucose lire`, `glucose chercher eau`, `glucose domaines`, `glucose poser-texte "…"`, `cat notes.md \| glucose poser-texte -` ; la même porte et le même accord que les agents | **`glucose aide`** les dit toutes ; sous Windows, la sortie ne se lit que redirigée | — |
 

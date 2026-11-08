@@ -26,7 +26,8 @@ dupliquer. Une flèche peut partir d'une phrase exacte d'un texte et arriver à 
 d'un autre (passage_source, passage_cible) : ces phrases sont surlignées, et doivent s'y trouver \
 mot pour mot. Un domaine est un sujet qui traverse les membranes et les fichiers (« eau » : un texte \
 sur H2O, un autre sur l'eau dans les jeux vidéo) ; un nœud y appartient avec un poids de 0 à 1, sans \
-rapport avec ses autres domaines. Quand tu ne sais pas ce que tu cherches, commence par \
+rapport avec ses autres domaines ; un domaine posé sur une membrane vaut pour tout ce qu'elle contient \
+— pose-le sur la membrane d'un article, pas sur chacun de ses paragraphes. Quand tu ne sais pas ce que tu cherches, commence par \
 glucose_domaines : c'est la table des matières de tout ce que Glucose connaît ; quand tu sais les \
 mots, glucose_chercher les trouve dans tout le document, comme Ctrl+F pour l'utilisateur. Deux domaines ne portent \
 jamais le même nom : si « python » existe et que tu parles d'autre chose, précise le mot (« python \
@@ -110,7 +111,7 @@ const OUTILS: &[(&str, &str, &str)] = &[
          fichiers déjà ouverts et leurs voisins, combien de nœuds le portent et où. Rien ne s'ouvre à \
          l'écran. « domaine » rend ses nœuds, du plus lourd au plus léger, dans tous les fichiers : \
          leur première phrase et leur taille ; « entier » : true leur texte ; « cherche » la phrase qui \
-         contient ces mots. a_preciser dit qu'un nom désigne plusieurs sujets : demande lequel. \
+         contient ces mots ; herite_de dit la membrane dont un nœud tient le domaine sans le porter. a_preciser dit qu'un nom désigne plusieurs sujets : demande lequel. \
          a_jour : false dit qu'une lecture du disque est en route : rappelle pour la suite. fichier \
          est le chemin d'un fichier ; fichier_ouvert celui que l'utilisateur regarde.",
         r##"{"type":"object","properties":{"domaine":{"type":"string"},"entier":{"type":"boolean"},"cherche":{"type":"string"}}}"##,

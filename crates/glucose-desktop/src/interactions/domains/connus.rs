@@ -212,7 +212,7 @@ impl GlucoseApp {
             .disque
             .recenseur
             .etat
-            .noeuds_du_domaine(Some(&courant), lignee)
+            .noeuds_du_domaine(Some(&courant), lignee, false)
             .iter()
             .map(|t| LigneOu {
                 chemin: t.chemin.to_string(),

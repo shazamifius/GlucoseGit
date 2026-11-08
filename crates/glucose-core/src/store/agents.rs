@@ -39,7 +39,7 @@ mod decrit;
 pub mod domaines;
 
 pub(crate) use decrit::decrire_le_tableau;
-pub use decrit::Decrit;
+pub use decrit::{Decrit, Herite};
 pub use domaines::{sigle_de, DomaineDecrit, Naissance, Voulu};
 
 use super::Store;
