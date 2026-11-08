@@ -1,5 +1,7 @@
 //! Chaque outil, joué sur une application d'épreuve — sans fenêtre, sans porte.
 
+mod plan;
+
 use crate::agents::json::Json;
 use crate::app::GlucoseApp;
 use crate::epreuve::Dossier;

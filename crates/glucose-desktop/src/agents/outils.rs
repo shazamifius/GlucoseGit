@@ -14,7 +14,7 @@ des post-it, des photos, des membranes (des bulles qui contiennent d'autres nœu
 flèches qui relient les nœuds. Ce que tu poses apparaît tout de suite sous les yeux de \
 l'utilisateur, sur le tableau qu'il regarde ; chaque appel est un geste qu'il peut annuler \
 (Ctrl+Z). Commence par glucose_lire : il rend le sommaire du tableau (chaque nœud, sa première \
-phrase, sa taille) ; lis ensuite en entier seulement les nœuds dont tu as besoin (ids), ou \
+phrase, sa taille) — sur un grand tableau, son plan d'abord (niveau plan : les membranes seules) ; lis ensuite en entier seulement les nœuds dont tu as besoin (ids), ou \
 cherche une phrase dans tous (cherche). « selection » dit les nœuds que l'utilisateur a \
 sélectionnés : quand il parle de « ça », c'est eux. L'empreinte d'un nœud change quand son texte \
 change : garde-la, et à la lecture suivante, relis seulement ceux dont l'empreinte a changé — \
@@ -43,10 +43,11 @@ const OUTILS: &[(&str, &str, &str)] = &[
          le texte change), sans le texte entier. « ids » rend le texte entier de ces nœuds ; \
          « cherche » rend la phrase (passage) de chaque nœud qui contient ces mots ; « dans » ne \
          garde qu'une membrane ; « domaine » ne garde que les nœuds qui le portent ; niveau \
-         « complet » rend tous les textes. Chaque nœud dit ses domaines et leur poids. Rend aussi ce \
+         « complet » rend tous les textes ; niveau « plan » rend seulement les membranes et ce que \
+         chacune contient — la carte d'un grand tableau, d'où descendre ensuite par « dans ». Chaque nœud dit ses domaines et leur poids. Rend aussi ce \
          que l'utilisateur a sélectionné (selection), la partie visible à l'écran, la liste des \
          tableaux et les domaines de ce document (domaines).",
-        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet"]}}}"##,
+        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet","plan"]}}}"##,
     ),
     (
         "glucose_poser_texte",

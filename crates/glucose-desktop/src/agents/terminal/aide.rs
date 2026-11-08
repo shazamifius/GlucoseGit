@@ -78,7 +78,11 @@ fn nature(propriete: Option<&Json>) -> String {
         .and_then(Json::as_liste);
     if let Some(choix) = choix {
         let mots: Vec<&str> = choix.iter().filter_map(Json::as_str).collect();
-        return mots.join(" ou ");
+        return match mots.split_last() {
+            Some((dernier, [])) => (*dernier).to_string(),
+            Some((dernier, avant)) => format!("{} ou {dernier}", avant.join(", ")),
+            None => "un texte".into(),
+        };
     }
     match propriete.and_then(|p| p.get("type")).and_then(Json::as_str) {
         Some("number") => "un nombre".into(),

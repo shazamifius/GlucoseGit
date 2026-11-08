@@ -238,5 +238,80 @@
    "--",
    "reprise::"
   ]
+ },
+ {
+  "nom": "MEMB-7 la croissance ne remonte pas",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "            (membrane, boite) = (parente, neuf);",
+  "apres": "            let _ = (parente, neuf);\n            return Ok(());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::agents"
+  ]
+ },
+ {
+  "nom": "PLAN le plan rend tous les nœuds",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "        .filter(|n| dans(n) && (!plan || n.sorte == Sorte::Membrane));",
+  "apres": "        .filter(|n| dans(n) && (plan || !plan));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::plan"
+  ]
+ },
+ {
+  "nom": "PLAN il ne dit pas ce que chaque membrane contient",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "                if let (true, Json::Objet(champs)) = (plan, &mut j) {",
+  "apres": "                if let (true, Json::Objet(champs)) = (plan && false, &mut j) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::plan"
+  ]
+ },
+ {
+  "nom": "COORD-1 deux décimales perdent des points",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "    let decimales = (f64::from(glucose_core::fixed::FRAC_BITS) * 2f64.log10()).ceil();",
+  "apres": "    let decimales = (f64::from(glucose_core::fixed::FRAC_BITS) * 2f64.log10()).floor();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::plan"
+  ]
+ },
+ {
+  "nom": "COORD-1 aucun arrondi",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "    Json::Nombre((v * pas).round() / pas)",
+  "apres": "    Json::Nombre(v + 0.0 * pas)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::plan"
+  ]
  }
 ]

@@ -163,7 +163,7 @@ fn l_aide_d_une_commande_dit_ses_arguments() {
     );
     assert!(a.contains("post_it : true ou false"), "{a}");
     let l = aide(Some("lire")).expect("l'aide");
-    assert!(l.contains("niveau : sommaire ou complet"), "{l}");
+    assert!(l.contains("niveau : sommaire, complet ou plan"), "{l}");
 }
 
 /// **De bout en bout, par une vraie porte** (TERMINAL-2) : la commande attend l'accord, demandé au

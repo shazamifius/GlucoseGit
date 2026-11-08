@@ -377,35 +377,55 @@ impl Store {
 
     /// **La membrane grandit pour contenir `boite`**, avec la marge de ses bords — à faire
     /// *avant* d'y poser un nœud : il lui appartient alors dès sa naissance (MEMB-1).
+    ///
+    /// **MEMB-7 — et celle qui la contient grandit à son tour** (fiche 90), jusqu'à la première qui
+    /// n'a pas à bouger. Sans elle, une membrane grandie débordait de la sienne : le nœud posé
+    /// ensuite « sous le contenu » tombait dans la boîte d'une autre, et l'article « Eau » de
+    /// Wikipédia, posé par les commandes, s'emboîtait sur huit niveaux au lieu de trois.
     pub fn agrandir_la_membrane_pour(
         &mut self,
         board_id: &str,
         membrane: &str,
         boite: Rect,
     ) -> Result<(), Refus> {
-        let cadre = self.boite_d_un_noeud(board_id, membrane)?;
-        let voulu = Rect::new(
-            boite.left - ECART,
-            boite.top - TITRE_DE_MEMBRANE,
-            boite.width + 2.0 * ECART,
-            boite.height + TITRE_DE_MEMBRANE + ECART,
-        );
-        let neuf = cadre.union(voulu);
-        if neuf == cadre {
-            return Ok(());
-        }
-        self.update_annotation(board_id, membrane, |a| {
-            if let Annotation::Membrane {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } = a
-            {
-                (*x, *y, *width, *height) = (neuf.left, neuf.top, neuf.width, neuf.height);
+        let (mut membrane, mut boite) = (membrane.to_string(), boite);
+        // Un cycle de membranes ne doit pas exister ; s'il existait, il ne grandirait pas sans fin.
+        let mut vues: Vec<String> = Vec::new();
+        while !vues.contains(&membrane) {
+            let cadre = self.boite_d_un_noeud(board_id, &membrane)?;
+            let voulu = Rect::new(
+                boite.left - ECART,
+                boite.top - TITRE_DE_MEMBRANE,
+                boite.width + 2.0 * ECART,
+                boite.height + TITRE_DE_MEMBRANE + ECART,
+            );
+            let neuf = cadre.union(voulu);
+            if neuf == cadre {
+                return Ok(());
             }
-        });
+            self.update_annotation(board_id, &membrane, |a| {
+                if let Annotation::Membrane {
+                    x,
+                    y,
+                    width,
+                    height,
+                    ..
+                } = a
+                {
+                    (*x, *y, *width, *height) = (neuf.left, neuf.top, neuf.width, neuf.height);
+                }
+            });
+            let parente = self
+                .project
+                .annotation(board_id, &membrane)
+                .and_then(Annotation::membrane_id)
+                .map(str::to_string);
+            vues.push(membrane);
+            let Some(parente) = parente else {
+                return Ok(());
+            };
+            (membrane, boite) = (parente, neuf);
+        }
         Ok(())
     }
 

@@ -571,3 +571,70 @@ fn agent_4_une_mise_a_jour_fait_reculer_la_place_enregistree_de_l_ancre() {
     };
     assert_eq!((ancres[0].start, ancres[0].end), (4, 7));
 }
+
+/// **MEMB-7 : une membrane qui grandit fait grandir celle qui la contient**, jusqu'en haut. Un texte
+/// très haut posé dans la plus intérieure de trois membranes : chacune contient encore la suivante,
+/// et chacune appartient encore à sa parente. La preuve à l'envers : sans MEMB-7, l'intérieure
+/// grandissait seule, son centre sortait de sa parente, et Glucose la rangeait ailleurs (l'article
+/// « Eau » de Wikipédia emboîté sur huit niveaux au lieu de trois, fiche 90).
+#[test]
+fn memb_7_une_membrane_qui_grandit_fait_grandir_la_sienne() {
+    let (mut store, board) = son_tableau();
+    let m = |id: &str, n: f64, l: f64, h: f64| {
+        Annotation::membrane(id, 1000.0 + n * ECART, n * TITRE_DE_MEMBRANE, l, h)
+    };
+    poser(&mut store, &board, m("grande", 0.0, 600.0, 400.0)).expect("posée");
+    poser(&mut store, &board, m("moyenne", 1.0, 500.0, 300.0)).expect("posée");
+    poser(&mut store, &board, m("petite", 2.0, 400.0, 200.0)).expect("posée");
+    let parente = |s: &Store, id: &str| {
+        s.project
+            .annotation(&board, id)
+            .and_then(Annotation::membrane_id)
+            .map(str::to_string)
+    };
+    assert_eq!(parente(&store, "petite").as_deref(), Some("moyenne"));
+    assert_eq!(parente(&store, "moyenne").as_deref(), Some("grande"));
+
+    let (x, y) = store
+        .place_pour_un_agent(&board, Some("petite"))
+        .expect("une place");
+    let boite = Rect::new(x, y, 300.0, 5000.0);
+    store
+        .geste_d_agent(|s| {
+            s.agrandir_la_membrane_pour(&board, "petite", boite)?;
+            let mut texte = Annotation::text("long", x, y, "très long");
+            if let Annotation::Text { width, height, .. } = &mut texte {
+                (*width, *height) = (Some(300.0), Some(5000.0));
+            }
+            s.poser_pour_un_agent(&board, texte)
+        })
+        .expect("posé");
+
+    let cadre = |id: &str| store.project.annotation(&board, id).expect(id).bounds();
+    let contient = |a: Rect, b: Rect| {
+        a.left <= b.left && a.top <= b.top && a.right() >= b.right() && a.bottom() >= b.bottom()
+    };
+    assert!(
+        contient(cadre("petite"), boite),
+        "la petite contient le texte"
+    );
+    assert!(
+        contient(cadre("moyenne"), cadre("petite")),
+        "la moyenne a grandi"
+    );
+    assert!(
+        contient(cadre("grande"), cadre("moyenne")),
+        "la grande aussi"
+    );
+    assert_eq!(parente(&store, "long").as_deref(), Some("petite"));
+    assert_eq!(
+        parente(&store, "petite").as_deref(),
+        Some("moyenne"),
+        "toujours"
+    );
+    assert_eq!(
+        parente(&store, "moyenne").as_deref(),
+        Some("grande"),
+        "toujours"
+    );
+}

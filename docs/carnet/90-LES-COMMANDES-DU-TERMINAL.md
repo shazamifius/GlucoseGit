@@ -98,7 +98,7 @@ paquets, que le paquet Nix prend désormais aussi (il en écrivait un second).
   nœuds. **Tout passe.** L'essai a trouvé un faux vert dans l'essai lui-même : la porte « muette »
   échouait parce que son chemin dépassait les 108 caractères d'une prise Unix ; un chemin court, et le
   message attendu, désormais.
-* **Sabotages** (`outils/sabotages/terminal-90.json`, avec ceux de `chercher-89.json`) : voir ÉTAT.
+* **Sabotages** (`outils/sabotages/terminal-90.json`, joués dans un arbre détaché avec ceux de `chercher-89.json`) : **tous tombent** — les 16 de cette fiche, puis MEMB-7 et les quatre du plan et de COORD-1 (fiche 91) : 21 sur 21.
 
 ## 5. Les limites, dites
 

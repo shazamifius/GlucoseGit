@@ -62,7 +62,11 @@ fn le_sommaire_d_abord_puis_ce_qu_on_choisit() {
             dans,
             ids,
             cherche,
-            complet,
+            niveau: if complet {
+                Niveau::Complet
+            } else {
+                Niveau::Sommaire
+            },
         };
     let ids_de = |v: Vec<(&Decrit, Rendu)>| {
         v.into_iter()
@@ -142,7 +146,7 @@ fn domaine_ne_garde_que_ses_porteurs() {
         dans,
         ids: None,
         cherche,
-        complet: false,
+        niveau: Niveau::Sommaire,
     };
     let ids = |pris: Vec<(&Decrit, Rendu)>| -> Vec<String> {
         pris.into_iter().map(|(n, _)| n.id.clone()).collect()

@@ -9,7 +9,7 @@ mod chercher;
 mod domaines;
 
 use super::json::Json;
-use super::lecture::{choisir, empreinte, premiere_phrase, Demande, Rendu};
+use super::lecture::{choisir, empreinte, premiere_phrase, Demande, Niveau, Rendu};
 use crate::app::GlucoseApp;
 use crate::renderer::card::text_card_fit_height;
 use glucose_core::geometry::Rect;
@@ -111,11 +111,23 @@ impl GlucoseApp {
             dans: a.texte("dans"),
             ids,
             cherche: a.texte("cherche"),
-            complet: a.texte("niveau") == Some("complet"),
+            niveau: Niveau::lire(a.texte("niveau"))?,
         };
+        let plan = demande.niveau == Niveau::Plan;
         let noeuds = choisir(&decrits, &demande)
             .into_iter()
-            .map(|(d, rendu)| decrit_en_json(d, &rendu))
+            .map(|(d, rendu)| {
+                let mut j = decrit_en_json(d, &rendu);
+                // Le plan dit ce que chaque membrane porte, sans le porter (fiche 90).
+                if let (true, Json::Objet(champs)) = (plan, &mut j) {
+                    let n = decrits
+                        .iter()
+                        .filter(|x| x.membrane.as_deref() == Some(d.id.as_str()))
+                        .count();
+                    champs.push(("contient".to_string(), Json::Nombre(n as f64)));
+                }
+                j
+            })
             .collect();
         let tableaux = self
             .store
@@ -507,11 +519,21 @@ fn pose(id: &str, boite: Rect) -> Json {
 
 fn boite_en_json(b: Rect) -> Json {
     Json::objet([
-        ("x", Json::Nombre(b.left)),
-        ("y", Json::Nombre(b.top)),
-        ("largeur", Json::Nombre(b.width)),
-        ("hauteur", Json::Nombre(b.height)),
+        ("x", coordonnee(b.left)),
+        ("y", coordonnee(b.top)),
+        ("largeur", coordonnee(b.width)),
+        ("hauteur", coordonnee(b.height)),
     ])
+}
+
+/// **COORD-1 — une coordonnée, au plus court sans rien perdre** (fiche 90) : le document place tout à
+/// 1/2⁸ d'unité près (`glucose_core::fixed`) ; avec d décimales, 10^d ≥ 2⁸, la valeur qu'un agent
+/// relit et renvoie retombe sur le même point. d = 3, déduit et non choisi. Une hauteur mesurée en
+/// `f32` s'écrivait « 51.599998474121094 » : des milliers de caractères perdus sur un grand tableau.
+fn coordonnee(v: f64) -> Json {
+    let decimales = (f64::from(glucose_core::fixed::FRAC_BITS) * 2f64.log10()).ceil();
+    let pas = 10f64.powf(decimales);
+    Json::Nombre((v * pas).round() / pas)
 }
 
 /// Un nœud pour l'agent : son texte entier, ou sa première phrase et sa taille (le sommaire), ou

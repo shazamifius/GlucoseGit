@@ -67,7 +67,7 @@ se calcule que pour les rangées montrées ; une lettre ASCII se met en minuscul
 * **L'application** : `Ctrl+F` qui trouve dans tous les onglets et dit combien ; Entrée qui va au
   résultat sans rien écrire ; `F3` en boucle ; le document qui change entre deux `F3` ; un résultat
   rangé dans un dossier ; l'index qui suit le document ; les raccourcis ; le menu du vide.
-* **Sabotages** (`outils/sabotages/chercher-89.json`) : voir ÉTAT.
+* **Sabotages** (`outils/sabotages/chercher-89.json`, joués le 8/11 dans un arbre détaché) : **12 tombés sur 12**.
 
 ## 6. VOL-1 — trouvé en relisant, le 8/11
 

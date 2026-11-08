@@ -7,9 +7,14 @@
 //! l'agent lit ensuite **en entier** les nœuds qu'il choisit (`ids`), ou **cherche** une phrase
 //! dans tous (le passage trouvé, pas le texte). Aucune longueur n'est fixée ici : la phrase est
 //! l'unité, celle du texte lui-même.
+//!
+//! **Le plan** (fiche 90) : sur un grand tableau, le sommaire lui-même déborde — l'article « Eau » de
+//! Wikipédia, posé par les commandes, y pesait 140 000 caractères. Le plan ne rend que les
+//! **membranes**, emboîtées, et ce que chacune contient : la géographie de la carte, d'où l'agent
+//! descend ensuite (`dans`). Sa règle : « une IA doit savoir où se situe quoi » (VISION, 22/10).
 
 use glucose_core::hash::{hex_of, sha256};
-use glucose_core::store::agents::Decrit;
+use glucose_core::store::agents::{Decrit, Sorte};
 
 /// **L'empreinte d'un texte** : les seize premiers chiffres de son sha256 — un mot machine, 64
 /// bits. Un agent la garde d'une lecture à l'autre : si elle a changé, l'utilisateur a récrit le
@@ -31,8 +36,34 @@ pub struct Demande<'a> {
     pub ids: Option<Vec<&'a str>>,
     /// Les nœuds dont le texte contient ces mots (sans tenir compte des majuscules).
     pub cherche: Option<&'a str>,
-    /// Le texte entier de tous les nœuds, comme avant les niveaux.
-    pub complet: bool,
+    /// Le sommaire, le texte entier de tous les nœuds, ou le seul plan des membranes.
+    pub niveau: Niveau,
+}
+
+/// **Le niveau d'une lecture.**
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Niveau {
+    /// Chaque nœud, sa première phrase et sa taille.
+    #[default]
+    Sommaire,
+    /// Le texte entier de chaque nœud, comme avant les niveaux.
+    Complet,
+    /// Les seules membranes : la carte, sans ce qu'elle porte.
+    Plan,
+}
+
+impl Niveau {
+    /// Le niveau qu'un agent nomme ; un nom inconnu est refusé, pas deviné.
+    pub fn lire(nom: Option<&str>) -> Result<Self, String> {
+        match nom {
+            None | Some("sommaire") => Ok(Self::Sommaire),
+            Some("complet") => Ok(Self::Complet),
+            Some("plan") => Ok(Self::Plan),
+            Some(autre) => Err(format!(
+                "le niveau « {autre} » n'existe pas : sommaire, complet ou plan"
+            )),
+        }
+    }
 }
 
 /// Comment un nœud est rendu.
@@ -59,7 +90,10 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
             && d.domaine
                 .is_none_or(|x| n.domaines.iter().any(|p| p.id == x))
     };
-    let pris = decrits.iter().filter(|n| dans(n));
+    let plan = d.niveau == Niveau::Plan;
+    let pris = decrits
+        .iter()
+        .filter(|n| dans(n) && (!plan || n.sorte == Sorte::Membrane));
     if let Some(ids) = &d.ids {
         return pris
             .filter(|n| ids.contains(&n.id.as_str()))
@@ -74,12 +108,9 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
             })
             .collect();
     }
-    let rendu = || {
-        if d.complet {
-            Rendu::Entier
-        } else {
-            Rendu::Sommaire
-        }
+    let rendu = || match d.niveau {
+        Niveau::Complet => Rendu::Entier,
+        Niveau::Sommaire | Niveau::Plan => Rendu::Sommaire,
     };
     pris.map(|n| (n, rendu())).collect()
 }
