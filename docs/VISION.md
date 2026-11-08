@@ -176,6 +176,19 @@ infinité de dimensions, plus une couleur).
   projection de 4 096 dimensions en perd presque tout), c'est que ses dimensions sont **explicites et
   nommées** — « eau », « contredit » — là où celles d'un modèle sont anonymes.
 
+## Wikipédia sur le canevas — sa parole du 8/11/2026
+
+Devant la fiche 94 (« comprendre Wikipédia d'un regard »), deux précisions :
+
+1. **« Pas de système de LOD, et pas de simplification possible. »** Rien ne se cache, rien ne se
+   remplace, rien ne s'efface selon la distance : ce que la carte porte est montré tel quel, à toute
+   distance. (La charte refusait déjà la LOD sémantique ; c'est désormais dit pour toute la carte de
+   Wikipédia, et il ne faut rien proposer qui y ressemble — ni masquer des noms trop petits, ni
+   regrouper des liens, ni « simplifier » une région vue de loin.)
+2. **« J'accepte de revoir le fonctionnement des membranes afin qu'elles soient plus
+   intéressantes. »** La membrane peut changer : c'est une porte ouverte, à concevoir avec lui, avec la
+   recherche et des propositions argumentées.
+
 ## Ce qui est encore à définir — sa parole
 
 * ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon

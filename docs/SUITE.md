@@ -95,7 +95,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
-**Le domaine, `Ctrl+F` et les commandes du terminal sont faits, ils attendent son écran** (fiches 88 à 90). **Un article de Wikipédia posé par les commandes a montré ce qui manque** (fiche 91). **La disposition en colonnes est faite** (fiche 92). **Sa parole du 8/11** : *« travailler sur comment le cerveau humain serait capable de comprendre Wikipédia tout entier sur un canva 2D sans que ce soit trop brouillon, avec le maximum de facilité »* — la fiche 94 en tire quatre principes et l'ordre : DOM-6, l'héritage des domaines par les membranes (**fait**) ; **le prochain : les titres des membranes à la taille de leur région ; puis un squelette de Wikipédia (les articles vitaux) ; puis les liens ; puis P6.
+**Le domaine, `Ctrl+F` et les commandes du terminal sont faits, ils attendent son écran** (fiches 88 à 90). **Un article de Wikipédia posé par les commandes a montré ce qui manque** (fiche 91). **La disposition en colonnes est faite** (fiche 92). **Sa parole du 8/11** : *« travailler sur comment le cerveau humain serait capable de comprendre Wikipédia tout entier sur un canva 2D sans que ce soit trop brouillon, avec le maximum de facilité »* — la fiche 94 en tire quatre principes et l'ordre : DOM-6, l'héritage des domaines par les membranes (**fait**) ; **Sa parole du 8/11 au soir** (VISION) : *« pas de système de LOD et pas de simplification possible »* ; *« j'accepte de revoir le fonctionnement des membranes afin qu'elles soient plus intéressantes »*. **Le prochain : les titres des membranes à la taille de leur région ; puis un squelette de Wikipédia (les articles vitaux) ; puis les liens ; puis P6.
 
 | | chantier | ce qui le déclare fini |
 |---|---|---|
@@ -106,7 +106,8 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **Un morceau de Wikipédia** (fiche 91) : « Eau » posé par les commandes ; MEMB-7 réparé, le plan pour un agent, COORD-1 ; un prototype de disposition en colonnes | la question de l'héritage des domaines, sa parole |
 | [~] | **La disposition en colonnes** (fiche 92) : « Disposer en colonnes » au menu d'une membrane et à la palette, `glucose_disposer`, `glucose disposer` ; récursive, dans l'ordre de lecture, un seul `Ctrl+Z` | à son écran, sur l'article « Eau » ; les titres, sa parole |
 | [~] | **DOM-6 — l'héritage des domaines par les membranes** (fiche 94 § 3 et 5) : un nœud appartient aux domaines de ses membranes, sauf son propre poids ; à la lecture, rien d'écrit ; le sommaire de « Eau » de 135 376 à 70 287 caractères ; 8 sabotages sur 8 | sa visualisation (étape 5) ; à son écran, un agent qui pose un article |
-| [ ] | **Les titres des membranes à la taille de leur région** (fiche 94, principe 2), dessinés depuis leur forme | à son écran, sur un squelette de Wikipédia |
+| [ ] | **Les titres des membranes à la taille de leur région** (fiche 94, principe 2 ; **aucun ne se cache**), dessinés depuis leur forme | à son écran, sur un squelette de Wikipédia |
+| [ ] | **Revoir les membranes pour qu'elles soient plus intéressantes** (sa parole du 8/11) : recherche, puis propositions en prose, **sans rien simplifier** | sa parole sur les propositions |
 | [ ] | **Un squelette de Wikipédia** (fiche 94 § 4) : les articles vitaux des niveaux 1 et 2 en membranes, « Eau » et « Hydrogène » dedans ; puis **les liens**, choisis par l'agent comme un cartographe | à son écran |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |
@@ -205,7 +206,6 @@ Tout est écrit, éprouvé et saboté ; **rien de ceci n'a été jugé par lui**
 
 **Au PC** — `nix develop -c cargo run --release > sortie-essais.txt 2>&1` (ce qui parle de Windows ci-dessous attend une machine Windows) :
 
-* **Le pincement du pavé** (fiche 93) : pincer pour zoomer et dézoomer, dans Glucose installé (`nix profile upgrade --refresh GlucoseGit`) ou `cargo run`.
 * **Disposer en colonnes** (fiche 92) : choisir une membrane qui porte plusieurs textes (ou un texte dedans), clic droit, « Disposer en colonnes » ; `Ctrl+Z` la remet.
 * **Ses commandes** (fiche 90), dans son terminal : `glucose aide` ; `glucose chercher eau` ; la première
   commande demande l'accord dans Glucose, au nom du « terminal » ; `glucose poser-texte "Bonjour"` apparaît

@@ -47,6 +47,9 @@ trois noms dans la liste de ce que Glucose emploie.
   sans les droits de `/dev/uinput`, et injecter des gestes dans sa session n'aurait pas été à faire. La
   boîte noire compte chaque pincement du pavé : sa télémétrie le dira.
 
+**Vu à son écran le 8/11 au soir** (Glucose installé dans son profil, `1282358`) : *« ça fonctionne
+parfaitement »*.
+
 ## 4. Ce que l'essai m'a appris
 
 **Le premier essai à l'écran a lancé l'ancien programme** : les épreuves et clippy recompilent la

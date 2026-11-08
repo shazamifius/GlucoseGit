@@ -38,7 +38,7 @@
 1. **Peu de régions nommées à chaque distance** : l'ossature des articles vitaux en membranes emboîtées
    (dix « continents », cent « pays », mille « régions »…), le reste dedans.
 2. **Le nom d'une région à la taille de la région** : le titre d'une membrane grandit avec elle, pour
-   qu'à toute distance on lise les noms des régions qui tiennent à l'écran, et seulement elles — sans
+   qu'à toute distance on lise les noms des régions qui tiennent à l'écran — tous les titres restent dessinés, aucun ne se cache — sans
    rien changer au texte, ni remplacer un nœud par autre chose (la charte refuse la LOD sémantique ; une
    hiérarchie typographique n'en est pas une : le titre est le même, à sa taille).
 3. **Le nom d'une région vaut pour ce qu'elle contient** : un domaine posé sur une membrane vaut pour
@@ -85,3 +85,17 @@
   seul endroit.
 * **Prouvé** : trois épreuves (la loi dans le noyau, à travers les fichiers, pour un agent de bout en
   bout) ; **8 sabotages sur 8** (`outils/sabotages/heritage-94.json`).
+
+## 6. Sa parole du 8/11 au soir, qui corrige cette fiche
+
+*« Pas de système de LOD, et pas de simplification possible »* ; *« j'accepte de revoir le
+fonctionnement des membranes afin qu'elles soient plus intéressantes »* (VISION).
+
+* **Ce qui tombe** : ce que la cartographie appelle « moins de noms à petite échelle » ne s'applique
+  pas — **aucun titre ne se cache** ; le principe 2 ne garde que **la taille** des titres selon leur
+  région. Le § 4.4 (« l'agent choisit les liens qu'il trace ») est **à remettre en question** : choisir à
+  la pose n'est pas cacher à la vue, mais « pas de simplification » peut vouloir dire que tous les liens
+  doivent pouvoir être là — lui demander, en prose, avec un vrai morceau sous les yeux.
+* **Ce qui s'ouvre** : la membrane peut être revue (sa forme, ce qu'elle porte, comment elle se lit et
+  s'explore) pour rendre la carte plus lisible **sans rien simplifier**. À concevoir avec lui : la
+  recherche d'abord, puis des propositions chiffrées.
