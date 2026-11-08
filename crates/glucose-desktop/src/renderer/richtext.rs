@@ -205,6 +205,11 @@ pub struct VisualLine {
     pub paragraph_start: usize,
     /// Les fragments de cette ligne, comme plage dans [`TextLayout::fragments`].
     pub fragments: std::ops::Range<usize>,
+    /// **Ce que la ligne montre de loin** (GRIS-1, fiche 95), à la taille du monde où le texte se
+    /// met en page : la largeur de son texte (sans ses blancs de fin), et son **encre** — la
+    /// surface que ses lettres couvrent ([`Typography::encre`]). Son gris est l'encre sur la place.
+    pub largeur: f32,
+    pub encre: f32,
 }
 
 /// Le texte d'une boîte, mis en page : des lignes, et les fragments qu'elles portent.
@@ -342,9 +347,13 @@ pub fn layout_rich_text(
             // deux cas la hauteur du résultat et posait la source en un seul fragment. Deux
             // conséquences : une source plus large que la carte débordait sans se couper, et
             // ses `$` n'étaient pas des signes, donc rien ne pouvait les colorer.
-            BlockKind::Math { display } if mode == TextMode::Rendered => {
-                layout_formula(&mut out, math, source, block, display)
-            }
+            BlockKind::Math { display } if mode == TextMode::Rendered => layout_formula(
+                &mut out,
+                (typography, math),
+                source,
+                block,
+                (display, bx.body),
+            ),
             // Un trait, une clôture : rien à mesurer. Au repos la clôture ne prend même pas
             // de place — on n'a pas à voir un blanc là où un signe s'est effacé. En édition
             // elle redevient une ligne comme une autre, parce qu'on doit pouvoir la corriger.
@@ -365,6 +374,8 @@ fn bare_line(block: Block, kind: BlockKind) -> VisualLine {
         first: true,
         paragraph_start: block.start,
         fragments: 0..0,
+        largeur: 0.0,
+        encre: 0.0,
     }
 }
 
@@ -384,17 +395,18 @@ fn layout_paragraph(
     let font = font_of(block.kind, bx.body);
     let usable = (bx.usable - indent_of(block.kind, bx.bullet_indent)).max(bx.body);
 
-    let advance = |at: usize, ch: char| {
+    // MODE-1 : au repos, un signe n'occupe aucune place — c'est tout ce qui distingue les deux
+    // vues, et la coupe des lignes en découle sans autre traitement.
+    let face_de = |at: usize| -> Option<Face> {
         let span = span_at(&spans, at);
-        // MODE-1 : au repos, un signe n'occupe aucune place — c'est tout ce qui distingue
-        // les deux vues, et la coupe des lignes en découle sans autre traitement.
         if mode == TextMode::Rendered && span.is_some_and(|s| s.role == SpanRole::Marker) {
-            return 0.0;
+            return None;
         }
         let emphasis = span.map_or(Emphasis::NONE, |s| s.emphasis);
-        let face = Face::from(base.union(emphasis));
-        typography.advance(ch, font, face)
+        Some(Face::from(base.union(emphasis)))
     };
+    let advance =
+        |at: usize, ch: char| face_de(at).map_or(0.0, |f| typography.advance(ch, font, f));
 
     for (i, (s, e)) in wrap_paragraph(paragraph, usable, advance)
         .into_iter()
@@ -421,6 +433,11 @@ fn layout_paragraph(
                 role: span.role,
             });
         }
+        // GRIS-1 : ce que la ligne montre de loin.
+        let lettres = paragraph[s..e]
+            .char_indices()
+            .map(|(i, ch)| (ch, face_de(s + i)));
+        let (largeur, encre) = typography.gris(lettres, font);
         out.lines.push(VisualLine {
             start: offset + s,
             end: offset + e,
@@ -428,6 +445,8 @@ fn layout_paragraph(
             first: i == 0,
             paragraph_start: offset,
             fragments: from..out.fragments.len(),
+            largeur,
+            encre,
         });
     }
 }
@@ -465,12 +484,18 @@ pub fn place_d_une_formule(
 /// particulier ailleurs.
 fn layout_formula(
     out: &mut TextLayout,
-    math: &MathRenderer,
+    (typography, math): (&Typography, &MathRenderer),
     source: &str,
     block: Block,
-    display: bool,
+    (display, corps): (bool, f32),
 ) {
     let (rangs, _) = place_d_une_formule(math, block.body_slice(source), mode_of(display));
+    // GRIS-1 : de loin, une formule a le gris d'un texte de sa largeur, sur chaque ligne qu'elle
+    // occupe — son encre n'est pas celle de lettres qu'on lit une à une.
+    let largeur = math
+        .measure(block.body_slice(source), mode_of(display), 1.0)
+        .map_or(0.0, |(l, _, _)| l * corps);
+    let encre = largeur * corps * typography.densite(Face::Regular);
     for i in 0..rangs {
         let from = out.fragments.len();
         if i == 0 {
@@ -490,6 +515,8 @@ fn layout_formula(
             first: i == 0,
             paragraph_start: block.start,
             fragments: from..out.fragments.len(),
+            largeur,
+            encre,
         });
     }
 }

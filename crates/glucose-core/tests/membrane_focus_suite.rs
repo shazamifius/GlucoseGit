@@ -2,11 +2,11 @@
 
 use glucose_core::geometry::Rect;
 use glucose_core::membrane_focus::{
-    annotation_visible_under_focus, arrow_visible_under_focus, coverage, fit_viewport,
+    annotation_visible_under_focus, arrow_visible_under_focus, entrer, fit_viewport,
     focus_background, focus_box, focus_consts, focus_decision, focus_frame_of, screen_center_world,
-    visible_under_focus, FocusAction, FocusInput, FocusState, ScreenSize,
+    visible_under_focus, CarteDesMembranes, FocusAction, FocusInput, FocusState, ScreenSize,
 };
-use glucose_core::membrane_space::{resolve_items, ResolveOptions, SpaceItem, SpaceItemKind};
+use glucose_core::membrane_space::{SpaceItem, SpaceItemKind};
 use glucose_core::types::{Annotation, MembraneMode, Viewport};
 use std::collections::HashSet;
 
@@ -62,10 +62,8 @@ fn centered_on(cx: f64, cy: f64, scale: f64) -> Viewport {
 }
 
 fn decide(items: &[SpaceItem], vp: Viewport, state: FocusState, now: i64) -> FocusAction {
-    let resolved = resolve_items(items, ResolveOptions::default());
     focus_decision(FocusInput {
         items,
-        resolved: &resolved,
         vp,
         screen: SCREEN,
         state,
@@ -74,7 +72,7 @@ fn decide(items: &[SpaceItem], vp: Viewport, state: FocusState, now: i64) -> Foc
 }
 
 #[test]
-fn test_fit_viewport_and_coverage() {
+fn test_fit_viewport() {
     let vp = fit_viewport(
         Rect::new(0.0, 0.0, 500.0, 400.0),
         SCREEN,
@@ -99,113 +97,77 @@ fn test_fit_viewport_and_coverage() {
         focus_box(&m_large, &[&enfant_small]),
         Rect::new(0.0, 0.0, 900.0, 900.0)
     );
-
-    assert!(approx_eq(
-        coverage(
-            Rect::new(0.0, 0.0, 500.0, 400.0),
-            centered_on(250.0, 200.0, 2.0),
-            SCREEN
-        ),
-        1.0
-    ));
 }
 
-#[test]
-fn test_enter_focus() {
-    let m = memb("M", 0.0, 0.0, 500.0, 400.0, MembraneMode::Classic, None);
-    let items = [m.clone()];
+/// Une membrane à poser : son nom, sa boîte `(x, y, largeur, hauteur)`, et sa parente.
+type Posee<'a> = (&'a str, (f64, f64, f64, f64), Option<&'a str>);
 
+/// Une carte des membranes faite d'un tableau qui ne porte que ces membranes.
+fn carte(membranes: &[Posee<'_>]) -> CarteDesMembranes {
+    let mut board = glucose_core::types::Board::new("b", "Tableau");
+    for &(id, (x, y, l, h), parente) in membranes {
+        let mut m = Annotation::membrane(id, x, y, l, h);
+        m.set_membrane_id(parente.map(str::to_string));
+        board.annotations.push(m);
+    }
+    CarteDesMembranes::du_tableau(&board)
+}
+
+/// **FOCUS-1 — zoomer ne fait plus entrer** (fiche 95, sa parole : un geste choisi). La vue qui
+/// faisait entrer — une membrane qui couvre l'écran, son centre dedans — reste hors du focus.
+#[test]
+fn test_focus_1_zoomer_ne_fait_plus_entrer() {
+    let m = memb("M", 0.0, 0.0, 500.0, 400.0, MembraneMode::Classic, None);
     let r = decide(
-        &items,
+        &[m],
         centered_on(250.0, 200.0, 2.0),
         FocusState::default(),
         10_000,
     );
-    if let FocusAction::Enter {
+    assert!(matches!(r, FocusAction::Stay(_)), "{r:?}");
+}
+
+/// **FOCUS-1 — le geste choisi entre** dans la membrane qu'on désigne, au cadrage du focus (la
+/// marge de six pour cent), même petite et emboîtée ; une membrane inconnue, rien.
+#[test]
+fn test_focus_1_le_geste_choisi_entre() {
+    let c = carte(&[("M", (0.0, 0.0, 500.0, 400.0), None)]);
+    let Some(FocusAction::Enter {
         membrane_id,
         fit,
         state,
-    } = r
-    {
-        assert_eq!(membrane_id, "M");
-        assert!(approx_eq(fit.scale, 1.76));
-        assert!(approx_eq(state.enter_scale, 1.76));
-    } else {
-        panic!("Should have entered focus");
-    }
+    }) = entrer(&c, "M", SCREEN, 10_000)
+    else {
+        panic!("le geste devait faire entrer");
+    };
+    assert_eq!(membrane_id, "M");
+    assert!(approx_eq(fit.scale, 1.76));
+    assert!(approx_eq(state.enter_scale, 1.76));
+    assert_eq!(state.membrane_id.as_deref(), Some("M"));
 
-    // Pas assez zoomé -> reste
-    let r_zoom = decide(
-        &items,
-        centered_on(250.0, 200.0, 1.5),
-        FocusState::default(),
-        10_000,
-    );
-    assert!(matches!(r_zoom, FocusAction::Stay(_)));
-
-    // Centre hors membrane -> reste
-    let r_off = decide(
-        &items,
-        centered_on(5000.0, 5000.0, 2.0),
-        FocusState::default(),
-        10_000,
-    );
-    assert!(matches!(r_off, FocusAction::Stay(_)));
-
-    // Plus petite membrane qui remplit l'écran
-    let grande = memb(
-        "GRANDE",
-        0.0,
-        0.0,
-        2000.0,
-        1600.0,
-        MembraneMode::Classic,
-        None,
-    );
-    let petite = memb(
-        "PETITE",
-        200.0,
-        100.0,
-        500.0,
-        400.0,
-        MembraneMode::Classic,
-        Some("GRANDE"),
-    );
-    let r_nest = decide(
-        &[grande, petite],
-        centered_on(450.0, 300.0, 2.0),
-        FocusState::default(),
-        10_000,
-    );
-    if let FocusAction::Enter { membrane_id, .. } = r_nest {
-        assert_eq!(membrane_id, "PETITE");
-    } else {
-        panic!("Should have entered PETITE");
-    }
+    let c = carte(&[
+        ("GRANDE", (0.0, 0.0, 2000.0, 1600.0), None),
+        ("PETITE", (200.0, 100.0, 500.0, 400.0), Some("GRANDE")),
+    ]);
+    let entre = |id| match entrer(&c, id, SCREEN, 10_000) {
+        Some(FocusAction::Enter { membrane_id, .. }) => Some(membrane_id),
+        _ => None,
+    };
+    assert_eq!(entre("GRANDE").as_deref(), Some("GRANDE"));
+    assert_eq!(entre("PETITE").as_deref(), Some("PETITE"));
+    assert_eq!(entre("PERSONNE"), None);
 }
 
+/// Une fois entré, la vue du cadrage n'en fait pas sortir : pas d'oscillation.
 #[test]
 fn test_no_oscillation_after_cadrage() {
     let m = memb("M", 0.0, 0.0, 500.0, 400.0, MembraneMode::Classic, None);
-    let items = [m.clone()];
-
-    let fit = fit_viewport(focus_box(&m, &[]), SCREEN, focus_consts::FIT_PADDING);
-    let cov = coverage(Rect::new(0.0, 0.0, 500.0, 400.0), fit, SCREEN);
-    assert!(cov < focus_consts::ENTER_COVERAGE);
-    assert!(approx_eq(cov, 0.88 * 0.88));
-
-    let enter = decide(
-        &items,
-        centered_on(250.0, 200.0, 2.0),
-        FocusState::default(),
-        10_000,
-    );
-    if let FocusAction::Enter { state, fit, .. } = enter {
-        let after = decide(&items, fit, state, 10_000 + focus_consts::COOLDOWN_MS + 1);
-        assert!(matches!(after, FocusAction::Stay(_)));
-    } else {
+    let c = carte(&[("M", (0.0, 0.0, 500.0, 400.0), None)]);
+    let Some(FocusAction::Enter { state, fit, .. }) = entrer(&c, "M", SCREEN, 10_000) else {
         panic!("Expected Enter");
-    }
+    };
+    let after = decide(&[m], fit, state, 10_000 + focus_consts::COOLDOWN_MS + 1);
+    assert!(matches!(after, FocusAction::Stay(_)));
 }
 
 #[test]

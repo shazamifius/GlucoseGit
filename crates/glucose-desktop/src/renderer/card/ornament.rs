@@ -57,6 +57,54 @@ pub(super) fn draw_ornament(
     false
 }
 
+/// **Les ornements d'une ligne vue de loin** (GRIS-1, fiche 95) : ceux de [`draw_ornament`], aux
+/// mêmes places et de la même encre, en formes ([`super::gris::FormeDeLoin`]). La puce, la barre
+/// d'une citation et le trait d'un `---` ne sont pas des lettres : ils se posent tels quels — de
+/// loin, ils font moins d'un pixel, et leur couverture exacte en garde la juste part. Le numéro
+/// d'un élément montre le gris de ses chiffres ; une formule, celui de sa ligne, que le gris pose.
+/// Rend `true` quand l'ornement est tout ce que la ligne avait à montrer : un trait.
+pub(super) fn ornement_de_loin(
+    ctx: &Pass,
+    poser: &mut dyn FnMut(super::gris::FormeDeLoin),
+    (left, y): (f32, f32),
+    layout: &CardLayout,
+    line: &VisualLine,
+    card: &TextCard,
+) -> bool {
+    use super::gris::{ligne_grise, plein};
+    let encre = encre_d_ornement(card.tint);
+    match line.kind {
+        BlockKind::Bullet if line.first => {
+            let ((cx, cy), r) = (centre_de_la_puce((left, y), layout), layout.bullet);
+            let disque = (cx - r, cy - r, 2.0 * r, 2.0 * r);
+            poser((
+                glucose_core::membrane_forme::Arrondi::nouveau(
+                    disque.0, disque.1, disque.2, disque.3, r,
+                ),
+                encre,
+            ));
+        }
+        BlockKind::Ordered(n) if line.first => {
+            let mut buf = [0u8; ORDINAL_MAX];
+            let (label, (x, y), style) = numero(ctx, (left, y), layout, (n, card.tint), &mut buf);
+            let chiffres = label.chars().map(|c| (c, Some(Face::Regular)));
+            let (largeur, encre) = ctx.typography.gris(chiffres, style.size);
+            let boite = (x, y, largeur, layout.line_height);
+            let place = largeur * layout.line_height;
+            if let Some(gris) = ligne_grise(boite, (encre, place), style.color) {
+                poser(gris);
+            }
+        }
+        BlockKind::Quote => poser(plein(barre_de_citation((left, y), layout), encre)),
+        BlockKind::Rule | BlockKind::TableRule => {
+            poser(plein(filet((left, y), layout), encre));
+            return true;
+        }
+        _ => {}
+    }
+    false
+}
+
 /// Le numéro d'un élément de liste, **cadré à droite** sur le bord du texte.
 ///
 /// C'est l'alignement de tout ce qui numérote depuis le plomb : les numéros s'empilent par

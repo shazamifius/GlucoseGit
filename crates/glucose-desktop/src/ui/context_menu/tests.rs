@@ -476,3 +476,19 @@ fn test_disposer_en_colonnes_n_existe_que_sur_une_membrane() {
         Some(crate::commandes::Commande::DisposerEnColonnes)
     );
 }
+
+/// **« Entrer dans la membrane » n'existe que sur une membrane choisie** (FOCUS-1, fiche 95) : le
+/// geste choisi qui remplace l'entrée par le zoom ; un texte choisi n'en a pas.
+#[test]
+fn test_focus_1_entrer_dans_la_membrane_n_existe_que_sur_une_membrane() {
+    let mut store = store_with(0, 1, true);
+    assert!(!actions(&menu(&store, (400.0, 300.0))).contains(&MenuAction::EntrerDansLaMembrane));
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::membrane("m", 1000.0, 0.0, 300.0, 200.0));
+    store.select_annotation("m".to_string(), true);
+    assert!(actions(&menu(&store, (400.0, 300.0))).contains(&MenuAction::EntrerDansLaMembrane));
+    assert_eq!(
+        MenuAction::EntrerDansLaMembrane.commande(),
+        Some(crate::commandes::Commande::EntrerDansLaMembrane)
+    );
+}

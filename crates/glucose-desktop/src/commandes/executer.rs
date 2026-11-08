@@ -35,6 +35,10 @@ impl GlucoseApp {
             Commande::ToutCadrer => self.cadrer(false),
             Commande::CadrerLaSelection => self.cadrer(true),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
+            Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),
+            Commande::SortirDeLaMembrane => {
+                self.sortir_de_la_membrane();
+            }
             Commande::ModeReference => self.basculer_le_mode_reference(),
             Commande::Naviguer => self.enter_pan_mode(),
             Commande::Echap => self.escape_gesture(),

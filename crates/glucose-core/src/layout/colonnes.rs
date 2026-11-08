@@ -132,9 +132,20 @@ fn taille(fils: &[Dispose], hauteurs: &[f64], coupes: &[(usize, usize)], m: Marg
     (large + (n + 1.0) * m.ecart, m.titre + haut + m.ecart)
 }
 
-/// La hauteur d'une colonne : ses blocs et les écarts entre eux.
+/// **Poser un bloc de hauteur `x` sous une colonne** qui monte déjà à `cumul` (rien : une colonne
+/// neuve) : la seule façon d'additionner une colonne. Le remplissage ([`colonnes_pour`]) et la
+/// hauteur d'une colonne ([`colonne`]) la partagent, dans le même ordre : ils s'accordent au bit
+/// près. Deux ordres de somme diffèrent au dernier bit, et une colonne de trop naissait d'un
+/// arrondi (fiche 96) — le remplissage ne tenait pas sous la hauteur de toute la suite.
+fn empiler(cumul: Option<f64>, x: f64, ecart: f64) -> f64 {
+    cumul.map_or(x, |c| c + ecart + x)
+}
+
+/// La hauteur d'une colonne : ses blocs et les écarts entre eux, empilés dans l'ordre.
 fn colonne(h: &[f64], ecart: f64) -> f64 {
-    h.iter().sum::<f64>() + ecart * h.len().saturating_sub(1) as f64
+    h.iter()
+        .fold(None, |c, &x| Some(empiler(c, x, ecart)))
+        .unwrap_or(0.0)
 }
 
 /// **Les coupes dont la proportion approche le mieux celle qu'on vise** : la bissection sur le nombre
@@ -172,18 +183,19 @@ fn meilleures_coupes(
 }
 
 /// **Combien de colonnes il faut** pour que nulle ne dépasse `limite`, en les remplissant dans
-/// l'ordre ; et leurs coupes.
+/// l'ordre ; et leurs coupes. Chaque colonne monte exactement à sa [`colonne`] : à la hauteur de
+/// toute la suite, une seule colonne suffit, au bit près.
 fn colonnes_pour(h: &[f64], limite: f64, ecart: f64) -> Vec<(usize, usize)> {
     let mut coupes = Vec::new();
-    let (mut debut, mut cumul) = (0, 0.0);
+    let (mut debut, mut cumul) = (0, None);
     for (i, &x) in h.iter().enumerate() {
-        let avec = if i == debut { x } else { cumul + ecart + x };
-        if i > debut && avec > limite {
+        let avec = empiler(cumul, x, ecart);
+        if cumul.is_some() && avec > limite {
             coupes.push((debut, i));
             debut = i;
-            cumul = x;
+            cumul = Some(empiler(None, x, ecart));
         } else {
-            cumul = avec;
+            cumul = Some(avec);
         }
     }
     coupes.push((debut, h.len()));

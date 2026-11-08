@@ -188,13 +188,48 @@ fn draw_paper(
         ring(ctx, pixmap, &path, (layout.width, layout.height));
     }
 
-    // SCALE-2 — l'unique niveau de détail : sous le seuil, le pense-bête s'arrête là.
-    if !ctx.scale.draws_detail() {
-        return;
-    }
     // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
     let lines = sticky_lines(ctx.typography, paper.text, paper.world_width);
+    // SCALE-2 — sous le seuil, une lettre ne se lit plus : le gris de chaque ligne (GRIS-1).
+    if !ctx.scale.draws_detail() {
+        draw_paper_gris(ctx, pixmap, at, layout, (paper, &lines));
+        return;
+    }
     draw_paper_text(ctx, pixmap, at, layout, paper, &lines);
+}
+
+/// **GRIS-1 — de loin, le gris de chaque ligne du papier** (fiche 95) : la loi des nœuds de texte
+/// ([`super::card::gris::ligne_grise`]), sur les lignes que le papier montre — celles qui
+/// tiennent au-dessus de sa marge du bas (STICKY-FIT-1).
+fn draw_paper_gris(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &StickyLayout,
+    (paper, lines): (&Paper<'_>, &[(usize, usize)]),
+) {
+    let zoom = ctx.scale.world(1.0);
+    if zoom <= 0.0 {
+        return;
+    }
+    let floor = at.1 + layout.height - layout.pad;
+    let mut y = at.1 + layout.pad;
+    let mut peindre = super::card::gris::peintre(pixmap);
+    for &(start, end) in lines {
+        if y + layout.line_height > floor + 1e-3 {
+            break;
+        }
+        let lettres = paper.text[start..end]
+            .chars()
+            .map(|c| (c, Some(Face::Regular)));
+        let (largeur, encre) = ctx.typography.gris(lettres, STICKY_FONT);
+        let boite = (at.0 + layout.pad, y, largeur * zoom, layout.line_height);
+        let place = largeur * layout.line_height / zoom;
+        if let Some(ligne) = super::card::gris::ligne_grise(boite, (encre, place), paper.ink) {
+            peindre(ligne);
+        }
+        y += layout.line_height;
+    }
 }
 
 /// La pilule d'un opérateur logique (fiche 06 § 5.3) : coins en demi-cercle, fond à sa

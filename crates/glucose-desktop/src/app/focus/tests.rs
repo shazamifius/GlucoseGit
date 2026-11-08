@@ -1,5 +1,6 @@
-//! **Le mode Focus, par la vraie application** : la vue qui se remplit d'une membrane y entre,
-//! le rendu et le clic ne voient plus qu'elle, et dézoomer en sort.
+//! **Le mode Focus, par la vraie application** : on y entre par un geste choisi (FOCUS-1, fiche
+//! 95) — plus en zoomant —, le rendu et le clic ne voient plus que la membrane, et `Échap` ou
+//! dézoomer en sort.
 
 use crate::app::GlucoseApp;
 use glucose_core::types::{Annotation, BoardImage, Viewport};
@@ -44,16 +45,25 @@ fn regarder_m(app: &mut GlucoseApp, e: f64) {
     );
 }
 
+/// Le geste choisi : `M` désignée, « Entrer dans la membrane ».
+fn entrer_dans_m(app: &mut GlucoseApp) {
+    app.store.clear_selection();
+    app.store.select_annotation("M".into(), false);
+    app.executer(crate::commandes::Commande::EntrerDansLaMembrane);
+}
+
+/// **FOCUS-1 — remplir l'écran d'une membrane n'y fait plus entrer** ; le geste choisi y entre, et
+/// ne montre qu'elle.
 #[test]
-fn test_remplir_l_ecran_d_une_membrane_y_entre_et_ne_montre_qu_elle() {
+fn test_focus_1_le_geste_choisi_entre_et_ne_montre_qu_elle() {
     let mut app = app();
     let fond = app.renderer.theme.bg_canvas;
-    regarder_m(&mut app, 0.5);
-    app.suivre_le_focus(ECRAN);
-    assert_eq!(app.focus.membrane(), None, "de loin, pas de focus");
-
     regarder_m(&mut app, 3.0);
     app.suivre_le_focus(ECRAN);
+    assert_eq!(app.focus.membrane(), None, "zoomer ne fait plus entrer");
+    assert!(app.renderer.focus.laisse_voir("dehors"));
+
+    entrer_dans_m(&mut app);
     assert_eq!(app.focus.membrane(), Some("M"));
     assert!(app.vol.en_cours(), "la caméra se cale sur la membrane");
     let f = &app.renderer.focus;
@@ -69,10 +79,40 @@ fn test_remplir_l_ecran_d_une_membrane_y_entre_et_ne_montre_qu_elle() {
     assert!(!app.pick_candidates_at(500.0, 300.0).is_empty());
 }
 
+/// **FOCUS-1 — `Échap` sort du focus**, et tout se revoit.
+#[test]
+fn test_focus_1_echap_sort_du_focus() {
+    let mut app = app();
+    let fond = app.renderer.theme.bg_canvas;
+    entrer_dans_m(&mut app);
+    assert_eq!(app.focus.membrane(), Some("M"));
+    app.escape_gesture();
+    assert_eq!(app.focus.membrane(), None);
+    assert!(app.renderer.focus.laisse_voir("dehors"));
+    assert_eq!(app.renderer.theme.bg_canvas, fond, "le fond revient");
+}
+
+/// **FOCUS-1 — « Sortir de la membrane », à la palette**, sort du focus comme `Échap` ; hors du
+/// focus, la commande ne fait rien.
+#[test]
+fn test_focus_1_la_palette_sort_du_focus() {
+    let mut app = app();
+    let fond = app.renderer.theme.bg_canvas;
+    entrer_dans_m(&mut app);
+    assert_eq!(app.focus.membrane(), Some("M"));
+    app.executer(crate::commandes::Commande::SortirDeLaMembrane);
+    assert_eq!(app.focus.membrane(), None);
+    assert!(app.renderer.focus.laisse_voir("dehors"));
+    assert_eq!(app.renderer.theme.bg_canvas, fond, "le fond revient");
+    app.executer(crate::commandes::Commande::SortirDeLaMembrane);
+    assert_eq!(app.focus.membrane(), None);
+}
+
 #[test]
 fn test_dezoomer_sort_du_focus_et_rend_tout() {
     let mut app = app();
     let fond = app.renderer.theme.bg_canvas;
+    entrer_dans_m(&mut app);
     regarder_m(&mut app, 3.0);
     app.suivre_le_focus(ECRAN);
     assert_eq!(app.focus.membrane(), Some("M"));
@@ -91,8 +131,10 @@ fn test_dezoomer_sort_du_focus_et_rend_tout() {
 #[test]
 fn test_le_rectangle_ne_ramasse_que_ce_qui_se_voit() {
     let mut app = app();
+    entrer_dans_m(&mut app);
     regarder_m(&mut app, 3.0);
     app.suivre_le_focus(ECRAN);
+    app.store.clear_selection();
     let vp = app.store.viewport();
     let (x1, y1) = crate::canvas::world_to_screen(-100.0, -100.0, &vp);
     let (x2, y2) = crate::canvas::world_to_screen(6000.0, 700.0, &vp);
@@ -143,8 +185,8 @@ fn test_ce_que_le_focus_cache_ne_se_dessine_pas() {
         "hors focus, l'image se voit"
     );
 
-    regarder_m(&mut app, 3.0);
-    app.suivre_le_focus(ECRAN);
+    entrer_dans_m(&mut app);
+    app.store.clear_selection();
     assert_eq!(app.focus.membrane(), Some("M"));
     regarder_m(&mut app, 1.2);
     let teinte = app.renderer.theme.bg_canvas.to_color_u8();
@@ -156,12 +198,17 @@ fn test_ce_que_le_focus_cache_ne_se_dessine_pas() {
     );
 }
 
-/// La décision se prend **à chaque image où la vue a bougé**, sans qu'aucun geste n'ait à la
-/// demander : c'est l'étape du mouvement de l'image qui la porte.
+/// La sortie se décide **à chaque image où la vue a bougé**, sans qu'aucun geste n'ait à la
+/// demander : c'est l'étape du mouvement de l'image qui la porte. L'entrée, jamais (FOCUS-1).
 #[test]
 fn test_l_image_decide_du_focus_d_elle_meme() {
     let mut app = app();
     regarder_m(&mut app, 3.0);
     app.appliquer_l_elan(ECRAN.0, ECRAN.1);
-    assert_eq!(app.focus.membrane(), Some("M"));
+    assert_eq!(app.focus.membrane(), None, "l'image ne fait pas entrer");
+    entrer_dans_m(&mut app);
+    app.focus.etat.t -= 10_000;
+    regarder_m(&mut app, 0.5);
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    assert_eq!(app.focus.membrane(), None, "l'image fait sortir");
 }

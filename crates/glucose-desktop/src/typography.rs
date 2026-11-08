@@ -56,6 +56,7 @@
 #[cfg(test)]
 pub(crate) mod coverage;
 mod detoure;
+mod encre;
 pub mod glyph;
 pub(crate) mod trace;
 
@@ -186,6 +187,8 @@ pub struct Typography {
     /// Les contours des mêmes polices, dans le même ordre, le repli des emojis en dernier :
     /// une grande lettre se trace (GRAND-1, fiche 72).
     contours: trace::Contours,
+    /// L'encre de chaque lettre, lue une fois (GRIS-1, fiche 95) : [`Typography::encre`].
+    encres: RefCell<HashMap<(Face, char), f32>>,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -212,6 +215,7 @@ impl Typography {
             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
             access_counter: Cell::new(0),
             contours: trace::Contours::de(&octets),
+            encres: RefCell::new(HashMap::new()),
         }
     }
 

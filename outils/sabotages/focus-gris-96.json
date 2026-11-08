@@ -1,0 +1,241 @@
+[
+ {
+  "nom": "FOCUS-1 une membrane inconnue fait entrer dans la première",
+  "fichier": "crates/glucose-core/src/membrane_focus.rs",
+  "avant": "    let m = membranes.iter().find(|m| m.id == id)?;",
+  "apres": "    let m = membranes.iter().find(|m| m.id == id).or(membranes.first())?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "membrane_focus_suite"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 le geste cadre sans la marge du focus",
+  "fichier": "crates/glucose-core/src/membrane_focus.rs",
+  "avant": "    let fit = fit_viewport(m.cadre, screen, focus_consts::FIT_PADDING);\n    Some(",
+  "apres": "    let fit = fit_viewport(m.cadre, screen, 0.0);\n    Some(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "membrane_focus_suite"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 Échap ne sort plus du focus",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "        if self.sortir_de_la_membrane() {",
+  "apres": "        if false && self.sortir_de_la_membrane() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "focus"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 la commande Entrer ne fait rien",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "            Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),",
+  "apres": "            Commande::EntrerDansLaMembrane => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "focus"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 la commande Sortir ne fait rien",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "            Commande::SortirDeLaMembrane => {\n                self.sortir_de_la_membrane();\n            }",
+  "apres": "            Commande::SortirDeLaMembrane => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "focus"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 le menu d'une membrane oublie Entrer",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "            MenuAction::EntrerDansLaMembrane,\n            \"Entrer dans la membrane\",",
+  "apres": "            MenuAction::DisposerEnColonnes,\n            \"Entrer dans la membrane\",",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "context_menu"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 l'entrée du menu lance une autre commande",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+  "avant": "            MenuAction::EntrerDansLaMembrane => Commande::EntrerDansLaMembrane,",
+  "apres": "            MenuAction::EntrerDansLaMembrane => Commande::DisposerEnColonnes,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "context_menu"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 entrer ne dit pas au rendu ce qui se voit",
+  "fichier": "crates/glucose-desktop/src/app/focus.rs",
+  "avant": "            self.appliquer_le_focus(action, bandeau);\n            let membrane = self.focus.membrane().map(str::to_string);\n            self.renderer\n                .regler_le_focus(&self.store, membrane.as_deref());",
+  "apres": "            self.appliquer_le_focus(action, bandeau);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "focus"
+  ]
+ },
+ {
+  "nom": "FOCUS-1 sortir ne rend pas tout au rendu",
+  "fichier": "crates/glucose-desktop/src/app/focus.rs",
+  "avant": "        self.appliquer_le_focus(sortie, 0.0);\n        self.renderer.regler_le_focus(&self.store, None);",
+  "apres": "        self.appliquer_le_focus(sortie, 0.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "focus"
+  ]
+ },
+ {
+  "nom": "GRIS-1 de loin, le cadre vide revient",
+  "fichier": "crates/glucose-desktop/src/renderer/card.rs",
+  "avant": "        gris::draw_card_gris(ctx, pixmap, at, (layout, text, card));",
+  "apres": "        let _ = (layout, text);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1",
+   "scale_2"
+  ]
+ },
+ {
+  "nom": "GRIS-1 une ligne est pleine, quelle que soit son encre",
+  "fichier": "crates/glucose-desktop/src/renderer/card/gris.rs",
+  "avant": "    let opacite = (encre / place).min(1.0) * couleur.alpha();",
+  "apres": "    let opacite = couleur.alpha();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ },
+ {
+  "nom": "GRIS-1 l'encre d'une lettre croît comme son corps, et non son carré",
+  "fichier": "crates/glucose-desktop/src/typography/encre.rs",
+  "avant": "        surface * (size / reference).powi(2)",
+  "apres": "        surface * (size / reference)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ },
+ {
+  "nom": "GRIS-1 de loin, la plaque d'un bloc de code disparaît",
+  "fichier": "crates/glucose-desktop/src/renderer/card/gris.rs",
+  "avant": "            poser(plein(plaque, ctx.theme.code_bg));",
+  "apres": "            let _ = plaque;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ },
+ {
+  "nom": "GRIS-1 de loin, le trait se cale sur la grille des pixels",
+  "fichier": "crates/glucose-desktop/src/renderer/card/ornament.rs",
+  "avant": "            poser(plein(filet((left, y), layout), encre));",
+  "apres": "            poser(plein(crate::renderer::vectoriel::sur_la_grille_des_pixels(filet((left, y), layout)).unwrap_or_default(), encre));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ },
+ {
+  "nom": "GRIS-1 le post-it ne peint plus ses lignes",
+  "fichier": "crates/glucose-desktop/src/renderer/note.rs",
+  "avant": "            peindre(ligne);",
+  "apres": "            let _ = ligne;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ },
+ {
+  "nom": "GRIS-1 le dessin vectoriel retrouve le cadre vide",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "        super::gris::gris_en_vecteurs(ctx, v, at, (&layout, &text, &card));",
+  "apres": "        let _ = at;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gris_1"
+  ]
+ }
+]

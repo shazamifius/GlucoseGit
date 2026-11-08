@@ -106,6 +106,12 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "Disposer en colonnes",
             "",
         )));
+        // Le mode Focus, par un geste choisi (FOCUS-1, fiche 95) : plus jamais par le zoom.
+        defs.push(Some((
+            MenuAction::EntrerDansLaMembrane,
+            "Entrer dans la membrane",
+            "",
+        )));
     }
     if images > 0 {
         let board = store.active_board()?;

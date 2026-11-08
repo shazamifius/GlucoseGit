@@ -191,6 +191,10 @@ impl GlucoseApp {
         if self.renoncer_au_trace() || self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {
             return;
         }
+        // Puis le focus, où l'on est entré par un geste choisi (FOCUS-1, fiche 95).
+        if self.sortir_de_la_membrane() {
+            return;
+        }
         // Échap rend toujours l'outil Sélection, comme dans Glucose Tauri : c'est la
         // sortie du mode Pan où la barre d'espace fait entrer, et le seul geste qui ramène
         // à un état connu quel que soit l'outil courant.

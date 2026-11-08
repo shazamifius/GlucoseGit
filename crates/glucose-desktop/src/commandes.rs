@@ -81,6 +81,10 @@ pub enum Commande {
     CadrerLaSelection,
     /// Ranger en colonnes ce que portent les membranes choisies (COLONNES-1, fiche 92).
     DisposerEnColonnes,
+    /// N'avoir plus que la membrane choisie, et la quitter (FOCUS-1, fiche 95) : un geste
+    /// choisi, plus un effet du zoom.
+    EntrerDansLaMembrane,
+    SortirDeLaMembrane,
     ModeReference,
     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
     Naviguer,
@@ -130,7 +134,7 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
 ];
 
 /// Les commandes sans paramètre : leur identifiant et leur nom.
-const SIMPLES: [(Commande, &str, &str); 42] = [
+const SIMPLES: [(Commande, &str, &str); 44] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -180,6 +184,16 @@ const SIMPLES: [(Commande, &str, &str); 42] = [
         Commande::DisposerEnColonnes,
         "disposer-en-colonnes",
         "Disposer en colonnes",
+    ),
+    (
+        Commande::EntrerDansLaMembrane,
+        "entrer-dans-la-membrane",
+        "Entrer dans la membrane",
+    ),
+    (
+        Commande::SortirDeLaMembrane,
+        "sortir-de-la-membrane",
+        "Sortir de la membrane",
     ),
     (Commande::ModeReference, "mode-reference", "Mode référence"),
     (

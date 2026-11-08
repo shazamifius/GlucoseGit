@@ -1,0 +1,23 @@
+[
+ {
+  "nom": "TITRE-1 la partition ignore la place des titres",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "    let hauteurs: Vec<f64> = fils.iter().map(|f| f.dessus + f.hauteur).collect();",
+  "apres": "    let hauteurs: Vec<f64> = fils.iter().map(|f| f.hauteur).collect();",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "colonnes"]
+ },
+ {
+  "nom": "COLONNES-2 une colonne s'additionne dans un autre ordre",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "    h.iter()\n        .fold(None, |c, &x| Some(empiler(c, x, ecart)))\n        .unwrap_or(0.0)",
+  "apres": "    h.iter().sum::<f64>() + ecart * h.len().saturating_sub(1) as f64",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "colonnes"]
+ },
+ {
+  "nom": "COLONNES-2 le remplissage repart d'une colonne qui n'est pas vide",
+  "fichier": "crates/glucose-core/src/layout/colonnes.rs",
+  "avant": "            cumul = Some(empiler(None, x, ecart));",
+  "apres": "            cumul = Some(empiler(Some(0.0), x, ecart));",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "colonnes"]
+ }
+]

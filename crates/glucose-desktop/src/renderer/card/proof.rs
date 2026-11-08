@@ -234,15 +234,24 @@ fn test_r51_accented_text_is_drawn_on_the_card() {
     }
 }
 
+/// **Sous le seuil, aucune lettre ne se rastérise — et le texte montre le gris de ses lignes**
+/// (GRIS-1, fiche 95). Le nœud y posait son cadre vide (SCALE-2) ; sa parole du 8/11 : *« pas de
+/// LOD, pas de simplification »*, puis *« carrément d'accord pour le gris des lignes »*.
 #[test]
-fn test_scale_2_below_the_threshold_the_card_keeps_its_frame_and_drops_its_text() {
+fn test_scale_2_below_the_threshold_no_glyph_is_rasterized_and_the_lines_show_their_grey() {
     let typo = Typography::new();
     let below = WorldScale::SIMPLIFIED_BELOW as f64 / 2.0;
-    let inked = render_proof(&typo, PROOF_TEXT, below);
     let empty = render_proof(&typo, "", below);
+    let lettres = typo.cached_glyph_count();
+    let inked = render_proof(&typo, PROOF_TEXT, below);
+    assert_eq!(
+        typo.cached_glyph_count(),
+        lettres,
+        "sous le seuil, une lettre ne se lit plus : aucune ne se rastérise"
+    );
     assert!(
-        ink_bbox(&inked, &empty).is_none(),
-        "sous le seuil, la carte ne doit plus rastériser de glyphe"
+        ink_bbox(&inked, &empty).is_some(),
+        "sous le seuil, le texte montre le gris de ses lignes, jamais un cadre vide"
     );
     // Le cadre, lui, reste : la carte est simplifiée, pas absente.
     let mut background = Pixmap::new(1200, 800).expect("pixmap");

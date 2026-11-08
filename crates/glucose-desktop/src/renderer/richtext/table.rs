@@ -71,10 +71,15 @@ pub(super) fn layout_table(
 
     for (rang, (row, plages)) in rows.iter().zip(&cellules).enumerate() {
         let from = out.fragments.len();
+        let (mut largeur, mut encre) = (0.0, 0.0);
         if !row.kind.silent() {
             let gras = entete == Some(rang);
             for (c, plage) in plages.iter().enumerate() {
                 pose_cellule(out, source, plage.clone(), taquet(c), mode, gras);
+                // GRIS-1 : la rangée s'étend jusqu'au bout de sa dernière cellule, sur son taquet.
+                let mesure = mesure_cellule(typography, source, plage.clone(), bx);
+                largeur = taquet(c) * bx.body + mesure;
+                encre += encre_cellule(typography, source, plage.clone(), (bx, gras));
             }
         }
         out.lines.push(VisualLine {
@@ -84,8 +89,34 @@ pub(super) fn layout_table(
             first: true,
             paragraph_start: row.start,
             fragments: from..out.fragments.len(),
+            largeur,
+            encre,
         });
     }
+}
+
+/// **L'encre d'une cellule** (GRIS-1) : celle de ses lettres, comme elle sera dessinée.
+fn encre_cellule(
+    typography: &Typography,
+    source: &str,
+    plage: std::ops::Range<usize>,
+    (bx, gras): (TextBox, bool),
+) -> f32 {
+    let texte = &source[plage];
+    let gras = if gras {
+        glucose_core::text::Emphasis::BOLD
+    } else {
+        glucose_core::text::Emphasis::NONE
+    };
+    inline_spans(texte)
+        .iter()
+        .filter(|s| s.role == SpanRole::Text)
+        .flat_map(|s| {
+            let face = Face::from(s.emphasis.union(gras));
+            s.slice(texte).chars().map(move |ch| (ch, face))
+        })
+        .map(|(ch, face)| typography.encre(ch, bx.body, face))
+        .sum()
 }
 
 /// La largeur qu'une cellule occupe, mesurée comme elle sera dessinée.

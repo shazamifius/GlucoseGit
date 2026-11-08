@@ -90,6 +90,7 @@ impl MenuAction {
             MenuAction::ToutCadrer => Commande::ToutCadrer,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
             MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
+            MenuAction::EntrerDansLaMembrane => Commande::EntrerDansLaMembrane,
             MenuAction::Signets => Commande::Signets,
             MenuAction::Enregistrer => Commande::Enregistrer,
             MenuAction::EnregistrerSous => Commande::EnregistrerSous,
@@ -179,6 +180,8 @@ pub enum MenuAction {
     CadrerLaSelection,
     /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
     DisposerEnColonnes,
+    /// N'avoir plus que la membrane choisie (FOCUS-1, fiche 95).
+    EntrerDansLaMembrane,
     /// Les signets de vue : y voler, en poser un (fiche 53 ; ACCES-1).
     Signets,
     /// Le document : un jalon, ou un autre nom (`Ctrl+S`, `Ctrl+Maj+S`).

@@ -12,8 +12,8 @@ use crate::geometry::Rect;
 use crate::types::{Annotation, Viewport};
 use std::collections::{HashMap, HashSet};
 
-/// **Ce que la décision du focus retient d'un tableau** : chaque membrane, la boîte qu'on voit
-/// d'elle et celle de son contenu.
+/// **Ce que la décision du focus retient d'un tableau** : chaque membrane, et la boîte de son
+/// contenu — ce que le focus cadre.
 ///
 /// # Pourquoi elle existe
 ///
@@ -22,9 +22,6 @@ use std::collections::{HashMap, HashSet};
 /// change pendant un zoom. La carte se calcule donc une fois par état du document, en un seul
 /// passage qui ne recopie aucun identifiant de nœud ; la décision, à chaque image, ne parcourt
 /// plus que les membranes ([`decider`]).
-///
-/// La géométrie affichée ne diffère des coordonnées que sous une membrane minimisée : c'est
-/// seulement là que le repère complet des membranes est calculé.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CarteDesMembranes {
     membranes: Vec<MembraneVue>,
@@ -34,18 +31,13 @@ impl CarteDesMembranes {
     pub fn du_tableau(board: &crate::types::Board) -> Self {
         let mut membranes: Vec<MembraneVue> = Vec::new();
         let mut rang: HashMap<&str, usize> = HashMap::new();
-        let mut minimisee = false;
         for a in &board.annotations {
-            if let Annotation::Membrane { mode, .. } = a {
-                minimisee |= *mode == crate::types::MembraneMode::Minimized;
-                if let Some(r) = a.rect() {
-                    rang.insert(a.id(), membranes.len());
-                    membranes.push(MembraneVue {
-                        id: a.id().to_string(),
-                        vue: Some(r),
-                        cadre: r,
-                    });
-                }
+            if let (Annotation::Membrane { .. }, Some(r)) = (a, a.rect()) {
+                rang.insert(a.id(), membranes.len());
+                membranes.push(MembraneVue {
+                    id: a.id().to_string(),
+                    cadre: r,
+                });
             }
         }
         if membranes.is_empty() {
@@ -74,13 +66,6 @@ impl CarteDesMembranes {
             m.cadre.width = m.cadre.width.max(w);
             m.cadre.height = m.cadre.height.max(h);
         }
-        if minimisee {
-            let items = crate::membrane_space::items_of_board(board);
-            let vus = crate::membrane_space::resolve_items(&items, Default::default());
-            for m in &mut membranes {
-                m.vue = vus.get(&m.id).map(|r| r.rect());
-            }
-        }
         Self { membranes }
     }
 
@@ -89,7 +74,18 @@ impl CarteDesMembranes {
     }
 }
 
-/// La décision du focus pour cette vue, sur la carte d'un tableau.
+/// **FOCUS-1 — entrer dans la membrane `id`**, par un geste choisi : le cadrage qui la montre
+/// entière, et l'état du focus. Rien si elle n'est pas sur la carte.
+pub fn entrer(
+    carte: &CarteDesMembranes,
+    id: &str,
+    screen: ScreenSize,
+    now: i64,
+) -> Option<FocusAction> {
+    super::entrer_sur(&carte.membranes, id, screen, now)
+}
+
+/// La décision du focus pour cette vue, sur la carte d'un tableau : ne fait que sortir (FOCUS-1).
 pub fn decider(
     carte: &CarteDesMembranes,
     vp: Viewport,

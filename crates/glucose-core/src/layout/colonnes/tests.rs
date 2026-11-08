@@ -7,7 +7,9 @@ const M: Marges = Marges {
     titre: 60.0,
 };
 
-/// Une suite de hauteurs, pseudo-aléatoire mais toujours la même.
+/// Une suite de hauteurs, pseudo-aléatoire mais toujours la même — et **pas entières** : des
+/// entiers s'additionnent exactement, dans n'importe quel ordre, et ont caché une colonne de trop
+/// née d'un arrondi (fiche 96). Des septièmes ne s'écrivent pas en binaire : chaque somme arrondit.
 fn hauteurs(graine: u64, n: usize) -> Vec<f64> {
     let mut x = graine;
     (0..n)
@@ -15,7 +17,7 @@ fn hauteurs(graine: u64, n: usize) -> Vec<f64> {
             x = x
                 .wrapping_mul(6364136223846793005)
                 .wrapping_add(1442695040888963407);
-            40.0 + ((x >> 33) % 400) as f64
+            40.0 + ((x >> 33) % 400) as f64 + ((x >> 13) % 7) as f64 / 7.0
         })
         .collect()
 }
@@ -254,4 +256,66 @@ fn titre_1_un_grand_titre_ne_couvre_jamais_le_bloc_du_dessus() {
         couvre,
         "sans la réserve, un grand titre aurait dû couvrir son voisin"
     );
+}
+
+/// **TITRE-1 — les coupes comptent la place des titres** : des sous-membranes titrées, de
+/// surfaces diverses, rangées en plusieurs colonnes ; la plus haute colonne, titres compris, est
+/// la plus basse possible pour le nombre de colonnes retenu ([`coupes_pour`], prouvé exact contre
+/// la force brute plus haut). Des coupes calculées sur les seules boîtes laissent parfois une
+/// colonne plus haute que nécessaire : les titres n'y ajoutent qu'un dixième, et ne déplacent une
+/// coupe que dans quelques cas sur cent — d'où la grille.
+///
+/// **L'épreuve exerce ce qu'elle garde** : la première version rangeait tout en une seule colonne
+/// (des boîtes trop larges pour la proportion) — aucune coupe à faire, et la place des titres ne
+/// pouvait rien changer. Chaque cas doit ici faire plusieurs colonnes.
+#[test]
+fn titre_1_les_coupes_comptent_la_place_des_titres() {
+    for (n, proportion) in [
+        (12, 1.6),
+        (12, 3.0),
+        (12, 6.0),
+        (24, 1.6),
+        (24, 3.0),
+        (24, 6.0),
+    ] {
+        for graine in 0..20u64 {
+            let enfants: Vec<Bloc> = hauteurs(graine, n)
+                .into_iter()
+                .enumerate()
+                .map(|(i, h)| Bloc {
+                    id: format!("m{i}"),
+                    largeur: 300.0 * (1 + (i * 7 + graine as usize) % 5) as f64,
+                    hauteur: h,
+                    enfants: Vec::new(),
+                    titree: true,
+                })
+                .collect();
+            let reelles: Vec<f64> = enfants
+                .iter()
+                .map(|b| crate::membrane_titre::surcroit(b.largeur, b.hauteur) + b.hauteur)
+                .collect();
+            let racine = Bloc {
+                id: "r".into(),
+                largeur: 300.0,
+                hauteur: 100.0,
+                enfants,
+                titree: true,
+            };
+            let boites: std::collections::HashMap<String, Rect> =
+                disposer(&racine, proportion, M).into_iter().collect();
+            let mut gauches: Vec<f64> = (0..n).map(|i| boites[&format!("m{i}")].left).collect();
+            gauches.dedup();
+            let cas = format!("{n} membranes, proportion {proportion}, graine {graine}");
+            assert!(
+                gauches.len() > 1,
+                "{cas} : une seule colonne, aucune coupe exercée"
+            );
+            let haute = boites["r"].height - M.titre - M.ecart;
+            let juste = plus_haute(&reelles, &coupes_pour(&reelles, gauches.len(), M.ecart));
+            assert!(
+                (haute - juste).abs() < 1e-6,
+                "{cas} : la plus haute colonne {haute}, la plus basse possible {juste}"
+            );
+        }
+    }
 }

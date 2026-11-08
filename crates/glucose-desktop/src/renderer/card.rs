@@ -68,6 +68,7 @@ use crate::renderer::math::MathRenderer;
 use crate::typography::Typography;
 
 mod dessus;
+pub(crate) mod gris;
 mod habit;
 mod memoire;
 mod ornament;
@@ -314,9 +315,12 @@ fn dessiner_le_contenu(
     card: &TextCard,
 ) {
     draw_card_brume(pixmap, at, layout, card);
-    // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
+    // SCALE-2 — sous le seuil, une lettre ne se lit plus : la carte montre le gris de chaque
+    // ligne (GRIS-1, fiche 95), jamais un cadre vide.
     if ctx.scale.draws_detail() {
         draw_card_body(ctx, pixmap, at, layout, text, card);
+    } else {
+        gris::draw_card_gris(ctx, pixmap, at, (layout, text, card));
     }
 }
 
@@ -333,20 +337,7 @@ fn draw_card_body(
     // La sélection est du contenu et ne clignote pas : un fond qui s'allume et s'éteint
     // rendrait la lecture du texte sélectionné impossible.
     let selection = card.editing.map(|s| s.selection).unwrap_or_default();
-    // Le fond et le liseré des passages qui brillent, sous leurs lettres (PASSAGE-2).
-    if let Some(e) = card.eclaires.filter(|_| card.editing.is_none()) {
-        let passages = super::passages::troncons(
-            (ctx.typography, ctx.math),
-            (text, card.body, card.size.0),
-            e.plages,
-        );
-        let pose = super::passages::Pose {
-            origine: card.origin,
-            vp: ctx.vp,
-            echelle: ctx.scale,
-        };
-        super::passages::peindre_les_cadres(pixmap, pose, &passages, (e.teinte, e.style));
-    }
+    draw_passages(ctx, pixmap, text, card);
     let mut cur_y = at.1 + layout.pad_y;
     for line in &text.lines {
         draw_text_line(
@@ -360,6 +351,25 @@ fn draw_card_body(
         );
         cur_y += layout.line_height;
     }
+}
+
+/// **Le fond et le liseré des passages qui brillent**, sous leurs lettres (PASSAGE-2) — de près
+/// comme de loin (GRIS-1) : ce qu'on cherche se voit à toute distance.
+fn draw_passages(ctx: &Pass, pixmap: &mut PixmapMut, text: &TextLayout, card: &TextCard) {
+    let Some(e) = card.eclaires.filter(|_| card.editing.is_none()) else {
+        return;
+    };
+    let passages = super::passages::troncons(
+        (ctx.typography, ctx.math),
+        (text, card.body, card.size.0),
+        e.plages,
+    );
+    let pose = super::passages::Pose {
+        origine: card.origin,
+        vp: ctx.vp,
+        echelle: ctx.scale,
+    };
+    super::passages::peindre_les_cadres(pixmap, pose, &passages, (e.teinte, e.style));
 }
 
 /// Une ligne de carte : son ornement, son surlignage, son texte.

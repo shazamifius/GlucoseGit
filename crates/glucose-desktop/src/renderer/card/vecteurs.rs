@@ -20,7 +20,9 @@ use crate::renderer::vectoriel::Vectoriel;
 use glucose_core::text::{BlockKind, Selection};
 use tiny_skia::Color;
 
-/// **Dessine cette carte** : sa brume, puis, au-dessus du seuil de détail (SCALE-2), son texte.
+/// **Dessine cette carte** : sa brume, puis son texte — au-dessus du seuil de détail (SCALE-2), ses
+/// lettres ; au-dessous, le gris de ses lignes et ce qui n'est pas une lettre (GRIS-1, fiche 95),
+/// les mêmes formes que le canevas.
 pub(in crate::renderer) fn carte_en_vecteurs<V: Vectoriel>(ctx: &Pass, card: TextCard, v: &mut V) {
     let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
@@ -30,21 +32,16 @@ pub(in crate::renderer) fn carte_en_vecteurs<V: Vectoriel>(ctx: &Pass, card: Tex
     let voile = Color::from_rgba(r, g, b, 1.0).unwrap_or(Color::BLACK);
     let boite = boite_de_la_carte(at, (layout.width, layout.height));
     v.rectangle(boite, layout.radius, voile);
+    passages_en_vecteurs(ctx, v, &text, &card);
     if ctx.scale.draws_detail() {
         corps_en_vecteurs(ctx, v, at, &layout, &text, &card);
+    } else {
+        super::gris::gris_en_vecteurs(ctx, v, at, (&layout, &text, &card));
     }
 }
 
-/// Le corps : le fond des passages qui brillent, puis les lignes.
-fn corps_en_vecteurs<V: Vectoriel>(
-    ctx: &Pass,
-    v: &mut V,
-    at: (f32, f32),
-    layout: &CardLayout,
-    text: &TextLayout,
-    card: &TextCard,
-) {
-    let selection = card.editing.map(|s| s.selection).unwrap_or_default();
+/// Le fond des passages qui brillent, de près comme de loin.
+fn passages_en_vecteurs<V: Vectoriel>(ctx: &Pass, v: &mut V, text: &TextLayout, card: &TextCard) {
     if let Some(e) = card.eclaires.filter(|_| card.editing.is_none()) {
         let passages = crate::renderer::passages::troncons(
             (ctx.typography, ctx.math),
@@ -58,6 +55,18 @@ fn corps_en_vecteurs<V: Vectoriel>(
         };
         crate::renderer::passages::cadres_en_vecteurs(v, pose, &passages, (e.teinte, e.style));
     }
+}
+
+/// Le corps de près : chaque ligne qui peut toucher ce qu'on voit.
+fn corps_en_vecteurs<V: Vectoriel>(
+    ctx: &Pass,
+    v: &mut V,
+    at: (f32, f32),
+    layout: &CardLayout,
+    text: &TextLayout,
+    card: &TextCard,
+) {
+    let selection = card.editing.map(|s| s.selection).unwrap_or_default();
     let mut y = at.1 + layout.pad_y;
     for (rang, line) in text.lines.iter().enumerate() {
         let (haut, bas) = bande_d_une_ligne(&text.lines, rang, y, layout.line_height);

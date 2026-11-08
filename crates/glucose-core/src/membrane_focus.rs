@@ -1,5 +1,16 @@
-//! MEMB-2 — Mode Focus : « zoomer assez sur une membrane et n'avoir plus qu'elle ».
+//! MEMB-2 — Mode Focus : n'avoir plus qu'une membrane, son contenu, sur un fond à sa couleur.
 //! 100% Rust Standard Library (0 dépendance).
+//!
+//! # FOCUS-1 — on y entre par un geste choisi (fiche 95)
+//!
+//! Glucose Tauri y entrait quand une membrane couvrait 92 % de l'écran : zoomer suffisait, la
+//! caméra se calait, et tout le reste disparaissait. Sa parole du 8/11/2026 : *« pas de système de
+//! LOD, pas de simplification possible »* — rien ne se cache selon la distance —, puis, devant la
+//! proposition : *« le mode Focus, je préférais que ce soit un geste choisi »*. On y entre donc par
+//! [`entrer`], pour la membrane qu'on désigne ; la décision de chaque image ([`decider`]) ne fait
+//! plus que sortir — en dézoomant, en s'éloignant —, et l'application sort aussi par `Échap`. Le
+//! seuil de 92 % disparaît, et la recherche de « la plus petite membrane qui remplit l'écran » avec
+//! lui : c'est l'utilisateur qui désigne.
 
 use crate::geometry::{Point, Rect};
 use crate::membrane_space::{contained_in, content_extent, parent_map, SpaceItem};
@@ -7,10 +18,9 @@ use crate::types::{Annotation, Viewport};
 use std::collections::{HashMap, HashSet};
 
 mod tableau;
-pub use tableau::{decider, masque_du_focus, CarteDesMembranes, MasqueFocus};
+pub use tableau::{decider, entrer, masque_du_focus, CarteDesMembranes, MasqueFocus};
 
 pub mod focus_consts {
-    pub const ENTER_COVERAGE: f64 = 0.92;
     pub const EXIT_SCALE_RATIO: f64 = 0.8;
     pub const EXIT_CENTER_MARGIN: f64 = 0.35;
     pub const COOLDOWN_MS: i64 = 400;
@@ -39,26 +49,6 @@ impl Default for FocusState {
             t: 0,
         }
     }
-}
-
-pub fn to_screen(b: Rect, vp: Viewport) -> Rect {
-    Rect {
-        left: b.left * vp.scale + vp.x,
-        top: b.top * vp.scale + vp.y,
-        width: b.width * vp.scale,
-        height: b.height * vp.scale,
-    }
-}
-
-pub fn coverage(b: Rect, vp: Viewport, screen: ScreenSize) -> f64 {
-    let total = screen.width * screen.height;
-    if total <= 0.0 {
-        return 0.0;
-    }
-    let s = to_screen(b, vp);
-    let ix = 0.0f64.max((s.left + s.width).min(screen.width) - s.left.max(0.0));
-    let iy = 0.0f64.max((s.top + s.height).min(screen.height) - s.top.max(0.0));
-    (ix * iy) / total
 }
 
 pub fn screen_center_world(vp: Viewport, screen: ScreenSize) -> Point {
@@ -93,7 +83,6 @@ pub fn fit_viewport(b: Rect, screen: ScreenSize, pad: f64) -> Viewport {
 #[derive(Debug, Clone)]
 pub struct FocusInput<'a> {
     pub items: &'a [SpaceItem],
-    pub resolved: &'a HashMap<String, crate::membrane_space::ResolvedItem>,
     pub vp: Viewport,
     pub screen: ScreenSize,
     pub state: FocusState,
@@ -122,7 +111,6 @@ fn children_of<'a>(items: &'a [SpaceItem], membrane_id: &str) -> Vec<&'a SpaceIt
 pub fn focus_decision(input: FocusInput) -> FocusAction {
     let FocusInput {
         items,
-        resolved,
         vp,
         screen,
         state,
@@ -133,7 +121,6 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
         .filter(|i| i.kind == crate::membrane_space::SpaceItemKind::Membrane)
         .map(|m| MembraneVue {
             id: m.id.clone(),
-            vue: resolved.get(&m.id).map(|r| r.rect()),
             cadre: focus_box(m, &children_of(items, &m.id)),
         })
         .collect();
@@ -145,12 +132,12 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
 #[derive(Debug, Clone, PartialEq)]
 struct MembraneVue {
     id: String,
-    /// `None` si sa géométrie affichée n'est pas connue : elle ne peut pas être choisie.
-    vue: Option<Rect>,
     cadre: Rect,
 }
 
-fn hors_focus(now: i64) -> FocusState {
+/// **Hors du focus** — ce que rend une sortie, et ce que l'application pose quand on sort par
+/// `Échap`.
+pub fn hors_focus(now: i64) -> FocusState {
     FocusState {
         membrane_id: None,
         enter_scale: 0.0,
@@ -192,42 +179,29 @@ fn decider_sur(
         return FocusAction::Stay(state);
     }
 
-    // ── Hors focus : chercher la membrane qui remplit l'écran ───────────────
-    let center = screen_center_world(vp, screen);
-    let mut best: Option<&MembraneVue> = None;
-    let mut best_area = f64::INFINITY;
-    for m in membranes {
-        let Some(b) = m.vue else {
-            continue;
-        };
-        if center.x < b.left || center.x > b.right() || center.y < b.top || center.y > b.bottom() {
-            continue;
-        }
-        if coverage(b, vp, screen) < focus_consts::ENTER_COVERAGE {
-            continue;
-        }
-        let a = (b.width * b.height).abs();
-        if a < best_area {
-            best = Some(m);
-            best_area = a;
-        }
-    }
+    // ── Hors focus : rien ne fait entrer, sinon un geste choisi (FOCUS-1, [`entrer`]) ──
+    FocusAction::Stay(state)
+}
 
-    match best {
-        Some(target) => {
-            let fit = fit_viewport(target.cadre, screen, focus_consts::FIT_PADDING);
-            FocusAction::Enter {
-                state: FocusState {
-                    membrane_id: Some(target.id.clone()),
-                    enter_scale: fit.scale,
-                    t: now,
-                },
-                membrane_id: target.id.clone(),
-                fit,
-            }
-        }
-        None => FocusAction::Stay(state),
-    }
+/// **FOCUS-1 — entrer dans cette membrane, par un geste choisi** : le cadrage qui la montre
+/// entière, avec la marge du focus, et l'état qui s'en souvient. Rien si elle n'existe pas.
+fn entrer_sur(
+    membranes: &[MembraneVue],
+    id: &str,
+    screen: ScreenSize,
+    now: i64,
+) -> Option<FocusAction> {
+    let m = membranes.iter().find(|m| m.id == id)?;
+    let fit = fit_viewport(m.cadre, screen, focus_consts::FIT_PADDING);
+    Some(FocusAction::Enter {
+        state: FocusState {
+            membrane_id: Some(m.id.clone()),
+            enter_scale: fit.scale,
+            t: now,
+        },
+        membrane_id: m.id.clone(),
+        fit,
+    })
 }
 
 pub fn focus_frame_of(items: &[SpaceItem], focused_id: Option<&str>) -> Option<Rect> {
@@ -421,29 +395,6 @@ mod tests {
     use crate::membrane_space::SpaceItemKind;
 
     #[test]
-    fn test_coverage() {
-        let b = Rect::new(0.0, 0.0, 1000.0, 1000.0);
-        let screen = ScreenSize {
-            width: 1000.0,
-            height: 1000.0,
-        };
-        let vp = Viewport {
-            x: 0.0,
-            y: 0.0,
-            scale: 1.0,
-        };
-        assert!((coverage(b, vp, screen) - 1.0).abs() < 1e-6);
-
-        let vp_half = Viewport {
-            x: 0.0,
-            y: 0.0,
-            scale: 0.5,
-        };
-        // 500x500 sur 1000x1000 = 0.25
-        assert!((coverage(b, vp_half, screen) - 0.25).abs() < 1e-6);
-    }
-
-    #[test]
     fn test_asymmetric_exit() {
         let m = SpaceItem {
             id: "M1".into(),
@@ -456,21 +407,6 @@ mod tests {
             membrane_id: None,
         };
         let items = [m];
-        let mut resolved = HashMap::new();
-        resolved.insert(
-            "M1".into(),
-            crate::membrane_space::ResolvedItem {
-                id: "M1".into(),
-                x: 0.0,
-                y: 0.0,
-                width: 1000.0,
-                height: 1000.0,
-                scale: 1.0,
-                membrane_id: None,
-                content_scale: None,
-            },
-        );
-
         let screen = ScreenSize {
             width: 1000.0,
             height: 1000.0,
@@ -484,7 +420,6 @@ mod tests {
         // Dézoom à 0.79 (< 0.8 * enter_scale) -> Sortie
         let action = focus_decision(FocusInput {
             items: &items,
-            resolved: &resolved,
             vp: Viewport {
                 x: 0.0,
                 y: 0.0,
@@ -499,7 +434,6 @@ mod tests {
         // Dézoom à 0.85 (>= 0.8 * enter_scale) -> Reste
         let action2 = focus_decision(FocusInput {
             items: &items,
-            resolved: &resolved,
             vp: Viewport {
                 x: 0.0,
                 y: 0.0,
