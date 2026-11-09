@@ -94,6 +94,18 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [x] | **Le repos à zéro** — mesuré le 18/10 : 0,2 image par seconde sans la main, toutes pour le fondu du message de bienvenue | une chronique au repos sans image hors un message qui paraît |
 | [x] | **REPOS-2 — sur une carte de Wikipédia, Glucose se pose** (fiche 98 § 1 ; sa parole du 9/11 : « yep ») : pas un cercle — une convergence ruineuse, une teinte et une texture par image complète ; le cache des teintes paie ses dettes au repos, sans image, et une seule image les montre. Banc hors écran, paires entrelacées : 293 → 26 images en 30 s de repos, un cœur 21,5 % → 2,3 % ; 7 sabotages sur 7. **Reste** (ancien, sans gêne d'usage) : le fondu d'un message redessine toute la carte | — |
 
+### Le prochain lot — sa parole du 9/11 après-midi (VISION, fin de « Wikipédia sur le canevas »)
+
+Dans cet ordre, à remettre en question : **(1) les défauts qu'il a vus** — l'édition au double-clic (on ne
+voit pas ce qu'on tape avant de cliquer ailleurs : à reproduire d'abord, sur un titre de membrane, un texte,
+un post-it) et la couleur d'un texte qui ne se voit pas (la barre de couleur ment sur les textes) ;
+**(2) la roue de couleur à la Blender** (sa demande ; son ergonomie, ses raccourcis) ; **(3) `Alt+Z`**, l'histoire
+de la caméra ; **(4) les liens** — transparents de loin, visibles près d'un bloc de texte (sa première
+autorisation d'un niveau de détail, pour les liens seuls), le focus et la fenêtre « show » ; **(5) le sens des
+couleurs des membranes** — teinte par proximité des domaines, clarté par accessibilité, opacité par
+appartenance — d'abord par l'agent, puis une option de l'IA de Glucose, toujours désactivable ; **(6) une
+utilité à la couleur des textes**, à lui proposer.
+
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
 **Le domaine, `Ctrl+F` et les commandes du terminal sont faits, ils attendent son écran** (fiches 88 à 90). **Un article de Wikipédia posé par les commandes a montré ce qui manque** (fiche 91). **La disposition en colonnes est faite** (fiche 92). **Sa parole du 8/11** : *« travailler sur comment le cerveau humain serait capable de comprendre Wikipédia tout entier sur un canva 2D sans que ce soit trop brouillon, avec le maximum de facilité »* — la fiche 94 en tire quatre principes et l'ordre : DOM-6, l'héritage des domaines par les membranes (**fait**) ; **Sa parole du 8/11 au soir** (VISION) : *« pas de système de LOD et pas de simplification possible »* ; *« j'accepte de revoir le fonctionnement des membranes afin qu'elles soient plus intéressantes »*. **Le prochain : les titres des membranes à la taille de leur région ; puis un squelette de Wikipédia (les articles vitaux) ; puis les liens ; puis P6.

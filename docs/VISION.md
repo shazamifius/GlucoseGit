@@ -207,6 +207,39 @@ Le 9/11, devant le squelette des cent articles vitaux (fiche 97) :
   *« je crois bien »* ; les régions se reconnaîtront par la couleur.
 * **Les propositions B, C, D** (fiche 95 § 4) : *« prochaine session »*.
 
+Le 9/11 après-midi, devant la session de la fiche 98 (D en image, la barre de couleur, `Ctrl+G`) :
+
+* **D, une teinte par région** : *« c'est magnifique, c'est presque parfait, MAIS tu n'as pas créé assez de
+  couleurs »* — une palette de couleurs comme celle de Blender, avec la roue, ferait mieux. **Pas de clair ou
+  de sombre décoratif** : *« il faut que TOUT ait une signification »* (la proposition « une sœur claire, une
+  sombre » de la fiche 98 était une faute). Ses propositions, **pour les membranes** :
+  * **la teinte** : les couleurs se fondent entre elles quand les domaines se rapprochent — sciences, société
+    et sciences sociales ont des couleurs proches ;
+  * **la clarté** : un sujet est sombre ou clair selon qu'il est **accessible à tous ou non** (le niveau de
+    compréhension nécessaire) ;
+  * **l'opacité** : un sujet qui entre **pile** dans sa matière est plutôt opaque ; un sujet qui en fait partie
+    mais en dérive un peu, plus transparent ;
+  * à terme, **une option** : l'IA de Glucose change d'elle-même les couleurs des membranes selon cette règle —
+    toujours avec la possibilité pour l'utilisateur de ne pas s'en servir.
+* **La couleur des textes** : *« c'est toute une question aussi »* — au sein d'une membrane il y a souvent du
+  texte, et du texte de couleur : il faut proposer **une utilité** (une signification) à cette couleur.
+* **Choisir sa couleur** : laisser l'utilisateur choisir la couleur qu'il souhaite, *« si possible le même
+  système de palette que Blender, avec la roue — elle est extrêmement ergonomique »* ; en revoir l'ergonomie
+  et les raccourcis.
+* **Les liens — sa première autorisation d'un niveau de détail** : *« c'est la première fois que j'autorise
+  les niveaux de LOD »*. De base, les liens sont **très transparents** ; dès qu'on s'approche d'un bloc de
+  texte, ils apparaissent. Un clic sur un lien : soit **un focus** sur ce à quoi il est rattaché, soit **un
+  « show »** (*« isolation ? »*) — une **fenêtre temporaire** qui rassemble le nœud et **tous** ses liens, les
+  blocs de texte placés **à côté**, automatiquement, même s'ils sont à des kilomètres, gardant leur couleur
+  d'origine, avec l'explication de leur provenance (quelle membrane) ; on y zoome, on y lit ; un clic sur un
+  nœud défait la fenêtre et vole vers son emplacement dans le canevas. Seuls les liens ont cette exception.
+* **`Alt+Z`** : revenir en arrière dans les placements de la caméra — *« tu focus sur un bloc qu'il ne
+  fallait pas, Alt+Z, et tu es de retour instantanément à ton lieu d'origine »*.
+* **Ce qu'il a vu à son écran** : *« le système de double-clic fonctionne très bizarrement »* — on tape, les
+  lettres n'apparaissent pas ; ce n'est qu'après avoir cliqué ailleurs que le texte s'enregistre et
+  s'affiche. *« Les couleurs de text box ne fonctionnent pas »* (la teinte d'un texte ne se voit pas). *« Il
+  y a beaucoup, beaucoup d'erreurs. »*
+
 ## Ce qui est encore à définir — sa parole
 
 * ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
