@@ -81,6 +81,9 @@ pub enum Commande {
     Pousser(Sens, bool),
     // Naviguer.
     ToutCadrer,
+    /// Revenir au lieu d'où la caméra est partie, ou y repartir (RETOUR-1, fiche 99).
+    VuePrecedente,
+    VueSuivante,
     CadrerLaSelection,
     /// Ranger en colonnes ce que portent les membranes choisies (COLONNES-1, fiche 92).
     DisposerEnColonnes,
@@ -151,7 +154,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 45] = [
+const SIMPLES: [(Commande, &str, &str); 47] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -193,6 +196,8 @@ const SIMPLES: [(Commande, &str, &str); 45] = [
         "Verrouiller ou déverrouiller",
     ),
     (Commande::ToutCadrer, "tout-cadrer", "Tout cadrer"),
+    (Commande::VuePrecedente, "vue.precedente", "Vue précédente"),
+    (Commande::VueSuivante, "vue.suivante", "Vue suivante"),
     (
         Commande::CadrerLaSelection,
         "cadrer-la-selection",
@@ -369,7 +374,11 @@ impl Commande {
     pub fn repetable(self) -> bool {
         matches!(
             self,
-            Commande::Pousser(..) | Commande::Annuler | Commande::Retablir
+            Commande::Pousser(..)
+                | Commande::Annuler
+                | Commande::Retablir
+                | Commande::VuePrecedente
+                | Commande::VueSuivante
         )
     }
 

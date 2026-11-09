@@ -128,6 +128,8 @@ impl Store {
         // JRN-2 : le document vient d'être remplacé en dehors du journal ; ses index ne
         // décrivent plus rien. On vide plutôt que de garder une pile qui ment.
         self.journal.clear();
+        // RETOUR-1 : les lieux de l'autre document ne mènent nulle part dans celui-ci.
+        self.histoire_de_la_vue.oublier();
         self.clear_selection();
         self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
         repaired

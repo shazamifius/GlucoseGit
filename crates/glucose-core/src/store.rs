@@ -53,6 +53,7 @@ mod membranes;
 mod navigation;
 mod order;
 mod resize;
+pub mod retour;
 mod selection;
 pub mod storyboard;
 mod textes;
@@ -79,6 +80,8 @@ pub struct Store {
     pub selected_folder_id: Option<String>,
     pub folder_stack: Vec<(String, String)>,
     pub temporal_filter: Option<TemporalAnchor>,
+    /// Les lieux d'où la caméra est partie, pour `Alt+Z` (RETOUR-1, fiche 99).
+    pub histoire_de_la_vue: retour::HistoireDeLaVue,
 
     /// Pile d'annulation. Voir [`journal`] pour la loi de coût JRN-1.
     pub journal: journal::Journal,
@@ -129,6 +132,7 @@ impl Store {
             bornes: std::cell::RefCell::default(),
             groupe: std::cell::RefCell::default(),
             glisser: None,
+            histoire_de_la_vue: retour::HistoireDeLaVue::default(),
         }
     }
 

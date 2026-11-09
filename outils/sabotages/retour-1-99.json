@@ -1,0 +1,167 @@
+[
+ {
+  "nom": "RETOUR-1 un depart ne se note pas",
+  "fichier": "crates/glucose-desktop/src/interactions/vol.rs",
+  "avant": "    pub fn voler_vers(&mut self, cible: Viewport) {\n        self.parti |= !self.en_cours();",
+  "apres": "    pub fn voler_vers(&mut self, cible: Viewport) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 la minimap n est pas un depart",
+  "fichier": "crates/glucose-desktop/src/interactions/vol.rs",
+  "avant": "    pub fn viser(&mut self, cible: Viewport) {\n        self.parti |= !self.en_cours();",
+  "apres": "    pub fn viser(&mut self, cible: Viewport) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 un vol redirige note encore",
+  "fichier": "crates/glucose-desktop/src/interactions/vol.rs",
+  "avant": "    pub fn voler_vers(&mut self, cible: Viewport) {\n        self.parti |= !self.en_cours();",
+  "apres": "    pub fn voler_vers(&mut self, cible: Viewport) {\n        self.parti = true;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 l image ne range pas le lieu",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        if self.vol.prendre_le_depart() {",
+  "apres": "        if false && self.vol.prendre_le_depart() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 Alt+Z laisse le vol reprendre la vue",
+  "fichier": "crates/glucose-desktop/src/interactions/retour.rs",
+  "avant": "            self.vol.poser();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 un tableau disparu arrete tout",
+  "fichier": "crates/glucose-desktop/src/interactions/retour.rs",
+  "avant": "                continue;",
+  "apres": "                return false;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 le menu porte toujours l entree",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    if store.histoire_de_la_vue.peut_reculer() {",
+  "apres": "    if true || store.histoire_de_la_vue.peut_reculer() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 un depart neuf garde l avant",
+  "fichier": "crates/glucose-core/src/store/retour.rs",
+  "avant": "            self.arriere.push(lieu);\n        }\n        self.avant.clear();",
+  "apres": "            self.arriere.push(lieu);\n        }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 le meme lieu se note deux fois",
+  "fichier": "crates/glucose-core/src/store/retour.rs",
+  "avant": "        if self.arriere.last() != Some(&lieu) {",
+  "apres": "        if self.arriere.last() != None || true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 un document charge garde les lieux",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        self.histoire_de_la_vue.oublier();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ },
+ {
+  "nom": "RETOUR-1 revenir defait la selection",
+  "fichier": "crates/glucose-desktop/src/interactions/retour.rs",
+  "avant": "            let ailleurs = self.store.project.active_board_id != la.tableau;",
+  "apres": "            let ailleurs = !la.tableau.is_empty();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_1"
+  ]
+ }
+]

@@ -227,6 +227,13 @@ impl GlucoseApp {
             return;
         };
         let (id, vue) = (tableau.id.clone(), tableau.viewport);
+        // Le lieu qu'un départ quitte, pour `Alt+Z` (RETOUR-1) : cette image le connaît.
+        if self.vol.prendre_le_depart() {
+            let tableau = id.clone();
+            self.store
+                .histoire_de_la_vue
+                .noter(glucose_core::store::retour::Lieu { tableau, vue });
+        }
         let ecran = glucose_core::membrane_focus::ScreenSize {
             width: f64::from(largeur),
             height: f64::from(hauteur),

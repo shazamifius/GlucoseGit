@@ -196,12 +196,19 @@ fn entrees_du_vide(store: &Store) -> Vec<Def> {
         Some((MenuAction::Paste, "Coller", "")),
         Some((MenuAction::SelectAll, "Tout sélectionner", "")),
         Some((MenuAction::ToutCadrer, "Tout cadrer", "")),
+    ];
+    // RETOUR-1 (fiche 99) : au doigt, il n'y a pas d'`Alt+Z` ; l'entrée n'existe que s'il y a
+    // où revenir, comme « Annuler ».
+    if store.histoire_de_la_vue.peut_reculer() {
+        defs.push(Some((MenuAction::VuePrecedente, "Vue précédente", "Alt+Z")));
+    }
+    defs.extend([
         Some((MenuAction::Signets, "Signets…", "1…9")),
         // Chercher (fiche 89) : au doigt, il n'y a pas de `Ctrl+F`.
         Some((MenuAction::Chercher, "Chercher…", "Ctrl+F")),
         // La palette (P4, fiche 72) : au doigt, il n'y a pas de `Ctrl+Maj+P`.
         Some((MenuAction::Palette, "Palette de commandes…", "")),
-    ];
+    ]);
     // L'animatique, quand le tableau a des cases à lire (fiche 67).
     if !store
         .toutes_les_cases(&store.project.active_board_id)

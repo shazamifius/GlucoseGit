@@ -95,6 +95,9 @@ pub struct Vol {
     /// Une boîte du monde sur laquelle poser la vue dès que l'écran sera connu — une carte
     /// rouverte en édition au lancement, avant que la fenêtre existe.
     a_poser: Option<Rect>,
+    /// **Un départ vient d'être décidé** depuis une vue au repos : l'image suivante, qui la
+    /// connaît, la retient pour `Alt+Z` (RETOUR-1). Un vol redirigé en route n'en ajoute pas.
+    parti: bool,
 }
 
 /// Un départ vers une destination fixe : son chemin, une fois tracé, et le temps écoulé.
@@ -120,6 +123,7 @@ impl Vol {
     /// **Suit** cette destination — la minimap. Remplace une destination précédente sans
     /// secousse.
     pub fn viser(&mut self, cible: Viewport) {
+        self.parti |= !self.en_cours();
         self.cible = Some(cible);
         self.depart = None;
     }
@@ -130,6 +134,7 @@ impl Vol {
     /// Partir ailleurs en plein vol retrace le chemin depuis là où l'on est : la vue ne saute
     /// pas, elle repart.
     pub fn voler_vers(&mut self, cible: Viewport) {
+        self.parti |= !self.en_cours();
         self.cible = Some(cible);
         self.depart = Some(Depart {
             chemin: None,
@@ -144,6 +149,11 @@ impl Vol {
     pub fn poser(&mut self) {
         self.cible = None;
         self.depart = None;
+    }
+
+    /// **Un départ vient-il d'être décidé ?** Une seule fois par départ (RETOUR-1).
+    pub fn prendre_le_depart(&mut self) -> bool {
+        std::mem::take(&mut self.parti)
     }
 
     pub fn en_cours(&self) -> bool {

@@ -5,7 +5,8 @@
 # Alt, Maj. Un chiffre est la touche marquée de ce chiffre, quel que soit le clavier.
 #
 # Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran ;
-# depuis, les opérateurs des post-it et le groupe dans une membrane (fiche 98).
+# depuis, les opérateurs des post-it et le groupe dans une membrane (fiche 98), les retours de
+# la vue (fiche 99).
 
 # Le document
 Ctrl+N          nouveau-document
@@ -44,6 +45,8 @@ Maj+Bas         pousser.bas.dix
 # Naviguer
 F               cadrer-la-selection
 Alt+F           tout-cadrer
+Alt+Z           vue.precedente
+Alt+Maj+Z       vue.suivante
 Espace          naviguer
 Echap           echap
 Ctrl+Maj+A      mode-reference

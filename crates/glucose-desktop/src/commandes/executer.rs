@@ -34,6 +34,8 @@ impl GlucoseApp {
             Commande::Verrouiller => self.toggle_lock(),
             Commande::Pousser(sens, dix) => self.nudge(sens.pas(), dix),
             Commande::ToutCadrer => self.cadrer(false),
+            Commande::VuePrecedente => return self.revenir(true),
+            Commande::VueSuivante => return self.revenir(false),
             Commande::CadrerLaSelection => self.cadrer(true),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
             Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),

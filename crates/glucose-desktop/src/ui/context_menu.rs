@@ -89,6 +89,7 @@ impl MenuAction {
             MenuAction::Annuler => Commande::Annuler,
             MenuAction::Retablir => Commande::Retablir,
             MenuAction::ToutCadrer => Commande::ToutCadrer,
+            MenuAction::VuePrecedente => Commande::VuePrecedente,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
             MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
             MenuAction::Grouper => Commande::Grouper,
@@ -180,6 +181,8 @@ pub enum MenuAction {
     Retablir,
     /// Le vol qui montre tout le tableau, ou la sélection (`Alt+F`, `F`).
     ToutCadrer,
+    /// Revenir au lieu d'où la caméra est partie (`Alt+Z`, RETOUR-1).
+    VuePrecedente,
     CadrerLaSelection,
     /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
     DisposerEnColonnes,

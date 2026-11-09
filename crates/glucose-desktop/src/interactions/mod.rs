@@ -37,6 +37,7 @@ pub mod question;
 pub mod recadrage;
 pub mod reference;
 pub mod resize;
+pub mod retour;
 pub mod selection;
 pub mod shortcuts;
 pub mod signets;
