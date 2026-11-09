@@ -335,13 +335,15 @@ les rend inutiles, à juger à son écran.
 
 ## 11. Prouver — le compte de la session
 
-* **Suite entière** : 3 002 épreuves passées, 7 ignorées (carte graphique absente) ; les quatre
-  tombées au dernier passage — le compte des cases de la barre, deux empreintes témoins, le cliquet
-  des 80 lignes — réparées et rejouées. `cargo fmt`, clippy et les cliquets à zéro.
+* **Suite entière** : 3 008 épreuves passées au dernier passage, 7 ignorées (carte graphique
+  absente) ; les tombées de chaque passage réparées et rejouées — le compte des cases de la barre,
+  les empreintes témoins (regardées deux fois : la barre, puis son petit disque), le cliquet des 80
+  lignes (la molette, extraite), celui des toasts (le retour sans lieu se tait), celui du couplage (la
+  pipette passe par le noyau, `Store::couleur_du_noeud`). `cargo fmt`, clippy et les cliquets à zéro.
 * **Sabotages** : SAISIE-1 et 2, 10 sur 10 (`saisie-1-99.json`) ; COULEUR-3, 7 sur 7
-  (`couleur-3-99.json`) ; RETOUR-1, 11 sur 11 (`retour-1-99.json`) ; ROUE-1, 23 sur 23 (`roue-1-99.json`, le code, la pipette
+  (`couleur-3-99.json`) ; RETOUR-1, 11 sur 11 (`retour-1-99.json`) ; ROUE-1, 24 sur 24 (`roue-1-99.json`, le code, la pipette
   et le bord extérieur compris ; un sabotage aveugle retiré avec sa garde, § 8 bis) ; COULEUR-3 rejoué
-  après le bord, 7 sur 7. **En tout : 51 sabotages, 51 tombés.**
+  après le bord, 7 sur 7. **En tout : 52 sabotages, 52 tombés.**
 * **Le vrai programme, regardé** (`~/.cache/glucose-bancs/edition/run*/`) : la frappe dans un titre,
   `Ctrl+G` puis le nom, la couleur d'un texte, `F` puis `Alt+Z` et `Alt+Maj+Z`, le menu du vide, la
   roue ouverte, glissée, validée ; les images témoins comparées pixel à pixel avant de changer deux
