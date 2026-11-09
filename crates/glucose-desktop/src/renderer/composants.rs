@@ -84,6 +84,7 @@ use super::scene::image::ornement::draw_missing_image;
 use super::{PaintKit, Regard};
 use crate::canvas::world_to_screen;
 use crate::present::scene_gpu::Pose;
+use glucose_core::couleur::Rgb;
 use glucose_core::tuile::Adresse;
 use glucose_core::types::{BoardImage, Viewport};
 use std::hash::{Hash, Hasher};
@@ -346,7 +347,7 @@ impl Regime {
         kit: PaintKit<'_>,
         id: &str,
         (x, y, w, h): (f64, f64, f32, f32),
-        (corps, teinte): (&str, (u8, u8, u8)),
+        (corps, teinte, couleur): (&str, Rgb, Option<Rgb>),
         (edition, contenants, eclaires): (
             Option<&crate::renderer::TextEditSession>,
             &Contenants<'_>,
@@ -393,7 +394,10 @@ impl Regime {
                     taille: (w, h),
                     corps: corps.to_string(),
                     teinte,
-                    fond: contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),
+                    fond: crate::renderer::card::papier(
+                        contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),
+                        couleur,
+                    ),
                     // Pendant l'édition, la carte montre sa source : rien n'y brille.
                     eclaires: eclaires
                         .filter(|_| edition.is_none())

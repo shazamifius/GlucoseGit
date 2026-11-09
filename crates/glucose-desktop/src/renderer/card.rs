@@ -79,7 +79,9 @@ use crate::theme::Theme;
 use dessus::dessiner_les_ornements;
 use glucose_core::text::{BlockKind, Selection};
 use habit::draw_card_brume;
-pub(super) use habit::{fond_du_canevas, forme_de_la_carte, teinte_de_carte, Contenants};
+pub(super) use habit::{
+    couleur_choisie, fond_du_canevas, forme_de_la_carte, papier, teinte_de_carte, Contenants,
+};
 use ornament::{draw_code_plate, draw_ornament};
 pub(crate) use texte_seul::peindre_le_texte_seul;
 use tiny_skia::{Color, PixmapMut};

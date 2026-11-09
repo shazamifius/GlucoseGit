@@ -139,6 +139,14 @@ fn regime_temoin() -> (Viewport, Regime) {
 /// Un composant de carte, rendu à part et reposé sous ses ornements, comparé à la carte
 /// entière dessinée en place par le processeur : les deux voies.
 fn ecart_carte(selectionnee: bool, densite: f32) -> (u8, usize) {
+    ecart_carte_coloree((selectionnee, densite), None)
+}
+
+/// La même, pour une carte dont on a choisi la couleur (COULEUR-3) : son papier teinté.
+fn ecart_carte_coloree(
+    (selectionnee, densite): (bool, f32),
+    couleur: Option<(u8, u8, u8)>,
+) -> (u8, usize) {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let vp = Viewport {
@@ -157,7 +165,10 @@ Et un lien.";
         size: (w, h),
         body: corps,
         tint: teinte,
-        fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
+        fond: crate::renderer::card::papier(
+            crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
+            couleur,
+        ),
         eclaires: None,
         selected: selectionnee,
         editing: None,
@@ -185,7 +196,7 @@ Et un lien.";
             kit,
             "c",
             (x, y, w, h),
-            (corps, teinte),
+            (corps, teinte, couleur),
             (
                 None,
                 &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
@@ -228,6 +239,14 @@ fn test_une_carte_selectionnee_se_repose_au_bit_pres() {
     assert_eq!(ecart_carte(true, 1.5), (0, 0), "a 150 %");
 }
 
+/// **Une carte colorée se repose au bit près** (COULEUR-3, fiche 99) : sa texture porte le papier
+/// teinté que le processeur peint en place — la carte graphique montre la même couleur.
+#[test]
+fn couleur_3_une_carte_coloree_se_repose_au_bit_pres() {
+    let rose = Some((244, 114, 182));
+    assert_eq!(ecart_carte_coloree((false, 1.0), rose), (0, 0));
+}
+
 // -- COMPOSANT-2 : la carte qu'on edite --------------------------------------
 
 /// **La carte qu'on edite est un composant**, et elle ne l'etait pas.
@@ -247,7 +266,7 @@ fn test_la_carte_qu_on_edite_est_un_composant() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250)),
+                (corps, (96, 165, 250), None),
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
@@ -279,7 +298,7 @@ fn test_composant_3_la_cle_ignore_le_curseur_et_suit_la_selection() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250)),
+                (corps, (96, 165, 250), None),
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
@@ -328,7 +347,7 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250)),
+                (corps, (96, 165, 250), None),
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
@@ -398,7 +417,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
             kit,
             "c",
             (x, y, w, h),
-            (corps, teinte),
+            (corps, teinte, None),
             (
                 Some(&e),
                 &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
@@ -519,7 +538,7 @@ fn test_cent_images_de_saisie_immobile_ne_font_qu_une_texture() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250)),
+                (corps, (96, 165, 250), None),
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
@@ -557,7 +576,7 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250)),
+                (corps, (96, 165, 250), None),
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),

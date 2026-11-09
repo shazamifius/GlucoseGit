@@ -33,6 +33,29 @@ pub(crate) fn teinte_de_carte(
         .unwrap_or(symbiose)
 }
 
+/// **La couleur qu'on a choisie pour ce texte**, s'il en a une — pas sa teinte symbiotique, que le
+/// voisinage décide.
+pub(crate) fn couleur_choisie(ann: &glucose_core::types::Annotation) -> Option<(u8, u8, u8)> {
+    match ann {
+        glucose_core::types::Annotation::Text { color, .. } => {
+            color.as_deref().and_then(crate::renderer::parse_hex_rgb)
+        }
+        _ => None,
+    }
+}
+
+/// **Le papier d'un texte** (fiche 99) : ce que la carte peint sous ses lettres — le fond qu'elle
+/// laisse voir (LUEUR-3), teinté de la couleur qu'on lui a choisie **sans changer sa clarté**
+/// ([`glucose_core::couleur::papier_teinte`]). Ses lettres s'y lisent exactement aussi bien, la
+/// couleur se voit de près comme de loin, et aucune opacité n'est à régler.
+///
+/// La couleur ne touchait que la lueur, les puces et la brume — à 3 % : la barre de couleur
+/// semblait ne rien faire sur un texte (sa parole du 9/11/2026, « les couleurs de text box ne
+/// fonctionnent pas »), et sa couleur se perdait dans les lueurs symbiotiques des voisins.
+pub(crate) fn papier(fond: (u8, u8, u8), couleur: Option<(u8, u8, u8)>) -> (u8, u8, u8) {
+    couleur.map_or(fond, |c| glucose_core::couleur::papier_teinte(fond, c))
+}
+
 /// Le fond du canevas en octets — celui du thème, ou celui que le mode Focus teinte.
 pub(crate) fn fond_du_canevas(theme: &Theme) -> (u8, u8, u8) {
     let c = theme.bg_canvas.to_color_u8();
@@ -241,6 +264,61 @@ mod tests {
             teintes.len() > 20,
             "l'épreuve doit traverser lueurs et bords : {}",
             teintes.len()
+        );
+    }
+
+    /// Le pixel du papier d'un texte seul — loin de ses lettres —, rendu par l'application, avec ou
+    /// sans couleur choisie.
+    fn papier_rendu(couleur: Option<&str>) -> (u8, u8, u8) {
+        use glucose_core::types::{Annotation, Viewport};
+        let mut app = crate::app::GlucoseApp::new();
+        app.ui.current_toast = None;
+        if let Some(b) = app.store.active_board_mut() {
+            b.annotations.clear();
+        }
+        let tableau = app.store.project.active_board_id.clone();
+        let mut texte = Annotation::text("t", 0.0, 0.0, "Eau");
+        if let Annotation::Text { color, .. } = &mut texte {
+            *color = couleur.map(str::to_string);
+        }
+        app.store.add_annotation(&tableau, texte);
+        app.store.clear_selection();
+        let vue = Viewport {
+            x: 40.0,
+            y: 300.0,
+            scale: 1.0,
+        };
+        app.store.set_viewport(&tableau, vue);
+        app.une_image_sans_fenetre((800, 600));
+        let image = app.pixmap.as_ref().expect("une image");
+        let p = image.pixels()[340 * image.width() as usize + 220].demultiply();
+        (p.red(), p.green(), p.blue())
+    }
+
+    /// **La couleur d'un texte se voit, et son texte se lit pareil** (COULEUR-3, fiche 99 ; sa
+    /// parole du 9/11/2026 : « les couleurs de text box ne fonctionnent pas »). Un texte rose a un
+    /// papier rose — une teinte qu'on distingue d'un gris, celle du rose — à la clarté perçue du
+    /// papier d'un texte sans couleur.
+    #[test]
+    fn couleur_3_la_couleur_d_un_texte_teinte_son_papier_sans_changer_sa_clarte() {
+        use glucose_core::couleur::Oklch;
+        let rose = (244, 114, 182);
+        let sans = Oklch::des_octets(papier_rendu(None));
+        let avec = Oklch::des_octets(papier_rendu(Some("#f472b6")));
+        assert!(
+            (avec.l - sans.l).abs() < 0.015,
+            "la clarté du papier : {} contre {}",
+            avec.l,
+            sans.l
+        );
+        assert!(avec.a_une_teinte(), "le rose se voit : chroma {}", avec.c);
+        let voulue = Oklch::des_octets(rose).h;
+        let ecart = (avec.h - voulue + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU)
+            - std::f64::consts::PI;
+        assert!(
+            ecart.abs() < 0.2,
+            "la teinte du rose : {} contre {voulue}",
+            avec.h
         );
     }
 }

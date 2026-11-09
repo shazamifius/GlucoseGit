@@ -235,7 +235,10 @@ fn carte_de<'a>(
         size: (w as f32, h as f32),
         body,
         tint,
-        fond: contenants.fond_en((cx as f32, cy as f32)),
+        fond: super::card::papier(
+            contenants.fond_en((cx as f32, cy as f32)),
+            super::card::couleur_choisie(ann),
+        ),
         eclaires: super::passages::eclaires_de(eclairages, ann.id(), tint),
         selected: store.selected_annotation_ids.contains(ann.id()),
         editing,

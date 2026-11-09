@@ -212,7 +212,7 @@ pub(in crate::renderer) fn composants_de_texte(
             kit,
             ann.id(),
             (*x, *y, w as f32, h as f32),
-            (corps, teinte),
+            (corps, teinte, crate::renderer::card::couleur_choisie(ann)),
             (
                 saisie,
                 contenants,

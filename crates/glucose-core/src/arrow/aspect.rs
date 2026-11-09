@@ -20,8 +20,7 @@
 
 use crate::symbiotic_hue::hsl_to_rgb;
 
-/// Une couleur, en octets.
-pub type Rgb = (u8, u8, u8);
+pub use crate::couleur::Rgb;
 
 /// L'épaisseur du trait quand la flèche n'en dit pas, en pixels d'écran (`strokeWidth ?? 2`).
 pub const EPAISSEUR: f64 = 2.0;

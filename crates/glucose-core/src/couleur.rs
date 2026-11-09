@@ -37,6 +37,12 @@
 //! partout ailleurs, deux voisines sur le cercle se retrouveraient aux deux bouts du rangement.
 //! Aucun angle de départ n'est choisi : les images le donnent.
 
+mod ecran;
+pub use ecran::{papier_teinte, srgb};
+
+/// Une couleur en octets sRGB : rouge, vert, bleu.
+pub type Rgb = (u8, u8, u8);
+
 /// La plus petite différence que l'œil distingue, en distance Oklab (CSS Color 4, la
 /// correspondance des gamuts).
 pub const DIFFERENCE_A_PEINE_VISIBLE: f64 = 0.02;

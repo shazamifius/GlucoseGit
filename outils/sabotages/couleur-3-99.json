@@ -1,0 +1,107 @@
+[
+ {
+  "nom": "COULEUR-3 la voie processeur ignore la couleur",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "            super::card::couleur_choisie(ann),",
+  "apres": "            None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "couleur_3"
+  ]
+ },
+ {
+  "nom": "COULEUR-3 la texture ignore la couleur",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "                        contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),\n                        couleur,",
+  "apres": "                        contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),\n                        couleur.and(None),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "couleur_3"
+  ]
+ },
+ {
+  "nom": "COULEUR-3 la couleur choisie ne se lit pas",
+  "fichier": "crates/glucose-desktop/src/renderer/card/habit.rs",
+  "avant": "            color.as_deref().and_then(crate::renderer::parse_hex_rgb)",
+  "apres": "            color.as_deref().and_then(|_| None)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "couleur_3"
+  ]
+ },
+ {
+  "nom": "COULEUR-3 le papier prend la clarte de la couleur",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "        l: p.l,",
+  "apres": "        l: c.l,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ecran_1"
+  ]
+ },
+ {
+  "nom": "COULEUR-3 la chroma depasse l ecran",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "        c: c.c.min(Oklch::chroma_maximale(p.l, c.h)),",
+  "apres": "        c: c.c.max(Oklch::chroma_maximale(p.l, c.h)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ecran_1"
+  ]
+ },
+ {
+  "nom": "ECRAN-1 la bissection se trompe de cote",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "            if sur_l_ecran(milieu) {",
+  "apres": "            if !sur_l_ecran(milieu) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ecran_1"
+  ]
+ },
+ {
+  "nom": "ECRAN-1 le retour vers sRGB se trompe",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "0.396_337_777_4 * a",
+  "apres": "0.386_337_777_4 * a",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ecran_1"
+  ]
+ }
+]

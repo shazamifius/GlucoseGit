@@ -1193,10 +1193,12 @@ fn document_carte_dans_une_membrane(avec_carte: bool) -> glucose_core::store::St
 
 /// **Une carte cache ce qu'elle recouvre, jamais ce qui la contient** (LUEUR-3).
 ///
-/// Posée dans une membrane, son fond est celui que la membrane peint là : le canevas vu au
-/// travers d'elle, comme chez Tauri où la membrane se voyait sous le texte — puis la brume de
-/// la carte. Mesuré contre la même scène sans la carte : au même pixel, on doit retrouver ce
-/// qui était là, voilé de 3 % de la teinte de la carte, et rien d'autre.
+/// Posée dans une membrane, son papier part de ce que la membrane peint là : le canevas vu au
+/// travers d'elle, comme chez Tauri où la membrane se voyait sous le texte. Depuis COULEUR-3
+/// (fiche 99), un texte dont on a choisi la couleur teinte ce papier **à sa clarté** : la
+/// membrane y garde sa clarté, le texte y montre sa couleur — sans quoi la couleur choisie ne se
+/// voyait pas. Puis la brume. Mesuré contre la même scène sans la carte : au même pixel, ce qui
+/// était là, teinté à sa clarté, voilé de 3 % de la teinte de la carte, et rien d'autre.
 #[test]
 fn test_lueur_3_une_carte_garde_la_teinte_de_sa_membrane() {
     let taille = (800u32, 600u32);
@@ -1219,8 +1221,15 @@ fn test_lueur_3_une_carte_garde_la_teinte_de_sa_membrane() {
         "la membrane ne teinte pas ce pixel ({la:?}) : sinon ce test ne la regarde pas"
     );
     let (brume, teinte) = (8.0 / 255.0, [0x20u8, 0xc0, 0xff]);
+    let (r, g, b) = glucose_core::couleur::papier_teinte(
+        (la[0], la[1], la[2]),
+        (teinte[0], teinte[1], teinte[2]),
+    );
+    let papier = [r, g, b];
     let attendu: Vec<u8> = (0..3)
-        .map(|k| (f32::from(la[k]) * (1.0 - brume) + f32::from(teinte[k]) * brume).round() as u8)
+        .map(|k| {
+            (f32::from(papier[k]) * (1.0 - brume) + f32::from(teinte[k]) * brume).round() as u8
+        })
         .collect();
     let vu = pixel(&avec, p.0, p.1);
     for k in 0..3 {
