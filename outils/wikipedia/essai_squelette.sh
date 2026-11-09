@@ -34,6 +34,11 @@ export GLUCOSE_PORTE="$prise"
 
 python3 -I outils/wikipedia/squelette.py target/debug/glucose-desktop "$sortie/wikipedia" \
     | tee "$sortie/squelette.txt"
+# La proposition D, en prototype (fiche 98) : l'arbre des membranes en couleurs, posé par l'agent.
+if [ -n "${GLUCOSE_ARBRE_EN_COULEURS:-}" ]; then
+    python3 -I outils/wikipedia/teintes_arbre.py target/debug/glucose-desktop wiki \
+        | tee -a "$sortie/squelette.txt"
+fi
 target/debug/glucose-desktop lire niveau=plan > "$sortie/plan.json"
 
 # Glucose finit, et rend le tableau en images.

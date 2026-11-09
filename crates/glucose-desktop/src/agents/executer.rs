@@ -8,6 +8,7 @@
 mod chercher;
 mod disposer;
 mod domaines;
+mod partir;
 
 use super::json::Json;
 use super::lecture::{choisir, empreinte, premiere_phrase, Demande, Niveau, Rendu};
@@ -228,26 +229,12 @@ impl GlucoseApp {
                 if let Some(m) = dans {
                     s.agrandir_la_membrane_pour(board, m, boite)?;
                 }
-                let mut ann = if post_it {
+                let neuf = if post_it {
                     Annotation::sticky(&id, x, y, texte)
                 } else {
                     Annotation::text(&id, x, y, texte)
                 };
-                if let Annotation::Text {
-                    width,
-                    height,
-                    color,
-                    ..
-                }
-                | Annotation::Sticky {
-                    width,
-                    height,
-                    color,
-                    ..
-                } = &mut ann
-                {
-                    (*width, *height, *color) = (Some(largeur), Some(hauteur), couleur);
-                }
+                let ann = partir::un_texte(s, board, neuf, boite, couleur.as_deref());
                 s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 Ok(boite)
@@ -283,10 +270,8 @@ impl GlucoseApp {
                 if let Some(m) = dans {
                     s.agrandir_la_membrane_pour(board, m, boite)?;
                 }
-                let mut ann = Annotation::membrane(&id, x, y, largeur, hauteur);
-                if let Annotation::Membrane { text, color, .. } = &mut ann {
-                    (*text, *color) = (titre, couleur);
-                }
+                let dit = (titre.as_deref(), couleur.as_deref());
+                let ann = partir::une_membrane(s, board, &id, boite, dit);
                 s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 Ok(boite)

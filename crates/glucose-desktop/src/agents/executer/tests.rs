@@ -1,5 +1,6 @@
 //! Chaque outil, joué sur une application d'épreuve — sans fenêtre, sans porte.
 
+mod agent_8;
 mod disposer;
 mod heritage;
 mod plan;
