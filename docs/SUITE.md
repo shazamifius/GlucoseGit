@@ -92,7 +92,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [ ] | **Ses essais de la beta 6** (§ 2) : chaque défaut qu'il voit, corrigé — en premier, le texte de près | sa parole |
 | [~] | **Les boutons qui se taisent** : Trans-domaines dit « bientôt — en recherche » **depuis la fiche 71** (épreuve `test_the_trans_domain_button_says_it_is_coming` ; SUITE et INVENTAIRE l'ignoraient jusqu'au 25/10) ; la carte d'accueil ne naît plus choisie (ACCUEIL-1, fiche 81). Tous deux dans la beta 6 | à son écran |
 | [x] | **Le repos à zéro** — mesuré le 18/10 : 0,2 image par seconde sans la main, toutes pour le fondu du message de bienvenue | une chronique au repos sans image hors un message qui paraît |
-| [ ] | **REPOS-2 — sur une carte de Wikipédia, Glucose ne se pose jamais** (fiche 97 § 4 bis) : le squelette, « tout cadrer », 30 s sans la main — 99 % des images redessinées « parce que la netteté revient », 23 ms chacune, déjà vrai avant le 8/11. Hypothèse à mesurer : un cercle entre la résolution réduite et la finesse rendue à l'arrêt ; les titres s'y re-rastérisent | le banc hors écran sur le squelette : l'image d'avant suffit au repos |
+| [ ] | **REPOS-2 — sur une carte de Wikipédia, Glucose ne se pose jamais** (fiche 97 § 4 bis ; **sa parole du 9/11 : « yep », le prochain chantier**) : le squelette, « tout cadrer », 30 s sans la main — 99 % des images redessinées « parce que la netteté revient », 23 ms chacune, déjà vrai avant le 8/11. Hypothèse à mesurer : un cercle entre la résolution réduite et la finesse rendue à l'arrêt ; les titres s'y re-rastérisent | le banc hors écran sur le squelette : l'image d'avant suffit au repos |
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 

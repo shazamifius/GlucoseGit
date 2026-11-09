@@ -198,6 +198,15 @@ Le même soir, devant les propositions de la fiche 95 :
   carrément d'accord pour le gris des lignes »* — de loin, un texte montre le gris de ses lignes, ce que
   ses lettres couvrent.
 
+Le 9/11, devant le squelette des cent articles vitaux (fiche 97) :
+
+* **Que Glucose se repose sur une carte de Wikipédia** — *« yep »* : c'est le prochain chantier (REPOS-2),
+  un usage réel et non une église de l'optimisation.
+* **Le déséquilibre** (« Sciences et médecine » prend presque tout l'écran, parce que deux articles
+  entiers y sont) : garder la loi — la surface d'une région dit la quantité de ce qu'elle porte —,
+  *« je crois bien »* ; les régions se reconnaîtront par la couleur.
+* **Les propositions B, C, D** (fiche 95 § 4) : *« prochaine session »*.
+
 ## Ce qui est encore à définir — sa parole
 
 * ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
