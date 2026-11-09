@@ -240,6 +240,30 @@ avant ; le p90 16 et 19 contre 23 et 23 ; le pire 47 et 72 contre 48 et 55 (une 
 cinquante : du bruit à cette taille, pas un verdict). Et sans la main, sur ce scénario : **282 → 76
 images**, un cœur 19,5 % → 4,3 %.
 
+## 6 ter. GROUPER-1 — grouper la sélection dans une membrane neuve
+
+Trouvé en relisant P6 (« les menus du clic droit contre Tauri ») : **Tauri n'avait pas de menu du clic
+droit** (fiche 03, note 2.16 — son clic droit déplaçait la vue), et la spécification d'origine y
+annonçait quatre gestes ; trois existaient, pas « Grouper dans une nouvelle membrane », que le menu
+taisait faute de geste. C'est pourtant **le geste qui fait une région** — choisir des nœuds, les
+entourer, nommer —, celui de la carte de Wikipédia comme de Miro ou Figma (`Ctrl+G`).
+
+* **La loi** (`core/store/grouper.rs`) : les **racines** de la sélection entrent dans une membrane
+  neuve — ce qu'une membrane choisie contient la suit sans changer d'appartenance (on emballe un pays
+  avec ses villes) ; le cadre est celui de MEMB-7 (un écart autour, la place d'un titre au-dessus),
+  **une seule loi** désormais (`Store::cadre_autour`), que l'agrandissement des agents partage ; le
+  groupe naît dans **l'ancêtre commun** des racines, qui grandit s'il le faut (ses parentes avec lui) ;
+  sans ancêtre commun, à la racine du tableau. Un geste ; la membrane est choisie (un double-clic la
+  nomme, la barre de couleur la teinte).
+* **Le geste** : la commande `grouper` — `Ctrl+G`, le menu d'une sélection (« Grouper dans une
+  membrane », absent pour des flèches seules, qui n'ont pas de boîte), la palette.
+* **Regardé** : dans le vrai programme hors écran, « tout choisir » puis `grouper` entoure les six
+  nœuds d'une membrane choisie (`~/.cache/glucose-bancs/operateurs/banc-grouper/capture.png`) ; le
+  menu témoin gagne sa ligne — 29 234 pixels, tous dans le menu, regardés avant/après.
+* **Une épreuve aveugle évitée** : celle du cadre comparait la membrane à `cadre_autour` lui-même — un
+  sabotage de la loi l'aurait laissée passer. Elle vérifie désormais la loi sans elle (la place du
+  titre, l'écart de chaque côté).
+
 ## 7. Ce qui n'a pas été fait, et pourquoi
 
 * **REPOS-3, le fondu d'un message redessine toute la carte** : sur le squelette, 17 images de
@@ -280,12 +304,13 @@ images**, un cœur 19,5 % → 4,3 %.
 
 ## 9. Prouver — le compte de la session
 
-* **Suite entière** : 2 959 épreuves, aucune tombée, 7 ignorées (carte graphique absente) ;
+* **Suite entière** : 2 965 épreuves, aucune tombée, 7 ignorées (carte graphique absente) ;
   `cargo fmt`, clippy et les cliquets à zéro (le cliquet des 600 lignes a arrêté une fois
   `annotation.rs` : extrait, pas relevé).
 * **Sabotages** : REPOS-2 7 sur 7 ; AGENT-8 3 sur 3 ; OPERATEUR-1 7 sur 7 ; OPERATEUR-2 6 sur 6 ;
   COULEUR-1 12 sur 12 (rejoués sur la version finale) ; COULEUR-2 3 sur 3, et AGENT-8 et
-  OPERATEUR-2 rejoués après lui (3 sur 3, 6 sur 6). **En tout : 38 sabotages, 38 tombés.**
+  OPERATEUR-2 rejoués après lui (3 sur 3, 6 sur 6) ; GROUPER-1 7 sur 7 (`grouper-1-98.json`).
+  **En tout : 45 sabotages, 45 tombés** (dont neuf rejoués sur la version finale de leur code).
 * **Le vrai programme, regardé** : le squelette au banc hors écran (repos et vols, en paires
   entrelacées avec `f967f66`) ; le squelette coloré par l'agent (D) ; les opérateurs et la barre de
   couleur par des scénarios hors écran, chaque capture regardée ; les images témoins comparées
