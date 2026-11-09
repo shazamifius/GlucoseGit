@@ -180,7 +180,11 @@ impl Store {
 
     /// Écrit ces appartenances, par le journal. Aucune flèche ne bouge : seule l'appartenance
     /// change.
-    fn poser_les_appartenances(&mut self, board_id: &str, changements: &[MembershipChange]) {
+    pub(super) fn poser_les_appartenances(
+        &mut self,
+        board_id: &str,
+        changements: &[MembershipChange],
+    ) {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;
         };

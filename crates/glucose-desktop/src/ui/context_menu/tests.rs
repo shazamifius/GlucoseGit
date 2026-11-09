@@ -88,6 +88,7 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
             MenuAction::Couper,
             MenuAction::Duplicate,
             MenuAction::CadrerLaSelection,
+            MenuAction::Grouper,
             MenuAction::ToggleLock,
             MenuAction::TrimBorders,
             MenuAction::StoryboardDeLaSelection,
@@ -521,5 +522,31 @@ fn test_operateur_1_le_menu_d_un_post_it_porte_ses_operateurs() {
     assert_eq!(
         op(Some(Because)).commande(),
         Some(crate::commandes::Commande::Operateur(Some(Because)))
+    );
+}
+
+/// **« Grouper dans une membrane » existe pour une sélection qui a une boîte** (GROUPER-1, fiche
+/// 98) — pas pour des flèches seules, ni sur le vide.
+#[test]
+fn test_grouper_1_le_menu_propose_de_grouper() {
+    let grouper = MenuAction::Grouper;
+    let store = store_with(0, 2, true);
+    assert!(actions(&menu(&store, (400.0, 300.0))).contains(&grouper));
+    assert_eq!(
+        grouper.commande(),
+        Some(crate::commandes::Commande::Grouper)
+    );
+    let vide = store_with(0, 2, false);
+    assert!(
+        !actions(&menu(&vide, (400.0, 300.0))).contains(&grouper),
+        "le vide"
+    );
+    let mut fleche = Store::new("menu");
+    let board = fleche.project.active_board_id.clone();
+    fleche.add_annotation(&board, Annotation::arrow("f", 0.0, 0.0, 100.0, 0.0));
+    fleche.set_selected_annotation_ids(vec!["f".into()]);
+    assert!(
+        !actions(&menu(&fleche, (400.0, 300.0))).contains(&grouper),
+        "une flèche seule"
     );
 }

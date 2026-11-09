@@ -70,6 +70,7 @@ pub enum Commande {
     Couper,
     Coller,
     Dupliquer,
+    Grouper,
     ToutChoisir,
     Supprimer,
     PremierPlan,
@@ -150,7 +151,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 44] = [
+const SIMPLES: [(Commande, &str, &str); 45] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -176,6 +177,7 @@ const SIMPLES: [(Commande, &str, &str); 44] = [
     (Commande::Couper, "couper", "Couper"),
     (Commande::Coller, "coller", "Coller"),
     (Commande::Dupliquer, "dupliquer", "Dupliquer"),
+    (Commande::Grouper, "grouper", "Grouper dans une membrane"),
     (Commande::ToutChoisir, "tout-choisir", "Tout choisir"),
     (Commande::Supprimer, "supprimer", "Supprimer"),
     (Commande::PremierPlan, "premier-plan", "Premier plan"),

@@ -20,6 +20,7 @@ pub mod drag;
 pub mod drop;
 pub mod elan;
 pub mod gabarit;
+pub mod grouper;
 pub mod lecture;
 pub mod links;
 pub mod mouse;

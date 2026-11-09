@@ -434,7 +434,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
 /// **Puis, le 9/11** (COULEUR-1, fiche 98) : les mêmes 15 450 pixels que la scène sélectionnée —
 /// la barre de couleur, sous le menu ; regardée.
-const EMPREINTE_TEMOIN_MENU: &str = "1981762eae36a64a";
+/// **Puis** (GROUPER-1, fiche 98) : « Grouper dans une membrane — Ctrl+G » après « Cadrer la
+/// sélection » ; le menu s'élargit pour le mot et gagne une rangée. 29 234 pixels, tous dans le
+/// menu (639-887 × 319-606) ; regardé avant/après, agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "e30254d6eeee3596";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

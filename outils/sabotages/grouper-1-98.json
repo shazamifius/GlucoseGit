@@ -1,0 +1,51 @@
+[
+ {
+  "nom": "GROUPER-1 une ville quitte son pays",
+  "fichier": "crates/glucose-core/src/store/grouper.rs",
+  "avant": "        .filter(|id| {\n            !ancetres(board, id)",
+  "apres": "        .filter(|id| {\n            true || !ancetres(board, id)",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "grouper_1"]
+ },
+ {
+  "nom": "GROUPER-1 le groupe nait a la racine",
+  "fichier": "crates/glucose-core/src/store/grouper.rs",
+  "avant": "        let parent = ancetre_commun(board, &racines);",
+  "apres": "        let parent: Option<String> = None;",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "grouper_1"]
+ },
+ {
+  "nom": "GROUPER-1 le parent ne grandit pas",
+  "fichier": "crates/glucose-core/src/store/grouper.rs",
+  "avant": "            let _ = self.agrandir_la_membrane_pour(&board_id, &p, cadre);",
+  "apres": "            let _ = (&p, cadre);",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "grouper_1"]
+ },
+ {
+  "nom": "GROUPER-1 le cadre oublie la place du titre",
+  "fichier": "crates/glucose-core/src/store/grouper.rs",
+  "avant": "            boite.top - titre,",
+  "apres": "            boite.top - ecart,",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "grouper_1"]
+ },
+ {
+  "nom": "GROUPER-1 grouper n'est pas un geste",
+  "fichier": "crates/glucose-desktop/src/interactions/grouper.rs",
+  "avant": "        self.store.begin_live_edit();\n        let groupe = self.store.grouper_dans_une_membrane();\n        self.store.end_live_edit();",
+  "apres": "        let groupe = self.store.grouper_dans_une_membrane();",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "grouper_1"]
+ },
+ {
+  "nom": "GROUPER-1 le menu propose de grouper des fleches seules",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    if images > 0 || store.selected_arrows().len() < store.selected_annotation_ids.len() {",
+  "apres": "    if true || images > 0 || store.selected_arrows().len() < store.selected_annotation_ids.len() {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "grouper_1"]
+ },
+ {
+  "nom": "GROUPER-1 Ctrl+G ne groupe pas",
+  "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+  "avant": "Ctrl+G          grouper",
+  "apres": "Ctrl+G          dupliquer",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "grouper_1"]
+ }
+]

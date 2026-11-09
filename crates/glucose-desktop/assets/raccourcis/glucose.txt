@@ -5,7 +5,7 @@
 # Alt, Maj. Un chiffre est la touche marquée de ce chiffre, quel que soit le clavier.
 #
 # Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran ;
-# depuis, les opérateurs des post-it (fiche 98).
+# depuis, les opérateurs des post-it et le groupe dans une membrane (fiche 98).
 
 # Le document
 Ctrl+N          nouveau-document
@@ -24,6 +24,7 @@ Ctrl+C          copier
 Ctrl+X          couper
 Ctrl+V          coller
 Ctrl+D          dupliquer
+Ctrl+G          grouper
 Ctrl+A          tout-choisir
 Suppr           supprimer
 Effacer         supprimer

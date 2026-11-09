@@ -43,6 +43,7 @@ mod domains;
 mod folders;
 mod glisser;
 mod groupe;
+mod grouper;
 mod ids;
 mod images;
 mod importer;

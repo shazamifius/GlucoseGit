@@ -15,8 +15,9 @@
 //! # Ce qu'il propose, et ce qu'il tait
 //!
 //! Seulement des gestes qui existent. La spécification d'origine décrit aussi « Couper »,
-//! « Copier », « Grouper dans une nouvelle membrane » et « Créer un sous-dossier » ; aucun
-//! n'est écrit en Rust, donc aucun n'est proposé. Un menu qui offre ce qui n'existe pas est
+//! « Copier », « Grouper dans une nouvelle membrane » et « Créer un sous-dossier » ; les trois
+//! premiers sont écrits depuis (fiche 51, fiche 98), le dernier ne l'est pas, donc il n'est pas
+//! proposé. Un menu qui offre ce qui n'existe pas est
 //! la même faute qu'un bouton qui affiche un toast sans rien faire (R-33).
 //!
 //! Chaque entrée porte son raccourci. C'est la seule façon qu'un menu a d'apprendre à s'en
@@ -90,6 +91,7 @@ impl MenuAction {
             MenuAction::ToutCadrer => Commande::ToutCadrer,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
             MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
+            MenuAction::Grouper => Commande::Grouper,
             MenuAction::EntrerDansLaMembrane => Commande::EntrerDansLaMembrane,
             MenuAction::Operateur(voulu) => Commande::Operateur(voulu),
             MenuAction::Signets => Commande::Signets,
@@ -181,6 +183,8 @@ pub enum MenuAction {
     CadrerLaSelection,
     /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
     DisposerEnColonnes,
+    /// Entourer la sélection d'une membrane neuve (GROUPER-1, fiche 98).
+    Grouper,
     /// N'avoir plus que la membrane choisie (FOCUS-1, fiche 95).
     EntrerDansLaMembrane,
     /// Un opérateur sur les post-it choisis, ou plus aucun (OPERATEUR-1, fiche 98).

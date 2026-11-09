@@ -97,22 +97,7 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "",
         )));
     }
-    // Une membrane choisie, ou qui porte ce qu'on a choisi, range ce qu'elle porte (COLONNES-1,
-    // fiche 92).
-    let membrane_choisie = !store.membranes_de_la_selection().is_empty();
-    if membrane_choisie {
-        defs.push(Some((
-            MenuAction::DisposerEnColonnes,
-            "Disposer en colonnes",
-            "",
-        )));
-        // Le mode Focus, par un geste choisi (FOCUS-1, fiche 95) : plus jamais par le zoom.
-        defs.push(Some((
-            MenuAction::EntrerDansLaMembrane,
-            "Entrer dans la membrane",
-            "",
-        )));
-    }
+    defs.extend(entrees_des_regions(store, images));
     defs.extend(entrees_des_operateurs(store));
     if images > 0 {
         let board = store.active_board()?;
@@ -141,6 +126,33 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     defs.push(None);
     defs.push(Some((MenuAction::Delete, "Supprimer", "")));
     Some(defs)
+}
+
+/// **Les régions** : en faire une de ce qu'on a choisi, ranger et entrer dans celle qu'on a
+/// choisie.
+fn entrees_des_regions(store: &Store, images: usize) -> Vec<Def> {
+    let mut defs = Vec::new();
+    // Une région se fait d'un geste : entourer ce qu'on a choisi (GROUPER-1, fiche 98) — pas des
+    // flèches seules, qui n'ont pas de boîte.
+    if images > 0 || store.selected_arrows().len() < store.selected_annotation_ids.len() {
+        defs.push(Some((MenuAction::Grouper, "Grouper dans une membrane", "")));
+    }
+    // Une membrane choisie, ou qui porte ce qu'on a choisi, range ce qu'elle porte (COLONNES-1,
+    // fiche 92).
+    if !store.membranes_de_la_selection().is_empty() {
+        defs.push(Some((
+            MenuAction::DisposerEnColonnes,
+            "Disposer en colonnes",
+            "",
+        )));
+        // Le mode Focus, par un geste choisi (FOCUS-1, fiche 95) : plus jamais par le zoom.
+        defs.push(Some((
+            MenuAction::EntrerDansLaMembrane,
+            "Entrer dans la membrane",
+            "",
+        )));
+    }
+    defs
 }
 
 /// **Les opérateurs des post-it choisis** (OPERATEUR-1, fiche 98) : au téléphone, sans `Alt`,

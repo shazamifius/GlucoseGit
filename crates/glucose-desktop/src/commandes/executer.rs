@@ -9,7 +9,7 @@ use glucose_core::store::StackMove;
 impl GlucoseApp {
     /// **Exécute cette commande** ; rend `false` si elle ne s'applique pas — l'accord passe
     /// alors à la suivante de sa liste. Seules les relations des flèches, les opérateurs des
-    /// post-it et les couleurs peuvent ne pas s'appliquer : sans flèche choisie, un chiffre vole au signet.
+    /// post-it, les couleurs et le groupe peuvent ne pas s'appliquer : sans flèche choisie, un chiffre vole au signet.
     pub(crate) fn executer(&mut self, commande: Commande) -> bool {
         match commande {
             Commande::NouveauDocument => self.nouveau_document(),
@@ -25,6 +25,7 @@ impl GlucoseApp {
             Commande::Couper => self.copy_selection(true),
             Commande::Coller => self.paste_from_clipboard(),
             Commande::Dupliquer => self.duplicate_selection(),
+            Commande::Grouper => return self.grouper_la_selection(),
             Commande::ToutChoisir => self.select_all(),
             Commande::Supprimer => self.delete_selection(),
             Commande::PremierPlan => self.restack(StackMove::Front),

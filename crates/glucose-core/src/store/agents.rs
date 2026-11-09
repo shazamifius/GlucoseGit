@@ -425,13 +425,8 @@ impl Store {
         let mut vues: Vec<String> = Vec::new();
         while !vues.contains(&membrane) {
             let cadre = self.boite_d_un_noeud(board_id, &membrane)?;
-            let voulu = Rect::new(
-                boite.left - ECART,
-                boite.top - TITRE_DE_MEMBRANE,
-                boite.width + 2.0 * ECART,
-                boite.height + TITRE_DE_MEMBRANE + ECART,
-            );
-            let neuf = cadre.union(voulu);
+            // La loi du cadre, une seule (GROUPER-1) : un écart autour, un titre au-dessus.
+            let neuf = cadre.union(Self::cadre_autour(boite));
             if neuf == cadre {
                 return Ok(());
             }
