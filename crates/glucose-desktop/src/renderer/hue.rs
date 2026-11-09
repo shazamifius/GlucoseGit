@@ -35,6 +35,21 @@
 //!
 //! **Sans tranche**, le calcul reste entier : les épreuves et les bancs restent déterministes,
 //! et les deux voies rendent les mêmes pixels. Seul le vrai lancement en pose une.
+//!
+//! # REPOS-2 — au repos, le cache paie ses dettes sans image (fiche 98)
+//!
+//! La tranche courait depuis le début de l'image ; sur une carte de Wikipédia, les membranes
+//! (17 ms) la mangeaient avant que le premier nœud demande sa teinte : **une** teinte par image,
+//! et chaque image redessinait toute la carte pour l'avancer d'une seule. Trois cent cinquante
+//! nœuds, trois cent cinquante images de 22 ms, trente secondes d'un cœur occupé après chaque
+//! « tout cadrer » — pour un travail de quelques millisecondes.
+//!
+//! Le cache **retient ce qu'il doit** : le rang de chaque nœud qu'une image a montré d'une
+//! teinte d'avant ([`SymbioticHueCache::en_retard`] ne dit plus que « il y a des dettes »).
+//! Quand la vue ne bouge pas, le réveil les paie hors de toute image
+//! ([`SymbioticHueCache::rattraper`]), par tranches, et ne demande **qu'une** image : celle qui
+//! montre les teintes une fois toutes refaites. C'est la réparation « quand le système est
+//! inactif » de Pad++, et l'état de repos de niri : on ne redessine pas pour travailler.
 
 use glucose_core::quadtree::{SpatialHash, Visibles};
 use glucose_core::symbiotic_hue::RAYON_SYMBIOTIQUE;
@@ -72,8 +87,10 @@ pub struct SymbioticHueCache {
     /// Une teinte a-t-elle déjà été calculée dans cette image ? La première l'est toujours : la
     /// cascade avance, même sur une machine où la tranche ne suffit à rien.
     une_faite: bool,
-    /// Cette image a-t-elle montré une teinte qu'elle n'a pas eu le temps de refaire ?
-    en_retard: bool,
+    /// **Ce que le cache doit** (REPOS-2) : le rang de chaque nœud que cette image a montré
+    /// d'une teinte qu'elle n'a pas eu le temps de refaire. Un rang de l'index, pas un
+    /// identifiant : noter une dette n'alloue rien, et elle se paie en temps constant.
+    dettes: Vec<u32>,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -94,7 +111,7 @@ impl SymbioticHueCache {
             tranche: None,
             echeance: None,
             une_faite: false,
-            en_retard: false,
+            dettes: Vec::new(),
         }
     }
 
@@ -108,9 +125,15 @@ impl SymbioticHueCache {
         self.tranche = tranche;
     }
 
-    /// **Reste-t-il des teintes à refaire ?** Tant que oui, une image doit suivre.
+    /// Combien de teintes la dernière image doit encore.
+    #[cfg(test)]
+    pub(crate) fn dettes(&self) -> usize {
+        self.dettes.len()
+    }
+
+    /// **Reste-t-il des teintes à refaire ?** Tant que oui, le réveil les rattrape.
     pub fn en_retard(&self) -> bool {
-        self.en_retard
+        !self.dettes.is_empty()
     }
 
     /// Accorde le cache sur l'état courant du document : une autre version rend les teintes
@@ -120,7 +143,8 @@ impl SymbioticHueCache {
     pub fn suivre(&mut self, version: u64, board_id: &str) {
         self.echeance = self.tranche.map(|t| Instant::now() + t);
         self.une_faite = false;
-        self.en_retard = false;
+        // L'image refait le compte de ce qu'elle montre : ce qu'elle doit, elle le notera.
+        self.dettes.clear();
         let meme_tableau = self.repere.as_ref().is_some_and(|(_, b)| b == board_id);
         if !meme_tableau {
             self.entries.clear();
@@ -166,9 +190,67 @@ impl SymbioticHueCache {
             }
         }
         if self.plus_de_temps() {
-            self.en_retard = true;
+            if let Some(rang) = index.rang_de(ann.id()) {
+                self.dettes.push(rang);
+            }
             return gardee.map_or_else(|| teinte_sans_voisinage(ann), |(hue, rgb, _)| (hue, rgb));
         }
+        self.calculer(ann, index, board)
+    }
+
+    /// **REPOS-2 — payer hors d'une image ce que la dernière a dû.**
+    ///
+    /// `None` : rien n'est dû. `Some(false)` : la tranche est épuisée, il reste à payer —
+    /// revenir, sans image. `Some(true)` : une image est due, une seule — toutes les teintes
+    /// sont refaites, ou le document a changé depuis l'image et c'est à la suivante de refaire
+    /// le compte. La première dette d'un appel se paie toujours : la cascade finit.
+    ///
+    /// L'index et le tableau doivent être ceux de la dernière image : c'est ce que la version
+    /// inchangée garantit, puisque l'index ne se resynchronise que lorsqu'elle change.
+    pub fn rattraper(&mut self, index: &SpatialHash, board: &Board, version: u64) -> Option<bool> {
+        if self.dettes.is_empty() {
+            return None;
+        }
+        let meme_document = self
+            .repere
+            .as_ref()
+            .is_some_and(|(v, b)| *v == version && *b == board.id);
+        if !meme_document {
+            self.dettes.clear();
+            return Some(true);
+        }
+        self.echeance = self.tranche.map(|t| Instant::now() + t);
+        self.une_faite = false;
+        while let Some(&rang) = self.dettes.last() {
+            if self.plus_de_temps() {
+                return Some(false);
+            }
+            self.dettes.pop();
+            let rangs = [rang];
+            let Some(ann) = Visibles::nouvelles(&rangs, board).annotations().next() else {
+                continue;
+            };
+            // Un nœud montré deux fois dans l'image (sa carte, le bout d'une flèche) ne doit
+            // qu'une teinte.
+            if self
+                .entries
+                .get(ann.id())
+                .is_none_or(|e| e.version != version)
+            {
+                self.calculer(ann, index, board);
+            }
+        }
+        Some(true)
+    }
+
+    /// La teinte d'une carte depuis son voisinage, gardée pour la version courante.
+    fn calculer(
+        &mut self,
+        ann: &Annotation,
+        index: &SpatialHash,
+        board: &Board,
+    ) -> (f64, (u8, u8, u8)) {
+        let version = self.version();
         self.une_faite = true;
         self.calculs += 1;
 

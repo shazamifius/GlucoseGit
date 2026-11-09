@@ -1,0 +1,51 @@
+[
+ {
+  "nom": "REPOS-2 chaque paiement partiel demande une image",
+  "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
+  "avant": "                return Some(false);",
+  "apres": "                return Some(true);",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ },
+ {
+  "nom": "REPOS-2 le reveil redessine tant qu'une teinte est due (CHANTIER-2)",
+  "fichier": "crates/glucose-desktop/src/app/reveil.rs",
+  "avant": "        if image_due == Some(true) {",
+  "apres": "        if image_due.is_some() {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ },
+ {
+  "nom": "REPOS-2 payer sans calculer",
+  "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
+  "avant": "                self.calculer(ann, index, board);\n            }\n        }\n        Some(true)",
+  "apres": "                let _ = (ann, index);\n            }\n        }\n        Some(true)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ },
+ {
+  "nom": "REPOS-2 un document change se paie quand meme",
+  "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
+  "avant": "        if !meme_document {",
+  "apres": "        if false && !meme_document {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ },
+ {
+  "nom": "REPOS-2 les dettes s'empilent d'une image a l'autre",
+  "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
+  "avant": "        // L'image refait le compte de ce qu'elle montre : ce qu'elle doit, elle le notera.\n        self.dettes.clear();",
+  "apres": "        // L'image refait le compte de ce qu'elle montre : ce qu'elle doit, elle le notera.",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ },
+ {
+  "nom": "REPOS-2 une dette n'est pas notee",
+  "fichier": "crates/glucose-desktop/src/renderer/hue.rs",
+  "avant": "                self.dettes.push(rang);",
+  "apres": "                let _ = rang;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ },
+ {
+  "nom": "REPOS-2 la vue qui bouge paie entre les images",
+  "fichier": "crates/glucose-desktop/src/app/reveil.rs",
+  "avant": "        let image_due = if self.la_vue_bouge() {",
+  "apres": "        let image_due = if false && self.la_vue_bouge() {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "repos_2"]
+ }
+]

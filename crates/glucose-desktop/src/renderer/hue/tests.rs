@@ -231,3 +231,63 @@ fn test_teintes_1_le_lancement_pose_la_tranche_et_le_reveil_finit_la_cascade() {
     assert!(include_str!("../../demarrage.rs").contains("hue_cache.accorder_la_tranche("));
     assert!(include_str!("../../app/reveil.rs").contains("hue_cache.en_retard()"));
 }
+
+/// **REPOS-2 — le cache paie hors de l'image ce qu'elle a dû**, une dette par paiement sans
+/// tranche, puis plus rien ; l'image suivante n'a plus rien à calculer, et montre les teintes du
+/// calcul entier, au bit près.
+#[test]
+fn test_repos_2_payer_hors_de_l_image_rend_les_teintes_du_calcul_entier() {
+    let (board, index) = trois_voisines();
+    let mut entier = SymbioticHueCache::new();
+    entier.suivre(1, &board.id);
+    let attendues: Vec<f64> = (0..3)
+        .map(|i| teinte(&mut entier, &board, &index, i))
+        .collect();
+
+    let mut cache = SymbioticHueCache::new();
+    cache.accorder_la_tranche(Some(Duration::ZERO));
+    cache.suivre(1, &board.id);
+    (0..3).for_each(|i| {
+        teinte(&mut cache, &board, &index, i);
+    });
+    assert_eq!(
+        cache.rattraper(&index, &board, 1),
+        Some(false),
+        "une dette payée, une due"
+    );
+    assert_eq!(
+        cache.rattraper(&index, &board, 1),
+        Some(true),
+        "tout payé : une image"
+    );
+    assert_eq!(cache.rattraper(&index, &board, 1), None, "puis rien");
+    assert_eq!(cache.calculs(), 3, "chaque teinte calculée une fois");
+
+    cache.suivre(1, &board.id);
+    let vues: Vec<f64> = (0..3)
+        .map(|i| teinte(&mut cache, &board, &index, i))
+        .collect();
+    assert_eq!(cache.calculs(), 3, "l'image qui suit ne calcule plus rien");
+    assert!(!cache.en_retard());
+    assert_eq!(vues, attendues, "et montre le calcul entier, au bit près");
+}
+
+/// **REPOS-2 — chaque image refait le compte de ce qu'elle doit** : pendant un geste, aucune
+/// dette ne se paie entre les images, et deux images ne doivent pas le double.
+#[test]
+fn test_repos_2_chaque_image_refait_le_compte_de_ses_dettes() {
+    let (board, index) = trois_voisines();
+    let mut cache = SymbioticHueCache::new();
+    cache.accorder_la_tranche(Some(Duration::ZERO));
+    for _ in 0..2 {
+        cache.suivre(1, &board.id);
+        (0..3).for_each(|i| {
+            teinte(&mut cache, &board, &index, i);
+        });
+    }
+    assert_eq!(
+        cache.dettes(),
+        1,
+        "la seconde image ne doit que ce qu'elle a montré d'avant"
+    );
+}

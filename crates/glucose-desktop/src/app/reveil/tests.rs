@@ -278,18 +278,11 @@ fn test_nettete_1_une_scene_inachevee_redemande_une_image_sans_rien_repeindre() 
     );
 }
 
-/// **CHANTIER-2 — des teintes en retard font redessiner, et la cascade finit** (fiche 95).
-///
-/// Une teinte ne se refait que dans une image qui redessine les nœuds. Le chantier demandait
-/// une image sans rien salir : elle n'avait rien à redessiner, ne consultait pas le cache, et
-/// son retard ne retombait jamais — Glucose redessinait à vide, tableau immobile. L'épreuve
-/// suit l'ordre réel : l'attente demande, puis l'image ne peint que ce qui est sali. La tranche
-/// est nulle : une teinte par image ; la cascade doit finir, et l'image lui être due.
-#[test]
-fn test_chantier_2_des_teintes_en_retard_font_redessiner_jusqu_au_bout() {
+/// Une application calme dont la première image a laissé des teintes dues : six textes, une
+/// tranche nulle — une teinte par image ou par paiement, le pire cas du squelette de Wikipédia.
+fn des_teintes_dues() -> GlucoseApp {
     use glucose_core::types::Annotation;
-    let mut app = GlucoseApp::new();
-    app.ui.current_toast = None;
+    let mut app = au_calme();
     let board = app.store.project.active_board_id.clone();
     for i in 0..6 {
         let t = Annotation::text(format!("t{i}"), 40.0 + 60.0 * f64::from(i), 300.0, "eau");
@@ -298,23 +291,102 @@ fn test_chantier_2_des_teintes_en_retard_font_redessiner_jusqu_au_bout() {
     app.renderer
         .hue_cache
         .accorder_la_tranche(Some(std::time::Duration::ZERO));
-    app.une_image_sans_fenetre((800, 600));
+    app.une_image_sans_fenetre(ECRAN);
     assert!(
         app.renderer.hue_cache.en_retard(),
-        "l'épreuve part d'un cache en retard"
+        "l'épreuve part d'un cache qui doit des teintes"
     );
-    let mut images = 0;
-    while app.renderer.hue_cache.en_retard() && images < 50 {
-        let _ = app.prochain_reveil();
-        assert!(
-            app.provenance.raisons & Raison::Chantier.bit() != 0,
-            "l'image est due au chantier, pas au système"
-        );
-        app.peindre_ce_qui_a_change((800, 600), false);
-        images += 1;
+    app
+}
+
+/// **REPOS-2 — au repos, les teintes se rattrapent sans image, et une seule les montre**
+/// (fiche 98 ; CHANTIER-2, fiche 95, en était la première forme).
+///
+/// Une teinte ne se refaisait qu'en peignant son nœud : tant qu'une restait due, toute la scène
+/// se redessinait — une teinte par image quand la peinture mange la tranche, 290 images de 22 ms
+/// sur le squelette de Wikipédia. L'épreuve suit l'ordre réel, tranche nulle : chaque
+/// endormissement paie ; **aucune** image n'est demandée avant que tout soit payé ; la dernière
+/// en demande une, salie, au compte du chantier ; elle ne calcule plus rien, et après elle
+/// Glucose dort.
+#[test]
+fn test_repos_2_les_teintes_se_rattrapent_sans_image_et_une_seule_les_montre() {
+    let mut app = des_teintes_dues();
+    let (mut reveils, mut images) = (0, 0);
+    while app.renderer.hue_cache.en_retard() && reveils < 50 {
+        let avant = app.provenance.demandes();
+        let salie = demande_t_on_une_image_a_repeindre(&mut app);
+        let demandee = app.provenance.demandes() != avant;
+        assert_eq!(salie, demandee, "l'image qui montre les teintes est salie");
+        images += usize::from(demandee);
+        reveils += 1;
     }
     assert!(
         !app.renderer.hue_cache.en_retard(),
-        "après {images} images, les teintes sont toujours en retard"
+        "après {reveils} réveils, les teintes sont toujours dues"
+    );
+    assert!(reveils > 1, "l'épreuve doit payer en plusieurs fois");
+    assert_eq!(
+        images, 1,
+        "{images} images pour {reveils} paiements : une seule est due"
+    );
+    assert!(
+        app.provenance.raisons & Raison::Chantier.bit() != 0,
+        "l'image est due au chantier, pas au système"
+    );
+    let calculs = app.renderer.hue_cache.calculs();
+    app.peindre_ce_qui_a_change(ECRAN, false);
+    assert_eq!(
+        app.renderer.hue_cache.calculs(),
+        calculs,
+        "l'image qui montre les teintes n'a plus rien à calculer"
+    );
+    let avant = app.provenance.demandes();
+    let _ = app.prochain_reveil();
+    assert_eq!(app.provenance.demandes(), avant, "puis Glucose dort");
+}
+
+/// **REPOS-2 — un document changé depuis l'image ne se paie pas** : les rangs que l'image a
+/// notés désignent l'ancien index. Rien ne se calcule ; une image refait le compte.
+#[test]
+fn test_repos_2_un_document_change_depuis_l_image_ne_se_paie_pas() {
+    use glucose_core::types::Annotation;
+    let mut app = des_teintes_dues();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::text("neuf", 40.0, 500.0, "sel"));
+    let calculs = app.renderer.hue_cache.calculs();
+    assert!(
+        demande_t_on_une_image_a_repeindre(&mut app),
+        "le compte est à refaire : une image"
+    );
+    assert_eq!(
+        app.renderer.hue_cache.calculs(),
+        calculs,
+        "rien ne se paie sur un index périmé"
+    );
+    assert!(
+        !app.renderer.hue_cache.en_retard(),
+        "et la dette est oubliée"
+    );
+}
+
+/// **REPOS-2 — pendant un mouvement, rien ne se paie entre les images** : elles viennent de
+/// toute façon, chacune refait ce que sa tranche permet ; payer entre elles retarderait la
+/// suivante du temps de la tranche.
+#[test]
+fn test_repos_2_la_vue_qui_bouge_ne_paie_pas_entre_les_images() {
+    let mut app = des_teintes_dues();
+    app.handle_mouse_wheel(winit::event::MouseScrollDelta::LineDelta(0.0, 1.0));
+    app.bouger_la_camera(ECRAN.0, ECRAN.1);
+    assert!(app.la_vue_bouge(), "le montage : une image de mouvement");
+    let calculs = app.renderer.hue_cache.calculs();
+    assert!(
+        demande_t_on_une_image_a_repeindre(&mut app),
+        "la vue bouge : une image"
+    );
+    assert_eq!(
+        app.renderer.hue_cache.calculs(),
+        calculs,
+        "aucune teinte payée entre deux images de mouvement"
     );
 }
