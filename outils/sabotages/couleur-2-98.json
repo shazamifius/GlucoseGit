@@ -1,0 +1,47 @@
+[
+ {
+  "nom": "COULEUR-2 la description tait la couleur",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "        couleur: a.couleur_propre().map(str::to_string),",
+  "apres": "        couleur: None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "couleur_2"
+  ]
+ },
+ {
+  "nom": "COULEUR-2 la lecture n'ecrit pas la couleur",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        (\"couleur\", d.couleur.as_deref()),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "couleur_2"
+  ]
+ },
+ {
+  "nom": "COULEUR-2 la couleur d'un agent n'est pas posee",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "                    s.colorer(board, std::slice::from_ref(&id), Some(c));",
+  "apres": "                    let _ = c;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "couleur_2"
+  ]
+ }
+]

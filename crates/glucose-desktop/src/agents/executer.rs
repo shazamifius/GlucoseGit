@@ -236,8 +236,12 @@ impl GlucoseApp {
                 } else {
                     Annotation::text(&id, x, y, texte)
                 };
-                let ann = partir::un_texte(s, board, neuf, boite, couleur.as_deref());
+                let ann = partir::un_texte(s, board, neuf, boite);
                 s.poser_pour_un_agent(board, ann, dans)?;
+                // La couleur par la loi du noyau, celle de la barre de l'humain (COULEUR-2).
+                if let Some(c) = couleur.as_deref() {
+                    s.colorer(board, std::slice::from_ref(&id), Some(c));
+                }
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
                 partir::l_operateur(s, board, &id, operateur)
             })
@@ -555,6 +559,7 @@ fn decrit_en_json(d: &Decrit, rendu: &Rendu) -> Json {
         ("cible", d.cible.as_deref()),
         ("relation", d.relation.map(|r| r.as_str())),
         ("operateur", d.operateur.map(|o| o.id())),
+        ("couleur", d.couleur.as_deref()),
         ("adresse", d.adresse.as_deref()),
     ];
     champs.extend(

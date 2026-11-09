@@ -64,7 +64,7 @@ fn agent_8_une_membrane_mise_a_jour_garde_ce_que_l_appel_ne_dit_pas() {
     );
 }
 
-/// **Réécrire un post-it garde ce que l'humain y a mis** : sa couleur, son opérateur, sa taille
+/// **Réécrire un post-it garde ce que l'humain y a mis** : son papier, son opérateur, sa taille
 /// de lettre. Le texte change, et la boîte suit le texte.
 #[test]
 fn agent_8_un_texte_reecrit_garde_ce_que_l_humain_y_a_mis() {
@@ -92,7 +92,7 @@ fn agent_8_un_texte_reecrit_garde_ce_que_l_humain_y_a_mis() {
     );
     let Annotation::Sticky {
         text,
-        color,
+        bg_color,
         operator,
         font_size,
         ..
@@ -101,7 +101,7 @@ fn agent_8_un_texte_reecrit_garde_ce_que_l_humain_y_a_mis() {
         panic!("un post-it")
     };
     assert_eq!(text, "Après, bien plus long.");
-    assert_eq!(color.as_deref(), Some("#336699"), "la couleur reste");
+    assert_eq!(bg_color.as_deref(), Some("#336699"), "son papier reste");
     assert_eq!(operator, Some(StickyOperator::Because), "l'opérateur reste");
     assert_eq!(font_size, Some(22.0), "la taille de lettre reste");
 }

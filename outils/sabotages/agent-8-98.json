@@ -4,20 +4,44 @@
   "fichier": "crates/glucose-desktop/src/agents/executer/partir.rs",
   "avant": "        Some(a) if std::mem::discriminant(a) == std::mem::discriminant(&neuf) => a.clone(),",
   "apres": "        Some(a) if false && std::mem::discriminant(a) == std::mem::discriminant(&neuf) => a.clone(),",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "agent_8"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agent_8"
+  ]
  },
  {
   "nom": "AGENT-8 recolorer une membrane efface son titre",
   "fichier": "crates/glucose-desktop/src/agents/executer/partir.rs",
   "avant": "        if let Some(t) = titre {\n            *text = Some(t.to_string());\n        }",
   "apres": "        *text = titre.map(str::to_string);",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "agent_8"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agent_8"
+  ]
  },
  {
-  "nom": "AGENT-8 reecrire un texte efface sa couleur",
+  "nom": "AGENT-8 renommer une membrane efface sa couleur",
   "fichier": "crates/glucose-desktop/src/agents/executer/partir.rs",
-  "avant": "        if let Some(c) = couleur {\n            *color = Some(c.to_string());\n        }\n    }\n    ann\n}\n\n/// **Une membrane",
-  "apres": "        *color = couleur.map(str::to_string);\n    }\n    ann\n}\n\n/// **Une membrane",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "agent_8"]
+  "avant": "        if let Some(c) = couleur {\n            *color = Some(c.to_string());\n        }",
+  "apres": "        *color = couleur.map(str::to_string);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agent_8"
+  ]
  }
 ]

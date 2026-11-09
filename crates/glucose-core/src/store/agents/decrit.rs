@@ -31,6 +31,9 @@ pub struct Decrit {
     /// Pour un post-it : l'opérateur qu'il est devenu (ET, OU, MAIS, PARCE QUE) — ce que l'humain
     /// voit à sa place, une pilule (OPERATEUR-2, fiche 98).
     pub operateur: Option<StickyOperator>,
+    /// **Sa couleur à lui** — celle que l'humain lui a donnée par la barre de couleur, ou un agent
+    /// (COULEUR-2, fiche 98) : le papier d'un post-it, la teinte d'un texte ou d'une membrane.
+    pub couleur: Option<String>,
     /// Pour une photo : l'adresse d'où elle vient — la page qu'elle montre.
     pub adresse: Option<String>,
     /// Les domaines qu'il porte, leur nom et leur poids.
@@ -72,6 +75,7 @@ pub(crate) fn decrire_le_tableau(board: &Board, catalogue: &[Domain]) -> Vec<Dec
         cible: None,
         relation: None,
         operateur: None,
+        couleur: None,
         adresse: i.source_url.clone(),
         domaines: decrire_les_domaines(catalogue, &i.domains),
         herites: Vec::new(),
@@ -143,6 +147,7 @@ fn decrire_une_annotation(a: &Annotation, catalogue: &[Domain]) -> Decrit {
         cible,
         relation,
         operateur,
+        couleur: a.couleur_propre().map(str::to_string),
         adresse: None,
         domaines: decrire_les_domaines(catalogue, a.domains()),
         herites: Vec::new(),

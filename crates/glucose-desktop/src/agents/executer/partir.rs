@@ -26,16 +26,10 @@ pub(super) fn partir_de(s: &Store, board: &str, neuf: Annotation) -> Annotation 
     }
 }
 
-/// **Un texte ou un post-it, mis à jour** : sa boîte et son texte, que l'appel dit toujours ; sa
-/// couleur s'il la dit. Le reste — sa taille de lettre, son opérateur, son fond, son miroir, son
-/// ancrage dans le temps — est celui du nœud.
-pub(super) fn un_texte(
-    s: &Store,
-    board: &str,
-    neuf: Annotation,
-    boite: Rect,
-    couleur: Option<&str>,
-) -> Annotation {
+/// **Un texte ou un post-it, mis à jour** : sa boîte et son texte, que l'appel dit toujours. Le
+/// reste — sa couleur (que l'appel pose ensuite par la loi du noyau, COULEUR-2), sa taille de
+/// lettre, son opérateur, son fond, son miroir, son ancrage dans le temps — est celui du nœud.
+pub(super) fn un_texte(s: &Store, board: &str, neuf: Annotation, boite: Rect) -> Annotation {
     let texte = neuf.own_text().unwrap_or_default();
     let mut ann = partir_de(s, board, neuf);
     if let Annotation::Text {
@@ -44,7 +38,6 @@ pub(super) fn un_texte(
         width,
         height,
         text,
-        color,
         cursor_pos,
         ..
     }
@@ -54,7 +47,6 @@ pub(super) fn un_texte(
         width,
         height,
         text,
-        color,
         cursor_pos,
         ..
     } = &mut ann
@@ -63,9 +55,6 @@ pub(super) fn un_texte(
         (*width, *height) = (Some(boite.width), Some(boite.height));
         // La place d'un curseur ne survit pas au texte qu'on réécrit.
         (*text, *cursor_pos) = (texte, None);
-        if let Some(c) = couleur {
-            *color = Some(c.to_string());
-        }
     }
     ann
 }
