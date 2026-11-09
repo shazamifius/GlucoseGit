@@ -38,14 +38,21 @@ impl Store {
     /// ce qui est choisi n'a de boîte (une flèche seule, un dossier, rien).
     pub fn grouper_dans_une_membrane(&mut self) -> Option<String> {
         let board_id = self.project.active_board_id.clone();
-        let board = self.active_board()?;
         let choisis: Vec<String> = self
             .selected_image_ids
             .iter()
             .chain(&self.selected_annotation_ids)
             .cloned()
             .collect();
-        let racines = racines(board, &choisis);
+        self.grouper(&board_id, &choisis)
+    }
+
+    /// **Groupe ces nœuds de ce tableau dans une membrane neuve**, par la loi plus haut — la
+    /// sélection de l'humain, ou ce qu'un agent nomme (`glucose_grouper`). Rend son identifiant,
+    /// ou rien si aucun n'a de boîte.
+    pub fn grouper(&mut self, board_id: &str, ids: &[String]) -> Option<String> {
+        let board = self.project.boards.iter().find(|b| b.id == board_id)?;
+        let racines = racines(board, ids);
         let boite = racines
             .iter()
             .filter_map(|id| boite_de(board, id))
@@ -54,7 +61,7 @@ impl Store {
         let cadre = Self::cadre_autour(boite);
         let id = self.generate_id("membrane");
         let membrane = Annotation::membrane(&id, cadre.left, cadre.top, cadre.width, cadre.height);
-        self.add_annotation(&board_id, membrane);
+        self.add_annotation(board_id, membrane);
         let mut changements = vec![MembershipChange {
             id: id.clone(),
             membrane_id: parent.clone(),
@@ -63,12 +70,28 @@ impl Store {
             id: r,
             membrane_id: Some(id.clone()),
         }));
-        self.poser_les_appartenances(&board_id, &changements);
+        self.poser_les_appartenances(board_id, &changements);
         if let Some(p) = parent {
             // Une membrane qui grandit fait grandir les siennes (MEMB-7).
-            let _ = self.agrandir_la_membrane_pour(&board_id, &p, cadre);
+            let _ = self.agrandir_la_membrane_pour(board_id, &p, cadre);
         }
         Some(id)
+    }
+}
+
+impl Store {
+    /// **GROUPER-1 pour un agent** (`glucose_grouper`) : chaque identifiant doit nommer un nœud de
+    /// ce tableau — sinon le refus le nomme —, et l'un d'eux au moins avoir une boîte.
+    pub fn grouper_pour_un_agent(
+        &mut self,
+        board_id: &str,
+        ids: &[String],
+    ) -> Result<String, super::agents::Refus> {
+        for id in ids {
+            self.boite_d_un_noeud(board_id, id)?;
+        }
+        self.grouper(board_id, ids)
+            .ok_or(super::agents::Refus::RienAGrouper)
     }
 }
 

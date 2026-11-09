@@ -116,6 +116,8 @@ pub enum Refus {
         membrane: String,
         dans: String,
     },
+    /// Rien de ce qui est nommé n'a de boîte : il n'y a rien à entourer (GROUPER-1).
+    RienAGrouper,
 }
 
 impl std::fmt::Display for Refus {
@@ -139,6 +141,9 @@ impl std::fmt::Display for Refus {
             Self::Emboitement { membrane, dans } => write!(
                 f,
                 "« {dans} » est dans « {membrane} » : une membrane ne se pose pas dans ce qu'elle contient"
+            ),
+            Self::RienAGrouper => f.write_str(
+                "rien de ce qui est nommé n'a de boîte : une flèche seule ne se groupe pas",
             ),
         }
     }
@@ -519,7 +524,7 @@ impl Store {
             .ok_or_else(|| Refus::TableauInconnu(board_id.to_string()))
     }
 
-    fn boite_d_un_noeud(&self, board_id: &str, id: &str) -> Result<Rect, Refus> {
+    pub(super) fn boite_d_un_noeud(&self, board_id: &str, id: &str) -> Result<Rect, Refus> {
         if let Some(i) = self.image(board_id, id) {
             return Ok(i.rect());
         }

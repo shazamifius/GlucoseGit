@@ -129,6 +129,14 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"cherche":{"type":"string","description":"les mots à trouver"},"depuis":{"type":"number","description":"le rang du premier résultat rendu ; 0 par défaut"},"combien":{"type":"number","description":"le nombre de résultats rendus ; dix par défaut, comme la palette"}},"required":["cherche"]}"##,
     ),
     (
+        "glucose_grouper",
+        "Entoure ces nœuds d'une membrane neuve — une région —, née dans la plus proche membrane \
+         qui les contient tous ; ce qu'une membrane nommée contient la suit sans changer de place. \
+         Le geste « Grouper dans une membrane » (Ctrl+G) de l'humain, en un geste qu'il défait par \
+         Ctrl+Z. Rend l'identifiant de la membrane et sa boîte.",
+        r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à entourer"},"titre":{"type":"string"},"couleur":{"type":"string","description":"#rrggbb"},"tableau":{"type":"string"}},"required":["ids"]}"##,
+    ),
+    (
         "glucose_disposer",
         "Range en colonnes de journal ce que porte une membrane, ses sous-membranes comprises : \
          dans l'ordre de lecture (de haut en bas, puis de gauche à droite), chaque membrane prenant \

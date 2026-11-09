@@ -3,6 +3,7 @@
 mod agent_8;
 mod couleur_2;
 mod disposer;
+mod grouper_1;
 mod heritage;
 mod operateur_2;
 mod plan;

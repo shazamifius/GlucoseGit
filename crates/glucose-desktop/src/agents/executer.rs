@@ -8,6 +8,7 @@
 mod chercher;
 mod disposer;
 mod domaines;
+mod grouper;
 mod partir;
 
 use super::json::Json;
@@ -84,6 +85,7 @@ impl GlucoseApp {
             "glucose_domaines" => self.agent_lire_les_domaines(&a),
             "glucose_chercher" => self.agent_chercher(&a),
             "glucose_disposer" => self.agent_disposer(&board, &a),
+            "glucose_grouper" => self.agent_grouper(&board, &a),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),
         };
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.
