@@ -492,3 +492,34 @@ fn test_focus_1_entrer_dans_la_membrane_n_existe_que_sur_une_membrane() {
         Some(crate::commandes::Commande::EntrerDansLaMembrane)
     );
 }
+
+/// **Les opérateurs n'existent qu'au menu de post-it choisis, et seulement ceux qui changent
+/// quelque chose** (OPERATEUR-1, fiche 98) : un texte n'en a pas ; un papier ne redevient pas
+/// papier ; l'opérateur que tous portent déjà disparaît.
+#[test]
+fn test_operateur_1_le_menu_d_un_post_it_porte_ses_operateurs() {
+    use glucose_core::types::StickyOperator::{And, Because, But, Or};
+    let op = MenuAction::Operateur;
+    let mut store = store_with(0, 1, true);
+    assert!(
+        !actions(&menu(&store, (400.0, 300.0))).contains(&op(Some(And))),
+        "un texte n'a pas d'opérateur"
+    );
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::sticky("p", 1000.0, 0.0, "x"));
+    store.select_annotation("p".to_string(), true);
+    let a = actions(&menu(&store, (400.0, 300.0)));
+    for o in [And, Or, But, Because] {
+        assert!(a.contains(&op(Some(o))), "{o:?} au menu d'un post-it");
+    }
+    assert!(!a.contains(&op(None)), "un papier ne redevient pas papier");
+
+    store.poser_l_operateur(&board, &["p".to_string()], Some(And));
+    let a = actions(&menu(&store, (400.0, 300.0)));
+    assert!(!a.contains(&op(Some(And))), "l'opérateur porté disparaît");
+    assert!(a.contains(&op(None)), "et le papier revient au menu");
+    assert_eq!(
+        op(Some(Because)).commande(),
+        Some(crate::commandes::Commande::Operateur(Some(Because)))
+    );
+}

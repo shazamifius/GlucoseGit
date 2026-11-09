@@ -3,7 +3,7 @@
 use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, ArrowPredicate, Point2D};
+use crate::types::{Annotation, ArrowPredicate, Point2D, StickyOperator};
 
 /// Un réglage d'une flèche (FLECHE-3) : ce que la barre d'options d'une flèche propose.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -187,6 +187,45 @@ impl Store {
             touchees += usize::from(est_une_fleche);
         }
         touchees
+    }
+
+    /// **OPERATEUR-1 — un post-it devient un opérateur, ou redevient un papier** (fiche 98) :
+    /// ET, OU, MAIS, PARCE QUE (`Alt+1` à `Alt+4` de Glucose Tauri), ou aucun (`Alt+0`).
+    ///
+    /// Le dessin existait (une pilule, fiche 06 § 5.3), le geste non. Un opérateur **a la taille
+    /// de son mot** : sa boîte retombe à la naissance d'une pilule (`Annotation::size`), et un
+    /// papier retrouvé, à celle d'un papier neuf — la taille d'avant reste à `Ctrl+Z`. Le texte
+    /// n'est jamais touché : il reparaît quand le post-it redevient un papier. Ce qui n'est pas
+    /// un post-it, ou porte déjà cet opérateur, est ignoré ; rend combien en ont changé.
+    pub fn poser_l_operateur(
+        &mut self,
+        board_id: &str,
+        ids: &[String],
+        voulu: Option<StickyOperator>,
+    ) -> usize {
+        let mut changes = 0;
+        for id in ids {
+            let deja = |a: &Annotation| match a {
+                Annotation::Sticky { operator, .. } => *operator == voulu,
+                _ => true,
+            };
+            if self.project.annotation(board_id, id).is_none_or(deja) {
+                continue;
+            }
+            self.update_annotation(board_id, id, |ann| {
+                if let Annotation::Sticky {
+                    operator,
+                    width,
+                    height,
+                    ..
+                } = ann
+                {
+                    (*operator, *width, *height) = (voulu, None, None);
+                }
+            });
+            changes += 1;
+        }
+        changes
     }
 
     pub fn add_annotation(&mut self, board_id: &str, ann: Annotation) {

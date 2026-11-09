@@ -113,6 +113,7 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "",
         )));
     }
+    defs.extend(entrees_des_operateurs(store));
     if images > 0 {
         let board = store.active_board()?;
         let toutes_fermees = board
@@ -140,6 +141,39 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     defs.push(None);
     defs.push(Some((MenuAction::Delete, "Supprimer", "")));
     Some(defs)
+}
+
+/// **Les opérateurs des post-it choisis** (OPERATEUR-1, fiche 98) : au téléphone, sans `Alt`,
+/// c'est le seul chemin. Un opérateur que tous les post-it choisis portent déjà est sans objet :
+/// il disparaît — « Post-it ordinaire » aussi, quand aucun n'en porte.
+fn entrees_des_operateurs(store: &Store) -> Vec<Def> {
+    use glucose_core::types::{Annotation, StickyOperator};
+    let portes: Vec<Option<StickyOperator>> = store
+        .selected_stickies()
+        .iter()
+        .filter_map(|a| match a {
+            Annotation::Sticky { operator, .. } => Some(*operator),
+            _ => None,
+        })
+        .collect();
+    if portes.is_empty() {
+        return Vec::new();
+    }
+    let choix = [
+        (Some(StickyOperator::And), "Opérateur ET"),
+        (Some(StickyOperator::Or), "Opérateur OU"),
+        (Some(StickyOperator::But), "Opérateur MAIS"),
+        (Some(StickyOperator::Because), "Opérateur PARCE QUE"),
+        (None, "Post-it ordinaire"),
+    ];
+    let mut defs: Vec<Def> = vec![None];
+    defs.extend(
+        choix
+            .into_iter()
+            .filter(|(voulu, _)| portes.iter().any(|p| p != voulu))
+            .map(|(voulu, nom)| Some((MenuAction::Operateur(voulu), nom, ""))),
+    );
+    defs
 }
 
 /// Les entrées d'un menu ouvert sur le vide : ce qu'on y apporte, et le document.

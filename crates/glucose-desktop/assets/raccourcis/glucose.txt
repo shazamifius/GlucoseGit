@@ -4,7 +4,8 @@
 # s'applique l'emportant ; - retire l'accord des couches du dessous. Les modificateurs : Ctrl,
 # Alt, Maj. Un chiffre est la touche marquée de ce chiffre, quel que soit le clavier.
 #
-# Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran.
+# Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran ;
+# depuis, les opérateurs des post-it (fiche 98).
 
 # Le document
 Ctrl+N          nouveau-document
@@ -75,6 +76,13 @@ Ctrl+6          signet.poser.6
 Ctrl+7          signet.poser.7
 Ctrl+8          signet.poser.8
 Ctrl+9          signet.poser.9
+
+# Les opérateurs des post-it choisis, comme Glucose Tauri (OPERATEUR-1, fiche 98)
+Alt+0           operateur.aucun
+Alt+1           operateur.et
+Alt+2           operateur.ou
+Alt+3           operateur.mais
+Alt+4           operateur.parce-que
 
 # Chercher (fiche 89)
 Ctrl+F          chercher

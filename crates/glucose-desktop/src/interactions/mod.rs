@@ -23,6 +23,7 @@ pub mod lecture;
 pub mod links;
 pub mod mouse;
 pub mod onglets;
+pub mod operateurs;
 pub mod pan_zoom;
 pub mod panels;
 pub mod pave;

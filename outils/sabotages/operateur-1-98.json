@@ -1,0 +1,107 @@
+[
+ {
+  "nom": "OPERATEUR-1 la pilule garde la taille du papier",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "                    (*operator, *width, *height) = (voulu, None, None);",
+  "apres": "                    *operator = voulu;\n                    let _ = (width, height);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ },
+ {
+  "nom": "OPERATEUR-1 le noyau touche aussi ce qui n'est pas un post-it",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "                _ => true,\n            };",
+  "apres": "                _ => false,\n            };",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ },
+ {
+  "nom": "OPERATEUR-1 sans post-it choisi, la commande dit qu'elle s'applique",
+  "fichier": "crates/glucose-desktop/src/interactions/operateurs.rs",
+  "avant": "        if ids.is_empty() {\n            return false;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ },
+ {
+  "nom": "OPERATEUR-1 chaque post-it est un geste a lui",
+  "fichier": "crates/glucose-desktop/src/interactions/operateurs.rs",
+  "avant": "        self.store.begin_live_edit();\n        self.store.poser_l_operateur(&board, &ids, voulu);\n        self.store.end_live_edit();",
+  "apres": "        for id in &ids {\n            self.store.begin_live_edit();\n            self.store.poser_l_operateur(&board, std::slice::from_ref(id), voulu);\n            self.store.end_live_edit();\n        }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ },
+ {
+  "nom": "OPERATEUR-1 Alt+2 pose ET",
+  "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+  "avant": "Alt+2           operateur.ou",
+  "apres": "Alt+2           operateur.et",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ },
+ {
+  "nom": "OPERATEUR-1 le menu propose l'operateur deja porte",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "            .filter(|(voulu, _)| portes.iter().any(|p| p != voulu))",
+  "apres": "            .filter(|(voulu, _)| voulu.is_some() || portes.iter().any(|p| p != voulu))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ },
+ {
+  "nom": "OPERATEUR-1 le menu oublie les operateurs",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    defs.extend(entrees_des_operateurs(store));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "operateur_1"
+  ]
+ }
+]

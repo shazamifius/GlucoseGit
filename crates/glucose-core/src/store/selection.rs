@@ -87,13 +87,27 @@ impl Store {
     /// question appartient donc à la sélection, et l'interface n'a pas à parcourir les
     /// annotations pour la poser (règle S).
     pub fn selected_arrows(&self) -> Vec<&crate::types::Annotation> {
+        self.annotations_choisies(|a| matches!(a, crate::types::Annotation::Arrow { .. }))
+    }
+
+    /// Les post-it que la sélection retient : ce qu'un opérateur peut devenir (OPERATEUR-1,
+    /// fiche 98).
+    pub fn selected_stickies(&self) -> Vec<&crate::types::Annotation> {
+        self.annotations_choisies(|a| matches!(a, crate::types::Annotation::Sticky { .. }))
+    }
+
+    /// Les annotations choisies de cette sorte, dans l'ordre du document.
+    fn annotations_choisies(
+        &self,
+        sorte: impl Fn(&crate::types::Annotation) -> bool,
+    ) -> Vec<&crate::types::Annotation> {
         let Some(board) = self.active_board() else {
             return Vec::new();
         };
         board
             .annotations
             .iter()
-            .filter(|a| matches!(a, crate::types::Annotation::Arrow { .. }))
+            .filter(|a| sorte(a))
             .filter(|a| self.selected_annotation_ids.iter().any(|s| s == a.id()))
             .collect()
     }

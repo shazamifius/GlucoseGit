@@ -68,3 +68,55 @@ fn test_fleche_3_droite_s_ecrit_comme_tauri() {
         Annotation::Arrow { arrow_type: Some(t), .. } if t == "straight"
     ));
 }
+
+/// **OPERATEUR-1 — un post-it devient un opérateur, à la taille de son mot, et le redevient
+/// papier ; ce qui n'est pas un post-it est ignoré ; un seul `Ctrl+Z` défait tout** (fiche 98).
+#[test]
+fn test_operateur_1_un_post_it_devient_un_operateur_et_se_defait() {
+    let (mut store, board, mut ids) = tableau();
+    let mut grand = Annotation::sticky("d", 400.0, 0.0, "un autre");
+    if let Annotation::Sticky { width, height, .. } = &mut grand {
+        (*width, *height) = (Some(320.0), Some(260.0));
+    }
+    store.add_annotation(&board, grand);
+    ids.push("d".to_string());
+    let avant = store.project.clone();
+
+    store.begin_live_edit();
+    let changes = store.poser_l_operateur(&board, &ids, Some(StickyOperator::Because));
+    store.end_live_edit();
+    assert_eq!(changes, 2, "les deux post-it, pas les flèches");
+    for id in ["c", "d"] {
+        let n = fleche(&store, id);
+        let Annotation::Sticky { operator, text, .. } = n else {
+            panic!("un post-it")
+        };
+        assert_eq!(*operator, Some(StickyOperator::Because));
+        assert!(!text.is_empty(), "le texte n'est pas touché");
+        assert_eq!(
+            n.size(),
+            Some((
+                StickyOperator::Because.default_width(),
+                crate::types::DEFAULT_OPERATOR_HEIGHT
+            )),
+            "un opérateur a la taille de son mot"
+        );
+    }
+    assert_eq!(
+        store.poser_l_operateur(&board, &ids, Some(StickyOperator::Because)),
+        0,
+        "le même opérateur ne change rien"
+    );
+    assert!(store.undo(), "un seul geste");
+    assert_eq!(
+        store.project, avant,
+        "Ctrl+Z rend les papiers et leur taille"
+    );
+
+    store.poser_l_operateur(&board, &ids, Some(StickyOperator::And));
+    store.poser_l_operateur(&board, &ids, None);
+    let Annotation::Sticky { operator, .. } = fleche(&store, "d") else {
+        panic!("un post-it")
+    };
+    assert_eq!(*operator, None, "Alt+0 : le papier revient");
+}

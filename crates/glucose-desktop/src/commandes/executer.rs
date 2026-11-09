@@ -8,8 +8,8 @@ use glucose_core::store::StackMove;
 
 impl GlucoseApp {
     /// **Exécute cette commande** ; rend `false` si elle ne s'applique pas — l'accord passe
-    /// alors à la suivante de sa liste. Seules les relations des flèches peuvent ne pas
-    /// s'appliquer : sans flèche choisie, un chiffre vole au signet.
+    /// alors à la suivante de sa liste. Seules les relations des flèches et les opérateurs des
+    /// post-it peuvent ne pas s'appliquer : sans flèche choisie, un chiffre vole au signet.
     pub(crate) fn executer(&mut self, commande: Commande) -> bool {
         match commande {
             Commande::NouveauDocument => self.nouveau_document(),
@@ -68,6 +68,7 @@ impl GlucoseApp {
             Commande::JournalTechnique => self.revoir_la_telemetrie(),
             Commande::VoirCeQuiPart => self.voir_ce_qui_part(),
             Commande::Relation(rang) => return self.qualifier_les_fleches(rang),
+            Commande::Operateur(voulu) => return self.poser_l_operateur(voulu),
             Commande::Chercher => self.ouvrir_la_palette(super::palette::But::Chercher),
             Commande::ResultatSuivant => self.resultat_voisin(1),
             Commande::ResultatPrecedent => self.resultat_voisin(-1),
