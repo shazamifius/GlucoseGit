@@ -158,3 +158,136 @@ de quatre post-it et un texte posé par les commandes dans le vrai Glucose sans 
 vrai programme hors écran, un scénario « tout choisir », `operateur.parce-que`, `operateur.et` : la
 capture montre quatre pilules ET vertes, le texte ordinaire intact
 (`~/.cache/glucose-bancs/operateurs/banc/capture.png`).
+
+## 5. OPERATEUR-2 — une IA lit et pose les opérateurs, comme l'humain
+
+Un trou de principe, trouvé en relisant : un humain **voyait** la pilule « PARCE QUE », une IA qui
+lisait le tableau **ne la voyait pas** — la description d'un nœud ne disait pas l'opérateur (et
+montrait le texte du post-it, que la pilule cache). VISION l'exige « impérativement » : lu de la même
+façon par les deux.
+
+* **Lire** : `glucose_lire` dit `"operateur":"parce-que"` pour un post-it devenu pilule.
+* **Poser** : `glucose_poser_texte … operateur=et|ou|mais|parce-que|aucun` — un opérateur fait de
+  l'appel un post-it ; il passe par la loi du noyau (la pilule à la taille de son mot), dans le même
+  geste ; la boîte rendue est celle de la pilule ; un autre mot est refusé, en disant les mots
+  permis ; une mise à jour qui n'en parle pas le garde (AGENT-8). Au terminal : `glucose poser-texte
+  texte="car il pleut" operateur=parce-que`.
+* **Un seul nom partout** : `StickyOperator::id` (`et`, `ou`, `mais`, `parce-que`), que la table des
+  commandes, la palette, les agents et le terminal lisent. Les opérateurs ont quitté
+  `annotation.rs` pour `types/operateur.rs` : le cliquet des 600 lignes l'a demandé (601), et
+  l'extraction s'imposait, jamais le plafond.
+
+**Sabotages** (`outils/sabotages/operateur-2-98.json`) : **6 sur 6**.
+
+## 6. COULEUR-1 — la barre de couleur
+
+SUITE, étape 2 : *« la couleur : un sélecteur ; la couleur d'un post-it »* ; INVENTAIRE : *« menu,
+barre d'action »*. Lu dans Tauri : un post-it ne se colorait **que pendant qu'on l'écrivait**, par un
+bouton posé au-dessus de lui qui ouvrait une roue HSV (`ColorPicker.tsx`) ; une membrane naissait
+d'une teinte **tirée au hasard** parmi six, et rien ne la changeait ensuite ; un texte n'avait rien.
+
+**Ce qui est fait** : quand la sélection porte un texte, un post-it ou une membrane, une barre se pose
+au-dessus de la barre d'action (au-dessus de celle des flèches s'il y en a une) : « Couleur », les
+huit teintes du thème (celles des domaines, choisies pour rester distinctes sur le fond sombre ; les
+six premières sont celles que Tauri tirait pour une membrane), et « Par défaut ». Un clic colore tout
+ce qui est choisi, en un geste ; la teinte que tous portent s'allume. **Chaque teinte est une
+commande** (`couleur.rose`, `couleur.par-defaut`…) : la palette les porte, un raccourci peut les
+nommer. Ce que « sa couleur » veut dire, seul le noyau le sait (`Store::colorer`) : le papier d'un
+post-it (comme Tauri), la teinte d'une membrane, la teinte d'un texte (qui l'emporte sur sa teinte
+symbiotique).
+
+**Ce que l'image a corrigé** : la première capture, quatre pilules MAIS choisies, montrait une barre
+de couleur dont les teintes ne changeaient rien de visible — une pilule a la couleur de son mot. Un
+bouton qui ne fait rien de visible ment : **un opérateur ne se colore pas** (`Annotation::se_colore`),
+comme une flèche, dont la couleur dit la relation.
+
+**Le dossier aussi** : Tauri le colorait par sa roue ; la barre le fait par le nuancier, et « Par
+défaut » lui rend la couleur de sa naissance (`COULEUR_DE_NAISSANCE`, nommée au lieu d'un `"#888888"`
+écrit dans le constructeur). Au passage, **la lecture des couleurs quitte l'interface pour le noyau**
+(`Store::couleurs_choisies`, `Annotation::couleur_propre`), à côté de l'écriture
+(`Store::colorer_la_selection`) : ce que « sa couleur » veut dire n'est écrit qu'à un endroit.
+
+**Regardé**, dans le vrai programme hors écran (`~/.cache/glucose-bancs/operateurs/banc-couleur*/`) :
+quatre post-it devenus roses, la case rose allumée ; puis MAIS, puis « Par défaut » allumé. **Les
+images témoins** : seules les deux scènes choisies changent — 15 450 pixels, tous dans la bande de la
+barre (701-1098 × 758-796), regardée avant/après, agrandie ; les six autres témoins, au pixel près.
+
+**Prouvé** : le noyau (chaque sorte, l'opérateur ignoré, un geste, « Par défaut », le dossier) ; la
+barre (rien pour une flèche, une photo, un opérateur ; un dossier en a une ; la teinte commune
+s'allume ; au-dessus des barres du bas, dans l'écran, sans chevauchement) ; la souris (un clic colore,
+un clic entre deux cases ne désélectionne rien, un `Ctrl+Z`) ; la commande. **Sabotages**
+(`outils/sabotages/couleur-1-98.json`) : **9 sur 9** à la première version, rejoués sur la version
+finale (§ 9).
+
+**Reste** : la roue de Tauri, pour une couleur hors du nuancier (à la souris et au doigt) ; l'encre
+d'un post-it ; le jour où il le dira, D en geste (« Colorer l'arbre »).
+
+### COULEUR-2 — une IA lit et pose les couleurs avec le sens de l'humain
+
+Le même trou qu'OPERATEUR-2 : la couleur qu'un humain donne à une région, **une IA ne la lisait
+pas** — or D (les régions reconnues par leur couleur) ne vaut que si l'IA les reconnaît aussi. Et la
+couleur qu'un agent donnait à un post-it peignait **son encre**, quand la barre de l'humain peint
+**son papier**. `glucose_lire` dit désormais `"couleur"` (par `Annotation::couleur_propre`), et l'agent
+passe par la loi du noyau (`Store::colorer`). Épreuves : un agent colore le papier d'un post-it et
+le relit ; l'IA lit la teinte qu'un humain a posée sur une membrane. AGENT-8 en a changé une ligne
+(un post-it réécrit garde **son papier**).
+
+## 6 bis. REPOS-2 pendant le mouvement : rien d'abîmé
+
+Le scénario de vols du dépôt (`outils/scenarios/vols-vue-d-ensemble.txt`) sur le squelette, en paires
+entrelacées avec le programme d'avant : l'image de zoom médiane 9,7 et 13,8 ms après, 11,6 et 11,6
+avant ; le p90 16 et 19 contre 23 et 23 ; le pire 47 et 72 contre 48 et 55 (une seule image sur
+cinquante : du bruit à cette taille, pas un verdict). Et sans la main, sur ce scénario : **282 → 76
+images**, un cœur 19,5 % → 4,3 %.
+
+## 7. Ce qui n'a pas été fait, et pourquoi
+
+* **REPOS-3, le fondu d'un message redessine toute la carte** : sur le squelette, 17 images de
+  22 ms pour un message qui paraît puis s'efface. Ancien, sans gêne d'usage mesurée ; le réparer
+  demande une salissure « l'interface seule », qui touche la composition des couches — à peser avec
+  la mesure d'un usage qui en souffre (sa parole du 7/11 : pas d'église de l'optimisation).
+* **GRIS-3, les traits plus fins qu'un pixel hors des nœuds** (SUITE, le reste de GRIS) : examiné,
+  pas fait. L'épaississement est **voulu à deux endroits** — le bord d'une zone et d'une case de
+  storyboard (`scale.world(1.0).max(1.0)`, `zone.rs`, `storyboard.rs`), et la grille des pixels sur
+  les rectangles des zones (`on_pixel_grid`, qui ramène tout côté à un pixel) — et ces rectangles
+  passent **aussi par la carte graphique** : les deux voies doivent rester identiques au bit près.
+  Les poignées et les anneaux, eux, ont une taille d'écran (jamais sous un pixel) : hors de cause.
+  Le chantier juste : une loi « un rectangle du monde plus fin qu'un pixel se peint à sa couverture
+  exacte » dans `fill_crisp` **et** dans la voie de la carte, l'épreuve de l'encre de loin (comme
+  GRIS-1), et la mise à jour regardée du témoin dézoomé. `fill_crisp` sert aussi l'interface (13
+  appels dans la bande) : la loi doit y garder ses filets nets — distinguer le monde de l'écran.
+* **La roue de couleur de Tauri** : un chantier entier (la roue, le curseur de clarté, le champ
+  hexadécimal, au doigt comme à la souris) ; le nuancier couvre déjà la couleur d'un post-it,
+  d'une membrane, d'un texte et d'un dossier.
+* **Le budget d'une image déjà en retard** : la cascade des textures et la tranche des teintes se
+  mesurent contre le plancher de 10 ms ; une image qui le dépasse déjà (17 ms de membranes) aurait
+  pu faire tout son travail jusqu'au balayage suivant (33 ms) sans que l'œil le voie. Une idée de
+  modèle de coût (la charte : prédire, pas réagir), notée, pas un chantier : REPOS-2 a supprimé le
+  cas qui la rendait coûteuse.
+
+## 8. Les leçons
+
+* **Une mesure trop courte fabrique une conclusion** : 30 s de banc disaient « ne se pose jamais » ;
+  120 s ont montré une convergence en 30 s. Mesurer au-delà de ce que l'hypothèse annonce.
+* **« Au moins une par image » garantit la fin, pas la vitesse** : quand chaque image coûte plus que
+  le budget, la règle devient « une unité de travail par image complète ». Au repos, le travail se
+  fait hors des images.
+* **Regarder l'image avant de dire fini** a encore payé : la première capture de la barre de couleur
+  montrait des teintes qui ne changeaient rien de visible (les pilules).
+* **La fenêtre de capture du banc compte depuis le script**, pas depuis le lancement de Glucose
+  (`nix develop` l'ouvre plusieurs secondes plus tard) : une capture « à 5,5 s » est tombée avant la
+  commande de 4 s. Donner de la marge, et relire la capture.
+
+## 9. Prouver — le compte de la session
+
+* **Suite entière** : 2 959 épreuves, aucune tombée, 7 ignorées (carte graphique absente) ;
+  `cargo fmt`, clippy et les cliquets à zéro (le cliquet des 600 lignes a arrêté une fois
+  `annotation.rs` : extrait, pas relevé).
+* **Sabotages** : REPOS-2 7 sur 7 ; AGENT-8 3 sur 3 ; OPERATEUR-1 7 sur 7 ; OPERATEUR-2 6 sur 6 ;
+  COULEUR-1 12 sur 12 (rejoués sur la version finale) ; COULEUR-2 3 sur 3, et AGENT-8 et
+  OPERATEUR-2 rejoués après lui (3 sur 3, 6 sur 6). **En tout : 38 sabotages, 38 tombés.**
+* **Le vrai programme, regardé** : le squelette au banc hors écran (repos et vols, en paires
+  entrelacées avec `f967f66`) ; le squelette coloré par l'agent (D) ; les opérateurs et la barre de
+  couleur par des scénarios hors écran, chaque capture regardée ; les images témoins comparées
+  pixel à pixel avant de changer deux empreintes.
+* **Pas à son écran** : rien de cette session.

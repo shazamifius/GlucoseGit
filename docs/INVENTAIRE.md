@@ -141,8 +141,8 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | barre d'action, panneau | noyau écrit (`timeline`), à brancher |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
-| **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it | **se dessinent déjà**, aucun geste ne les pose |
-| **Couleur d'un post-it**, sélecteur de couleur | Tauri | menu, barre d'action | — |
+| **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it, palette, `Alt+0…4` ; une IA par `operateur=` | **faits** (fiche 98, OPERATEUR-1 et 2) — attendent son écran |
+| **Couleur d'un post-it**, sélecteur de couleur | Tauri | la barre de couleur, au-dessus de la barre d'action ; la palette | **le nuancier est fait** (fiche 98, COULEUR-1 : textes, post-it, membranes, dossiers) ; **la roue de Tauri reste** |
 | **Couleur des domaines sur le canevas**, filtrer par domaine | Tauri, fiche 03 § 11 | panneau Domaines | — |
 | **Membranes étirées et minimisées** (l'idée de Mary) | Tauri | options de la membrane | noyau écrit ; **à sa parole** |
 | **Export HTML** (pan, zoom, descriptions, un fichier) | Tauri | Exporter | — |
