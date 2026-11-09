@@ -39,7 +39,7 @@
 
 mod ecran;
 pub mod roue;
-pub use ecran::{papier_teinte, srgb};
+pub use ecran::{papier_teinte, srgb, DEMI_NIVEAU};
 
 /// Une couleur en octets sRGB : rouge, vert, bleu.
 pub type Rgb = (u8, u8, u8);

@@ -45,6 +45,20 @@ pub fn diametre(scale: f32) -> u32 {
     (DIAMETRE * crate::theme::clamp_ui_scale(scale)).round() as u32
 }
 
+/// **Le disque à cette clarté**, prêt à poser : les pixels du noyau
+/// ([`glucose_core::couleur::roue::pixels_du_disque`]), prémultipliés. Le grand disque de la roue et
+/// le petit de la barre de couleur.
+pub(crate) fn disque(clarte: f64, diametre: u32) -> tiny_skia::Pixmap {
+    let d = diametre.max(1);
+    let mut octets = Vec::with_capacity((d * d * 4) as usize);
+    for [r, g, b, a] in glucose_core::couleur::roue::pixels_du_disque(clarte, d) {
+        let pre = |c: u8| ((u16::from(c) * u16::from(a) + 127) / 255) as u8;
+        octets.extend([pre(r), pre(g), pre(b), a]);
+    }
+    let taille = tiny_skia::IntSize::from_wh(d, d).expect("un disque d'au moins un pixel");
+    tiny_skia::Pixmap::from_vec(octets, taille).expect("autant d'octets que de pixels")
+}
+
 /// **La roue au-dessus de la barre `sous`**, centrée sur elle et tenue dans l'écran.
 pub fn placer(sous: (f32, f32, f32, f32), screen: (f32, f32), scale: f32) -> RoueAPlat {
     let s = crate::theme::clamp_ui_scale(scale);

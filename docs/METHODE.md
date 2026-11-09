@@ -220,6 +220,7 @@
 | **Un décor posé par un geste rend « il y a à défaire » vrai d'avance** : l'épreuve « validée : un geste à défaire » de la roue était aveugle (fiche 99) | vider le journal après le décor (`store.journal.clear()`) |
 | **Une épreuve qui appelle la fonction du geste ne voit pas un branchement oublié** — la souris, la molette, le clavier qui n'y mènent plus (fiche 99, ROUE-1) | passer par les vrais chemins : `handle_cursor_moved`, `handle_mouse_down`, `handle_mouse_wheel`, `prendre_la_touche` |
 | **Une loi neuve contredit une épreuve ancienne** : LUEUR-3 exigeait le violet de la membrane sous un texte bleu, écrite quand la couleur d'un texte ne touchait que 3 % (fiche 99) | trancher entre les deux lois, l'écrire, et réécrire l'attendu selon la nouvelle — jamais relâcher la tolérance |
+| **L'index des nœuds se construit en dessinant** : la pipette ne trouvait rien sous le clic d'une épreuve, dont le décor n'avait dessiné aucune image (fiche 99) | le décor d'une épreuve qui clique sur le canevas dessine d'abord une image (`une_image_sans_fenetre`) |
 | **`getbbox` de Pillow lit le canal alpha d'une image RGBA** : la boîte d'écart de deux témoins opaques disait 10 lignes pour 39 (fiche 99) | comparer en RVB (`convert('RGB')`) |
 
 ## 5. Les pièges pratiques

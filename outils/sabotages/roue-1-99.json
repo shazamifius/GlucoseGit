@@ -255,21 +255,6 @@
   ]
  },
  {
-  "nom": "ROUE-1 le code passe par l arrondi de la roue",
-  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
-  "avant": "        self.poser_place_et_couleur(place, octets);",
-  "apres": "        self.poser_la_place(place);",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "roue_1"
-  ]
- },
- {
   "nom": "ROUE-1 la pipette armee valide au lieu de prendre",
   "fichier": "crates/glucose-desktop/src/interactions/roue.rs",
   "avant": "            None if self.ui.roue.as_ref().is_some_and(|r| r.pipette) => {",
@@ -309,6 +294,51 @@
    "test",
    "-p",
    "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 le bord du gamut s arrete a la premiere sortie",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "        while dedans > 0.0 && !sur_l_ecran(dedans) {",
+  "apres": "        dedans = 0.0;\n        dehors = 0.5;\n        while dedans > 0.0 && !sur_l_ecran(dedans) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 le disque se refait a chaque pas",
+  "fichier": "crates/glucose-desktop/src/interactions/roue.rs",
+  "avant": "        if (place.clarte - roue.clarte_du_disque).abs() >= DIFFERENCE_A_PEINE_VISIBLE / 2.0 {",
+  "apres": "        if (place.clarte - roue.clarte_du_disque).abs() > 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 le bord exige un milliardieme",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "                .all(|v| (-DEMI_NIVEAU..=1.0 + DEMI_NIVEAU).contains(v))\n        };",
+  "apres": "                .all(|v| (-1e-9..=1.0 + 1e-9).contains(v))\n        };",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
    "--lib",
    "--",
    "roue_1"

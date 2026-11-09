@@ -247,13 +247,17 @@ fn dessiner_la_case_de_la_roue(pixmap: &mut PixmapMut, case: &Case, (s, theme): 
     let marge = 3.0 * s;
     let (cx, cy, cw, _) = case.rect;
     let d = (cw - 2.0 * marge).round().max(1.0) as u32;
-    let mut octets = Vec::with_capacity((d * d * 4) as usize);
-    for [r, g, b, a] in glucose_core::couleur::roue::pixels_du_disque(0.75, d) {
-        let pre = |c: u8| ((u16::from(c) * u16::from(a) + 127) / 255) as u8;
-        octets.extend([pre(r), pre(g), pre(b), a]);
+    // Gardé une fois par taille : la barre se redessine à chaque image de l'interface, le disque
+    // ne change jamais (une clarté fixe, celle des teintes du nuancier).
+    thread_local! {
+        static PETIT: std::cell::RefCell<Option<(u32, tiny_skia::Pixmap)>> = const { std::cell::RefCell::new(None) };
     }
-    let disque =
-        tiny_skia::IntSize::from_wh(d, d).and_then(|t| tiny_skia::Pixmap::from_vec(octets, t));
+    let disque = PETIT.with_borrow_mut(|garde| {
+        if garde.as_ref().is_none_or(|(taille, _)| *taille != d) {
+            *garde = Some((d, super::roue::disque(0.75, d)));
+        }
+        garde.as_ref().map(|(_, p)| p.clone())
+    });
     if let Some(disque) = disque {
         let paint = tiny_skia::PixmapPaint::default();
         let (x, y) = ((cx + marge).round() as i32, (cy + marge).round() as i32);

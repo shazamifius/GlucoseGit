@@ -423,3 +423,45 @@ fn roue_1_la_pipette_ne_prend_rien_d_un_noeud_sans_couleur() {
         "désarmée, ouverte"
     );
 }
+
+/// **Le disque ne se redessine qu'au-delà d'une demi-différence à peine visible de clarté** :
+/// glisser le curseur ne refait pas le disque à chaque pixel ; l'anneau et l'aperçu, eux, suivent.
+#[test]
+fn roue_1_le_disque_ne_se_refait_qu_au_dela_d_une_demi_difference_visible() {
+    let mut app = app();
+    assert!(app.ouvrir_la_roue());
+    let pixels = |app: &GlucoseApp| {
+        app.ui
+            .roue
+            .as_ref()
+            .expect("ouverte")
+            .disque
+            .data()
+            .to_vec()
+    };
+    let depart = app.ui.roue.as_ref().expect("ouverte").place;
+    let avant = pixels(&app);
+    let pres = DIFFERENCE_A_PEINE_VISIBLE / 5.0;
+    app.poser_la_place(PlaceDansLaRoue {
+        clarte: depart.clarte + pres,
+        ..depart
+    });
+    assert_eq!(
+        pixels(&app),
+        avant,
+        "un cinquième de différence visible : le même disque"
+    );
+    assert!(
+        (app.ui.roue.as_ref().expect("ouverte").place.clarte - depart.clarte - pres).abs() < 1e-12
+    );
+    let loin = DIFFERENCE_A_PEINE_VISIBLE / 2.0;
+    app.poser_la_place(PlaceDansLaRoue {
+        clarte: depart.clarte + loin,
+        ..depart
+    });
+    assert_ne!(
+        pixels(&app),
+        avant,
+        "une demi-différence visible : le disque se refait"
+    );
+}

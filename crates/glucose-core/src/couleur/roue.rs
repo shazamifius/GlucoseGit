@@ -135,24 +135,22 @@ pub fn hex((r, g, b): (u8, u8, u8)) -> String {
 mod tests {
     use super::*;
 
-    /// **Une couleur retrouve sa place, et la place sa couleur** : l'aller-retour d'une couleur de
-    /// l'écran par la roue rend ses octets, à un niveau près.
+    /// **Une couleur retrouve sa place, et la place sa couleur — exactement** : l'aller-retour par la
+    /// roue rend ses octets, pour toute une grille des couleurs de l'écran (4 096), pas quelques
+    /// couleurs choisies : cinq choisies, « à un niveau près », n'avaient pas vu les bleus sombres
+    /// (`(0, 0, 85)` revenait en `(0, 9, 76)`, fiche 99). Vérifié aussi, une fois, sur 636 000
+    /// couleurs (un pas de 3 par canal) : aucune ne revient changée — un code tapé ou une couleur
+    /// prise à la pipette passe donc par la roue sans rien perdre.
     #[test]
     fn roue_1_une_couleur_retrouve_sa_place_et_sa_couleur() {
-        for (r, g, b) in [
-            (244, 114, 182),
-            (96, 165, 250),
-            (251, 146, 60),
-            (52, 211, 153),
-            (20, 20, 20),
-        ] {
-            let place = PlaceDansLaRoue::de(Oklch::des_octets((r, g, b)), 0.0);
-            let (r2, g2, b2) = place.couleur().octets();
-            for (a, b) in [(r, r2), (g, g2), (b, b2)] {
-                assert!(
-                    a.abs_diff(b) <= 1,
-                    "({r},{g},{b}) → {place:?} → ({r2},{g2},{b2})"
-                );
+        for r in (0..=255u8).step_by(17) {
+            for g in (0..=255u8).step_by(17) {
+                for b in (0..=255u8).step_by(17) {
+                    let place = PlaceDansLaRoue::de(Oklch::des_octets((r, g, b)), 0.0);
+                    let (r2, g2, b2) = place.couleur().octets();
+                    let ecart = r.abs_diff(r2).max(g.abs_diff(g2)).max(b.abs_diff(b2));
+                    assert_eq!(ecart, 0, "({r},{g},{b}) → {place:?} → ({r2},{g2},{b2})");
+                }
             }
         }
     }
@@ -169,10 +167,9 @@ mod tests {
                 saturation: 1.0,
             }
             .couleur();
-            assert!(couleur
-                .srgb()
-                .iter()
-                .all(|v| (-1e-6..=1.0 + 1e-6).contains(v)));
+            assert!(couleur.srgb().iter().all(|v| (-crate::couleur::DEMI_NIVEAU
+                ..=1.0 + crate::couleur::DEMI_NIVEAU)
+                .contains(v)));
             assert!(
                 (Oklch::des_octets(couleur.octets()).l - 0.7).abs() < 0.01,
                 "teinte {teinte}"

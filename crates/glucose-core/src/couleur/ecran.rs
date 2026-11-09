@@ -8,6 +8,32 @@
 
 use super::{oklab, Oklch};
 
+/// **Un demi-niveau d'un canal à huit bits** : un canal à moins de lui de `0..=1` s'affiche au même
+/// octet — c'est ce que « sur l'écran » veut dire. La tolérance n'est pas choisie : un milliardième
+/// (le premier jet) faisait s'arrêter le bord trop tôt sur les bleus sombres, où la teinte constante
+/// longe la face « rouge nul » du cube et où le bruit des coefficients rend ce rouge négatif d'un
+/// millionième — `(0, 0, 85)` revenait de la roue en `(0, 9, 76)` (fiche 99).
+pub const DEMI_NIVEAU: f64 = 0.5 / 255.0;
+
+/// **La plus forte chroma de tout l'écran** : celle des six couleurs pures du cube — ses sommets
+/// saturés, où la chroma d'Oklab culmine (le magenta, ≈ 0,32). Aucune couleur de l'écran n'en a plus.
+fn chroma_de_l_ecran() -> f64 {
+    [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0],
+        [1.0, 1.0, 0.0],
+    ]
+    .map(|rgb| {
+        let [_, a, b] = oklab(rgb);
+        a.hypot(b)
+    })
+    .into_iter()
+    .fold(0.0, f64::max)
+}
+
 /// Une lumière ramenée au canal sRGB qui la représente (IEC 61966-2-1) : l'inverse de la
 /// linéarisation du module parent.
 fn gamma(c: f64) -> f64 {
@@ -49,19 +75,36 @@ impl Oklch {
     }
 
     /// **La plus grande chroma que l'écran sait montrer** à cette clarté et cette teinte : le bord
-    /// du gamut sRGB, trouvé par bissection — la chroma où un canal quitte `0..=1`. Cinquante pas
-    /// la fixent bien au-delà du huit bits ; zéro pour le noir et le blanc.
+    /// **extérieur** du gamut sRGB — la plus forte chroma dont aucun canal ne quitte `0..=1` de plus
+    /// d'un [`DEMI_NIVEAU`] ; zéro pour le noir et le blanc.
+    ///
+    /// # Le gamut n'est pas convexe dans Oklab
+    ///
+    /// Il l'est en RVB linéaire (un cube), pas après les racines cubiques d'Oklab : une droite de
+    /// teinte peut en sortir puis y rentrer. Vers `(0, 0, 153)`, le rouge descend à −0,0029 — trois
+    /// quarts de niveau — avant de revenir à zéro au bout, là où est la couleur. Une bissection depuis
+    /// le gris s'arrêtait à la première sortie, et la roue rendait `(0, 21, 141)` (fiche 99). On
+    /// cherche donc depuis le dehors : de la plus forte chroma de tout l'écran, on descend par pas
+    /// d'un dixième de la [`DIFFERENCE_A_PEINE_VISIBLE`] — une gorge plus étroite ne change rien à
+    /// ce que l'œil voit —, puis cinquante pas de bissection fixent le bord au-delà du huit bits.
     pub fn chroma_maximale(l: f64, h: f64) -> f64 {
         let sur_l_ecran = |c: f64| {
             Oklch { l, c, h }
                 .srgb()
                 .iter()
-                .all(|v| (-1e-9..=1.0 + 1e-9).contains(v))
+                .all(|v| (-DEMI_NIVEAU..=1.0 + DEMI_NIVEAU).contains(v))
         };
-        let (mut dedans, mut dehors) = (0.0, 0.5);
         if !sur_l_ecran(0.0) {
             return 0.0;
         }
+        let pas = super::DIFFERENCE_A_PEINE_VISIBLE / 10.0;
+        let mut dehors = chroma_de_l_ecran() + pas;
+        let mut dedans = dehors - pas;
+        while dedans > 0.0 && !sur_l_ecran(dedans) {
+            dehors = dedans;
+            dedans -= pas;
+        }
+        dedans = dedans.max(0.0);
         for _ in 0..50 {
             let milieu = (dedans + dehors) / 2.0;
             if sur_l_ecran(milieu) {
@@ -122,7 +165,7 @@ mod tests {
     }
 
     /// **Le bord du gamut est un bord** : à la chroma maximale, la couleur est sur l'écran ; un
-    /// millième au-delà, elle en sort — pour des clartés et des teintes tirées sur tout le cercle.
+    /// centième au-delà, elle en sort — pour des clartés et des teintes tirées sur tout le cercle.
     #[test]
     fn ecran_1_la_chroma_maximale_est_le_bord_de_l_ecran() {
         for i in 1..20 {
@@ -132,12 +175,16 @@ mod tests {
                 let c = Oklch::chroma_maximale(l, h);
                 let dedans = Oklch { l, c, h }.srgb();
                 assert!(
-                    dedans.iter().all(|v| (-1e-6..=1.0 + 1e-6).contains(v)),
+                    dedans
+                        .iter()
+                        .all(|v| (-DEMI_NIVEAU..=1.0 + DEMI_NIVEAU).contains(v)),
                     "L {l} h {h} c {c}"
                 );
-                let dehors = Oklch { l, c: c + 1e-3, h }.srgb();
+                let dehors = Oklch { l, c: c + 1e-2, h }.srgb();
                 assert!(
-                    dehors.iter().any(|v| !(0.0..=1.0).contains(v)),
+                    dehors
+                        .iter()
+                        .any(|v| !(-DEMI_NIVEAU..=1.0 + DEMI_NIVEAU).contains(v)),
                     "L {l} h {h} : {c} n'est pas le bord"
                 );
             }

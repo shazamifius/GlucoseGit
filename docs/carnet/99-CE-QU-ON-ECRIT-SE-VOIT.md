@@ -255,10 +255,21 @@ membrane reste choisie, la case de la roue s'allume.
 était donc vrai avant la roue. Le journal est vidé après le décor ; et les épreuves passent par les
 vrais chemins (le curseur, le bouton, la molette, la touche), pour qu'un branchement oublié tombe.
 
-**Reste, dit** : le champ hexadécimal ne se tape pas encore (il s'affiche) ; la pipette (prendre la
-couleur d'un nœud ou d'une photo — la couleur d'une image est déjà le sommet de sa pyramide,
-MOYENNE-1) ; les autres formes de Blender (les carrés) n'ont pas été reprises — le disque Oklch les
-rend inutiles, à juger à son écran.
+**Le code et la pipette** (`interactions/roue/code.rs`, faits ensuite) : un clic sur le champ
+`#rrggbb` l'ouvre, vide — la frappe remplace ; seuls des chiffres hexadécimaux s'écrivent ; dès que
+le texte dit une couleur, elle se pose **exactement**, sans l'arrondi de la roue ; `Entrée` ou
+`Échap` referment le champ, la roue restant ouverte. **La pipette**, armée, prend au clic suivant
+**la couleur que porte le nœud visé** — un texte, un post-it, une membrane, un dossier, la couleur
+moyenne d'une photo (le sommet de sa pyramide, MOYENNE-1) ; un nœud sans couleur choisie n'en donne
+pas (sa lueur symbiotique ne dit rien). Elle lit le document, pas l'écran : la couleur prise est
+celle que le nœud porte, pas un pixel que voiles et lueurs ont mêlé. **Regardé** (`run10/`) :
+« #ff8800 » tapé colore la membrane en direct ; la pipette prend son orange pour le papier d'un
+post-it. Une épreuve qui ne trouvait rien sous la pipette m'a rappelé que **l'index des nœuds se
+construit en dessinant** : le décor d'une épreuve qui clique sur le canevas dessine d'abord une
+image.
+
+**Reste, dit** : les autres formes de Blender (les carrés) n'ont pas été reprises — le disque Oklch
+les rend inutiles, à juger à son écran.
 
 ## 9. Ce qui n'a pas été fait, et pourquoi
 

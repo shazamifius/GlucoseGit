@@ -32,7 +32,9 @@ pub struct RoueOuverte {
     pub avant: Option<(u8, u8, u8)>,
     /// La couleur que la roue pose (`None` après `Retour arrière`), ou rien encore.
     pub apres: Option<(u8, u8, u8)>,
+    /// Le disque dessiné, et la clarté où il l'a été (voir [`GlucoseApp::poser_la_place`]).
     pub disque: tiny_skia::Pixmap,
+    clarte_du_disque: f64,
     /// Le code `#rrggbb` qu'on tape, quand son champ est ouvert ([`code`]).
     pub code: Option<crate::interactions::text_entry::TextEntry>,
     /// La pipette est armée : le prochain clic sur le canevas prend la couleur d'un nœud.
@@ -54,16 +56,9 @@ enum Glisse {
     },
 }
 
-/// **Le disque à cette clarté**, prêt à poser : les pixels du noyau, prémultipliés.
+/// Le grand disque à cette clarté, à la taille de l'écran.
 fn disque(clarte: f64, scale: f32) -> tiny_skia::Pixmap {
-    let d = crate::ui::roue::diametre(scale).max(1);
-    let mut octets = Vec::with_capacity((d * d * 4) as usize);
-    for [r, g, b, a] in glucose_core::couleur::roue::pixels_du_disque(clarte, d) {
-        let pre = |c: u8| ((u16::from(c) * u16::from(a) + 127) / 255) as u8;
-        octets.extend([pre(r), pre(g), pre(b), a]);
-    }
-    let taille = tiny_skia::IntSize::from_wh(d, d).expect("un disque d'au moins un pixel");
-    tiny_skia::Pixmap::from_vec(octets, taille).expect("autant d'octets que de pixels")
+    crate::ui::roue::disque(clarte, crate::ui::roue::diametre(scale))
 }
 
 impl GlucoseApp {
@@ -83,6 +78,7 @@ impl GlucoseApp {
             avant,
             apres: avant,
             disque: disque(place.clarte, self.ui.scale_factor),
+            clarte_du_disque: place.clarte,
             code: None,
             pipette: false,
             glisse: None,
@@ -256,19 +252,18 @@ impl GlucoseApp {
     /// **La place devient la couleur de ce qui est choisi** — en repartant des couleurs d'avant
     /// la roue : un seul geste, une écriture par nœud.
     fn poser_la_place(&mut self, place: PlaceDansLaRoue) {
-        self.poser_place_et_couleur(place, place.couleur().octets());
-    }
-
-    /// La roue montre `place`, et ce qui est choisi prend `octets` — **exactement** : un code
-    /// tapé ou une couleur prise à la pipette ne passe pas par l'arrondi de la roue.
-    fn poser_place_et_couleur(&mut self, place: PlaceDansLaRoue, octets: (u8, u8, u8)) {
         let scale = self.ui.scale_factor;
         let Some(roue) = self.ui.roue.as_mut() else {
             return;
         };
-        if (place.clarte - roue.place.clarte).abs() > f64::EPSILON {
+        // Le disque se redessine quand la clarté s'en écarte d'une demi-différence à peine visible :
+        // en deçà, le disque d'avant ne se distingue pas du vrai, et l'anneau et l'aperçu montrent la
+        // couleur exacte. Glisser le curseur ne refait donc pas 8 ms de disque à chaque pixel.
+        if (place.clarte - roue.clarte_du_disque).abs() >= DIFFERENCE_A_PEINE_VISIBLE / 2.0 {
             roue.disque = disque(place.clarte, scale);
+            roue.clarte_du_disque = place.clarte;
         }
+        let octets = place.couleur().octets();
         roue.place = place;
         roue.apres = Some(octets);
         self.store.cancel_live_edit();

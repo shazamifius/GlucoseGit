@@ -122,12 +122,12 @@ impl GlucoseApp {
     }
 
     /// Une couleur dite autrement que par le disque — le code, la pipette — devient la place de la
-    /// roue, et se pose.
+    /// roue, et se pose : l'aller-retour par la roue est exact (l'épreuve de la grille du noyau).
     fn poser_la_couleur(&mut self, octets: (u8, u8, u8)) {
         let Some(teinte) = self.ui.roue.as_ref().map(|r| r.place.teinte) else {
             return;
         };
         let place = PlaceDansLaRoue::de(Oklch::des_octets(octets), teinte);
-        self.poser_place_et_couleur(place, octets);
+        self.poser_la_place(place);
     }
 }
