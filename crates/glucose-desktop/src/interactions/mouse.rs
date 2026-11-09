@@ -271,6 +271,7 @@ impl GlucoseApp {
     /// L'interface : ce que le mode référence retire, et dont les clics partent avec elle.
     fn click_l_interface(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         self.click_breadcrumb(pointer, screen)
+            || self.click_barre_de_couleur(pointer, screen)
             || self.click_options_de_fleche(pointer, screen)
             || self.click_action_bar(pointer, screen)
             || self.click_chrome(pointer, screen)

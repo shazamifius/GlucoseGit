@@ -12,6 +12,7 @@ pub mod champ;
 pub mod chrome;
 pub mod clipboard;
 pub mod colonnes;
+pub mod couleurs;
 pub mod cursor;
 pub mod depot_web;
 pub mod domains;

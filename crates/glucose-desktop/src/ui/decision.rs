@@ -35,7 +35,8 @@ impl UiState {
     }
 }
 
-/// La barre d'action et les options de flèche — ce que la fenêtre des ancres recouvre.
+/// La barre d'action, les options de flèche et la barre de couleur — ce que la fenêtre des
+/// ancres recouvre.
 pub fn poser_les_barres(
     pixmap: &mut PixmapMut,
     store: &Store,
@@ -59,6 +60,13 @@ pub fn poser_les_barres(
     // juste après (`poser_la_fenetre_d_ancrage`).
     if ui.ancrage.is_none() {
         options_de_fleche::draw_options_de_fleche(
+            pixmap,
+            store,
+            typo,
+            theme,
+            (visible, ui.scale_factor),
+        );
+        super::couleurs::draw_barre_de_couleur(
             pixmap,
             store,
             typo,

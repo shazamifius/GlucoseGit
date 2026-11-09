@@ -1,0 +1,65 @@
+[
+ {
+  "nom": "COULEUR-1 un post-it colore son encre au lieu de son papier",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "            self.update_annotation(board_id, id, |ann| match ann {\n                Annotation::Sticky { bg_color: c, .. }",
+  "apres": "            self.update_annotation(board_id, id, |ann| match ann {\n                Annotation::Sticky { color: c, .. }",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 un operateur se colore",
+  "fichier": "crates/glucose-core/src/types/annotation.rs",
+  "avant": "            Self::Sticky { operator, .. } => operator.is_none(),",
+  "apres": "            Self::Sticky { .. } => true,",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 la teinte commune ne s'allume pas",
+  "fichier": "crates/glucose-desktop/src/ui/couleurs.rs",
+  "avant": "            allume: commune == Some(Some(hex)),",
+  "apres": "            allume: false,",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 la barre se pose sous les autres",
+  "fichier": "crates/glucose-desktop/src/ui/couleurs.rs",
+  "avant": "        dessous - AU_DESSUS * s - hauteur,",
+  "apres": "        dessous + AU_DESSUS * s,",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 la barre ignore la barre des fleches",
+  "fichier": "crates/glucose-desktop/src/ui/couleurs.rs",
+  "avant": "        super::options_de_fleche::layout_options_de_fleche(store, typography, screen, scale)\n            .map(|b| b.rect.1)",
+  "apres": "        super::options_de_fleche::layout_options_de_fleche(store, typography, screen, scale)\n            .and(None::<f32>)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 la souris n'atteint pas la barre",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "            || self.click_barre_de_couleur(pointer, screen)\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 un clic entre deux cases passe au canevas",
+  "fichier": "crates/glucose-desktop/src/interactions/couleurs.rs",
+  "avant": "        if !couvre(&barre, pointer.x, pointer.y) {",
+  "apres": "        if teinte_sous(&barre, pointer.x, pointer.y).is_none() || !couvre(&barre, pointer.x, pointer.y) {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 chaque noeud est un geste a lui",
+  "fichier": "crates/glucose-desktop/src/interactions/couleurs.rs",
+  "avant": "        self.store.begin_live_edit();\n        self.store.colorer(&board, &ids, couleur);\n        self.store.end_live_edit();",
+  "apres": "        for id in &ids {\n            self.store.begin_live_edit();\n            self.store.colorer(&board, std::slice::from_ref(id), couleur);\n            self.store.end_live_edit();\n        }",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ },
+ {
+  "nom": "COULEUR-1 la commande ne colore rien",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "            Commande::Couleur(rang) => return self.colorer_la_selection(rang),",
+  "apres": "            Commande::Couleur(_) => return true,",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "couleur_1"]
+ }
+]

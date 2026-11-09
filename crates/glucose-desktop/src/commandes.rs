@@ -11,6 +11,7 @@
 //! (`assets/raccourcis/glucose.txt`) : exactement ceux du code d'avant la fiche 72, lus dans leur
 //! table au lieu d'être écrits dans cinq `match`. Rien n'a changé à l'écran.
 
+use crate::ui::couleurs::NOMS;
 use crate::ui::ActiveTool;
 use glucose_core::raccourcis::{Clavier, Couche, ErreurDeLigne};
 use glucose_core::types::StickyOperator;
@@ -99,6 +100,8 @@ pub enum Commande {
     Relation(Option<u8>),
     // Les post-it : un opérateur (ET, OU, MAIS, PARCE QUE), ou aucun (OPERATEUR-1, fiche 98).
     Operateur(Option<StickyOperator>),
+    // La couleur de ce qui est choisi : une teinte du nuancier, ou par défaut (COULEUR-1).
+    Couleur(Option<u8>),
     // Ce que le menu porte aussi (ACCES-1) : chaque action du menu qui ne dépend pas d'un
     // onglet est une commande — la palette les porte toutes.
     EnregistrerLImage,
@@ -301,6 +304,8 @@ impl Commande {
         v.extend((1..=6).map(|r| Commande::Relation(Some(r))));
         v.push(Commande::Relation(None));
         v.extend(OPERATEURS.map(Commande::Operateur));
+        v.extend((0..NOMS.len() as u8).map(|r| Commande::Couleur(Some(r))));
+        v.push(Commande::Couleur(None));
         v
     }
 
@@ -319,6 +324,8 @@ impl Commande {
             Commande::Operateur(o) => {
                 format!("operateur.{}", o.map_or("aucun", StickyOperator::id))
             }
+            Commande::Couleur(Some(r)) => format!("couleur.{}", nom_de_teinte(r).0),
+            Commande::Couleur(None) => "couleur.par-defaut".to_string(),
             simple => Self::simple(simple).1.to_string(),
         }
     }
@@ -343,6 +350,8 @@ impl Commande {
             Commande::Relation(None) => "Flèches : sans relation".to_string(),
             Commande::Operateur(None) => "Post-it : sans opérateur".to_string(),
             Commande::Operateur(Some(o)) => format!("Post-it : opérateur {}", o.label()),
+            Commande::Couleur(Some(r)) => format!("Couleur : {}", nom_de_teinte(r).1),
+            Commande::Couleur(None) => "Couleur par défaut".to_string(),
             simple => Self::simple(simple).2.to_string(),
         }
     }
@@ -377,6 +386,11 @@ impl Commande {
             .find(|(t, _, _)| *t == o)
             .unwrap_or((o, "", ""))
     }
+}
+
+/// Le nom d'une teinte du nuancier : son identifiant, ce que la palette en dit.
+fn nom_de_teinte(rang: u8) -> (&'static str, &'static str) {
+    NOMS.get(usize::from(rang)).copied().unwrap_or(("", ""))
 }
 
 /// **Les raccourcis de Glucose**, la couche de base.

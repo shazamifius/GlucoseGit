@@ -336,6 +336,17 @@ impl Annotation {
     /// seule réponse à « qu'y a-t-il d'écrit ici », et elle vit sur le type plutôt que dans
     /// chaque appelant — le dessin, la copie et l'export posaient tous la même question, et
     /// chacun y répondait dans son coin.
+    /// **Ce nœud a-t-il une couleur à lui ?** (COULEUR-1, fiche 98) Un texte, un post-it, une
+    /// membrane ; pas une flèche, dont la couleur dit sa relation, ni un opérateur, dont la
+    /// pilule a la couleur de son mot — les colorer ne montrerait rien.
+    pub fn se_colore(&self) -> bool {
+        match self {
+            Self::Text { .. } | Self::Membrane { .. } => true,
+            Self::Sticky { operator, .. } => operator.is_none(),
+            Self::Arrow { .. } => false,
+        }
+    }
+
     pub fn own_text(&self) -> Option<String> {
         match self {
             Self::Text { text, .. } | Self::Sticky { text, .. } => Some(text.clone()),

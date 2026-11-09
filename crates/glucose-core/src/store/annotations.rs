@@ -228,6 +228,36 @@ impl Store {
         changes
     }
 
+    /// **COULEUR-1 — colorer chaque nœud nommé** (fiche 98), ou lui rendre sa couleur par
+    /// défaut (`None`). Ce que « sa couleur » veut dire dépend de la sorte, et seul le noyau le
+    /// sait : le papier d'un post-it (Glucose Tauri changeait son fond, `bgColor`), la teinte
+    /// d'une membrane, la teinte d'un texte (qui l'emporte sur sa teinte symbiotique). Ce qui ne se
+    /// colore pas ([`Annotation::se_colore`]) est ignoré ; rend combien ont changé.
+    pub fn colorer(&mut self, board_id: &str, ids: &[String], couleur: Option<&str>) -> usize {
+        let voulue = couleur.map(str::to_string);
+        let mut changes = 0;
+        for id in ids {
+            let deja = |a: &Annotation| match a {
+                _ if !a.se_colore() => true,
+                Annotation::Sticky { bg_color: c, .. }
+                | Annotation::Membrane { color: c, .. }
+                | Annotation::Text { color: c, .. } => *c == voulue,
+                Annotation::Arrow { .. } => true,
+            };
+            if self.project.annotation(board_id, id).is_none_or(deja) {
+                continue;
+            }
+            self.update_annotation(board_id, id, |ann| match ann {
+                Annotation::Sticky { bg_color: c, .. }
+                | Annotation::Membrane { color: c, .. }
+                | Annotation::Text { color: c, .. } => c.clone_from(&voulue),
+                Annotation::Arrow { .. } => {}
+            });
+            changes += 1;
+        }
+        changes
+    }
+
     pub fn add_annotation(&mut self, board_id: &str, ann: Annotation) {
         let id = ann.id().to_string();
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {

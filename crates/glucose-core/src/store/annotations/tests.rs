@@ -120,3 +120,50 @@ fn test_operateur_1_un_post_it_devient_un_operateur_et_se_defait() {
     };
     assert_eq!(*operator, None, "Alt+0 : le papier revient");
 }
+
+/// **COULEUR-1 — colorer touche la couleur de chaque sorte, ignore les flèches, se défait d'un
+/// geste, et `None` rend la couleur par défaut** (fiche 98).
+#[test]
+fn test_couleur_1_colorer_chaque_sorte_et_se_defait() {
+    let (mut store, board, mut ids) = tableau();
+    store.add_annotation(&board, Annotation::text("t", 0.0, 300.0, "un texte"));
+    store.add_annotation(&board, Annotation::membrane("m", 0.0, 600.0, 300.0, 200.0));
+    store.add_annotation(&board, Annotation::sticky("o", 0.0, 900.0, "car"));
+    store.poser_l_operateur(&board, &["o".to_string()], Some(StickyOperator::But));
+    ids.extend(["t".to_string(), "m".to_string(), "o".to_string()]);
+    let avant = store.project.clone();
+
+    store.begin_live_edit();
+    assert_eq!(
+        store.colorer(&board, &ids, Some("#f472b6")),
+        3,
+        "sans les flèches ni l'opérateur, dont la couleur dit le sens"
+    );
+    store.end_live_edit();
+    let rose = Some("#f472b6".to_string());
+    match fleche(&store, "c") {
+        Annotation::Sticky {
+            bg_color, color, ..
+        } => {
+            assert_eq!(*bg_color, rose, "le papier d'un post-it");
+            assert_eq!(*color, None, "son encre ne change pas");
+        }
+        _ => panic!("un post-it"),
+    }
+    assert!(matches!(fleche(&store, "t"), Annotation::Text { color, .. } if *color == rose));
+    assert!(matches!(fleche(&store, "m"), Annotation::Membrane { color, .. } if *color == rose));
+    assert!(matches!(
+        fleche(&store, "f1"),
+        Annotation::Arrow { color: None, .. }
+    ));
+    assert_eq!(store.colorer(&board, &ids, Some("#f472b6")), 0, "déjà rose");
+    assert!(store.undo(), "un seul geste");
+    assert_eq!(store.project, avant);
+
+    store.colorer(&board, &ids, Some("#60a5fa"));
+    store.colorer(&board, &ids, None);
+    assert_eq!(
+        store.project, avant,
+        "par défaut : la couleur d'avant toute couleur"
+    );
+}

@@ -16,6 +16,7 @@ pub mod breadcrumb;
 pub mod cadre;
 pub mod chrome;
 pub mod context_menu;
+pub mod couleurs;
 pub mod decision;
 pub mod minimap;
 pub mod onglets;

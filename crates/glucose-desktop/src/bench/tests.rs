@@ -350,7 +350,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis, le 8/11** (TITRE-1, fiche 95) : le titre de la membrane témoin (420 × 300, plus grande
 /// qu'une neuve) grandit de 28 % ; 473 pixels, tous dans sa bande (795-982 × 94-115) ; le contour
 /// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
-const EMPREINTE_TEMOIN_SELECTION: &str = "38bb32100a0720f4";
+/// **Puis, le 9/11** (COULEUR-1, fiche 98) : la sélection porte des textes, une membrane — la
+/// barre de couleur se pose au-dessus de celle des flèches. 15 450 pixels, tous dans sa bande
+/// (701-1098 × 758-796), rien ailleurs ; regardée avant/après, agrandie deux fois.
+const EMPREINTE_TEMOIN_SELECTION: &str = "aa0e9a2015f4d5d3";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -429,7 +432,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 8/11** (TITRE-1, fiche 95) : le titre de la membrane témoin (420 × 300, plus grande
 /// qu'une neuve) grandit de 28 % ; 473 pixels, tous dans sa bande (795-982 × 94-115) ; le contour
 /// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
-const EMPREINTE_TEMOIN_MENU: &str = "65d52fbff59521a2";
+/// **Puis, le 9/11** (COULEUR-1, fiche 98) : les mêmes 15 450 pixels que la scène sélectionnée —
+/// la barre de couleur, sous le menu ; regardée.
+const EMPREINTE_TEMOIN_MENU: &str = "1981762eae36a64a";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

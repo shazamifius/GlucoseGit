@@ -96,6 +96,13 @@ impl Store {
         self.annotations_choisies(|a| matches!(a, crate::types::Annotation::Sticky { .. }))
     }
 
+    /// **Les nœuds choisis qui portent une couleur** (COULEUR-1, fiche 98) : textes, post-it,
+    /// membranes. Une flèche a la sienne par sa relation (PRED-1), un opérateur par son mot
+    /// (OPERATEUR-1), une photo la porte en elle.
+    pub fn selected_colorables(&self) -> Vec<&crate::types::Annotation> {
+        self.annotations_choisies(crate::types::Annotation::se_colore)
+    }
+
     /// Les annotations choisies de cette sorte, dans l'ordre du document.
     fn annotations_choisies(
         &self,
