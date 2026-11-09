@@ -118,6 +118,20 @@ impl Store {
         couleurs
     }
 
+    /// **La couleur que porte ce nœud du tableau actif** — un texte, un post-it, une membrane, un
+    /// dossier —, au sens de [`Self::couleurs_choisies`] : ce que la pipette de la roue prend
+    /// (ROUE-1, fiche 99). `None` sans couleur choisie — un dossier à sa couleur de naissance n'en
+    /// porte pas — ; une photo n'en porte pas dans le document : sa couleur est celle de ses pixels,
+    /// que le moteur seul lit.
+    pub fn couleur_du_noeud(&self, id: &str) -> Option<&str> {
+        let board = self.active_board()?;
+        if let Some(a) = board.annotations.iter().find(|a| a.id() == id) {
+            return a.couleur_propre();
+        }
+        let f = board.folders.iter().find(|f| f.id == id)?;
+        (f.color != crate::types::COULEUR_DE_NAISSANCE).then_some(f.color.as_str())
+    }
+
     /// Le dossier choisi, s'il est sur le tableau actif.
     fn dossier_choisi(&self) -> Option<&crate::types::CanvasFolder> {
         let id = self.selected_folder_id.as_deref()?;

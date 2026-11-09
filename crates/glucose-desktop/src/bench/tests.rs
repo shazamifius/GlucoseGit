@@ -356,7 +356,9 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis, le 9/11 au soir** (ROUE-1, fiche 99) : la barre de couleur gagne la case de la roue — un
 /// petit disque arc-en-ciel après « Par défaut » —, s'élargit et se recentre. 6 900 pixels, tous
 /// dans sa bande (687-1112 × 758-796), rien ailleurs ; regardée avant/après, agrandie deux fois.
-const EMPREINTE_TEMOIN_SELECTION: &str = "a879d34b48621cfb";
+/// **Puis** (fiche 99 § 8 bis, le bord extérieur du gamut) : le petit disque de la roue, juste au bord
+/// de ses bleus — 80 pixels, tous dans sa case (1083-1098 × 769-785) ; regardé, agrandi dix fois.
+const EMPREINTE_TEMOIN_SELECTION: &str = "60cb45a4e396a188";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -442,7 +444,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// menu (639-887 × 319-606) ; regardé avant/après, agrandi.
 /// **Puis, le 9/11 au soir** (ROUE-1, fiche 99) : les mêmes 6 900 pixels que la scène sélectionnée —
 /// la barre de couleur et la case de la roue, sous le menu ; regardée.
-const EMPREINTE_TEMOIN_MENU: &str = "85c0085dfbfd4613";
+/// **Puis** (fiche 99 § 8 bis) : les mêmes 80 pixels du petit disque ; regardés.
+const EMPREINTE_TEMOIN_MENU: &str = "faae2ffa57667634";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

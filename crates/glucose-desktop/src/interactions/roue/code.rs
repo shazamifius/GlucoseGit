@@ -102,21 +102,10 @@ impl GlucoseApp {
                     _ => None,
                 }
             }
-            PickOwner::Annotation | PickOwner::Membrane => self
+            PickOwner::Annotation | PickOwner::Membrane | PickOwner::Folder => self
                 .store
-                .project
-                .annotation(&tableau, &dessus.id)?
-                .couleur_propre()
+                .couleur_du_noeud(&dessus.id)
                 .and_then(crate::renderer::parse_hex_rgb),
-            PickOwner::Folder => {
-                let dossier = self
-                    .store
-                    .active_board()?
-                    .folders
-                    .iter()
-                    .find(|f| f.id == dessus.id)?;
-                crate::renderer::parse_hex_rgb(&dossier.color)
-            }
             PickOwner::Arrow | PickOwner::Groupe => None,
         }
     }

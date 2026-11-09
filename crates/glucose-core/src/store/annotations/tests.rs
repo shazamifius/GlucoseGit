@@ -197,3 +197,31 @@ fn test_couleur_1_le_dossier_choisi_se_colore_avec_la_selection() {
         .map(|f| f.color.clone());
     assert_eq!(couleur.as_deref(), Some(COULEUR_DE_NAISSANCE));
 }
+
+/// **ROUE-1 — la couleur que porte un nœud, pour la pipette** (fiche 99) : celle qu'on a choisie
+/// pour un post-it ou un dossier ; rien pour un dossier à sa couleur de naissance, ni pour un nœud
+/// qu'on n'a pas coloré, ni pour un nœud inconnu.
+#[test]
+fn roue_1_la_couleur_que_porte_un_noeud() {
+    use crate::types::CanvasFolder;
+    let (mut store, board, _) = tableau();
+    let mut dossier = CanvasFolder::new("d", "Dossier", "");
+    dossier.x = 5000.0;
+    store.create_folder(&board, dossier);
+    assert_eq!(
+        store.couleur_du_noeud("d"),
+        None,
+        "à sa couleur de naissance"
+    );
+    assert_eq!(
+        store.couleur_du_noeud("c"),
+        None,
+        "un post-it sans couleur choisie"
+    );
+    store.select_folder("d".into());
+    store.set_selected_annotation_ids(vec!["c".into()]);
+    store.colorer_la_selection(Some("#34d399"));
+    assert_eq!(store.couleur_du_noeud("d"), Some("#34d399"));
+    assert_eq!(store.couleur_du_noeud("c"), Some("#34d399"));
+    assert_eq!(store.couleur_du_noeud("inconnu"), None);
+}

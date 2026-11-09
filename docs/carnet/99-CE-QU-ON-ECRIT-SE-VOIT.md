@@ -268,6 +268,36 @@ post-it. Une épreuve qui ne trouvait rien sous la pipette m'a rappelé que **l'
 construit en dessinant** : le décor d'une épreuve qui clique sur le canevas dessine d'abord une
 image.
 
+### 8 bis. Un sabotage aveugle a trouvé un vrai défaut : le gamut n'est pas convexe dans Oklab
+
+Le code et la pipette passaient d'abord par un chemin « poser exactement » (sans l'arrondi de la
+roue). Son sabotage **passait** : l'épreuve tapait `#ff8800`, qui revient exact de la roue. Pour
+le rendre observable, j'ai cherché une couleur qui ne revient **pas** exacte — et trouvé
+`(0, 0, 85)` → `(0, 9, 76)` : neuf niveaux. Pas un arrondi : un défaut de la roue elle-même, sur
+tous les bleus sombres saturés, que l'épreuve d'aller-retour (cinq couleurs choisies, « à un niveau
+près ») ne voyait pas.
+
+**La mesure, pas l'hypothèse** : j'ai d'abord cru au bruit des coefficients (dix chiffres) et posé
+une tolérance d'un demi-niveau — `(0, 0, 153)` revenait encore en `(0, 21, 141)`. Les trois canaux
+tracés le long de la droite de teinte ont dit la vraie cause : vers ce bleu, **le rouge sort du cube
+(jusqu'à −0,0029, trois quarts de niveau) puis y rentre** au bout, là où est la couleur. Le gamut de
+l'écran est convexe en RVB linéaire, pas après les racines cubiques d'Oklab : une droite de teinte
+peut en sortir et y rentrer. La bissection depuis le gris s'arrêtait à la première sortie.
+
+**La réparation** (`Oklch::chroma_maximale`) : chercher **le bord extérieur, depuis le dehors** — de
+la plus forte chroma de tout l'écran (le magenta, 0,3225 ; vérifié sur toute la surface du cube, pas
+supposé), par pas d'un dixième de la différence à peine visible (une gorge plus étroite ne change rien
+à ce que l'œil voit), puis cinquante pas de bissection ; « sur l'écran » veut dire **à moins d'un
+demi-niveau** d'un canal à huit bits (ce qui s'affiche au même octet), pas à un milliardième.
+L'aller-retour par la roue est désormais **exact** — sur une grille de 4 096 couleurs (l'épreuve
+l'exige au bit près) et sur 636 000 couleurs (vérifié une fois). Le chemin « poser exactement » ne
+protégeait donc plus de rien : il disparaît, et son sabotage aveugle avec lui.
+
+**Le prix, et sa réponse** : chercher depuis le dehors coûte plus — le grand disque passait de ~2 à
+8 ms. Il ne se redessine plus qu'au-delà d'une **demi-différence visible** de clarté (en deçà, le disque
+d'avant ne se distingue pas du vrai, et l'anneau et l'aperçu montrent la couleur exacte) ; le petit
+disque de la barre, qui se refaisait à chaque image de l'interface, est gardé une fois par taille.
+
 **Reste, dit** : les autres formes de Blender (les carrés) n'ont pas été reprises — le disque Oklch
 les rend inutiles, à juger à son écran.
 
@@ -309,8 +339,9 @@ les rend inutiles, à juger à son écran.
   tombées au dernier passage — le compte des cases de la barre, deux empreintes témoins, le cliquet
   des 80 lignes — réparées et rejouées. `cargo fmt`, clippy et les cliquets à zéro.
 * **Sabotages** : SAISIE-1 et 2, 10 sur 10 (`saisie-1-99.json`) ; COULEUR-3, 7 sur 7
-  (`couleur-3-99.json`) ; RETOUR-1, 11 sur 11 (`retour-1-99.json`) ; ROUE-1, 15 sur 15 (`roue-1-99.json`).
-  **En tout : 43 sabotages, 43 tombés.**
+  (`couleur-3-99.json`) ; RETOUR-1, 11 sur 11 (`retour-1-99.json`) ; ROUE-1, 23 sur 23 (`roue-1-99.json`, le code, la pipette
+  et le bord extérieur compris ; un sabotage aveugle retiré avec sa garde, § 8 bis) ; COULEUR-3 rejoué
+  après le bord, 7 sur 7. **En tout : 51 sabotages, 51 tombés.**
 * **Le vrai programme, regardé** (`~/.cache/glucose-bancs/edition/run*/`) : la frappe dans un titre,
   `Ctrl+G` puis le nom, la couleur d'un texte, `F` puis `Alt+Z` et `Alt+Maj+Z`, le menu du vide, la
   roue ouverte, glissée, validée ; les images témoins comparées pixel à pixel avant de changer deux

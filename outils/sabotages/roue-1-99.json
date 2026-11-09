@@ -287,8 +287,8 @@
  {
   "nom": "ROUE-1 un noeud sans couleur en donne une",
   "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
-  "avant": "                .couleur_propre()\n                .and_then(crate::renderer::parse_hex_rgb),",
-  "apres": "                .couleur_propre()\n                .and_then(crate::renderer::parse_hex_rgb)\n                .or(Some((1, 2, 3))),",
+  "avant": "                .couleur_du_noeud(&dessus.id)\n                .and_then(crate::renderer::parse_hex_rgb),",
+  "apres": "                .couleur_du_noeud(&dessus.id)\n                .and_then(crate::renderer::parse_hex_rgb)\n                .or(Some((1, 2, 3))),",
   "cmd": [
    "cargo",
    "test",
@@ -334,6 +334,21 @@
   "fichier": "crates/glucose-core/src/couleur/ecran.rs",
   "avant": "                .all(|v| (-DEMI_NIVEAU..=1.0 + DEMI_NIVEAU).contains(v))\n        };",
   "apres": "                .all(|v| (-1e-9..=1.0 + 1e-9).contains(v))\n        };",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 un dossier de naissance donne sa couleur",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "        (f.color != crate::types::COULEUR_DE_NAISSANCE).then_some(f.color.as_str())",
+  "apres": "        Some(f.color.as_str())",
   "cmd": [
    "cargo",
    "test",
