@@ -208,6 +208,10 @@
 | **Comparer à une vieille version optimisée** : le programme du 7/11 n'avait pas les fiches 89 à 94, et la différence pouvait venir d'ailleurs (fiche 95) | construire `main` sans ses changements (`git stash -u`, une compilation, `git stash pop`), et comparer en paires entrelacées |
 | **Un geste changé sur le papier pour une plateforme** : créer un domaine seulement une fois nommé fermait la création au téléphone, où le nom ne se tape pas (fiche 88) | relire, plateforme par plateforme, ce qu'un geste suppose (ici : un clavier) avant de le changer |
 
+| **Une épreuve qui passe sur des données qui n'exercent rien** : celle des coupes ne faisait jamais de coupe (une seule colonne), et son sabotage passait ; des hauteurs entières cachaient un arrondi (fiche 96) | une épreuve exige ce qu'elle exerce (« plusieurs colonnes dans chaque cas ») ; des flottants d'épreuve qui ne s'écrivent pas en binaire |
+| **Le profil à plat accuse le peintre** : `Membrane::alpha` montait, j'ai accusé le gris des lignes et réparé ailleurs — l'image ne bougeait pas ; le profil **avec les appelants** a nommé `fond_en`, lu pour chaque nœud dans chaque membrane (fiche 97) | `perf record --call-graph dwarf,16384 --user-callchains`, puis `perf report -G --symbol-filter=…` avant d'écrire la réparation |
+| **Des épreuves vertes et un arbre faux** : 2 900 épreuves, un script éprouvé contre un faux Glucose — la première image du vrai squelette montrait des sections dans le mauvais article (fiche 97, MEMB-8) | poser dans le vrai Glucose sans fenêtre (`essai_squelette.sh`), **regarder** les images et relire le plan, avant « fini » |
+
 ## 5. Les pièges pratiques
 
 ### La machine d'aujourd'hui (depuis le 6/11/2026, fiche 84)
