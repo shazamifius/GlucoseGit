@@ -47,6 +47,9 @@ squelette :
 | avant | 295, 293 | 21,8 %, 21,5 % |
 | après | 27, 26 | 2,4 %, 2,3 % |
 
+**Sur la voie processeur** (Vulkan et OpenGL écartés dans la maison d'essai, `moteurs.txt`) : 73 → 15
+images, un cœur 15,9 % → 3,6 % — aucune machine n'est laissée au réveil perpétuel.
+
 Il reste 18 images : le fondu du message d'accueil, qui **redessine toute la carte** à chaque pas
 (17 ms de membranes pour un message qui change). Défaut ancien, hors de ce chantier, sans gêne
 d'usage : noté (§ 7).
