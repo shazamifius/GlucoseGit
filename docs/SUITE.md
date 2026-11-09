@@ -92,7 +92,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [ ] | **Ses essais de la beta 6** (§ 2) : chaque défaut qu'il voit, corrigé — en premier, le texte de près | sa parole |
 | [~] | **Les boutons qui se taisent** : Trans-domaines dit « bientôt — en recherche » **depuis la fiche 71** (épreuve `test_the_trans_domain_button_says_it_is_coming` ; SUITE et INVENTAIRE l'ignoraient jusqu'au 25/10) ; la carte d'accueil ne naît plus choisie (ACCUEIL-1, fiche 81). Tous deux dans la beta 6 | à son écran |
 | [x] | **Le repos à zéro** — mesuré le 18/10 : 0,2 image par seconde sans la main, toutes pour le fondu du message de bienvenue | une chronique au repos sans image hors un message qui paraît |
-| [ ] | **REPOS-2 — sur une carte de Wikipédia, Glucose ne se pose jamais** (fiche 97 § 4 bis ; **sa parole du 9/11 : « yep », le prochain chantier**) : le squelette, « tout cadrer », 30 s sans la main — 99 % des images redessinées « parce que la netteté revient », 23 ms chacune, déjà vrai avant le 8/11. Hypothèse à mesurer : un cercle entre la résolution réduite et la finesse rendue à l'arrêt ; les titres s'y re-rastérisent | le banc hors écran sur le squelette : l'image d'avant suffit au repos |
+| [x] | **REPOS-2 — sur une carte de Wikipédia, Glucose se pose** (fiche 98 § 1 ; sa parole du 9/11 : « yep ») : pas un cercle — une convergence ruineuse, une teinte et une texture par image complète ; le cache des teintes paie ses dettes au repos, sans image, et une seule image les montre. Banc hors écran, paires entrelacées : 293 → 26 images en 30 s de repos, un cœur 21,5 % → 2,3 % ; 7 sabotages sur 7. **Reste** (ancien, sans gêne d'usage) : le fondu d'un message redessine toute la carte | — |
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
@@ -115,7 +115,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **Un squelette de Wikipédia** (fiches 94 § 4, 97) : les articles vitaux des niveaux 1 et 2 en membranes, « Eau » et « Hydrogène » dedans — **posé et regardé** (`outils/wikipedia/essai_squelette.sh`) ; MEMB-8 réparé en chemin. **Reste** : **les liens**, choisis par l'agent comme un cartographe — à lui demander, sur ce morceau | à son écran : le squelette ; sa parole sur le déséquilibre, B, C, D |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, les menus du clic droit, la bande, Ordonner, Mood board | la liste de ce qui manque, puis fait |
 | [ ] | **La couleur** : un sélecteur ; la couleur d'un post-it | à son écran |
-| [ ] | **Les opérateurs des post-it** (ET, OU, MAIS, PARCE QUE — `Alt+0…4`) : ils se dessinent déjà, aucun geste ne les pose | à son écran |
+| [~] | **Les opérateurs des post-it** (OPERATEUR-1, fiche 98 § 4) : ET, OU, MAIS, PARCE QUE par `Alt+1…4`, `Alt+0` pour le papier, comme Tauri ; la palette ; le menu d'un post-it (le seul chemin au téléphone) ; un `Ctrl+Z` ; un opérateur a la taille de son mot. Essai réel hors écran ; 7 sabotages sur 7 | à son écran : choisir deux post-it, `Alt+4`, clic droit, « Post-it ordinaire » |
 | [ ] | **Les miroirs** (un même nœud à deux endroits, `Ctrl+Maj+M` ; le noyau en partie) | à son écran |
 | [ ] | **La temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre (`Maj+T`, `Maj+R` ; le noyau écrit) | à son écran |
 | [ ] | **Les GIF animés et les vidéos** (un GIF se montre figé) | à son écran |

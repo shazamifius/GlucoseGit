@@ -135,6 +135,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 95 | [Le nom à la taille de la région](95-LE-NOM-A-LA-TAILLE-DE-LA-REGION.md) | **Revoir les membranes** : la recherche (régions d'un seul tenant, mémoire par régions, brouillard du désert, Bubble Sets), trois endroits où Glucose cachait selon la distance, cinq propositions en prose ; **TITRE-1**, chaque membrane consacre à son nom la même part de sa surface qu'une neuve, aucun titre ne se cache, l'encre d'une membrane ; **CHANTIER-2**, des redessins à vide depuis la fiche 86 ; **TITRE-2**, détourer en deux passes ; le coût d'un zoom qui reste |
 | 96 | [Le gris des lignes et le Focus choisi](96-LE-GRIS-DES-LIGNES-ET-LE-FOCUS-CHOISI.md) | **FOCUS-1**, on entre dans une membrane par un geste choisi ; **GRIS-1**, de loin le gris de chaque ligne, ornements compris, à la couverture exacte (0,1 niveau de la couleur de près) ; **GRIS-2**, neuf dessins ne se taisent plus de loin, la loi dans la typographie, le SVG garde ses lettres ; **COLONNES-2**, une colonne de trop née d'un arrondi, et une épreuve qui ne faisait jamais de coupe |
 | 97 | [Le squelette de Wikipédia, regardé](97-LE-SQUELETTE-DE-WIKIPEDIA-REGARDE.md) | Les cent articles vitaux, « Eau » et « Hydrogène » dans le vrai Glucose sans fenêtre (`essai_squelette.sh`) ; **la première image montrait un arbre faux** — **MEMB-8**, ce qu'un agent pose « dans » une membrane lui appartient ; reposé, regardé : une carte qui se lit, un déséquilibre, des vides, un seul bleu |
+| 98 | [Glucose se pose sur une carte de Wikipédia](98-LE-REPOS-SUR-UNE-CARTE-DE-WIKIPEDIA.md) | **REPOS-2** : pas un cercle, une convergence ruineuse (une teinte, une texture par image complète) — le cache des teintes paie ses dettes au repos sans image : 293 → 26 images, un cœur 21 % → 2 % ; **AGENT-8**, une mise à jour d'agent ne change que ce qu'elle nomme ; **B, C, D présentées**, D en image (Tree Colors : les neuf thèmes se reconnaissent, la roue s'épuise au deuxième niveau) ; **OPERATEUR-1**, ET OU MAIS PARCE QUE par `Alt+0…4`, la palette et le menu |
 
 ## Les décisions — **foi**
 
@@ -154,4 +155,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver ·
 [14](decisions/14-LE-PINCEMENT-WAYLAND-PAR-WAYLAND-CLIENT.md) le pincement sous Wayland, par `wayland-client`, déjà apporté par `winit`.
 
-La prochaine fiche porte le numéro **98**.
+La prochaine fiche porte le numéro **99**.
