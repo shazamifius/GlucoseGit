@@ -137,13 +137,14 @@ const OUTILS: [(ActiveTool, &str, &str); 7] = [
 ];
 
 /// Les commandes sans paramètre : leur identifiant et leur nom.
-/// Les opérateurs des post-it : la suite de leur identifiant, et leur mot (OPERATEUR-1).
-const OPERATEURS: [(Option<StickyOperator>, &str, &str); 5] = [
-    (Some(StickyOperator::And), "et", "ET"),
-    (Some(StickyOperator::Or), "ou", "OU"),
-    (Some(StickyOperator::But), "mais", "MAIS"),
-    (Some(StickyOperator::Because), "parce-que", "PARCE QUE"),
-    (None, "aucun", ""),
+/// Les opérateurs des post-it, et « aucun » (OPERATEUR-1, fiche 98) : leurs noms viennent du
+/// noyau (`StickyOperator::id`, `label`), un seul nom pour le clavier et pour une IA.
+const OPERATEURS: [Option<StickyOperator>; 5] = [
+    Some(StickyOperator::And),
+    Some(StickyOperator::Or),
+    Some(StickyOperator::But),
+    Some(StickyOperator::Because),
+    None,
 ];
 
 const SIMPLES: [(Commande, &str, &str); 44] = [
@@ -299,7 +300,7 @@ impl Commande {
         v.extend((1..=9).map(Commande::PoserLeSignet));
         v.extend((1..=6).map(|r| Commande::Relation(Some(r))));
         v.push(Commande::Relation(None));
-        v.extend(OPERATEURS.iter().map(|(o, _, _)| Commande::Operateur(*o)));
+        v.extend(OPERATEURS.map(Commande::Operateur));
         v
     }
 
@@ -315,7 +316,9 @@ impl Commande {
             Commande::PoserLeSignet(n) => format!("signet.poser.{n}"),
             Commande::Relation(Some(r)) => format!("relation.{r}"),
             Commande::Relation(None) => "relation.aucune".to_string(),
-            Commande::Operateur(o) => format!("operateur.{}", Self::operateur(o).1),
+            Commande::Operateur(o) => {
+                format!("operateur.{}", o.map_or("aucun", StickyOperator::id))
+            }
             simple => Self::simple(simple).1.to_string(),
         }
     }
@@ -339,7 +342,7 @@ impl Commande {
             Commande::Relation(Some(r)) => format!("Flèches : relation {r}"),
             Commande::Relation(None) => "Flèches : sans relation".to_string(),
             Commande::Operateur(None) => "Post-it : sans opérateur".to_string(),
-            Commande::Operateur(o) => format!("Post-it : opérateur {}", Self::operateur(o).2),
+            Commande::Operateur(Some(o)) => format!("Post-it : opérateur {}", o.label()),
             simple => Self::simple(simple).2.to_string(),
         }
     }
@@ -365,16 +368,6 @@ impl Commande {
             .copied()
             .find(|(s, _, _)| *s == c)
             .unwrap_or((c, "", ""))
-    }
-
-    fn operateur(
-        o: Option<StickyOperator>,
-    ) -> (Option<StickyOperator>, &'static str, &'static str) {
-        OPERATEURS
-            .iter()
-            .copied()
-            .find(|(t, _, _)| *t == o)
-            .unwrap_or((o, "", ""))
     }
 
     fn outil(o: ActiveTool) -> (ActiveTool, &'static str, &'static str) {

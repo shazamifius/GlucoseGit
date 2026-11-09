@@ -12,6 +12,7 @@ fn texte(id: &str, membrane: Option<&str>, t: &str) -> Decrit {
         source: None,
         cible: None,
         relation: None,
+        operateur: None,
         adresse: None,
         domaines: Vec::new(),
         herites: Vec::new(),

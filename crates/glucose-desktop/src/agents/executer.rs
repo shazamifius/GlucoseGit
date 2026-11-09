@@ -210,7 +210,9 @@ impl GlucoseApp {
             .nombre("largeur")
             .or(avant.map(|b| b.width))
             .unwrap_or(DEFAULT_TEXT_CARD_WIDTH);
-        let post_it = a.oui("post_it");
+        let operateur = partir::operateur_dit(a.texte("operateur"))?;
+        // Un opérateur est un post-it : le dire suffit.
+        let post_it = a.oui("post_it") || operateur.is_some_and(|o| o.is_some());
         let hauteur = text_card_fit_height(
             &self.renderer.typography,
             &self.renderer.math,
@@ -237,7 +239,7 @@ impl GlucoseApp {
                 let ann = partir::un_texte(s, board, neuf, boite, couleur.as_deref());
                 s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
-                Ok(boite)
+                partir::l_operateur(s, board, &id, operateur)
             })
             .map_err(|r| r.to_string())?;
         Ok(pose(&id, boite))
@@ -552,6 +554,7 @@ fn decrit_en_json(d: &Decrit, rendu: &Rendu) -> Json {
         ("source", d.source.as_deref()),
         ("cible", d.cible.as_deref()),
         ("relation", d.relation.map(|r| r.as_str())),
+        ("operateur", d.operateur.map(|o| o.id())),
         ("adresse", d.adresse.as_deref()),
     ];
     champs.extend(

@@ -1,0 +1,44 @@
+[
+ {
+  "nom": "OPERATEUR-2 la description d'un post-it tait son operateur",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "        Annotation::Sticky { operator, .. } => *operator,",
+  "apres": "        Annotation::Sticky { .. } => None,",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "operateur_2"]
+ },
+ {
+  "nom": "OPERATEUR-2 la lecture n'ecrit pas l'operateur",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        (\"operateur\", d.operateur.map(|o| o.id())),\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "operateur_2"]
+ },
+ {
+  "nom": "OPERATEUR-2 un operateur ne fait pas un post-it",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        let post_it = a.oui(\"post_it\") || operateur.is_some_and(|o| o.is_some());",
+  "apres": "        let post_it = a.oui(\"post_it\");",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "operateur_2"]
+ },
+ {
+  "nom": "OPERATEUR-2 l'operateur dit n'est pas pose",
+  "fichier": "crates/glucose-desktop/src/agents/executer/partir.rs",
+  "avant": "        s.poser_l_operateur(board, &[id.to_string()], voulu);",
+  "apres": "        let _ = voulu;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "operateur_2"]
+ },
+ {
+  "nom": "OPERATEUR-2 la boite rendue est celle du texte",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "                partir::l_operateur(s, board, &id, operateur)",
+  "apres": "                partir::l_operateur(s, board, &id, operateur).map(|_| boite)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "operateur_2"]
+ },
+ {
+  "nom": "OPERATEUR-2 un mot inconnu passe en silence",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "        let operateur = partir::operateur_dit(a.texte(\"operateur\"))?;",
+  "apres": "        let operateur = partir::operateur_dit(a.texte(\"operateur\")).unwrap_or(None);",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "operateur_2"]
+ }
+]

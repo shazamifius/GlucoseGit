@@ -12,8 +12,9 @@
 //! gardé sans que personne ait à y penser — l'inverse d'une liste de champs à recopier.
 
 use glucose_core::geometry::Rect;
+use glucose_core::store::agents::Refus;
 use glucose_core::store::Store;
-use glucose_core::types::Annotation;
+use glucose_core::types::{Annotation, StickyOperator};
 
 /// **Le nœud qu'une pose d'agent écrit** : celui qui porte déjà cet identifiant s'il est de la
 /// même sorte — l'appel n'y changera que ce qu'il nomme —, sinon le neuf. Un nœud d'une autre
@@ -99,4 +100,37 @@ pub(super) fn une_membrane(
         }
     }
     ann
+}
+
+/// **OPERATEUR-2 — ce que l'appel dit de l'opérateur** (fiche 98) : rien (`None`), aucun
+/// (`Some(None)`), ou l'un des quatre, par l'identifiant du clavier (`et`, `ou`, `mais`,
+/// `parce-que`). Un autre mot est refusé, en disant les mots permis.
+pub(super) fn operateur_dit(mot: Option<&str>) -> Result<Option<Option<StickyOperator>>, String> {
+    match mot {
+        None => Ok(None),
+        Some("aucun") => Ok(Some(None)),
+        Some(m) => StickyOperator::de_l_id(m)
+            .map(|o| Some(Some(o)))
+            .ok_or_else(|| {
+                format!("« {m} » n'est pas un opérateur : et, ou, mais, parce-que, ou aucun")
+            }),
+    }
+}
+
+/// **Pose l'opérateur que l'appel dit**, par la loi du noyau (la pilule à la taille de son mot),
+/// dans le geste de la pose ; rend la boîte du nœud tel qu'il est posé. Un opérateur fait de
+/// l'appel un post-it : sur un texte existant, la pose est déjà refusée (« autre sorte ») ;
+/// « aucun » sur un texte ne change rien.
+pub(super) fn l_operateur(
+    s: &mut Store,
+    board: &str,
+    id: &str,
+    operateur: Option<Option<StickyOperator>>,
+) -> Result<Rect, Refus> {
+    if let Some(voulu) = operateur {
+        s.poser_l_operateur(board, &[id.to_string()], voulu);
+    }
+    Ok(s.project
+        .annotation(board, id)
+        .map_or(Rect::ZERO, Annotation::bounds))
 }

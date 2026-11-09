@@ -14,7 +14,7 @@
 use super::domaines::{decrire_les_domaines, DomaineDecrit};
 use super::{texte_porte, Sorte};
 use crate::geometry::Rect;
-use crate::types::{Annotation, ArrowPredicate, Board, Domain};
+use crate::types::{Annotation, ArrowPredicate, Board, Domain, StickyOperator};
 
 /// **Un nœud, tel qu'un agent le lit.**
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +28,9 @@ pub struct Decrit {
     pub source: Option<String>,
     pub cible: Option<String>,
     pub relation: Option<ArrowPredicate>,
+    /// Pour un post-it : l'opérateur qu'il est devenu (ET, OU, MAIS, PARCE QUE) — ce que l'humain
+    /// voit à sa place, une pilule (OPERATEUR-2, fiche 98).
+    pub operateur: Option<StickyOperator>,
     /// Pour une photo : l'adresse d'où elle vient — la page qu'elle montre.
     pub adresse: Option<String>,
     /// Les domaines qu'il porte, leur nom et leur poids.
@@ -68,6 +71,7 @@ pub(crate) fn decrire_le_tableau(board: &Board, catalogue: &[Domain]) -> Vec<Dec
         source: None,
         cible: None,
         relation: None,
+        operateur: None,
         adresse: i.source_url.clone(),
         domaines: decrire_les_domaines(catalogue, &i.domains),
         herites: Vec::new(),
@@ -125,6 +129,10 @@ fn decrire_une_annotation(a: &Annotation, catalogue: &[Domain]) -> Decrit {
         } => (source_id.clone(), target_id.clone(), *predicate),
         _ => (None, None, None),
     };
+    let operateur = match a {
+        Annotation::Sticky { operator, .. } => *operator,
+        _ => None,
+    };
     Decrit {
         id: a.id().to_string(),
         sorte: Sorte::de(a),
@@ -134,6 +142,7 @@ fn decrire_une_annotation(a: &Annotation, catalogue: &[Domain]) -> Decrit {
         source,
         cible,
         relation,
+        operateur,
         adresse: None,
         domaines: decrire_les_domaines(catalogue, a.domains()),
         herites: Vec::new(),

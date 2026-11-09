@@ -3,6 +3,7 @@
 mod agent_8;
 mod disposer;
 mod heritage;
+mod operateur_2;
 mod plan;
 
 use crate::agents::json::Json;
