@@ -1,6 +1,6 @@
 //! **COULEUR-1 — la barre de couleur** (fiche 98) : au-dessus de la barre d'action quand la
-//! sélection porte un texte, un post-it ou une membrane, le nuancier de Glucose — huit teintes —,
-//! et « Par défaut ».
+//! sélection porte un texte, un post-it, une membrane ou un dossier, le nuancier de Glucose — huit
+//! teintes —, et « Par défaut ».
 //!
 //! # Ce que Tauri faisait, et ce qui change
 //!
@@ -29,7 +29,6 @@ use super::action_bar::{
 use crate::theme::{Theme, DOMAIN_PALETTE};
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
-use glucose_core::types::Annotation;
 use tiny_skia::{Color, PixmapMut};
 
 /// Le nom de chaque teinte du nuancier, dans l'ordre de `DOMAIN_PALETTE` : l'identifiant de sa
@@ -74,17 +73,8 @@ pub fn teinte(rang: u8) -> Option<&'static str> {
     DOMAIN_PALETTE.get(usize::from(rang)).copied()
 }
 
-/// La couleur propre d'un nœud colorable — celle que [`Store::colorer`] écrit.
-fn couleur_de(a: &Annotation) -> Option<&str> {
-    match a {
-        Annotation::Sticky { bg_color: c, .. }
-        | Annotation::Membrane { color: c, .. }
-        | Annotation::Text { color: c, .. } => c.as_deref(),
-        Annotation::Arrow { .. } => None,
-    }
-}
-
-/// La barre pour la sélection courante, ou `None` si rien de colorable n'est choisi. Elle se pose
+/// La barre pour la sélection courante, ou `None` si rien de colorable n'est choisi (un texte, un
+/// post-it, une membrane, un dossier). Elle se pose
 /// au-dessus de la barre des flèches s'il y en a une, sinon au-dessus de la barre d'action.
 pub fn layout_barre_de_couleur(
     store: &Store,
@@ -92,17 +82,9 @@ pub fn layout_barre_de_couleur(
     screen: (f32, f32),
     scale: f32,
 ) -> Option<BarreDeCouleur> {
-    let colorables = store.selected_colorables();
-    if colorables.is_empty() {
-        return None;
-    }
-    let commune = {
-        let premiere = couleur_de(colorables[0]);
-        colorables
-            .iter()
-            .all(|a| couleur_de(a) == premiere)
-            .then_some(premiere)
-    };
+    let couleurs = store.couleurs_choisies();
+    let (premiere, autres) = couleurs.split_first()?;
+    let commune = autres.iter().all(|c| c == premiere).then_some(*premiere);
     let dessous =
         super::options_de_fleche::layout_options_de_fleche(store, typography, screen, scale)
             .map(|b| b.rect.1)

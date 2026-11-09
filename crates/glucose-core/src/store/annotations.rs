@@ -258,6 +258,30 @@ impl Store {
         changes
     }
 
+    /// **Colore tout ce qui est choisi et se colore** (COULEUR-1), le dossier choisi compris : sa
+    /// couleur par défaut est celle de sa naissance. Rend combien ont changé ; l'appelant en fait
+    /// un geste.
+    pub fn colorer_la_selection(&mut self, couleur: Option<&str>) -> usize {
+        let board = self.project.active_board_id.clone();
+        let ids: Vec<String> = self
+            .selected_colorables()
+            .iter()
+            .map(|a| a.id().to_string())
+            .collect();
+        let mut changes = self.colorer(&board, &ids, couleur);
+        let voulue = couleur.unwrap_or(crate::types::COULEUR_DE_NAISSANCE);
+        let dossier = self.selected_folder_id.clone().filter(|id| {
+            self.active_board()
+                .and_then(|b| b.folders.iter().find(|f| &f.id == id))
+                .is_some_and(|f| f.color != voulue)
+        });
+        if let Some(id) = dossier {
+            self.update_folder(&board, &id, |f| f.color = voulue.to_string());
+            changes += 1;
+        }
+        changes
+    }
+
     pub fn add_annotation(&mut self, board_id: &str, ann: Annotation) {
         let id = ann.id().to_string();
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {

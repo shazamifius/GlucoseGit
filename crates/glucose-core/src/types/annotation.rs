@@ -347,6 +347,18 @@ impl Annotation {
         }
     }
 
+    /// **Sa couleur à lui**, celle que `Store::colorer` écrit — `None` pour sa couleur par
+    /// défaut, ou s'il ne se colore pas.
+    pub fn couleur_propre(&self) -> Option<&str> {
+        match self {
+            _ if !self.se_colore() => None,
+            Self::Sticky { bg_color: c, .. }
+            | Self::Membrane { color: c, .. }
+            | Self::Text { color: c, .. } => c.as_deref(),
+            Self::Arrow { .. } => None,
+        }
+    }
+
     pub fn own_text(&self) -> Option<String> {
         match self {
             Self::Text { text, .. } | Self::Sticky { text, .. } => Some(text.clone()),

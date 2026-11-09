@@ -51,6 +51,13 @@ fn test_couleur_1_la_barre_n_existe_que_pour_ce_qui_se_colore() {
         barre(&store).is_none(),
         "un opérateur : sa couleur est son mot"
     );
+    // Loin de tout : un dossier aspire ce qui tombe sous lui à sa naissance.
+    let mut dossier = glucose_core::types::CanvasFolder::new("d", "Dossier", "");
+    dossier.x = 5000.0;
+    store.create_folder(&board, dossier);
+    store.clear_selection();
+    store.select_folder("d".into());
+    assert!(barre(&store).is_some(), "un dossier se colore");
     for id in ["p", "t", "m"] {
         choisir(&mut store, &[id]);
         let b = barre(&store).expect("une barre");

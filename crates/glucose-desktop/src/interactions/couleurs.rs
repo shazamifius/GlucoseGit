@@ -1,5 +1,5 @@
 //! **COULEUR-1 — colorer la sélection** (fiche 98) : une teinte du nuancier, ou la couleur par
-//! défaut, sur chaque texte, post-it et membrane choisi — en un geste. La barre de couleur
+//! défaut, sur chaque texte, post-it, membrane et dossier choisi — en un geste. La barre de couleur
 //! ([`crate::ui::couleurs`]), la palette et le clavier y passent tous : c'est la commande
 //! `couleur.<teinte>`.
 
@@ -18,18 +18,11 @@ impl GlucoseApp {
             },
             None => None,
         };
-        let ids: Vec<String> = self
-            .store
-            .selected_colorables()
-            .iter()
-            .map(|a| a.id().to_string())
-            .collect();
-        if ids.is_empty() {
+        if self.store.couleurs_choisies().is_empty() {
             return false;
         }
-        let board = self.store.project.active_board_id.clone();
         self.store.begin_live_edit();
-        self.store.colorer(&board, &ids, couleur);
+        self.store.colorer_la_selection(couleur);
         self.store.end_live_edit();
         self.mark_dirty();
         true

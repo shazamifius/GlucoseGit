@@ -39,6 +39,10 @@ pub struct CanvasFolder {
     pub mirror_source: Option<FolderMirrorSource>,
 }
 
+/// **La couleur d'un dossier qui n'en a pas reçu** : celle de sa naissance, et ce que « Par
+/// défaut » lui rend (COULEUR-1, fiche 98).
+pub const COULEUR_DE_NAISSANCE: &str = "#888888";
+
 impl CanvasFolder {
     pub fn new(
         id: impl Into<String>,
@@ -48,7 +52,7 @@ impl CanvasFolder {
         Self {
             id: id.into(),
             name: name.into(),
-            color: "#888888".into(),
+            color: COULEUR_DE_NAISSANCE.into(),
             x: 0.0,
             y: 0.0,
             width: 200.0,

@@ -103,6 +103,27 @@ impl Store {
         self.annotations_choisies(crate::types::Annotation::se_colore)
     }
 
+    /// **Les couleurs de ce qui est choisi et se colore** (COULEUR-1) : chaque nœud dit la sienne
+    /// (`None` : sa couleur par défaut), le dossier choisi aussi. Vide : rien ne se colore.
+    pub fn couleurs_choisies(&self) -> Vec<Option<&str>> {
+        let mut couleurs: Vec<Option<&str>> = self
+            .selected_colorables()
+            .iter()
+            .map(|a| a.couleur_propre())
+            .collect();
+        if let Some(f) = self.dossier_choisi() {
+            let propre = f.color != crate::types::COULEUR_DE_NAISSANCE;
+            couleurs.push(propre.then_some(f.color.as_str()));
+        }
+        couleurs
+    }
+
+    /// Le dossier choisi, s'il est sur le tableau actif.
+    fn dossier_choisi(&self) -> Option<&crate::types::CanvasFolder> {
+        let id = self.selected_folder_id.as_deref()?;
+        self.active_board()?.folders.iter().find(|f| f.id == id)
+    }
+
     /// Les annotations choisies de cette sorte, dans l'ordre du document.
     fn annotations_choisies(
         &self,

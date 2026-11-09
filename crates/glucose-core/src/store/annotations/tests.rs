@@ -167,3 +167,33 @@ fn test_couleur_1_colorer_chaque_sorte_et_se_defait() {
         "par défaut : la couleur d'avant toute couleur"
     );
 }
+
+/// **COULEUR-1 — la sélection se colore, dossier compris** : `Par défaut` rend à un dossier la
+/// couleur de sa naissance ; la lecture des couleurs le dit (`None`), comme pour un nœud.
+#[test]
+fn test_couleur_1_le_dossier_choisi_se_colore_avec_la_selection() {
+    use crate::types::{CanvasFolder, COULEUR_DE_NAISSANCE};
+    let (mut store, board, _) = tableau();
+    // Loin de tout : un dossier aspire ce qui tombe sous lui à sa naissance.
+    let mut dossier = CanvasFolder::new("d", "Dossier", "");
+    dossier.x = 5000.0;
+    store.create_folder(&board, dossier);
+    store.select_folder("d".into());
+    store.set_selected_annotation_ids(vec!["c".into()]);
+    assert_eq!(
+        store.couleurs_choisies(),
+        [None, None],
+        "le post-it et le dossier"
+    );
+    assert_eq!(store.colorer_la_selection(Some("#34d399")), 2);
+    assert_eq!(
+        store.couleurs_choisies(),
+        [Some("#34d399"), Some("#34d399")]
+    );
+    assert_eq!(store.colorer_la_selection(None), 2);
+    let couleur = store
+        .active_board()
+        .and_then(|b| b.folders.iter().find(|f| f.id == "d"))
+        .map(|f| f.color.clone());
+    assert_eq!(couleur.as_deref(), Some(COULEUR_DE_NAISSANCE));
+}
