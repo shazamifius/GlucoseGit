@@ -305,3 +305,42 @@ rend inutiles, à juger à son écran.
   roue ouverte, glissée, validée ; les images témoins comparées pixel à pixel avant de changer deux
   empreintes.
 * **Pas à son écran** : rien de cette session.
+
+## 12. Le sens des couleurs des membranes, en image — un premier prototype
+
+Sa parole du 9/11 : la **teinte** dit la proximité des domaines (sciences, société, sciences sociales
+ont des couleurs proches), la **clarté** l'accessibilité, l'**opacité** l'appartenance ; *« il faut que
+TOUT ait une signification »*. Un agent colore le squelette par les seules commandes
+(`outils/wikipedia/teintes_sens.py`, `GLUCOSE_SENS_EN_COULEURS=1 … essai_squelette.sh`) ; images :
+`~/.cache/glucose-bancs/squelette-sens/images/`.
+
+* **La teinte** : chaque région est le sac des mots de ses textes (TF-IDF), deux régions se
+  ressemblent comme leurs sacs (le cosinus). Les neuf thèmes sont rangés sur le cercle par une
+  **sériation circulaire exacte** — l'ordre qui rend la plus grande la somme des ressemblances entre
+  voisins, les 20 160 cercles essayés —, chaque écart de teinte proportionnel à la dissemblance des
+  voisins. Une sous-région prend la moyenne circulaire des teintes des thèmes, pondérée par sa
+  ressemblance à chacun. **Le premier essai** (le positionnement multidimensionnel de Torgerson)
+  rendait le bruit de neuf thèmes presque également dissemblables : Société et Sciences, les plus
+  proches (0,14), tombaient à 200° l'un de l'autre — regardé, rejeté.
+* **La clarté** : la lisibilité de Kandel et Moles (1958, Flesch pour le français), **par rang** — le
+  plus lisible le plus clair, le moins lisible le plus sombre, les autres à égale distance. **Le
+  premier essai**, linéaire, laissait un texte aberrant (−88) écraser l'échelle : tout tombait entre
+  0,80 et 0,89, des pastels. Le plus sombre garde un titre lisible sur le fond (le contraste « AA »,
+  4,5 : 1, une borne de la norme) ; la saturation, sans sens attribué, est la même pour toutes les
+  teintes à une clarté donnée.
+* **L'opacité** n'est pas peinte : une membrane n'a pas d'opacité dans Glucose (sa couleur est un
+  `#rrggbb`). L'appartenance est **mesurée** — la ressemblance d'une région à sa parente — et écrite
+  dans le compte rendu (de 0,09 pour une section qui dérive à 0,98). La peindre demande un champ au
+  modèle : à lui de dire s'il le veut ainsi.
+
+**Ce que l'image montre** : Histoire rose, Géographie verte, Arts bleus, Vie quotidienne turquoise,
+Philosophie brune, Société orange brûlé, Sciences et médecine olive, Technologie lilas, Mathématiques
+violettes ; les voisins du cercle sont les thèmes qui se ressemblent (Philosophie, Société, Sciences,
+Géographie se suivent). Dans « Eau », les sections gardent l'olive du thème et varient en clarté :
+« Symbolique », la plus lisible, presque blanche.
+
+**Ce qui est faible, dit** : la ressemblance repose sur des résumés de deux phrases — les cosinus
+vont de 0,05 à 0,14, une mesure pauvre ; avec les articles entiers, ou les liens de Wikipédia entre
+articles, elle serait bien meilleure. La formule de lisibilité est grossière sur des textes courts.
+L'olive des sciences n'est pas belle : c'est ce que le calcul donne à cette teinte et cette clarté.
+Et les lueurs symbiotiques des textes ajoutent leur bruit sous la couleur qui dit la région (§ 5, A).

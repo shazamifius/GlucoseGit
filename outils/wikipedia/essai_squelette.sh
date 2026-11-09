@@ -39,6 +39,11 @@ if [ -n "${GLUCOSE_ARBRE_EN_COULEURS:-}" ]; then
     python3 -I outils/wikipedia/teintes_arbre.py target/debug/glucose-desktop wiki \
         | tee -a "$sortie/squelette.txt"
 fi
+# Le sens des couleurs (fiche 99) : teinte = proximité des domaines, clarté = accessibilité.
+if [ -n "${GLUCOSE_SENS_EN_COULEURS:-}" ]; then
+    python3 -I outils/wikipedia/teintes_sens.py target/debug/glucose-desktop wiki \
+        | tee -a "$sortie/squelette.txt"
+fi
 target/debug/glucose-desktop lire niveau=plan > "$sortie/plan.json"
 
 # Glucose finit, et rend le tableau en images.
