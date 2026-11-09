@@ -298,3 +298,128 @@ fn roue_1_la_roue_se_dessine() {
         bas.l
     );
 }
+
+/// Une lettre tapée, par le chemin de ce qui passe avant tout.
+fn lettre(app: &mut GlucoseApp, c: &str) {
+    app.prendre_la_touche(&Key::Character(c.into()), true, None);
+}
+
+fn milieu((x, y, w, h): (f32, f32, f32, f32)) -> (f32, f32) {
+    (x + w / 2.0, y + h / 2.0)
+}
+
+/// **Le code tapé se pose exactement**, en direct ; seuls des chiffres hexadécimaux s'écrivent ;
+/// `Entrée` referme le champ, la roue restant ouverte — et `Échap` l'annule ensuite.
+#[test]
+fn roue_1_le_code_tape_se_pose_exactement() {
+    let mut app = app();
+    assert!(app.ouvrir_la_roue());
+    let code = plat(&app).code;
+    presser(&mut app, milieu(code));
+    lacher(&mut app);
+    for c in ["f", "z", "f", "#", "8", "8", "0", "0"] {
+        lettre(&mut app, c);
+    }
+    assert_eq!(
+        couleur(&app).as_deref(),
+        Some("#ff8800"),
+        "le code, au bit près"
+    );
+    touche(&mut app, NamedKey::Enter);
+    let roue = app.ui.roue.as_ref().expect("la roue reste ouverte");
+    assert!(roue.code.is_none(), "Entrée referme le champ");
+    touche(&mut app, NamedKey::Escape);
+    assert_eq!(couleur(&app), None, "puis Échap annule la roue");
+}
+
+/// Un clic sur le bouton de la pipette.
+fn armer(app: &mut GlucoseApp) {
+    let bouton = milieu(plat(app).pipette);
+    presser(app, bouton);
+    lacher(app);
+}
+
+/// Une membrane colorée « source », à droite de la choisie, la vue posée à l'origine.
+fn avec_une_source(couleur: &str) -> GlucoseApp {
+    let mut app = app();
+    let tableau = app.store.project.active_board_id.clone();
+    let mut source = Annotation::membrane("source", 600.0, 100.0, 320.0, 240.0);
+    if let Annotation::Membrane { color, .. } = &mut source {
+        *color = Some(couleur.to_string());
+    }
+    app.store.add_annotation(&tableau, source);
+    app.store.select_annotation("m".into(), false);
+    let vue = glucose_core::types::Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: 1.0,
+    };
+    app.store.set_viewport(&tableau, vue);
+    app.store.journal.clear();
+    // Le clic trouve les nœuds par l'index que l'image construit : une image, comme la boucle.
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    app
+}
+
+/// **La pipette prend la couleur que porte un nœud** — celle d'une membrane —, se désarme, et la
+/// roue reste ouverte.
+#[test]
+fn roue_1_la_pipette_prend_la_couleur_d_une_membrane() {
+    let mut app = avec_une_source("#20c0ff");
+    assert!(app.ouvrir_la_roue());
+    armer(&mut app);
+    assert!(app.ui.roue.as_ref().is_some_and(|r| r.pipette), "armée");
+    presser(&mut app, (760.0, 220.0));
+    lacher(&mut app);
+    assert_eq!(couleur(&app).as_deref(), Some("#20c0ff"));
+    let roue = app.ui.roue.as_ref().expect("la roue reste ouverte");
+    assert!(!roue.pipette, "désarmée");
+}
+
+/// **Sur une photo, la pipette prend sa couleur moyenne** — le sommet de sa pyramide.
+#[test]
+fn roue_1_la_pipette_prend_la_couleur_moyenne_d_une_photo() {
+    use crate::renderer::magasin::Entree;
+    use crate::renderer::photo::Pyramide;
+    let mut app = avec_une_source("#20c0ff");
+    let mut unie = tiny_skia::Pixmap::new(16, 9).expect("une image");
+    for bloc in unie.data_mut().as_chunks_mut::<4>().0 {
+        *bloc = [200, 60, 30, 255];
+    }
+    let cache = &mut app.renderer.magasin.cache;
+    cache.insert(
+        "unie.png".into(),
+        Entree::pour_test(Pyramide::nouvelle(unie)),
+    );
+    let tableau = app.store.project.active_board_id.clone();
+    let mut img = glucose_core::types::BoardImage::new("photo", 600.0, 450.0, 200.0, 200.0);
+    img.src = Some("unie.png".into());
+    app.store.add_image(&tableau, img);
+    app.store.selected_image_ids.clear();
+    app.store.select_annotation("m".into(), false);
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    assert!(app.ouvrir_la_roue());
+    armer(&mut app);
+    presser(&mut app, (700.0, 550.0));
+    lacher(&mut app);
+    assert_eq!(couleur(&app).as_deref(), Some("#c83c1e"));
+}
+
+/// **Un nœud sans couleur choisie n'en donne pas** : sa lueur symbiotique ne dit rien.
+#[test]
+fn roue_1_la_pipette_ne_prend_rien_d_un_noeud_sans_couleur() {
+    let mut app = avec_une_source("#20c0ff");
+    assert!(app.ouvrir_la_roue());
+    armer(&mut app);
+    presser(&mut app, (160.0, 220.0));
+    lacher(&mut app);
+    assert_eq!(
+        couleur(&app),
+        None,
+        "la membrane choisie, sans couleur, n'en donne pas"
+    );
+    assert!(
+        app.ui.roue.as_ref().is_some_and(|r| !r.pipette),
+        "désarmée, ouverte"
+    );
+}

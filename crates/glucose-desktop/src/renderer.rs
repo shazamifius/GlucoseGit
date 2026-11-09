@@ -26,7 +26,7 @@ pub mod atelier;
 pub mod cadrage;
 pub mod card;
 pub mod composants;
-mod curseur;
+pub(crate) mod curseur;
 mod decision;
 pub mod domain;
 pub mod export;

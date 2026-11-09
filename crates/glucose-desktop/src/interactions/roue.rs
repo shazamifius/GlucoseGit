@@ -33,6 +33,10 @@ pub struct RoueOuverte {
     /// La couleur que la roue pose (`None` après `Retour arrière`), ou rien encore.
     pub apres: Option<(u8, u8, u8)>,
     pub disque: tiny_skia::Pixmap,
+    /// Le code `#rrggbb` qu'on tape, quand son champ est ouvert ([`code`]).
+    pub code: Option<crate::interactions::text_entry::TextEntry>,
+    /// La pipette est armée : le prochain clic sur le canevas prend la couleur d'un nœud.
+    pub pipette: bool,
     glisse: Option<Glisse>,
 }
 
@@ -79,6 +83,8 @@ impl GlucoseApp {
             avant,
             apres: avant,
             disque: disque(place.clarte, self.ui.scale_factor),
+            code: None,
+            pipette: false,
             glisse: None,
         });
         self.mark_dirty();
@@ -93,7 +99,13 @@ impl GlucoseApp {
         }
         let ici = (pointer.x, pointer.y);
         match self.endroit_de_la_roue(ici, screen) {
+            // La pipette armée prend la couleur du nœud visé ; sinon, un clic dehors valide.
+            None if self.ui.roue.as_ref().is_some_and(|r| r.pipette) => {
+                self.prendre_a_la_pipette(ici);
+            }
             None => self.valider_la_roue(),
+            Some(Endroit::Code) => self.ouvrir_le_code(),
+            Some(Endroit::Pipette) => self.armer_la_pipette(),
             Some(Endroit::Disque(dx, dy)) => {
                 self.tenir_la_roue(Glisse::Disque {
                     point: (dx, dy),
@@ -126,6 +138,7 @@ impl GlucoseApp {
     fn tenir_la_roue(&mut self, glisse: Glisse) {
         if let Some(roue) = self.ui.roue.as_mut() {
             roue.glisse = Some(glisse);
+            roue.code = None;
         }
         self.suivre_la_main(glisse);
     }
@@ -243,6 +256,12 @@ impl GlucoseApp {
     /// **La place devient la couleur de ce qui est choisi** — en repartant des couleurs d'avant
     /// la roue : un seul geste, une écriture par nœud.
     fn poser_la_place(&mut self, place: PlaceDansLaRoue) {
+        self.poser_place_et_couleur(place, place.couleur().octets());
+    }
+
+    /// La roue montre `place`, et ce qui est choisi prend `octets` — **exactement** : un code
+    /// tapé ou une couleur prise à la pipette ne passe pas par l'arrondi de la roue.
+    fn poser_place_et_couleur(&mut self, place: PlaceDansLaRoue, octets: (u8, u8, u8)) {
         let scale = self.ui.scale_factor;
         let Some(roue) = self.ui.roue.as_mut() else {
             return;
@@ -250,7 +269,6 @@ impl GlucoseApp {
         if (place.clarte - roue.place.clarte).abs() > f64::EPSILON {
             roue.disque = disque(place.clarte, scale);
         }
-        let octets = place.couleur().octets();
         roue.place = place;
         roue.apres = Some(octets);
         self.store.cancel_live_edit();
@@ -264,6 +282,9 @@ impl GlucoseApp {
         use winit::keyboard::{Key, NamedKey};
         if self.ui.roue.is_none() {
             return false;
+        }
+        if self.frapper_le_code(key) {
+            return true;
         }
         match key {
             Key::Named(NamedKey::Escape) => self.annuler_la_roue(),
@@ -298,6 +319,8 @@ impl GlucoseApp {
         }
     }
 }
+
+mod code;
 
 #[cfg(test)]
 mod tests;

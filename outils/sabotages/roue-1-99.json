@@ -223,5 +223,95 @@
    "--",
    "roue_1"
   ]
+ },
+ {
+  "nom": "ROUE-1 le code ecrit autre chose que de l hexadecimal",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "            Key::Character(c) if c.chars().all(|c| c.is_ascii_hexdigit()) => {",
+  "apres": "            Key::Character(c) => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 Entree ne referme pas le champ",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "            Key::Named(NamedKey::Enter | NamedKey::Escape) => {",
+  "apres": "            Key::Named(NamedKey::Escape) => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 le code passe par l arrondi de la roue",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "        self.poser_place_et_couleur(place, octets);",
+  "apres": "        self.poser_la_place(place);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 la pipette armee valide au lieu de prendre",
+  "fichier": "crates/glucose-desktop/src/interactions/roue.rs",
+  "avant": "            None if self.ui.roue.as_ref().is_some_and(|r| r.pipette) => {",
+  "apres": "            None if false => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 la pipette ne lit pas les photos",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "                    crate::renderer::magasin::Moyenne::Connue([r, g, b, a]) if a > 0 => {",
+  "apres": "                    crate::renderer::magasin::Moyenne::Connue([r, g, b, a]) if a > 255 => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "ROUE-1 un noeud sans couleur en donne une",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "                .couleur_propre()\n                .and_then(crate::renderer::parse_hex_rgb),",
+  "apres": "                .couleur_propre()\n                .and_then(crate::renderer::parse_hex_rgb)\n                .or(Some((1, 2, 3))),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "roue_1"
+  ]
  }
 ]

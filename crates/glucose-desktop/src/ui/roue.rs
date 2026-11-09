@@ -34,8 +34,10 @@ pub struct RoueAPlat {
     /// La couleur d'avant la roue, et celle qu'elle pose.
     pub avant: (f32, f32, f32, f32),
     pub apres: (f32, f32, f32, f32),
-    /// Où s'écrit la couleur, en `#rrggbb`.
-    pub ecrit: (f32, f32),
+    /// Le champ où s'écrit la couleur, en `#rrggbb` — un clic l'ouvre à la frappe.
+    pub code: (f32, f32, f32, f32),
+    /// Le bouton de la pipette : le clic suivant sur le canevas prend la couleur d'un nœud.
+    pub pipette: (f32, f32, f32, f32),
 }
 
 /// **Le diamètre du disque**, en pixels entiers : sa texture ne se pose qu'au pixel.
@@ -53,14 +55,19 @@ pub fn placer(sous: (f32, f32, f32, f32), screen: (f32, f32), scale: f32) -> Rou
     let y = (sous.1 - AU_DESSUS * s - hauteur).max(0.0);
     let (gauche, haut) = ((x + MARGE * s).round(), (y + MARGE * s).round());
     let bas = haut + d + ECART * s;
-    let apercu = APERCU * s;
+    let a = APERCU * s;
+    // La rangée du bas : les deux aperçus, le champ du code, la pipette au droit du curseur.
+    let contenu = d + ECART * s + CURSEUR * s;
+    let code_x = gauche + a * 2.5 + ECART * s;
+    let pipette_x = gauche + contenu - a * 1.75;
     RoueAPlat {
         rect: (x, y, largeur, hauteur),
         disque: (gauche, haut, d),
         curseur: (gauche + d + ECART * s, haut, CURSEUR * s, d),
-        avant: (gauche, bas, apercu * 1.5, apercu),
-        apres: (gauche + apercu * 1.5, bas, apercu * 1.5, apercu),
-        ecrit: (gauche + apercu * 3.0 + ECART * s, bas),
+        avant: (gauche, bas, a * 1.25, a),
+        apres: (gauche + a * 1.25, bas, a * 1.25, a),
+        code: (code_x, bas, pipette_x - ECART * s - code_x, a),
+        pipette: (pipette_x, bas, a * 1.75, a),
     }
 }
 
@@ -71,7 +78,11 @@ pub enum Endroit {
     Disque(f64, f64),
     /// Le curseur : la clarté sous le point, de 0 (en bas) à 1 (en haut).
     Clarte(f64),
-    /// La roue, ailleurs que sur ces deux-là.
+    /// Le champ du code `#rrggbb`.
+    Code,
+    /// Le bouton de la pipette.
+    Pipette,
+    /// La roue, ailleurs que sur ceux-là.
     Ailleurs,
 }
 
@@ -91,6 +102,12 @@ pub fn endroit(roue: &RoueAPlat, px: f32, py: f32) -> Option<Endroit> {
         return Some(Endroit::Clarte(
             f64::from(1.0 - (py - cy) / ch).clamp(0.0, 1.0),
         ));
+    }
+    if dans(roue.code, px, py) {
+        return Some(Endroit::Code);
+    }
+    if dans(roue.pipette, px, py) {
+        return Some(Endroit::Pipette);
     }
     Some(Endroit::Ailleurs)
 }
@@ -121,18 +138,72 @@ pub fn draw_roue(
     dessiner_le_curseur(pixmap, plat.curseur, roue.place, s);
     apercu(pixmap, plat.avant, roue.avant, theme);
     apercu(pixmap, plat.apres, roue.apres, theme);
-    let ecrit = roue.apres.map_or_else(
-        || super::couleurs::PAR_DEFAUT.to_string(),
-        glucose_core::couleur::roue::hex,
-    );
+    dessiner_le_code(pixmap, roue, plat.code, (typography, theme, s));
+    super::action_bar::bouton(pixmap, plat.pipette, (s, roue.pipette), theme);
+    let encre = if roue.pipette {
+        theme.text_accent
+    } else {
+        theme.text_secondary
+    };
+    dessiner_la_pipette(pixmap, plat.pipette, encre, s);
+}
+
+/// Le champ du code : la couleur posée en `#rrggbb` (ou « Par défaut ») ; à la frappe, ce qu'on
+/// tape, dans un bouton allumé, et son curseur.
+fn dessiner_le_code(
+    pixmap: &mut PixmapMut,
+    roue: &RoueOuverte,
+    rect: (f32, f32, f32, f32),
+    (typography, theme, s): (&Typography, &Theme, f32),
+) {
+    let (cx, cy, _, ch) = rect;
     let corps = 12.0 * s;
-    let (ex, ey) = plat.ecrit;
+    let texte = match &roue.code {
+        Some(saisie) => format!("#{}", saisie.text()),
+        None => roue.apres.map_or_else(
+            || super::couleurs::PAR_DEFAUT.to_string(),
+            glucose_core::couleur::roue::hex,
+        ),
+    };
+    if roue.code.is_some() {
+        super::action_bar::bouton(pixmap, rect, (s, true), theme);
+    }
     let style = TextStyle {
         size: corps,
         color: theme.text_secondary,
         face: Face::Regular,
     };
-    typography.draw_text(pixmap, &ecrit, ex, ey + (APERCU * s - corps) / 2.0, style);
+    let (x, y) = (cx + 4.0 * s, cy + (ch - corps) / 2.0);
+    typography.draw_text(pixmap, &texte, x, y, style);
+    if roue.code.is_some() {
+        let largeur = typography.measure_text(&texte, corps, Face::Regular).0;
+        let ecran = crate::renderer::scale::WorldScale::new(1.0, s);
+        crate::renderer::curseur::poser(pixmap, (x + largeur, y), corps, ecran, theme.text_primary);
+    }
+}
+
+/// La pipette : un trait en biais et sa poire, à l'encre du bouton.
+fn dessiner_la_pipette(pixmap: &mut PixmapMut, rect: (f32, f32, f32, f32), encre: Color, s: f32) {
+    let (x, y, w, h) = rect;
+    let (cx, cy) = (x + w / 2.0, y + h / 2.0);
+    let r = h * 0.32;
+    let mut paint = Paint::default();
+    paint.set_color(encre);
+    paint.anti_alias = true;
+    let mut trait_ = PathBuilder::new();
+    trait_.move_to(cx - r, cy + r);
+    trait_.line_to(cx + r * 0.45, cy - r * 0.45);
+    if let Some(chemin) = trait_.finish() {
+        let stroke = Stroke {
+            width: 2.0 * s,
+            ..Stroke::default()
+        };
+        pixmap.stroke_path(&chemin, &paint, &stroke, Transform::identity(), None);
+    }
+    if let Some(poire) = PathBuilder::from_circle(cx + r * 0.6, cy - r * 0.6, 2.6 * s) {
+        let plein = tiny_skia::FillRule::Winding;
+        pixmap.fill_path(&poire, &paint, plein, Transform::identity(), None);
+    }
 }
 
 /// Le curseur de clarté : la couleur de la place à chaque clarté, de 1 en haut à 0 en bas, et
