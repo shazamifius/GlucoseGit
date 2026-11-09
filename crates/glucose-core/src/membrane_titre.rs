@@ -87,6 +87,13 @@ pub fn surcroit(largeur: f64, hauteur: f64) -> f64 {
     ELEVATION * (echelle(largeur, hauteur) - 1.0)
 }
 
+/// **La bande du titre** d'une membrane de cette boîte : au-dessus de son bord haut, de toute sa
+/// largeur, haute de son élévation — là où le titre se pose, et où il s'écrit même vide (SAISIE-2).
+pub fn bande(boite: Rect) -> Rect {
+    let e = elevation(boite.width, boite.height);
+    Rect::new(boite.left, boite.top - e, boite.width, e)
+}
+
 impl Annotation {
     /// **Tout ce qui a de l'encre** : la boîte englobante ([`Annotation::bounds`]), et, pour une
     /// membrane titrée, la bande de son titre au-dessus de son bord (TITRE-1).
@@ -94,8 +101,8 @@ impl Annotation {
         let b = self.bounds();
         match self {
             Annotation::Membrane { text, .. } if porte_un_titre(text.as_deref()) => {
-                let e = elevation(b.width, b.height);
-                Rect::new(b.left, b.top - e, b.width, b.height + e)
+                let t = bande(b);
+                Rect::new(b.left, t.top, b.width, b.height + t.height)
             }
             _ => b,
         }

@@ -54,7 +54,7 @@ pub(super) fn dessiner_sous_les_photos(
     fond: grille::Fond<'_>,
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
-    cadrage: Cadrage,
+    (cadrage, saisie): (Cadrage, Option<&crate::renderer::TextEditSession>),
     header_h: f32,
 ) -> bool {
     if cadrage.couche.porte_le_fond() {
@@ -69,9 +69,9 @@ pub(super) fn dessiner_sous_les_photos(
     // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
     // carte sinon (MEMB-FORME-1) ; leurs titres, poignées et réglettes, ici sur les deux voies.
     let membranes = if cadrage.couche.porte_le_fond() {
-        scene::draw_membranes(kit, pixmap, store, pass)
+        scene::draw_membranes(kit, pixmap, (store, saisie), pass)
     } else {
-        scene::draw_membrane_ornaments(kit, pixmap, store, pass)
+        scene::draw_membrane_ornaments(kit, pixmap, (store, saisie), pass)
     };
     crate::perf::stage("membranes");
     // 4 ter. Le nom et la phrase des zones, le numéro et la description des cases du

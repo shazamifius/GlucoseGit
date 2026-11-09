@@ -13,16 +13,10 @@ use crate::renderer::handles::draw_resize_handles;
 use crate::renderer::pass::SELECTION_RING;
 use crate::renderer::richtext::hit::{line_of_offset, offset_to_x};
 use crate::renderer::richtext::{font_of, indent_of, ink_of, mode_of, TextLayout, VisualLine};
-use crate::renderer::scale::WorldScale;
 use crate::theme::Theme;
 use glucose_core::resize::Handle;
 use glucose_core::text::BlockKind;
-use tiny_skia::{Color, FillRule, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
-
-/// Largeur du curseur d'édition.
-const CURSOR_WIDTH: f32 = 2.0;
-/// Hauteur du curseur d'édition, en multiples du corps.
-const CURSOR_HEIGHT: f32 = 1.2;
+use tiny_skia::{FillRule, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
 pub(super) fn dessiner_les_ornements(
     ctx: &Pass,
@@ -115,7 +109,7 @@ fn draw_card_caret(
             let font = font_of(line.kind, layout.font);
             let dx = offset_to_x(ctx.typography, text, line, card.body, cursor, font);
             let ink = ink_of(line.kind, ctx.theme);
-            draw_cursor(pixmap, (start_x + dx, y), layout, ctx.scale, ink);
+            crate::renderer::curseur::poser(pixmap, (start_x + dx, y), layout.font, ctx.scale, ink);
             return;
         }
         y += layout.line_height;
@@ -240,22 +234,3 @@ fn plaque(pixmap: &mut PixmapMut, (x, y, w, h): (f32, f32, f32, f32), r: f32, th
 
 #[cfg(test)]
 mod tests;
-
-/// Le curseur d'édition, à l'encre de la ligne qu'il édite.
-fn draw_cursor(
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &CardLayout,
-    scale: WorldScale,
-    ink: Color,
-) {
-    // Le curseur mesure le texte qu'il édite — sa hauteur suit la police — mais son trait
-    // est une affordance : il garde sa largeur écran (exception SCALE-1), comme le curseur
-    // de n'importe quel éditeur. Mis à l'échelle, il s'effacerait au dézoom.
-    let width = scale.screen(CURSOR_WIDTH);
-    if let Some(rect) = Rect::from_xywh(at.0, at.1, width, layout.font * CURSOR_HEIGHT) {
-        // Sur la grille (SCALE-3) : un curseur d'un pixel posé à une demi-position devient
-        // deux demi-traits gris, et il clignote — donc il attire l'œil sur son propre flou.
-        crate::renderer::scale::fill_crisp(pixmap, rect, ink);
-    }
-}

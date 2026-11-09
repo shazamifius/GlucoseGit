@@ -32,7 +32,7 @@ use crate::theme::operator_color;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::resize::Handle;
 use glucose_core::types::{Annotation, StickyOperator};
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
 /// Corps de texte d'un pense-bête (fiche 06 § 5.2 : 13 px).
 const STICKY_FONT: f32 = 13.0;
@@ -382,36 +382,16 @@ fn draw_paper_text(
                 layout.font,
                 Face::Regular,
             );
-            draw_cursor(
-                ctx,
+            crate::renderer::curseur::poser(
                 pixmap,
                 (at.0 + layout.pad + prefix_w, cur_y),
-                layout,
+                layout.font,
+                ctx.scale,
                 paper.ink,
             );
             cursor_drawn = true;
         }
         cur_y += layout.line_height;
-    }
-}
-
-/// Le curseur d'édition, à l'encre du texte, épais d'un anneau écran.
-fn draw_cursor(
-    ctx: &Pass,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &StickyLayout,
-    ink: Color,
-) {
-    let mut paint = Paint::default();
-    paint.set_color(ink);
-    if let Some(rect) = Rect::from_xywh(
-        at.0,
-        at.1,
-        ctx.scale.screen(SELECTION_RING),
-        layout.font * 1.2,
-    ) {
-        pixmap.fill_rect(rect, &paint, Transform::identity(), None);
     }
 }
 

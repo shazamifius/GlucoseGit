@@ -14,6 +14,7 @@ pub mod geometry;
 pub mod historique;
 pub(crate) mod keys;
 pub mod miroir;
+mod montrer;
 
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;
@@ -39,6 +40,7 @@ impl GlucoseApp {
         // cet oubli, annuler dans une carte y reposerait le texte d'une carte precedente --
         // et c'est la sorte de defaut qu'on ne comprend qu'apres avoir perdu du travail.
         self.historique_du_texte.oublier();
+        self.montrer_ce_qu_on_ecrit(&ann_id);
         self.editing_session = Some(TextEditSession {
             ann_id,
             buffer: initial_text,

@@ -26,6 +26,7 @@ pub mod atelier;
 pub mod cadrage;
 pub mod card;
 pub mod composants;
+mod curseur;
 mod decision;
 pub mod domain;
 pub mod export;
@@ -494,7 +495,7 @@ impl Renderer {
                 },
                 pixmap,
                 (store, pass, kit),
-                cadrage,
+                (cadrage, overlay.editing),
                 header_h,
             );
         }

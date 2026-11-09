@@ -1,0 +1,152 @@
+[
+ {
+  "nom": "SAISIE-1 le titre montre le document, pas la frappe",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "            text: saisie.map_or(text.as_deref(), |s| Some(s.buffer.as_str())),",
+  "apres": "            text: text.as_deref(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_1"
+  ]
+ },
+ {
+  "nom": "SAISIE-1 la frappe paraît dans toutes les membranes",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "        let saisie = saisie.filter(|s| s.ann_id == *id);",
+  "apres": "        let saisie = saisie.filter(|s| !s.ann_id.is_empty() || s.ann_id == *id);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_1"
+  ]
+ },
+ {
+  "nom": "SAISIE-1 un titre vide qu on ecrit n a pas de place",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "            .filter(|l| self.saisie.is_some() || porte_un_titre(Some(l)))?;",
+  "apres": "            .filter(|l| porte_un_titre(Some(l)))?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_1"
+  ]
+ },
+ {
+  "nom": "SAISIE-1 la selection ne se surligne pas",
+  "fichier": "crates/glucose-desktop/src/renderer/scene.rs",
+  "avant": "            saisie::surligner(kit, pixmap, titre, s);",
+  "apres": "            let _ = (titre, s);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_1"
+  ]
+ },
+ {
+  "nom": "SAISIE-1 le titre n a pas de curseur",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/saisie.rs",
+  "avant": "    if saisie.curseur_visible {",
+  "apres": "    if saisie.curseur_visible && saisie.buffer.is_empty() && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_1"
+  ]
+ },
+ {
+  "nom": "SAISIE-2 la saisie s ouvre sans montrer son titre",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit.rs",
+  "avant": "        self.montrer_ce_qu_on_ecrit(&ann_id);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_2"
+  ]
+ },
+ {
+  "nom": "SAISIE-2 un texte fait aussi glisser la vue",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "            .filter(|a| matches!(a, Annotation::Membrane { .. }))",
+  "apres": "            .filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_2"
+  ]
+ },
+ {
+  "nom": "SAISIE-2 le titre colle au bandeau, sans air",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "    let air = lieu.height * s;",
+  "apres": "    let air = 0.0 * lieu.height * s;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_2"
+  ]
+ },
+ {
+  "nom": "SAISIE-2 hors de l ecran a droite, rien ne bouge",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "    } else if b > fin {",
+  "apres": "    } else if false && b > fin {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_2"
+  ]
+ },
+ {
+  "nom": "SAISIE-2 un titre trop large montre sa fin",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "    if a < debut || b - a > fin - debut {",
+  "apres": "    if a < debut {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_2"
+  ]
+ }
+]

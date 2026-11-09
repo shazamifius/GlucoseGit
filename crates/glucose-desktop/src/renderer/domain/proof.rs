@@ -373,7 +373,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
         tints: &tints,
         theme: &theme,
     };
-    crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
+    crate::renderer::scene::draw_membranes(kit, &mut view, (&store, None), pass);
 
     let mut magasin = crate::renderer::magasin::Magasin::nouveau();
     magasin.reclamer(&photo, 0.0);

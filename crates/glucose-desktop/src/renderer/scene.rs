@@ -13,12 +13,13 @@
 
 pub mod grid;
 pub(super) mod image;
+mod saisie;
 
 use super::domain::{draw_domain_gauge, gauge_width};
 use super::handles::draw_resize_handles;
 use super::pass::{Clip, SELECTION_RING};
 use super::scale::WorldScale;
-use super::{parse_hex_color, PaintKit};
+use super::{parse_hex_color, PaintKit, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
@@ -108,7 +109,10 @@ fn teinte_de_membrane(couleur: Option<&str>) -> (u8, u8, u8) {
 
 /// Une membrane que l'écran montre : ce que le document en dit, et où elle se pose.
 struct MembraneVue<'a> {
+    /// Son titre : celui du document, ou **ce qu'on y tape** quand on l'écrit (fiche 99).
     text: Option<&'a str>,
+    /// La saisie de son titre, s'il s'écrit : sa sélection et son curseur se dessinent.
+    saisie: Option<&'a TextEditSession>,
     domains: &'a [glucose_core::types::DomainAssignment],
     /// Son coin haut-gauche, à l'écran.
     coin: (f32, f32),
@@ -122,8 +126,11 @@ struct MembraneVue<'a> {
 
 /// **Chaque membrane visible, une fois.** Le culling et la mise à l'échelle ne s'écrivent
 /// qu'ici : la forme et les ornements les lisent, et ne peuvent donc pas diverger.
+///
+/// La saisie en cours y remplace le titre du document, **à la source** : le titre, sa mesure, son
+/// ajustement à la largeur ne connaissent qu'un texte — celui qu'on voit.
 fn pour_chaque_membrane(
-    store: &Store,
+    (store, saisie): (&Store, Option<&TextEditSession>),
     pass: ViewPass<'_>,
     taille: (f32, f32),
     mut faire: impl FnMut(MembraneVue<'_>),
@@ -162,8 +169,10 @@ fn pour_chaque_membrane(
         if clip.rejects(coin.0, coin.1 - titre, layout.width, layout.height + titre) {
             continue;
         }
+        let saisie = saisie.filter(|s| s.ann_id == *id);
         faire(MembraneVue {
-            text: text.as_deref(),
+            text: saisie.map_or(text.as_deref(), |s| Some(s.buffer.as_str())),
+            saisie,
             domains,
             coin,
             layout,
@@ -187,7 +196,10 @@ impl<'a> MembraneVue<'a> {
     ///
     /// Rend le texte, puis le corps, le retrait et l'élévation, en pixels.
     fn titre(&self, kit: PaintKit<'_>) -> Option<(&'a str, [f32; 3])> {
-        let label = self.text.filter(|l| porte_un_titre(Some(l)))?;
+        // Un titre vide qu'on écrit a sa place : son curseur s'y pose avant la première lettre.
+        let label = self
+            .text
+            .filter(|l| self.saisie.is_some() || porte_un_titre(Some(l)))?;
         let l = &self.layout;
         let large = kit
             .typography
@@ -268,9 +280,14 @@ pub(super) fn formes_des_membranes(
     taille: (u32, u32),
 ) -> Vec<Membrane> {
     let mut formes = Vec::new();
-    pour_chaque_membrane(store, pass, (taille.0 as f32, taille.1 as f32), |m| {
-        formes.push(m.forme());
-    });
+    pour_chaque_membrane(
+        (store, None),
+        pass,
+        (taille.0 as f32, taille.1 as f32),
+        |m| {
+            formes.push(m.forme());
+        },
+    );
     formes
 }
 
@@ -286,7 +303,7 @@ pub(super) fn membranes_en_svg(
 ) {
     use super::svg::n;
     let ecran = (taille.0 as f32, taille.1 as f32);
-    pour_chaque_membrane(store, pass, ecran, |m| {
+    pour_chaque_membrane((store, None), pass, ecran, |m| {
         let forme = m.forme();
         let [r, g, b] = forme.teinte.map(|c| (c * 255.0).round() as u8);
         let teinte = super::svg::hex((r, g, b));
@@ -307,7 +324,9 @@ pub(super) fn membranes_en_svg(
     });
     // Les ornements au-dessus de toutes les formes, comme au canevas : le titre détouré du
     // fond, puis la réglette, alignée à droite du bord haut.
-    pour_chaque_membrane(store, pass, ecran, |m| ornements_en_svg(kit, svg, &m));
+    pour_chaque_membrane((store, None), pass, ecran, |m| {
+        ornements_en_svg(kit, svg, &m);
+    });
 }
 
 /// Le titre et la réglette d'une membrane — la sœur de `poser_les_ornements`.
@@ -341,18 +360,18 @@ fn ornements_en_svg(kit: PaintKit<'_>, svg: &mut super::svg::Svg, m: &MembraneVu
 pub(super) fn draw_membranes(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
-    store: &Store,
+    (store, saisie): (&Store, Option<&TextEditSession>),
     pass: ViewPass<'_>,
 ) -> bool {
     let (l, h) = (pixmap.width(), pixmap.height());
     let mut encre = false;
     {
         let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
-        pour_chaque_membrane(store, pass, (l as f32, h as f32), |m| {
+        pour_chaque_membrane((store, None), pass, (l as f32, h as f32), |m| {
             encre |= glucose_core::membrane_forme::peindre(&m.forme(), pixels, l, h);
         });
     }
-    draw_membrane_ornaments(kit, pixmap, store, pass) || encre
+    draw_membrane_ornaments(kit, pixmap, (store, saisie), pass) || encre
 }
 
 /// **Ce qui reste au processeur sur les deux voies** : le titre, les poignées, la réglette des
@@ -361,12 +380,12 @@ pub(super) fn draw_membranes(
 pub(super) fn draw_membrane_ornaments(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
-    store: &Store,
+    store_et_saisie: (&Store, Option<&TextEditSession>),
     pass: ViewPass<'_>,
 ) -> bool {
     let taille = (pixmap.width() as f32, pixmap.height() as f32);
     let mut encre = false;
-    pour_chaque_membrane(store, pass, taille, |m| {
+    pour_chaque_membrane(store_et_saisie, pass, taille, |m| {
         encre |= poser_les_ornements(kit, pixmap, &m);
     });
     encre
@@ -377,18 +396,26 @@ fn poser_les_ornements(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVu
     let (layout, (r, g, b)) = (m.layout, m.teinte);
     let mut encre = !m.domains.is_empty();
     if let Some((label, [corps, retrait, elevation])) = m.titre(kit) {
-        kit.typography.draw_text_with_outline(
-            pixmap,
-            label,
-            sx + retrait,
-            sy - elevation,
-            TextStyle {
-                size: corps,
-                color: Color::from_rgba8(r, g, b, 255),
-                face: Face::Bold,
-            },
-            kit.theme.bg_canvas,
-        );
+        let titre = saisie::Titre {
+            texte: label,
+            at: (sx + retrait, sy - elevation),
+            corps,
+        };
+        let couleur = Color::from_rgba8(r, g, b, 255);
+        if let Some(s) = m.saisie {
+            saisie::surligner(kit, pixmap, titre, s);
+        }
+        let style = TextStyle {
+            size: corps,
+            color: couleur,
+            face: Face::Bold,
+        };
+        let (x, y) = titre.at;
+        kit.typography
+            .draw_text_with_outline(pixmap, label, x, y, style, kit.theme.bg_canvas);
+        if let Some(s) = m.saisie {
+            saisie::poser_le_curseur(kit, pixmap, titre, (s, m.scale, couleur));
+        }
         encre = true;
     }
     if m.selectionnee && m.poignees {
