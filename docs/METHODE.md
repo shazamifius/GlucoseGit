@@ -214,6 +214,13 @@
 | **Une mesure trop courte fabrique une conclusion** : 30 s de banc disaient « Glucose ne se pose jamais » sur le squelette ; 120 s ont montré une convergence en 30 s, et une autre cause que celle qu'on soupçonnait (fiche 98) | mesurer au-delà de ce que l'hypothèse annonce ; une ligne par image (`GLUCOSE_PERF=1`) nomme la cause avant le profil |
 | **« Au moins une par image » garantit la fin, pas la vitesse** : quand chaque image dépasse déjà le budget, toute cascade avance d'une unité par image complète — une teinte de quelques µs pour 22 ms de peinture (fiche 98, REPOS-2) | au repos, le travail se fait hors des images, et une seule image montre le tout |
 | **La capture du banc compte depuis le script** : `GLUCOSE_CAPTURE_A=5.5` est tombée avant la commande de 4 s du scénario, `nix develop` ouvrant Glucose plusieurs secondes plus tard (fiche 98) | donner de la marge, et relire la capture avant de la croire |
+| **Un banc qui ne joue que des commandes ne reproduit pas un défaut de geste** : « on tape et rien ne s'affiche » ne se voit qu'en tapant (fiche 99) | `outils/pilote/piloter.sh` : de vrais clics et de vraies frappes dans le compositeur invisible ; une capture **pendant** le geste |
+| **sway sans écran n'a aucun périphérique** : ses commandes de curseur (`seat - cursor`) bougent un curseur que nul client ne reçoit — Glucose n'avait pas de souris, et mon clic « ne marchait pas » (fiche 99) | un pointeur virtuel **persistant**, né avant Glucose ; vérifier qu'un simple clic choisit avant de croire un défaut |
+| **Le correctif marchait, et l'on ne voyait toujours rien** : la membrane neuve de `Ctrl+G` posait son titre sous la barre des onglets (fiche 99, SAISIE-2) | regarder la capture du **geste entier** de l'utilisateur, pas seulement l'endroit réparé |
+| **Un décor posé par un geste rend « il y a à défaire » vrai d'avance** : l'épreuve « validée : un geste à défaire » de la roue était aveugle (fiche 99) | vider le journal après le décor (`store.journal.clear()`) |
+| **Une épreuve qui appelle la fonction du geste ne voit pas un branchement oublié** — la souris, la molette, le clavier qui n'y mènent plus (fiche 99, ROUE-1) | passer par les vrais chemins : `handle_cursor_moved`, `handle_mouse_down`, `handle_mouse_wheel`, `prendre_la_touche` |
+| **Une loi neuve contredit une épreuve ancienne** : LUEUR-3 exigeait le violet de la membrane sous un texte bleu, écrite quand la couleur d'un texte ne touchait que 3 % (fiche 99) | trancher entre les deux lois, l'écrire, et réécrire l'attendu selon la nouvelle — jamais relâcher la tolérance |
+| **`getbbox` de Pillow lit le canal alpha d'une image RGBA** : la boîte d'écart de deux témoins opaques disait 10 lignes pour 39 (fiche 99) | comparer en RVB (`convert('RGB')`) |
 
 ## 5. Les pièges pratiques
 
@@ -224,6 +231,10 @@ MX150, écran 60 Hz. **Le reste de ce § 5 a été écrit sur le PC Windows, auj
 chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
 
 * **Rust** : `nix develop -c cargo …` (`target` existe déjà). Une seule grosse compilation à la fois.
+* **Jouer la main dans le vrai Glucose, hors écran** (fiche 99) : `bash outils/pilote/piloter.sh demarrer <maison>
+  <sortie>`, puis `clic|double|droit|aller <x> <y>`, `taper <texte>`, `touche|ctrl|alt|altmaj <t>`, `capture <f.png>`,
+  `arreter`. Le document : le dernier brouillon de `<maison>/state/glucose/brouillons`. Un glisser : `aller`, `presser`,
+  des `aller`, `relacher`. Les coordonnées sont celles de la capture (1920 × 1080).
 * **Un essai réel** : `bash outils/essai_isole.sh <secondes> [capture.png]`. Dossier neuf, télémétrie
   coupée d'avance, capture par `grim`. Annoncer la fenêtre : elle prend le focus.
 * **Jouer des gestes minutés dans le vrai Glucose** : `GLUCOSE_SCENARIO=<fichier>` (`outils/scenarios/`), et le

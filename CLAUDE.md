@@ -21,7 +21,7 @@ tous ses projets : `~/Projets/LISEZ-MOI.md`.
    ses paroles comprises, avec des arguments et, avant de concevoir, une recherche sur internet.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais
-renuméroter une fiche. La prochaine porte le numéro 98.
+renuméroter une fiche. La prochaine porte le numéro 100.
 
 ## Avec lui
 
@@ -45,6 +45,7 @@ cargo test --workspace --no-fail-fast  # ~2 700 épreuves, dont les cliquets
 GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 bash outils/android/construire.sh      # l'APK (SDK et NDK dans ~/Android/Sdk, ABSENTS ici : la CI le construit)
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
+bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran, à la main : clic, double, taper, capture
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
 ```
 

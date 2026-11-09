@@ -1,6 +1,6 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 9/11/2026** (fiches 73 à 98 ; **la beta 8 publiée par lui le 6/11, la beta 9 publiée par lui le 7/11** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
+> **Au 9/11/2026** (fiches 73 à 99 ; **la beta 8 publiée par lui le 6/11, la beta 9 publiée par lui le 7/11** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
 > ce que chacune porte, et ce qui la déclare finie. Tout y est à remettre en question — ses
 > paroles comprises. La direction vit dans [VISION](VISION.md), l'état vérifié dans
 > [ÉTAT](ETAT.md), chaque fonction et son bouton dans [INVENTAIRE](INVENTAIRE.md), la cible
@@ -96,15 +96,15 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 
 ### Le prochain lot — sa parole du 9/11 après-midi (VISION, fin de « Wikipédia sur le canevas »)
 
-Dans cet ordre, à remettre en question : **(1) les défauts qu'il a vus** — l'édition au double-clic (on ne
-voit pas ce qu'on tape avant de cliquer ailleurs : à reproduire d'abord, sur un titre de membrane, un texte,
-un post-it) et la couleur d'un texte qui ne se voit pas (la barre de couleur ment sur les textes) ;
-**(2) la roue de couleur à la Blender** (sa demande ; son ergonomie, ses raccourcis) ; **(3) `Alt+Z`**, l'histoire
-de la caméra ; **(4) les liens** — transparents de loin, visibles près d'un bloc de texte (sa première
-autorisation d'un niveau de détail, pour les liens seuls), le focus et la fenêtre « show » ; **(5) le sens des
-couleurs des membranes** — teinte par proximité des domaines, clarté par accessibilité, opacité par
-appartenance — d'abord par l'agent, puis une option de l'IA de Glucose, toujours désactivable ; **(6) une
-utilité à la couleur des textes**, à lui proposer.
+| | chantier | ce qui le déclare fini |
+|---|---|---|
+| [~] | **SAISIE-1 et 2 — ce qu'on écrit se voit** (fiche 99 § 2-3) : reproduit au banc qui clique et tape (`outils/pilote/`) — le titre d'une membrane ne montrait jamais la frappe ; il la montre, son curseur, sa sélection ; la membrane neuve de `Ctrl+G` cachait son titre sous la barre : la vue glisse. 10 sabotages sur 10 | à son écran : choisir deux nœuds, `Ctrl+G`, double-clic dans la membrane, taper |
+| [~] | **COULEUR-3 — la couleur d'un texte se voit** (fiche 99 § 4) : elle teinte son papier à sa clarté perçue (Oklch) ; 7 sur 7 | à son écran : choisir un texte, le rose ; **sa parole sur le sens** (§ 5 : A domaine, B rôle, C sûreté) |
+| [~] | **ROUE-1 — la roue de couleur** (fiche 99 § 8) : à la Blender, dans Oklch ; la case au bout de la barre ; `Ctrl`, `Maj`, la molette, `Retour arrière`, `Échap` ; un geste. **Reste** : le champ hexadécimal à taper, la pipette | à son écran : une membrane, la case au disque, glisser, `Échap`, recommencer, cliquer dehors, `Ctrl+Z` |
+| [~] | **RETOUR-1 — `Alt+Z`** (fiche 99 § 6) : la vue revient au lieu d'où la caméra est partie, `Alt+Maj+Z` y repart ; « Vue précédente » au menu du vide ; 11 sur 11. **À peser** : un voyage à la main (molette) ne se remonte pas | à son écran : `F` sur un nœud, `Alt+Z` |
+| [ ] | **Les liens** (fiche 99 § 7) : transparents de loin, visibles près d'un bloc de texte (sa seule exception de LOD) ; le clic cadre ses bouts ; le « show » — le Bring & Go de Moscovich et al. (CHI 2009) | **sa parole** sur les deux questions du § 7, puis fait |
+| [ ] | **Le sens des couleurs des membranes** — teinte par proximité des domaines, clarté par accessibilité, opacité par appartenance — d'abord par l'agent sur le squelette (une image à lui montrer), puis l'option « l'IA de Glucose colore », désactivable | une image, sa parole |
+| [ ] | **B et C** (fiche 98 § 3) : une membrane dit ce qu'elle porte ; un fil « où je suis » | sa parole |
 
 ### Étape 2 — Tout ce qui manque (la parité avec Glucose Tauri, et ses demandes)
 
@@ -126,7 +126,7 @@ utilité à la couleur des textes**, à lui proposer.
 | [x] | **L'épreuve des coupes** — elle avait raison : COLONNES-2, une colonne de trop née d'un arrondi (fiche 96) ; réparé, l'épreuve exige des coupes sur 120 cas ; 3 sabotages sur 3 | — |
 | [~] | **Un squelette de Wikipédia** (fiches 94 § 4, 97) : les articles vitaux des niveaux 1 et 2 en membranes, « Eau » et « Hydrogène » dedans — **posé et regardé** (`outils/wikipedia/essai_squelette.sh`) ; MEMB-8 réparé en chemin. **Reste** : **les liens**, choisis par l'agent comme un cartographe — à lui demander, sur ce morceau | à son écran : le squelette ; sa parole sur le déséquilibre, B, C, D |
 | [ ] | **P6 — Relire chaque panneau et chaque menu contre Tauri, champ par champ** : Pomodoro, Domaines, Time Machine, la bande, Ordonner, Mood board. **Les menus du clic droit : rien à comparer** — Tauri n'en avait pas (fiche 03, note 2.16) ; des quatre gestes que la spécification d'origine y annonçait, « Grouper dans une membrane » est fait (GROUPER-1, fiche 98 § 6 ter : `Ctrl+G`, le menu, la palette ; 7 sabotages), « Créer un sous-dossier » reste | la liste de ce qui manque, puis fait |
-| [~] | **La couleur** (COULEUR-1, fiche 98 § 6) : la barre de couleur — huit teintes du thème et « Par défaut » pour les textes, post-it (leur papier), membranes et dossiers choisis ; un geste ; une commande par teinte (la palette). Un opérateur ne se colore pas. Regardée hors écran ; sabotée. **Reste** : la roue de Tauri pour une couleur hors du nuancier ; l'encre d'un post-it | à son écran : choisir un post-it et une membrane, cliquer le rose, `Ctrl+Z` |
+| [~] | **La couleur** (COULEUR-1, fiche 98 § 6) : la barre de couleur — huit teintes du thème et « Par défaut » pour les textes, post-it (leur papier), membranes et dossiers choisis ; un geste ; une commande par teinte (la palette). Un opérateur ne se colore pas. Regardée hors écran ; sabotée. **La roue est faite** (ROUE-1, fiche 99). **Reste** : l'encre d'un post-it | à son écran : choisir un post-it et une membrane, cliquer le rose, `Ctrl+Z` |
 | [~] | **Les opérateurs des post-it** (OPERATEUR-1, fiche 98 § 4) : ET, OU, MAIS, PARCE QUE par `Alt+1…4`, `Alt+0` pour le papier, comme Tauri ; la palette ; le menu d'un post-it (le seul chemin au téléphone) ; un `Ctrl+Z` ; un opérateur a la taille de son mot. Essai réel hors écran ; 7 sabotages sur 7. **Une IA les lit et les pose** (OPERATEUR-2 : `glucose_lire` dit `"operateur"`, `glucose_poser_texte … operateur=parce-que` ; 6 sur 6) | à son écran : choisir deux post-it, `Alt+4`, clic droit, « Post-it ordinaire » |
 | [ ] | **Les miroirs** (un même nœud à deux endroits, `Ctrl+Maj+M` ; le noyau en partie) | à son écran |
 | [ ] | **La temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre (`Maj+T`, `Maj+R` ; le noyau écrit) | à son écran |
