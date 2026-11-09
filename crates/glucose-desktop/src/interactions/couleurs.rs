@@ -5,7 +5,7 @@
 
 use crate::app::GlucoseApp;
 use crate::params::{Pointer, ScreenFrame};
-use crate::ui::couleurs::{couvre, layout_barre_de_couleur, teinte, teinte_sous};
+use crate::ui::couleurs::{couvre, layout_barre_de_couleur, roue_sous, teinte, teinte_sous};
 
 impl GlucoseApp {
     /// Pose la teinte de rang `rang` du nuancier — ou rend la couleur par défaut (`None`) — sur
@@ -47,6 +47,8 @@ impl GlucoseApp {
         }
         if let Some(rang) = teinte_sous(&barre, pointer.x, pointer.y) {
             self.colorer_la_selection(rang);
+        } else if roue_sous(&barre, pointer.x, pointer.y) {
+            self.ouvrir_la_roue();
         }
         true
     }

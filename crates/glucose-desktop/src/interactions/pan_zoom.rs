@@ -158,7 +158,7 @@ pub fn vient_d_une_molette(delta: MouseScrollDelta, pincement: bool, doigt: bool
 }
 
 /// Les deux composantes d'un défilement, et s'il s'exprime en lignes.
-fn deltas(delta: MouseScrollDelta) -> (f64, f64, bool) {
+pub(crate) fn deltas(delta: MouseScrollDelta) -> (f64, f64, bool) {
     match delta {
         MouseScrollDelta::LineDelta(x, y) => (f64::from(x), f64::from(y), true),
         MouseScrollDelta::PixelDelta(p) => (p.x, p.y, false),
@@ -242,6 +242,10 @@ impl GlucoseApp {
                 -dy / self.densite()
             };
             self.defiler_l_ancrage(points as f32);
+            return;
+        }
+        // Ouverte, la roue de couleur garde la molette : la clarté (ROUE-1).
+        if self.molette_vers_la_roue(delta) {
             return;
         }
         // Sur le panneau Domaines, la molette fait défiler ses rangées (fiche 88).

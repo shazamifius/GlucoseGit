@@ -73,6 +73,12 @@ pub fn poser_les_barres(
             theme,
             (visible, ui.scale_factor),
         );
+        // La roue, au-dessus de la barre de couleur qu'elle prolonge (ROUE-1).
+        let barre = super::couleurs::layout_barre_de_couleur(store, typo, visible, ui.scale_factor);
+        if let (Some(roue), Some(barre)) = (&ui.roue, barre) {
+            let lieu = (visible, ui.scale_factor);
+            super::roue::draw_roue(pixmap, roue, barre.rect, (typo, theme), lieu);
+        }
     }
 }
 

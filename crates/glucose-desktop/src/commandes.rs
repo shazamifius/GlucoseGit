@@ -106,6 +106,8 @@ pub enum Commande {
     Operateur(Option<StickyOperator>),
     // La couleur de ce qui est choisi : une teinte du nuancier, ou par défaut (COULEUR-1).
     Couleur(Option<u8>),
+    /// La roue de couleur, pour une couleur hors du nuancier (ROUE-1, fiche 99).
+    RoueDeCouleur,
     // Ce que le menu porte aussi (ACCES-1) : chaque action du menu qui ne dépend pas d'un
     // onglet est une commande — la palette les porte toutes.
     EnregistrerLImage,
@@ -154,7 +156,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 47] = [
+const SIMPLES: [(Commande, &str, &str); 48] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -198,6 +200,11 @@ const SIMPLES: [(Commande, &str, &str); 47] = [
     (Commande::ToutCadrer, "tout-cadrer", "Tout cadrer"),
     (Commande::VuePrecedente, "vue.precedente", "Vue précédente"),
     (Commande::VueSuivante, "vue.suivante", "Vue suivante"),
+    (
+        Commande::RoueDeCouleur,
+        "couleur.roue",
+        "Couleur : la roue…",
+    ),
     (
         Commande::CadrerLaSelection,
         "cadrer-la-selection",

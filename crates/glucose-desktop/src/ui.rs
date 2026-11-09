@@ -23,6 +23,7 @@ pub mod onglets;
 pub mod options_de_fleche;
 pub mod question;
 pub mod rail;
+pub mod roue;
 pub mod toast;
 
 pub use boutons::{
@@ -151,6 +152,8 @@ pub struct UiState {
     pub lecture: Option<crate::interactions::lecture::Lecture>,
     /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
     pub ancrage: Option<ancrage::Ancrage>,
+    /// La roue de couleur, quand elle est ouverte (ROUE-1, fiche 99).
+    pub roue: Option<crate::interactions::roue::RoueOuverte>,
     pub current_toast: Option<Toast>,
     /// Le menu contextuel ouvert, et le point où il l'a été. `None` quand il est fermé.
     ///
@@ -237,6 +240,7 @@ impl UiState {
             storyboard: Default::default(),
             lecture: None,
             ancrage: None,
+            roue: None,
             current_toast: None,
             context_menu_at: None,
             menu_au_doigt: false,

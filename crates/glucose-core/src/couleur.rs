@@ -38,6 +38,7 @@
 //! Aucun angle de départ n'est choisi : les images le donnent.
 
 mod ecran;
+pub mod roue;
 pub use ecran::{papier_teinte, srgb};
 
 /// Une couleur en octets sRGB : rouge, vert, bleu.

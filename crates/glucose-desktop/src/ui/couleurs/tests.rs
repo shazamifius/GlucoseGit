@@ -63,8 +63,8 @@ fn test_couleur_1_la_barre_n_existe_que_pour_ce_qui_se_colore() {
         let b = barre(&store).expect("une barre");
         assert_eq!(
             b.cases.len(),
-            DOMAIN_PALETTE.len() + 1,
-            "{id} : huit teintes et par défaut"
+            DOMAIN_PALETTE.len() + 2,
+            "{id} : huit teintes, par défaut et la roue"
         );
     }
 }

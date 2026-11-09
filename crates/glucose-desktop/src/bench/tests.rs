@@ -353,7 +353,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis, le 9/11** (COULEUR-1, fiche 98) : la sélection porte des textes, une membrane — la
 /// barre de couleur se pose au-dessus de celle des flèches. 15 450 pixels, tous dans sa bande
 /// (701-1098 × 758-796), rien ailleurs ; regardée avant/après, agrandie deux fois.
-const EMPREINTE_TEMOIN_SELECTION: &str = "aa0e9a2015f4d5d3";
+/// **Puis, le 9/11 au soir** (ROUE-1, fiche 99) : la barre de couleur gagne la case de la roue — un
+/// petit disque arc-en-ciel après « Par défaut » —, s'élargit et se recentre. 6 900 pixels, tous
+/// dans sa bande (687-1112 × 758-796), rien ailleurs ; regardée avant/après, agrandie deux fois.
+const EMPREINTE_TEMOIN_SELECTION: &str = "a879d34b48621cfb";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -437,7 +440,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (GROUPER-1, fiche 98) : « Grouper dans une membrane — Ctrl+G » après « Cadrer la
 /// sélection » ; le menu s'élargit pour le mot et gagne une rangée. 29 234 pixels, tous dans le
 /// menu (639-887 × 319-606) ; regardé avant/après, agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "e30254d6eeee3596";
+/// **Puis, le 9/11 au soir** (ROUE-1, fiche 99) : les mêmes 6 900 pixels que la scène sélectionnée —
+/// la barre de couleur et la case de la roue, sous le menu ; regardée.
+const EMPREINTE_TEMOIN_MENU: &str = "85c0085dfbfd4613";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -55,6 +55,10 @@ impl GlucoseApp {
         if self.suivre_ce_qui_est_tenu(position) {
             return;
         }
+        // La roue de couleur tenue suit la main (ROUE-1).
+        if self.glisser_la_roue((position.x as f32, position.y as f32)) {
+            return;
+        }
 
         if self.dock_manager.drag.is_some() {
             self.dock_manager
@@ -252,6 +256,7 @@ impl GlucoseApp {
         let pointer = self.pointer();
         let taken = self.cliquer_la_question(pointer, screen)
             || self.click_context_menu(pointer, screen)
+            || self.click_roue(pointer, screen)
             || self.click_ancrage(pointer)
             || self.click_skips_flight()
             || self.redimensionner_par_le_bord()
@@ -301,6 +306,7 @@ impl GlucoseApp {
             }
             MouseButton::Left => {
                 if self.relacher_la_question()
+                    || self.relacher_la_roue()
                     || self.lacher_l_onglet()
                     || self.lacher_l_ancrage()
                     || self.lacher_le_champ()

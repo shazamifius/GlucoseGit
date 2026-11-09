@@ -73,6 +73,7 @@ impl GlucoseApp {
             Commande::Relation(rang) => return self.qualifier_les_fleches(rang),
             Commande::Operateur(voulu) => return self.poser_l_operateur(voulu),
             Commande::Couleur(rang) => return self.colorer_la_selection(rang),
+            Commande::RoueDeCouleur => return self.ouvrir_la_roue(),
             Commande::Chercher => self.ouvrir_la_palette(super::palette::But::Chercher),
             Commande::ResultatSuivant => self.resultat_voisin(1),
             Commande::ResultatPrecedent => self.resultat_voisin(-1),

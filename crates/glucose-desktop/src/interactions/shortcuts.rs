@@ -108,7 +108,8 @@ impl GlucoseApp {
         self.touche_de_la_lecture(key, appuyee)
             || self.touche_de_la_question(key, appuyee, texte)
             || appuyee
-                && (self.touche_de_l_ancrage(key)
+                && (self.touche_de_la_roue(key)
+                    || self.touche_de_l_ancrage(key)
                     || self.frapper_le_nom_du_jalon(key)
                     || self.frapper_dans_le_champ(key)
                     || self.frapper_le_nom_de_l_onglet(key)

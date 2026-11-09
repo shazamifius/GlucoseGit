@@ -55,9 +55,11 @@ pub const PAR_DEFAUT: &str = "Par défaut";
 #[derive(Clone, Debug, PartialEq)]
 pub struct Case {
     pub rect: (f32, f32, f32, f32),
-    /// Le rang de la teinte dans le nuancier, ou `None` pour « Par défaut ».
+    /// Le rang de la teinte dans le nuancier, ou `None` pour « Par défaut » — et pour la roue.
     pub teinte: Option<u8>,
     pub allume: bool,
+    /// La case qui ouvre la roue de couleur (ROUE-1, fiche 99), pour une couleur hors du nuancier.
+    pub roue: bool,
 }
 
 /// La barre, une fois placée.
@@ -104,7 +106,13 @@ pub fn layout_barre_de_couleur(
     let mesure = |t: &str| typography.measure_text(t, font, Face::Regular).0;
     let defaut = mesure(PAR_DEFAUT) + BTN_PAD_X * s * 2.0;
     let n = DOMAIN_PALETTE.len() as f32;
-    let largeur = PAD_X * s * 2.0 + mesure(MOT) + GAP * s * 2.0 + n * (cote + GAP * s) + defaut;
+    let largeur = PAD_X * s * 2.0
+        + mesure(MOT)
+        + GAP * s * 2.0
+        + n * (cote + GAP * s)
+        + defaut
+        + GAP * s
+        + cote;
     let (x, y) = (
         (screen.0 - largeur) / 2.0,
         dessous - AU_DESSUS * s - hauteur,
@@ -116,6 +124,7 @@ pub fn layout_barre_de_couleur(
             rect: (curseur, y + PAD_Y * s, cote, cote),
             teinte: Some(rang as u8),
             allume: commune == Some(Some(hex)),
+            roue: false,
         });
         curseur += cote + GAP * s;
     }
@@ -123,6 +132,17 @@ pub fn layout_barre_de_couleur(
         rect: (curseur, y + PAD_Y * s, defaut, cote),
         teinte: None,
         allume: commune == Some(None),
+        roue: false,
+    });
+    // La roue : allumée quand la couleur commune n'est pas une teinte du nuancier.
+    let hors_du_nuancier = commune
+        .flatten()
+        .is_some_and(|c| !DOMAIN_PALETTE.iter().any(|t| t.eq_ignore_ascii_case(c)));
+    cases.push(Case {
+        rect: (curseur + defaut + GAP * s, y + PAD_Y * s, cote, cote),
+        teinte: None,
+        allume: hors_du_nuancier,
+        roue: true,
     });
     Some(BarreDeCouleur {
         rect: (x, y, largeur, hauteur),
@@ -136,8 +156,13 @@ pub fn teinte_sous(barre: &BarreDeCouleur, px: f32, py: f32) -> Option<Option<u8
     barre
         .cases
         .iter()
-        .find(|c| dans(c.rect, px, py))
+        .find(|c| !c.roue && dans(c.rect, px, py))
         .map(|c| c.teinte)
+}
+
+/// Le clic tombe-t-il sur la case de la roue ?
+pub fn roue_sous(barre: &BarreDeCouleur, px: f32, py: f32) -> bool {
+    barre.cases.iter().any(|c| c.roue && dans(c.rect, px, py))
 }
 
 /// Le clic tombe-t-il sur la barre ? Ce qui tombe dessus ne doit jamais atteindre le canevas :
@@ -175,6 +200,10 @@ pub fn draw_barre_de_couleur(
     );
     for case in &barre.cases {
         let (cx, cy, cw, ch) = case.rect;
+        if case.roue {
+            dessiner_la_case_de_la_roue(pixmap, case, (s, theme));
+            continue;
+        }
         match case.teinte.and_then(teinte) {
             Some(hex) => {
                 // Allumée, la case porte l'anneau des boutons allumés autour de sa teinte.
@@ -207,6 +236,35 @@ pub fn draw_barre_de_couleur(
                 );
             }
         }
+    }
+}
+
+/// La case de la roue : un petit disque de la roue elle-même, à la clarté des teintes du nuancier.
+fn dessiner_la_case_de_la_roue(pixmap: &mut PixmapMut, case: &Case, (s, theme): (f32, &Theme)) {
+    if case.allume {
+        bouton(pixmap, case.rect, (s, true), theme);
+    }
+    let marge = 3.0 * s;
+    let (cx, cy, cw, _) = case.rect;
+    let d = (cw - 2.0 * marge).round().max(1.0) as u32;
+    let mut octets = Vec::with_capacity((d * d * 4) as usize);
+    for [r, g, b, a] in glucose_core::couleur::roue::pixels_du_disque(0.75, d) {
+        let pre = |c: u8| ((u16::from(c) * u16::from(a) + 127) / 255) as u8;
+        octets.extend([pre(r), pre(g), pre(b), a]);
+    }
+    let disque =
+        tiny_skia::IntSize::from_wh(d, d).and_then(|t| tiny_skia::Pixmap::from_vec(octets, t));
+    if let Some(disque) = disque {
+        let paint = tiny_skia::PixmapPaint::default();
+        let (x, y) = ((cx + marge).round() as i32, (cy + marge).round() as i32);
+        pixmap.draw_pixmap(
+            x,
+            y,
+            disque.as_ref(),
+            &paint,
+            tiny_skia::Transform::identity(),
+            None,
+        );
     }
 }
 
