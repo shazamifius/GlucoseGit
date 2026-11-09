@@ -32,7 +32,7 @@
  {
   "nom": "GROUPER-1 le parent ne grandit pas",
   "fichier": "crates/glucose-core/src/store/grouper.rs",
-  "avant": "            let _ = self.agrandir_la_membrane_pour(&board_id, &p, cadre);",
+  "avant": "            let _ = self.agrandir_la_membrane_pour(board_id, &p, cadre);",
   "apres": "            let _ = (&p, cadre);",
   "cmd": [
    "cargo",

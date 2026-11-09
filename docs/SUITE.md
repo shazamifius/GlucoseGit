@@ -80,7 +80,7 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **P8 — Le texte de près par la carte graphique** (fiche 73) : Slug, CADRE-1, SLUG-1 ; ~1 ms par image de près, contre ~20 et le flou | de près, aucun flou, sur sa machine et au téléphone |
 | [~] | **P8 bis — Un nœud immense, de près** (fiche 73 § 7) : LIGNE-1 et la mémoire des mises en page — 10,5 ms → 0,72 ms à 17 600 mots | un très long texte, de près ; un tableau plein de textes |
 | [~] | **P4 — Tes raccourcis** (fiches 72, 74) : la table des commandes, la palette, la couche de l'utilisateur | `Ctrl+Maj+P` ; changer un raccourci, relancer |
-| [~] | **P10 — La porte des agents** (fiche 75) : `glucose --mcp`, douze outils (les domaines depuis la fiche 88, `glucose_chercher` depuis la fiche 90), et chacun une commande du terminal, chaque geste annulable, rien sans son accord ; lire par niveaux, `selection`, `empreinte`, `document`, `glucose_ouvrir_tableau` (fiches 79, 80) | un agent travaille dans son Glucose, sous ses yeux |
+| [~] | **P10 — La porte des agents** (fiche 75) : `glucose --mcp`, quatorze outils (les domaines depuis la fiche 88, `glucose_chercher` depuis la fiche 90, `glucose_disposer` 92, `glucose_grouper` 98), et chacun une commande du terminal, chaque geste annulable, rien sans son accord ; lire par niveaux, `selection`, `empreinte`, `document`, `glucose_ouvrir_tableau` (fiches 79, 80) | un agent travaille dans son Glucose, sous ses yeux |
 
 ### Étape 1 — Ne rien perdre
 

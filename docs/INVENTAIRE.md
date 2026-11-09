@@ -79,7 +79,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | fonction | au PC | au téléphone |
 |---|---|---|
 | **Disposer en colonnes** (fiche 92, COLONNES-1) : une membrane range ce qu'elle porte, sous-membranes comprises, en colonnes de journal, dans l'ordre de lecture, à la proportion de l'écran | **menu d'une membrane choisie**, la palette ; un agent : `glucose_disposer` ; au terminal : `glucose disposer <membrane>` | ✅ menu |
-| **Grouper dans une membrane** (fiche 98, GROUPER-1) : la sélection entre dans une membrane neuve, née dans l'ancêtre commun, les membranes choisies gardant leur contenu ; un geste | `Ctrl+G`, le **menu d'une sélection**, la palette | ✅ menu |
+| **Grouper dans une membrane** (fiche 98, GROUPER-1) : la sélection entre dans une membrane neuve, née dans l'ancêtre commun, les membranes choisies gardant leur contenu ; un geste | `Ctrl+G`, le **menu d'une sélection**, la palette ; une IA : `glucose_grouper`, au terminal `glucose grouper` | ✅ menu |
 | **Les opérateurs des post-it** et **la couleur** (fiche 98, OPERATEUR-1, COULEUR-1) : ET, OU, MAIS, PARCE QUE ; huit teintes et « Par défaut » pour textes, post-it, membranes, dossiers | `Alt+0…4`, le menu d'un post-it, la palette ; **la barre de couleur** au-dessus de la barre d'action, `couleur.*` à la palette ; une IA : `operateur=`, `couleur=`, et `glucose_lire` les dit | ✅ menu, barre |
 | Ordonner (cinq dispositions, huit tris, champs) | panneau Ordonner | 🟡 les champs se glissent, **ne se tapent pas** (le clavier d'Android ne sert pas les champs du dock) |
 | **Mood board** (l'ancien « Presets » de Tauri, renommé à sa parole, fiche 71) : poser un gabarit, ses zones, « Par mood board » dans Ordonner | panneau Mood board | ✅ |

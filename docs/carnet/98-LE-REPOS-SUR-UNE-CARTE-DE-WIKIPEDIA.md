@@ -266,6 +266,11 @@ entourer, nommer —, celui de la carte de Wikipédia comme de Miro ou Figma (`C
 * **Une épreuve aveugle évitée** : celle du cadre comparait la membrane à `cadre_autour` lui-même — un
   sabotage de la loi l'aurait laissée passer. Elle vérifie désormais la loi sans elle (la place du
   titre, l'écart de chaque côté).
+* **Pour une IA aussi** : `glucose_grouper` (`ids`, `titre`, `couleur`) — et donc `glucose grouper`
+  au terminal. Le noyau groupe des nœuds **nommés** (`Store::grouper` ; la sélection n'en est qu'un
+  cas) ; pour un agent, un identifiant inconnu est refusé en le nommant, et rien sans boîte
+  (`Refus::RienAGrouper`) ; la sélection de l'humain ne bouge pas (AGENT-1). Jusqu'ici, un agent ne
+  regroupait des nœuds existants qu'en les reposant un par un, texte compris.
 
 ## 7. Ce qui n'a pas été fait, et pourquoi
 
@@ -283,6 +288,11 @@ entourer, nommer —, celui de la carte de Wikipédia comme de Miro ou Figma (`C
   exacte » dans `fill_crisp` **et** dans la voie de la carte, l'épreuve de l'encre de loin (comme
   GRIS-1), et la mise à jour regardée du témoin dézoomé. `fill_crisp` sert aussi l'interface (13
   appels dans la bande) : la loi doit y garder ses filets nets — distinguer le monde de l'écran.
+* **« Créer un sous-dossier »**, le quatrième geste que la spécification annonçait au menu : ranger
+  la sélection dans un dossier neuf déplace des nœuds vers un sous-tableau — les flèches qui
+  traversent, les membranes et leur contenu, l'aimant d'un dossier qui « aspire » ce qui tombe sous
+  lui à sa naissance (`create_folder`). Trop de cas pour une fin de session, et le dossier est
+  « à retravailler » (sa parole du 15/10) : à concevoir avec ce travail-là.
 * **La roue de couleur de Tauri** : un chantier entier (la roue, le curseur de clarté, le champ
   hexadécimal, au doigt comme à la souris) ; le nuancier couvre déjà la couleur d'un post-it,
   d'une membrane, d'un texte et d'un dossier.
@@ -301,19 +311,24 @@ entourer, nommer —, celui de la carte de Wikipédia comme de Miro ou Figma (`C
   fait hors des images.
 * **Regarder l'image avant de dire fini** a encore payé : la première capture de la barre de couleur
   montrait des teintes qui ne changeaient rien de visible (les pilules).
+* **Un fichier de sabotages vieillit avec le code** : refactorer `grouper` (la sélection devenue un
+  cas des nœuds nommés) a changé une ligne, et son sabotage a répondu « introuvable » — ni tombé, ni
+  aveugle : muet. Rejouer les sabotages après chaque refactorage de ce qu'ils gardent, et corriger le
+  texte attendu, jamais l'ignorer.
 * **La fenêtre de capture du banc compte depuis le script**, pas depuis le lancement de Glucose
   (`nix develop` l'ouvre plusieurs secondes plus tard) : une capture « à 5,5 s » est tombée avant la
   commande de 4 s. Donner de la marge, et relire la capture.
 
 ## 9. Prouver — le compte de la session
 
-* **Suite entière** : 2 965 épreuves, aucune tombée, 7 ignorées (carte graphique absente) ;
+* **Suite entière** : 2 967 épreuves, aucune tombée, 7 ignorées (carte graphique absente) ;
   `cargo fmt`, clippy et les cliquets à zéro (le cliquet des 600 lignes a arrêté une fois
   `annotation.rs` : extrait, pas relevé).
 * **Sabotages** : REPOS-2 7 sur 7 ; AGENT-8 3 sur 3 ; OPERATEUR-1 7 sur 7 ; OPERATEUR-2 6 sur 6 ;
   COULEUR-1 12 sur 12 (rejoués sur la version finale) ; COULEUR-2 3 sur 3, et AGENT-8 et
-  OPERATEUR-2 rejoués après lui (3 sur 3, 6 sur 6) ; GROUPER-1 7 sur 7 (`grouper-1-98.json`).
-  **En tout : 45 sabotages, 45 tombés** (dont neuf rejoués sur la version finale de leur code).
+  OPERATEUR-2 rejoués après lui (3 sur 3, 6 sur 6) ; GROUPER-1 9 sur 9 (`grouper-1-98.json`, l'outil
+  des agents compris). **En tout : 47 sabotages, 47 tombés** (dont seize rejoués sur la version
+  finale de leur code).
 * **Le vrai programme, regardé** : le squelette au banc hors écran (repos et vols, en paires
   entrelacées avec `f967f66`) ; le squelette coloré par l'agent (D) ; les opérateurs et la barre de
   couleur par des scénarios hors écran, chaque capture regardée ; les images témoins comparées
