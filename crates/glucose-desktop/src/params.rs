@@ -104,6 +104,8 @@ pub struct SceneOverlay<'a> {
     /// **Le gabarit qui suit le curseur** : une boîte par zone, là où un clic le poserait
     /// (PRESET-1).
     pub gabarit: &'a [glucose_core::geometry::Rect],
+    /// **Le nœud sous la souris** : ses liens se montrent pleins à toute distance (LIEN-1).
+    pub survole: Option<&'a str>,
 }
 
 impl<'a> SceneOverlay<'a> {
@@ -122,6 +124,7 @@ impl<'a> SceneOverlay<'a> {
             designees: &[],
             fantome: None,
             gabarit: &[],
+            survole: None,
         }
     }
 }

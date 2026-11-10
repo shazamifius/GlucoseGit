@@ -139,4 +139,32 @@ for titre, prefixe, dans in [('Eau', 'eau', ids['Water']), ('Hydrogène', 'hydro
 # 6. Tout se range, en colonnes, à la proportion de l'écran.
 debut = time.monotonic()
 print('disposer :', glucose_('disposer', 'wiki'), f'en {time.monotonic() - debut:.1f} s')
+
+# 7. Sur demande (`GLUCOSE_LIENS=1`, fiche 102) : les liens de Wikipédia entre ces articles. Chaque
+# lien d'un article vers un autre des cent devient une flèche, du texte de l'article (là où un
+# lecteur le trouve) vers la membrane de l'autre. Un bloc de cinquante articles contre un bloc de
+# cinquante cibles par requête (`pltitles`) : quelques requêtes pour tout le graphe.
+if os.environ.get('GLUCOSE_LIENS') == '1':
+    membrane = {francais.get(t) or INTITULES.get(t) or t: aid for t, aid in ids.items()}
+    avec_texte = {nom for nom in membrane if phrases.get(nom)}
+    noms = sorted(membrane)
+    liens = set()
+    for i in range(0, len(noms), 50):
+        for j in range(0, len(noms), 50):
+            suite = {}
+            while True:
+                r = api('fr.wikipedia.org', action='query', titles='|'.join(noms[i:i + 50]),
+                        prop='links', pltitles='|'.join(noms[j:j + 50]), pllimit='max', **suite)
+                for page in r['query']['pages']:
+                    for lien in page.get('links', []):
+                        if page['title'] in membrane and lien['title'] in membrane \
+                                and lien['title'] != page['title']:
+                            liens.add((page['title'], lien['title']))
+                if 'continue' not in r:
+                    break
+                suite = {k: v for k, v in r['continue'].items() if k != 'continue'}
+    for k, (de, vers) in enumerate(sorted(liens)):
+        source = f'{membrane[de]}-t' if de in avec_texte else membrane[de]
+        glucose_('relier', f'id=lien{k}', f'source={source}', f'cible={membrane[vers]}')
+    print(f'{len(liens)} liens entre les articles')
 print(f'{appels} commandes du squelette, {duree:.1f} s')

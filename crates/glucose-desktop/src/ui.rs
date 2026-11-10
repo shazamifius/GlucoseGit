@@ -140,6 +140,8 @@ pub struct UiState {
     pub survol: bande::Survol,
     /// La flèche que la souris survole : ce qu'elle ancre brille dans ses cartes (FLECHE-4).
     pub fleche_survolee: Option<String>,
+    /// Le nœud que la souris survole, de toute sorte : ses liens se montrent pleins (LIEN-1).
+    pub noeud_survole: Option<String>,
     /// Sous l'outil Flèche armé, le nœud dont une flèche partirait si l'on appuyait ici : sa
     /// lueur s'avive avant même le premier geste (LUEUR-1).
     pub noeud_pressenti: Option<String>,
@@ -235,6 +237,7 @@ impl UiState {
             fenetre_agrandie: false,
             survol: bande::Survol::default(),
             fleche_survolee: None,
+            noeud_survole: None,
             noeud_pressenti: None,
             placement: Default::default(),
             zones: Default::default(),

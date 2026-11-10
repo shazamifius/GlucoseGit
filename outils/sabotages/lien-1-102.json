@@ -1,0 +1,302 @@
+[
+ {
+  "nom": "La loi rend toujours 1 : les liens gardent leur épaisseur d'écran de loin",
+  "fichier": "crates/glucose-desktop/src/renderer/scale.rs",
+  "avant": "            (self.zoom / self.densite).min(1.0)\n",
+  "apres": "            1.0_f32.min(self.zoom * 0.0 + 1.0)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "La loi n'est pas bornée à 1 : de près, les liens grossissent",
+  "fichier": "crates/glucose-desktop/src/renderer/scale.rs",
+  "avant": "            (self.zoom / self.densite).min(1.0)\n",
+  "apres": "            self.zoom / self.densite\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "La loi lit le zoom physique, pas le zoom logique",
+  "fichier": "crates/glucose-desktop/src/renderer/scale.rs",
+  "avant": "            (self.zoom / self.densite).min(1.0)\n",
+  "apres": "            self.zoom.min(1.0)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "En lumière ne compte pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "        if self.en_lumiere {\n",
+  "apres": "        if false && self.en_lumiere {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le trait ne suit pas la loi",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "                scale.screen(sw as f32) / 2.0 * lecture,\n",
+  "apres": "                scale.screen(sw as f32) / 2.0,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le halo ne suit pas la loi",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "            halo: [scale.screen(halo as f32) / 2.0 * lecture, opacite_du_halo],\n",
+  "apres": "            halo: [scale.screen(halo as f32) / 2.0, opacite_du_halo],\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le contour des disques ne suit pas la loi",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "            demi_contour: scale.screen(aspect::CONTOUR as f32) / 2.0 * self.lecture(scale),\n",
+  "apres": "            demi_contour: scale.screen(aspect::CONTOUR as f32) / 2.0,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le survol n'allume rien",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "        survole == Some(n)\n",
+  "apres": "        survole == Some(\"\")\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Un texte choisi n'allume pas ses liens",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "            || store.selected_annotation_ids.contains(n)\n",
+  "apres": "            || false\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Les bouts ne comptent pas, seule la flèche",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "    regarde(id)\n        || [source_id, target_id]\n            .into_iter()\n            .flatten()\n            .any(|b| regarde(b))\n",
+  "apres": "    regarde(id)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Un bout de lien n'est pas reconnu au survol",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "                || source_id.as_deref() == Some(noeud)\n",
+  "apres": "                || false\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le SVG ne suit pas la loi",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "    let lecture = fleche.lecture(scale);\n",
+  "apres": "    let lecture = 1.0_f32;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le contour du SVG ne suit pas la loi",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "            n(scale.screen(aspect::CONTOUR as f32) * lecture)\n",
+  "apres": "            n(scale.screen(aspect::CONTOUR as f32))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "La voie du processeur oublie le survol",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "                let lumiere = super::arrow::en_lumiere(store, survols.survole, ann);\n",
+  "apres": "                let lumiere = super::arrow::en_lumiere(store, None, ann);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Les voies ne transmettent pas le survol au processeur",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "                survole: overlay.survole,\n",
+  "apres": "                survole: None,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "La voie graphique oublie le survol",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "            (store, pass, overlay.survole),\n",
+  "apres": "            (store, pass, None),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "L'image ne reçoit pas le nœud survolé",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "            survole: self.ui.noeud_survole.clone(),\n",
+  "apres": "            survole: None,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "La souris ne suit plus le survol",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "            self.suivre_le_survol();\n",
+  "apres": "\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Tout survol redessine",
+  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
+  "avant": "            if self.le_survol_change_un_lien([avant.as_deref(), maintenant]) {\n",
+  "apres": "            if true || self.le_survol_change_un_lien([avant.as_deref(), maintenant]) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le survol redessine même à la taille réelle",
+  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
+  "avant": "        echelle.lecture() < 1.0\n",
+  "apres": "        echelle.lecture() < 2.0\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ }
+]

@@ -67,6 +67,8 @@ pub(crate) struct Pass<'a> {
 pub(crate) struct Survols<'a> {
     pub eclairages: &'a [crate::params::Eclairage],
     pub badges: &'a [(String, f32)],
+    /// Le nœud sous la souris : ses liens se montrent pleins (LIEN-1).
+    pub survole: Option<&'a str>,
 }
 
 impl Survols<'_> {
@@ -196,12 +198,13 @@ fn dessiner_ce_qui_passe_au_dessus(
                 draw_node_gauge(ctx, pixmap, (*x, *y), ann.domains());
             }
             Annotation::Arrow { .. } => {
+                let lumiere = super::arrow::en_lumiere(store, survols.survole, ann);
                 draw_arrow_node(
                     ctx,
                     pixmap,
                     hue_cache,
                     (ann, board, pass),
-                    (selected, editing, !cartes_par_la_carte),
+                    ((selected, lumiere), editing, !cartes_par_la_carte),
                     survols.effacement(ann.id()),
                 );
             }
@@ -274,7 +277,7 @@ fn draw_arrow_node(
     pixmap: &mut PixmapMut,
     hue_cache: &mut SymbioticHueCache,
     (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
-    (selected, editing, au_processeur): (bool, Option<&TextEditSession>, bool),
+    ((selected, lumiere), editing, au_processeur): ((bool, bool), Option<&TextEditSession>, bool),
     efface: f32,
 ) {
     let Annotation::Arrow { predicate, .. } = ann else {
@@ -287,7 +290,7 @@ fn draw_arrow_node(
         math: ctx.math,
         contournement: pass.contournement,
     };
-    let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), selected) else {
+    let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), (selected, lumiere)) else {
         return;
     };
     if au_processeur {

@@ -157,6 +157,7 @@ impl GlucoseApp {
             designees: self.suivre_la_designation(),
             fantome: self.fantome_montre(),
             gabarit: [self.fantome_du_gabarit(), self.fantome_du_storyboard()].concat(),
+            survole: self.ui.noeud_survole.clone(),
         }
     }
 
@@ -255,6 +256,7 @@ struct Dessus {
     designees: Vec<(String, f32)>,
     fantome: Option<crate::interactions::placement::Fantome>,
     gabarit: Vec<glucose_core::geometry::Rect>,
+    survole: Option<String>,
 }
 
 impl Dessus {
@@ -273,6 +275,7 @@ impl Dessus {
             designees: &self.designees,
             fantome: self.fantome.as_ref().map(|f| f.rect),
             gabarit: &self.gabarit,
+            survole: self.survole.as_deref(),
             ..SceneOverlay::sans_rien(self.guides(du_geste))
         }
     }

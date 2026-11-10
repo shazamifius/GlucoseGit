@@ -13,22 +13,48 @@ use glucose_core::text_anchors::resolve_text_sel;
 use glucose_core::types::Annotation;
 
 impl GlucoseApp {
-    /// **Suit la flèche survolée** : l'image ne se redessine que quand elle change.
-    pub(crate) fn suivre_la_fleche_survolee(&mut self) {
-        let survolee = self.fleche_sous_la_souris();
-        if survolee != self.ui.fleche_survolee {
-            self.ui.fleche_survolee = survolee;
+    /// **Suit ce que la souris survole** — la flèche (ce qu'elle ancre brille, FLECHE-4) et le
+    /// nœud (ses liens se montrent pleins, LIEN-1) : l'arbitre de clic est seul juge de ce
+    /// qu'elle vise, pour que ce qui s'allume soit ce qu'un clic sélectionnerait. Une seule
+    /// visée pour les deux.
+    pub(crate) fn suivre_le_survol(&mut self) {
+        let vp = self.store.viewport();
+        let (wx, wy) = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+        let candidat = self.pick_candidate_at(wx, wy);
+        let fleche = candidat
+            .as_ref()
+            .filter(|c| c.kind == PickKind::Arrow)
+            .map(|c| c.id.clone());
+        if fleche != self.ui.fleche_survolee {
+            self.ui.fleche_survolee = fleche;
             self.mark_dirty();
+        }
+        let noeud = candidat.map(|c| c.id);
+        if noeud != self.ui.noeud_survole {
+            let avant = std::mem::replace(&mut self.ui.noeud_survole, noeud);
+            let maintenant = self.ui.noeud_survole.as_deref();
+            if self.le_survol_change_un_lien([avant.as_deref(), maintenant]) {
+                self.mark_dirty();
+            }
         }
     }
 
-    /// La flèche que le clic prendrait sous la souris — l'arbitre de clic est seul juge de ce
-    /// qu'elle vise, pour que ce qui brille soit ce qu'un clic sélectionnerait.
-    fn fleche_sous_la_souris(&self) -> Option<String> {
-        let vp = self.store.viewport();
-        let (wx, wy) = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
-        let candidat = self.pick_candidate_at(wx, wy)?;
-        (candidat.kind == PickKind::Arrow).then_some(candidat.id)
+    /// **Le survol change-t-il l'aspect d'un lien ?** Seulement si les liens ne sont pas déjà
+    /// pleins à cette distance, et si l'un des deux nœuds — quitté, atteint — en touche un
+    /// (LIEN-1) : survoler un nœud sans lien ne redessine rien.
+    fn le_survol_change_un_lien(&self, noeuds: [Option<&str>; 2]) -> bool {
+        let echelle = crate::renderer::scale::WorldScale::new(
+            self.store.viewport().scale,
+            self.densite() as f32,
+        );
+        let Some(board) = self.store.active_board() else {
+            return false;
+        };
+        echelle.lecture() < 1.0
+            && noeuds
+                .into_iter()
+                .flatten()
+                .any(|n| crate::renderer::arrow::touche_un_lien(board, n))
     }
 
     /// **Suit le nœud dont une flèche partirait**, sous l'outil Flèche armé : l'image ne se

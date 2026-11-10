@@ -109,7 +109,7 @@ impl GlucoseApp {
             if position.y < bande || prev_pos.1 < bande {
                 self.suivre_le_survol_de_la_bande();
             }
-            self.suivre_la_fleche_survolee();
+            self.suivre_le_survol();
             self.suivre_le_noeud_pressenti();
             self.suivre_le_fantome();
             self.suivre_le_gabarit();

@@ -78,7 +78,8 @@ pub(in crate::renderer) fn annotations_en_svg(
                 reglette(svg, (*x, *y), ann);
             }
             Annotation::Arrow { predicate, .. } => {
-                let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), false) else {
+                let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), (false, false))
+                else {
                     continue;
                 };
                 fleche_en_svg(&fleche, (&ctx.vp, ctx.scale), svg);

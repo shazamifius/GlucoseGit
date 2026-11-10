@@ -87,6 +87,27 @@ impl WorldScale {
     pub(super) fn draws_detail(self) -> bool {
         self.zoom >= Self::SIMPLIFIED_BELOW
     }
+
+    /// **LIEN-1 — la part de la taille réelle** : 1 dès que le monde s'affiche à sa taille (une
+    /// unité du monde pour un pixel logique, où un bloc de texte a son corps de 14 pixels), et
+    /// plus loin le zoom lui-même.
+    ///
+    /// Ce qu'un lien multiplie à ses longueurs d'écran : de près, il garde son épaisseur d'écran
+    /// (le `non-scaling-stroke` de Tauri) ; plus loin que la taille réelle, il est **une chose du
+    /// monde**, épaisse d'autant d'unités qu'il a de pixels à la taille réelle, et rétrécit avec
+    /// les lettres qu'il relie — sans saut au passage (sa parole du 9/11 : *« de base, les liens
+    /// sont très transparents ; dès qu'on s'approche d'un bloc de texte, ils apparaissent »*).
+    /// **Aucune constante** : le seuil est l'identité du monde et de l'écran. Le seuil du gris
+    /// ([`Self::SIMPLIFIED_BELOW`], des lettres de 2,8 pixels) a été essayé d'abord : la vue
+    /// d'ensemble de Wikipédia n'en est qu'à deux crans, et ses 1 128 liens y faisaient une
+    /// pelote (fiche 102).
+    pub fn lecture(self) -> f32 {
+        if self.densite > 0.0 {
+            (self.zoom / self.densite).min(1.0)
+        } else {
+            1.0
+        }
+    }
 }
 
 // ── SCALE-3 — un filet se pose sur la grille de pixels, et ne s'anti-aliase pas ──

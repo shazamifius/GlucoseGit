@@ -49,6 +49,8 @@ pub(crate) struct Fleche {
     /// Son épaisseur, en pixels d'écran (`strokeWidth`).
     pub epaisseur: f64,
     pub selectionnee: bool,
+    /// Pleine à toute distance (LIEN-1) : on la regarde, elle ou l'un de ses bouts.
+    pub en_lumiere: bool,
     pub double_sens: bool,
 }
 
@@ -59,7 +61,7 @@ impl Fleche {
         hue_cache: &mut SymbioticHueCache,
         ann: &Annotation,
         (pass, noeuds): (ViewPass<'_>, NoeudsDuRendu<'_>),
-        selectionnee: bool,
+        (selectionnee, en_lumiere): (bool, bool),
     ) -> Option<Self> {
         let board = noeuds.board;
         let Annotation::Arrow {
@@ -84,6 +86,7 @@ impl Fleche {
             teintes,
             epaisseur: stroke_width.unwrap_or(aspect::EPAISSEUR),
             selectionnee,
+            en_lumiere,
             double_sens: *arrow_bidirectional,
         })
     }
@@ -101,12 +104,16 @@ impl Fleche {
         let (halo, opacite_du_halo) = aspect::halo(sw, self.selectionnee);
         let (debut, fin) = (a_l_ecran(premier.depart()), a_l_ecran(dernier.arrivee()));
         let t = self.teintes;
+        let lecture = self.lecture(scale);
         let mut champ = Champ {
             segments: Vec::new(),
             axe: [debut.0 as f32, debut.1 as f32, fin.0 as f32, fin.1 as f32],
             teintes: [unite(t.depart), unite(t.milieu), unite(t.arrivee)],
-            halo: [scale.screen(halo as f32) / 2.0, opacite_du_halo],
-            ame: [scale.screen(sw as f32) / 2.0, aspect::OPACITE_DU_TRAIT],
+            halo: [scale.screen(halo as f32) / 2.0 * lecture, opacite_du_halo],
+            ame: [
+                scale.screen(sw as f32) / 2.0 * lecture,
+                aspect::OPACITE_DU_TRAIT,
+            ],
             ame_blanche: self.selectionnee,
             disques: self.disques((debut, fin), scale),
         };
@@ -130,6 +137,21 @@ impl Fleche {
         Some(champ)
     }
 
+    /// **Ce que la flèche multiplie à ses longueurs d'écran** (LIEN-1) : la part de la distance
+    /// de lecture ([`WorldScale::lecture`]) — sauf en lumière, où elle reste pleine.
+    ///
+    /// Le trait, son halo et le contour de ses disques sont les seules longueurs d'écran d'une
+    /// flèche (FLECHE-1, le `non-scaling-stroke` de Tauri) ; ses disques sont déjà du monde. Plus
+    /// fins qu'un pixel, ils se peignent à leur couverture exacte (le filtre-boîte du champ) : la
+    /// transparence vient de la géométrie, aucune opacité n'est choisie.
+    pub(crate) fn lecture(&self, scale: WorldScale) -> f32 {
+        if self.en_lumiere {
+            1.0
+        } else {
+            scale.lecture()
+        }
+    }
+
     /// Les disques de ses bouts, en pixels d'écran.
     fn disques(
         &self,
@@ -141,7 +163,7 @@ impl Fleche {
         let disque = |centre: (f64, f64), k: f64, (fond, contour): (Rgb, Rgb)| Disque {
             centre: [centre.0 as f32, centre.1 as f32],
             rayon: scale.world((sw * k) as f32),
-            demi_contour: scale.screen(aspect::CONTOUR as f32) / 2.0,
+            demi_contour: scale.screen(aspect::CONTOUR as f32) / 2.0 * self.lecture(scale),
             fond: unite(fond),
             contour: unite(contour),
         };
@@ -190,6 +212,54 @@ fn teinte_d_un_bout(
     }
 }
 
+/// **LIEN-1 — les liens qu'on regarde se montrent pleins, à toute distance** : la flèche choisie
+/// ou survolée, et celles d'un nœud choisi ou survolé.
+///
+/// C'est le *highlighting* de Bring & Go (Moscovich et al., *Topology-Aware Navigation in Large
+/// Networks*, CHI 2009) : choisir un nœud allume ses liens, pour qu'on sache d'un regard combien
+/// il en a et où ils vont, même quand la distance les a rendus presque transparents. Le détail à
+/// la demande ; rien ne se cache, puisque les autres restent là, à leur encre.
+pub(crate) fn en_lumiere(store: &Store, survole: Option<&str>, ann: &Annotation) -> bool {
+    let Annotation::Arrow {
+        id,
+        source_id,
+        target_id,
+        ..
+    } = ann
+    else {
+        return false;
+    };
+    let regarde = |n: &str| {
+        survole == Some(n)
+            || store.selected_annotation_ids.contains(n)
+            || store.selected_image_ids.contains(n)
+            || store.selected_folder_id.as_deref() == Some(n)
+    };
+    regarde(id)
+        || [source_id, target_id]
+            .into_iter()
+            .flatten()
+            .any(|b| regarde(b))
+}
+
+/// **Un lien touche-t-il ce nœud ?** — c'est une flèche, ou le bout de l'une. Ce que le survol
+/// demande avant de redessiner : un nœud sans lien qu'on survole ne change rien à l'image.
+pub(crate) fn touche_un_lien(board: &Board, noeud: &str) -> bool {
+    board.annotations.iter().any(|a| match a {
+        Annotation::Arrow {
+            id,
+            source_id,
+            target_id,
+            ..
+        } => {
+            id == noeud
+                || source_id.as_deref() == Some(noeud)
+                || target_id.as_deref() == Some(noeud)
+        }
+        _ => false,
+    })
+}
+
 /// **Peint une flèche au processeur**, et rend vrai si elle a posé de l'encre.
 pub(super) fn draw_arrow(ctx: &Pass, pixmap: &mut PixmapMut, fleche: &Fleche) -> bool {
     let (l, h) = (pixmap.width(), pixmap.height());
@@ -207,7 +277,7 @@ pub(super) fn draw_arrow(ctx: &Pass, pixmap: &mut PixmapMut, fleche: &Fleche) ->
 /// Leurs étiquettes, badges et poignées y restent.
 pub(super) fn fleches_a_poser(
     hue_cache: &mut SymbioticHueCache,
-    (store, pass): (&Store, ViewPass<'_>),
+    (store, pass, survole): (&Store, ViewPass<'_>, Option<&str>),
     (typographie, math): (&Typography, &MathRenderer),
     ecran: (f32, f32),
 ) -> Vec<Champ> {
@@ -227,7 +297,8 @@ pub(super) fn fleches_a_poser(
         .filter(|a| matches!(a, Annotation::Arrow { .. }))
         .filter_map(|ann| {
             let selectionnee = store.selected_annotation_ids.contains(ann.id());
-            Fleche::de(hue_cache, ann, (pass, noeuds), selectionnee)?
+            let lumiere = en_lumiere(store, survole, ann);
+            Fleche::de(hue_cache, ann, (pass, noeuds), (selectionnee, lumiere))?
                 .champ(&pass.vp, echelle, ecran)
         })
         .collect()
@@ -281,9 +352,10 @@ pub(crate) fn fleche_en_svg(
     ));
     let sw = fleche.epaisseur;
     let (halo, opacite_du_halo) = aspect::halo(sw, false);
+    let lecture = fleche.lecture(scale);
     for (largeur, opacite) in [
-        (scale.screen(halo as f32), opacite_du_halo),
-        (scale.screen(sw as f32), aspect::OPACITE_DU_TRAIT),
+        (scale.screen(halo as f32) * lecture, opacite_du_halo),
+        (scale.screen(sw as f32) * lecture, aspect::OPACITE_DU_TRAIT),
     ] {
         svg.poser(&format!(
             r#"<path d="{d}" fill="none" stroke="url(#{degrade})" stroke-width="{}" stroke-opacity="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,
@@ -298,7 +370,7 @@ pub(crate) fn fleche_en_svg(
             n(scale.world((sw * aspect::POINTE) as f32)),
             hex(aspect::FOND_DE_LA_POINTE),
             hex(contour),
-            n(scale.screen(aspect::CONTOUR as f32))
+            n(scale.screen(aspect::CONTOUR as f32) * lecture)
         ));
     };
     if fleche.double_sens {
@@ -319,3 +391,7 @@ mod tests;
 #[cfg(test)]
 #[path = "arrow/ancres_tests.rs"]
 mod ancres_tests;
+
+#[cfg(test)]
+#[path = "arrow/lecture_tests.rs"]
+mod lecture_tests;

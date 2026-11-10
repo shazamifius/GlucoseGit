@@ -140,6 +140,7 @@ pub(super) fn dessiner_sur_les_photos(
             pass::Survols {
                 eclairages: overlay.eclairages,
                 badges: overlay.badges,
+                survole: overlay.survole,
             },
         ),
         pass,
@@ -428,7 +429,7 @@ impl Renderer {
         crate::perf::stage("membranes");
         let fleches = super::arrow::fleches_a_poser(
             &mut self.hue_cache,
-            (store, pass),
+            (store, pass, overlay.survole),
             (&self.typography, &self.math),
             ecran,
         );
