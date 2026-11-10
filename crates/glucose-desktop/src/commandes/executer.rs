@@ -37,6 +37,7 @@ impl GlucoseApp {
             Commande::VuePrecedente => return self.revenir(true),
             Commande::VueSuivante => return self.revenir(false),
             Commande::CadrerLaSelection => self.cadrer(true),
+            Commande::SuivreLeLien => return self.suivre_le_lien_choisi(),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
             Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),
             Commande::SortirDeLaMembrane => {

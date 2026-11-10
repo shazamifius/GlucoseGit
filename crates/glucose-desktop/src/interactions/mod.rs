@@ -43,6 +43,7 @@ pub mod selection;
 pub mod shortcuts;
 pub mod signets;
 pub mod storyboard;
+pub mod suivre;
 pub mod survol;
 pub mod temps;
 pub mod text_edit;

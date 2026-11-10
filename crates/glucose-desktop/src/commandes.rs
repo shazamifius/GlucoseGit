@@ -85,6 +85,9 @@ pub enum Commande {
     VuePrecedente,
     VueSuivante,
     CadrerLaSelection,
+    /// Suivre la flèche choisie jusqu'à son autre bout (LIEN-2, fiche 102) — `Ctrl`+clic à la
+    /// souris.
+    SuivreLeLien,
     /// Ranger en colonnes ce que portent les membranes choisies (COLONNES-1, fiche 92).
     DisposerEnColonnes,
     /// N'avoir plus que la membrane choisie, et la quitter (FOCUS-1, fiche 95) : un geste
@@ -156,7 +159,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 48] = [
+const SIMPLES: [(Commande, &str, &str); 49] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -210,6 +213,7 @@ const SIMPLES: [(Commande, &str, &str); 48] = [
         "cadrer-la-selection",
         "Cadrer la sélection",
     ),
+    (Commande::SuivreLeLien, "lien.suivre", "Suivre le lien"),
     (
         Commande::DisposerEnColonnes,
         "disposer-en-colonnes",

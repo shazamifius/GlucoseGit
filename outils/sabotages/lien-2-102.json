@@ -1,0 +1,137 @@
+[
+ {
+  "nom": "Le clic ne mène plus au geste",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "        if self.suivre_la_fleche_cliquee((wx, wy)) {\n",
+  "apres": "        if false && self.suivre_la_fleche_cliquee((wx, wy)) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "Le geste ne demande pas Ctrl",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "        if !self.modifiers.control_key() {\n",
+  "apres": "        if false {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "Le geste vise le bout le plus proche",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "            .max_by(|a, b| loin(&a.1).total_cmp(&loin(&b.1)))\n",
+  "apres": "            .min_by(|a, b| loin(&a.1).total_cmp(&loin(&b.1)))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "Une flèche libre ne se cadre pas",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "        let vise = bout.unwrap_or_else(|| fleche.to_string());\n",
+  "apres": "        let vise = bout.unwrap_or_default();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "La commande vise depuis l'origine, pas le centre de l'écran",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "        self.suivre_le_lien(&id, centre)\n",
+  "apres": "        let _ = centre;\n        self.suivre_le_lien(&id, (0.0, 0.0))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "La commande accepte une sélection mêlée",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "            || self.store.selected_annotation_ids.len() != 1\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "La commande ne fait rien",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "            Commande::SuivreLeLien => return self.suivre_le_lien_choisi(),\n",
+  "apres": "            Commande::SuivreLeLien => return false,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "Le menu offre de suivre un texte",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    if images == 0 && store.selected_annotation_ids.len() == 1 && store.selected_arrows().len() == 1\n",
+  "apres": "    if images == 0 && store.selected_annotation_ids.len() == 1\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "Le menu offre de suivre une sélection mêlée",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    if images == 0 && store.selected_annotation_ids.len() == 1 && store.selected_arrows().len() == 1\n",
+  "apres": "    if images == 0 && !store.selected_arrows().is_empty()\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ }
+]

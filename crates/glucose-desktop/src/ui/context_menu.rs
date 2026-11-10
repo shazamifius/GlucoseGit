@@ -91,6 +91,7 @@ impl MenuAction {
             MenuAction::ToutCadrer => Commande::ToutCadrer,
             MenuAction::VuePrecedente => Commande::VuePrecedente,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
+            MenuAction::SuivreLeLien => Commande::SuivreLeLien,
             MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
             MenuAction::Grouper => Commande::Grouper,
             MenuAction::EntrerDansLaMembrane => Commande::EntrerDansLaMembrane,
@@ -184,6 +185,8 @@ pub enum MenuAction {
     /// Revenir au lieu d'où la caméra est partie (`Alt+Z`, RETOUR-1).
     VuePrecedente,
     CadrerLaSelection,
+    /// Suivre la flèche choisie jusqu'à son autre bout (LIEN-2, fiche 102).
+    SuivreLeLien,
     /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
     DisposerEnColonnes,
     /// Entourer la sélection d'une membrane neuve (GROUPER-1, fiche 98).

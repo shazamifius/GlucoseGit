@@ -80,6 +80,11 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         Some((MenuAction::Duplicate, "Dupliquer", "")),
         Some((MenuAction::CadrerLaSelection, "Cadrer la sélection", "")),
     ];
+    // Une flèche seule se suit jusqu'à son autre bout : au doigt, c'est le seul chemin (LIEN-2).
+    if images == 0 && store.selected_annotation_ids.len() == 1 && store.selected_arrows().len() == 1
+    {
+        defs.push(Some((MenuAction::SuivreLeLien, "Suivre le lien", "")));
+    }
     if images == 1 && store.selected_annotation_ids.is_empty() {
         defs.push(None);
         defs.push(Some((

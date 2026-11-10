@@ -80,6 +80,10 @@ impl GlucoseApp {
         if self.click_link_at(self.mouse_pos) {
             return;
         }
+        // `Ctrl`+clic sur une flèche la suit, jusqu'à son autre bout (LIEN-2, fiche 102).
+        if self.suivre_la_fleche_cliquee((wx, wy)) {
+            return;
+        }
 
         let Some(top) = self.pick_for_click(wx, wy) else {
             // Le bandeau d'une zone de gabarit la prend ; ailleurs, le vide est au canevas
