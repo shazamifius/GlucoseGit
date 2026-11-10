@@ -138,6 +138,25 @@ pub fn node_rect(board: &Board, id: &str) -> Option<Rect> {
         .map(CanvasFolder::rect)
 }
 
+/// **Un lien touche-t-il ce nœud ?** — c'est une flèche, ou le bout de l'une (LIEN-1, fiche 102) :
+/// ce que le survol demande avant de redessiner, puisqu'un nœud sans lien qu'on survole ne change
+/// rien à l'image.
+pub fn touche_un_lien(board: &Board, noeud: &str) -> bool {
+    board.annotations.iter().any(|a| match a {
+        Annotation::Arrow {
+            id,
+            source_id,
+            target_id,
+            ..
+        } => {
+            id == noeud
+                || source_id.as_deref() == Some(noeud)
+                || target_id.as_deref() == Some(noeud)
+        }
+        _ => false,
+    })
+}
+
 /// **L'emprise d'un nœud** : son encre ([`Annotation::encre`] — l'enveloppe d'une flèche, le titre
 /// d'une membrane), ou la boîte d'une photo ou d'un dossier — la boîte que `F` cadre
 /// (`Store::selection_bounds`), et celle vers laquelle on vole. [`node_rect`] reste la boîte où une

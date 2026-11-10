@@ -198,12 +198,15 @@ fn test_dpi_1_le_trait_suit_la_densite_de_l_ecran() {
         let board = store.project.active_board_id.clone();
         store.add_annotation(&board, Annotation::arrow("f", -150.0, 0.0, 150.0, 0.0));
         store.clear_selection();
+        // À la taille réelle de chaque écran (une unité du monde par pixel logique) : plus loin,
+        // un lien rétrécit avec le monde (LIEN-1, fiche 102), et ce n'est pas ce que cette
+        // épreuve garde.
         store.set_viewport(
             &board,
             Viewport {
                 x: 400.0,
                 y: 400.0,
-                scale: 1.0,
+                scale: f64::from(densite),
             },
         );
         let mut renderer = crate::renderer::Renderer::new();
@@ -279,11 +282,13 @@ fn test_dpi_1_la_carte_recoit_des_fleches_a_la_densite_de_l_ecran() {
     let mut index = SpatialHash::new(1000.0);
     index.index_board(store.active_board().expect("un tableau"));
     let rangs = tous_les_rangs(store.active_board().expect("un tableau"));
+    // À la taille réelle de l'écran à 150 % : plus loin, le lien rétrécirait avec le monde
+    // (LIEN-1, fiche 102).
     let pass = crate::params::ViewPass {
         vp: Viewport {
             x: 200.0,
             y: 150.0,
-            scale: 1.0,
+            scale: 1.5,
         },
         visibles: &rangs,
         index: &index,

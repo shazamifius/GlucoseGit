@@ -54,7 +54,7 @@ impl GlucoseApp {
             && noeuds
                 .into_iter()
                 .flatten()
-                .any(|n| crate::renderer::arrow::touche_un_lien(board, n))
+                .any(|n| glucose_core::arrow::touche_un_lien(board, n))
     }
 
     /// **Suit le nœud dont une flèche partirait**, sous l'outil Flèche armé : l'image ne se

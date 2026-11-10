@@ -58,7 +58,7 @@ impl GlucoseApp {
             source_id,
             target_id,
             ..
-        }) = board.annotations.iter().find(|a| a.id() == fleche)
+        }) = self.store.project.annotation(&board.id, fleche)
         else {
             return false;
         };

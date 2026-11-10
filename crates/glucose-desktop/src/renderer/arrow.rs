@@ -242,24 +242,6 @@ pub(crate) fn en_lumiere(store: &Store, survole: Option<&str>, ann: &Annotation)
             .any(|b| regarde(b))
 }
 
-/// **Un lien touche-t-il ce nœud ?** — c'est une flèche, ou le bout de l'une. Ce que le survol
-/// demande avant de redessiner : un nœud sans lien qu'on survole ne change rien à l'image.
-pub(crate) fn touche_un_lien(board: &Board, noeud: &str) -> bool {
-    board.annotations.iter().any(|a| match a {
-        Annotation::Arrow {
-            id,
-            source_id,
-            target_id,
-            ..
-        } => {
-            id == noeud
-                || source_id.as_deref() == Some(noeud)
-                || target_id.as_deref() == Some(noeud)
-        }
-        _ => false,
-    })
-}
-
 /// **Peint une flèche au processeur**, et rend vrai si elle a posé de l'encre.
 pub(super) fn draw_arrow(ctx: &Pass, pixmap: &mut PixmapMut, fleche: &Fleche) -> bool {
     let (l, h) = (pixmap.width(), pixmap.height());

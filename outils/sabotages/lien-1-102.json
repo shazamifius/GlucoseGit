@@ -151,7 +151,7 @@
  },
  {
   "nom": "Un bout de lien n'est pas reconnu au survol",
-  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "fichier": "crates/glucose-core/src/arrow.rs",
   "avant": "                || source_id.as_deref() == Some(noeud)\n",
   "apres": "                || false\n",
   "cmd": [
