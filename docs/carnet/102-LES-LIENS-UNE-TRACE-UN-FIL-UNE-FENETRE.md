@@ -206,3 +206,24 @@ décision « même tableau : périmer ; un autre : oublier ».
 
 **Il a demandé la publication** de la version la plus récente : la **2.0.3-beta.10** (Glucose n'a pas
 encore de version « stable » : la 2.1.0 attend la fin de la partie 1, SUITE § 0).
+
+## 11. Le 10/11 vers minuit : la beta 10 en brouillon, RETOUR-2 et LIEN-4 écrits
+
+* **La 2.0.3-beta.10** : la CI verte sur `aebb3f7` (dix tâches sur dix), puis le flux « Publier »
+  (exécution 42917671568) — onze fichiers, **en brouillon**. Le clic « Publish release » est le sien.
+  ITINERAIRE-2 : **12 sabotages sur 12** (`itineraire-2-102.json`).
+* **RETOUR-2 — `Alt+Z` est le `Ctrl+Z` de la caméra** (sa parole) : la vue qui quitte son repos y
+  laisse un lieu (`app/mouvement.rs`, `noter_le_repos_quitte`) ; une rafale de molette, un pas ; un vol
+  ne se note pas deux fois. Quatre épreuves (`interactions/retour/camera_tests.rs`). **Une faute
+  trouvée par la mesure** : `bouge && !replace(…)` court-circuitait, et « bougeait » restait vrai à
+  jamais après le premier geste.
+* **LIEN-4 — ses deux formules** (`renderer/arrow/presence.rs`) : la densité (sa droite, un lien
+  100 %, vingt 30 %), la proximité de la souris `1 / (1 + d / taille)` avec la distance **en tailles
+  de nœud** (√(l × h), ou la longueur d'un trait), la plus forte des deux, puis LIEN-1, puis **le
+  plancher de 8 %** ; la souris passe par la scène (`SceneOverlay::souris`) jusqu'aux deux voies ;
+  l'export prend la densité ; la souris fait redessiner dès que deux liens sont à l'écran. Huit
+  épreuves (`presence_tests.rs`).
+* **Reste, dit honnêtement** : les sabotages de RETOUR-2 et de LIEN-4 ne sont **pas joués** ; LIEN-4
+  n'a **pas été regardé** dans le vrai Glucose (le pilote) ni à son écran ; la suite complète n'a pas
+  tourné depuis ; son unité de distance et la combinaison (la plus forte des deux) sont **mes**
+  choix, à lui de les confirmer.

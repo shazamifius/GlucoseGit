@@ -106,6 +106,9 @@ pub struct SceneOverlay<'a> {
     pub gabarit: &'a [glucose_core::geometry::Rect],
     /// **Le nœud sous la souris** : ses liens se montrent pleins à toute distance (LIEN-1).
     pub survole: Option<&'a str>,
+    /// **La souris, en coordonnées du monde** : elle rapproche les liens des nœuds qu'elle
+    /// approche (LIEN-4). Rien au doigt.
+    pub souris: Option<(f64, f64)>,
 }
 
 impl<'a> SceneOverlay<'a> {
@@ -125,6 +128,7 @@ impl<'a> SceneOverlay<'a> {
             fantome: None,
             gabarit: &[],
             survole: None,
+            souris: None,
         }
     }
 }

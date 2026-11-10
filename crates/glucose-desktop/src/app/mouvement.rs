@@ -16,6 +16,9 @@ use tiny_skia::Pixmap;
 pub(crate) struct VuesRetenues {
     precedente: Option<glucose_core::types::Viewport>,
     repos: Option<glucose_core::types::Viewport>,
+    /// La vue bougeait-elle à l'image précédente ? Le premier mouvement après un repos commence
+    /// un geste de caméra (RETOUR-2).
+    bougeait: bool,
 }
 
 impl GlucoseApp {
@@ -134,6 +137,7 @@ impl GlucoseApp {
             _ => (0.0, 0.0),
         };
         self.vues.precedente = Some(vue);
+        self.noter_le_repos_quitte();
         if !self.la_vue_bouge() {
             self.vues.repos = Some(vue);
         }
@@ -161,6 +165,31 @@ impl GlucoseApp {
             std::time::Duration::from_secs_f64(dt.max(0.0)),
             deplacement + zoom,
         );
+    }
+
+    /// **RETOUR-2 — `Alt+Z` est le `Ctrl+Z` de la caméra** (sa parole du 10/11 au soir : *« c'est
+    /// vraiment juste le Ctrl+Z, mais pour la caméra »*). La vue qui quitte son repos y laisse un
+    /// lieu où revenir : un tour de molette, un glisser, un pincement — chaque geste, comme un
+    /// geste du document. Une rafale de molette, que l'élan porte sans image immobile entre deux
+    /// crans, n'en laisse qu'un ; le premier arrêt de la vue ferme le pas. Aucun seuil de temps.
+    /// Un vol note déjà son départ (RETOUR-1) : il ne se note pas deux fois.
+    fn noter_le_repos_quitte(&mut self) {
+        let bouge = self.la_vue_bouge();
+        // Retenu à chaque image, qu'elle bouge ou non : un `&&` l'aurait sauté au repos.
+        let bougeait = std::mem::replace(&mut self.vues.bougeait, bouge);
+        let commence = bouge && !bougeait;
+        let (Some(repos), Some(tableau)) = (self.vues.repos, self.store.active_board()) else {
+            return;
+        };
+        if commence && !self.vol.en_cours() {
+            let tableau = tableau.id.clone();
+            self.store
+                .histoire_de_la_vue
+                .noter(glucose_core::store::retour::Lieu {
+                    tableau,
+                    vue: repos,
+                });
+        }
     }
 
     /// L'image en cours montre-t-elle la vue en mouvement ? C'est la question du rendu (ce

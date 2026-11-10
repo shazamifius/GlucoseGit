@@ -51,6 +51,8 @@ pub(crate) struct Fleche {
     pub selectionnee: bool,
     /// Pleine à toute distance (LIEN-1) : on la regarde, elle ou l'un de ses bouts.
     pub en_lumiere: bool,
+    /// Ce que leur nombre à l'écran et la souris lui laissent (LIEN-4), de 0 à 1.
+    pub presence: f32,
     pub double_sens: bool,
 }
 
@@ -61,7 +63,7 @@ impl Fleche {
         hue_cache: &mut SymbioticHueCache,
         ann: &Annotation,
         (pass, noeuds): (ViewPass<'_>, NoeudsDuRendu<'_>),
-        (selectionnee, en_lumiere): (bool, bool),
+        (selectionnee, en_lumiere, presence): (bool, bool, f32),
     ) -> Option<Self> {
         let board = noeuds.board;
         let Annotation::Arrow {
@@ -87,6 +89,7 @@ impl Fleche {
             epaisseur: stroke_width.unwrap_or(aspect::EPAISSEUR),
             selectionnee,
             en_lumiere,
+            presence,
             double_sens: *arrow_bidirectional,
         })
     }
@@ -104,18 +107,18 @@ impl Fleche {
         let (halo, opacite_du_halo) = aspect::halo(sw, self.selectionnee);
         let (debut, fin) = (a_l_ecran(premier.depart()), a_l_ecran(dernier.arrivee()));
         let t = self.teintes;
-        let lecture = self.lecture(scale);
+        let (lecture, opacite) = (self.lecture(scale), self.opacite(scale));
         let mut champ = Champ {
             segments: Vec::new(),
             axe: [debut.0 as f32, debut.1 as f32, fin.0 as f32, fin.1 as f32],
             teintes: [unite(t.depart), unite(t.milieu), unite(t.arrivee)],
             halo: [
                 scale.screen(halo as f32) / 2.0 * lecture,
-                opacite_du_halo * lecture,
+                opacite_du_halo * opacite,
             ],
             ame: [
                 scale.screen(sw as f32) / 2.0 * lecture,
-                aspect::OPACITE_DU_TRAIT * lecture,
+                aspect::OPACITE_DU_TRAIT * opacite,
             ],
             ame_blanche: self.selectionnee,
             disques: self.disques((debut, fin), scale),
@@ -158,6 +161,17 @@ impl Fleche {
             1.0
         } else {
             scale.lecture()
+        }
+    }
+
+    /// **La part de l'opacité de son trait** (LIEN-1, LIEN-4) : pleine en lumière ; sinon sa
+    /// présence (leur nombre à l'écran, la souris), pâlie avec la taille réelle — jamais sous le
+    /// plancher de 8 % (sa parole : un lien ne disparaît jamais).
+    pub(crate) fn opacite(&self, scale: WorldScale) -> f32 {
+        if self.en_lumiere {
+            1.0
+        } else {
+            (scale.lecture() * self.presence).max(presence::PLANCHER)
         }
     }
 
@@ -274,7 +288,7 @@ pub(super) fn draw_arrow(ctx: &Pass, pixmap: &mut PixmapMut, fleche: &Fleche) ->
 /// Leurs étiquettes, badges et poignées y restent.
 pub(super) fn fleches_a_poser(
     hue_cache: &mut SymbioticHueCache,
-    (store, pass, survole): (&Store, ViewPass<'_>, Option<&str>),
+    (store, pass, main): (&Store, ViewPass<'_>, Main<'_>),
     (typographie, math): (&Typography, &MathRenderer),
     ecran: (f32, f32),
 ) -> Vec<Champ> {
@@ -289,14 +303,21 @@ pub(super) fn fleches_a_poser(
         contournement: pass.contournement,
     };
     let echelle = pass.echelle();
+    let n = presence::liens_a_l_ecran(pass.visibles, board);
     Visibles::nouvelles(pass.visibles, board)
         .annotations()
         .filter(|a| matches!(a, Annotation::Arrow { .. }))
         .filter_map(|ann| {
             let selectionnee = store.selected_annotation_ids.contains(ann.id());
-            let lumiere = en_lumiere(store, survole, ann);
-            Fleche::de(hue_cache, ann, (pass, noeuds), (selectionnee, lumiere))?
-                .champ(&pass.vp, echelle, ecran)
+            let lumiere = en_lumiere(store, main.survole, ann);
+            let presence = presence::presence(ann, noeuds, main.souris, n);
+            Fleche::de(
+                hue_cache,
+                ann,
+                (pass, noeuds),
+                (selectionnee, lumiere, presence),
+            )?
+            .champ(&pass.vp, echelle, ecran)
         })
         .collect()
 }
@@ -349,15 +370,12 @@ pub(crate) fn fleche_en_svg(
     ));
     let sw = fleche.epaisseur;
     let (halo, opacite_du_halo) = aspect::halo(sw, false);
-    let lecture = fleche.lecture(scale);
+    let (lecture, part) = (fleche.lecture(scale), fleche.opacite(scale));
     for (largeur, opacite) in [
-        (
-            scale.screen(halo as f32) * lecture,
-            opacite_du_halo * lecture,
-        ),
+        (scale.screen(halo as f32) * lecture, opacite_du_halo * part),
         (
             scale.screen(sw as f32) * lecture,
-            aspect::OPACITE_DU_TRAIT * lecture,
+            aspect::OPACITE_DU_TRAIT * part,
         ),
     ] {
         svg.poser(&format!(
@@ -384,9 +402,11 @@ pub(crate) fn fleche_en_svg(
 
 mod itineraires;
 mod noeuds;
+pub(crate) mod presence;
 pub use itineraires::{Epoque, Itineraires};
 pub use noeuds::Contournement;
 pub(crate) use noeuds::{obstacle, NoeudsDuRendu};
+pub(crate) use presence::Main;
 
 #[cfg(test)]
 mod tests;
@@ -402,3 +422,7 @@ mod lecture_tests;
 #[cfg(test)]
 #[path = "arrow/cascade_tests.rs"]
 mod cascade_tests;
+
+#[cfg(test)]
+#[path = "arrow/presence_tests.rs"]
+mod presence_tests;

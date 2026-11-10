@@ -69,9 +69,21 @@ pub(crate) struct Survols<'a> {
     pub badges: &'a [(String, f32)],
     /// Le nœud sous la souris : ses liens se montrent pleins (LIEN-1).
     pub survole: Option<&'a str>,
+    /// La souris, en coordonnées du monde : elle rapproche les liens (LIEN-4).
+    pub souris: Option<(f64, f64)>,
 }
 
-impl Survols<'_> {
+impl<'a> Survols<'a> {
+    /// Ce que la scène dit de la main et de ce qui brille.
+    pub(crate) fn de(overlay: &crate::params::SceneOverlay<'a>) -> Self {
+        Self {
+            eclairages: overlay.eclairages,
+            badges: overlay.badges,
+            survole: overlay.survole,
+            souris: overlay.souris,
+        }
+    }
+
     /// De combien la pastille de cette flèche s'est effacée.
     fn effacement(&self, fleche: &str) -> f32 {
         self.badges
@@ -168,6 +180,7 @@ fn dessiner_ce_qui_passe_au_dessus(
     (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
 ) -> f64 {
     let mut entieres = 0.0_f64;
+    let liens = super::arrow::presence::liens_a_l_ecran(pass.visibles, board);
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let selected = store.selected_annotation_ids.contains(ann.id());
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
@@ -205,7 +218,7 @@ fn dessiner_ce_qui_passe_au_dessus(
                     hue_cache,
                     (ann, board, pass),
                     ((selected, lumiere), editing, !cartes_par_la_carte),
-                    survols.effacement(ann.id()),
+                    (survols.effacement(ann.id()), (survols.souris, liens)),
                 );
             }
             _ => {}
@@ -278,7 +291,7 @@ fn draw_arrow_node(
     hue_cache: &mut SymbioticHueCache,
     (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
     ((selected, lumiere), editing, au_processeur): ((bool, bool), Option<&TextEditSession>, bool),
-    efface: f32,
+    (efface, (souris, liens)): (f32, (Option<(f64, f64)>, usize)),
 ) {
     let Annotation::Arrow { predicate, .. } = ann else {
         return;
@@ -290,7 +303,13 @@ fn draw_arrow_node(
         math: ctx.math,
         contournement: pass.contournement,
     };
-    let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), (selected, lumiere)) else {
+    let presence = super::arrow::presence::presence(ann, noeuds, souris, liens);
+    let Some(fleche) = Fleche::de(
+        hue_cache,
+        ann,
+        (pass, noeuds),
+        (selected, lumiere, presence),
+    ) else {
         return;
     };
     if au_processeur {

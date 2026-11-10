@@ -61,6 +61,7 @@ fn rendu(points: &[(f64, f64)], zoom: f64, selectionnee: bool, double_sens: bool
             epaisseur: aspect::EPAISSEUR,
             selectionnee,
             en_lumiere: selectionnee,
+            presence: 1.0,
             double_sens,
         },
     );
@@ -298,7 +299,7 @@ fn test_dpi_1_la_carte_recoit_des_fleches_a_la_densite_de_l_ecran() {
     };
     let champs = fleches_a_poser(
         &mut SymbioticHueCache::new(),
-        (&store, pass, None),
+        (&store, pass, Default::default()),
         (&typographie, &math),
         (400.0, 300.0),
     );

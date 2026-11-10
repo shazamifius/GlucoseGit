@@ -1,0 +1,194 @@
+[
+ {
+  "nom": "Une image ne s'arrête jamais de chercher",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "        if self.plus_de_temps() {\n            let mut dettes",
+  "apres": "        if false && self.plus_de_temps() {\n            let mut dettes",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "La tranche s'épuise avant le premier itinéraire",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "        self.une_faite.get() && self.echeance.get().is_some_and(|e| Instant::now() >= e)\n",
+  "apres": "        self.echeance.get().is_some_and(|e| Instant::now() >= e)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Le premier itinéraire ne compte pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "        self.une_faite.set(true);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Une flèche due se montre droite",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "                .map(|e| e.etapes.clone())\n                .unwrap_or_default();\n",
+  "apres": "                .map(|_| Vec::new())\n                .unwrap_or_default();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Périmer ne périme rien",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "        for entree in self.table.borrow_mut().values_mut() {\n            entree.frais = false;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Une nouvelle version oublie au lieu de périmer",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "        if meme_tableau {\n            self.perimer();\n",
+  "apres": "        if meme_tableau {\n            self.oublier();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Le suivi du document oublie au lieu de périmer",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "            self.perimer();\n            return;\n",
+  "apres": "            self.oublier();\n            return;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Un geste périme tout, touché ou non",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "            if entree.frais && entree.touchee(&touches) {\n",
+  "apres": "            if entree.frais {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "La tranche ne s'ouvre pas à chaque image",
+  "fichier": "crates/glucose-desktop/src/renderer.rs",
+  "avant": "        self.itineraires.ouvrir_la_tranche();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Le rattrapage ne refait rien",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "                let _ = glucose_core::arrow::path_with(a, noeuds);\n",
+  "apres": "                let _ = (a, noeuds);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "Le réveil croit tout payé",
+  "fichier": "crates/glucose-desktop/src/app/reveil.rs",
+  "avant": "            self.renderer.rattraper_les_itineraires(&self.store)\n",
+  "apres": "            Some(true)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ },
+ {
+  "nom": "L'export prend la tranche de l'image",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "                &itineraires,\n",
+  "apres": "                &self.itineraires,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "itineraire_2",
+   "fleche_5"
+  ]
+ }
+]

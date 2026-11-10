@@ -12,8 +12,12 @@
 //! il part, la range ici. Un seul endroit, quel que soit le geste qui a demandé le saut : un geste
 //! ajouté demain qui fait voler la vue sera retenu sans que personne y pense.
 //!
-//! Le défilement et le zoom à la main ne sont pas des départs : on ne revient pas d'un tour de
-//! molette, comme un navigateur ne revient pas d'un défilement.
+//! **RETOUR-2 — et chaque geste de la main** (fiche 102 ; sa parole du 10/11 au soir : *« c'est
+//! vraiment juste le Ctrl+Z, mais pour la caméra »*) : un tour de molette, un glisser, un pincement
+//! — la vue qui quitte son repos y laisse un lieu où revenir ([`GlucoseApp`], le suivi du
+//! mouvement). Une rafale de molette n'en laisse qu'un ; le premier arrêt de la vue ferme le pas.
+//! La fiche 99 disait le contraire (« on ne revient pas d'un tour de molette ») : sa parole l'a
+//! tranché.
 //!
 //! # Le retour est instantané, et n'est pas un départ
 //!
@@ -77,6 +81,10 @@ impl GlucoseApp {
 }
 
 #[cfg(test)]
+#[path = "retour/camera_tests.rs"]
+mod camera_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use glucose_core::types::Viewport;
@@ -131,8 +139,8 @@ mod tests {
     }
 
     /// **Un saut, `Alt+Z`, et l'on est de retour, instantanément** — puis `Alt+Maj+Z` repart là où
-    /// le saut avait mené. Ce qu'on fait à la main après le saut ne compte pas : on revient au
-    /// lieu d'origine.
+    /// le saut avait mené. Un déplacement que le modèle pose sans geste (`Store::pan`) n'est pas un
+    /// pas : on revient au lieu d'origine. (Un geste de la main en est un, RETOUR-2.)
     #[test]
     fn retour_1_un_saut_puis_alt_z_ramene_au_lieu_d_origine() {
         let mut app = app();

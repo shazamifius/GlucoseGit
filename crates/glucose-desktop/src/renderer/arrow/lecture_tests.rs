@@ -25,6 +25,7 @@ fn fleche(en_lumiere: bool) -> Fleche {
         epaisseur: aspect::EPAISSEUR,
         selectionnee: false,
         en_lumiere,
+        presence: 1.0,
         double_sens: false,
     }
 }
@@ -107,7 +108,8 @@ fn test_lien_1_l_encre_peinte_suit_le_monde() {
             .map(|(x, y)| f64::from(c.couleur(x as f32 + 0.5, y as f32 + 0.5)[3]))
             .sum::<f64>()
     };
-    let (moitie, quart) = (LECTURE / 8.0, LECTURE / 16.0);
+    // Au-dessus du plancher de 8 % (LIEN-4), où la loi seule décide.
+    let (moitie, quart) = (LECTURE / 4.0, LECTURE / 8.0);
     let du_monde = encre(&fleche(false), moitie) / encre(&fleche(false), quart);
     assert!((du_monde - 8.0).abs() < 0.4, "rapport {du_monde}");
     let de_tauri = encre(&fleche(true), moitie) / encre(&fleche(true), quart);
@@ -164,7 +166,14 @@ fn ame_pour_la_carte(app: &GlucoseApp, survole: Option<&str>) -> f32 {
     };
     let champs = fleches_a_poser(
         &mut SymbioticHueCache::new(),
-        (&app.store, pass, survole),
+        (
+            &app.store,
+            pass,
+            Main {
+                survole,
+                souris: None,
+            },
+        ),
         (&app.renderer.typography, &app.renderer.math),
         (1200.0, 800.0),
     );

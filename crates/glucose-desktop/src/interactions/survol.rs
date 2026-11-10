@@ -37,6 +37,37 @@ impl GlucoseApp {
                 self.mark_dirty();
             }
         }
+        if self.les_liens_suivent_la_souris() {
+            self.mark_dirty();
+        }
+    }
+
+    /// **La souris dans le monde**, quand une souris la porte : rien au doigt, rien avant qu'elle
+    /// ait bougé (LIEN-4).
+    pub(crate) fn souris_dans_le_monde(&self) -> Option<(f64, f64)> {
+        (self.curseur_vu && !self.au_doigt()).then(|| {
+            let vp = self.store.viewport();
+            crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp)
+        })
+    }
+
+    /// **Les liens suivent-ils la souris ?** Dès que deux sont à l'écran, chacun a la présence que
+    /// la souris lui rend (LIEN-4) : chaque mouvement la change. Hors de la fenêtre des liens, où
+    /// tous sont pleins.
+    fn les_liens_suivent_la_souris(&mut self) -> bool {
+        if self.store.fenetre_des_liens().is_some() || self.au_doigt() {
+            return false;
+        }
+        let (l, h) = self.taille_de_la_fenetre();
+        let vp = self.store.viewport();
+        let (x0, y0) = crate::canvas::screen_to_world(0.0, 0.0, &vp);
+        let (x1, y1) = crate::canvas::screen_to_world(f64::from(l), f64::from(h), &vp);
+        let rangs = self
+            .renderer
+            .rangs_du_present(&self.store, (x0, y0, x1, y1));
+        self.store
+            .active_board()
+            .is_some_and(|b| crate::renderer::arrow::presence::liens_a_l_ecran(&rangs, b) >= 2)
     }
 
     /// **Le survol change-t-il l'aspect d'un lien ?** Seulement si les liens ne sont pas déjà

@@ -70,6 +70,10 @@ pub(in crate::renderer) fn annotations_en_svg(
         let coin = (sx as f32, sy as f32);
         reglette(&mut vecteurs, kit.tints, ctx.scale, coin, ann.domains());
     };
+    // L'export n'a pas de souris : la présence d'un lien y est sa densité (LIEN-4).
+    let densite = crate::renderer::arrow::presence::densite(
+        crate::renderer::arrow::presence::liens_a_l_ecran(pass.visibles, noeuds.board),
+    );
     for ann in visibles() {
         match ann {
             Annotation::Text { x, y, .. } => reglette(svg, (*x, *y), ann),
@@ -78,7 +82,8 @@ pub(in crate::renderer) fn annotations_en_svg(
                 reglette(svg, (*x, *y), ann);
             }
             Annotation::Arrow { predicate, .. } => {
-                let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), (false, false))
+                let Some(fleche) =
+                    Fleche::de(hue_cache, ann, (pass, noeuds), (false, false, densite))
                 else {
                     continue;
                 };
