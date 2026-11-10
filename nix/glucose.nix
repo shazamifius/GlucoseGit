@@ -7,7 +7,6 @@
   lib,
   rustPlatform,
   pkg-config,
-  gtk3,
   libxkbcommon,
   wayland,
   vulkan-loader,
@@ -55,8 +54,10 @@ rustPlatform.buildRustPackage {
   doCheck = false;
 
   nativeBuildInputs = [ pkg-config ];
-  # `rfd` ouvre les dialogues de fichiers par GTK 3.
-  buildInputs = [ gtk3 ] ++ ouvertes;
+  # Aucune bibliothèque à l'édition des liens : `rfd` ouvre ses dialogues par le portail du bureau
+  # (`xdg-desktop-portal`, en D-Bus), et non plus par GTK 3 (fiche 100) ; le reste s'ouvre au
+  # lancement, depuis le chemin que le binaire porte.
+  buildInputs = ouvertes;
 
   # Ce que posent aussi le .deb, le .rpm et l'AppImage (`outils/paquets`), depuis les mêmes
   # fichiers : un seul raccourci de bureau, qui ouvre un .glucose d'un double-clic, et le type

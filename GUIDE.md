@@ -264,10 +264,10 @@ faire avant de le quitter. Un texte en cours de frappe survit même à un planta
 | **Nommer, poser un jalon** | `Ctrl+S` : un dialogue la première fois ; ensuite, un **jalon** dans la Time Machine |
 | **Enregistrer sous** | `Ctrl+Maj+S` : une copie du document **et** de son histoire |
 | **Ouvrir** | `Ctrl+O`. Les documents de **Glucose Tauri** s'ouvrent aussi, sans être réécrits |
-| **Exporter le tableau** | `Ctrl+E`, ou le bouton `Exporter` : en Markdown (`.md`) ou en image vectorielle (`.svg`), selon le nom choisi |
+| **Exporter le tableau** | `Ctrl+E`, ou le bouton `Exporter` : en image (`.png`), en Markdown (`.md`) ou en image vectorielle (`.svg`), selon le nom choisi |
 
 Le fichier `.glucose` range chaque image **une seule fois**, même posée cent fois, dans le fichier
-lui-même. L'export SVG contient les cartes et les flèches, pas encore les images ni les membranes.
+lui-même. L'export SVG contient tout le tableau — images, membranes, textes et flèches.
 
 **Les mises à jour** arrivent d'elles-mêmes : Glucose propose la nouvelle version au lancement,
 vérifie sa signature, et se relance.
@@ -286,14 +286,10 @@ encore. Aucun ne fait semblant.
 
 | Bouton | Où il en est |
 |---|---|
-| **Storyboard** | le panneau montre ses réglages ; rien ne se dessine encore sur la feuille |
-| **Preset** | les gabarits s'affichent ; les appliquer n'est pas encore possible |
-| **Plugins** | aucun plugin, aucune IA locale pour l'instant |
+| **Mood board** | « Créer un mood board » est grisé : un preset sera l'interface entière (Glucose, PureRef, Figma, Miro), pas un gabarit de zones |
+| **Plugins** | aucun plugin, aucune IA locale pour l'instant — une IA passe déjà par la porte des agents (MCP) |
 | **Collaborer** | pas de travail à plusieurs pour l'instant |
-
-Les notes adhésives
-affichent un opérateur (ET, OU, MAIS, PARCE QUE) quand elles en portent un, mais on ne peut
-pas encore le choisir.
+| **Trans-domaines** | une vue de tous les domaines ensemble, encore en recherche |
 
 ---
 

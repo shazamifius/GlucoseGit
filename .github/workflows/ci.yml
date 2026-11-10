@@ -43,14 +43,16 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      # `rfd` ouvre les dialogues natifs par GTK 3 ; Mesa donne une carte graphique logicielle
-      # (lavapipe) ; Xvfb un serveur X sans écran, et `xclip` un demandeur de la sélection qui
-      # n'est pas Glucose (plateforme::selection_x11).
+      # Mesa donne une carte graphique logicielle (lavapipe) ; Xvfb un serveur X sans écran, et
+      # `xclip` un demandeur de la sélection qui n'est pas Glucose (plateforme::selection_x11).
+      # Plus de GTK 3 : `rfd` ouvre ses dialogues par le portail du bureau. Plus de `pkg-config` :
+      # Wayland et X11 s'ouvrent au lancement (`dlopen` dans `wayland-sys` et `tiny-xlib`), rien
+      # ne se cherche à la compilation (fiche 100).
       - name: Dépendances système (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev pkg-config mesa-vulkan-drivers libvulkan1 xvfb xclip
+          sudo apt-get install -y mesa-vulkan-drivers libvulkan1 xvfb xclip
 
       # La sélection de X11 (COPIER-1, fiche 61) s'éprouve sur un vrai serveur : un Xvfb à elle,
       # jamais un écran. Sans lui, ses épreuves tombent au lieu de se sauter en vert.
