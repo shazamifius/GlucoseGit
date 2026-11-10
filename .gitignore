@@ -64,3 +64,6 @@ android/local.properties
 
 # Le cache de wrangler (Cloudflare) : le compte de la machine qui déploie
 outils/telemetrie/.wrangler/
+
+# Le cache de Python : le pilote (outils/pilote) importe ses modules à chaque essai.
+__pycache__/

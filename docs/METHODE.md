@@ -237,7 +237,22 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
 * **Jouer la main dans le vrai Glucose, hors écran** (fiche 99) : `bash outils/pilote/piloter.sh demarrer <maison>
   <sortie>`, puis `clic|double|droit|aller <x> <y>`, `taper <texte>`, `touche|ctrl|alt|altmaj <t>`, `capture <f.png>`,
   `arreter`. Le document : le dernier brouillon de `<maison>/state/glucose/brouillons`. Un glisser : `aller`, `presser`,
-  des `aller`, `relacher`. Les coordonnées sont celles de la capture (1920 × 1080).
+  des `aller`, `relacher`. Les coordonnées sont celles de la capture (1920 × 1080). Depuis la fiche 100 :
+  `milieu-presser|milieu-relacher` (le clic molette), `glisser <x0> <y0> <x1> <y1> <ms> <hz>` (un mouvement continu à la
+  cadence d'une souris), `molette <crans> [<ms>]` (négatif : on zoome). **`glisser` et `molette` rendent la main tout
+  de suite** : attendre leur durée avant `relacher`. `PILOTE_DETAIL=1 … demarrer` met dans `compositeur.txt` le journal
+  de sway et chaque message qu'il échange. **Éprouver le banc avant le programme** : la fenêtre de `dragon` est son
+  petit bouton, le reste de sa case est le fond de sway (fiche 100 § 2).
+* **Le presse-papiers et le glisser-déposer de Wayland** : `bash outils/pilote/essai_wayland.sh <dossier>` — six
+  contrôles réels (copier vers une autre application, coller une image, glisser dans les deux sens, la photo posée sous
+  le curseur), chacun PASSE ou TOMBE, la sortie en erreur si l'un tombe.
+* **Sous niri, son compositeur** (fiche 100 § 10) : `PILOTE_COMPOSITEUR=niri` devant `piloter.sh demarrer` ou
+  `essai_wayland.sh` — un vrai niri imbriqué dans le sway sans écran, réglé comme son écran (`niri.kdl` : 1920 × 1080,
+  demi-colonnes) ; `PILOTE_ECHELLE=2` pour un écran à haute densité. **Son écran se lit** (`niri msg outputs`), il ne se
+  devine pas dans sa configuration.
+* **Sa chronique** : la dernière session de son Glucose écrit `/tmp/glucose-chronique/derniere-session.txt`, et son
+  journal technique vit dans `~/.local/state/glucose/journal-technique/` — **les copier**, puis les lire. Elle dit le
+  tempo, les gels et les postes de ses vraies images (fiche 100 § 5).
 * **Un essai réel** : `bash outils/essai_isole.sh <secondes> [capture.png]`. Dossier neuf, télémétrie
   coupée d'avance, capture par `grim`. Annoncer la fenêtre : elle prend le focus.
 * **Jouer des gestes minutés dans le vrai Glucose** : `GLUCOSE_SCENARIO=<fichier>` (`outils/scenarios/`), et le
