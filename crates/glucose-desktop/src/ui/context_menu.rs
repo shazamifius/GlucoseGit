@@ -92,6 +92,9 @@ impl MenuAction {
             MenuAction::VuePrecedente => Commande::VuePrecedente,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
             MenuAction::SuivreLeLien => Commande::SuivreLeLien,
+            MenuAction::MontrerLesLiens => Commande::MontrerLesLiens,
+            MenuAction::AllerAuNoeud => Commande::AllerAuNoeud,
+            MenuAction::FermerLaFenetre => Commande::Echap,
             MenuAction::DisposerEnColonnes => Commande::DisposerEnColonnes,
             MenuAction::Grouper => Commande::Grouper,
             MenuAction::EntrerDansLaMembrane => Commande::EntrerDansLaMembrane,
@@ -187,6 +190,10 @@ pub enum MenuAction {
     CadrerLaSelection,
     /// Suivre la flèche choisie jusqu'à son autre bout (LIEN-2, fiche 102).
     SuivreLeLien,
+    /// La fenêtre des liens : l'ouvrir, aller au nœud choisi, la fermer (LIEN-3, fiche 102).
+    MontrerLesLiens,
+    AllerAuNoeud,
+    FermerLaFenetre,
     /// Ranger en colonnes ce que porte une membrane choisie (COLONNES-1, fiche 92).
     DisposerEnColonnes,
     /// Entourer la sélection d'une membrane neuve (GROUPER-1, fiche 98).

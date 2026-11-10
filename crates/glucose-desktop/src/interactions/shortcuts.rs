@@ -187,6 +187,10 @@ impl GlucoseApp {
             self.mark_dirty();
             return;
         }
+        // La fenêtre des liens, ouverte par un geste choisi (LIEN-3, fiche 102).
+        if self.fermer_la_fenetre_des_liens() {
+            return;
+        }
         // Un rectangle qu'on trace, puis un gabarit ou une grille qui suivent le curseur
         // attendent encore qu'on les pose : Échap y renonce, un à la fois (TRACE-1).
         if self.renoncer_au_trace() || self.renoncer_au_gabarit() || self.renoncer_au_storyboard() {

@@ -38,6 +38,9 @@ pub(super) fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
     if onglet.is_some() {
         return Some(entrees_d_onglet(store));
     }
+    if store.fenetre_des_liens().is_some() {
+        return Some(entrees_de_la_fenetre(store));
+    }
     let mut defs = entrees_de_l_historique(store);
     if store.compte_de_la_selection() > 0 {
         defs.extend(entrees_de_selection(store)?);
@@ -45,6 +48,27 @@ pub(super) fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
         defs.extend(entrees_du_vide(store));
     }
     Some(defs)
+}
+
+/// **Dans la fenêtre des liens** (LIEN-3, fiche 102) : aller au nœud choisi, en montrer les liens,
+/// fermer — elle ne change rien au document, et le menu n'offre rien qui le change.
+fn entrees_de_la_fenetre(store: &Store) -> Vec<Def> {
+    let mut defs = Vec::new();
+    if store.compte_de_la_selection() == 1 {
+        defs.push(Some((MenuAction::AllerAuNoeud, "Aller à ce nœud", "Clic")));
+        defs.push(Some((
+            MenuAction::MontrerLesLiens,
+            "Montrer ses liens",
+            "Maj+clic",
+        )));
+        defs.push(None);
+    }
+    defs.push(Some((
+        MenuAction::FermerLaFenetre,
+        "Fermer la fenêtre des liens",
+        "",
+    )));
+    defs
 }
 
 /// **Annuler et rétablir**, en tête de tout menu du canevas (ACCES-1) : au clavier, `Ctrl+Z`
@@ -80,6 +104,18 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         Some((MenuAction::Duplicate, "Dupliquer", "")),
         Some((MenuAction::CadrerLaSelection, "Cadrer la sélection", "")),
     ];
+    // Ce qui a des liens les montre, amenés près de lui (LIEN-3).
+    if images + store.selected_annotation_ids.len() == 1
+        && store.active_board().is_some_and(|b| {
+            store
+                .selected_annotation_ids
+                .iter()
+                .chain(&store.selected_image_ids)
+                .any(|id| glucose_core::arrow::touche_un_lien(b, id))
+        })
+    {
+        defs.push(Some((MenuAction::MontrerLesLiens, "Montrer ses liens", "")));
+    }
     // Une flèche seule se suit jusqu'à son autre bout : au doigt, c'est le seul chemin (LIEN-2).
     if images == 0 && store.selected_annotation_ids.len() == 1 && store.selected_arrows().len() == 1
     {

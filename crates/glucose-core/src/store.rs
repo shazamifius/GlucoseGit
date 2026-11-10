@@ -40,6 +40,7 @@ mod catalog;
 pub mod choix;
 mod colonnes;
 mod domains;
+pub mod fenetre;
 mod folders;
 mod glisser;
 mod groupe;
@@ -82,6 +83,9 @@ pub struct Store {
     pub temporal_filter: Option<TemporalAnchor>,
     /// Les lieux d'où la caméra est partie, pour `Alt+Z` (RETOUR-1, fiche 99).
     pub histoire_de_la_vue: retour::HistoireDeLaVue,
+    /// **La fenêtre des liens**, si elle est ouverte (LIEN-3, fiche 102) : un tableau de copies,
+    /// montré à la place du tableau actif, à côté du projet — jamais dans le document.
+    fenetre_des_liens: Option<fenetre::FenetreDesLiens>,
 
     /// Pile d'annulation. Voir [`journal`] pour la loi de coût JRN-1.
     pub journal: journal::Journal,
@@ -133,6 +137,7 @@ impl Store {
             groupe: std::cell::RefCell::default(),
             glisser: None,
             histoire_de_la_vue: retour::HistoireDeLaVue::default(),
+            fenetre_des_liens: None,
         }
     }
 

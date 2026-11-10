@@ -1,0 +1,542 @@
+[
+ {
+  "nom": "Le plus loin d'abord",
+  "fichier": "crates/glucose-core/src/amener.rs",
+  "avant": "        distance(c, voisins[a].vraie_place)\n            .total_cmp(&distance(c, voisins[b].vraie_place))\n",
+  "apres": "        distance(c, voisins[b].vraie_place)\n            .total_cmp(&distance(c, voisins[a].vraie_place))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "La direction perd sa composante verticale",
+  "fichier": "crates/glucose-core/src/amener.rs",
+  "avant": "        ((b.0 - a.0) / d, (b.1 - a.1) / d)\n",
+  "apres": "        ((b.0 - a.0) / d, 0.0)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Pas d'air entre deux boîtes",
+  "fichier": "crates/glucose-core/src/amener.rs",
+  "avant": "                p.left - air - apres.0,\n",
+  "apres": "                p.left - apres.0,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le milieu de la boîte glisse, pas son point d'accroche",
+  "fichier": "crates/glucose-core/src/amener.rs",
+  "avant": "        let avant = (v.accroche.0 - v.boite.left, v.accroche.1 - v.boite.top);\n",
+  "apres": "        let avant = (v.boite.width / 2.0, v.boite.height / 2.0);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Une boîte s'arrête dans l'intervalle interdit",
+  "fichier": "crates/glucose-core/src/amener.rs",
+  "avant": "            r = sortie;\n",
+  "apres": "            r = (entree + sortie) / 2.0;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "La provenance prend une couleur vide",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "            couleur = Some(color.clone());\n",
+  "apres": "            couleur = Some(None);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le chemin se lit à l'envers",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "    noms.reverse();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le dernier texte d'une membrane, pas le premier",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "        .min_by(|(_, a), (_, b)| a.top.total_cmp(&b.top).then(a.left.total_cmp(&b.left)));\n",
+  "apres": "        .max_by(|(_, a), (_, b)| a.top.total_cmp(&b.top).then(a.left.total_cmp(&b.left)));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Une membrane amenée tait son chemin",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "            Some(chemin) if !nom_propre.is_empty() => format!(\"{chemin} › {nom_propre}\"),\n",
+  "apres": "            Some(_) if !nom_propre.is_empty() => nom_propre.clone(),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Les liens gardent leurs coudes",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "    waypoints.clear();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "La fenêtre refaite ne garde pas sa place",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "        let pas = (ancre.0 - c.0, ancre.1 - c.1);\n",
+  "apres": "        let pas = (0.0 * ancre.0, 0.0 * ancre.1);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "La fenêtre refaite garde son identité",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "        fenetre.tableau.id = format!(\"{TABLEAU}{ouverture}\");\n",
+  "apres": "        fenetre.tableau.id = TABLEAU.to_string();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "La membrane de provenance ne mène à rien",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "        let nom = format!(\"{PROVENANCE}{id}\");\n        designe.insert(nom.clone(), id.to_string());\n",
+  "apres": "        let nom = format!(\"{PROVENANCE}{id}\");\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le centre ne se pose pas sur sa vraie place",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "    au_centre.deplacer((c.0 - au_centre.accroche.0, c.1 - au_centre.accroche.1));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le début commun se répète",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "    let k = communs.min(noms.len().saturating_sub(garder));\n",
+  "apres": "    let k = 0 * communs.min(noms.len().saturating_sub(garder));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le début commun efface tout",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "    let k = communs.min(noms.len().saturating_sub(garder));\n",
+  "apres": "    let k = communs.min(noms.len());\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le tableau actif ignore la fenêtre",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "        if let Some(f) = &self.fenetre_des_liens {\n            return Some(&f.tableau);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "La vue de la fenêtre ne se pose pas",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "            f.tableau.viewport = vp.normalized();\n            return;\n",
+  "apres": "            let _ = (f, vp);\n            return;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Fermer ne rend pas la vue",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": "        self.set_viewport(&f.d_ou, f.tableau.viewport);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Changer de tableau ne la ferme pas",
+  "fichier": "crates/glucose-core/src/store/navigation.rs",
+  "avant": "        self.fenetre_des_liens = None;\n        self.project.active_board_id = bid.clone();\n",
+  "apres": "        self.project.active_board_id = bid.clone();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Charger un document ne la ferme pas",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        self.fenetre_des_liens = None;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Une commande ne ferme pas la fenêtre",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "        if !commande.regarde_la_fenetre() {\n",
+  "apres": "        if false {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Aller ferme la fenêtre avant d'y aller",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "                | Commande::AllerAuNoeud\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Échap ne ferme pas la fenêtre",
+  "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+  "avant": "        if self.fermer_la_fenetre_des_liens() {\n            return;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le relâchement n'y mène pas",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "                self.relacher_dans_la_fenetre();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Un appui qui a bougé y mène quand même",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "        let Some(vise) = appui.vise.filter(|_| bouge <= self.tremblement()) else {\n",
+  "apres": "        let Some(vise) = appui.vise.filter(|_| bouge >= 0.0) else {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Maj+clic y va au lieu de la refaire",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "        if self.modifiers.shift_key() {\n",
+  "apres": "        if false {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "L'appui ne déplace pas la vue",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "        self.is_panning = true;\n        true\n",
+  "apres": "        true\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le clic sur le canevas ignore la fenêtre",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "        if self.appuyer_dans_la_fenetre((wx, wy)) {\n",
+  "apres": "        if false && self.appuyer_dans_la_fenetre((wx, wy)) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le clic droit ne choisit pas la copie",
+  "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+  "avant": "        self.choisir_dans_la_fenetre();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "L'appui vise sans refaire l'index",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "        // L'index des nœuds doit être celui de la fenêtre avant qu'on le questionne.\n        self.renderer.sync_spatial_index(&self.store);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le menu de la fenêtre est celui de la carte",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "    if store.fenetre_des_liens().is_some() {\n        return Some(entrees_de_la_fenetre(store));\n    }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Le menu offre de montrer un nœud sans lien",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "                .any(|id| glucose_core::arrow::touche_un_lien(b, id))\n",
+  "apres": "                .any(|_| true)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Sur une flèche, le bout le plus loin",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "            .min_by(|a, b| a.1.total_cmp(&b.1))\n",
+  "apres": "            .max_by(|a, b| a.1.total_cmp(&b.1))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Deux nœuds choisis montrent le premier",
+  "fichier": "crates/glucose-desktop/src/interactions/fenetre.rs",
+  "avant": "        if autre.is_some() {\n            return None;\n        }\n",
+  "apres": "        let _ = autre;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ },
+ {
+  "nom": "Dans la fenêtre, les liens pâlissent",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "    if store.fenetre_des_liens().is_some() {\n        return true;\n    }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ }
+]

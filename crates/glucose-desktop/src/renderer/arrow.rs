@@ -109,10 +109,13 @@ impl Fleche {
             segments: Vec::new(),
             axe: [debut.0 as f32, debut.1 as f32, fin.0 as f32, fin.1 as f32],
             teintes: [unite(t.depart), unite(t.milieu), unite(t.arrivee)],
-            halo: [scale.screen(halo as f32) / 2.0 * lecture, opacite_du_halo],
+            halo: [
+                scale.screen(halo as f32) / 2.0 * lecture,
+                opacite_du_halo * lecture,
+            ],
             ame: [
                 scale.screen(sw as f32) / 2.0 * lecture,
-                aspect::OPACITE_DU_TRAIT,
+                aspect::OPACITE_DU_TRAIT * lecture,
             ],
             ame_blanche: self.selectionnee,
             disques: self.disques((debut, fin), scale),
@@ -137,13 +140,19 @@ impl Fleche {
         Some(champ)
     }
 
-    /// **Ce que la flèche multiplie à ses longueurs d'écran** (LIEN-1) : la part de la distance
-    /// de lecture ([`WorldScale::lecture`]) — sauf en lumière, où elle reste pleine.
+    /// **Ce que la flèche multiplie à ses longueurs d'écran et à l'opacité de son trait** (LIEN-1) :
+    /// la part de la taille réelle ([`WorldScale::lecture`]) — sauf en lumière, où elle reste
+    /// pleine.
     ///
-    /// Le trait, son halo et le contour de ses disques sont les seules longueurs d'écran d'une
-    /// flèche (FLECHE-1, le `non-scaling-stroke` de Tauri) ; ses disques sont déjà du monde. Plus
-    /// fins qu'un pixel, ils se peignent à leur couverture exacte (le filtre-boîte du champ) : la
-    /// transparence vient de la géométrie, aucune opacité n'est choisie.
+    /// Deux faits, un seul facteur. **Sa géométrie** : le trait, son halo et le contour de ses
+    /// disques sont les seules longueurs d'écran d'une flèche (FLECHE-1, le `non-scaling-stroke` de
+    /// Tauri) ; plus loin que la taille réelle, ils rétrécissent avec le monde (ses disques en sont
+    /// déjà), et, plus fins qu'un pixel, se peignent à leur couverture exacte (le filtre-boîte du
+    /// champ). **Sa présence** : le trait et son halo pâlissent d'autant. Rétrécir seulement gardait
+    /// à l'écran la densité d'encre de la lecture — on voit cinq fois plus de liens, chacun cinq fois
+    /// plus fin et plus court — : sur la carte de Wikipédia, une pelote à un tiers de la taille
+    /// réelle (fiche 102). Pâlir aussi fait baisser cette densité avec la distance : un neuvième de
+    /// l'encre de lecture au tiers, un centième au dixième — une trace, que le survol rallume.
     pub(crate) fn lecture(&self, scale: WorldScale) -> f32 {
         if self.en_lumiere {
             1.0
@@ -215,6 +224,8 @@ fn teinte_d_un_bout(
 /// **LIEN-1 — les liens qu'on regarde se montrent pleins, à toute distance** : la flèche choisie
 /// ou survolée, et celles d'un nœud choisi ou survolé.
 ///
+/// Dans la fenêtre des liens, tous le sont : ils sont ce qu'elle montre.
+///
 /// C'est le *highlighting* de Bring & Go (Moscovich et al., *Topology-Aware Navigation in Large
 /// Networks*, CHI 2009) : choisir un nœud allume ses liens, pour qu'on sache d'un regard combien
 /// il en a et où ils vont, même quand la distance les a rendus presque transparents. Le détail à
@@ -229,6 +240,10 @@ pub(crate) fn en_lumiere(store: &Store, survole: Option<&str>, ann: &Annotation)
     else {
         return false;
     };
+    // Dans la fenêtre des liens, chaque lien est celui de ce qu'on y montre (LIEN-3).
+    if store.fenetre_des_liens().is_some() {
+        return true;
+    }
     let regarde = |n: &str| {
         survole == Some(n)
             || store.selected_annotation_ids.contains(n)
@@ -336,8 +351,14 @@ pub(crate) fn fleche_en_svg(
     let (halo, opacite_du_halo) = aspect::halo(sw, false);
     let lecture = fleche.lecture(scale);
     for (largeur, opacite) in [
-        (scale.screen(halo as f32) * lecture, opacite_du_halo),
-        (scale.screen(sw as f32) * lecture, aspect::OPACITE_DU_TRAIT),
+        (
+            scale.screen(halo as f32) * lecture,
+            opacite_du_halo * lecture,
+        ),
+        (
+            scale.screen(sw as f32) * lecture,
+            aspect::OPACITE_DU_TRAIT * lecture,
+        ),
     ] {
         svg.poser(&format!(
             r#"<path d="{d}" fill="none" stroke="url(#{degrade})" stroke-width="{}" stroke-opacity="{}" stroke-linecap="round" stroke-linejoin="round"/>"#,

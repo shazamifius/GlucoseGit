@@ -538,6 +538,16 @@ impl Annotation {
         }
     }
 
+    /// Une autre identité — ce qu'une copie prend (la fenêtre des liens, LIEN-3).
+    pub fn set_id(&mut self, nouvelle: Id) {
+        match self {
+            Self::Text { id, .. }
+            | Self::Sticky { id, .. }
+            | Self::Arrow { id, .. }
+            | Self::Membrane { id, .. } => *id = nouvelle,
+        }
+    }
+
     pub fn set_membrane_id(&mut self, mid: Option<Id>) {
         match self {
             Self::Text { membrane_id, .. }

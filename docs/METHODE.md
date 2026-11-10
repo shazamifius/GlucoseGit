@@ -224,6 +224,10 @@
 | **Le gamut sRGB n'est pas convexe dans Oklab** : une droite de teinte en sort et y rentre (vers les bleus sombres) ; une bissection depuis le gris s'arrête trop tôt (fiche 99) | chercher le bord extérieur depuis le dehors ; « sur l'écran » = à moins d'un demi-niveau d'un canal à huit bits |
 | **L'index des nœuds se construit en dessinant** : la pipette ne trouvait rien sous le clic d'une épreuve, dont le décor n'avait dessiné aucune image (fiche 99) | le décor d'une épreuve qui clique sur le canevas dessine d'abord une image (`une_image_sans_fenetre`) |
 | **`getbbox` de Pillow lit le canal alpha d'une image RGBA** : la boîte d'écart de deux témoins opaques disait 10 lignes pour 39 (fiche 99) | comparer en RVB (`convert('RGB')`) |
+| **Une loi qui passe ses épreuves fait une pelote sur la vraie carte, deux fois** : les liens de loin (fiche 102) — le seuil du gris, puis la taille réelle ; la cause (une chose du monde garde à l'écran la densité d'encre de la lecture) n'est venue qu'après l'image | poser un banc qui porte le cas réel (`GLUCOSE_LIENS=1`, 1 128 liens), et regarder **plusieurs distances** avant d'écrire l'épreuve |
+| **`prendre_la_touche` ne porte que ce qui passe avant tout** (une question, la roue, un champ) : une épreuve qui y pressait `B` ne déclenchait aucun raccourci (fiche 102) | les raccourcis passent par `handle_shortcut_input` ; la main déplace la vue par l'élan, posé à l'image suivante (`appliquer_l_elan`) |
+| **Viser sans index synchronisé** : le clic droit de la fenêtre des liens ne trouvait rien juste après l'ouverture — l'index était celui du tableau d'avant (fiche 102) | `renderer.sync_spatial_index(&store)` avant `pick_candidate_at`, comme `click_node_at` |
+| **L'encre ne baissait pas de huit fois** : ni l'arrondi à huit bits (vérifié en flottants, `Champ::couleur` : pire), mais les pastilles, déjà du monde (fiche 102) | mesurer la grandeur qu'on prétend régler, seule |
 
 ## 5. Les pièges pratiques
 

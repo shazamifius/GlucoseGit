@@ -46,13 +46,17 @@ impl GlucoseApp {
 
     /// Le clic a traversé toutes les couches de l'interface : il est pour le canevas.
     pub fn click_canvas(&mut self, screen: ScreenFrame) {
+        let vp = self.store.viewport();
+        let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+        // La fenêtre des liens ne se regarde qu'en s'y déplaçant et n'y prend qu'un nœud
+        // (LIEN-3, fiche 102).
+        if self.appuyer_dans_la_fenetre((wx, wy)) {
+            return;
+        }
         if self.ui.active_tool == ActiveTool::Pan {
             self.is_panning = true;
             return;
         }
-
-        let vp = self.store.viewport();
-        let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
         // Les poignées de coude passent avant le redimensionnement : elles appartiennent à
         // un objet déjà sélectionné, comme lui, et une flèche n'a pas de poignée de taille.

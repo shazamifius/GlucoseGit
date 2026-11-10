@@ -251,6 +251,9 @@ impl GlucoseApp {
         // multiple au nœud touché (SEL-MULTI-1) — le menu s'ouvre sur toute la sélection,
         // comme le clic droit au bureau.
         self.reduire_a_la_relache = None;
+        // Dans la fenêtre des liens, l'appui long choisit la copie touchée : le menu y mène, et
+        // le relâchement n'y va pas (LIEN-3).
+        self.choisir_dans_la_fenetre();
         self.handle_mouse_up(MouseButton::Left);
         if dans_le_texte {
             self.click_text_at(ici, 2, false);

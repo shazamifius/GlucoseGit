@@ -46,14 +46,24 @@ impl Store {
         self.active_board().map(|b| b.viewport).unwrap_or_default()
     }
 
+    /// **Le tableau qu'on regarde** : celui du document, ou la fenêtre des liens tant qu'elle est
+    /// ouverte (LIEN-3) — elle se dessine, se vise et se zoome comme lui. Ce qui écrit le document
+    /// nomme un tableau du projet, et ne l'atteint jamais.
     pub fn active_board(&self) -> Option<&Board> {
+        if let Some(f) = &self.fenetre_des_liens {
+            return Some(&f.tableau);
+        }
         self.project
             .boards
             .iter()
             .find(|b| b.id == self.project.active_board_id)
     }
 
+    /// Le tableau qu'on regarde, pour en changer la vue — la fenêtre des liens comprise.
     pub fn active_board_mut(&mut self) -> Option<&mut Board> {
+        if let Some(f) = &mut self.fenetre_des_liens {
+            return Some(&mut f.tableau);
+        }
         let id = self.project.active_board_id.clone();
         self.project.boards.iter_mut().find(|b| b.id == id)
     }
@@ -64,6 +74,8 @@ impl Store {
         if !self.project.boards.iter().any(|b| b.id == bid) {
             return Err(CoreError::BoardNotFound(bid));
         }
+        // Un autre tableau : la fenêtre des liens montrait ceux du précédent (LIEN-3).
+        self.fenetre_des_liens = None;
         self.project.active_board_id = bid.clone();
         self.folder_stack = build_folder_stack(&self.project.boards, &bid);
         self.clear_selection();
@@ -83,6 +95,14 @@ impl Store {
     /// ([`Viewport::normalized`]) : c'est ici, et dans [`Store::zoom`], que la borne d'échelle
     /// de la fiche 09 § 1 devient une propriété du store plutôt qu'une précaution d'appelant.
     pub fn set_viewport(&mut self, board_id: &str, vp: Viewport) {
+        if let Some(f) = self
+            .fenetre_des_liens
+            .as_mut()
+            .filter(|f| f.tableau.id == board_id)
+        {
+            f.tableau.viewport = vp.normalized();
+            return;
+        }
         if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
             b.viewport = vp.normalized();
         }

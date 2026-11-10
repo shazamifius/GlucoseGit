@@ -117,6 +117,8 @@ impl Store {
     /// sinon réécrites au prochain `Ctrl+S`.
     pub fn load_project(&mut self, project: Project) -> usize {
         self.project = project;
+        // Un autre document : la fenêtre des liens montrait ceux de l'ancien (LIEN-3).
+        self.fenetre_des_liens = None;
         self.identite = identite_d_instant();
         self.resync_next_id();
         let repaired = self.repair_domain_assignments();

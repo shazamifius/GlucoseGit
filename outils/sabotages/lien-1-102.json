@@ -60,36 +60,6 @@
   ]
  },
  {
-  "nom": "Le trait ne suit pas la loi",
-  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
-  "avant": "                scale.screen(sw as f32) / 2.0 * lecture,\n",
-  "apres": "                scale.screen(sw as f32) / 2.0,\n",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "lien_1"
-  ]
- },
- {
-  "nom": "Le halo ne suit pas la loi",
-  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
-  "avant": "            halo: [scale.screen(halo as f32) / 2.0 * lecture, opacite_du_halo],\n",
-  "apres": "            halo: [scale.screen(halo as f32) / 2.0, opacite_du_halo],\n",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "lien_1"
-  ]
- },
- {
   "nom": "Le contour des disques ne suit pas la loi",
   "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
   "avant": "            demi_contour: scale.screen(aspect::CONTOUR as f32) / 2.0 * self.lecture(scale),\n",
@@ -289,6 +259,81 @@
   "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
   "avant": "        echelle.lecture() < 1.0\n",
   "apres": "        echelle.lecture() < 2.0\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le trait ne rétrécit pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "                scale.screen(sw as f32) / 2.0 * lecture,\n",
+  "apres": "                scale.screen(sw as f32) / 2.0,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le trait ne pâlit pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "                aspect::OPACITE_DU_TRAIT * lecture,\n",
+  "apres": "                aspect::OPACITE_DU_TRAIT,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le halo ne rétrécit pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "                scale.screen(halo as f32) / 2.0 * lecture,\n",
+  "apres": "                scale.screen(halo as f32) / 2.0,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le halo ne pâlit pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "                opacite_du_halo * lecture,\n",
+  "apres": "                opacite_du_halo,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1"
+  ]
+ },
+ {
+  "nom": "Le SVG ne pâlit pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "            aspect::OPACITE_DU_TRAIT * lecture,\n        ),\n",
+  "apres": "            aspect::OPACITE_DU_TRAIT,\n        ),\n",
   "cmd": [
    "cargo",
    "test",

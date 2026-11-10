@@ -254,9 +254,10 @@ impl GlucoseApp {
     /// Le clic gauche descend les couches ; la première qui le prend l'arrête.
     fn handle_left_down(&mut self, screen: ScreenFrame) {
         let pointer = self.pointer();
-        let taken = self.cliquer_la_question(pointer, screen)
-            || self.click_context_menu(pointer, screen)
-            || self.click_roue(pointer, screen)
+        if self.cliquer_la_question(pointer, screen) || self.click_context_menu(pointer, screen) {
+            return;
+        }
+        let taken = self.click_roue(pointer, screen)
             || self.click_ancrage(pointer)
             || self.click_skips_flight()
             || self.redimensionner_par_le_bord()
@@ -268,7 +269,11 @@ impl GlucoseApp {
             // tracé, que le relâchement pose (TRACE-1).
             || self.poser_le_gabarit_arme()
             || self.commencer_un_trace();
-        if !taken {
+        if taken {
+            // Un clic hors du canevas — l'interface, un outil — ferme la fenêtre des liens : elle
+            // est passagère (LIEN-3, fiche 102).
+            self.fermer_la_fenetre_des_liens();
+        } else {
             self.click_canvas(screen);
         }
     }
@@ -314,6 +319,8 @@ impl GlucoseApp {
                     return;
                 }
                 self.minimap_tenue = false;
+                // Un appui dans la fenêtre des liens, relâché sans bouger, y mène (LIEN-3).
+                self.relacher_dans_la_fenetre();
                 self.dock_manager.temps.glisse = false;
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
                     self.ui

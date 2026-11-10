@@ -44,6 +44,7 @@ Maj+Bas         pousser.bas.dix
 
 # Naviguer
 F               cadrer-la-selection
+B               liens.montrer
 Alt+F           tout-cadrer
 Alt+Z           vue.precedente
 Alt+Maj+Z       vue.suivante

@@ -47,9 +47,21 @@ fn champ(f: &Fleche, z: f64) -> Champ {
 fn test_lien_1_de_loin_un_lien_retrecit_avec_le_monde() {
     let mesures = |c: &Champ| {
         let disque = c.disques[1].expect("la pastille");
-        [c.ame[0], c.halo[0], disque.demi_contour]
+        [
+            c.ame[0],
+            c.halo[0],
+            disque.demi_contour,
+            c.ame[1],
+            c.halo[1],
+        ]
     };
-    let tauri = [1.0, 3.0, 1.0];
+    let tauri = [
+        1.0,
+        3.0,
+        1.0,
+        aspect::OPACITE_DU_TRAIT,
+        aspect::OPACITE_DU_HALO,
+    ];
     for z in [LECTURE, 2.0 * LECTURE, 8.0] {
         assert_eq!(mesures(&champ(&fleche(false), z)), tauri, "au zoom {z}");
     }
@@ -73,20 +85,31 @@ fn test_lien_1_la_taille_reelle_est_en_pixels_logiques() {
 }
 
 /// **L'encre peinte suit la loi** : plus fin qu'un pixel, le trait se peint à sa couverture
-/// exacte. Au-delà de la lecture, un lien est une chose du monde : quand le zoom est divisé par
-/// deux, son encre l'est par quatre (sa longueur et sa largeur) ; en lumière, par deux, comme chez
-/// Tauri (sa longueur seule).
+/// exacte. Plus loin que la taille réelle, quand le zoom est divisé par deux, l'encre d'un lien
+/// l'est par huit (sa longueur, sa largeur, son opacité) ; en lumière, par deux, comme chez Tauri
+/// (sa longueur seule). Mesuré loin, là où les opacités se composent presque comme une somme ; le
+/// trait seul — ses pastilles sont déjà de la géométrie du monde, et le restent (fiche 102).
 #[test]
 fn test_lien_1_l_encre_peinte_suit_le_monde() {
     let encre = |f: &Fleche, z: f64| {
+        // Le trait seul : ses pastilles sont déjà du monde, leur encre suit le carré du zoom.
+        let c = Champ {
+            disques: [None, None],
+            ..champ(f, z)
+        };
         let (l, h) = (1200_u32, 800_u32);
         let mut pixels = vec![[0_u8; 4]; (l * h) as usize];
-        assert!(champ(f, z).peindre(&mut pixels, l, h), "de l'encre");
-        pixels.iter().map(|p| f64::from(p[3])).sum::<f64>()
+        assert!(c.peindre(&mut pixels, l, h), "de l'encre");
+        // La loi en chaque pixel, en flottants : huit bits arrondiraient une encre de quelques
+        // millièmes au niveau le plus proche.
+        (0..h)
+            .flat_map(|y| (0..l).map(move |x| (x, y)))
+            .map(|(x, y)| f64::from(c.couleur(x as f32 + 0.5, y as f32 + 0.5)[3]))
+            .sum::<f64>()
     };
-    let (moitie, quart) = (LECTURE / 2.0, LECTURE / 4.0);
+    let (moitie, quart) = (LECTURE / 8.0, LECTURE / 16.0);
     let du_monde = encre(&fleche(false), moitie) / encre(&fleche(false), quart);
-    assert!((du_monde - 4.0).abs() < 0.2, "rapport {du_monde}");
+    assert!((du_monde - 8.0).abs() < 0.4, "rapport {du_monde}");
     let de_tauri = encre(&fleche(true), moitie) / encre(&fleche(true), quart);
     assert!((de_tauri - 2.0).abs() < 0.2, "rapport {de_tauri}");
 }
@@ -274,11 +297,11 @@ fn test_lien_1_l_export_svg_suit_la_loi() {
         .renderer
         .rendre_en_svg((&app.store, &mut app.ui), vue, TAILLE, &mut |_| None);
     assert!(
-        svg.contains(r#"stroke-width="0.5" stroke-opacity="0.92""#),
+        svg.contains(r#"stroke-width="0.5" stroke-opacity="0.23""#),
         "{svg}"
     );
     assert!(
-        svg.contains(r#"stroke-width="1.5" stroke-opacity="0.18""#),
+        svg.contains(r#"stroke-width="1.5" stroke-opacity="0.045""#),
         "{svg}"
     );
     assert!(

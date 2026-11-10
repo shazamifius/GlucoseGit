@@ -11,6 +11,16 @@ impl GlucoseApp {
     /// alors à la suivante de sa liste. Seules les relations des flèches, les opérateurs des
     /// post-it, les couleurs et le groupe peuvent ne pas s'appliquer : sans flèche choisie, un chiffre vole au signet.
     pub(crate) fn executer(&mut self, commande: Commande) -> bool {
+        // La fenêtre des liens est passagère : ce qui ne la regarde pas la ferme d'abord, et ne
+        // s'exécute que sur le document (LIEN-3, fiche 102).
+        if !commande.regarde_la_fenetre() {
+            self.fermer_la_fenetre_des_liens();
+        }
+        self.faire(commande)
+    }
+
+    /// **Le geste de chaque commande** : un seul `match`, sans joker.
+    fn faire(&mut self, commande: Commande) -> bool {
         match commande {
             Commande::NouveauDocument => self.nouveau_document(),
             Commande::OuvrirUnDocument => self.choisir_un_document(),
@@ -38,6 +48,8 @@ impl GlucoseApp {
             Commande::VueSuivante => return self.revenir(false),
             Commande::CadrerLaSelection => self.cadrer(true),
             Commande::SuivreLeLien => return self.suivre_le_lien_choisi(),
+            Commande::MontrerLesLiens => return self.montrer_les_liens(),
+            Commande::AllerAuNoeud => return self.aller_au_noeud_montre(),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
             Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),
             Commande::SortirDeLaMembrane => {
@@ -46,14 +58,8 @@ impl GlucoseApp {
             Commande::ModeReference => self.basculer_le_mode_reference(),
             Commande::Naviguer => self.enter_pan_mode(),
             Commande::Echap => self.escape_gesture(),
-            Commande::PoserLeSignet(n) => {
-                let message = self.poser_le_signet(chiffre(n));
-                self.annoncer_le_signet(message);
-            }
-            Commande::AllerAuSignet(n) => {
-                let message = self.voler_vers_le_signet(chiffre(n));
-                self.annoncer_le_signet(message);
-            }
+            Commande::PoserLeSignet(n) => self.geste_du_signet(n, true),
+            Commande::AllerAuSignet(n) => self.geste_du_signet(n, false),
             Commande::Outil(outil) => {
                 self.ui.active_tool = outil;
                 self.update_cursor();
@@ -87,6 +93,16 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         true
+    }
+
+    /// Poser un signet, ou y voler, et dire ce qui a eu lieu.
+    fn geste_du_signet(&mut self, n: u8, poser: bool) {
+        let message = if poser {
+            self.poser_le_signet(chiffre(n))
+        } else {
+            self.voler_vers_le_signet(chiffre(n))
+        };
+        self.annoncer_le_signet(message);
     }
 }
 

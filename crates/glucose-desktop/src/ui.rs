@@ -142,6 +142,8 @@ pub struct UiState {
     pub fleche_survolee: Option<String>,
     /// Le nœud que la souris survole, de toute sorte : ses liens se montrent pleins (LIEN-1).
     pub noeud_survole: Option<String>,
+    /// Un appui dans la fenêtre des liens, pas encore relâché (LIEN-3).
+    pub appui_dans_la_fenetre: Option<crate::interactions::fenetre::Appui>,
     /// Sous l'outil Flèche armé, le nœud dont une flèche partirait si l'on appuyait ici : sa
     /// lueur s'avive avant même le premier geste (LUEUR-1).
     pub noeud_pressenti: Option<String>,
@@ -238,6 +240,7 @@ impl UiState {
             survol: bande::Survol::default(),
             fleche_survolee: None,
             noeud_survole: None,
+            appui_dans_la_fenetre: None,
             noeud_pressenti: None,
             placement: Default::default(),
             zones: Default::default(),

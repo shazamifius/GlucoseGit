@@ -49,6 +49,7 @@ impl GlucoseApp {
         if bouge > self.tremblement() {
             return;
         }
+        self.choisir_dans_la_fenetre();
         let (x, y) = (self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
         // Sur un onglet, le menu est celui de l'onglet (BOARDS-1).
         let onglets = crate::ui::layout_tabs(&self.store, &self.ui, &self.renderer.typography);

@@ -88,6 +88,10 @@ pub enum Commande {
     /// Suivre la flèche choisie jusqu'à son autre bout (LIEN-2, fiche 102) — `Ctrl`+clic à la
     /// souris.
     SuivreLeLien,
+    /// La fenêtre des liens du nœud choisi (LIEN-3, fiche 102), et aller au nœud qu'on y a
+    /// choisi.
+    MontrerLesLiens,
+    AllerAuNoeud,
     /// Ranger en colonnes ce que portent les membranes choisies (COLONNES-1, fiche 92).
     DisposerEnColonnes,
     /// N'avoir plus que la membrane choisie, et la quitter (FOCUS-1, fiche 95) : un geste
@@ -159,7 +163,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 49] = [
+const SIMPLES: [(Commande, &str, &str); 51] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -214,6 +218,12 @@ const SIMPLES: [(Commande, &str, &str); 49] = [
         "Cadrer la sélection",
     ),
     (Commande::SuivreLeLien, "lien.suivre", "Suivre le lien"),
+    (
+        Commande::MontrerLesLiens,
+        "liens.montrer",
+        "Montrer ses liens",
+    ),
+    (Commande::AllerAuNoeud, "liens.aller", "Aller à ce nœud"),
     (
         Commande::DisposerEnColonnes,
         "disposer-en-colonnes",
