@@ -193,18 +193,75 @@ for m in ids:
 tfidf = {m: {mot: (1 + math.log(f)) * math.log(len(ids) / presence[mot]) for mot, f in sacs[m].items()}
          for m in ids}
 
+# **La proximité, version 2 (fiche 102) : les liens que la carte porte.** Deux régions se ressemblent
+# comme les articles qu'elles citent et qui les citent — la mesure par vecteurs de liens de Milne et
+# Witten (*An effective, low-cost measure of semantic relatedness obtained from Wikipedia links*, 2008),
+# où un lien vers un article que tous citent compte moins (le poids log(N / degré)). Chaque région se
+# compte elle-même parmi ses voisins, pour qu'un lien direct entre deux régions les rapproche aussi.
+# L'agent lit tout dans la carte (`glucose lire`) : ce qu'un humain voit relié, il le voit relié. Les
+# mots (TF-IDF des résumés, la version 1 : des cosinus de 0,05 à 0,14) restent la mesure d'une carte
+# sans liens, ou demandée par `GLUCOSE_PROXIMITE=mots`.
+def article_de(nid):
+    """La membrane qui porte ce bout de lien : elle-même, ou celle qui contient le texte."""
+    return nid if nid in membranes else parent.get(nid)
+
+
+liens = [(article_de(n.get("source")), article_de(n.get("cible"))) for n in noeuds
+         if n.get("sorte") == "fleche" and n.get("source") and n.get("cible")]
+liens = [(a, b) for a, b in liens if a in membranes and b in membranes and a != b]
+voisins = {}
+for a, b in liens:
+    voisins.setdefault(a, set()).add(b)
+    voisins.setdefault(b, set()).add(a)
+par_les_liens = bool(liens) and __import__("os").environ.get("GLUCOSE_PROXIMITE") != "mots"
+
+
+def sous(mid):
+    """Les membranes d'une région, elle comprise, à toute profondeur."""
+    out = [mid]
+    for e in enfants.get(mid, []):
+        if e in membranes:
+            out.extend(sous(e))
+    return out
+
+
+N = max(len(voisins), 1)
+idf = {x: math.log(N / len(v)) + 1.0 / N for x, v in voisins.items()}
+profil = {}
+for m in ids:
+    v = {}
+    for a in sous(m):
+        for x in voisins.get(a, set()) | ({a} if a in voisins else set()):
+            v[x] = v.get(x, 0.0) + idf[x]
+    profil[m] = v
+ressemblance = (lambda a, b: cosinus(profil[a], profil[b])) if par_les_liens \
+    else (lambda a, b: cosinus(tfidf[a], tfidf[b]))
+print(f"proximité : {'les liens de la carte' if par_les_liens else 'les mots des textes'}"
+      + (f" ({len(liens)} liens entre {len(voisins)} membranes)" if par_les_liens else ""))
+
 themes = [m for m in enfants.get(racine, []) if m in membranes]
-sim = [[cosinus(tfidf[a], tfidf[b]) for b in themes] for a in themes]
+sim = [[ressemblance(a, b) for b in themes] for a in themes]
 angles = cercle_des_teintes(sim)
 teinte = {t: angles[i] for i, t in enumerate(themes)}
 
-for m in ids:
+def teinte_de(m):
+    """La moyenne circulaire des teintes des thèmes, pondérée par la ressemblance à chacun ; une
+    région dont la mesure ne dit rien (aucun lien, aucun mot) prend la teinte de sa parente : elle
+    est dans son domaine."""
     if m in teinte:
-        continue
-    poids = [(max(cosinus(tfidf[m], tfidf[t]), 0.0), teinte[t]) for t in themes]
+        return teinte[m]
+    poids = [(max(ressemblance(m, t), 0.0), teinte[t]) for t in themes]
     x = sum(p * math.cos(h) for p, h in poids)
     y = sum(p * math.sin(h) for p, h in poids)
-    teinte[m] = math.atan2(y, x) if (x or y) else 0.0
+    if x or y:
+        teinte[m] = math.atan2(y, x)
+    else:
+        teinte[m] = teinte_de(parent[m]) if parent.get(m) in membranes and parent[m] != racine else 0.0
+    return teinte[m]
+
+
+for m in ids:
+    teinte_de(m)
 
 lisib = {m: lisibilite(corps[m]) for m in ids}
 connues = sorted(v for v in lisib.values() if v is not None)
@@ -218,13 +275,13 @@ for m in ids:
     l = L_BAS + frac * (L_HAUT - L_BAS)
     c = min(chroma_maximale(l, i * math.tau / 72) for i in range(72))
     couleur = hex_de(l, teinte[m], c)
-    appartenance = cosinus(tfidf[m], tfidf[parent[m]]) if parent[m] in tfidf else 1.0
+    appartenance = ressemblance(m, parent[m]) if parent[m] in tfidf else 1.0
     g("poser-membrane", f"id={m}", f"couleur={couleur}")
     titre = (membranes[m].get("titre") or membranes[m].get("debut") or m)[:40]
     print(f"{titre:40s} teinte {math.degrees(teinte[m]) % 360:5.0f}°  lisibilité {v:5.0f}  "
           f"clarté {l:.2f}  appartenance {appartenance:.2f}  {couleur}")
 
-print("\nles thèmes, leurs ressemblances (cosinus) :")
+print("\nles thèmes, leurs ressemblances (cosinus), dans l'ordre du cercle :")
 for i, a in enumerate(themes):
     voisins = sorted(((sim[i][j], themes[j]) for j in range(len(themes)) if j != i), reverse=True)[:2]
     nom = lambda t: (membranes[t].get("debut") or t)[:22]
