@@ -272,7 +272,8 @@ impl Renderer {
         };
         if self.spatial_version != store.version || self.active_board_id != board.id {
             self.spatial_hash.index_board(board);
-            self.itineraires.oublier();
+            self.itineraires
+                .document_change(self.active_board_id == board.id);
             self.spatial_version = store.version;
             self.active_board_id = board.id.clone();
         }
@@ -320,6 +321,7 @@ impl Renderer {
         if let Some(board) = store.active_board() {
             self.hue_cache.suivre(store.version, &board.id);
         }
+        self.itineraires.ouvrir_la_tranche();
         crate::perf::stage("hues");
         self.sync_spatial_index(store);
         crate::perf::stage("index");

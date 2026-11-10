@@ -71,6 +71,10 @@ pub fn lancer(
     app.renderer.hue_cache.accorder_la_tranche(Some(
         crate::cadence::BUDGET_TOTAL.saturating_sub(crate::cadence::MARGE),
     ));
+    // Ni pour ses itinéraires de flèches (ITINERAIRE-2, fiche 102).
+    app.renderer.itineraires.accorder_la_tranche(Some(
+        crate::cadence::BUDGET_TOTAL.saturating_sub(crate::cadence::MARGE),
+    ));
     if let Some(installation) = installation {
         let reveil = reveil_de(&event_loop);
         cycle::ranger_les_anciens(&installeurs, &cycle::courante());

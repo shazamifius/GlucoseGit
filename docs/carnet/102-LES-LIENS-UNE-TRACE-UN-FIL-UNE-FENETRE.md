@@ -183,3 +183,26 @@ prend la teinte de sa parente ; les mots restent la mesure d'une carte sans lien
   trouvés en cherchant le sabotage qui passerait, et éprouvés.
 * **Regardé au pilote**, dans le vrai Glucose sans fenêtre, sur la carte de Wikipédia et ses liens :
   `~/.cache/glucose-bancs/pilote-fenetre/` et `pilote-fenetre2/`. **Rien à son écran.**
+
+## 10. Son essai du soir, et ITINERAIRE-2 — les flèches ne figent plus l'image
+
+Il a essayé la carte de Wikipédia à son écran (sa chronique : `sortie-glucose.txt`, copiée au
+scratchpad). Ses réponses sont dans VISION (« Ses réponses du 10/11/2026 au soir ») ; et **« clairement
+0 fps par moment »** : la chronique nomme le poste — **les flèches**, 2,2 s pour une image au début d'un
+glisser, 0,9 s en zoomant, 0,66 s au repos. Le contournement (FLECHE-5) retenait ses itinéraires, mais
+une nouvelle version les oubliait d'un bloc, et l'image suivante cherchait d'un coup les 1 128 liens,
+chacun longeant des centaines de nœuds. Défaut ancien, que seule une carte aussi reliée pouvait
+montrer.
+
+**ITINERAIRE-2** reprend la loi des teintes (TEINTES-1, REPOS-2) : ce qui change rend les itinéraires
+**périmés** sans les oublier ; une image cherche ce que sa tranche permet (au moins un) et montre le
+chemin d'avant pour le reste — une ligne droite pour une flèche qui n'en a jamais eu ; au repos, le
+réveil paie les dettes hors de toute image, et une seule image montre le tout. Sans tranche, tout se
+cherche : épreuves et bancs déterministes ; **un export est entier** (sa propre mémoire, sans tranche).
+Quatre épreuves (une image ne cherche que sa tranche et montre le détour d'avant ; le réveil paie le
+reste, une fois chaque flèche ; sans tranche, tout ; l'export identique avec ou sans tranche) ; les
+seize épreuves de FLECHE-5 inchangées. Le cliquet des 600 lignes a fait sortir de `renderer.rs` la
+décision « même tableau : périmer ; un autre : oublier ».
+
+**Il a demandé la publication** de la version la plus récente : la **2.0.3-beta.10** (Glucose n'a pas
+encore de version « stable » : la 2.1.0 attend la fin de la partie 1, SUITE § 0).

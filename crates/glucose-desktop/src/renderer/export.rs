@@ -65,12 +65,15 @@ impl Renderer {
         }
         .sans_reperes();
         let (vp, rangs, densite) = self.cadrer(store, taille, 0.0, cadrage);
+        // Un export est entier : chaque itinéraire se cherche, sans la tranche d'une image
+        // (ITINERAIRE-2).
+        let itineraires = super::arrow::Itineraires::default();
         let pass = crate::params::ViewPass {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
             contournement: Some(super::arrow::Contournement::de(
-                &self.itineraires,
+                &itineraires,
                 &self.suivi_du_geste,
             )),
             header_h: 0.0,

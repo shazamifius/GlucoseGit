@@ -398,3 +398,7 @@ mod ancres_tests;
 #[cfg(test)]
 #[path = "arrow/lecture_tests.rs"]
 mod lecture_tests;
+
+#[cfg(test)]
+#[path = "arrow/cascade_tests.rs"]
+mod cascade_tests;

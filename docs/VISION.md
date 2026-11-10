@@ -240,6 +240,24 @@ Le 9/11 après-midi, devant la session de la fiche 98 (D en image, la barre de c
   s'affiche. *« Les couleurs de text box ne fonctionnent pas »* (la teinte d'un texte ne se voit pas). *« Il
   y a beaucoup, beaucoup d'erreurs. »*
 
+## Ses réponses du 10/11/2026 au soir (fiche 102)
+
+Devant la carte de Wikipédia et ses liens, à son écran :
+
+* **`Alt+Z`** : *« c'est vraiment juste le Ctrl+Z, mais pour la caméra »* — chaque geste de caméra se
+  défait, un voyage à la molette compris.
+* **La couleur d'un texte** : *« j'avoue, je n'en ai aucune idée ; je partage ton avis, je pense »* —
+  la proposition A (fiche 99 § 5) : **la couleur d'un texte dit le domaine dont il parle**.
+* **Les membranes emboîtées** : *« plus on met des membranes dans des membranes, moins on voit
+  grand-chose ; on arrive à lire, mais… c'est vraiment pas beau »* ; et *« actuellement le Wikipédia
+  est illisible et horrible à travailler dessus »* — **il veut travailler l'ergonomie**.
+* **Les liens** : *« ça fonctionne bien, mais j'aimerais rajouter quelque chose »* — quand il y a une
+  abondance de liens dans un espace, même zoomé, leur opacité dépend de leur **nombre à l'écran** (un
+  lien : 100 % ; vingt : 30 %, en ligne droite) et de **la proximité de la souris** aux nœuds qui les
+  portent (100 / (1 + distance)) ; *« je n'aimerais jamais tomber en dessous de 8 % »*.
+* Il a eu *« clairement 0 fps par moment »* : les itinéraires des flèches (ITINERAIRE-2, réparé).
+* Il a demandé la publication de la version la plus récente, pour travailler sur ses projets.
+
 ## Ce qui est encore à définir — sa parole
 
 * ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon

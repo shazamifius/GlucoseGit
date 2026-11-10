@@ -465,11 +465,31 @@ impl GlucoseApp {
     /// premier geste suivant paierait tout ce qui n'a pas été fait.
     fn attente_du_chantier(&mut self) -> Option<u64> {
         let teintes = self.attente_des_teintes();
+        let itineraires = self.attente_des_itineraires();
         let vignettes = self.renderer.magasin.vignettes.en_chantier() > 0;
-        if vignettes && teintes != Some(true) {
+        if vignettes && teintes != Some(true) && itineraires != Some(true) {
             self.demander_une_image();
         }
-        (vignettes || teintes.is_some()).then(|| self.animation_interval_ms())
+        (vignettes || teintes.is_some() || itineraires.is_some())
+            .then(|| self.animation_interval_ms())
+    }
+
+    /// **ITINERAIRE-2 — au repos, les itinéraires des flèches se rattrapent sans image** (fiche
+    /// 102), comme les teintes : une image montre le tout. Quand la vue bouge, les images viennent
+    /// de toute façon, et chacune refait ce que sa tranche permet.
+    pub(crate) fn attente_des_itineraires(&mut self) -> Option<bool> {
+        if !self.renderer.itineraires.en_retard() {
+            return None;
+        }
+        let image_due = if self.la_vue_bouge() {
+            Some(true)
+        } else {
+            self.renderer.rattraper_les_itineraires(&self.store)
+        };
+        if image_due == Some(true) {
+            self.mark_dirty();
+        }
+        image_due
     }
 
     /// **REPOS-2 — au repos, les teintes se rattrapent sans image** (fiche 98).

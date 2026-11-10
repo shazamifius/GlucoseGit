@@ -19,14 +19,28 @@
 //! * aucun nœud déplacé ne barre son chemin.
 //!
 //! Chaque entrée retient donc les rangs de ce qu'elle a lu, et seules celles que le geste
-//! touche sont oubliées. Une flèche s'écarte de la carte qu'on glisse pendant qu'on la glisse,
+//! touche sont refaites. Une flèche s'écarte de la carte qu'on glisse pendant qu'on la glisse,
 //! comme chez Tauri, qui recalculait tout à chaque image — et les autres ne coûtent rien.
+//!
+//! # ITINERAIRE-2 — le rendu n'attend pas les itinéraires (fiche 102)
+//!
+//! Une nouvelle version oubliait tout d'un bloc, et l'image suivante cherchait d'un coup toutes
+//! les flèches visibles. Sur la carte de Wikipédia et ses 1 128 liens, qui longent chacun des
+//! centaines de nœuds : **2,2 s pour une image** au début d'un glisser, 0,9 s en zoomant, 0,66 s
+//! au repos (sa session du 10/11 : « clairement 0 fps par moment »). La loi est celle des teintes
+//! (TEINTES-1, REPOS-2) : ce qui change rend les itinéraires **périmés** sans les oublier ; une
+//! image cherche ce que sa tranche permet — au moins un —, et montre le chemin d'avant pour le
+//! reste, une ligne droite pour une flèche qui n'en a jamais eu ; au repos, le réveil paie ces
+//! dettes hors de toute image ([`crate::renderer::Renderer::rattraper_les_itineraires`]), et une
+//! seule image montre le tout. Sans tranche, tout se cherche : les épreuves restent
+//! déterministes.
 
 use glucose_core::arrow::contour;
 use glucose_core::arrow::{Bout, Itineraire};
 use glucose_core::geometry::Rect;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 type Point = (f64, f64);
 
@@ -41,6 +55,8 @@ struct Entree {
     bouts: (Bout, Bout, bool),
     etapes: Vec<Point>,
     lus: Vec<u32>,
+    /// Cherché pour l'état présent du document ; périmé, il se montre en attendant d'être refait.
+    frais: bool,
 }
 
 /// La mémoire des itinéraires, flèche par flèche.
@@ -52,12 +68,71 @@ pub struct Itineraires {
     lecture: RefCell<Option<Vec<u32>>>,
     /// Combien d'itinéraires ont été réellement cherchés — l'instrument des épreuves.
     recherches: Cell<u64>,
+    /// Le temps qu'une image a pour chercher (ITINERAIRE-2) ; sans, tout se cherche.
+    tranche: Cell<Option<Duration>>,
+    echeance: Cell<Option<Instant>>,
+    une_faite: Cell<bool>,
+    /// Les flèches que la dernière image a montrées d'un chemin d'avant.
+    dettes: RefCell<Vec<String>>,
 }
 
 impl Itineraires {
-    /// Oublie tout.
+    /// Oublie tout : un autre tableau.
     pub fn oublier(&self) {
         self.table.borrow_mut().clear();
+    }
+
+    /// **Rend tout périmé**, sans rien oublier : le document a changé, chaque chemin se montre
+    /// encore en attendant d'être refait (ITINERAIRE-2).
+    pub fn perimer(&self) {
+        for entree in self.table.borrow_mut().values_mut() {
+            entree.frais = false;
+        }
+    }
+
+    /// **Le document a changé** : sur le même tableau, une autre version rend tout périmé — les
+    /// chemins se montrent en attendant d'être refaits (ITINERAIRE-2) ; un autre tableau oublie.
+    pub fn document_change(&self, meme_tableau: bool) {
+        if meme_tableau {
+            self.perimer();
+        } else {
+            self.oublier();
+        }
+    }
+
+    /// **Le temps qu'une image a pour chercher** : posé par le vrai lancement.
+    pub fn accorder_la_tranche(&self, tranche: Option<Duration>) {
+        self.tranche.set(tranche);
+    }
+
+    /// **Ouvre la tranche d'une image** : elle refait le compte de ce qu'elle doit.
+    pub fn ouvrir_la_tranche(&self) {
+        self.dettes.borrow_mut().clear();
+        self.rouvrir();
+    }
+
+    /// Une tranche neuve, sans oublier les dettes : le rattrapage hors d'une image.
+    fn rouvrir(&self) {
+        self.echeance
+            .set(self.tranche.get().map(|t| Instant::now() + t));
+        self.une_faite.set(false);
+    }
+
+    /// La tranche est-elle épuisée ? Jamais avant le premier itinéraire : la cascade avance.
+    fn plus_de_temps(&self) -> bool {
+        self.une_faite.get() && self.echeance.get().is_some_and(|e| Instant::now() >= e)
+    }
+
+    /// **Reste-t-il des itinéraires à refaire ?**
+    pub fn en_retard(&self) -> bool {
+        !self.dettes.borrow().is_empty()
+    }
+
+    /// Les flèches dues, prises : le rattrapage les paie, ou les remet.
+    pub(crate) fn prendre_les_dettes(&self) -> Vec<String> {
+        let dettes = std::mem::take(&mut *self.dettes.borrow_mut());
+        self.rouvrir();
+        dettes
     }
 
     /// **Se met à l'époque du document.** Une autre version, des listes d'une autre longueur, un
@@ -69,16 +144,18 @@ impl Itineraires {
         let (v, n, e, l) = self.epoque.replace(epoque);
         let commence = n == 0 && numero != 0;
         if (v, l) != (version, longueurs) || (n != numero && !commence) {
-            self.oublier();
+            self.perimer();
             return;
         }
         if n == numero && e == ecrits {
             return;
         }
         let touches = touches();
-        self.table
-            .borrow_mut()
-            .retain(|_, entree| !entree.touchee(&touches));
+        for entree in self.table.borrow_mut().values_mut() {
+            if entree.frais && entree.touchee(&touches) {
+                entree.frais = false;
+            }
+        }
     }
 
     /// Combien d'itinéraires ont été cherchés depuis la création.
@@ -102,10 +179,24 @@ impl Itineraires {
     ) -> Vec<Point> {
         let bouts = (cle.depart, cle.arrivee, cle.courbe);
         if let Some(entree) = self.table.borrow().get(cle.fleche) {
-            if entree.bouts == bouts {
+            if entree.frais && entree.bouts == bouts {
                 return entree.etapes.clone();
             }
         }
+        // Plus de temps dans cette image : le chemin d'avant, ou droit, et une dette.
+        if self.plus_de_temps() {
+            let mut dettes = self.dettes.borrow_mut();
+            if !dettes.iter().any(|d| d == cle.fleche) {
+                dettes.push(cle.fleche.to_string());
+            }
+            return self
+                .table
+                .borrow()
+                .get(cle.fleche)
+                .map(|e| e.etapes.clone())
+                .unwrap_or_default();
+        }
+        self.une_faite.set(true);
         *self.lecture.borrow_mut() = Some(Vec::new());
         let etapes = calcul();
         let mut lus = self.lecture.borrow_mut().take().unwrap_or_default();
@@ -118,6 +209,7 @@ impl Itineraires {
                 bouts,
                 etapes: etapes.clone(),
                 lus,
+                frais: true,
             },
         );
         etapes
@@ -133,5 +225,46 @@ impl Entree {
             self.lus.binary_search(rang).is_ok()
                 || boite.is_some_and(|r| contour::barre(a, &self.etapes, b, r))
         })
+    }
+}
+
+impl crate::renderer::Renderer {
+    /// **ITINERAIRE-2 — payer hors d'une image ce que la dernière a dû** (REPOS-2, pour les
+    /// flèches). `None` : rien n'est dû. `Some(false)` : la tranche est épuisée, revenir sans
+    /// image. `Some(true)` : une image est due, une seule — tout est refait, ou le document a
+    /// changé depuis l'image et c'est à la suivante de refaire le compte.
+    pub(crate) fn rattraper_les_itineraires(
+        &mut self,
+        store: &glucose_core::store::Store,
+    ) -> Option<bool> {
+        if !self.itineraires.en_retard() {
+            return None;
+        }
+        let board = store.active_board()?;
+        if self.spatial_version != store.version || self.active_board_id != board.id {
+            self.itineraires.prendre_les_dettes();
+            return Some(true);
+        }
+        let noeuds = super::NoeudsDuRendu {
+            board,
+            index: Some(&self.spatial_hash),
+            typographie: &self.typography,
+            math: &self.math,
+            contournement: Some(super::Contournement::de(
+                &self.itineraires,
+                &self.suivi_du_geste,
+            )),
+        };
+        for id in self.itineraires.prendre_les_dettes() {
+            let fleche = self
+                .spatial_hash
+                .rang_de(&id)
+                .and_then(|r| glucose_core::quadtree::noeud_au_rang(board, r));
+            if let Some(glucose_core::quadtree::Noeud::Annotation(a)) = fleche {
+                // Le tracé passe par la mémoire : il refait l'itinéraire, ou le redoit.
+                let _ = glucose_core::arrow::path_with(a, noeuds);
+            }
+        }
+        Some(!self.itineraires.en_retard())
     }
 }

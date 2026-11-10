@@ -334,7 +334,7 @@ impl Renderer {
         if !lisible {
             self.spatial_hash.index_board(board);
             self.suivi_du_geste.absorbe(geste, &self.spatial_hash);
-            self.itineraires.oublier();
+            self.itineraires.perimer();
             rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, marge);
         }
         self.suivre_les_itineraires(store, board);
