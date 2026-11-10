@@ -1,6 +1,6 @@
 # La suite, mise à jour par mise à jour
 
-> **Au 9/11/2026** (fiches 73 à 100 ; **la beta 8 publiée par lui le 6/11, la beta 9 publiée par lui le 7/11** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
+> **Au 10/11/2026** (fiches 73 à 101 ; **la beta 8 publiée par lui le 6/11, la beta 9 publiée par lui le 7/11** ; Protéo en pause, la partie 1 d'abord ; **sur son VivoBook sous NixOS**). **Le plan complet** de ce qui attend Glucose Rust, rangé en étapes :
 > ce que chacune porte, et ce qui la déclare finie. Tout y est à remettre en question — ses
 > paroles comprises. La direction vit dans [VISION](VISION.md), l'état vérifié dans
 > [ÉTAT](ETAT.md), chaque fonction et son bouton dans [INVENTAIRE](INVENTAIRE.md), la cible
@@ -103,10 +103,10 @@ raccourcis dans la couche de texte, ses couleurs dans le thème (P4) — rien en
 | [~] | **LOT-2, PHOTO-2 — les photos ne clignotent plus** (fiche 100 § 4) ; revu au pilote, 3 sur 3 | à son écran : déplacer au clic molette sur beaucoup de photos |
 | [~] | **TEMPO-3, SOURIS-1 — les micro-gels** (fiche 100 § 5) : le tempo borné au plancher, la souris par pixels entiers, la translation entière garde les textures du repos | à son écran, et sa prochaine chronique : un balayage par image au clic molette |
 | [x] | **Le README** (fiche 100 § 6) : réécrit, chiffres vérifiés ; le guide corrigé | — |
-| [~] | **GTK 3 retiré** (fiche 100 § 6) : `rfd` ne l'emploie plus ; le paquet Nix et la vérification Linux sans lui ; **reste le `.deb`** (`Depends: libgtk-3-0` tire les vraies bibliothèques du lancement) | la CI verte ; le `.deb` dit ses vraies dépendances, essayé sur une Debian |
-| [ ] | **Le pont Windows convertit sa position** (`ScreenToClient`, fiche 100 § 2) : jamais compilé ici | la CI verte, puis un dépôt sous Windows posé sous le curseur |
+| [~] | **GTK 3 retiré** (fiche 100 § 6) : `rfd` ne l'emploie plus ; le paquet Nix (construit ici) et la vérification Linux sans lui, **la CI verte le 10/11** ; **reste le `.deb`** (`Depends: libgtk-3-0` tire les vraies bibliothèques du lancement) | le `.deb` dit ses vraies dépendances, essayé sur une Debian |
+| [~] | **Le pont Windows convertit sa position** (`ScreenToClient`, fiche 100 § 2) : **la CI verte le 10/11** (dix tâches sur dix) | un dépôt sous Windows posé sous le curseur |
 | [ ] | **Glisser un nœud vers une fenêtre posée PAR-DESSUS Glucose** (fiche 100 § 10) : le glisser sortant ne part que quand la main quitte la fenêtre ; vrai sous Windows aussi | **sa parole** : le veut-il, et par quel geste |
-| [ ] | **Une fenêtre très étroite** (fiche 100 § 10) : la barre de couleur et celle de la sélection chevauchent la minimap — à 480 points, la largeur d'un téléphone | vu à cette largeur et sur l'APK : rien ne se chevauche |
+| [~] | **BAS-1 — le bas de l'écran** (fiche 101) : à la taille de son téléphone, la barre de couleur sortait de l'écran et couvrait la minimap ; la barre des flèches faisait 699 points. Une barre passe à la ligne comme un texte et monte au-dessus de la minimap, qui ne bouge jamais ; un bouton à deux états ne bouge plus quand on le bascule. Une propriété de 320 à 2 560 points ; 10 sabotages sur 10 ; regardé au moto g54, au Redmi 9 et au bureau | sur l'APK, à son téléphone : choisir un texte, puis une flèche et un texte ; **sa parole** si la pile des trois barres gêne |
 
 ### Le prochain lot — sa parole du 9/11 après-midi (VISION, fin de « Wikipédia sur le canevas »)
 

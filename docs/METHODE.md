@@ -250,6 +250,9 @@ chemins, `wsl`, PowerShell et `MSYS_NO_PATHCONV` décrivent ce passé.
   `essai_wayland.sh` — un vrai niri imbriqué dans le sway sans écran, réglé comme son écran (`niri.kdl` : 1920 × 1080,
   demi-colonnes) ; `PILOTE_ECHELLE=2` pour un écran à haute densité. **Son écran se lit** (`niri msg outputs`), il ne se
   devine pas dans sa configuration.
+* **À la taille d'un téléphone** (fiche 101) : `PILOTE_ECRAN=1080x2400 PILOTE_ECHELLE=2.75` devant `piloter.sh demarrer`
+  (son moto g54 ; le Redmi 9 : `720x1600` à `2`) — sous sway comme sous niri. Les coordonnées sont les pixels de cet
+  écran. Regarder une interface de téléphone sans téléphone, la main comprise.
 * **Sa chronique** : la dernière session de son Glucose écrit `/tmp/glucose-chronique/derniere-session.txt`, et son
   journal technique vit dans `~/.local/state/glucose/journal-technique/` — **les copier**, puis les lire. Elle dit le
   tempo, les gels et les postes de ses vraies images (fiche 100 § 5).
