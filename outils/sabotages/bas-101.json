@@ -1,0 +1,152 @@
+[
+ {
+  "nom": "La barre ne monte pas au-dessus de la minimap",
+  "fichier": "crates/glucose-desktop/src/ui/bas.rs",
+  "avant": "    let bas = if rencontre {",
+  "apres": "    let bas = if false && rencontre {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "Ranger ne passe jamais a la ligne",
+  "fichier": "crates/glucose-desktop/src/ui/bas.rs",
+  "avant": "        } else if curseur + ecart + largeur > largeur_max {",
+  "apres": "        } else if false && curseur + ecart + largeur > largeur_max {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "Le verrou prend la largeur de son mot du moment",
+  "fichier": "crates/glucose-desktop/src/ui/action_bar.rs",
+  "avant": "            ActionBarClick::ToggleLock => mot(VERROU[0]).max(mot(VERROU[1])),",
+  "apres": "            ActionBarClick::ToggleLock => mot(label),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "L'origine prend la largeur de son mot du moment",
+  "fichier": "crates/glucose-desktop/src/ui/action_bar.rs",
+  "avant": "            ActionBarClick::BasculerLOrigine => mot(ORIGINE[0]).max(mot(ORIGINE[1])),",
+  "apres": "            ActionBarClick::BasculerLOrigine => mot(label),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "La barre d'action ne passe pas a la ligne",
+  "fichier": "crates/glucose-desktop/src/ui/action_bar.rs",
+  "avant": "    let interieur = super::bas::largeur_utile(screen, s) - PAD_X * s * 2.0;",
+  "apres": "    let interieur = f32::INFINITY;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "La barre de couleur ne passe pas a la ligne",
+  "fichier": "crates/glucose-desktop/src/ui/couleurs.rs",
+  "avant": "    let interieur = super::bas::largeur_utile(screen, s) - PAD_X * s * 2.0;",
+  "apres": "    let interieur = f32::INFINITY;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "Le mot Couleur au milieu des deux rangees",
+  "fichier": "crates/glucose-desktop/src/ui/couleurs.rs",
+  "avant": "        mot: (mx, my + (cote - font) / 2.0),",
+  "apres": "        mot: (mx, y + (hauteur - font) / 2.0),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "La barre des fleches ne passe pas a la ligne",
+  "fichier": "crates/glucose-desktop/src/ui/options_de_fleche.rs",
+  "avant": "    poser_la_barre(store, typography, (screen, scale), (false, interieur))",
+  "apres": "    poser_la_barre(store, typography, (screen, scale), (false, f32::INFINITY + interieur))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "Un filet ouvre sa rangee",
+  "fichier": "crates/glucose-desktop/src/ui/options_de_fleche.rs",
+  "avant": "        if place.1 > 0.0 {",
+  "apres": "        if place.1 >= 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ },
+ {
+  "nom": "L'ecran visible oublie la navigation de droite",
+  "fichier": "crates/glucose-desktop/src/ui.rs",
+  "avant": "        (w - self.marges.droite, h - self.marges.sous())",
+  "apres": "        (w, h - self.marges.sous())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ui::bas"
+  ]
+ }
+]

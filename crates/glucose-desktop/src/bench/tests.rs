@@ -358,7 +358,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// dans sa bande (687-1112 × 758-796), rien ailleurs ; regardée avant/après, agrandie deux fois.
 /// **Puis** (fiche 99 § 8 bis, le bord extérieur du gamut) : le petit disque de la roue, juste au bord
 /// de ses bleus — 80 pixels, tous dans sa case (1083-1098 × 769-785) ; regardé, agrandi dix fois.
-const EMPREINTE_TEMOIN_SELECTION: &str = "60cb45a4e396a188";
+/// **Puis, le 10/11** (BAS-1, fiche 101) : « Origine commune » prend la largeur de « Origines
+/// individuelles » — un bouton à deux états ne bouge plus quand on le bascule —, la barre d'action
+/// s'élargit et se recentre. 5 935 pixels, tous dans les barres du bas (645-1471 × 810-887), rien
+/// ailleurs ; regardée avant/après, les deux images produites par `capture_temoin`.
+const EMPREINTE_TEMOIN_SELECTION: &str = "d16aad9f6e771444";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -445,7 +449,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 9/11 au soir** (ROUE-1, fiche 99) : les mêmes 6 900 pixels que la scène sélectionnée —
 /// la barre de couleur et la case de la roue, sous le menu ; regardée.
 /// **Puis** (fiche 99 § 8 bis) : les mêmes 80 pixels du petit disque ; regardés.
-const EMPREINTE_TEMOIN_MENU: &str = "faae2ffa57667634";
+/// **Puis, le 10/11** (BAS-1, fiche 101) : les mêmes 5 935 pixels que la scène sélectionnée — la
+/// barre d'action, sous le menu ; regardée.
+const EMPREINTE_TEMOIN_MENU: &str = "a250d5cae83f267f";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -21,8 +21,6 @@ const DIAMETRE: f32 = 168.0;
 const ECART: f32 = 12.0;
 const CURSEUR: f32 = 18.0;
 const APERCU: f32 = 24.0;
-/// L'écart entre la roue et la barre de couleur qu'elle surmonte.
-const AU_DESSUS: f32 = 8.0;
 
 /// La roue, une fois placée : rectangles `(x, y, largeur, hauteur)` à l'écran.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -66,7 +64,8 @@ pub fn placer(sous: (f32, f32, f32, f32), screen: (f32, f32), scale: f32) -> Rou
     let largeur = MARGE * s * 2.0 + d + ECART * s + CURSEUR * s;
     let hauteur = MARGE * s * 2.0 + d + ECART * s + APERCU * s;
     let x = (sous.0 + sous.2 / 2.0 - largeur / 2.0).clamp(0.0, (screen.0 - largeur).max(0.0));
-    let y = (sous.1 - AU_DESSUS * s - hauteur).max(0.0);
+    // L'écart de toutes les barres du bas, l'une sur l'autre.
+    let y = (sous.1 - super::bas::AU_DESSUS * s - hauteur).max(0.0);
     let (gauche, haut) = ((x + MARGE * s).round(), (y + MARGE * s).round());
     let bas = haut + d + ECART * s;
     let a = APERCU * s;

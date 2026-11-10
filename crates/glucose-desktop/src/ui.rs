@@ -11,6 +11,7 @@ pub const TOPBAR_HEIGHT: f32 = 44.0;
 pub mod action_bar;
 pub mod ancrage;
 pub mod bande;
+pub mod bas;
 pub mod boutons;
 pub mod breadcrumb;
 pub mod cadre;
@@ -282,11 +283,13 @@ impl UiState {
     }
 
     /// **L'écran que le bas de l'interface peut occuper** (BORD-1) : sans la navigation du
-    /// système, ni le clavier quand il est sorti. Le message, la question, les barres du bas
-    /// et la minimap s'y posent ; le canevas, lui, va jusqu'au bord.
+    /// système — en bas, ou à droite d'un téléphone couché —, ni le clavier quand il est sorti.
+    /// Le message, la question, les barres du bas et la minimap s'y posent ; le canevas, lui, va
+    /// jusqu'au bord. Son coin bas-droit est celui de la minimap ([`minimap::emprise`]) : la
+    /// marge de droite manquait ici, et les barres du bas n'auraient pas su où elle est.
     #[inline]
     pub fn ecran_visible(&self, (w, h): (f32, f32)) -> (f32, f32) {
-        (w, h - self.marges.sous())
+        (w - self.marges.droite, h - self.marges.sous())
     }
 
     #[inline]

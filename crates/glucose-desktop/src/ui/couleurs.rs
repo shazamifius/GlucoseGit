@@ -44,8 +44,6 @@ pub const NOMS: [(&str, &str); 8] = [
     ("orange", "orange"),
 ];
 
-/// L'écart entre cette barre et celle qu'elle surmonte.
-const AU_DESSUS: f32 = 8.0;
 /// Le mot de la barre, et celui du bouton qui rend la couleur par défaut.
 const MOT: &str = "Couleur";
 pub const PAR_DEFAUT: &str = "Par défaut";
@@ -66,13 +64,32 @@ pub struct Case {
 #[derive(Clone, Debug, PartialEq)]
 pub struct BarreDeCouleur {
     pub rect: (f32, f32, f32, f32),
-    pub mot_x: f32,
+    /// Où s'écrit « Couleur » : sur la première rangée, quand le nuancier passe à la ligne.
+    pub mot: (f32, f32),
     pub cases: Vec<Case>,
 }
 
 /// **La teinte de rang `rang`**, en `#rrggbb`.
 pub fn teinte(rang: u8) -> Option<&'static str> {
     DOMAIN_PALETTE.get(usize::from(rang)).copied()
+}
+
+/// **Le haut de la barre qui porte celle-ci** : la barre des flèches s'il y en a une, sinon la
+/// barre d'action — que l'origine du groupe ne change pas (un bouton à deux états a la largeur de
+/// son plus long mot, fiche 101).
+fn haut_de_ce_qui_porte(
+    store: &Store,
+    typography: &Typography,
+    (screen, scale): ((f32, f32), f32),
+) -> Option<f32> {
+    let fleches =
+        super::options_de_fleche::layout_options_de_fleche(store, typography, screen, scale);
+    let porteuse = fleches.map(|b| b.rect).or_else(|| {
+        let commune = glucose_core::groupe::Origine::Commune;
+        super::action_bar::layout_action_bar(store, typography, (screen, scale), commune)
+            .map(|b| b.rect)
+    })?;
+    Some(porteuse.1)
 }
 
 /// La barre pour la sélection courante, ou `None` si rien de colorable n'est choisi (un texte, un
@@ -87,49 +104,48 @@ pub fn layout_barre_de_couleur(
     let couleurs = store.couleurs_choisies();
     let (premiere, autres) = couleurs.split_first()?;
     let commune = autres.iter().all(|c| c == premiere).then_some(*premiere);
-    let dessous =
-        super::options_de_fleche::layout_options_de_fleche(store, typography, screen, scale)
-            .map(|b| b.rect.1)
-            .or_else(|| {
-                super::action_bar::layout_action_bar(
-                    store,
-                    typography,
-                    (screen, scale),
-                    glucose_core::groupe::Origine::Commune,
-                )
-                .map(|b| b.rect.1)
-            })?;
+    let dessous = haut_de_ce_qui_porte(store, typography, (screen, scale))?;
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
     let cote = font + BTN_PAD_Y * s * 2.0;
-    let hauteur = cote + PAD_Y * s * 2.0;
     let mesure = |t: &str| typography.measure_text(t, font, Face::Regular).0;
     let defaut = mesure(PAR_DEFAUT) + BTN_PAD_X * s * 2.0;
-    let n = DOMAIN_PALETTE.len() as f32;
-    let largeur = PAD_X * s * 2.0
-        + mesure(MOT)
-        + GAP * s * 2.0
-        + n * (cote + GAP * s)
-        + defaut
-        + GAP * s
-        + cote;
-    let (x, y) = (
-        (screen.0 - largeur) / 2.0,
-        dessous - AU_DESSUS * s - hauteur,
-    );
-    let mut curseur = x + PAD_X * s + mesure(MOT) + GAP * s * 2.0;
-    let mut cases = Vec::with_capacity(DOMAIN_PALETTE.len() + 1);
+    // Le mot, les huit teintes, « Par défaut », la roue — comme un texte : sur un téléphone
+    // debout, ce qui ne tient pas passe à la ligne au lieu de sortir de l'écran (fiche 101).
+    let elements: Vec<(f32, f32)> = std::iter::once((0.0, mesure(MOT)))
+        .chain((0..DOMAIN_PALETTE.len()).map(|rang| {
+            let ecart = if rang == 0 { GAP * 2.0 } else { GAP };
+            (ecart * s, cote)
+        }))
+        .chain([(GAP * s, defaut), (GAP * s, cote)])
+        .collect();
+    let interieur = super::bas::largeur_utile(screen, s) - PAD_X * s * 2.0;
+    let (places, plus_longue) = super::bas::ranger(&elements, interieur);
+    let rangees = places.last().map_or(1, |&(r, _)| r + 1) as f32;
+    let largeur = plus_longue + PAD_X * s * 2.0;
+    let hauteur = rangees * cote + (rangees - 1.0) * GAP * s + PAD_Y * s * 2.0;
+    let sol = dessous - super::bas::AU_DESSUS * s;
+    let (x, y) = super::bas::poser(screen, s, (largeur, hauteur), sol);
+    let a = |&(rangee, dx): &(usize, f32)| {
+        (
+            x + PAD_X * s + dx,
+            y + PAD_Y * s + rangee as f32 * (cote + GAP * s),
+        )
+    };
+    let mut cases = Vec::with_capacity(DOMAIN_PALETTE.len() + 2);
     for (rang, hex) in DOMAIN_PALETTE.iter().enumerate() {
+        let (cx, cy) = a(&places[1 + rang]);
         cases.push(Case {
-            rect: (curseur, y + PAD_Y * s, cote, cote),
+            rect: (cx, cy, cote, cote),
             teinte: Some(rang as u8),
             allume: commune == Some(Some(hex)),
             roue: false,
         });
-        curseur += cote + GAP * s;
     }
+    let n = DOMAIN_PALETTE.len();
+    let (dx, dy) = a(&places[1 + n]);
     cases.push(Case {
-        rect: (curseur, y + PAD_Y * s, defaut, cote),
+        rect: (dx, dy, defaut, cote),
         teinte: None,
         allume: commune == Some(None),
         roue: false,
@@ -138,15 +154,17 @@ pub fn layout_barre_de_couleur(
     let hors_du_nuancier = commune
         .flatten()
         .is_some_and(|c| !DOMAIN_PALETTE.iter().any(|t| t.eq_ignore_ascii_case(c)));
+    let (rx, ry) = a(&places[2 + n]);
     cases.push(Case {
-        rect: (curseur + defaut + GAP * s, y + PAD_Y * s, cote, cote),
+        rect: (rx, ry, cote, cote),
         teinte: None,
         allume: hors_du_nuancier,
         roue: true,
     });
+    let (mx, my) = a(&places[0]);
     Some(BarreDeCouleur {
         rect: (x, y, largeur, hauteur),
-        mot_x: x + PAD_X * s,
+        mot: (mx, my + (cote - font) / 2.0),
         cases,
     })
 }
@@ -185,7 +203,6 @@ pub fn draw_barre_de_couleur(
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
     pastille(pixmap, barre.rect, s, theme);
-    let (_, y, _, h) = barre.rect;
     let style = |color| TextStyle {
         size: font,
         color,
@@ -194,8 +211,8 @@ pub fn draw_barre_de_couleur(
     typography.draw_text(
         pixmap,
         MOT,
-        barre.mot_x,
-        y + (h - font) / 2.0,
+        barre.mot.0,
+        barre.mot.1,
         style(theme.text_muted),
     );
     for case in &barre.cases {

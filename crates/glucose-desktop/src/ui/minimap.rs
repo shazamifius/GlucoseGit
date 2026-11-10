@@ -89,6 +89,18 @@ pub struct MinimapBounds {
     pub vp_h: f64,
 }
 
+/// Le bord entre la minimap et le coin de l'écran, en points (fiche 06 § 9 : `bottom: 12px`,
+/// `right: 12px`) — et celui qu'une barre du bas garde avec les côtés ([`super::bas`]).
+pub const BORD: f32 = 12.0;
+
+/// **L'emprise de la minimap** `(x, y, largeur, hauteur)` : 180 × 120 points, calés sur `coin`, le
+/// coin bas-droit de ce que le système laisse voir ([`super::UiState::ecran_visible`]). La minimap
+/// s'y dessine, et les barres du bas l'évitent ([`super::bas::poser`]) : une seule géométrie.
+pub fn emprise(coin: (f32, f32), s: f32) -> (f32, f32, f32, f32) {
+    let (w, h) = (180.0 * s, 120.0 * s);
+    (coin.0 - w - BORD * s, coin.1 - h - BORD * s, w, h)
+}
+
 /// `retrait` : ce que le système prend à droite et en bas (BORD-1) — la minimap s'accroche
 /// au coin qu'il laisse ; le cadre de la caméra, lui, se mesure sur l'écran entier.
 pub fn layout_minimap(
@@ -100,11 +112,7 @@ pub fn layout_minimap(
 ) -> Option<MinimapBounds> {
     let board = store.active_board()?;
     let s = crate::theme::clamp_ui_scale(scale);
-    let mm_w = 180.0f32 * s;
-    let mm_h = 120.0f32 * s;
-    // Fiche 06 § 9 : `bottom: 12px`, `right: 12px`.
-    let mm_x = screen_w - retrait.0 - mm_w - 12.0 * s;
-    let mm_y = screen_h - retrait.1 - mm_h - 12.0 * s;
+    let (mm_x, mm_y, mm_w, mm_h) = emprise((screen_w - retrait.0, screen_h - retrait.1), s);
     let header_h = TOTAL_HEADER_HEIGHT * s;
 
     // Les bornes du contenu sont une question qu'on pose au document ; la minimap n'a pas à

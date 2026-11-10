@@ -42,9 +42,6 @@ use tiny_skia::PixmapMut;
 /// écrit.
 pub const EPAISSEURS: [(f64, &str); 4] = [(1.0, "1"), (2.0, "2"), (3.0, "3"), (5.0, "5")];
 
-/// L'écart entre cette barre et la barre d'action qu'elle surmonte.
-const AU_DESSUS: f32 = 8.0;
-
 /// Ce qu'un bouton de la barre montre.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Contenu {
@@ -80,10 +77,10 @@ pub struct Bouton {
 #[derive(Clone, Debug, PartialEq)]
 pub struct OptionsDeFleche {
     pub rect: (f32, f32, f32, f32),
-    /// « Flèche », puis « Épaisseur » : où leurs mots se posent.
-    pub mots: Vec<(&'static str, f32)>,
-    /// Les filets qui séparent les groupes.
-    pub filets: Vec<f32>,
+    /// « Flèche », puis « Épaisseur » : où leurs mots s'écrivent `(x, y)`.
+    pub mots: Vec<(&'static str, (f32, f32))>,
+    /// Les filets qui séparent deux groupes d'une même rangée : `(x, y, hauteur)`.
+    pub filets: Vec<(f32, f32, f32)>,
     pub boutons: Vec<Bouton>,
 }
 
@@ -221,22 +218,29 @@ pub fn layout_options_de_fleche(
     screen: (f32, f32),
     scale: f32,
 ) -> Option<OptionsDeFleche> {
-    let riche = poser_la_barre(store, typography, (screen, scale), true)?;
-    if riche.rect.2 <= screen.0 {
+    let utile = super::bas::largeur_utile(screen, crate::theme::clamp_ui_scale(scale));
+    // Les mots des relations, sur une rangée qui tient entre les bords de l'écran (BADGE-2) ;
+    // sinon les sigles — sur une rangée s'ils y tiennent, et seulement alors passés à la ligne,
+    // groupe par groupe : un téléphone debout n'a pas 700 points (fiche 101).
+    let riche = poser_la_barre(store, typography, (screen, scale), (true, f32::INFINITY))?;
+    if riche.rect.2 <= utile {
         return Some(riche);
     }
-    poser_la_barre(store, typography, (screen, scale), false)
+    let interieur = utile - PAD_X * crate::theme::clamp_ui_scale(scale) * 2.0;
+    poser_la_barre(store, typography, (screen, scale), (false, interieur))
 }
 
-/// La barre posée, avec ou sans les mots des relations.
+/// La barre posée, avec ou sans les mots des relations, ses rangées jamais plus longues que
+/// `rangee_max`.
 fn poser_la_barre(
     store: &Store,
     typography: &Typography,
     (screen, scale): ((f32, f32), f32),
-    avec_mots: bool,
+    (avec_mots, rangee_max): (bool, f32),
 ) -> Option<OptionsDeFleche> {
     let groupes = groupes_de_boutons(store, avec_mots)?;
-    // Seule sa hauteur compte ici, que l'origine ne change pas.
+    // Seule sa hauteur compte ici, que l'origine ne change pas : un bouton à deux états a la
+    // largeur de son plus long mot (fiche 101), donc la barre ses rangées.
     let dessous = super::action_bar::layout_action_bar(
         store,
         typography,
@@ -247,7 +251,6 @@ fn poser_la_barre(
     let font = FONT * s;
     let mesure = |t: &str| typography.measure_text(t, font, Face::Regular).0;
     let hauteur_btn = font + BTN_PAD_Y * s * 2.0;
-    let hauteur = hauteur_btn + PAD_Y * s * 2.0;
     let largeur_de = |c: &Contenu| match c {
         Contenu::Texte(t) => mesure(t) + BTN_PAD_X * s * 2.0,
         Contenu::Sigle(_) => hauteur_btn,
@@ -255,49 +258,47 @@ fn poser_la_barre(
         Contenu::Action(_, t) => (ICON + ICON_GAP) * s + mesure(t) + BTN_PAD_X * s * 2.0,
     };
 
-    // Une première passe mesure, la seconde place : la barre se centre sur sa largeur.
-    let titre = "Flèche";
-    let epaisseur = "Épaisseur";
-    let mut largeur = PAD_X * s * 2.0 + mesure(titre);
-    for (rang, groupe) in groupes.iter().enumerate() {
-        largeur += GAP * s * 2.0 + 1.0;
-        if rang == 2 {
-            largeur += mesure(epaisseur) + GAP * s;
-        }
-        largeur += groupe
-            .iter()
-            .map(|(c, _, _)| largeur_de(c) + GAP * s)
-            .sum::<f32>()
-            - GAP * s;
-    }
-    let x = (screen.0 - largeur) / 2.0;
-    let y = dessous.rect.1 - AU_DESSUS * s - hauteur;
+    // Le titre, puis chaque groupe d'un bloc, son filet devant lui — comme un texte : un groupe
+    // qui ne tient plus passe à la ligne, jamais coupé, et aucun filet n'ouvre une rangée.
+    let (titre, epaisseur) = ("Flèche", "Épaisseur");
+    let elements: Vec<(f32, f32)> = std::iter::once((0.0, mesure(titre)))
+        .chain(groupes.iter().enumerate().map(|(rang, groupe)| {
+            let mot = if rang == 2 {
+                mesure(epaisseur) + GAP * s
+            } else {
+                0.0
+            };
+            let boutons: f32 = groupe.iter().map(|(c, _, _)| largeur_de(c) + GAP * s).sum();
+            (GAP * s * 2.0 + 1.0, mot + boutons - GAP * s)
+        }))
+        .collect();
+    let (places, plus_longue) = super::bas::ranger(&elements, rangee_max);
+    let rangees = places.last().map_or(1, |&(r, _)| r + 1) as f32;
+    let largeur = plus_longue + PAD_X * s * 2.0;
+    let hauteur = rangees * hauteur_btn + (rangees - 1.0) * GAP * s + PAD_Y * s * 2.0;
+    // Centrée, sur la barre d'action — et au-dessus de la minimap si elle la rencontrerait.
+    let sol = dessous.rect.1 - super::bas::AU_DESSUS * s;
+    let (x, y) = super::bas::poser(screen, s, (largeur, hauteur), sol);
+    let a = |&(rangee, dx): &(usize, f32)| {
+        let haut = y + PAD_Y * s + rangee as f32 * (hauteur_btn + GAP * s);
+        (x + PAD_X * s + dx, haut)
+    };
+    let texte = |haut: f32| haut + (hauteur_btn - font) / 2.0;
 
-    let mut curseur = x + PAD_X * s;
-    let mut mots = vec![(titre, curseur)];
-    curseur += mesure(titre);
+    let (tx, ty) = a(&places[0]);
+    let mut mots = vec![(titre, (tx, texte(ty)))];
     let (mut filets, mut boutons) = (Vec::new(), Vec::new());
-    for (rang, groupe) in groupes.into_iter().enumerate() {
-        curseur += GAP * s;
-        filets.push(curseur);
-        curseur += 1.0 + GAP * s;
+    for ((rang, groupe), place) in groupes.into_iter().enumerate().zip(&places[1..]) {
+        let (mut curseur, haut) = a(place);
+        if place.1 > 0.0 {
+            filets.push((curseur - GAP * s - 1.0, haut, hauteur_btn));
+        }
         if rang == 2 {
-            mots.push((epaisseur, curseur));
+            mots.push((epaisseur, (curseur, texte(haut))));
             curseur += mesure(epaisseur) + GAP * s;
         }
-        for (i, (contenu, allume, action)) in groupe.into_iter().enumerate() {
-            if i > 0 {
-                curseur += GAP * s;
-            }
-            let w = largeur_de(&contenu);
-            boutons.push(Bouton {
-                rect: (curseur, y + PAD_Y * s, w, hauteur_btn),
-                contenu,
-                allume,
-                action,
-            });
-            curseur += w;
-        }
+        let rangee = ((curseur, haut), (hauteur_btn, GAP * s));
+        poser_le_groupe(groupe, rangee, &largeur_de, &mut boutons);
     }
     Some(OptionsDeFleche {
         rect: (x, y, largeur, hauteur),
@@ -305,6 +306,28 @@ fn poser_la_barre(
         filets,
         boutons,
     })
+}
+
+/// **Pose les boutons d'un groupe à la suite**, depuis `(x, haut)`, `ecart` entre deux.
+fn poser_le_groupe(
+    groupe: Vec<(Contenu, bool, Action)>,
+    ((mut curseur, haut), (hauteur, ecart)): ((f32, f32), (f32, f32)),
+    largeur_de: &impl Fn(&Contenu) -> f32,
+    boutons: &mut Vec<Bouton>,
+) {
+    for (i, (contenu, allume, action)) in groupe.into_iter().enumerate() {
+        if i > 0 {
+            curseur += ecart;
+        }
+        let w = largeur_de(&contenu);
+        boutons.push(Bouton {
+            rect: (curseur, haut, w, hauteur),
+            contenu,
+            allume,
+            action,
+        });
+        curseur += w;
+    }
 }
 
 /// Ce qu'un clic en `(px, py)` demande — `None` s'il tombe à côté d'un bouton.
@@ -376,29 +399,16 @@ pub fn draw_options_de_fleche(
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
     pastille(pixmap, barre.rect, s, theme);
-    let (_, y, _, h) = barre.rect;
     let style = |color| TextStyle {
         size: font,
         color,
         face: Face::Regular,
     };
-    for (mot, x) in &barre.mots {
-        typography.draw_text(
-            pixmap,
-            mot,
-            *x,
-            y + (h - font) / 2.0,
-            style(theme.text_muted),
-        );
+    for &(mot, (x, y)) in &barre.mots {
+        typography.draw_text(pixmap, mot, x, y, style(theme.text_muted));
     }
-    for x in &barre.filets {
-        filet_vertical(
-            pixmap,
-            *x,
-            y + PAD_Y * s,
-            h - PAD_Y * s * 2.0,
-            theme.border_medium,
-        );
+    for &(x, y, h) in &barre.filets {
+        filet_vertical(pixmap, x, y, h, theme.border_medium);
     }
     for b in &barre.boutons {
         dessiner_un_bouton(pixmap, (typography, theme), b, s);

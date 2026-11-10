@@ -18,8 +18,12 @@
 #
 # `PILOTE_COMPOSITEUR=niri … demarrer` (fiche 100 § 10) : Glucose dans un vrai niri — le compositeur de son
 # VivoBook —, imbriqué dans ce sway sans écran (`niri.kdl`, mêmes coordonnées que sway seul).
-# `PILOTE_ECHELLE=2` : l'échelle de son écran (1 par défaut) ; les coordonnées restent celles de
-# la capture. Le pointeur, le clavier, les captures et `prise` vont alors à niri.
+# Le pointeur, le clavier, les captures et `prise` vont alors à niri.
+#
+# `PILOTE_ECRAN=1080x2400` : la taille de l'écran (1920x1080 par défaut) ; `PILOTE_ECHELLE=2.75` :
+# son échelle (1 par défaut) — sous sway comme sous niri. Son téléphone (le moto g54) : 1080x2400
+# à 2,75 ; le plus ancien de ses testeurs (le Redmi 9) : 720x1600 à 2. Les coordonnées restent
+# celles de la capture, en pixels de l'écran.
 #
 # Pièges payés (fiche 99 § 1) : sway sans écran n'a aucun périphérique — ses commandes de curseur
 # bougent un curseur que nul client ne reçoit ; le pointeur virtuel doit vivre AVANT Glucose et
@@ -58,7 +62,11 @@ demarrer)
   accord="$maison/state/glucose/telemetrie.txt"
   [ -e "$accord" ] || printf 'envoyer=non\nvue=oui\ninstallation=%032x\n' 3 > "$accord"
   c=$(mktemp -d /tmp/gp.XXXXXX); echo "$c" > "$etat/compo"
-  printf 'output HEADLESS-1 resolution 1920x1080@60Hz\ndefault_border none\n' > "$c/sway.conf"
+  ecran=${PILOTE_ECRAN:-1920x1080}; k=${PILOTE_ECHELLE:-1}
+  echo "$ecran" > "$etat/ecran"
+  # Sous niri, c'est lui qui porte l'échelle ; sway, son hôte, reste à 1.
+  [ "${PILOTE_COMPOSITEUR:-sway}" = niri ] && k_sway=1 || k_sway=$k
+  printf 'output HEADLESS-1 resolution %s@60Hz scale %s\ndefault_border none\n' "$ecran" "$k_sway" > "$c/sway.conf"
   # PILOTE_DETAIL=1 : le journal détaillé de sway (focus, grabs) et chaque message qu'il échange avec
   # ses clients (WAYLAND_DEBUG=server), dans compositeur.txt.
   env -u WAYLAND_DISPLAY -u DISPLAY -u NIRI_SOCKET -u SWAYSOCK XDG_RUNTIME_DIR="$c" \
@@ -69,7 +77,6 @@ demarrer)
   for _ in $(seq 100); do [ -S "$c/wayland-1" ] && break; sleep 0.1; done
   echo wayland-1 > "$etat/prise"
   if [ "${PILOTE_COMPOSITEUR:-sway}" = niri ]; then
-    k=${PILOTE_ECHELLE:-1}
     sed "s/@ECHELLE@/$k/" "$ici/niri.kdl" > "$c/niri.kdl"
     env -u DISPLAY -u NIRI_SOCKET -u SWAYSOCK XDG_RUNTIME_DIR="$c" WAYLAND_DISPLAY=wayland-1 \
       "$(outil niri)/bin/niri" -c "$c/niri.kdl" > "$sortie/niri.txt" 2>&1 &
@@ -78,7 +85,7 @@ demarrer)
     echo wayland-2 > "$etat/prise"
   fi
   rm -f "$etat/pointeur"
-  wl "$py" "$ici/pointeur.py" "$etat/pointeur" > "$sortie/pointeur.txt" 2>&1 &
+  wl env PILOTE_ECRAN="$ecran" "$py" "$ici/pointeur.py" "$etat/pointeur" > "$sortie/pointeur.txt" 2>&1 &
   echo $! > "$etat/pointeur.pid"
   for _ in $(seq 100); do [ -p "$etat/pointeur" ] && break; sleep 0.1; done
   # Le cadrage attend que sway ait posé la fenêtre à sa taille : sinon la scène est décalée.

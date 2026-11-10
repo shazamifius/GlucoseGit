@@ -95,6 +95,9 @@ pub struct ActionBar {
     pub count_label: String,
     /// L'abscisse du filet qui sépare le compte des actions.
     pub separator_x: f32,
+    /// La hauteur d'une rangée : le compte et le filet se posent sur la première, quand les
+    /// boutons passent à la ligne sur un écran étroit ([`super::bas::ranger`]).
+    pub rangee: f32,
     pub buttons: Vec<ActionButton>,
 }
 
@@ -122,47 +125,68 @@ pub fn layout_action_bar(
 
     let defs = boutons_de_la_selection(store, board, (images, total), origine);
 
-    let bouton_w = |label: &str| {
-        let (w, _) = typography.measure_text(label, font, Face::Regular);
+    // **Un bouton à deux états a la largeur du plus long de ses deux mots** (fiche 101) :
+    // basculer ne déplace rien sous la main, et la hauteur de la barre — que les barres posées
+    // sur elle lisent — ne dépend pas de l'état qu'il montre.
+    let bouton_w = |click: ActionBarClick, label: &str| {
+        let mot = |m: &str| typography.measure_text(m, font, Face::Regular).0;
+        let w = match click {
+            ActionBarClick::ToggleLock => mot(VERROU[0]).max(mot(VERROU[1])),
+            ActionBarClick::BasculerLOrigine => mot(ORIGINE[0]).max(mot(ORIGINE[1])),
+            _ => mot(label),
+        };
         ICON * s + ICON_GAP * s + w + BTN_PAD_X * s * 2.0
     };
     let hauteur_btn = font + BTN_PAD_Y * s * 2.0;
-    let hauteur = hauteur_btn + PAD_Y * s * 2.0;
 
-    let largeur = PAD_X * s * 2.0
-        + count_w
-        + COUNT_PAD * s
-        + defs
-            .iter()
-            .map(|(_, _, label, _)| bouton_w(label) + GAP * s)
-            .sum::<f32>();
+    // Le compte, puis chaque bouton, comme un texte : ce qui ne tient pas sur une rangée passe à
+    // la suivante — un téléphone debout n'a pas la place d'« Origines individuelles » à côté du
+    // reste (fiche 101).
+    let elements: Vec<(f32, f32)> = std::iter::once((0.0, count_w))
+        .chain(defs.iter().enumerate().map(|(i, &(click, _, label, _))| {
+            let ecart = if i == 0 { COUNT_PAD + GAP } else { GAP };
+            (ecart * s, bouton_w(click, label))
+        }))
+        .collect();
+    let interieur = super::bas::largeur_utile(screen, s) - PAD_X * s * 2.0;
+    let (places, plus_longue) = super::bas::ranger(&elements, interieur);
+    let rangees = places.last().map_or(1, |&(r, _)| r + 1) as f32;
+    let largeur = plus_longue + PAD_X * s * 2.0;
+    let hauteur = rangees * hauteur_btn + (rangees - 1.0) * GAP * s + PAD_Y * s * 2.0;
+    let (x, y) = super::bas::poser(screen, s, (largeur, hauteur), screen.1 - BOTTOM * s);
+    let a = |(rangee, dx): (usize, f32)| {
+        let haut = y + PAD_Y * s + rangee as f32 * (hauteur_btn + GAP * s);
+        (x + PAD_X * s + dx, haut)
+    };
 
-    let x = (screen.0 - largeur) / 2.0;
-    let y = screen.1 - BOTTOM * s - hauteur;
-
-    let mut curseur = x + PAD_X * s + count_w + COUNT_PAD * s;
-    let separator_x = curseur;
-    let mut buttons = Vec::with_capacity(defs.len());
-    for (click, icon, label, on) in defs {
-        curseur += GAP * s;
-        let w = bouton_w(label);
-        buttons.push(ActionButton {
-            click,
-            rect: (curseur, y + PAD_Y * s, w, hauteur_btn),
-            icon,
-            label,
-            on,
-        });
-        curseur += w;
-    }
+    let buttons = defs
+        .into_iter()
+        .zip(places[1..].iter().zip(&elements[1..]))
+        .map(|((click, icon, label, on), (&place, &(_, w)))| {
+            let (bx, by) = a(place);
+            ActionButton {
+                click,
+                rect: (bx, by, w, hauteur_btn),
+                icon,
+                label,
+                on,
+            }
+        })
+        .collect();
 
     Some(ActionBar {
         rect: (x, y, largeur, hauteur),
         count_label,
-        separator_x,
+        separator_x: a(places[0]).0 + count_w + COUNT_PAD * s,
+        rangee: hauteur_btn,
         buttons,
     })
 }
+
+/// Les deux mots du verrou : à ouvrir, puis fermé.
+const VERROU: [&str; 2] = ["Verrouiller", "Verrouillé"];
+/// Les deux mots de l'origine d'un groupe : commune, puis individuelle.
+const ORIGINE: [&str; 2] = ["Origine commune", "Origines individuelles"];
 
 /// Un bouton à poser : ce qu'il demande, son icône, son libellé, et s'il est l'état décrit.
 type Def = (ActionBarClick, IconType, &'static str, bool);
@@ -185,9 +209,9 @@ fn boutons_de_la_selection(
             .filter(|i| store.selected_image_ids.contains(&i.id))
             .all(|i| i.locked);
         let (icon, label) = if toutes_fermees {
-            (IconType::Lock, "Verrouillé")
+            (IconType::Lock, VERROU[1])
         } else {
-            (IconType::Unlock, "Verrouiller")
+            (IconType::Unlock, VERROU[0])
         };
         defs.push((ActionBarClick::ToggleLock, icon, label, toutes_fermees));
     }
@@ -195,8 +219,8 @@ fn boutons_de_la_selection(
     // § 10) : seulement quand il y a un groupe. Le bouton dit l'état, comme le verrou.
     if total > 1 {
         let (icon, label) = match origine {
-            Origine::Commune => (IconType::OrigineCommune, "Origine commune"),
-            Origine::Individuelle => (IconType::OriginesIndividuelles, "Origines individuelles"),
+            Origine::Commune => (IconType::OrigineCommune, ORIGINE[0]),
+            Origine::Individuelle => (IconType::OriginesIndividuelles, ORIGINE[1]),
         };
         defs.push((ActionBarClick::BasculerLOrigine, icon, label, false));
     }
@@ -241,7 +265,8 @@ pub fn draw_action_bar(
 
     pastille(pixmap, bar.rect, s, theme);
 
-    let base = bar.rect.1 + (bar.rect.3 - font) / 2.0;
+    // Le compte et le filet tiennent la première rangée.
+    let base = bar.rect.1 + PAD_Y * s + (bar.rangee - font) / 2.0;
     typography.draw_text(
         pixmap,
         &bar.count_label,
@@ -257,7 +282,7 @@ pub fn draw_action_bar(
         pixmap,
         bar.separator_x,
         bar.rect.1 + PAD_Y * s,
-        bar.rect.3 - PAD_Y * s * 2.0,
+        bar.rangee,
         theme.border_medium,
     );
 

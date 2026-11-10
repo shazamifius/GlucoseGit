@@ -3,7 +3,7 @@
     python3 pointeur.py <tuyau>
 
 Lit des ordres sur un tuyau nommé, une ligne chacun :
-  aller <x> <y>      (pixels de la sortie 1920 x 1080)
+  aller <x> <y>      (pixels de la sortie : 1920 x 1080, ou `PILOTE_ECRAN`)
   presser | relacher (bouton gauche)
   milieu-presser | milieu-relacher (le bouton de la molette)
   glisser <x0> <y0> <x1> <y1> <ms> <hz>
@@ -28,7 +28,8 @@ from pywayland.client import Display  # noqa: E402
 from pywayland.protocol.wayland import WlSeat  # noqa: E402
 from protocole import ZwlrVirtualPointerManagerV1  # noqa: E402
 
-LARGEUR, HAUTEUR = 1920, 1080
+# La taille de la sortie (`PILOTE_ECRAN`, 1920x1080 par défaut) : les coordonnées sont ses pixels.
+LARGEUR, HAUTEUR = (int(n) for n in os.environ.get("PILOTE_ECRAN", "1920x1080").split("x"))
 BTN_GAUCHE, BTN_DROIT, BTN_MILIEU = 0x110, 0x111, 0x112
 
 tuyau = sys.argv[1]
