@@ -171,4 +171,15 @@ prend la teinte de sa parente ; les mots restent la mesure d'une carte sans lien
 
 ## 9. Le compte
 
-(à remplir : la suite, les sabotages.)
+* **La suite complète** : 3 073 épreuves passées, une tombée — le cliquet des 80 lignes : la porte des
+  commandes (`executer`) en faisait 85 avec la fenêtre ; extraite (`faire`, un seul `match` sans joker,
+  et les signets en une aide) ; les seize cliquets et les 117 épreuves des commandes, des signets, du
+  menu et des liens rejouées ensuite. 7 ignorées (les bancs). Aucune image témoin n'a changé.
+  `cargo fmt`, clippy strict à zéro sur tout l'espace de travail.
+* **Sabotages : 68 sur 68** — `lien-1-102.json` 23 (la loi, la géométrie et l'opacité, en lumière, le
+  survol, les deux voies, le SVG), `lien-2-102.json` 9 (rejoués après l'extraction), `lien-3-102.json`
+  36 (21 au noyau : la disposition, la provenance, la fenêtre à côté du document ; 15 à la main). Une
+  garde sans effet retirée au lieu d'être sabotée (deux fois) ; sept comportements sans épreuve
+  trouvés en cherchant le sabotage qui passerait, et éprouvés.
+* **Regardé au pilote**, dans le vrai Glucose sans fenêtre, sur la carte de Wikipédia et ses liens :
+  `~/.cache/glucose-bancs/pilote-fenetre/` et `pilote-fenetre2/`. **Rien à son écran.**
