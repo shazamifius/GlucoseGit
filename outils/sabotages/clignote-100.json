@@ -1,0 +1,46 @@
+[
+ {
+  "nom": "LOT-2 : le lot tombe pour toute photo vue a cette image",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+  "avant": "        if self.lot.as_ref().is_some_and(|lot| lot.pose(identite)) {",
+  "apres": "        if partie.vue == self.image && partie.photo {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "present::scene_gpu::tests::test_lot"]
+ },
+ {
+  "nom": "PHOTO-2 : des pixels prets sont une photo",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+    "avant": "            let pixels = pixels.vue();",
+    "apres": "            let photo_d_avant = matches!(pixels, super::Pixels::Pretes(_));\n            let pixels = pixels.vue();"
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+    "avant": "            if t.cle.est_une_photo() {",
+    "apres": "            if photo_d_avant {"
+   }
+  ],
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "present::scene_gpu::tests::test_la_carte_compte"]
+ },
+ {
+  "nom": "LOT-1 et PHOTO-2 d'avant ensemble : la minimap vide l'image",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/present/scene_gpu/atlas.rs",
+    "avant": "        if self.lot.as_ref().is_some_and(|lot| lot.pose(identite)) {",
+    "apres": "        if partie.vue == self.image && partie.photo {"
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+    "avant": "            let pixels = pixels.vue();",
+    "apres": "            let photo_d_avant = matches!(pixels, super::Pixels::Pretes(_));\n            let pixels = pixels.vue();"
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+    "avant": "            if t.cle.est_une_photo() {",
+    "apres": "            if photo_d_avant {"
+   }
+  ],
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "present::scene_gpu::tests::test_lot_2"]
+ }
+]

@@ -83,7 +83,9 @@ pub struct Moisson {
     /// livrer les octets. Poser le lien est un repli visible ; ne rien faire serait le geste
     /// sans effet qu'on vient de corriger.
     pub liens: Vec<String>,
-    /// Où le curseur a lâché, en pixels physiques depuis le coin de la fenêtre.
+    /// Où le curseur a lâché, en pixels physiques depuis le coin de la fenêtre — chaque pont le
+    /// dit ainsi, Windows en convertissant ses pixels d'écran, Wayland en mettant les siens à
+    /// l'échelle (fiche 100).
     ///
     /// C'est ce que le glisser-déposer de `winit` ne transmet pas, et pourquoi un fichier
     /// déposé se pose aujourd'hui au centre de l'écran — `interactions::drop` le dit
@@ -115,8 +117,9 @@ pub struct Moisson {
 /// et la livraison la rejoint par son numéro.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Depot {
-    /// **Un téléchargement commence** : le numéro qui le reliera à sa livraison, le point de
-    /// l'écran où le curseur a lâché, et le site d'où l'image vient.
+    /// **Un téléchargement commence** : le numéro qui le reliera à sa livraison, le point de la
+    /// fenêtre où le curseur a lâché (en ses pixels, comme [`Moisson::ou`]), et le site d'où
+    /// l'image vient.
     EnChemin {
         numero: u64,
         ou: Option<(f64, f64)>,

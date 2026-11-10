@@ -1,0 +1,37 @@
+[
+ {
+  "nom": "La boite montree garde la hauteur du document",
+  "fichier": "crates/glucose-desktop/src/renderer/card.rs",
+  "avant": "    boite.height = f64::from(CardLayout::text_card(largeur, boite.height as f32, lignes).height);",
+  "apres": "    let _ = lignes;",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "renderer::halo::tests::test_la_lueur_suit"]
+ },
+ {
+  "nom": "Le processeur peint la lueur sans la saisie",
+  "fichier": "crates/glucose-desktop/src/renderer/halo.rs",
+  "avant": "super::card::boite_montree(mesure, ann, edition)",
+  "apres": "super::card::boite_montree(mesure, ann, None)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "renderer::halo::tests::test_la_lueur_suit"]
+ },
+ {
+  "nom": "La carte graphique pose la lueur sans la saisie",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "super::card::boite_montree(mesure, ann, edition)",
+  "apres": "super::card::boite_montree(mesure, ann, None)",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "renderer::halo::tests::test_la_lueur_suit"]
+ },
+ {
+  "nom": "L'image du processeur oublie la saisie en chemin",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "            (pass, overlay.designees, overlay.editing),",
+  "apres": "            (pass, overlay.designees, None),",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "renderer::halo::tests::test_la_lueur_suit_la_saisie_par_les_entrees"]
+ },
+ {
+  "nom": "La voie graphique oublie la saisie en chemin",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "            (pass, overlay.designees, edition),",
+  "apres": "            (pass, overlay.designees, None),",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "renderer::halo::tests::test_la_lueur_suit_la_saisie_par_les_entrees"]
+ }
+]

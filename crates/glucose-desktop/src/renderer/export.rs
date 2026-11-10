@@ -88,7 +88,7 @@ impl Renderer {
         super::scene::image::svg::images_en_svg(store, pass, &mut svg, octets);
         // Ce qui passe sur les photos (`dessiner_sur_les_photos`) : les lueurs, toutes avant les
         // cartes (LUEUR-3) ; les annotations ; puis les ornements des photos, au-dessus de tout.
-        super::halo::svg::lueurs_en_svg(&mut self.hue_cache, (store, pass), taille, &mut svg);
+        super::halo::svg::lueurs_en_svg(&mut self.hue_cache, (store, pass, kit), taille, &mut svg);
         super::pass::svg::annotations_en_svg(
             &mut self.hue_cache,
             (kit, store, pass),

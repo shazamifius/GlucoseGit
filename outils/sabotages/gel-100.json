@@ -1,0 +1,92 @@
+[
+ {
+  "nom": "Le tempo monte au-dessus du plancher de la charte",
+  "fichier": "crates/glucose-desktop/src/tempo.rs",
+  "avant": "            if self.balayages < self.plafond() {",
+  "apres": "            if self.balayages < u32::MAX {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "tempo::tests"
+  ]
+ },
+ {
+  "nom": "La souris avance la vue de fractions de pixel",
+  "fichier": "crates/glucose-desktop/src/interactions/elan.rs",
+  "avant": "                (du.0.round(), du.1.round())",
+  "apres": "                du",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::elan::tests_souris::un_glisser_avance_par_pixels_entiers"
+  ]
+ },
+ {
+  "nom": "Le regime oublie la translation entiere",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "        let decalage = regard.translation_entiere.filter(|_| regard.en_mouvement);",
+  "apres": "        let decalage: Option<(i64, i64)> = None;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::composants::tests::test_une_translation_entiere"
+  ]
+ },
+ {
+  "nom": "La phase se lit a la position decalee",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "        let (phase, pose) = self.phase_et_coin(coin.0, coin.1);\n        let (dx, dy) = self.textures.1;\n        let pose = (pose.0 + dx, pose.1 + dy);",
+  "apres": "        let (dx, dy) = self.textures.1;\n        let (phase, pose) = self.phase_et_coin(coin.0 + dx, coin.1 + dy);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::composants::tests::test_une_translation_entiere"
+  ]
+ },
+ {
+  "nom": "Le regard tait la translation entiere",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "            translation_entiere: self.translation_entiere_du_repos().filter(|_| en_mouvement),",
+  "apres": "            translation_entiere: None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::pan_zoom::tests::test_au_clic_molette"
+  ]
+ },
+ {
+  "nom": "La vue du repos n'est jamais retenue",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "            self.vues.repos = Some(vue);",
+  "apres": "            let _ = vue;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::pan_zoom::tests::test_au_clic_molette"
+  ]
+ }
+]

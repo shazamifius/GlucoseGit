@@ -333,6 +333,7 @@ fn main() {
     let regard = Regard {
         degradation_permise: false,
         en_mouvement: true,
+        translation_entiere: None,
     };
     let _guides = glucose_core::smart_align::SnapGuides::default();
     let _pointer = Pointer { x: -1.0, y: -1.0 };

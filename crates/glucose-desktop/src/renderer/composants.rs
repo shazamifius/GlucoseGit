@@ -183,6 +183,11 @@ pub(super) struct Regime {
     /// La densité de l'écran (DPI-1).
     densite: f32,
     en_mouvement: bool,
+    /// **La vue où les textures se composent, et le décalage entier qui la sépare de l'écran**
+    /// (fiche 100) : pendant une translation entière, celle du repos — chaque texture y garde
+    /// sa clé et sa phase, et se pose décalée d'un nombre entier de pixels ; sinon, la vue
+    /// elle-même et aucun décalage.
+    textures: (Viewport, (f32, f32)),
     clip: Clip,
     ecran: (u32, u32),
 }
@@ -194,15 +199,31 @@ impl Regime {
         ecran: (u32, u32),
         header_h: f32,
     ) -> Self {
+        // **Une translation entière montre l'image du repos, décalée** (fiche 100) : chaque
+        // texture s'y compose comme au repos — même échelle, même phase, donc même clé — et se
+        // pose le nombre entier de pixels plus loin. Passer au palier dès que la souris bougeait
+        // refaisait toutes les textures visibles au premier mouvement d'un simple déplacement,
+        // et le geste commençait par un raté. La phase se lit dans la vue du repos, et non à la
+        // position décalée : en `f32`, un nœud qui franchit 256 ou 1 024 pixels changerait de
+        // pas d'arrondi, donc de phase d'un cent-millième — et de clé.
+        let decalage = regard.translation_entiere.filter(|_| regard.en_mouvement);
+        let en_mouvement = regard.en_mouvement && decalage.is_none();
+        let (dx, dy) = decalage.map_or((0.0, 0.0), |(x, y)| (x as f64, y as f64));
+        let vue_des_textures = Viewport {
+            x: vue.x - dx,
+            y: vue.y - dy,
+            ..vue
+        };
         Self {
             vue,
+            textures: (vue_des_textures, (dx as f32, dy as f32)),
             densite,
-            echelle: if regard.en_mouvement {
+            echelle: if en_mouvement {
                 palier_dyadique(vue.scale)
             } else {
                 vue.scale
             },
-            en_mouvement: regard.en_mouvement,
+            en_mouvement,
             clip: Clip {
                 width: ecran.0 as f32,
                 height: ecran.1 as f32,
@@ -248,6 +269,8 @@ impl Regime {
         let identite = format!("{prefixe}:{id}");
         let contenu = Arc::new(contenu);
         let (phase, pose) = self.phase_et_coin(coin.0, coin.1);
+        let (dx, dy) = self.textures.1;
+        let pose = (pose.0 + dx, pose.1 + dy);
         let entier = self.assembler(
             (identite, &contenu),
             self.echelle,
@@ -263,7 +286,7 @@ impl Regime {
         Pieces {
             posee: None,
             formes: entier.en_formes(kit, self),
-            a_preparer: self.repli(&entier, coin, mesure),
+            a_preparer: self.repli(&entier, (coin.0 + dx, coin.1 + dy), mesure),
         }
     }
 
@@ -371,9 +394,11 @@ impl Regime {
             .line_count();
         let vue = CardLayout::text_card(w, h, lignes)
             .scaled(WorldScale::new(self.vue.scale, self.densite));
-        let (sx, sy) = world_to_screen(x, y, &self.vue);
+        // Le coin dans la vue des textures ; l'écran le voit décalé (fiche 100).
+        let ((vue_des_textures, (dx, dy)), clip) = (self.textures, self.clip);
+        let (sx, sy) = world_to_screen(x, y, &vue_des_textures);
         let (sx, sy) = (sx as f32, sy as f32);
-        if self.clip.rejects(sx, sy, vue.width, vue.height) {
+        if clip.rejects(sx + dx, sy + dy, vue.width, vue.height) {
             return None;
         }
         let mesure = |echelle: f64| {
@@ -395,7 +420,7 @@ impl Regime {
                     corps: corps.to_string(),
                     teinte,
                     fond: crate::renderer::card::papier(
-                        contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),
+                        contenants.fond_en((sx + dx + vue.width / 2.0, sy + dy + vue.height / 2.0)),
                         couleur,
                     ),
                     // Pendant l'édition, la carte montre sa source : rien n'y brille.
@@ -416,14 +441,18 @@ impl Regime {
     /// La texture est la boîte englobante du cadre **tourné** : le libellé, lui, reste droit,
     /// comme le processeur le dessine — la texture se pose donc sans angle.
     pub(super) fn photo_en_chemin(&self, kit: PaintKit<'_>, img: &BoardImage) -> Option<Pieces> {
-        let (sx, sy) =
-            world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &self.vue);
+        let (vue_des_textures, (dx, dy)) = self.textures;
+        let (sx, sy) = world_to_screen(
+            img.x - img.width / 2.0,
+            img.y - img.height / 2.0,
+            &vue_des_textures,
+        );
         let (sx, sy) = (sx as f32, sy as f32);
         let (sw, sh) = (
             (img.width * self.vue.scale) as f32,
             (img.height * self.vue.scale) as f32,
         );
-        if self.clip.rejects(sx, sy, sw, sh) {
+        if self.clip.rejects(sx + dx, sy + dy, sw, sh) {
             return None;
         }
         let taille = (img.width, img.height);

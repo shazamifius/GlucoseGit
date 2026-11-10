@@ -32,6 +32,91 @@ pub fn ecrire_la_selection(formes: crate::interactions::clipboard::Formes) -> Re
     imp::ecrire_la_selection(formes)
 }
 
+/// **Le presse-papiers du système est-il là ?** Sous Wayland, dès que le pont est posé (fiche
+/// 100) ; ailleurs, quand `arboard` en ouvre un.
+pub fn disponible() -> Result<(), String> {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    if super::selection_wayland::actif() {
+        return Ok(());
+    }
+    #[cfg(not(target_os = "android"))]
+    return arboard::Clipboard::new()
+        .map(|_| ())
+        .map_err(|e| e.to_string());
+    #[cfg(target_os = "android")]
+    Err(imp::PAS_ENCORE.into())
+}
+
+/// Le texte que porte le presse-papiers du système.
+pub fn lire_le_texte() -> Result<String, String> {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    if super::selection_wayland::actif() {
+        return super::selection_wayland::lire_le_texte();
+    }
+    #[cfg(not(target_os = "android"))]
+    return arboard::Clipboard::new()
+        .and_then(|mut c| c.get_text())
+        .map_err(|e| e.to_string());
+    #[cfg(target_os = "android")]
+    Err(imp::PAS_ENCORE.into())
+}
+
+/// L'image que porte le presse-papiers du système, en pixels.
+pub fn lire_l_image() -> Result<crate::interactions::presse_papiers::Pixels, String> {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    if super::selection_wayland::actif() {
+        return super::selection_wayland::lire_l_image();
+    }
+    #[cfg(not(target_os = "android"))]
+    return arboard::Clipboard::new()
+        .and_then(|mut c| c.get_image())
+        .map(|i| crate::interactions::presse_papiers::Pixels {
+            width: i.width,
+            height: i.height,
+            bytes: i.bytes.into_owned(),
+        })
+        .map_err(|e| e.to_string());
+    #[cfg(target_os = "android")]
+    Err(imp::PAS_ENCORE.into())
+}
+
+/// **Les fichiers que porte le presse-papiers** — copiés dans un gestionnaire de fichiers —, ceux
+/// qui existent ici. Sous Wayland, la liste qu'il offre (fiche 100) ; ailleurs, ce qu'`arboard`
+/// en lit.
+pub fn lire_les_fichiers() -> Vec<std::path::PathBuf> {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    if super::selection_wayland::actif() {
+        return super::selection_wayland::lire_les_fichiers();
+    }
+    #[cfg(not(target_os = "android"))]
+    return arboard::Clipboard::new()
+        .and_then(|mut c| c.get().file_list())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|c| c.exists())
+        .collect();
+    #[cfg(target_os = "android")]
+    Vec::new()
+}
+
+/// **Écrit un texte seul** dans le presse-papiers du système : ce qu'on copie d'un texte qu'on
+/// écrit.
+pub fn ecrire_le_texte(texte: String) -> Result<(), String> {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    if super::selection_wayland::actif() {
+        return super::selection_wayland::confier_le_texte(texte);
+    }
+    #[cfg(not(target_os = "android"))]
+    return arboard::Clipboard::new()
+        .and_then(|mut c| c.set_text(texte))
+        .map_err(|e| e.to_string());
+    #[cfg(target_os = "android")]
+    {
+        let _ = texte;
+        Err(imp::PAS_ENCORE.into())
+    }
+}
+
 /// **Le presse-papiers du système, tenu pour toute la vie de l'application** (fiche 60).
 ///
 /// Sous Linux, c'est le programme qui a copié qui sert chaque collage, tant que l'objet
@@ -212,18 +297,26 @@ mod imp {
     }
 }
 
-/// Sous Linux et les autres Unix de X11 : le propriétaire de Glucose sert toutes les formes
-/// (COPIER-1, fiche 61).
+/// Sous Linux et les autres Unix : Glucose sert toutes les formes lui-même — par Wayland quand la
+/// fenêtre y vit (fiche 100), par X11 sinon (COPIER-1, fiche 61).
 #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 mod imp {
+    use super::super::{selection_wayland as wayland, selection_x11 as x11};
+
     pub fn ecrire_la_selection(
         formes: crate::interactions::clipboard::Formes,
     ) -> Result<(), String> {
-        super::super::selection_x11::confier_au_presse_papiers(formes)
+        if wayland::actif() {
+            return wayland::confier(formes);
+        }
+        x11::confier_au_presse_papiers(formes)
     }
 
     pub fn lire_un_lot() -> Option<super::LotALire> {
-        super::super::selection_x11::lire_un_lot()
+        if wayland::actif() {
+            return wayland::lire_un_lot();
+        }
+        x11::lire_un_lot()
     }
 }
 
@@ -255,7 +348,8 @@ mod imp {
 /// sont jamais appelées — elles le disent si elles l'étaient.
 #[cfg(target_os = "android")]
 mod imp {
-    const PAS_ENCORE: &str = "le presse-papiers du systeme n'est pas encore pris sous Android";
+    pub(super) const PAS_ENCORE: &str =
+        "le presse-papiers du systeme n'est pas encore pris sous Android";
 
     pub fn ecrire_la_selection(
         _formes: crate::interactions::clipboard::Formes,

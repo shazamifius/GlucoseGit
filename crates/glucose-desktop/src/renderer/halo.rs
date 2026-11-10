@@ -68,6 +68,8 @@ use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 
+use super::{PaintKit, TextEditSession};
+use glucose_core::geometry::Rect;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
@@ -425,16 +427,15 @@ fn peindre_par_segments(
 }
 
 /// La boîte dilatée de la lueur d'une carte, ou `None` si elle ne touche pas le cadre.
+///
+/// `rect` est la boîte que la carte **montre** ([`super::card::boite_montree`]), et non celle
+/// que le document retient : pendant une saisie, la carte a déjà grandi (fiche 100).
 pub(crate) fn halo_geometry(
-    ann: &Annotation,
+    rect: Rect,
     (vp, scale): (&Viewport, WorldScale),
     (screen_w, screen_h, header_h): (f32, f32, f32),
     eclat: Eclat,
 ) -> Option<HaloBox> {
-    if !matches!(ann, Annotation::Text { .. }) {
-        return None;
-    }
-    let rect = ann.rect()?;
     let (sx, sy) = world_to_screen(rect.left, rect.top, vp);
     let (sx, sy) = (sx as f32, sy as f32);
     let (w, h) = (
@@ -490,12 +491,13 @@ pub(crate) fn debord_au_repos(echelle: f32) -> f32 {
     eclat.etalement() * echelle + portee_du_flou(eclat.sigma() * echelle, eclat.alpha())
 }
 
-/// Passe de rendu des lueurs d'ambiance (L1 : ne parcourt que les cartes visibles).
+/// Passe de rendu des lueurs d'ambiance (L1 : ne parcourt que les cartes visibles). Chaque
+/// lueur épouse sa carte telle qu'elle se montre — celle qu'on édite comprise (fiche 100).
 pub fn draw_halos(
     hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
-    store: &Store,
-    (pass, designees): (ViewPass<'_>, &[(String, f32)]),
+    (store, kit): (&Store, PaintKit<'_>),
+    (pass, designees, edition): (ViewPass<'_>, &[(String, f32)], Option<&TextEditSession>),
 ) {
     let ViewPass {
         visibles, header_h, ..
@@ -520,7 +522,11 @@ pub fn draw_halos(
     for ann in Visibles::nouvelles(visibles, board).annotations() {
         let eclat = Eclat::de(ann, designees);
         let ecran = (screen_w, screen_h, header_h);
-        let Some(halo) = halo_geometry(ann, (vp, pass.echelle()), ecran, eclat) else {
+        let mesure = (kit.typography, kit.math, kit.mises_en_page);
+        let Some(boite) = super::card::boite_montree(mesure, ann, edition) else {
+            continue;
+        };
+        let Some(halo) = halo_geometry(boite, (vp, pass.echelle()), ecran, eclat) else {
             continue;
         };
         let (_hue, rgb) = hue_cache.get_or_compute(ann, pass.index, board);

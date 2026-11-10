@@ -129,8 +129,9 @@ fn un_glisser_suit_la_main_et_s_arrete_net() {
     );
 }
 
-/// **Un dixième de pixel demandé à la souris est un dixième de pixel montré.** Au doigt, une
-/// dette sous le demi-pixel se solde ; à la souris, ce serait une dérive sous le curseur.
+/// **Un dixième de pixel demandé à la souris est un dixième de pixel montré** — dès qu'ils
+/// font un pixel entier (fiche 100). Au doigt, une dette sous le demi-pixel se solde ; à la
+/// souris, ce serait une dérive sous le curseur.
 #[test]
 fn un_glisser_lent_ne_perd_rien() {
     let jouer = |souris: bool| {
@@ -157,6 +158,38 @@ fn un_glisser_lent_ne_perd_rien() {
     assert!(
         doigt < 3.0,
         "à l'envers, le doigt en perd : {doigt} px sur 4"
+    );
+}
+
+/// **La souris avance la vue par pixels entiers, et ne s'écarte jamais de la main d'un
+/// demi-pixel** (fiche 100). Une souris accélérée livre des fractions : la vue qui les suivait
+/// changeait la phase sous-pixel de chaque nœud à chaque image, et toutes ses textures se
+/// refaisaient au premier mouvement. Pas entiers, donc ; la fraction attend le pas suivant.
+#[test]
+fn un_glisser_avance_par_pixels_entiers_sans_s_ecarter_de_la_main() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+    let (mut demande, mut montre) = (0.0_f64, 0.0_f64);
+    for ms in 1..=400u32 {
+        elan.placer_pan(0.37, -0.21);
+        demande += 0.37;
+        if ms % 4 == 0 {
+            let t = debut + Duration::from_millis(u64::from(ms));
+            if let Some(m) = elan.avancer(t, IMAGE, DIAGONALE) {
+                assert_eq!(m.pan.0, m.pan.0.round(), "un pas entier : {}", m.pan.0);
+                assert_eq!(m.pan.1, m.pan.1.round(), "un pas entier : {}", m.pan.1);
+                montre += m.pan.0;
+            }
+            assert!(
+                (demande - montre).abs() <= 0.5 + 1e-9,
+                "la vue s'écarte de la main : {} px",
+                demande - montre
+            );
+        }
+    }
+    assert!(
+        !elan.en_cours(),
+        "une fraction en attente n'est pas un mouvement"
     );
 }
 

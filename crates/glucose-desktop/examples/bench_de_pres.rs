@@ -90,6 +90,7 @@ fn formes(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> (Formes, 
         Regard {
             degradation_permise: false,
             en_mouvement: false,
+            translation_entiere: None,
         },
     );
     let ms = debut.elapsed().as_secs_f64() * 1000.0;

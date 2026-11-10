@@ -1,0 +1,9 @@
+[
+ {
+  "nom": "Un glisser parti d'ici se moissonne quand meme",
+  "fichier": "crates/glucose-desktop/src/plateforme/selection_wayland/depot.rs",
+  "avant": "    if super::vient_d_ici(offerts) {",
+  "apres": "    if false && super::vient_d_ici(offerts) {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "plateforme::selection_wayland::depot"]
+ }
+]

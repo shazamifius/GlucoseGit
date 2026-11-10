@@ -39,6 +39,11 @@ pub struct Regard {
     pub degradation_permise: bool,
     /// La vue bouge-t-elle encore ?
     pub en_mouvement: bool,
+    /// **Ce mouvement n'est-il qu'une translation entière de la vue du repos ?** Le décalage,
+    /// en pixels entiers, quand la vue n'a fait que glisser d'autant à la même échelle :
+    /// l'image du repos, décalée, est alors exacte, et ses textures restent les bonnes
+    /// (fiche 100).
+    pub translation_entiere: Option<(i64, i64)>,
 }
 
 impl Regard {

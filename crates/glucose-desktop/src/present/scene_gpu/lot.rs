@@ -4,9 +4,21 @@
 //! que complet** : chaque photo proposée est là, à jour, et rien n'attend ; sinon la prochaine image
 //! doit de toute façon tout revoir. Le tampon garde ces poses en tête, et la copie de leurs octets
 //! ne sert que le jour où il doit grandir.
+//!
+//! # LOT-2 — le lot sait ce qu'il pose (9/11/2026)
+//!
+//! Le lot se défaisait dès qu'une texture « photo, vue à cette image » quittait la carte : une
+//! approximation de « une photo du lot », qui oubliait la chrome. Pendant un déplacement au clic
+//! molette, la minimap change à chaque pas, sa texture se remplace, et le remplacement défaisait
+//! le lot : l'image suivante, qui croyait la carte garnie, n'envoyait aucune photo, et la carte
+//! n'en avait plus — **toutes les photos disparaissaient une image sur deux** (son essai du 9/11
+//! sous niri, reproduit au pilote : 302 poses, puis 2, puis 302). La loi exacte remplace
+//! l'approximation : le lot retient les identités qu'il pose, et seule la perte de l'une d'elles
+//! le défait.
 
-use super::{Retenues, SceneGpu, Suite};
+use super::{Cle, Retenues, SceneGpu, Suite};
 use crate::renderer::voies::{LotEnPlace, Similitude};
+use std::collections::HashSet;
 
 /// Le lot que le tampon garde.
 pub(super) struct LotTenu {
@@ -15,6 +27,15 @@ pub(super) struct LotTenu {
     suites: Vec<Suite>,
     /// Ses poses, pour un tampon neuf.
     octets: Vec<u8>,
+    /// **Ce que ses poses lisent** (LOT-2) : les identités des textures du lot, et rien d'autre.
+    poses: HashSet<Cle>,
+}
+
+impl LotTenu {
+    /// **Ce lot pose-t-il cette texture ?** Seule la perte de l'une des siennes le défait.
+    pub(super) fn pose(&self, identite: &Cle) -> bool {
+        self.poses.contains(identite)
+    }
 }
 
 impl SceneGpu {
@@ -37,6 +58,9 @@ impl SceneGpu {
                 numero,
                 suites: retenues.suites.clone(),
                 octets: octets.to_vec(),
+                // Le lot se juge au rang de sa dernière photo : les retenues ne portent alors que
+                // les siennes.
+                poses: retenues.cles.iter().cloned().collect(),
             });
     }
 

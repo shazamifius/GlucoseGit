@@ -201,12 +201,12 @@ impl GlucoseApp {
     }
 
     /// **Ce point est-il hors de la fenêtre ?** La souris tenue continue d'être suivie au-delà de
-    /// ses bords. Sous Windows seulement : c'est là seul qu'un glisser sait partir vers une
-    /// autre fenêtre — ailleurs, les nœuds continuent de suivre la main. Et seulement avec une
-    /// vraie fenêtre : sans elle, il n'y a nulle part d'où sortir.
+    /// ses bords. Seulement là où un glisser sait partir vers une autre fenêtre — Windows, et
+    /// Wayland par son pont (fiche 100) ; ailleurs, les nœuds continuent de suivre la main. Et
+    /// seulement avec une vraie fenêtre : sans elle, il n'y a nulle part d'où sortir.
     fn hors_de_la_fenetre(&self, position: PhysicalPosition<f64>) -> bool {
         let (largeur, hauteur) = self.taille_de_la_fenetre();
-        cfg!(windows)
+        crate::plateforme::sait_glisser_dehors()
             && self.window.is_some()
             && (position.x < 0.0
                 || position.y < 0.0

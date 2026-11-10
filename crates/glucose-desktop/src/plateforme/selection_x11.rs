@@ -48,7 +48,6 @@ mod service;
 mod tests;
 
 use crate::interactions::clipboard::Formes;
-use offre::Offre;
 use service::Serveur;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::JoinHandle;
@@ -123,7 +122,7 @@ impl Proprietaire {
     /// serveur la lui a donnée.
     pub fn confier(&self, formes: Formes) -> Result<(), String> {
         let s = &self.serveur;
-        let offre = Arc::new(Offre::nouvelle(formes, &s.atomes));
+        let offre = Arc::new(offre::nouvelle(formes, &s.atomes));
         let (reponse, recue) = mpsc::channel();
         s.attendre_la_prise(offre, reponse)?;
         s.conn

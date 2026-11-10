@@ -298,3 +298,42 @@ fn test_le_zoom_au_doigt_passe_par_la_conduite() {
         "le pincement s'est montre d'un bloc : x{montre} sur x{voulu}"
     );
 }
+
+/// **Au clic molette, la vue glisse par pixels entiers, et le rendu le sait** (fiche 100).
+///
+/// Joué dans l'application, par la vraie porte : une image au repos, puis neuf mouvements de
+/// souris accélérée — des fractions, comme niri les livre. La vue a glissé d'un nombre entier
+/// de pixels, à moins d'un demi-pixel de la main, et le regard que reçoit le rendu porte ce
+/// décalage : c'est lui qui garde les textures du repos ([`crate::renderer::Regard`]).
+#[test]
+fn test_au_clic_molette_la_vue_glisse_par_pixels_entiers_et_le_rendu_le_sait() {
+    const ECRAN: (u32, u32) = (1280, 720);
+    let mut app = crate::app::GlucoseApp::new();
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    let repos = app.store.viewport();
+    assert_eq!(
+        app.regard().translation_entiere,
+        None,
+        "au repos, rien ne glisse"
+    );
+    for _ in 0..9 {
+        app.handle_pan_move(1.37, -0.61);
+    }
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    let vue = app.store.viewport();
+    let (dx, dy) = (vue.x - repos.x, vue.y - repos.y);
+    assert_eq!(
+        (dx.fract(), dy.fract()),
+        (0.0, 0.0),
+        "des pixels entiers : {dx}, {dy}"
+    );
+    assert!(
+        (dx - 9.0 * 1.37).abs() <= 0.5 && (dy + 9.0 * 0.61).abs() <= 0.5,
+        "à moins d'un demi-pixel de la main : {dx}, {dy}"
+    );
+    assert_eq!(
+        app.regard().translation_entiere,
+        Some((dx as i64, dy as i64)),
+        "le rendu sait que c'est l'image du repos, décalée"
+    );
+}

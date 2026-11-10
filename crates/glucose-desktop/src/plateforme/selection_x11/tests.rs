@@ -6,8 +6,8 @@
 //! dit qu'il doit y en avoir un (sur GitHub), et alors elles tombent au lieu de mentir en vert.
 //! Le demandeur est `xclip`, une implémentation qui n'est pas la nôtre.
 
+use super::super::selection_unix::{fichiers_gnome, liste_d_uri, uri_de};
 use super::lecture::lire_le_lot_de;
-use super::offre::{fichiers_gnome, liste_d_uri, uri_de};
 use super::service::pas_avant;
 use super::*;
 use crate::interactions::clipboard::{Fichier, ImagePosee};

@@ -8,6 +8,7 @@
 //! un test peut jouer une rafale, un rythme régulier ou un silence sans attendre une seule
 //! milliseconde, et sans dépendre de la charge de la machine.
 
+use super::source::HORIZON;
 use super::*;
 
 /// La diagonale d'un écran ordinaire, pour le seuil d'extinction.

@@ -332,14 +332,11 @@ fn test_la_cible_de_la_finesse_ne_derive_pas_avec_le_tempo() {
     let deux_balayages = P240.saturating_mul(2);
     assert_eq!(tempo.cible_pour_descendre(), deux_balayages);
 
-    // Un rendu lent fait monter k -- la cible, elle, ne bouge pas d'une nanoseconde.
+    // Un rendu lent fait monter k jusqu'au plancher, et pas au-delà (fiche 100) -- la cible,
+    // elle, ne bouge pas d'une nanoseconde.
     let rendus = vec![Duration::from_micros(30_000); 400];
     rejouer(&mut tempo, &rendus, Duration::ZERO);
-    assert!(
-        tempo.balayages() >= 7,
-        "k doit avoir monte : {}",
-        tempo.balayages()
-    );
+    assert_eq!(tempo.balayages(), 2, "k s'arrête au plancher de la charte");
     assert_eq!(
         tempo.cible_pour_descendre(),
         deux_balayages,
@@ -378,4 +375,40 @@ fn test_le_tempo_dit_quelle_image_a_rate_son_balayage() {
     // La suivante arrive avant sa cible : a l'heure.
     tempo.attente_avant_de_soumettre(tard + periode / 2);
     assert!(!tempo.a_rate(), "l'image a l'heure n'a rien rate");
+}
+
+/// **À 60 Hz, le tempo ne quitte jamais le balayage unique** (fiche 100) : sa session du 9/11
+/// sous niri passait 99 % de ses images en mouvement à deux balayages — trente images par
+/// seconde — pour des images de dix millisecondes, parce qu'une rafale de textures au début d'un
+/// geste faisait monter `k` et que deux cents images ne le faisaient pas redescendre.
+///
+/// La rafale est rejouée telle que le terrain l'a montrée : quatre images à vingt-deux
+/// millisecondes, puis le régime ordinaire à dix. Deux balayages, c'est sous le plancher de la
+/// charte : la finesse cède, jamais la cadence. Et le régime ordinaire reste à un balayage pile.
+#[test]
+fn test_a_60_hz_une_rafale_ne_fait_pas_tomber_la_cadence_a_trente() {
+    const P60: Duration = Duration::from_nanos(16_666_667);
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(P60);
+    let mut rendus = vec![Duration::from_micros(10_000); 5];
+    rendus.extend([Duration::from_micros(22_000); 4]);
+    rendus.extend(std::iter::repeat_n(Duration::from_micros(10_000), 100));
+    let soumissions = rejouer(&mut tempo, &rendus, Duration::from_micros(2_000));
+    assert_eq!(tempo.balayages(), 1, "un balayage, toujours, à 60 Hz");
+    let regime = &intervalles(&soumissions)[12..];
+    assert!(
+        regime.iter().all(|d| *d == P60),
+        "le régime ordinaire n'occupe pas un balayage pile : {regime:?}"
+    );
+
+    // Un écran qui passe de 240 à 60 Hz ramène le tempo sous le plancher.
+    let mut migrant = Tempo::nouveau();
+    migrant.accorder(P240);
+    rejouer(
+        &mut migrant,
+        &vec![Duration::from_micros(30_000); 400],
+        Duration::ZERO,
+    );
+    migrant.accorder(P60);
+    assert_eq!(migrant.balayages(), 1);
 }

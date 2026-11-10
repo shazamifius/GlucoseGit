@@ -593,3 +593,69 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
         "sept caracteres tapes donnent sept images differentes"
     );
 }
+
+/// **Une translation entière garde les textures du repos ; une fraction, non** (fiche 100).
+///
+/// Au clic molette, la vue avançait de fractions de pixel : chaque nœud changeait de phase,
+/// passait au palier du mouvement, et toutes les textures visibles se refaisaient au premier
+/// mouvement — la rafale qui faisait rater le début de chaque déplacement sur sa carte. Une
+/// vue décalée d'un nombre entier de pixels garde la clé du repos, et sa texture se pose
+/// exactement ce nombre de pixels plus loin.
+#[test]
+fn test_une_translation_entiere_garde_les_textures_du_repos() {
+    let renderer = Renderer::new();
+    let kit = renderer.kit();
+    let contenants = crate::renderer::card::Contenants::nouveaux(kit.theme, &[]);
+    let pose = |vp: Viewport, regard: Regard| {
+        let composant = Regime::de((vp, 1.0), regard, (500, 300), 0.0)
+            .carte(
+                kit,
+                "t",
+                (60.3, 40.7, 240.0, 60.0),
+                ("Un texte qui se déplace", (96, 165, 250), None),
+                (None, &contenants, None),
+            )
+            .and_then(|p| p.posee)
+            .expect("une carte posée");
+        (composant.cle, composant.pose.x, composant.pose.y)
+    };
+    let repos = Viewport {
+        scale: 1.37,
+        x: 20.5,
+        y: 10.25,
+    };
+    let (cle_du_repos, x0, y0) = pose(repos, Regard::immobile());
+    let au_clic_molette = Regard {
+        degradation_permise: true,
+        en_mouvement: true,
+        translation_entiere: Some((37, -12)),
+    };
+    let decalee = Viewport {
+        x: repos.x + 37.0,
+        y: repos.y - 12.0,
+        ..repos
+    };
+    let (cle, x1, y1) = pose(decalee, au_clic_molette);
+    assert_eq!(cle, cle_du_repos, "la texture du repos reste la bonne");
+    assert_eq!(
+        (x1 - x0, y1 - y0),
+        (37.0, -12.0),
+        "posée au pixel entier près"
+    );
+
+    let en_fractions = Regard {
+        translation_entiere: None,
+        ..au_clic_molette
+    };
+    let (cle, ..) = pose(
+        Viewport {
+            x: repos.x + 0.5,
+            ..repos
+        },
+        en_fractions,
+    );
+    assert_ne!(
+        cle, cle_du_repos,
+        "une fraction passe au palier du mouvement"
+    );
+}

@@ -273,7 +273,7 @@ impl Serveur {
                 .is_ok();
         }
         offre
-            .rendu(cible)
+            .rendu(&cible)
             .is_some_and(|rendu| self.envoyer(offre, rendu, cible, (demandeur, propriete)))
     }
 

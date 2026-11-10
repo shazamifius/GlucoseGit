@@ -81,8 +81,8 @@ pub struct GlucoseApp {
     /// Recalcule a chaque image depuis le deplacement REEL de la vue -- donc quelle qu'en
     /// soit la cause : un geste, l'elan qui s'eteint, un vol de camera.
     pub perception: crate::perception::Perception,
-    /// La vue de l'image precedente, pour mesurer de combien elle a bouge.
-    vue_precedente: Option<glucose_core::types::Viewport>,
+    /// Ce que la vue a été : à l'image précédente, et à la dernière image au repos.
+    vues: mouvement::VuesRetenues,
     /// Ce que cette image montre du mouvement : le pas de temps sur lequel il a ete integre,
     /// et la vitesse apparente qui en resulte, en pixels par seconde.
     ///
@@ -364,7 +364,7 @@ impl GlucoseApp {
             focus: focus::Focus::default(),
             defilement_au_doigt: false,
             perception: crate::perception::Perception::nette(),
-            vue_precedente: None,
+            vues: Default::default(),
             pas_et_vitesse: (std::time::Duration::ZERO, 0.0),
             rythme_de_l_image: crate::chronique::rythme::Mesure::default(),
             image_attendue: false,

@@ -1,0 +1,49 @@
+// **Le niri du pilote** (fiche 100 § 10) : un vrai niri, le compositeur de son VivoBook, imbriqué dans le
+// sway sans écran de `piloter.sh` — rien ne paraît sur son écran. Comme son VivoBook, chaque
+// fenêtre s'ouvre en colonne d'une demi-largeur (Glucose à gauche, l'application suivante à droite) ;
+// sans espace, sans bord ni anneau, sans décoration, sans animation, pour que ce qui se voit à la
+// capture soit là où le pointeur va. `@ECHELLE@` est remplacé au démarrage (`PILOTE_ECHELLE`, 1 par
+// défaut ; la sienne est 2).
+
+output "winit" {
+    scale @ECHELLE@
+}
+
+layout {
+    gaps 0
+    default-column-width { proportion 0.5; }
+    focus-ring {
+        off
+    }
+    border {
+        off
+    }
+}
+
+prefer-no-csd
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+animations {
+    off
+}
+
+screenshot-path null
+
+// Aucun affichage X11 : niri en ouvrirait un (`:2`…) dans le `/tmp` commun, hors du dossier du banc.
+xwayland-satellite {
+    off
+}
+
+// `dragon` (l'autre application de `essai_wayland.sh`) s'ouvre en colonne, à droite de Glucose,
+// comme sway le pose en mosaïque. **Pas flottant** : une fenêtre posée PAR-DESSUS
+// Glucose ne reçoit pas ses nœuds — le glisser ne part que quand la main quitte sa fenêtre
+// (`hors_de_la_fenetre`), et une main tenue ne la quitte jamais aux yeux de Glucose tant qu'elle
+// reste au-dessus de lui (fiche 100 § 10).
+window-rule {
+    match app-id="dragon-drop"
+    // niri fait flotter d'office une petite fenêtre de taille fixe, comme un dialogue : on l'en empêche.
+    open-floating false
+}

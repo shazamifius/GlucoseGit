@@ -147,7 +147,7 @@ fn overhang(card: &Annotation) -> (f64, f64) {
     let rect = card.rect().expect("une carte a une boîte");
     let vp = centered(1.0, (rect.width, rect.height));
     let halo = halo_geometry(
-        card,
+        card.rect().expect("une carte a une boîte"),
         (&vp, WorldScale::new(vp.scale, 1.0)),
         (1440.0, 900.0, 0.0),
         Eclat::REPOS,
@@ -208,7 +208,7 @@ fn test_the_glow_scales_with_the_zoom_without_any_cap() {
     let width_at = |zoom: f64| {
         let vp = centered(zoom, (240.0, 60.0));
         let halo = halo_geometry(
-            &card,
+            card.rect().expect("une carte a une boîte"),
             (&vp, WorldScale::new(vp.scale, 1.0)),
             (1440.0, 900.0, 0.0),
             Eclat::REPOS,
@@ -237,7 +237,7 @@ fn test_a_card_far_off_screen_is_culled() {
         scale: 1.0,
     };
     assert!(halo_geometry(
-        &card,
+        card.rect().expect("une carte a une boîte"),
         (&loin, WorldScale::new(loin.scale, 1.0)),
         (1440.0, 900.0, 0.0),
         Eclat::REPOS
@@ -250,7 +250,7 @@ fn test_a_card_far_off_screen_is_culled() {
         scale: 1.0,
     };
     assert!(halo_geometry(
-        &card,
+        card.rect().expect("une carte a une boîte"),
         (&brise, WorldScale::new(brise.scale, 1.0)),
         (1440.0, 900.0, 0.0),
         Eclat::REPOS
@@ -464,10 +464,22 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         densite: 1.0,
     };
     // Frame de chauffe : remplit le cache de teintes symbiotiques.
-    draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, (pass, &[]));
+    let trousse = Trousse::new();
+    let kit = trousse.kit();
+    draw_halos(
+        &mut hue_cache,
+        &mut pixmap.as_mut(),
+        (&store, kit),
+        (pass, &[], None),
+    );
 
     let started = std::time::Instant::now();
-    draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, (pass, &[]));
+    draw_halos(
+        &mut hue_cache,
+        &mut pixmap.as_mut(),
+        (&store, kit),
+        (pass, &[], None),
+    );
     let elapsed = started.elapsed().as_millis();
 
     assert!(
@@ -801,7 +813,7 @@ fn test_lueur_1_la_geometrie_porte_la_carte() {
         scale: 2.0,
     };
     let halo = halo_geometry(
-        &carte,
+        carte.rect().expect("une carte a une boîte"),
         (&vp, WorldScale::new(vp.scale, 1.0)),
         (1440.0, 900.0, 0.0),
         Eclat::REPOS,
@@ -810,7 +822,7 @@ fn test_lueur_1_la_geometrie_porte_la_carte() {
     let attendue = glucose_core::membrane_forme::Arrondi::nouveau(120.0, 90.0, 400.0, 100.0, 64.0);
     assert_eq!(halo.carte, Some(attendue));
     let vive = halo_geometry(
-        &carte,
+        carte.rect().expect("une carte a une boîte"),
         (&vp, WorldScale::new(vp.scale, 1.0)),
         (1440.0, 900.0, 0.0),
         Eclat::DESIGNEE,
@@ -835,5 +847,236 @@ fn test_lueur_2_l_eclat_suit_la_vivacite() {
         Eclat::de(&carte, &[("autre".to_string(), 1.0)]),
         Eclat::REPOS,
         "une autre carte désignée n'avive pas celle-ci"
+    );
+}
+
+// ── Fiche 100 — la lueur épouse la carte qu'on écrit ──────────────────────────
+
+/// De quoi mesurer et peindre une carte dans une épreuve : la police, les formules, les mises en
+/// page, les teintes de domaine, le thème.
+struct Trousse {
+    typo: crate::typography::Typography,
+    math: crate::renderer::math::MathRenderer,
+    mises: crate::renderer::card::MisesEnPage,
+    teintes: crate::renderer::domain::DomainTints,
+    theme: crate::theme::Theme,
+}
+
+impl Trousse {
+    fn new() -> Self {
+        Self {
+            typo: crate::typography::Typography::new(),
+            math: crate::renderer::math::MathRenderer::new(),
+            mises: Default::default(),
+            teintes: crate::renderer::domain::DomainTints::new(),
+            theme: crate::theme::Theme::dark(),
+        }
+    }
+
+    fn kit(&self) -> PaintKit<'_> {
+        PaintKit {
+            typography: &self.typo,
+            math: &self.math,
+            mises_en_page: &self.mises,
+            tints: &self.teintes,
+            theme: &self.theme,
+        }
+    }
+}
+
+/// Ce que les deux voies font de la lueur de ce tableau, à l'écran de 1440 × 900 : les pixels du
+/// processeur, et les bords de la boîte que la carte graphique pose.
+fn lueurs_des_deux_voies(
+    store: &Store,
+    trousse: &Trousse,
+    edition: Option<&TextEditSession>,
+) -> (Vec<u8>, Vec<[f32; 4]>) {
+    let board = store.active_board().expect("un tableau actif");
+    let rangs = glucose_core::quadtree::tous_les_rangs(board);
+    let mut index = glucose_core::quadtree::SpatialHash::new(1000.0);
+    index.index_board(board);
+    let pass = ViewPass {
+        vp: Viewport {
+            x: 400.0,
+            y: 150.0,
+            scale: 1.5,
+        },
+        visibles: &rangs,
+        index: &index,
+        contournement: None,
+        header_h: 0.0,
+        densite: 1.0,
+    };
+    let mut pixmap = Pixmap::new(1440, 900).expect("pixmap");
+    pixmap.fill(background());
+    let kit = trousse.kit();
+    let mut teintes = SymbioticHueCache::new();
+    draw_halos(
+        &mut teintes,
+        &mut pixmap.as_mut(),
+        (store, kit),
+        (pass, &[], edition),
+    );
+    let mut teintes = SymbioticHueCache::new();
+    let posees = crate::renderer::voies::lueurs_a_poser(
+        &mut teintes,
+        (store, kit),
+        (pass, &[], edition),
+        (1440.0, 900.0),
+    );
+    let bords = posees
+        .iter()
+        .map(|l| [l.gauche, l.haut, l.droite, l.bas])
+        .collect();
+    (pixmap.data().to_vec(), bords)
+}
+
+/// **Pendant une saisie qui passe à la ligne, la lueur épouse la carte qui grandit** (fiche 100).
+///
+/// Son essai du 9/11 sous niri : on écrit, la ligne passe, et le contour blanc se décroche d'une
+/// forme sombre en haut à gauche. La carte se dessine à la hauteur que pousse le texte qu'on
+/// écrit ; le document ne l'apprend qu'à la validation (TEXT-FIT-1), et la lueur lisait le
+/// document. Sur les deux voies, la lueur **pendant** la saisie doit être, au pixel près, celle
+/// de la carte **après** — le même texte validé, la hauteur écrite.
+#[test]
+fn test_la_lueur_suit_la_carte_qu_on_ecrit_sur_les_deux_voies() {
+    let trousse = Trousse::new();
+    let ecrit = "Un texte assez long pour passer a la ligne tout seul et voir le contour, puis \
+                 encore une ligne, et une autre, pour que la carte grandisse vraiment.";
+    let mut store = Store::new("saisie");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, sized_card(Some(240.0), Some(60.0)));
+    let saisie = TextEditSession {
+        ann_id: "halo".into(),
+        buffer: ecrit.into(),
+        selection: glucose_core::text::Selection::at(ecrit.len()),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible: true,
+    };
+    let pendant = lueurs_des_deux_voies(&store, &trousse, Some(&saisie));
+
+    // La validation : le texte s'écrit, et la hauteur qu'il pousse avec lui.
+    let haute =
+        crate::renderer::card::text_card_fit_height(&trousse.typo, &trousse.math, ecrit, 240.0);
+    assert!(haute > 120.0, "le texte doit pousser la carte : {haute}");
+    let mut validee = sized_card(Some(240.0), Some(haute));
+    if let Annotation::Text { text, .. } = &mut validee {
+        *text = ecrit.into();
+    }
+    let mut apres = Store::new("validee");
+    let board = apres.project.active_board_id.clone();
+    apres.add_annotation(&board, validee);
+    let apres = lueurs_des_deux_voies(&apres, &trousse, None);
+
+    assert_eq!(pendant.1, apres.1, "la boîte que la carte graphique pose");
+    assert!(
+        pendant.0 == apres.0,
+        "les pixels du processeur : la lueur pendant la saisie n'est pas celle de la carte validée"
+    );
+}
+
+/// Ce que les deux entrées du rendu font de l'application telle qu'elle est — sa saisie en
+/// cours comprise : l'image du processeur ([`crate::renderer::Renderer::render`]) et les lueurs
+/// que la voie graphique confie ([`crate::renderer::Renderer::rendre_les_couches`]).
+fn rendus_de_l_application(
+    app: &mut crate::app::GlucoseApp,
+) -> (Pixmap, Vec<crate::present::lueurs_gpu::Lueur>) {
+    let (l, h) = (1200, 800);
+    let overlay = crate::params::SceneOverlay {
+        editing: app.editing_session.as_ref(),
+        ..crate::params::SceneOverlay::sans_rien(&app.active_guides)
+    };
+    let pointeur = crate::params::Pointer { x: 0.0, y: 0.0 };
+    let mut image = Pixmap::new(l, h).expect("pixmap");
+    app.renderer.render(
+        &mut image.as_mut(),
+        &app.store,
+        &mut app.ui,
+        overlay,
+        pointeur,
+        crate::renderer::Regard::immobile(),
+    );
+    let (mut dessous, mut dessus) = (
+        Pixmap::new(l, h).expect("pixmap"),
+        Pixmap::new(l, h).expect("pixmap"),
+    );
+    let confie = app.renderer.rendre_les_couches(
+        &mut dessous.as_mut(),
+        &mut dessus.as_mut(),
+        &app.store,
+        (&mut app.ui, pointeur),
+        overlay,
+        crate::renderer::Regard::immobile(),
+    );
+    (image, confie.lueurs)
+}
+
+/// **La même chose par les entrées du rendu**, celles que Glucose emploie à chaque image : une
+/// épreuve qui appelle la lueur directement ne verrait pas une saisie oubliée en chemin.
+///
+/// Une saisie s'ouvre dans une vraie application, sur un texte court ; le texte qu'on écrit fait
+/// grandir la carte. On rend, on valide, on rend encore. La voie graphique confie la même lueur ;
+/// le processeur peint les mêmes pixels **autour** de la carte — dedans, le curseur et le mode
+/// d'édition changent ce qui s'y lit, et c'est voulu (MODE-1).
+#[test]
+fn test_la_lueur_suit_la_saisie_par_les_entrees_du_rendu() {
+    const VUE: (f64, f64) = (200.0, 150.0);
+    let mut app = crate::app::GlucoseApp::new();
+    let tableau = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+        b.folders.clear();
+    }
+    app.store.set_viewport(
+        &tableau,
+        Viewport {
+            scale: 1.0,
+            x: VUE.0,
+            y: VUE.1,
+        },
+    );
+    let mut carte = Annotation::text("t", 0.0, 0.0, "court");
+    if let Annotation::Text { width, height, .. } = &mut carte {
+        (*width, *height) = (Some(240.0), Some(60.0));
+    }
+    app.store.add_annotation(&tableau, carte);
+    app.ui.current_toast = None;
+    let ecrit = "Un texte assez long pour passer a la ligne tout seul et voir le contour, puis \
+                 encore une ligne, et une autre, pour que la carte grandisse vraiment.";
+    app.start_text_edit("t".into(), ecrit.into());
+    let pendant = rendus_de_l_application(&mut app);
+    app.commit_editing();
+    let apres = rendus_de_l_application(&mut app);
+
+    let boite = app
+        .store
+        .active_board()
+        .and_then(|b| b.annotations.first())
+        .and_then(Annotation::rect)
+        .expect("la carte validée");
+    assert!(
+        boite.height > 120.0,
+        "le texte a poussé la carte : {}",
+        boite.height
+    );
+    assert_eq!(pendant.1, apres.1, "la lueur que la voie graphique pose");
+
+    // Autour de la carte : au-delà de son anneau et de ses poignées, en deçà de la portée de sa
+    // lueur.
+    let (x0, y0) = (boite.left + VUE.0, boite.top + VUE.1);
+    let (x1, y1) = (x0 + boite.width, y0 + boite.height);
+    let (anneau, portee) = (8.0, 60.0);
+    let mut ecarts = 0;
+    for (i, (a, b)) in pendant.0.pixels().iter().zip(apres.0.pixels()).enumerate() {
+        let (x, y) = ((i % 1200) as f64, (i / 1200) as f64);
+        let autour = x > x0 - portee && x < x1 + portee && y > y0 - portee && y < y1 + portee;
+        let dedans = x > x0 - anneau && x < x1 + anneau && y > y0 - anneau && y < y1 + anneau;
+        ecarts += usize::from(autour && !dedans && a != b);
+    }
+    assert_eq!(
+        ecarts, 0,
+        "pixels autour de la carte qui changent à la validation"
     );
 }

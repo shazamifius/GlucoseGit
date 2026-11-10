@@ -59,6 +59,12 @@ mod glisser_windows;
 pub mod pave_wayland;
 #[cfg(windows)]
 mod pave_windows;
+/// La table des types de la sélection, commune à X11 et à Wayland (fiche 100).
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+mod selection_unix;
+/// Le presse-papiers et le glisser-déposer de Wayland, servis par Glucose (fiche 100).
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+mod selection_wayland;
 #[cfg(windows)]
 pub mod selection_windows;
 #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
@@ -112,8 +118,9 @@ pub fn envoyer(url: &str, verbe: Verbe, corps: &[u8]) -> Result<u16, String> {
 /// **Glisse la sélection hors de cette fenêtre** (fiche 51 § 2), sous toutes ses formes
 /// (COPIER-1) — le lot pour Glucose, les images en fichiers pour tout le reste —, jusqu'au
 /// lâcher : rend vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine
-/// pendant le geste. Sous Windows seulement, comme la cible : ailleurs, le glisser de `winit`
-/// ne sait porter que des fichiers, et rien ne part.
+/// pendant le geste. Sous Windows, et sous Wayland par le pont du presse-papiers (fiche 100) —
+/// où le compositeur mène le glisser et rend la main aussitôt : vrai y dit « parti ». Ailleurs,
+/// le glisser de `winit` ne sait porter que des fichiers, et rien ne part.
 pub fn glisser_la_selection(
     fenetre: &winit::window::Window,
     formes: crate::interactions::clipboard::Formes,
@@ -127,11 +134,30 @@ pub fn glisser_la_selection(
         };
         glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, formes)
     }
+    // Sous Wayland, le pont du presse-papiers glisse aussi (fiche 100).
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    if selection_wayland::actif() {
+        use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let poignee = fenetre.window_handle().map_err(|e| e.to_string())?;
+        let RawWindowHandle::Wayland(w) = poignee.as_raw() else {
+            return Ok(false);
+        };
+        return selection_wayland::glisser(w.surface, formes).map(|()| true);
+    }
     #[cfg(not(windows))]
     {
         let _ = (fenetre, formes);
         Ok(false)
     }
+}
+
+/// **Un glisser sait-il partir vers une autre fenêtre ?** Sous Windows, toujours ; sous Wayland,
+/// quand le pont du presse-papiers est posé (fiche 100) ; ailleurs, pas encore.
+pub fn sait_glisser_dehors() -> bool {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    return selection_wayland::actif();
+    #[cfg(not(all(unix, not(any(target_os = "macos", target_os = "android")))))]
+    cfg!(windows)
 }
 
 /// **Le nom sous lequel Glucose se présente.**
@@ -274,9 +300,37 @@ pub fn installer_le_pave(
     None
 }
 
+/// **Sous Wayland, le pont du presse-papiers et du dépôt** (fiche 100) : `winit` 0.30 n'y transmet
+/// aucun glisser-déposer, et le presse-papiers de X11 n'y arrive que si le bureau le relaie — niri
+/// ne le fait pas. Sous X11, `winit` garde son dépôt de fichiers, et le presse-papiers reste celui de
+/// X11.
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+fn poser_le_pont(
+    fenetre: &std::sync::Arc<winit::window::Window>,
+    vers: std::sync::mpsc::Sender<Depot>,
+    reveil: Reveil,
+) -> bool {
+    use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
+    let Ok(poignee) = fenetre.display_handle() else {
+        return false;
+    };
+    let RawDisplayHandle::Wayland(w) = poignee.as_raw() else {
+        return false;
+    };
+    let pour_l_echelle = std::sync::Arc::clone(fenetre);
+    let facteur = Box::new(move || pour_l_echelle.scale_factor());
+    match selection_wayland::installer(w.display, facteur, (vers, reveil)) {
+        Ok(()) => true,
+        Err(raison) => {
+            crate::dire!("[Glucose] presse-papiers : le pont de Wayland n'est pas pris : {raison}");
+            false
+        }
+    }
+}
+
 /// Sur une plateforme sans pont, il n'y a rien à poser et rien à dire. Android a le sien :
 /// la boîte des partages ([`partage`]).
-#[cfg(not(any(windows, target_os = "android")))]
+#[cfg(target_os = "macos")]
 fn poser_le_pont(
     _fenetre: &winit::window::Window,
     _vers: std::sync::mpsc::Sender<Depot>,

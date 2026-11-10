@@ -19,7 +19,7 @@ use glucose_core::store::Store;
 /// **Écrit la lueur de chaque carte visible.**
 pub(in crate::renderer) fn lueurs_en_svg(
     hue_cache: &mut SymbioticHueCache,
-    (store, pass): (&Store, ViewPass<'_>),
+    (store, pass, kit): (&Store, ViewPass<'_>, crate::renderer::PaintKit<'_>),
     taille: (u32, u32),
     svg: &mut Svg,
 ) {
@@ -30,7 +30,12 @@ pub(in crate::renderer) fn lueurs_en_svg(
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         // Un export n'a rien de désigné : la même loi rend chaque lueur au repos.
         let eclat = Eclat::de(ann, &[]);
-        let Some(halo) = halo_geometry(ann, (&pass.vp, pass.echelle()), ecran, eclat) else {
+        // La boîte que la carte montre, comme au canevas (fiche 100) ; un export n'édite rien.
+        let mesure = (kit.typography, kit.math, kit.mises_en_page);
+        let Some(boite) = crate::renderer::card::boite_montree(mesure, ann, None) else {
+            continue;
+        };
+        let Some(halo) = halo_geometry(boite, (&pass.vp, pass.echelle()), ecran, eclat) else {
             continue;
         };
         let (_, rgb) = hue_cache.get_or_compute(ann, pass.index, board);

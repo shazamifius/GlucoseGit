@@ -138,7 +138,6 @@ impl SceneGpu {
         let debut = Instant::now();
         if let Some(pixels) = source(&t.cle) {
             tranche.rendu += debut.elapsed();
-            let photo = matches!(pixels, super::Pixels::Pretes(_));
             let pixels = pixels.vue();
             // **Ce qu'une texture pese vraiment**, en kilopixels. Les chroniques du 21/09
             // montrent UNE texture a dix-neuf millisecondes, ce qu'aucune carte de texte
@@ -146,7 +145,8 @@ impl SceneGpu {
             // seule grandeur qui puisse l'expliquer.
             tranche.surface += f64::from(pixels.width()) * f64::from(pixels.height()) / 1000.0;
             self.televerser(peripherique, envoi, (&t.identite, &t.cle), pixels);
-            if photo {
+            // Ce que la clé montre, et non d'où viennent les pixels (PHOTO-2).
+            if t.cle.est_une_photo() {
                 self.marquer_photo(&t.identite);
             }
             self.debit.noter(surface, debut.elapsed());

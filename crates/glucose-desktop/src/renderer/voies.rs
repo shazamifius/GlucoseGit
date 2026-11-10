@@ -15,7 +15,7 @@ use super::{
 };
 use crate::params::ViewPass;
 use crate::params::{Pointer, SceneOverlay};
-use crate::renderer::Cadrage;
+use crate::renderer::{Cadrage, TextEditSession};
 use crate::ui::UiState;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
@@ -117,7 +117,12 @@ pub(super) fn dessiner_sur_les_photos(
     // 5 bis. Les lueurs des cartes, devant les photos et sous les cartes (LUEUR-3). Sur la
     // voie graphique, la carte les pose au meme rang, entre ses photos et ses cartes.
     if cadrage.couche.porte_le_fond() {
-        halo::draw_halos(hue_cache, pixmap, store, (pass, overlay.designees));
+        halo::draw_halos(
+            hue_cache,
+            pixmap,
+            (store, kit),
+            (pass, overlay.designees, overlay.editing),
+        );
         crate::perf::stage("halos");
     }
     // 6. Annotations (cartes de texte, pense-betes, fleches + edition in-place). Sur la voie
@@ -258,10 +263,13 @@ pub(super) fn fond_a_peindre(
 /// périmées ; c'est exactement le piège qui a fait disparaître les poignées quand la pose des
 /// photos est descendue sur la carte (fiche 21). Le calcul reste donc ici, au même endroit du
 /// même parcours.
+///
+/// Chaque lueur épouse sa carte telle qu'elle se montre ([`super::card::boite_montree`]) — celle
+/// qu'on édite comprise, qui a grandi avant que le document ne l'apprenne (fiche 100).
 pub(super) fn lueurs_a_poser(
     hue_cache: &mut SymbioticHueCache,
-    store: &Store,
-    (pass, designees): (ViewPass<'_>, &[(String, f32)]),
+    (store, kit): (&Store, PaintKit<'_>),
+    (pass, designees, edition): (ViewPass<'_>, &[(String, f32)], Option<&TextEditSession>),
     ecran: (f32, f32),
 ) -> Vec<crate::present::lueurs_gpu::Lueur> {
     let Some(board) = store.active_board() else {
@@ -271,7 +279,12 @@ pub(super) fn lueurs_a_poser(
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let eclat = halo::Eclat::de(ann, designees);
         let cadre = (ecran.0, ecran.1, pass.header_h);
-        let Some(boite) = halo::halo_geometry(ann, (&pass.vp, pass.echelle()), cadre, eclat) else {
+        let mesure = (kit.typography, kit.math, kit.mises_en_page);
+        let Some(montree) = super::card::boite_montree(mesure, ann, edition) else {
+            continue;
+        };
+        let Some(boite) = halo::halo_geometry(montree, (&pass.vp, pass.echelle()), cadre, eclat)
+        else {
             continue;
         };
         let (_hue, teinte) = hue_cache.get_or_compute(ann, pass.index, board);
@@ -396,7 +409,19 @@ impl Renderer {
             densite,
         };
         let ecran = (taille.0 as f32, taille.1 as f32);
-        let lueurs = lueurs_a_poser(&mut self.hue_cache, store, (pass, overlay.designees), ecran);
+        let kit = PaintKit {
+            typography: &self.typography,
+            math: &self.math,
+            mises_en_page: &self.mises_en_page,
+            tints: &self.domain_tints,
+            theme: &self.theme,
+        };
+        let lueurs = lueurs_a_poser(
+            &mut self.hue_cache,
+            (store, kit),
+            (pass, overlay.designees, edition),
+            ecran,
+        );
         crate::perf::stage("lueurs");
         let membranes = scene::formes_des_membranes(store, pass, taille);
         let zones = premier_rang(store, pass, ecran);
@@ -411,13 +436,6 @@ impl Renderer {
         // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
         // tous : deux composants voisins se rendent au meme palier.
         let regime = super::composants::Regime::de((vp, densite), regard, taille, header_h);
-        let kit = PaintKit {
-            typography: &self.typography,
-            math: &self.math,
-            mises_en_page: &self.mises_en_page,
-            tints: &self.domain_tints,
-            theme: &self.theme,
-        };
         let (des_photos, lot, lot_propose) = photos_de_l_image(
             (&regime, kit),
             (&mut self.lot, &mut self.magasin, &mut self.carte),

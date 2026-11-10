@@ -63,6 +63,21 @@
 //! que prolonger des images irrégulières. Descendre l'attend, parce que « pas de raté » ne se
 //! conclut qu'après avoir regardé.
 //!
+//! # Jamais au-dessus du plancher de la charte (fiche 100)
+//!
+//! Ce module a été réglé sur un écran à 240 Hz, où deux, trois ou huit balayages par image
+//! donnaient encore 120, 80 ou 30 images par seconde. Sur un écran à 60 Hz, **un** cran de
+//! plus divise la cadence par deux : sa session du 9/11 sous niri a passé 99 % de ses images
+//! en mouvement à deux balayages — trente images par seconde, ce qu'il a décrit comme « plein
+//! de micro-freezes » — pour une image qui en coûtait dix millisecondes, et qui tenait donc dans
+//! un seul. Une rafale de textures au début d'un geste suffisait à faire monter `k`, et deux
+//! cents images ne suffisaient pas à le faire redescendre.
+//!
+//! La charte tranche : « si on est en dessous, alors go pixeliser » — **c'est la finesse qui
+//! cède, jamais la cadence**. `k` ne dépasse donc jamais le plus grand nombre de balayages qui
+//! tienne le plancher, celui que la finesse vise déjà ([`Tempo::cible_pour_descendre`]) : deux à
+//! 240 Hz, un seul à 60. Au-delà, une image qui rate se voit une fois, et la finesse descend.
+//!
 //! # Ce que l'attente coûte, et ce qu'elle rapporte
 //!
 //! Elle ajoute de la latence : à `k = 2` et 4,87 ms de rendu, l'image attend 3,5 ms avant de
@@ -127,9 +142,16 @@ impl Tempo {
         }
     }
 
-    /// Accorde le tempo à l'écran.
+    /// Accorde le tempo à l'écran — et le ramène sous le plancher, si l'écran a changé.
     pub fn accorder(&mut self, periode: Duration) {
         self.periode = periode;
+        self.balayages = self.balayages.min(self.plafond());
+    }
+
+    /// **Le cran le plus haut que le tempo s'autorise** : le plancher de la charte, jamais
+    /// au-delà (fiche 100).
+    fn plafond(&self) -> u32 {
+        self.crans_sous_le_plancher().unwrap_or(1)
     }
 
     /// Combien de balayages chaque image occupe en ce moment.
@@ -229,7 +251,9 @@ impl Tempo {
     /// l'échantillon si, un cran plus bas, ils seraient restés en dessous.
     fn decider(&mut self) {
         if self.rates > UNE_FREQUENCE {
-            self.balayages += 1;
+            if self.balayages < self.plafond() {
+                self.balayages += 1;
+            }
             self.nouvel_echantillon();
             return;
         }

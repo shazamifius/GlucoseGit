@@ -79,7 +79,8 @@ use formats::{dire_les_formats, format_enregistre, offre, tirer, Bloc};
 use super::moisson::{self, Depot, Moisson, Recu};
 use std::sync::mpsc::Sender;
 use windows::core::{implement, Interface, Ref, Result as WinResult};
-use windows::Win32::Foundation::{DRAGDROP_E_ALREADYREGISTERED, HWND, POINTL};
+use windows::Win32::Foundation::{DRAGDROP_E_ALREADYREGISTERED, HWND, POINT, POINTL};
+use windows::Win32::Graphics::Gdi::ScreenToClient;
 use windows::Win32::System::Com::{
     IDataObject, ISequentialStream, IStream, TYMED, TYMED_HGLOBAL, TYMED_ISTREAM,
 };
@@ -108,7 +109,12 @@ const TRANCHE: usize = 64 * 1024;
 /// d'événements — c'est lui qui a initialisé OLE, et c'est lui qui appellera la cible.
 pub fn installer(hwnd: isize, vers: Sender<Depot>, reveil: super::Reveil) -> bool {
     let fenetre = HWND(hwnd as *mut core::ffi::c_void);
-    let cible: IDropTarget = Cible { vers, reveil }.into();
+    let cible: IDropTarget = Cible {
+        vers,
+        reveil,
+        fenetre: hwnd,
+    }
+    .into();
     unsafe {
         // **On tente d'abord, on révoque ensuite**, et cet ordre est ce qui rend l'échec sûr.
         //
@@ -154,6 +160,8 @@ struct Cible {
     vers: Sender<Depot>,
     /// De quoi la réveiller quand une image rapatriée arrive après coup.
     reveil: super::Reveil,
+    /// La fenêtre : la moisson dit où l'on a lâché dans **ses** pixels (fiche 100).
+    fenetre: isize,
 }
 
 #[allow(non_snake_case)]
@@ -204,8 +212,12 @@ impl IDropTarget_Impl for Cible_Impl {
             return Ok(());
         };
         let (mut recolte, sorte) = recolter(objet);
-        // `POINTL` est en pixels de l'écran ; la fenêtre les convertira en pixels à elle.
-        recolte.ou = Some((f64::from(ou.x), f64::from(ou.y)));
+        // `POINTL` est en pixels de l'écran ; la moisson porte ceux de la fenêtre, comme sous
+        // Wayland (fiche 100) — l'application n'a qu'une grandeur à lire.
+        let mut point = POINT { x: ou.x, y: ou.y };
+        // SAFETY : la fenêtre de cette cible vit autant qu'elle ; `point` vit pendant l'appel.
+        let _ = unsafe { ScreenToClient(HWND(self.this.fenetre as *mut _), &mut point) };
+        recolte.ou = Some((f64::from(point.x), f64::from(point.y)));
         if let Sorte::Repli = sorte {
             let adresses = adresses_a_rapatrier(objet, &recolte);
             dire_le_repli(&adresses, &recolte);

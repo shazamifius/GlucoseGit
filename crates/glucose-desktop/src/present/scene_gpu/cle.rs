@@ -27,6 +27,14 @@ pub enum Cle {
 }
 
 impl Cle {
+    /// **Ce que cette clé montre est-il une photo ?** Un niveau prêté par le magasin, celui de la
+    /// photo ou de son repli (PHOTO-2). Ce qui arrive tout prêt sans en être un — la chrome — n'en
+    /// est pas : la minimap se comptait parmi les photos posées (ETAGES-3), parce que ses pixels
+    /// arrivaient prêts comme ceux du magasin.
+    pub fn est_une_photo(&self) -> bool {
+        matches!(self, Self::Niveau(..))
+    }
+
     /// Le nom de ce qui en a un.
     pub fn nom(&self) -> Option<&str> {
         match self {

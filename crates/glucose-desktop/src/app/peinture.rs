@@ -96,26 +96,6 @@ impl GlucoseApp {
             .filter(|_| !self.la_carte_pose_les_photos())
     }
 
-    /// Attend l'instant que le tempo fixe pour cette image, en faisant avancer le travail de
-    /// fond pendant ce temps.
-    ///
-    /// # Pourquoi l'attente est ici, apres le rendu, et non avant
-    ///
-    /// Attendre avant de rendre reduirait la latence -- l'image montrerait un etat plus
-    /// recent -- mais demanderait de savoir combien le rendu va couter, et un rendu plus long
-    /// que prevu raterait le balayage. Attendre apres ne rate jamais : l'image est la, on
-    /// sait exactement combien de temps il reste. La regularite passe avant la latence, parce
-    /// que c'est elle qui se voit.
-    ///
-    /// Le temps d'attente n'est pas perdu : l'atelier y avance (CASCADE-1), et c'est la que
-    /// Ce que l'oeil et la main font en ce moment, pour le rendu.
-    fn regard(&self) -> crate::renderer::Regard {
-        crate::renderer::Regard {
-            degradation_permise: self.perception.autorise_a_degrader(),
-            en_mouvement: self.la_vue_bouge(),
-        }
-    }
-
     /// Redessine ce qui doit l'etre, et rien de plus. Ne presente pas.
     ///
     /// Le tampon est **sorti** de l'application le temps de la peinture : sans cela, peindre

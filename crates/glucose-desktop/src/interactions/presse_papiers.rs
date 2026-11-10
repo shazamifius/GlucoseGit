@@ -53,10 +53,11 @@ pub struct Pixels {
     pub bytes: Vec<u8>,
 }
 
-/// Un presse-papiers ouvert.
+/// Un presse-papiers ouvert : celui du système passe par sa porte
+/// ([`crate::plateforme::presse_papiers`] — Wayland, X11, Windows ou macOS, elle choisit).
 pub enum Acces {
     #[cfg(not(target_os = "android"))]
-    Systeme(arboard::Clipboard),
+    Systeme,
     ASoi,
 }
 
@@ -65,9 +66,7 @@ pub enum Acces {
 pub fn ouvrir() -> Result<Acces, String> {
     #[cfg(not(target_os = "android"))]
     if DU_SYSTEME.load(Ordering::Relaxed) {
-        return arboard::Clipboard::new()
-            .map(Acces::Systeme)
-            .map_err(|e| e.to_string());
+        return crate::plateforme::presse_papiers::disponible().map(|()| Acces::Systeme);
     }
     Ok(Acces::ASoi)
 }
@@ -77,7 +76,7 @@ impl Acces {
     pub fn texte(&mut self) -> Result<String, String> {
         match self {
             #[cfg(not(target_os = "android"))]
-            Acces::Systeme(c) => c.get_text().map_err(|e| e.to_string()),
+            Acces::Systeme => crate::plateforme::presse_papiers::lire_le_texte(),
             Acces::ASoi => A_SOI.with(|c| c.borrow().texte.clone().ok_or_else(|| RIEN.into())),
         }
     }
@@ -86,14 +85,7 @@ impl Acces {
     pub fn image(&mut self) -> Result<Pixels, String> {
         match self {
             #[cfg(not(target_os = "android"))]
-            Acces::Systeme(c) => c
-                .get_image()
-                .map(|i| Pixels {
-                    width: i.width,
-                    height: i.height,
-                    bytes: i.bytes.into_owned(),
-                })
-                .map_err(|e| e.to_string()),
+            Acces::Systeme => crate::plateforme::presse_papiers::lire_l_image(),
             Acces::ASoi => {
                 let png = A_SOI.with(|c| c.borrow().image.clone()).ok_or(RIEN)?;
                 let pixels = image::load_from_memory(&png)
@@ -112,7 +104,7 @@ impl Acces {
     pub fn ecrire(&mut self, texte: String) -> Result<(), String> {
         match self {
             #[cfg(not(target_os = "android"))]
-            Acces::Systeme(c) => c.set_text(texte).map_err(|e| e.to_string()),
+            Acces::Systeme => crate::plateforme::presse_papiers::ecrire_le_texte(texte),
             Acces::ASoi => {
                 A_SOI.with(|c| {
                     *c.borrow_mut() = Contenu {
@@ -134,7 +126,7 @@ impl Acces {
     ) -> Result<(), String> {
         match self {
             #[cfg(not(target_os = "android"))]
-            Acces::Systeme(_) => crate::plateforme::presse_papiers::ecrire_la_selection(formes),
+            Acces::Systeme => crate::plateforme::presse_papiers::ecrire_la_selection(formes),
             Acces::ASoi => {
                 A_SOI.with(|c| {
                     *c.borrow_mut() = Contenu {
@@ -148,11 +140,21 @@ impl Acces {
         }
     }
 
+    /// **Les fichiers qu'il porte**, copiés dans un gestionnaire de fichiers (fiche 100) : un
+    /// `Ctrl+V` les pose comme s'ils étaient déposés. Celui d'une épreuve n'en porte jamais.
+    pub fn fichiers(&mut self) -> Vec<std::path::PathBuf> {
+        match self {
+            #[cfg(not(target_os = "android"))]
+            Acces::Systeme => crate::plateforme::presse_papiers::lire_les_fichiers(),
+            Acces::ASoi => Vec::new(),
+        }
+    }
+
     /// Le lot de nœuds qu'il porte, s'il en porte un — à lire sur le fil du collage.
     pub fn lot(&mut self) -> Option<crate::plateforme::presse_papiers::LotALire> {
         match self {
             #[cfg(not(target_os = "android"))]
-            Acces::Systeme(_) => crate::plateforme::presse_papiers::lire_un_lot(),
+            Acces::Systeme => crate::plateforme::presse_papiers::lire_un_lot(),
             Acces::ASoi => A_SOI
                 .with(|c| c.borrow().lot.clone())
                 .map(crate::plateforme::presse_papiers::lot_deja_la),

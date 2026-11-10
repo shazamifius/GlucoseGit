@@ -144,6 +144,37 @@ pub fn text_card_fit_height(
     CardLayout::text_card(width as f32, 0.0, lines).height as f64
 }
 
+/// **La boîte qu'un texte montre**, en unités monde — ou `None` si ce nœud n'est pas un texte.
+///
+/// Son coin et sa largeur sont ceux du document ; sa hauteur est celle que son texte pousse
+/// ([`CardLayout::text_card`]). Pendant une saisie, c'est le texte qu'on écrit, coupé comme on
+/// l'édite (MODE-1), et le document ne l'apprend qu'à la validation (TEXT-FIT-1) : le nœud se
+/// dessine déjà à cette hauteur, ses poignées et son anneau aussi.
+///
+/// Sa lueur la lit ici. Elle lisait le document, et gardait pendant toute la saisie la hauteur
+/// d'avant : dès qu'une ligne s'ajoutait, son arrondi, plus serré que celui du nœud, sortait
+/// du contour blanc en haut à gauche (son essai du 9/11 sous niri, fiche 100).
+pub(crate) fn boite_montree(
+    (typographie, math, mises_en_page): (&Typography, &MathRenderer, &MisesEnPage),
+    ann: &glucose_core::types::Annotation,
+    edition: Option<&TextEditSession>,
+) -> Option<glucose_core::geometry::Rect> {
+    let glucose_core::types::Annotation::Text { text, .. } = ann else {
+        return None;
+    };
+    let mut boite = ann.rect()?;
+    let (corps, mode) = match edition.filter(|e| e.ann_id == ann.id()) {
+        Some(e) => (e.buffer.as_str(), TextMode::Source),
+        None => (text.as_str(), TextMode::Rendered),
+    };
+    let largeur = boite.width as f32;
+    let lignes = mises_en_page
+        .de((typographie, math), corps, largeur, mode)
+        .line_count();
+    boite.height = f64::from(CardLayout::text_card(largeur, boite.height as f32, lignes).height);
+    Some(boite)
+}
+
 /// Le décalage du texte depuis le coin haut-gauche de la carte, en unités monde.
 ///
 /// La souris et le clavier en ont besoin pour rapporter un point à la mise en page ; il est

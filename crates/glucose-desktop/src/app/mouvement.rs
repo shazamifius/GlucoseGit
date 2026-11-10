@@ -9,6 +9,15 @@
 use super::GlucoseApp;
 use tiny_skia::Pixmap;
 
+/// **Ce que la vue a été** : à l'image précédente, pour mesurer de combien elle bouge ; à la
+/// dernière image au repos, pour reconnaître un geste qui n'en est qu'une translation entière —
+/// il garde alors les textures du repos (fiche 100, [`crate::renderer::Regard::translation_entiere`]).
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct VuesRetenues {
+    precedente: Option<glucose_core::types::Viewport>,
+    repos: Option<glucose_core::types::Viewport>,
+}
+
 impl GlucoseApp {
     /// Accorde le tampon de la scene reduite au palier courant. Rend vrai s'il a change.
     ///
@@ -107,7 +116,7 @@ impl GlucoseApp {
         // déplacement du centre de l'écran — un glissement uniforme, que la poursuite annule
         // — et sa part **linéaire** est le zoom, qui écarte le contenu radialement et
         // qu'aucune poursuite ne peut suivre ailleurs qu'au point fixe.
-        let (deplacement, zoom) = match (self.vue_precedente, dt > 0.0) {
+        let (deplacement, zoom) = match (self.vues.precedente, dt > 0.0) {
             (Some(avant), true) => {
                 let centre = (ecran.width / 2.0, ecran.height / 2.0);
                 let monde = (
@@ -124,7 +133,10 @@ impl GlucoseApp {
             // Première image, ou durée nulle : on ne sait rien, donc on ne dégrade rien.
             _ => (0.0, 0.0),
         };
-        self.vue_precedente = Some(vue);
+        self.vues.precedente = Some(vue);
+        if !self.la_vue_bouge() {
+            self.vues.repos = Some(vue);
+        }
         // La vue s'est immobilisee : le geste est fini, et le prochain pourra venir d'une
         // autre source. C'est le seul instant ou l'oubli est sur, et il ne coute aucune
         // constante de temps.
@@ -159,6 +171,27 @@ impl GlucoseApp {
     /// mouvement. Un vol compte au meme titre : la vue change sous l'oeil.
     pub(super) fn la_vue_bouge(&self) -> bool {
         self.elan.bouge() || self.vol.en_cours()
+    }
+
+    /// Ce que l'oeil et la main font en ce moment, pour le rendu.
+    pub(crate) fn regard(&self) -> crate::renderer::Regard {
+        let en_mouvement = self.la_vue_bouge();
+        crate::renderer::Regard {
+            degradation_permise: self.perception.autorise_a_degrader(),
+            en_mouvement,
+            translation_entiere: self.translation_entiere_du_repos().filter(|_| en_mouvement),
+        }
+    }
+
+    /// **La vue n'est-elle qu'une translation entière de celle du repos ?** Même échelle, et
+    /// un déplacement d'un nombre entier de pixels sur chaque axe : la souris avance ainsi
+    /// (fiche 100, [`crate::interactions::elan`]).
+    fn translation_entiere_du_repos(&self) -> Option<(i64, i64)> {
+        let (repos, tableau) = (self.vues.repos?, self.store.active_board()?);
+        let vue = tableau.viewport;
+        let (dx, dy) = (vue.x - repos.x, vue.y - repos.y);
+        (vue.scale == repos.scale && dx.fract() == 0.0 && dy.fract() == 0.0)
+            .then_some((dx as i64, dy as i64))
     }
 
     /// Ce que cette image a coute decide de la finesse de la suivante.

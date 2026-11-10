@@ -184,6 +184,15 @@ impl GlucoseApp {
                     return;
                 }
 
+                // 1 bis. Des fichiers copiés dans un gestionnaire de fichiers (fiche 100) : ils se
+                // posent sous le curseur comme s'ils y étaient déposés — une image, un texte
+                // lisible, un lanceur —, en un seul geste.
+                let fichiers = clipboard.fichiers();
+                if !fichiers.is_empty() {
+                    self.deposer(&fichiers, Vec::new(), &[], (wx, wy), None);
+                    return;
+                }
+
                 // 2. Tenter de coller du texte ou un chemin de fichier
                 if let Ok(text) = clipboard.texte() {
                     let trimmed = text.trim();

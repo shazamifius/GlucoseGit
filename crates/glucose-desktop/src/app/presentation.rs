@@ -17,6 +17,18 @@
 use super::GlucoseApp;
 
 impl GlucoseApp {
+    /// Attend l'instant que le tempo fixe pour cette image, en faisant avancer le travail de
+    /// fond pendant ce temps.
+    ///
+    /// # Pourquoi l'attente est ici, apres le rendu, et non avant
+    ///
+    /// Attendre avant de rendre reduirait la latence -- l'image montrerait un etat plus
+    /// recent -- mais demanderait de savoir combien le rendu va couter, et un rendu plus long
+    /// que prevu raterait le balayage. Attendre apres ne rate jamais : l'image est la, on
+    /// sait exactement combien de temps il reste. La regularite passe avant la latence, parce
+    /// que c'est elle qui se voit.
+    ///
+    /// Le temps d'attente n'est pas perdu : l'atelier y avance (CASCADE-1), et c'est la que
     /// l'arbre de possibilites preparera les tuiles de la trajectoire (fiche 18, etape 3).
     pub(super) fn attendre_l_heure_de_soumettre(&mut self) {
         // Le tempo ne regle que ce qui BOUGE : c'est la seule situation ou un intervalle
@@ -68,14 +80,6 @@ impl GlucoseApp {
         crate::perf::stage("tempo");
     }
 
-    /// Met l'image a l'ecran, et note l'instant ou elle y arrive (RYTHME-1).
-    ///
-    /// # Pourquoi la mesure se prend ICI et nulle part ailleurs
-    ///
-    /// C'est le seul instant de la boucle qui corresponde a quelque chose que l'oeil recoive.
-    /// Le debut du rendu, sa fin, le reveil de la boucle sont des faits internes : deux
-    /// d'entre eux peuvent varier du simple au decuple sans que l'ecran change de rythme, et
-    /// inversement. Toute la chronique a mesure ces faits internes, et c'est pourquoi elle ne
     /// **Ce que la surface a fait de l'image qu'on lui a donnée**, noté et, s'il le faut,
     /// redemandé.
     ///
@@ -116,6 +120,14 @@ impl GlucoseApp {
         }
     }
 
+    /// Met l'image a l'ecran, et note l'instant ou elle y arrive (RYTHME-1).
+    ///
+    /// # Pourquoi la mesure se prend ICI et nulle part ailleurs
+    ///
+    /// C'est le seul instant de la boucle qui corresponde a quelque chose que l'oeil recoive.
+    /// Le debut du rendu, sa fin, le reveil de la boucle sont des faits internes : deux
+    /// d'entre eux peuvent varier du simple au decuple sans que l'ecran change de rythme, et
+    /// inversement. Toute la chronique a mesure ces faits internes, et c'est pourquoi elle ne
     /// pouvait pas voir le tressaut dont l'utilisateur parle depuis des semaines.
     pub(super) fn presenter_et_noter_le_rythme(
         &mut self,

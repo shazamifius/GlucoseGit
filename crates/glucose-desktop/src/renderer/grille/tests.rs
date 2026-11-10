@@ -379,6 +379,7 @@ fn test_aucune_couture_entre_les_tuiles_a_une_echelle_non_dyadique() {
             Cadrage::plein().sous_le_regard(Regard {
                 degradation_permise: false,
                 en_mouvement: true,
+                translation_entiere: None,
             }),
         );
         renderer.magasin.fermer();

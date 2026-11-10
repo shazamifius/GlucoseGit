@@ -889,23 +889,31 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
         fenetre: Pose::TOUT,
         bornes: Pose::PARTOUT,
     };
-    let a_poser = |cle: &str| APoser {
+    let a_poser = |cle: Cle, identite: Cle| APoser {
         repli: None,
-        cle: cle.into(),
-        identite: cle.into(),
+        cle,
+        identite,
         pose,
     };
+    let numero = crate::renderer::magasin::Numero(7);
     let pretee = photo(4, [1, 2, 3, 255]);
-    let demandes = [a_poser("photo"), a_poser("carte")];
+    let minimap = photo(16, [9, 9, 9, 255]);
+    let demandes = [
+        a_poser(Cle::Niveau(numero, 1), Cle::Photo(numero)),
+        a_poser("carte".into(), "carte".into()),
+        a_poser("chrome:minimap".into(), "chrome:minimap".into()),
+    ];
+    // Comme dans `Confie::pixels` : la photo et la chrome arrivent toutes deux prêtes — seule la
+    // clé dit laquelle vient du magasin (PHOTO-2).
     scene.assurer(
         &peripherique,
         &mut envoi,
         (&demandes, &[], std::time::Duration::MAX),
         &|cle| {
-            Some(if cle == "photo" {
-                Pixels::Pretes(pretee.as_ref())
-            } else {
-                Pixels::Rendues(photo(8, [4, 5, 6, 255]))
+            Some(match cle {
+                Cle::Niveau(..) => Pixels::Pretes(pretee.as_ref()),
+                _ if cle == "chrome:minimap" => Pixels::Pretes(minimap.as_ref()),
+                _ => Pixels::Rendues(photo(8, [4, 5, 6, 255])),
             })
         },
     );
@@ -913,7 +921,7 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
     assert_eq!(
         scene.octets_des_photos_posees(),
         4 * 4 * 4,
-        "la photo, et pas la carte de texte"
+        "la photo, ni la carte de texte ni la minimap (PHOTO-2)"
     );
     scene.ouvrir();
     assert_eq!(
@@ -1593,6 +1601,23 @@ fn test_lot_1_une_photo_du_lot_qui_part_le_defait() {
     scene.oublier_la_texture(&ailleurs);
     assert_eq!(scene.lot_en_place(), Some(1), "elle n'était pas à l'écran");
 
+    // **Une photo vue à cette image, mais qui n'est pas du lot** — le repli gardé d'une photo
+    // du lot, la minimap qui change pendant un déplacement — ne le défait pas (LOT-2).
+    let a_cote = Cle::from("à l'écran, hors du lot");
+    scene.televerser(
+        &peripherique,
+        &mut envoi,
+        (&a_cote, &a_cote),
+        pretee.as_ref(),
+    );
+    scene.marquer_photo(&a_cote);
+    scene.oublier_la_texture(&a_cote);
+    assert_eq!(
+        scene.lot_en_place(),
+        Some(1),
+        "elle n'en faisait pas partie"
+    );
+
     scene.oublier_la_texture(&"a".into());
     assert_eq!(scene.lot_en_place(), None, "elle en faisait partie");
 
@@ -1600,6 +1625,93 @@ fn test_lot_1_une_photo_du_lot_qui_part_le_defait() {
     assert_eq!(scene.lot_en_place(), Some(2));
     scene.rendre(true);
     assert_eq!(scene.lot_en_place(), None, "la carte a tout rendu");
+}
+
+/// **Pendant un déplacement, la minimap change et les photos restent** (LOT-2) : son essai du 9/11
+/// sous niri — au clic molette, toutes les photos disparaissaient une image sur deux. Une image
+/// complète retient le lot ; la suivante le reprend pendant que la minimap se remplace par sa
+/// nouvelle texture, comme dans `Confie::pixels` (prête, et pourtant pas une photo) : elle doit
+/// poser et **dessiner** ses deux photos.
+#[test]
+fn test_lot_2_la_minimap_qui_change_ne_vide_pas_l_image() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let cote = 64;
+    let ecran = (cote as f32, cote as f32);
+    let (na, nb) = (
+        crate::renderer::magasin::Numero(1),
+        crate::renderer::magasin::Numero(2),
+    );
+    let photo_de = |n, x| APoser {
+        repli: None,
+        cle: Cle::Niveau(n, 1),
+        identite: Cle::Photo(n),
+        pose: pose_de(x, 8.0, 16.0, 16.0),
+    };
+    let minimap = |version: &str| APoser {
+        repli: None,
+        cle: Cle::from(format!("chrome:minimap#{version}")),
+        identite: Cle::from("chrome:minimap"),
+        pose: pose_de(40.0, 40.0, 16.0, 16.0),
+    };
+    let (rouge, bleu) = (photo(16, [200, 0, 0, 255]), photo(16, [0, 0, 200, 255]));
+    let gris = photo(16, [50, 50, 50, 255]);
+    let source = |cle: &Cle| {
+        Some(Pixels::Pretes(match cle {
+            Cle::Niveau(n, _) if *n == na => rouge.as_ref(),
+            Cle::Niveau(..) => bleu.as_ref(),
+            _ => gris.as_ref(),
+        }))
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+
+    // L'image complète : les deux photos, puis la minimap ; le lot se propose.
+    let complete = [photo_de(na, 4.0), photo_de(nb, 24.0), minimap("1")];
+    scene.ouvrir();
+    let tout = std::time::Duration::MAX;
+    scene.assurer(&peripherique, &mut envoi, (&complete, &[], tout), &source);
+    scene.preparer_la_vue(&peripherique, &file, ecran, &complete, (None, Some((5, 2))));
+    assert_eq!(scene.lot_en_place(), Some(5), "le lot est retenu");
+
+    // L'image reprise : la vue a glissé, la minimap a changé ; les photos ne sont pas redemandées.
+    let reprise = [minimap("2")];
+    scene.assurer(&peripherique, &mut envoi, (&reprise, &[], tout), &source);
+    assert_eq!(
+        scene.lot_en_place(),
+        Some(5),
+        "la minimap remplacée n'est pas du lot"
+    );
+    let en_place = crate::renderer::voies::LotEnPlace {
+        nombre: 2,
+        similitude: crate::renderer::voies::Similitude::IDENTITE,
+    };
+    let retenues = scene.preparer_la_vue(
+        &peripherique,
+        &file,
+        ecran,
+        &reprise,
+        (Some(en_place), None),
+    );
+    assert_eq!(retenues.len(), 3, "les deux photos du lot, puis la minimap");
+    let octets = dessiner_la_scene(
+        (&peripherique, &file),
+        &mut envoi,
+        (&scene, &retenues),
+        cote,
+    );
+    assert_eq!(
+        pixel(&octets, cote, 12, 16),
+        [200, 0, 0, 255],
+        "la photo rouge"
+    );
+    assert_eq!(
+        pixel(&octets, cote, 32, 16),
+        [0, 0, 200, 255],
+        "la photo bleue"
+    );
 }
 
 /// **Le tampon qui grandit garde le lot** (LOT-1) : sinon, une image où beaucoup de textures

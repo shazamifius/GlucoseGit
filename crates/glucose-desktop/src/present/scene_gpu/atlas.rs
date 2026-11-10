@@ -258,8 +258,9 @@ impl SceneGpu {
         let Some(partie) = self.photos.remove(identite) else {
             return;
         };
-        // Une photo du lot n'est plus là : ses poses ne valent plus rien (LOT-1).
-        if partie.vue == self.image && partie.photo {
+        // Une texture du lot n'est plus là : ses poses ne valent plus rien (LOT-1). Le lot dit
+        // lesquelles sont à lui (LOT-2) : la minimap qui change pendant un déplacement n'en est pas.
+        if self.lot.as_ref().is_some_and(|lot| lot.pose(identite)) {
             self.lot = None;
         }
         if let Some(cellule) = partie.cellule {

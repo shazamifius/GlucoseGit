@@ -95,7 +95,7 @@ impl GlucoseApp {
     /// **Un téléchargement commence** : son marqueur paraît au point de dépôt, et ce point
     /// se fige dans le monde — l'image s'y posera même si la vue bouge d'ici là.
     fn annoncer_l_arrivage(&mut self, numero: u64, ou: Option<(f64, f64)>, hote: String) {
-        let monde = self.drop_origin(self.ecran_vers_client(ou));
+        let monde = self.drop_origin(ou);
         self.depot.en_chemin.push(Arrivage {
             numero,
             monde,
@@ -119,7 +119,7 @@ impl GlucoseApp {
         if self.livrer_une_relance(numero, recolte, annonce.as_ref().map(|a| a.monde)) {
             return;
         }
-        let client = self.ecran_vers_client(recolte.ou);
+        let client = recolte.ou;
         let posees = self.poser_une_moisson(recolte, client, annonce.map(|a| a.monde));
         if let (Some(numero), true) = (numero, recolte.apercu) {
             self.retenir_la_copie(numero, posees.first());
@@ -168,19 +168,6 @@ impl GlucoseApp {
             let y = y as f32;
             y >= self.ui.topbar_height() && y < self.ui.header_height()
         })
-    }
-
-    /// **Les pixels de l'écran, vus depuis le coin de la zone de dessin.**
-    ///
-    /// `IDropTarget` donne la position en pixels de l'écran entier ; `mouse_pos` et tout ce
-    /// qui convertit vers le monde comptent depuis la fenêtre. Sans cette soustraction, une
-    /// image déposée apparaîtrait d'autant plus loin que la fenêtre est basse et à droite —
-    /// un décalage qui ne se voit pas sur une fenêtre maximisée à l'origine de l'écran, et qui
-    /// est le genre de défaut qu'on ne trouve que chez quelqu'un d'autre.
-    fn ecran_vers_client(&self, ecran: Option<(f64, f64)>) -> Option<(f64, f64)> {
-        let (x, y) = ecran?;
-        let coin = self.window.as_ref()?.inner_position().ok()?;
-        Some((x - f64::from(coin.x), y - f64::from(coin.y)))
     }
 }
 

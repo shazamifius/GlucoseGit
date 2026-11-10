@@ -220,6 +220,7 @@ fn main() {
     let en_mouvement = Regard {
         degradation_permise: false,
         en_mouvement: true,
+        translation_entiere: None,
     };
     let proche = rejouer(&mut store, 1.3, en_mouvement);
     println!(
