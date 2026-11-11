@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 25/10/2026** (fiches 63 à 82). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 11/11/2026** (fiches 63 à 104). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
