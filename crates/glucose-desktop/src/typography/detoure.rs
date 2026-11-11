@@ -2,9 +2,7 @@
 //! d'une zone — par un contour de la teinte du fond (R-26), et ce que la fiche 95 en a fait (TITRE-2) :
 //! le halo des huit copies composé une fois, et le trait d'une lettre tracée.
 
-use super::glyph::{
-    self, evict_if_full, split_position, GlyphEntry, PHASE_ORIGIN, SUBPIXEL_PHASES,
-};
+use super::glyph::{self, split_position, GlyphEntry, PHASE_ORIGIN, SUBPIXEL_PHASES};
 use super::{clamp_font_size, trace, Face, TextStyle, Typography};
 use std::rc::Rc;
 use tiny_skia::{Color, PixmapMut};
@@ -100,13 +98,18 @@ impl Typography {
     /// **Le halo de `ch` pour une lettre de cette phase** (TITRE-2) : ses huit copies du
     /// détourage ([`DETOURAGE`]), chacune à sa phase comme n'importe quelle position, composées
     /// une fois et gardées dans le même cache que les lettres — la même éviction les borne.
-    fn halo_variant(&self, ch: char, size: f32, face: Face, phase: u8) -> Rc<GlyphEntry> {
+    pub(super) fn halo_variant(
+        &self,
+        ch: char,
+        size: f32,
+        face: Face,
+        phase: u8,
+    ) -> Rc<GlyphEntry> {
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
         let cle = (face, ch, size_key, glyph::HALO | phase);
-        let access = self.access_counter.get().wrapping_add(1);
-        self.access_counter.set(access);
-        if let Some((entry, dernier)) = self.glyph_cache.borrow_mut().get_mut(&cle) {
-            *dernier = access;
+        let image = self.image.get();
+        if let Some((entry, vue)) = self.glyph_cache.borrow_mut().get_mut(&cle) {
+            *vue = image;
             return entry.clone();
         }
         let n = i32::from(SUBPIXEL_PHASES);
@@ -129,9 +132,9 @@ impl Typography {
             .collect();
         let modele = self.glyph_variant(ch, size, face, PHASE_ORIGIN).metrics;
         let entry = Rc::new(glyph::halo(&copies, &modele));
-        let mut cache = self.glyph_cache.borrow_mut();
-        evict_if_full(&mut cache);
-        cache.insert(cle, (entry.clone(), access));
+        self.glyph_cache
+            .borrow_mut()
+            .insert(cle, (entry.clone(), image));
         entry
     }
 }

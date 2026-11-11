@@ -1,0 +1,162 @@
+[
+ {
+  "nom": "Un début d'image oublie tout",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": ".retain(|_, (_, vue)| *vue == image);",
+  "apres": ".retain(|_, _| false);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Un début d'image n'oublie rien",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": ".retain(|_, (_, vue)| *vue == image);",
+  "apres": ".retain(|_, _| true);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "L'image ne passe jamais",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "        self.image.set(image + 1);\n",
+  "apres": "        self.image.set(image);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Une lettre retrouvée reste de son image d'avant",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "        if let Some((entry, vue)) = cache.get_mut(&(face, ch, size_key, phase)) {\n            *vue = image;\n",
+  "apres": "        if let Some((entry, vue)) = cache.get_mut(&(face, ch, size_key, phase)) {\n            let _ = vue;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "L'origine ne suit pas ses phases",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "            Some((entry, vue)) => {\n                *vue = image;\n",
+  "apres": "            Some((entry, vue)) => {\n                let _ = vue;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Une origine neuve naît de l'image d'avant",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "cache.insert((face, ch, size_key, PHASE_ORIGIN), (entry.clone(), image));",
+  "apres": "cache.insert((face, ch, size_key, PHASE_ORIGIN), (entry.clone(), image.wrapping_sub(1)));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Une phase neuve naît de l'image d'avant",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "cache.insert((face, ch, size_key, phase), (shifted.clone(), image));",
+  "apres": "cache.insert((face, ch, size_key, phase), (shifted.clone(), image.wrapping_sub(1)));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Le halo retrouvé reste de son image d'avant",
+  "fichier": "crates/glucose-desktop/src/typography/detoure.rs",
+  "avant": "            *vue = image;\n            return entry.clone();\n",
+  "apres": "            let _ = vue;\n            return entry.clone();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Le rendu ne commence pas d'image pour les lettres",
+  "fichier": "crates/glucose-desktop/src/renderer.rs",
+  "avant": "        self.typography.nouvelle_image();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ },
+ {
+  "nom": "Un halo neuf naît de l'image d'avant",
+  "fichier": "crates/glucose-desktop/src/typography/detoure.rs",
+  "avant": ".insert(cle, (entry.clone(), image));",
+  "apres": ".insert(cle, (entry.clone(), image.wrapping_sub(1)));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lettres_",
+   "typography"
+  ]
+ }
+]

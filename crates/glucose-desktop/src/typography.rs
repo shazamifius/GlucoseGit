@@ -65,7 +65,7 @@ pub use detoure::DETOURAGE;
 
 use fontdue::{Font, FontSettings};
 use glyph::{
-    blend_glyph, evict_if_full, shifted_glyph, split_position, CachedGlyph, GlyphKey, PHASE_ORIGIN,
+    blend_glyph, shifted_glyph, split_position, CachedGlyph, GlyphKey, PHASE_ORIGIN,
     SUBPIXEL_PHASES,
 };
 use std::cell::{Cell, RefCell};
@@ -184,7 +184,10 @@ pub struct Typography {
     /// Le repli des emojis (EMOJI-1).
     emoji: Font,
     glyph_cache: RefCell<HashMap<GlyphKey, CachedGlyph>>,
-    access_counter: Cell<u64>,
+    /// **L'image en cours** : chaque lettre retient la dernière qui l'a demandée, et une image
+    /// qui commence oublie celles que la précédente n'a pas demandées
+    /// ([`Typography::nouvelle_image`]).
+    image: Cell<u64>,
     /// Les contours des mêmes polices, dans le même ordre, le repli des emojis en dernier :
     /// une grande lettre se trace (GRAND-1, fiche 72).
     contours: trace::Contours,
@@ -214,7 +217,7 @@ impl Typography {
             faces,
             emoji,
             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
-            access_counter: Cell::new(0),
+            image: Cell::new(0),
             contours: trace::Contours::de(&octets),
             encres: RefCell::new(HashMap::new()),
         }
@@ -303,22 +306,20 @@ impl Typography {
     ///
     /// Une variante décalée se dérive de la variante d'origine plutôt que d'une nouvelle
     /// rastérisation : `fontdue` n'est donc appelé qu'**une fois par (caractère, taille,
-    /// graisse)**, quel que soit le nombre de phases. La lecture de l'origine met à jour
-    /// son horodatage, ce qui la garde en cache tant que l'une de ses phases sert.
+    /// graisse)**, quel que soit le nombre de phases. La lecture de l'origine la marque
+    /// de l'image en cours, ce qui la garde en cache tant que l'une de ses phases sert.
     fn glyph_variant(&self, ch: char, size: f32, face: Face, phase: u8) -> Rc<GlyphEntry> {
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
-        let access = self.access_counter.get().wrapping_add(1);
-        self.access_counter.set(access);
-
+        let image = self.image.get();
         let mut cache = self.glyph_cache.borrow_mut();
-        if let Some((entry, last_access)) = cache.get_mut(&(face, ch, size_key, phase)) {
-            *last_access = access;
+        if let Some((entry, vue)) = cache.get_mut(&(face, ch, size_key, phase)) {
+            *vue = image;
             return entry.clone();
         }
 
         let origin = match cache.get_mut(&(face, ch, size_key, PHASE_ORIGIN)) {
-            Some((entry, last_access)) => {
-                *last_access = access;
+            Some((entry, vue)) => {
+                *vue = image;
                 entry.clone()
             }
             None => {
@@ -331,8 +332,7 @@ impl Typography {
                     width,
                     height,
                 });
-                evict_if_full(&mut cache);
-                cache.insert((face, ch, size_key, PHASE_ORIGIN), (entry.clone(), access));
+                cache.insert((face, ch, size_key, PHASE_ORIGIN), (entry.clone(), image));
                 entry
             }
         };
@@ -341,9 +341,33 @@ impl Typography {
         }
 
         let shifted = Rc::new(shifted_glyph(&origin, phase));
-        evict_if_full(&mut cache);
-        cache.insert((face, ch, size_key, phase), (shifted.clone(), access));
+        cache.insert((face, ch, size_key, phase), (shifted.clone(), image));
         shifted
+    }
+
+    /// **Une image commence** : les lettres que la précédente n'a pas demandées s'oublient — la
+    /// loi des mises en page (P8 bis) et des textures, sans capacité choisie (fiche 104).
+    ///
+    /// # Pourquoi plus de plafond
+    ///
+    /// Le cache gardait 4 096 variantes et évinçait le quart le plus ancien quand il était plein
+    /// (R-40) : mesuré à 531 pour une image d'un document ordinaire, cinq fois la marge. Puis
+    /// chaque titre de membrane a pris la taille de sa région (TITRE-1) : sur la carte de
+    /// Wikipédia, une image vue de loin demande **5 654** variantes, halos compris. Un cache plus
+    /// petit que ce qu'une image demande ne garde rien — chaque image chassait ce que la suivante
+    /// redemandait : 7 727 lettres refaites par image, les titres à 15 ms sur 25 (le vrai Glucose
+    /// au pilote, la souris seule sur la carte). Sans éviction du tout, le même cache passe de 10 000
+    /// à 42 000 variantes après trois zooms : chaque image d'un zoom pose des tailles neuves.
+    ///
+    /// Ce qu'une image demande, la suivante le redemande presque toujours (la vue a peu bougé) ; ce
+    /// qu'elle n'a pas demandé ne se voit plus. Le cache tient donc exactement une image : une vue
+    /// immobile ne refait aucune lettre, un zoom ne garde pas ses tailles d'hier.
+    pub fn nouvelle_image(&self) {
+        let image = self.image.get();
+        self.glyph_cache
+            .borrow_mut()
+            .retain(|_, (_, vue)| *vue == image);
+        self.image.set(image + 1);
     }
 
     /// Nombre de glyphes actuellement en cache
@@ -503,7 +527,6 @@ pub fn clamp_font_size(size: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::glyph::GLYPH_CACHE_CAPACITY;
     use super::*;
     use tiny_skia::Pixmap;
 
@@ -700,14 +723,19 @@ mod tests {
         assert_eq!(typo.cached_glyph_count(), 2);
     }
 
+    /// **Un balayage ne fait pas grandir le cache** : un déplacement continu traverse les seize
+    /// phases de chaque glyphe, une image par pas ; le cache ne garde que ce que la dernière image a
+    /// demandé — sinon le positionnement sous-pixel (R-46) achèterait la fidélité avec une fuite.
     #[test]
     fn test_glyph_1_the_cache_stays_bounded_across_every_phase() {
-        // Un déplacement continu traverse les seize phases de chaque glyphe : le cache doit
-        // rester borné, sinon le correctif de R-46 achète la fidélité avec une fuite.
         let typo = Typography::new();
         let color = Color::from_rgba8(255, 255, 255, 255);
         let mut pixmap = Pixmap::new(600, 40).expect("pixmap");
+        let mut par_image = 0;
         for step in 0..600 {
+            // Juste après le début d'une image, le cache tient ce que la précédente a demandé.
+            typo.nouvelle_image();
+            par_image = par_image.max(typo.cached_glyph_count());
             let offset = step as f32 * 0.07;
             for size in [11.0_f32, 13.0, 14.0, 16.0, 18.0] {
                 typo.draw_text(
@@ -723,38 +751,101 @@ mod tests {
                 );
             }
         }
-        let count = typo.cached_glyph_count();
-        assert!(count <= GLYPH_CACHE_CAPACITY, "cache de {count} variantes");
-        crate::dire!("[R-46] variantes en cache apres un balayage complet : {count}");
+        // Une image : cinq tailles, les lettres distinctes de la phrase, une phase chacune, et
+        // l'origine de chaque variante décalée — jamais plus de deux variantes par lettre posée.
+        let lettres = "Glucose 0123 — fidelite".chars().count();
+        assert!(
+            par_image <= 5 * lettres * 2,
+            "{par_image} variantes pour une image"
+        );
+        crate::dire!("[R-46] variantes en cache au plus, image par image : {par_image}");
     }
 
+    /// **Ce qu'une image demande, la suivante le retrouve — même au-delà de l'ancien plafond**
+    /// (fiche 104) : sur la carte de Wikipédia, une image vue de loin demande 5 654 variantes, et
+    /// un cache de 4 096 les refaisait à chaque image. Ici 6 000 ; la seconde image n'en refait
+    /// aucune (les mêmes images, pas des copies). **Et ce qu'elle n'a pas demandé s'oublie.**
     #[test]
-    fn test_lru_glyph_cache_eviction_retains_frequent_entries() {
+    fn test_lettres_1_une_image_garde_ce_qu_elle_demande_et_oublie_le_reste() {
         let typo = Typography::new();
-        // Remplir avec 4096 glyphes uniques (quatre lettres, différentes tailles) — toutes sous
-        // un demi-carré : au-delà, une lettre se trace et n'a pas d'image (GRAND-1).
-        for i in 0..4096 {
-            let ch = ['A', 'C', 'D', 'E'][i / 1024];
-            let size = 10.0 + ((i % 1024) as f32) * 0.1;
-            typo.get_glyph(ch, size, Face::Regular).expect("une image");
-        }
-        assert_eq!(typo.cached_glyph_count(), 4096);
-
-        // Ré-accéder fréquemment à un glyphe particulier pour qu'il ait un timestamp récent
-        typo.get_glyph('A', 10.0, Face::Regular).expect("une image");
-
-        // Insérer un 4097e glyphe pour déclencher l'éviction LRU
+        let demander = |n: usize| -> Vec<std::rc::Rc<glyph::GlyphEntry>> {
+            (0..n)
+                .map(|i| {
+                    let ch = ['A', 'C', 'D', 'E', 'F', 'G'][i / 1000];
+                    let size = 10.0 + ((i % 1000) as f32) * 0.1;
+                    typo.get_glyph(ch, size, Face::Regular).expect("une image")
+                })
+                .collect()
+        };
+        typo.nouvelle_image();
+        let premiere = demander(6000);
+        assert_eq!(
+            typo.cached_glyph_count(),
+            6000,
+            "rien ne s'évince pendant l'image"
+        );
+        typo.nouvelle_image();
+        let seconde = demander(6000);
+        assert!(
+            premiere
+                .iter()
+                .zip(&seconde)
+                .all(|(a, b)| std::rc::Rc::ptr_eq(a, b)),
+            "la seconde image retrouve chaque lettre de la première"
+        );
+        typo.nouvelle_image();
+        let troisieme = demander(6000);
+        assert!(
+            premiere
+                .iter()
+                .zip(&troisieme)
+                .all(|(a, b)| std::rc::Rc::ptr_eq(a, b)),
+            "redemandée, une lettre est de l'image qui la redemande : elle traverse les images"
+        );
+        typo.nouvelle_image();
         typo.get_glyph('B', 12.0, Face::Regular).expect("une image");
+        typo.nouvelle_image();
+        assert_eq!(
+            typo.cached_glyph_count(),
+            1,
+            "seule la lettre de l'image d'avant reste"
+        );
+    }
 
-        // L'éviction des 25% les plus anciens ramène la taille à ~3072 + 1
-        let count = typo.cached_glyph_count();
-        assert!(count < 4096);
-        assert!(count >= 3072);
+    /// **L'origine d'une lettre décalée vit tant que l'une de ses phases sert** (GLYPH-1, fiche
+    /// 104) : une phase neuve se dérive de l'origine, qui est alors de cette image — sans quoi
+    /// chaque phase neuve rastériserait la lettre à nouveau.
+    #[test]
+    fn test_lettres_2_l_origine_suit_ses_phases() {
+        let typo = Typography::new();
+        typo.nouvelle_image();
+        typo.glyph_variant('A', 14.0, Face::Regular, 1);
+        typo.nouvelle_image();
+        typo.glyph_variant('A', 14.0, Face::Regular, 2);
+        typo.nouvelle_image();
+        let cles: Vec<u8> = typo
+            .glyph_cache
+            .borrow()
+            .keys()
+            .map(|(_, _, _, phase)| *phase)
+            .collect();
+        assert!(cles.contains(&PHASE_ORIGIN), "l'origine reste : {cles:?}");
+        assert!(cles.contains(&2), "la phase demandée reste : {cles:?}");
+        assert!(!cles.contains(&1), "la phase d'avant s'oublie : {cles:?}");
+    }
 
-        // Le glyphe fréquemment ré-accédé doit toujours être présent en cache sans réallocation
-        let pre_count = typo.cached_glyph_count();
-        typo.get_glyph('A', 10.0, Face::Regular).expect("une image");
-        assert_eq!(typo.cached_glyph_count(), pre_count);
+    /// **Le halo d'un titre traverse les images comme ses lettres** (TITRE-2, fiche 104) : un
+    /// titre immobile ne recompose pas ses huit copies à chaque image.
+    #[test]
+    fn test_lettres_3_le_halo_traverse_les_images() {
+        let typo = Typography::new();
+        let halo = || typo.halo_variant('W', 30.0, Face::Bold, PHASE_ORIGIN);
+        typo.nouvelle_image();
+        let premier = halo();
+        for _ in 0..3 {
+            typo.nouvelle_image();
+            assert!(std::rc::Rc::ptr_eq(&premier, &halo()), "le même halo");
+        }
     }
 
     /// **TITRE-2 — le halo composé une fois vaut les huit copies** (fiche 95). Aux seize phases

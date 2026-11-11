@@ -37,6 +37,7 @@ pub mod folder;
 pub mod grille;
 pub mod halo;
 pub mod handles;
+mod hexa;
 pub mod hue;
 pub mod lecture;
 pub mod magasin;
@@ -70,6 +71,7 @@ use domain::DomainTints;
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
 use glucose_core::text::Selection;
+pub(crate) use hexa::{parse_hex_color, parse_hex_rgb};
 use hue::SymbioticHueCache;
 use tiny_skia::PixmapMut;
 
@@ -115,35 +117,6 @@ pub struct TextEditSession {
     /// La phase se décide donc là où le temps avance — la boucle de réveil, qui la calculait
     /// **déjà** pour savoir quand se réveiller — et le dessin ne fait plus que la lire.
     pub curseur_visible: bool,
-}
-
-/// Décode une couleur hexadécimale `#rrggbb` ou `#rgb` ; `None` si ce n'en est pas une.
-///
-/// Le document range ses couleurs en texte, et un texte peut être faux : l'appelant décide
-/// alors de la couleur de repli — en général un jeton du thème — plutôt que d'en recevoir une
-/// choisie ici.
-pub(crate) fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
-    let s = hex.trim_start_matches('#');
-    let channel = |from: usize, to: usize| u8::from_str_radix(s.get(from..to)?, 16).ok();
-    match s.len() {
-        6 => Some((channel(0, 2)?, channel(2, 4)?, channel(4, 6)?)),
-        3 => Some((
-            channel(0, 1)? * 17,
-            channel(1, 2)? * 17,
-            channel(2, 3)? * 17,
-        )),
-        _ => None,
-    }
-}
-
-/// [`parse_hex_rgb`], avec une couleur de repli.
-pub(crate) fn parse_hex_color(
-    hex: &str,
-    default_r: u8,
-    default_g: u8,
-    default_b: u8,
-) -> (u8, u8, u8) {
-    parse_hex_rgb(hex).unwrap_or((default_r, default_g, default_b))
 }
 
 /// Ce avec quoi une passe peint, et qui ne change pas de la frame : la police, la table des
@@ -313,8 +286,9 @@ impl Renderer {
         // ici qu'elle appartient.
         self.magasin.recolter();
         self.magasin.regler_la_vue_d_ensemble(store, ecran);
-        // Ce que l'image d'avant n'a pas mis en page s'oublie (P8 bis).
+        // Ce que l'image d'avant n'a pas mis en page, ni écrit, s'oublie (P8 bis, fiche 104).
         self.mises_en_page.nouvelle_image();
+        self.typography.nouvelle_image();
         crate::perf::stage("recolte");
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");
@@ -678,5 +652,42 @@ mod tests {
             "[perf] frame complète : {elapsed} ms, {} variantes de glyphes en cache",
             renderer.typography.cached_glyph_count()
         );
+    }
+
+    /// **Le rendu oublie les tailles qu'il ne montre plus** (fiche 104) : chaque image commence
+    /// par oublier les lettres que la précédente n'a pas demandées. Après un détour par un autre
+    /// zoom, le cache tient ce qu'il tenait avant — pas les lettres du détour en plus.
+    #[test]
+    fn test_lettres_4_le_rendu_oublie_les_tailles_qu_il_ne_montre_plus() {
+        let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
+        let mut store = Store::new("Lettres");
+        let board_id = store.project.active_board_id.clone();
+        store.add_annotation(&board_id, card::tests::probe_card("lettres-1", 0.0, 0.0));
+        let mut renderer = Renderer::new();
+        let mut ui = UiState::new();
+        let dock = crate::dock::DockManager::new();
+        // Trois images par vue : la première après un changement en demande un peu plus que
+        // les suivantes ; à la troisième, le cache tient ce qu'une vue immobile demande.
+        let mut trois_images = |store: &mut Store, scale: f64| {
+            store.set_viewport(
+                &board_id,
+                glucose_core::types::Viewport {
+                    x: 100.0,
+                    y: 100.0,
+                    scale,
+                },
+            );
+            for _ in 0..3 {
+                render_one_frame(&mut renderer, &mut pixmap, store, &mut ui, &dock);
+            }
+            renderer.typography.cached_glyph_count()
+        };
+        // La première image dessine toute l'interface : on part d'un état établi.
+        trois_images(&mut store, 1.0);
+        let avant = trois_images(&mut store, 1.0);
+        let detour = trois_images(&mut store, 1.37);
+        let apres = trois_images(&mut store, 1.0);
+        assert!(avant > 0 && detour > 0, "des lettres à chaque zoom");
+        assert_eq!(apres, avant, "le détour ({detour} lettres) s'est oublié");
     }
 }

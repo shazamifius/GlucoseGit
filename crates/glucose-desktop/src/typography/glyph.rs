@@ -4,7 +4,6 @@
 //! une chaîne s'enchaîne et se mesure appartient au module parent.
 
 use fontdue::Metrics;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 /// Nombre de positions sous-pixel retenues **par axe** (GLYPH-1).
@@ -17,19 +16,6 @@ pub const SUBPIXEL_PHASES: u8 = 4;
 
 /// La variante non décalée : celle que `fontdue` a réellement rastérisée.
 pub(super) const PHASE_ORIGIN: u8 = 0;
-
-/// Nombre maximal de variantes de glyphes gardées en mémoire.
-///
-/// Mesuré, pas deviné : une frame complète en 1440×900, docks compris, occupe **531**
-/// variantes (`test_full_frame_render_stays_within_time_budget`), et un balayage continu de
-/// 600 positions sur cinq tailles — qui traverse donc les seize phases de chaque glyphe —
-/// s'arrête à **772** (`test_glyph_1_the_cache_stays_bounded_across_every_phase`). Ces
-/// deux chiffres sont ceux d'Inter (FONT-1) ; ils valaient 518 et 754 avec la police
-/// d'origine, et le passage n'a rien changé au plafond. Le
-/// plafond hérité de R-40 laisse donc plus de cinq fois la marge nécessaire, et l'éviction
-/// LRU borne le reste par construction : le positionnement sous-pixel n'a pas eu besoin
-/// d'agrandir le cache.
-pub(super) const GLYPH_CACHE_CAPACITY: usize = 4096;
 
 #[derive(Clone)]
 pub struct GlyphEntry {
@@ -45,7 +31,7 @@ pub struct GlyphEntry {
 /// Clé de cache d'un glyphe : visage, caractère, taille en dixièmes de point, phase.
 pub(crate) type GlyphKey = (super::Face, char, u16, u8);
 
-/// Valeur de cache : le glyphe partagé et l'horodatage de son dernier accès (LRU, R-40).
+/// Valeur de cache : le glyphe partagé, et la dernière image qui l'a demandé (fiche 104).
 pub(super) type CachedGlyph = (Rc<GlyphEntry>, u64);
 
 /// Sépare une coordonnée en une position entière et la phase sous-pixel la plus proche.
@@ -126,21 +112,6 @@ pub(super) fn shifted_glyph(origin: &GlyphEntry, phase: u8) -> GlyphEntry {
         width: out_w,
         height: out_h,
     }
-}
-
-/// Évince les 25 % les plus anciens quand le cache est plein (LRU, R-40).
-///
-/// Une table rase complète relancerait une rastérisation de toute la frame suivante ;
-/// évincer par quarts garde le texte affiché à l'écran, qui est par construction le plus
-/// récemment consulté.
-pub(super) fn evict_if_full(cache: &mut HashMap<GlyphKey, CachedGlyph>) {
-    if cache.len() < GLYPH_CACHE_CAPACITY {
-        return;
-    }
-    let mut accesses: Vec<u64> = cache.values().map(|(_, a)| *a).collect();
-    accesses.sort_unstable();
-    let cutoff = accesses[accesses.len() / 4];
-    cache.retain(|_, (_, a)| *a > cutoff);
 }
 
 /// Compose la couverture d'un glyphe sur le tampon, en « source-over » prémultiplié (R-27).
