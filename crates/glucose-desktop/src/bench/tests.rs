@@ -268,7 +268,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// les flèches dont aucun bout ne touche un texte coloré sont grises (la teinte de bruit de Tauri
 /// est partie). 221 214 pixels, tous des lueurs, des flèches et des ornements ; regardé
 /// avant/après — le papier des blocs garde son contour.
-const EMPREINTE_TEMOIN: &str = "98faafd6e827a136";
+/// **Puis, le 11/11 à 22 h** (REGION-1, fiche 107) : le corps de la membrane témoin prend le voile
+/// d'une membrane seule de Tauri (11,3 %) au lieu de deux — 123 066 pixels, tous dans sa boîte
+/// (780-1200 × 114-414), au plus 15 niveaux ; regardé avant/après : la grille, le pointillé, le
+/// titre et les contours des blocs intacts.
+const EMPREINTE_TEMOIN: &str = "5f624f44fb29ecfd";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -377,7 +381,9 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// flèches seules (497-1125 × 101-706) ; regardés avec l'image de l'écart.
 /// **Puis, le 11/11 au soir** (PARENTE-2, fiche 106) : les lueurs, les flèches et les ornements
 /// gris de la scène témoin — 195 110 pixels ; regardée.
-const EMPREINTE_TEMOIN_SELECTION: &str = "cd85dd06f4419cee";
+/// **Puis, le 11/11 à 22 h** (REGION-1, fiche 107) : le corps de la membrane, plus transparent —
+/// 123 033 pixels dans sa boîte ; regardée.
+const EMPREINTE_TEMOIN_SELECTION: &str = "5af5c064d60b7deb";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -469,7 +475,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 11/11** (LIEN-4) : les mêmes 3 367 pixels que la scène sélectionnée ; regardés.
 /// **Puis, le 11/11 au soir** (PARENTE-2, fiche 106) : les lueurs, les flèches et les ornements
 /// gris de la scène témoin, sous le menu — 191 557 pixels ; regardée.
-const EMPREINTE_TEMOIN_MENU: &str = "f5119c1991cc37c7";
+/// **Puis, le 11/11 à 22 h** (REGION-1, fiche 107) : le corps de la membrane, plus transparent, sous
+/// le menu — 113 723 pixels ; regardée.
+const EMPREINTE_TEMOIN_MENU: &str = "16e284e8eb6f1a45";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -1,0 +1,50 @@
+[
+ {
+  "nom": "Le voile posé deux fois",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": "    1.0 - (1.0 - alpha(MEMBRANE_FILL_ALPHA))\n        * (1.0 - alpha(MEMBRANE_GLOW[0].1))\n        * (1.0 - alpha(MEMBRANE_GLOW[1].1))\n",
+  "apres": "    1.0 - ((1.0 - alpha(MEMBRANE_FILL_ALPHA))\n        * (1.0 - alpha(MEMBRANE_GLOW[0].1))\n        * (1.0 - alpha(MEMBRANE_GLOW[1].1)))\n        .powi(2)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1"
+  ]
+ },
+ {
+  "nom": "Le fond de Tauri oublié",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": "    1.0 - (1.0 - alpha(MEMBRANE_FILL_ALPHA))\n        * (1.0 - alpha(MEMBRANE_GLOW[0].1))\n        * (1.0 - alpha(MEMBRANE_GLOW[1].1))\n",
+  "apres": "    1.0 - (1.0 - alpha(MEMBRANE_GLOW[0].1)) * (1.0 - alpha(MEMBRANE_GLOW[1].1))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1"
+  ]
+ },
+ {
+  "nom": "Le second halo oublié",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": "    1.0 - (1.0 - alpha(MEMBRANE_FILL_ALPHA))\n        * (1.0 - alpha(MEMBRANE_GLOW[0].1))\n        * (1.0 - alpha(MEMBRANE_GLOW[1].1))\n",
+  "apres": "    1.0 - (1.0 - alpha(MEMBRANE_FILL_ALPHA)) * (1.0 - alpha(MEMBRANE_GLOW[0].1))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1"
+  ]
+ }
+]

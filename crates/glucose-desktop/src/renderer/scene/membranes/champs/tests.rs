@@ -172,3 +172,43 @@ fn neutre_1_une_membrane_sans_couleur_est_grise() {
     let image = rendre(vec![membrane("m", MERE, None)], None);
     assert!(proche(au_monde(&image, DANS_LA_MERE), ton(gris)));
 }
+
+/// **REGION-1 — le corps d'une membrane a le voile d'une membrane seule de Tauri** (fiche 107 ; sa
+/// parole du 11/11/2026 au soir, *« les membranes ne sont pas encore assez transparentes »*) : le
+/// ton de Glucose Tauri se refait ici sans la fonction gardée — ses trois couches translucides (le
+/// fond à 8 sur 255, les deux halos qui couvrent aussi l'intérieur à 8 et 14), posées l'une après
+/// l'autre sur le canevas. **La preuve à l'envers** : le voile posé deux fois (la fiche 105) donne
+/// un autre ton, plus coloré.
+#[test]
+fn region_1_le_corps_a_le_voile_d_une_membrane_de_tauri() {
+    let rouge = (239u8, 68u8, 68u8);
+    let canevas = crate::theme::Theme::dark().bg_canvas.to_color_u8();
+    let voiles = |fois: usize| {
+        let poser = |fond: u8, teinte: u8| {
+            let mut c = f32::from(fond);
+            for _ in 0..fois {
+                for alpha in [8.0f32, 8.0, 14.0] {
+                    c += alpha / 255.0 * (f32::from(teinte) - c);
+                }
+            }
+            c.round() as u8
+        };
+        (
+            poser(canevas.red(), rouge.0),
+            poser(canevas.green(), rouge.1),
+            poser(canevas.blue(), rouge.2),
+        )
+    };
+    let image = rendre(vec![membrane("m", MERE, Some("#ef4444"))], None);
+    let corps = au_monde(&image, DANS_LA_FILLE);
+    assert!(
+        proche(corps, voiles(1)),
+        "le corps {corps:?} contre le voile de Tauri {:?}",
+        voiles(1)
+    );
+    assert!(
+        !proche(voiles(1), voiles(2)),
+        "le voile posé deux fois se distingue : {:?}",
+        voiles(2)
+    );
+}

@@ -52,31 +52,40 @@ pub(crate) fn sans_couleur() -> (u8, u8, u8) {
     .octets()
 }
 
-/// **La force d'une région** : la part de sa teinte que son corps pose sur le canevas.
+/// **La force d'une région** : la part de sa teinte que son corps pose sur le canevas — **le voile
+/// d'une membrane seule chez Glucose Tauri** (ses deux halos et son fond, tous trois sur son
+/// intérieur), écrit avec ses constantes, sans en ajouter : le ton exact qu'avait une membrane
+/// posée sur le canevas dans la référence.
 ///
 /// # Un nombre de ressenti, ancré à sa parole
 ///
-/// La fiche 104 la déduisait de la lecture d'un texte posé sur la couleur de sa région (APCA, Lc 75
-/// dans la région la plus défavorable : 23 %). Depuis que le papier d'un texte est toujours le gris
-/// des blocs (PAPIER-1), ce calcul a perdu son objet : aucune lecture ne la borne plus. Elle reste
-/// donc là où il l'a regardée et approuvée — **le ton qu'avait un thème posé dans la racine, sous la
-/// loi d'avant** : le voile d'une membrane de Tauri (ses deux halos et son fond, tous trois sur son
-/// intérieur), posé deux fois. C'est la force des thèmes de l'image qu'il a trouvée *« magnifique,
-/// presque parfaite »* le 9/11/2026, sans le mélange des teintes ; elle s'écrit avec les constantes
-/// de Tauri, sans en ajouter.
+/// Aucune lecture ne la borne depuis que le papier d'un texte est toujours le gris des blocs
+/// (PAPIER-1) ; elle suit donc ce qu'il a regardé. Sa parole du 11/11/2026 au soir, devant les
+/// halos de la parenté posés sur les régions : *« les membranes ne sont pas encore assez
+/// transparentes »*. La perception lui donne raison : une grande surface veut une couleur sourde et
+/// une petite marque une couleur vive (Stone ; Szafir, 2018). Mesuré sur sa carte, au fond de
+/// « Eau » : la lueur cyan d'une famille garde sa vivacité (Oklab 0,055 → 0,058), le sol orangé de
+/// sa région la perd de moitié (0,027 → 0,016) — la famille s'en détache 3,8 fois au lieu de 2. Ce
+/// n'est pas une loi : une membrane d'une couleur poussée au bord de l'écran noie encore le halo
+/// d'une teinte opposée, à toute force qui garde la carte lisible de loin.
 ///
-/// Le journal des valeurs regardées sur la carte de Wikipédia : 11,3 % (le voile une fois, celui
-/// d'une membrane seule chez Tauri) — la vue d'ensemble s'éteint (fiches 103 et 105) ; 23 % (la
-/// fiche 104) — approuvé (11/11) ; 21,3 % (le voile deux fois) — la même chose à l'œil (fiche 105).
+/// Le journal des valeurs regardées sur la carte de Wikipédia, par la carte graphique : 23 % (la
+/// fiche 104) — approuvé (11/11) ; 21,3 % (le voile posé deux fois) — la même chose à l'œil (fiche
+/// 105), puis « pas encore assez transparentes » ; **11,3 % (le voile simple)** — deux fois plus
+/// transparent, les régions se lisent encore de loin, les familles ressortent, et le bord de
+/// chaque région, que ses halos éclairent, se dessine mieux que son corps (fiche 107) ; sa parole
+/// devant les trois forces : *« c'est vraiment vraiment parfait, 11 % ! on garde »* ; 8 % et 6 %
+/// — de loin, les régions s'éteignent et la toile des flèches domine (fiche 107). Le « s'éteint »
+/// que la fiche 103 prêtait à 11,3 % jugeait un prototype où le papier des textes prenait encore la
+/// teinte de sa région.
 ///
 /// L'opacité d'une membrane, quand le modèle la portera (l'appartenance, sa parole du 9/11), la
 /// multipliera — jamais au-dessus.
 fn force() -> f32 {
     let alpha = |a: u8| f32::from(a) / 255.0;
-    let transparence = (1.0 - alpha(MEMBRANE_FILL_ALPHA))
+    1.0 - (1.0 - alpha(MEMBRANE_FILL_ALPHA))
         * (1.0 - alpha(MEMBRANE_GLOW[0].1))
-        * (1.0 - alpha(MEMBRANE_GLOW[1].1));
-    1.0 - transparence * transparence
+        * (1.0 - alpha(MEMBRANE_GLOW[1].1))
 }
 
 impl MembraneVue<'_> {
