@@ -1,11 +1,55 @@
 # L'architecture de Glucose Rust
 
-> **Au 25/10/2026** (fiches 51 à 82 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Revue le 11/11/2026** (fiches 51 à 104). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
 
 ---
+
+## 0. Ce que la vision demande au code
+
+> Venu de [VISION](VISION.md) le 11/11/2026 (fiche 104) : ce sont des lectures de ses paroles par des
+> sessions, pas ses paroles — elles vivent donc ici.
+
+### Ce que la vision demande au code (la session du 15/10, à remettre en question)
+
+* **L'interface devient une donnée.** Un preset ne peut exister que si les raccourcis, le thème, la
+  disposition des panneaux et les comportements se lisent dans **une seule table** chacun, et non
+  dans le code de chaque geste. Chaque fonctionnalité écrite avec un raccourci en dur ajoute au
+  travail de demain.
+* **Les plugins** veulent une frontière nette entre le noyau, l'application et ce qui s'y greffe —
+  le noyau sans dépendance l'est déjà.
+* **L'échelle** : 10⁷ nœuds navigables (l'arène, écrite, attend son branchement) — et une
+  navigation sémantique (domaines, couleur), jamais la dégradation du sens.
+* **Le graphe avant le texte** : les flèches, les ancres de texte et les membranes sont déjà la
+  grammaire des objectifs 3 et 4.
+* **L'ergonomie se fait à la fin** : une grosse session, quand toutes les fonctionnalités seront
+  là. Avant, chaque fonction a son bouton, au PC et au téléphone (INVENTAIRE).
+
+### Membrane et domaine : deux structures (la session du 22/10, à remettre en question)
+
+* **Membrane et domaine sont deux structures différentes, et c'est ce qui fait le domaine.** Une
+  membrane **contient** : un nœud est dans une seule membrane à la fois, et les membranes
+  s'emboîtent — un arbre. Un domaine **traverse** : un nœud peut appartenir à plusieurs domaines, à
+  des degrés divers, quelle que soit sa membrane ou son fichier — un recouvrement, pas un arbre. Le
+  noyau a déjà cette forme pour un document (`Project.domains`, chaque nœud porte ses domaines avec
+  un poids de 0 à 1 : une appartenance graduée) ; il lui manque de **traverser les fichiers**, d'être
+  **vu** (filtrer, colorer) et d'être **lu par une IA** (`glucose_lire` ne dit pas les domaines).
+  **Depuis la fiche 88** : il traverse les fichiers (chaque fichier garde les siens ; Glucose met côte à
+  côte ceux qu'il connaît), et une IA le lit et le pose comme l'humain ; reste qu'on le **voie**.
+* **« Lu de la même façon » oblige à une règle** : le sens d'un tableau ne doit jamais tenir
+  **seulement** dans la position. Un humain lit la proximité ; une IA reçoit des coordonnées qu'elle
+  n'interprète pas. Ce qui compte s'écrit donc aussi dans une structure explicite — une membrane, une
+  flèche, un domaine —, que les deux lisent pareil.
+* **Les dimensions, comptées honnêtement** : x et y sont deux dimensions continues ; la couleur
+  perçue en a trois (clarté, deux axes de teinte), et l'œil ne distingue de façon sûre qu'une
+  dizaine de couleurs **catégorielles** (ordre de grandeur des guides de visualisation, à vérifier) —
+  au-delà d'une dizaine de domaines, la couleur seule ne suffira plus à les reconnaître ; chaque
+  domaine est une dimension à lui (appartient, et à quel degré) : leur nombre n'a pas de borne.
+  Ce qui rend Glucose plus exploitable qu'un espace latent n'est pas de le **projeter** en 2D (une
+  projection de 4 096 dimensions en perd presque tout), c'est que ses dimensions sont **explicites et
+  nommées** — « eau », « contredit » — là où celles d'un modèle sont anonymes.
 
 ## 1. Quatre crates, et la règle des dépendances
 
@@ -148,7 +192,7 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Le titre des membranes** | `core/membrane_titre.rs`, `desktop/renderer/scene.rs` (`MembraneVue::titre`), `desktop/typography/glyph.rs` (`halo`) | TITRE-1 (fiche 95) : chaque mesure du titre × `√(A/A₀)`, jamais moins que 1 ; aucun ne se cache ; ramené au plus grand qui tient dans sa largeur ; **l'encre** (`Annotation::encre`, la boîte et la bande du titre) pour le culling, le cadrage, l'export, le vol, la sélection et le glisser — la boîte pour le reste ; la réserve des colonnes (`surcroit`). TITRE-2 : un texte détouré en deux passes, le halo des huit copies gardé dans le cache des lettres ; une lettre tracée, un trait puis son remplissage |
 | **Le gris de loin** | `desktop/typography/encre.rs` (`LETTRE_LISIBLE`, `forme_grise`, `peindre_exact`, `griser`), `desktop/renderer/card/gris.rs` (`formes_de_loin`), `desktop/renderer/vectoriel.rs` (`a_des_pixels`) | GRIS-1 et GRIS-2 (fiche 96) : une lettre de moins de 2,8 pixels montre le gris de son encre — le rectangle de sa ligne à l'opacité de son encre sur sa place, à la couverture exacte ; dans la typographie du canevas pour tout texte, ligne par ligne pour un nœud (ornements compris) ; une géométrie, deux peintres (le canevas, la carte graphique) ; le SVG garde ses lettres ; le seuil de zoom des nœuds s'en déduit |
 | **Disposer en colonnes** | `core/layout/colonnes.rs`, `core/store/colonnes.rs`, `desktop/interactions/colonnes.rs` | COLONNES-1 (fiche 92) : une membrane range ce qu'elle porte en colonnes de journal, de bas en haut, dans l'ordre de lecture ; deux bissections (la plus basse hauteur pour k colonnes ; le k qui approche la proportion de l'écran), l'optimum exact ; l'appartenance écrite ne change pas ; un seul geste |
-| **Les couleurs** | `core/couleur.rs`, `core/store/annotations.rs` (`colorer`), `desktop/ui/couleurs.rs` | Oklab et Oklch, les trois tris par la couleur (ORDONNER-2) ; la couleur d'une image est le sommet de sa pyramide (MOYENNE-1). **COULEUR-1** (fiche 98) : ce que « sa couleur » veut dire, le noyau seul le lit et l'écrit (`Annotation::couleur_propre`, `Store::couleurs_choisies`, `colorer_la_selection`) — le papier d'un post-it, la teinte d'une membrane, d'un texte, d'un dossier ; un opérateur et une flèche ne se colorent pas ; la barre de couleur et les commandes `couleur.*` y passent. **Fiche 99** : `core/couleur/ecran.rs` — le retour Oklab → sRGB, le bord exact du gamut (`Oklch::chroma_maximale`, par bissection), `papier_teinte` ; **COULEUR-3**, la couleur d'un texte teinte son papier à sa clarté (`renderer/card/habit.rs`, `papier`, sur les deux voies) ; **ROUE-1**, `core/couleur/roue.rs` (la place teinte × saturation × clarté, le disque en pixels), `ui/roue.rs` (mise en page pure, dessin), `interactions/roue.rs` (les gestes ; un geste du journal, repris à chaque mouvement par `cancel_live_edit`) |
+| **Les couleurs** | `core/couleur.rs`, `core/store/annotations.rs` (`colorer`), `desktop/ui/couleurs.rs` | Oklab et Oklch, les trois tris par la couleur (ORDONNER-2) ; la couleur d'une image est le sommet de sa pyramide (MOYENNE-1). **COULEUR-1** (fiche 98) : ce que « sa couleur » veut dire, le noyau seul le lit et l'écrit (`Annotation::couleur_propre`, `Store::couleurs_choisies`, `colorer_la_selection`) — le papier d'un post-it, la teinte d'une membrane, d'un texte, d'un dossier ; un opérateur et une flèche ne se colorent pas ; la barre de couleur et les commandes `couleur.*` y passent. **Fiche 99** : `core/couleur/ecran.rs` — le retour Oklab → sRGB, le bord exact du gamut (`Oklch::chroma_maximale`, par bissection), `papier_teinte` ; **COULEUR-3**, la couleur d'un texte teinte son papier à sa clarté (`renderer/card/habit.rs`, `papier`, sur les deux voies) — **à défaire** : sa parole du 11/11, le fond d'un texte toujours gris, la couleur choisie va au halo (VISION § 5) ; **ROUE-1**, `core/couleur/roue.rs` (la place teinte × saturation × clarté, le disque en pixels), `ui/roue.rs` (mise en page pure, dessin), `interactions/roue.rs` (les gestes ; un geste du journal, repris à chaque mouvement par `cancel_live_edit`) |
 | **Les liens et leur fenêtre** | `desktop/renderer/scale.rs` (`lecture`), `renderer/arrow.rs` (`en_lumiere`), `interactions/survol.rs`, `interactions/suivre.rs`, `core/amener.rs`, `core/store/fenetre.rs`, `interactions/fenetre.rs` | Fiche 102. **LIEN-1** : plus loin que la taille réelle, un lien rétrécit avec le monde et pâlit d'autant (un facteur, `WorldScale::lecture`, sur ses longueurs d'écran et son opacité — les pastilles restent du monde) ; en lumière (choisi, survolé, dans la fenêtre), plein. **LIEN-2** : `Ctrl`+clic vole jusqu'au bout le plus loin. **LIEN-3** : la fenêtre des liens est un **tableau de copies à côté du projet**, que `Store::active_board` rend tant qu'elle est ouverte — aucune écriture (elles nomment un tableau du projet) ni aucun enregistrement (la vue s'écrit depuis le projet) ne l'atteint ; ses copies ont des identités à elles (`original` les rend) ; la disposition de Bring & Go, exacte (`amener::disposer`, un point d'accroche par voisin) ; la main y est passagère : toute commande qui ne la regarde pas la ferme d'abord (`executer`) |
 | **L'histoire de la vue** | `core/store/retour.rs`, `desktop/interactions/retour.rs`, `interactions/vol.rs` (`parti`) | RETOUR-1 (fiche 99) : un départ du vol note le lieu quitté, l'image suivante le range dans le magasin ; `Alt+Z` le rend, instantanément, sans se noter ; un document chargé l'oublie ; hors de l'annulation du document |
 | **Exporter** | `desktop/persist/export.rs`, `export/png.rs`, `export/svg.rs`, `renderer/export.rs` | **Le SVG** (P5, fiches 69 à 71) : ce que le canevas montre, dans le cadre de l'export PNG, dans **l'ordre même du canevas** (`Renderer::rendre_en_svg` : sous les photos, les photos, toutes les lueurs avant toutes les cartes, les annotations, les réglettes des photos) ; **le texte en tracés** (`renderer/svg/glyphes.rs` : chaque glyphe défini une fois, posé par un `<use>`, les mots dans un `aria-label` — aucune police demandée au lecteur, `decisions/13`), les formules par les fontes de KaTeX (`renderer/math/svg.rs`), les photos par leurs octets d'origine, chaque flou borné à sa portée ; **éprouvé par superposition** à l'export PNG, rendu par `resvg` (l'oracle, dans les épreuves seulement). Markdown, et PNG par bandes de la surface d'un écran, sur un fil à soi (EXPORT-PNG-1) ; ce qui est exporté est une copie (`Store::copie_a_exporter` — la sélection seule, sans les cases ni les zones). **Les planches d'un storyboard** (P2.7, fiche 68, `export/planches.rs`) : chaque planche est un rectangle du canevas (`Disposition::planches`, ses rangées déduites du format A, √2), rendu par le même écrivain (`rendre_en_png`, qui écrit dans n'importe quelle sortie), d'une copie qui ne garde que ce storyboard (`Store::copie_du_storyboard`) ; en images, ou en **PDF écrit à la main** (`export/pdf.rs` : les blocs `IDAT` posés tels quels sous le prédicteur PNG — rendu au pixel près par MuPDF et PDFium) |

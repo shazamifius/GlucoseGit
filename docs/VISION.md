@@ -1,282 +1,200 @@
-# Ce que Glucose veut devenir
+# Ce que Glucose veut devenir — ses paroles
 
-> **Sa parole du 15/10/2026**, recueillie après l'inventaire de la fiche 71 — la première fois
-> qu'elle est écrite. Elle dit **pourquoi** Glucose existe ; [ÉTAT](ETAT.md) dit où il en est, et
-> [SUITE](SUITE.md) ce qui vient. Toute décision se juge aussi contre elle — et elle se remet en
-> question comme le reste, avec des arguments.
+> **Le seul endroit où vivent ses paroles et la charte.** Chaque phrase en italique est la sienne,
+> datée. Ce qui n'est pas en italique les range ; une interprétation se dit telle. Quand deux de ses
+> paroles se contredisent, **la plus récente l'emporte**, et l'ancienne est barrée ou dite remplacée.
+> Rangé par thème le 11/11/2026 (fiche 104) ; ses mots, dans l'ordre où il les a dits, restent dans les
+> fiches du carnet.
+>
+> Tout se remet en question, ses paroles comprises — avec des arguments.
 
 ---
 
-## Le but : remplacer entièrement la feuille de papier
+## 1. Le but
 
-*« En 2026, une feuille de papier est et reste indispensable. Mon défi : créer un système qui
-s'adapte à la technologie, pour les étudiants, les développeurs, les artistes, les joueurs, ou
-qui que ce soit. »*
+**Remplacer entièrement la feuille de papier** (15/10/2026) : *« En 2026, une feuille de papier est et
+reste indispensable. Mon défi : créer un système qui s'adapte à la technologie, pour les étudiants, les
+développeurs, les artistes, les joueurs, ou qui que ce soit. »* Le canevas infini n'est pas la fin :
+c'est la feuille, enfin sans bord.
 
-Le canevas infini n'est pas la fin : c'est la feuille, enfin sans bord. Ce qui compte est qu'on
-puisse y faire **tout** ce qu'on fait sur du papier, et ce que le papier ne sait pas faire.
+**Le pont entre l'humain et l'IA** (22/10) : *« Depuis le début, Glucose visait à faire le pont entre
+l'humain et l'IA. »* **Un Glucose doit pouvoir être lu par un humain ET par une IA, de quasi la même
+façon** — *« ATTENTION : impérativement »*. Ce qu'un humain voit, une IA doit pouvoir le lire, et
+l'inverse.
 
-## Quatre objectifs, dans l'ordre où il les a dits
+**Quatre objectifs**, dans l'ordre où il les a dits (15/10) :
 
-1. **Le premier vecteur d'échange d'humain à humain.** Concentrer **tout Wikipédia** dans Glucose,
-   et beaucoup de bases de données propres — un immense canevas. **Mais** : par la disposition
-   (un travail presque d'illustration), les domaines, Trans-domaines, les flèches, les membranes et
-   la couleur, un humain ordinaire doit pouvoir **consulter ce wiki de façon tout à fait
-   naturelle**. *« Autant te dire que c'est un défi super compliqué. »* (C'est le canevas de
-   `glucose-brain` ; la cible des 10⁷ nœuds vient de là.)
-2. **Le premier vecteur d'IA à IA.** L'idée de **Proteo** (un projet parallèle, sur son ordinateur) :
-   donner à des IA, pour se parler, un socle **immensément meilleur que de simples jetons dans le
-   vide**. Une grande étape de recherche, et de suivi de l'actualité.
-3. **Le premier vecteur d'humain à IA et d'IA à humain**, pour créer des projets de tout genre :
-   communiquer avec une IA par un canevas 2D plutôt que par un fil de discussion — **des graphes de
-   questions et de réponses**, qui ne se pensent plus comme un texte linéaire. Et des systèmes d'IA
-   qui remettent un projet en forme : exemple, on invente une langue pour un univers ; un plugin
-   (sur son GitHub) comprend la langue à partir des mots et des schémas déjà posés, aide à nettoyer
-   les idées, regroupe les mots, propose des mots neufs cohérents avec elle, capte les intentions et
-   la complexité cachée de la langue.
-4. **Réinventer le document linéaire de physique et de mathématiques** pour la recherche. *« Que
-   Glucose soit extrêmement performant pour la recherche et le développement, d'IA à IA comme
-   d'humain à humain ; qu'il soit utilisé par les plus grands ingénieurs du monde. »*
+1. **Le premier vecteur d'échange d'humain à humain** : tout Wikipédia dans Glucose, et beaucoup de
+   bases de données — mais un humain ordinaire doit pouvoir **le consulter de façon tout à fait
+   naturelle**, par la disposition, les domaines, les flèches, les membranes et la couleur. *« Autant te
+   dire que c'est un défi super compliqué. »* Et pas seulement Wikipédia (22/10) : *« Pourquoi se limiter
+   à Wikipédia ? Certains datasets d'IA sont super utiles, MÊME pour un humain : les avoir sur Glucose, ça
+   doit pouvoir être incroyable. »*
+2. **Le premier vecteur d'IA à IA** : l'idée de **Protéo** (un projet à côté, en pause depuis le 25/10) —
+   donner à des IA un socle *« immensément meilleur que de simples jetons dans le vide »*. Un Glucose que
+   tous les Protéo remplissent ensemble, où un Protéo **apprend** (22/10) : *« pour que Protéo lui-même
+   démonte Maya, le comprenne — en fait il va apprendre plein de trucs avant de le remonter pour finaliser
+   l'addon ; tout ça peut être écrit sur Glucose. »*
+3. **Le premier vecteur d'humain à IA et d'IA à humain** : des **graphes de questions et de réponses**
+   plutôt qu'un fil de discussion ; des IA qui remettent un projet en forme (exemple : un plugin qui
+   comprend une langue inventée et propose des mots neufs cohérents).
+4. **Réinventer le document linéaire de physique et de mathématiques** pour la recherche : *« Que Glucose
+   soit extrêmement performant pour la recherche et le développement, d'IA à IA comme d'humain à humain ;
+   qu'il soit utilisé par les plus grands ingénieurs du monde. »*
 
-## Une application mère, ouverte à tous
+**Pour les IA** (22/10) : savoir **où se situe quoi** dans la carte (la géographie, pas seulement la
+liste des nœuds) ; *« un système de déplacement et de recherche ULTRA avancé pour les IA, pour qu'elles
+retrouvent ce dont elles ont besoin directement, sans trop galérer — attention : Glucose est là pour faire
+des recherches, mais des fois on ne sait pas ce qu'on recherche »* ; une IA peut être le
+sous-agent d'une autre, avec peu de mémoire et peu de temps. **Un usage qui attend** : l'arbre complet
+d'un projet Rust de plusieurs millions de lignes (web3) — *« une arborescence mathématique super
+complexe »* —, construit par Protéo, posé sur Glucose, puis travailler sur ce projet avec Protéo, depuis
+Glucose.
 
-* **Des centaines de plugins**, et des modifications du code lui-même : Glucose est une
-  application mère (voir [PLUGINS.md](../PLUGINS.md)).
-* **Open source, en Rust**, pour que **n'importe qui puisse forker** et créer sa version de
-  Glucose. C'est pour cela que l'arborescence des fichiers est extrêmement minutieuse : elle doit
-  se lire par un inconnu.
-* **Glucose devient lui-même un ensemble de dépendances** (sa parole du 15/10) : des briques en
-  Rust, propres, que d'autres prennent pour bâtir leur version — *« qu'il y ait des milliers de
-  forks, adaptés à tout besoin »*. Le noyau sans dépendance (`glucose-core`) est la première ; le
-  rendu, la typographie, les formules, le format en sont d'autres à découper, chacune lisible
-  seule.
-* **Les dépendances : à terme, zéro absolu.** Sa parole du 15/10 précise la charte (« 0 n'est pas
-  l'objectif » *aujourd'hui*) : on prend une dépendance quand on ne peut pas faire sans, et on la
-  réécrit quand on sait faire mieux nous-mêmes — le chemin va vers zéro, jamais au prix d'une
-  machine exclue.
+**La partie 1 d'abord** (25/10) : *« mettre une pause à Protéo et essayer de définitivement finir la
+partie 1 de Glucose : le logiciel complet, complet, en Rust, ultra optimisé, avec des utilisateurs et une
+ergonomie parfaite. »*
 
-## Les presets : l'interface entière, au choix
+## 2. La charte — ses exigences permanentes
 
-**Un preset n'est pas un gabarit de zones** (ce que le panneau « Presets » de Tauri appelait ainsi).
-C'est **l'interface et sa manière de réagir** : la disposition, les couleurs, les raccourcis
-clavier, toutes les fenêtres en règle générale. Le but : **faire mieux que PureRef, Figma et Miro**.
+Chaque décision, chaque ligne de code se juge contre elles.
 
-* **Un preset de Glucose**, *« extrêmement travaillé, qui n'a jamais été créé »* : l'interface
-  principale, qui regroupe **absolument toutes** les fonctionnalités ; extrêmement ergonomique,
-  efficiente, rapide pour les professionnels, et en même temps très, très propre à l'œil — *« pousser
-  l'outil au maximum dans son ergonomie »*.
-* **Un preset PureRef**, **un preset Figma**, **un preset Miro** : retrouver 100 %, ou presque, des
-  fonctionnalités de chacun, avec sa façon de faire.
-* Sa liste des capacités de PureRef à refaire viendra après.
+* **La fluidité** (16 et 18/09) : *« rappelle TOUJOURS avoir 100 fps minimum ; si on est en dessous alors
+  go pixeliser tout »* — **100 images par seconde au moins, constant, quoi qu'il se passe** ; au-delà, ce
+  que l'écran sait afficher (sa fréquence se lit, ne se suppose pas) ; 60 sur un téléphone courant, 45
+  sur un très vieux. Une action lourde a le droit de durer, **en cascade**, par tranches, sans jamais
+  faire attendre l'image. **Mais une dégradation qui se voit est un échec** (21/09) : *« l'objectif d'une
+  pixelisation et d'une optimisation, c'est qu'elle ne se voie pas à l'œil nu »*. Et le logiciel
+  **pré-optimise** au lieu de réagir : *« que mathématiquement le logiciel développe une intelligence et
+  comprenne la machine afin de pré-optimiser des rendus et de pas recalculer les fps h24 »* — un modèle
+  de coût qui prédit. *(Une note du 21/09 parle d'une fluidité de « 140 images par seconde » : le
+  plancher qu'il a répété est 100 ; à lui confirmer si 140 est une cible.)*
+* **Mais pas une église de l'optimisation** (7/11) : *« Glucose n'a pas pour objectif d'être une église
+  infime de finesse dans l'optimisation graphique, son but premier n'est pas là »* — le blocage de
+  Glucose est le manque de fonctions. **Précisé le 11/11** : *« l'idée n'est pas de construire une église de
+  l'optimisation, MAIS pour ce qui est capital et nécessaire, il faut pouvoir optimiser »* — un ralentissement qu'il sent (*« je lag plutôt beaucoup »*) se règle.
+  ~~Le chantier nommé le 17/09 : la pixelisation au zoom sur processeur~~ — remplacé par ces deux
+  paroles.
+* **Aucune machine exclue** (17/09) : *« tous les CPU, tous les GPU, toutes les cartes du monde »* ;
+  *« jamais personne ne doit manquer de quoi que ce soit — de fluidité, de contrôle sur le canva,
+  d'interface »*. Windows, Linux, macOS (Apple Silicon compris), Android, puis l'iPad par le web, dès la
+  conception. Une optimisation qui dépend d'un jeu d'instructions se prend **à l'exécution**, jamais à la
+  compilation.
+* **Rien de gaspillé** (17/09) : *« à quoi ça sert de se priver de physique et de matériel lorsqu'on le
+  possède ? »*, *« utiliser 650 Mo lorsqu'on a 32 Go ? »* — utiliser ce que la machine a, et s'adapter en
+  temps réel à ce qu'elle fait déjà.
+* **Deux voies, ni pro-CPU ni anti-GPU** (21/09) : *« idée n'a jamais été être réfractaire au GPU, idée
+  c'est être réfractaire à ne pas être spécialisé presque parfait sur 1 seul point mais sur TOUS les
+  points en même temps »* ; le processeur et la carte graphique sont *« littéralement des scripts
+  différents »*. **Interdit** : basculer sur une voie **parce qu'on a échoué** sur l'autre — *« la PIRE
+  des mentalités »* (17/09). Glucose **se niche là où il reste des ressources** — *« se mettre là où il y
+  a de la place, pour surtout jamais gêner l'utilisateur »* (un artiste fait tourner Blender ou Adobe en
+  même temps). La mémoire par étages (23/09) : *« toujours prio la VRAM, ensuite la RAM, ensuite le
+  SSD »*, chaque étage borné par ce que la machine laisse **maintenant**. Le bridage thermique d'un
+  téléphone est le régime normal : on observe le débit qui baisse, on n'interroge pas la température.
+* **Net à l'arrêt** : à l'arrêt, net à quasi 100 % ; pendant le mouvement, un arbitrage à **mesurer**,
+  jamais à trancher sur le papier.
+* **L'élégance mathématique** : une constante arbitraire qui peut **disparaître** ne se règle pas, elle
+  disparaît ; une formule exacte plutôt qu'un flou heuristique. **Viser la perfection** ; un code
+  *irréprochable* (pas d'objet-dieu, pas de module mort, pas de bouton qui ment), réécrit au propre dès
+  qu'il est vu.
+* **Les dépendances** (15/10) : *« oui 1 dépendance reste une dépendance, mais si on ne peut pas faire
+  sans, alors on fera intelligemment avec »* — aujourd'hui minimales mais assumées ; **à terme, zéro
+  absolu**, chacune réécrite quand on sait faire mieux, jamais au prix d'une machine exclue.
+* **Pas de niveau de détail sur le sens** (8/11, pour la carte de Wikipédia) : *« pas de système de LOD
+  et pas de simplification possible »* — rien ne se cache, ne se remplace ou ne s'efface selon la
+  distance. **Une seule exception** (9/11) : *« c'est la première fois que j'autorise les niveaux de
+  LOD »* — **les liens** (§ 6). Le niveau de détail **du rendu des images**, lui (mipmaps, pixelisation
+  invisible, décodage progressif), est souhaité.
+* **Tout a une signification** (9/11) : *« il faut que TOUT ait une signification »* — une teinte, une
+  clarté, une opacité ne varient jamais pour décorer.
+* **L'échelle visée** : des **dizaines de millions de nœuds** (10⁷), pas pour tout de suite. Le but de
+  Glucose Tauri, à dépasser : *des millions d'images ouvertes sans laguer*.
+* **Glucose Tauri, la référence** : visuellement et fonctionnellement, Glucose Rust part de ce que
+  faisait Glucose Tauri (les fiches 06 à 10 du carnet le relèvent au pixel), **jamais de son code** — on
+  recrée, on ne traduit pas. **Ses paroles plus récentes l'emportent sur Tauri** : la teinte symbiotique
+  des textes était *« temporaire »* (11/11), les membranes changent (§ 5).
 
-## L'utilisateur choisit toujours
+## 3. Une application mère, ouverte à tous
 
-*« Je suis d'accord avec le système qui permettrait à l'utilisateur de TOUJOURS CHOISIR ! »* Là où
-deux réponses sont légitimes — la planche claire ou sombre, l'export à 100 % ou aux originaux, la
-numérotation, la place d'un numéro —, Glucose ne tranche pas à la place de l'utilisateur : il
-propose un défaut raisonnable, et laisse choisir. Les presets porteront ces défauts.
+* **Des centaines de plugins**, et des modifications du code lui-même ([PLUGINS.md](../PLUGINS.md)).
+* **Open source, en Rust**, pour que **n'importe qui puisse forker** : l'arborescence doit se lire par un
+  inconnu. **Glucose devient lui-même un ensemble de briques** (15/10) : *« qu'il y ait des milliers de
+  forks, adaptés à tout besoin »* — le noyau sans dépendance (`glucose-core`) est la première.
+* **Les presets sont l'interface entière** (15/10) : la disposition, les couleurs, les raccourcis, toutes
+  les fenêtres — **pas** des gabarits de zones. Un preset de Glucose *« extrêmement travaillé, qui n'a
+  jamais été créé »*, qui regroupe absolument toutes les fonctions, extrêmement ergonomique, rapide pour
+  les professionnels et très propre à l'œil — *« pousser l'outil au maximum dans son ergonomie »* ; un
+  preset PureRef, un Figma, un Miro, chacun avec 100 % (ou presque) de ses fonctions et sa façon de faire.
+* **L'utilisateur choisit toujours** (15/10) : *« je suis d'accord avec le système qui permettrait à
+  l'utilisateur de TOUJOURS CHOISIR ! »* — devant deux réponses légitimes, un défaut argumenté, et le
+  choix.
+* **Tous les boutons sont obligatoires** (12/10) : *« 100 % des boutons existants, ainsi que TOUTES les
+  fonctionnalités à venir, sont quasi obligatoires »* ; un bouton qui ne marche pas se fait marcher,
+  jamais ne se retire. **Collaborer est obligatoire** (plus tard).
+* **L'ergonomie se fait à la fin** (15/10), une grosse session quand toutes les fonctions seront là ;
+  avant, chaque fonction a son bouton, au PC et au téléphone. **Nuancé le 10/11** : *« actuellement le
+  Wikipédia est illisible et horrible à travailler dessus »* — il veut travailler l'ergonomie de la carte
+  de Wikipédia maintenant.
 
-## Ce que cela demande au code, dès maintenant
+## 4. Le domaine — sa définition (22/10)
 
-Écrit par la session du 15/10, à remettre en question :
-
-* **L'interface devient une donnée.** Un preset ne peut exister que si les raccourcis, le thème, la
-  disposition des panneaux et les comportements se lisent dans **une seule table** chacun, et non
-  dans le code de chaque geste. Chaque fonctionnalité écrite avec un raccourci en dur ajoute au
-  travail de demain.
-* **Les plugins** veulent une frontière nette entre le noyau, l'application et ce qui s'y greffe —
-  le noyau sans dépendance l'est déjà.
-* **L'échelle** : 10⁷ nœuds navigables (l'arène, écrite, attend son branchement) — et une
-  navigation sémantique (domaines, couleur), jamais la dégradation du sens.
-* **Le graphe avant le texte** : les flèches, les ancres de texte et les membranes sont déjà la
-  grammaire des objectifs 3 et 4.
-* **L'ergonomie se fait à la fin** : une grosse session, quand toutes les fonctionnalités seront
-  là. Avant, chaque fonction a son bouton, au PC et au téléphone (INVENTAIRE).
-
-## Le pont entre l'humain et l'IA — sa parole du 22/10/2026
-
-*« Depuis le début, Glucose visait à faire le pont entre l'humain et l'IA. »* Les quatre objectifs
-plus haut en sont les faces. Trois précisions du même jour :
-
-* **Un Glucose doit pouvoir être lu par un humain ET par une IA, de quasi la même façon.**
-  *« ATTENTION : impérativement. »* Ce qu'un humain voit, une IA doit pouvoir le lire, et l'inverse.
-* **Pas seulement Wikipédia.** *« Pourquoi se limiter à Wikipédia ? Certains datasets d'IA sont
-  super utiles, MÊME pour un humain : les avoir sur Glucose, ça doit pouvoir être incroyable. »*
-* **Un Glucose que tous les Protéo remplissent ensemble**, et où un Protéo **apprend** : *« pour
-  que Protéo lui-même démonte Maya, le comprenne — en fait il va apprendre plein de trucs avant de
-  le remonter pour finaliser l'addon ; tout ça peut être écrit sur Glucose. »*
-
-Et trois exigences pour les agents, dites le même jour :
-
-* **Une IA doit savoir où se situe quoi dans la carte** — pas seulement la liste des nœuds : leur
-  géographie (ce qui est à côté de quoi, dans quelle région, dans quelle membrane).
-* **Un système de déplacement et de recherche ULTRA avancé pour les IA**, *« pour qu'elles
-  retrouvent ce dont elles ont besoin directement, sans trop galérer — attention : Glucose est là
-  pour faire des recherches, mais des fois on ne sait pas ce qu'on recherche »*. Il faut réfléchir à
-  des systèmes pour **coller Protéo à Glucose**.
-* **Une IA peut être elle-même le sous-agent d'une autre** — avec peu de mémoire de carte graphique
-  et peu de temps pour répondre (côté Protéo : sa conception, § 4.20).
-
-**Un usage qui attend** : un projet Rust de plusieurs millions de lignes (web3), à poser **sur**
-Glucose — non pas son code, mais **l'arbre complet de comment il est fait** (*« une arborescence
-mathématique super complexe »*), que Protéo construit ; puis travailler sur ce projet avec Protéo,
-depuis Glucose.
-
-## Le domaine — sa définition (22/10/2026)
-
-*« Toutes les sessions de code me demandent ce qu'est un domaine : c'est le moment de répondre. »*
+*« Toutes les sessions de code me demandent ce qu'est un domaine : c'est le moment de répondre. »* **Ne
+plus jamais le lui demander.**
 
 > **Le domaine, c'est l'idée de créer un fork.** Dans le domaine **eau**, on peut très bien avoir :
-> « l'eau, ça mouille » ; « eau = H₂O » ; « l'eau dans les jeux vidéo : il faut des systèmes de
-> noise map et de displacement pour créer un effet de 3D ». Ce sont **trois choses très séparées**,
-> dans des **blocs de texte distincts**, qui peuvent eux-mêmes être dans des **membranes**, elles-mêmes
-> peut-être dans des **fichiers** différents — **mais le domaine, lui, va traverser tout ça : tout
-> fait partie du domaine de l'eau.** Aujourd'hui, sur Glucose, on ne peut tout simplement pas le
-> faire : c'est pour ça que le domaine existe.
+> « l'eau, ça mouille » ; « eau = H₂O » ; « l'eau dans les jeux vidéo : il faut des systèmes de noise map
+> et de displacement pour créer un effet de 3D ». Ce sont **trois choses très séparées**, dans des
+> **blocs de texte distincts**, qui peuvent eux-mêmes être dans des **membranes**, elles-mêmes peut-être
+> dans des **fichiers** différents — **mais le domaine, lui, va traverser tout ça : tout fait partie du
+> domaine de l'eau.**
 
-**Sa règle du nom, le 7/11/2026** : *« on ne peut pas inscrire deux domaines avec le même nom ; ils
-doivent impérativement demander à l'IA ou à l'humain la spécification ou la spécialisation du mot — ça
-donnerait python code et python serpent. »* (Écrite dans le code : DOM-4, fiche 88.)
+* **Sa règle du nom** (7/11) : *« on ne peut pas inscrire deux domaines avec le même nom ; ils doivent
+  impérativement demander à l'IA ou à l'humain la spécification ou la spécialisation du mot — ça donnerait
+  python code et python serpent. »*
+* **Sa visualisation** (22/10) : *« ça va dans la catégorie ergonomie de l'application »*.
+* **Trans-domaines** : *« une espèce de vue en perspective 3D de tous les domaines… mais c'est de la R&D,
+  je ne suis pas sûr »* ; le bouton dit « bientôt ».
+* **Les dimensions de Glucose** (sa piste de R&D) : un espace latent de 4 096 dimensions posé sur un
+  canevas 2D deviendrait *« absolument PLUS exploitable »* ; x et y, la couleur (*« autant de couleurs
+  visibles que de dimensions »*), la membrane (une dimension, plus une couleur), la flèche (*« une infinité de
+  dimensions ? c'est un système qui a énormément d'options »*), le domaine (une infinité de dimensions,
+  plus une couleur).
 
-**Pour l'instant, on se concentre sur le domaine** — mais pas sur sa visualisation : *« ça va dans
-la catégorie ergonomie de l'application, et l'ergonomie, ce n'est pas pour tout de suite »*.
+## 5. Les couleurs
 
-**Trans-domaines** : *« une espèce de vue en perspective 3D de tous les domaines… mais c'est de la
-R&D, je ne suis pas sûr. »* Il attend ; le bouton dit « bientôt ».
+### Les membranes
 
-**Les dimensions de Glucose** (sa piste de R&D, telle qu'il la dit) : un espace latent de 4 096
-dimensions, posé sur un canevas 2D, devient *« absolument PLUS exploitable »* ; des chercheurs
-ont réussi à travailler un espace latent sur une centaine de dimensions pour le redéplier ensuite.
-Glucose n'est pas *juste* un canevas 2D : les axes x et y ; la couleur des blocs (*« autant de
-couleurs visibles que de dimensions »*) ; la membrane (une dimension, plus une couleur) ; la flèche
-(*« une infinité de dimensions ? c'est un système qui a énormément d'options »*) ; le domaine (une
-infinité de dimensions, plus une couleur).
+* **Le sens** (9/11) : **la teinte** dit la **proximité des domaines** (*sciences, société et sciences
+  sociales ont des couleurs proches*) ; **la clarté**, l'**accessibilité** (un sujet accessible à tous ou
+  non) ; **l'opacité**, l'**appartenance** (un sujet qui entre pile dans sa matière est opaque ; un sujet
+  qui en dérive, plus transparent). À terme, **une option** : l'IA de Glucose colore d'elle-même, que
+  l'utilisateur peut ne pas utiliser. *« Je ne sais pas trop »* (10/11), devant l'image qu'on lui en a
+  montrée.
+* **Choisir sa couleur** (9/11) : *« si possible le même système de palette que Blender, avec la roue —
+  elle est extrêmement ergonomique »*.
+* **Plus de couleurs** (9/11, devant une teinte par région) : *« c'est magnifique, c'est presque parfait,
+  MAIS tu n'as pas créé assez de couleurs »* ; **pas de clair ou de sombre décoratif**.
+* **Revoir les membranes** (8/11) : *« j'accepte de revoir le fonctionnement des membranes afin qu'elles
+  soient plus intéressantes »*.
+* **Emboîtées** (10/11) : *« plus on met des membranes dans des membranes, moins on voit grand-chose ; on
+  arrive à lire, mais… c'est vraiment pas beau »*. **La loi des régions** — chaque endroit prend la
+  couleur de la plus petite région qui le contient (fiche 104) : *« je suis d'accord »* (11/11). **Les
+  frontières qui grandissent avec la région** : *« trouver quelque chose de plus léger ; sinon oui, je
+  suis d'accord »*. **Une membrane sans couleur choisie devient neutre** : *« oui aussi »*. Et (11/11) :
+  la carte n'est *« pas encore super lisible, à cause de l'opacité des membranes »*.
 
-### Ce que la session du 22/10 en comprend, et y précise (à remettre en question)
+### Les textes : un fond toujours gris, un halo qui dit le sens (11/11)
 
-* **Membrane et domaine sont deux structures différentes, et c'est ce qui fait le domaine.** Une
-  membrane **contient** : un nœud est dans une seule membrane à la fois, et les membranes
-  s'emboîtent — un arbre. Un domaine **traverse** : un nœud peut appartenir à plusieurs domaines, à
-  des degrés divers, quelle que soit sa membrane ou son fichier — un recouvrement, pas un arbre. Le
-  noyau a déjà cette forme pour un document (`Project.domains`, chaque nœud porte ses domaines avec
-  un poids de 0 à 1 : une appartenance graduée) ; il lui manque de **traverser les fichiers**, d'être
-  **vu** (filtrer, colorer) et d'être **lu par une IA** (`glucose_lire` ne dit pas les domaines).
-  **Depuis la fiche 88** : il traverse les fichiers (chaque fichier garde les siens ; Glucose met côte à
-  côte ceux qu'il connaît), et une IA le lit et le pose comme l'humain ; reste qu'on le **voie**.
-* **« Lu de la même façon » oblige à une règle** : le sens d'un tableau ne doit jamais tenir
-  **seulement** dans la position. Un humain lit la proximité ; une IA reçoit des coordonnées qu'elle
-  n'interprète pas. Ce qui compte s'écrit donc aussi dans une structure explicite — une membrane, une
-  flèche, un domaine —, que les deux lisent pareil.
-* **Les dimensions, comptées honnêtement** : x et y sont deux dimensions continues ; la couleur
-  perçue en a trois (clarté, deux axes de teinte), et l'œil ne distingue de façon sûre qu'une
-  dizaine de couleurs **catégorielles** (ordre de grandeur des guides de visualisation, à vérifier) —
-  au-delà d'une dizaine de domaines, la couleur seule ne suffira plus à les reconnaître ; chaque
-  domaine est une dimension à lui (appartient, et à quel degré) : leur nombre n'a pas de borne.
-  Ce qui rend Glucose plus exploitable qu'un espace latent n'est pas de le **projeter** en 2D (une
-  projection de 4 096 dimensions en perd presque tout), c'est que ses dimensions sont **explicites et
-  nommées** — « eau », « contredit » — là où celles d'un modèle sont anonymes.
-
-## Wikipédia sur le canevas — sa parole du 8/11/2026
-
-Devant la fiche 94 (« comprendre Wikipédia d'un regard »), deux précisions :
-
-1. **« Pas de système de LOD, et pas de simplification possible. »** Rien ne se cache, rien ne se
-   remplace, rien ne s'efface selon la distance : ce que la carte porte est montré tel quel, à toute
-   distance. (La charte refusait déjà la LOD sémantique ; c'est désormais dit pour toute la carte de
-   Wikipédia, et il ne faut rien proposer qui y ressemble — ni masquer des noms trop petits, ni
-   regrouper des liens, ni « simplifier » une région vue de loin.)
-2. **« J'accepte de revoir le fonctionnement des membranes afin qu'elles soient plus
-   intéressantes. »** La membrane peut changer : c'est une porte ouverte, à concevoir avec lui, avec la
-   recherche et des propositions argumentées.
-
-Le même soir, devant les propositions de la fiche 95 :
-
-* **Le mode Focus** (zoomer jusqu'à ce qu'une membrane remplisse l'écran, et tout le reste disparaissait) :
-  *« effectivement, le mode Focus, je préférais que ce soit un geste choisi »*. On y entre par un geste ;
-  le zoom ne cache plus rien.
-* **Un nœud vu de loin** (son texte remplacé par un cadre vide sous un cinquième de zoom) : *« je suis
-  carrément d'accord pour le gris des lignes »* — de loin, un texte montre le gris de ses lignes, ce que
-  ses lettres couvrent.
-
-Le 9/11, devant le squelette des cent articles vitaux (fiche 97) :
-
-* **Que Glucose se repose sur une carte de Wikipédia** — *« yep »* : c'est le prochain chantier (REPOS-2),
-  un usage réel et non une église de l'optimisation.
-* **Le déséquilibre** (« Sciences et médecine » prend presque tout l'écran, parce que deux articles
-  entiers y sont) : garder la loi — la surface d'une région dit la quantité de ce qu'elle porte —,
-  *« je crois bien »* ; les régions se reconnaîtront par la couleur.
-* **Les propositions B, C, D** (fiche 95 § 4) : *« prochaine session »*.
-
-Le 9/11 après-midi, devant la session de la fiche 98 (D en image, la barre de couleur, `Ctrl+G`) :
-
-* **D, une teinte par région** : *« c'est magnifique, c'est presque parfait, MAIS tu n'as pas créé assez de
-  couleurs »* — une palette de couleurs comme celle de Blender, avec la roue, ferait mieux. **Pas de clair ou
-  de sombre décoratif** : *« il faut que TOUT ait une signification »* (la proposition « une sœur claire, une
-  sombre » de la fiche 98 était une faute). Ses propositions, **pour les membranes** :
-  * **la teinte** : les couleurs se fondent entre elles quand les domaines se rapprochent — sciences, société
-    et sciences sociales ont des couleurs proches ;
-  * **la clarté** : un sujet est sombre ou clair selon qu'il est **accessible à tous ou non** (le niveau de
-    compréhension nécessaire) ;
-  * **l'opacité** : un sujet qui entre **pile** dans sa matière est plutôt opaque ; un sujet qui en fait partie
-    mais en dérive un peu, plus transparent ;
-  * à terme, **une option** : l'IA de Glucose change d'elle-même les couleurs des membranes selon cette règle —
-    toujours avec la possibilité pour l'utilisateur de ne pas s'en servir.
-* **La couleur des textes** : *« c'est toute une question aussi »* — au sein d'une membrane il y a souvent du
-  texte, et du texte de couleur : il faut proposer **une utilité** (une signification) à cette couleur.
-* **Choisir sa couleur** : laisser l'utilisateur choisir la couleur qu'il souhaite, *« si possible le même
-  système de palette que Blender, avec la roue — elle est extrêmement ergonomique »* ; en revoir l'ergonomie
-  et les raccourcis.
-* **Les liens — sa première autorisation d'un niveau de détail** : *« c'est la première fois que j'autorise
-  les niveaux de LOD »*. De base, les liens sont **très transparents** ; dès qu'on s'approche d'un bloc de
-  texte, ils apparaissent. Un clic sur un lien : soit **un focus** sur ce à quoi il est rattaché, soit **un
-  « show »** (*« isolation ? »*) — une **fenêtre temporaire** qui rassemble le nœud et **tous** ses liens, les
-  blocs de texte placés **à côté**, automatiquement, même s'ils sont à des kilomètres, gardant leur couleur
-  d'origine, avec l'explication de leur provenance (quelle membrane) ; on y zoome, on y lit ; un clic sur un
-  nœud défait la fenêtre et vole vers son emplacement dans le canevas. Seuls les liens ont cette exception.
-* **`Alt+Z`** : revenir en arrière dans les placements de la caméra — *« tu focus sur un bloc qu'il ne
-  fallait pas, Alt+Z, et tu es de retour instantanément à ton lieu d'origine »*.
-* **Ce qu'il a vu à son écran** : *« le système de double-clic fonctionne très bizarrement »* — on tape, les
-  lettres n'apparaissent pas ; ce n'est qu'après avoir cliqué ailleurs que le texte s'enregistre et
-  s'affiche. *« Les couleurs de text box ne fonctionnent pas »* (la teinte d'un texte ne se voit pas). *« Il
-  y a beaucoup, beaucoup d'erreurs. »*
-
-## Ses réponses du 10/11/2026 au soir (fiche 102)
-
-Devant la carte de Wikipédia et ses liens, à son écran :
-
-* **`Alt+Z`** : *« c'est vraiment juste le Ctrl+Z, mais pour la caméra »* — chaque geste de caméra se
-  défait, un voyage à la molette compris.
-* **La couleur d'un texte** : *« j'avoue, je n'en ai aucune idée ; je partage ton avis, je pense »* —
-  la proposition A (fiche 99 § 5) : **la couleur d'un texte dit le domaine dont il parle**.
-* **Les membranes emboîtées** : *« plus on met des membranes dans des membranes, moins on voit
-  grand-chose ; on arrive à lire, mais… c'est vraiment pas beau »* ; et *« actuellement le Wikipédia
-  est illisible et horrible à travailler dessus »* — **il veut travailler l'ergonomie**.
-* **Les liens** : *« ça fonctionne bien, mais j'aimerais rajouter quelque chose »* — quand il y a une
-  abondance de liens dans un espace, même zoomé, leur opacité dépend de leur **nombre à l'écran** (un
-  lien : 100 % ; vingt : 30 %, en ligne droite) et de **la proximité de la souris** aux nœuds qui les
-  portent (100 / (1 + distance)) ; *« je n'aimerais jamais tomber en dessous de 8 % »*.
-* Il a eu *« clairement 0 fps par moment »* : les itinéraires des flèches (ITINERAIRE-2, réparé).
-* Il a demandé la publication de la version la plus récente, pour travailler sur ses projets.
-
-## Ses réponses du 11/11/2026 au matin (fiche 104)
-
-Devant la page avant/après des membranes (fiche 104 § 2) :
-
-* **La loi des régions** (chaque endroit prend la couleur de la plus petite région qui le contient) :
-  *« je suis d'accord »*.
-* **Les frontières qui grandissent avec la région** : *« trouver quelque chose de plus léger ; sinon oui,
-  je suis d'accord »*.
-* **Le plancher des liens**, ses mots tels quels (jamais sous 8 %, même de très loin) : *« oui »*.
-* **Une membrane sans couleur choisie devient neutre** (un gris, au lieu du bleu par défaut) : *« oui
-  aussi »*.
-* **Le fond d'un texte** : *« il faudrait abandonner l'idée du background d'un texte : je préfère qu'il soit
-  TOUJOURS gris »*. Le geste de la fiche 99 qui colore un bloc de texte devait changer **le halo lumineux**
-  autour du bloc — *« PAS son background ! »*.
-* **Le halo lumineux autour d'un texte** : la *noise map* qui y met des couleurs aléatoires (la teinte
-  symbiotique, héritée de Glucose Tauri) *« n'était que temporaire »*. Son idée des couleurs : *« une
-  intelligence artificielle semi from scratch, ultra optimisée et minimale, capable de comprendre une seule
-  et unique chose : est-ce que ce texte a un rapport avec ce texte-là, et à combien de % »* — des modèles
-  faits *« uniquement pour des % »*, beaucoup plus rapides, petits et optimisés. La règle :
+* **Le fond d'un texte** : *« il faudrait abandonner l'idée du background d'un texte : je préfère qu'il
+  soit TOUJOURS gris »*. Le geste qui colore un bloc de texte devait changer **le halo lumineux** autour
+  du bloc — *« PAS son background ! »*. (Son *« les couleurs de text box ne fonctionnent pas »* du 9/11
+  parlait donc du halo ; la fiche 99 a coloré le fond.)
+* **Le halo lumineux** : la *noise map* qui y met des couleurs aléatoires (la teinte symbiotique, héritée
+  de Glucose Tauri) *« n'était que temporaire »*. Son idée : *« une intelligence artificielle semi from
+  scratch, ultra optimisée et minimale, capable de comprendre une seule et unique chose : est-ce que ce
+  texte a un rapport avec ce texte-là, et à combien de % »* — des modèles faits *« uniquement pour des
+  % »*, beaucoup plus rapides, petits et optimisés. La règle :
   * des textes qui ont un rapport ont des **couleurs proches** ; si l'utilisateur les **éloigne** dans le
     canevas, cela s'applique *« en mode smooth »* ;
   * si l'IA est **sûre** d'un rapport fort avec un autre texte : garder la couleur, mais appliquer
@@ -284,28 +202,70 @@ Devant la page avant/après des membranes (fiche 104 § 2) :
   * si l'IA **n'est pas sûre**, et qu'ils sont vraiment distants : **pas** de liaison de couleur ;
   * *« et du coup le système d'opacité et de niveaux de blanc ou noir prend sens ! Avant, il n'était pas
     utilisé »*.
-* La question « textes sans domaine neutres, liens gris » : *« je n'ai pas trop idée, je n'ai pas tout
-  compris »* — elle est remplacée par son idée du halo.
+* **Une utilité à la couleur des textes** (9/11) : *« c'est toute une question aussi »* — au sein d'une
+  membrane il y a souvent du texte, et du texte de couleur : il faut lui proposer une signification.
+* ~~La couleur d'un texte dit le domaine dont il parle (*« j'avoue, je n'en ai aucune idée ; je partage ton
+  avis, je pense »*, 10/11)~~ —
+  remplacé par l'idée du halo ; sur la question « textes sans domaine neutres, liens gris » : *« je n'ai
+  pas trop idée, je n'ai pas tout compris »* (11/11).
 
-**Ce qui ne va pas sur la carte de Wikipédia**, ses mots :
+## 6. Les liens
 
-1. elle n'est pas encore super lisible, à cause de l'opacité des membranes ;
-2. il y a **trop de flèches partout** : *« impossible de pouvoir naviguer »*, *« on ne comprend pas trop »* ;
-3. les flèches pointent des **blocs** ; or, dans Wikipédia, un article fait référence à un autre depuis des
-   **mots précis** — *« ce n'est pas du tout utilisé convenablement, on a juste des flèches random »* ;
-4. l'algorithme qui affiche les flèches sans que ce soit brouillon est plutôt mauvais, surtout en mode
-   *smooth* ; il propose de revoir le système pour qu'un humain puisse **suivre** les flèches, avec une
-   logique de **câblage** (*cable management*) — *« mais pas du pur câblage, on ne s'y retrouverait pas non
-   plus ; il faut une logique, et là encore passer par l'intelligence artificielle pour que ça fasse sens »* ;
-5. *« je lag plutôt beaucoup »* : *« l'idée n'est pas de construire une église de l'optimisation, MAIS pour
-   ce qui est capital et nécessaire, il faut pouvoir optimiser »*.
+* **Sa seule exception de niveau de détail** (9/11) : de base, les liens sont **très transparents** ; dès
+  qu'on s'approche d'un bloc de texte, ils apparaissent. Un clic sur un lien : soit **un focus** sur ce à
+  quoi il est rattaché, soit **un « show »** (*« isolation ? »*) — une **fenêtre temporaire** qui rassemble
+  le nœud et **tous** ses liens, les blocs placés **à côté**, gardant leur couleur, avec leur provenance ;
+  on y zoome, on y lit ; un clic sur un nœud défait la fenêtre et vole vers sa place.
+* **Ses formules** (10/11) : *« ça fonctionne bien, mais j'aimerais rajouter quelque chose »* — quand les
+  liens abondent, leur opacité suit leur **nombre à l'écran** (un
+  lien : 100 % ; vingt : 30 %, en ligne droite) et **la proximité de la souris** aux nœuds qui les portent
+  (`100 / (1 + distance)`) ; *« je n'aimerais jamais tomber en dessous de 8 % »* — ses mots tels quels,
+  même de très loin : *« oui »* (11/11).
+* **Ce qui ne va pas** (11/11, sur la carte de Wikipédia) :
+  * **trop de flèches partout** : *« impossible de pouvoir naviguer »*, *« on ne comprend pas trop »* ;
+  * elles pointent des **blocs** ; or, dans Wikipédia, un article fait référence à un autre depuis des
+    **mots précis** — *« ce n'est pas du tout utilisé convenablement, on a juste des flèches random »* ;
+  * l'algorithme qui les affiche sans brouillon est plutôt mauvais, surtout en mode *smooth* : revoir le
+    système pour qu'un humain puisse **suivre** une flèche, avec une logique de **câblage** — *« mais pas
+    du pur câblage, on ne s'y retrouverait pas non plus ; il faut une logique, et là encore passer par
+    l'intelligence artificielle pour que ça fasse sens »*.
 
-Et, avant d'attaquer tout cela : rectifier les `.md` — *« trop de choses qui se contredisent, d'autres qui
-se répètent »* ; les sessions suivantes *« se retrouvent vite perdues »*.
+## 7. La caméra et la carte de Wikipédia
 
-## Ce qui est encore à définir — sa parole
+* **`Alt+Z`** (9/11) : revenir en arrière dans les placements de la caméra — *« tu focus sur un bloc qu'il
+  ne fallait pas, Alt+Z, et tu es de retour instantanément à ton lieu d'origine »* ; (10/11) *« c'est
+  vraiment juste le Ctrl+Z, mais pour la caméra »* — chaque geste de caméra se défait, un voyage à la
+  molette compris.
+* **Le mode Focus** (8/11) : *« je préférais que ce soit un geste choisi »* — on y entre par un geste ; le
+  zoom ne cache plus rien.
+* **De loin, un texte montre le gris de ses lignes** (8/11) : *« carrément d'accord pour le gris des
+  lignes »*.
+* **Glucose se repose sur la carte** (9/11) : *« yep »*.
+* **Le déséquilibre** (9/11) : la surface d'une région dit la quantité de ce qu'elle porte, *« je crois
+  bien »* ; les régions se reconnaîtront par la couleur.
+* **Comprendre Wikipédia d'un regard** (8/11) : *« comment le cerveau humain serait capable de comprendre
+  Wikipédia tout entier sur un canva 2D sans que ce soit trop brouillon, avec le maximum de facilité »*.
+* **Ce qui ne va pas** (11/11) : pas encore lisible (l'opacité des membranes), trop de flèches, des
+  flèches qui ne partent pas des mots, un tracé brouillon, et *« je lag plutôt beaucoup »*.
 
-* ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
-  raisonnement sur ce que j'entends par domaine »*.~~ **Le domaine est défini depuis le 22/10**
-  (plus haut) ; Trans-domaines reste de la R&D (une vue en perspective 3D de tous les domaines).
-* Le design des dossiers, à retravailler ; le dessin de la sélection (E, pour l'instant).
+## 8. Ce qui reste à définir — à sa parole
+
+* **Le dossier**, à retravailler (15/10) ; **le dessin de la sélection** (E, pour l'instant).
+* **Trans-domaines** (R&D).
+* **Les rideaux** (un tableau dans une membrane), **les membranes de Mary** (étirées, minimisées),
+  « optimiser » dans la Time Machine.
+* **Ordonner, « très très grandement »** (15/10) : à concevoir avec lui.
+* **Sa liste PureRef**, pour le preset.
+
+## 9. Sur la façon de travailler
+
+* *« Je ne code pas »* : il porte la vision, les valeurs, le ressenti ; la technique se décide et
+  s'exécute pour lui. Il parle français, ne voit pas la console, veut être **contredit** quand on a un
+  argument.
+* *« C'est plus à toi de tester plutôt que de me demander à moi ; tu seras sûrement meilleur juge que
+  moi »* (18/10).
+* *« Tu fais un truc, tu t'arrêtes, tu dis tout, puis tu attends un message de ma part et tu recommences
+  ça en boucle — j'appelle pas ça travailler »* (septembre) : des sessions entières, les chantiers
+  enchaînés.
+* **Les documents** (11/11) : *« trop de choses qui se contredisent, d'autres qui se répètent »* ; les
+  sessions suivantes *« se retrouvent vite perdues »*.
