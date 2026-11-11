@@ -51,8 +51,10 @@ fn rendre(couleur: Option<&str>, membrane: Option<&str>) -> [(u8, u8, u8); 2] {
 /// couleur choisie l'aurait teinté (COULEUR-3, fiche 99).
 #[test]
 fn papier_1_le_papier_d_un_texte_est_le_gris_des_blocs_partout() {
-    let theme = crate::theme::Theme::dark();
-    let gris = super::papier(&theme);
+    // Le jeton du thème, lu directement : comparer l'image à `papier` comparerait la fonction à
+    // elle-même (le sabotage « un autre gris du thème » passait).
+    let c = crate::theme::Theme::dark().card_paper.to_color_u8();
+    let gris = (c.red(), c.green(), c.blue());
     let (r, g, b) = gris;
     assert!(r == g && g == b, "le papier est neutre : {gris:?}");
     for (couleur, membrane) in [

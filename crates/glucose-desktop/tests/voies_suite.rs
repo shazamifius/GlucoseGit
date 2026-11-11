@@ -1238,6 +1238,67 @@ fn test_papier_1_le_papier_d_une_carte_dans_une_membrane_est_le_gris_des_blocs()
     }
 }
 
+// ── Les membranes en carte (REGION-1) ──────────────────────────────────────────────────────
+
+/// Une mère rouge, une fille bleue dedans, une case de storyboard dans la mère — vues au double,
+/// la grille de points bien visible.
+fn document_regions() -> glucose_core::store::Store {
+    use glucose_core::types::Annotation;
+    let mut store = glucose_core::store::Store::new("Régions");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 300.0,
+            y: 250.0,
+            scale: 2.0,
+        };
+    }
+    for (id, boite, couleur) in [
+        ("m", (-300.0, -200.0, 600.0, 400.0), "#ef4444"),
+        ("f", (-40.0, -120.0, 300.0, 200.0), "#3b82f6"),
+    ] {
+        let (x, y, l, h) = boite;
+        let mut m = Annotation::membrane(id, x, y, l, h);
+        if let Annotation::Membrane { color, .. } = &mut m {
+            *color = Some(couleur.to_string());
+        }
+        store.add_annotation(&board, m);
+    }
+    let grille = glucose_core::store::storyboard::Grille {
+        largeur: 80.0,
+        colonnes: 1,
+        ..Default::default()
+    };
+    store.poser_le_storyboard(&board, grille, (-250.0, 60.0));
+    store.clear_selection();
+    store
+}
+
+/// **Les deux voies posent le sol des régions, puis la grille et les zones, puis les frontières**
+/// (REGION-1, fiche 105) : la même image, sur toute la surface — la grille de points dans les deux
+/// membranes, la case dans la mère, les frontières par-dessus. Une passe à son ancien rang (la
+/// grille ou les zones sous le sol, sur la carte graphique) laisse des centaines de points de
+/// trente à quarante niveaux d'écart.
+#[test]
+fn test_region_1_les_deux_voies_posent_le_sol_la_grille_et_les_frontieres_dans_le_meme_ordre() {
+    let taille = (800u32, 600u32);
+    let store = document_regions();
+    let processeur = par_le_processeur(taille, &store);
+    let Some(carte) = par_la_carte(taille, &store) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(pire <= ECART_ADMIS, "pire ecart {pire}");
+}
+
 // ── Un passage qui brille (PASSAGE-2) ──────────────────────────────────────────────────────
 
 /// **Un passage qui brille se rend pareil sur les deux voies** : son fond, son liseré et ses

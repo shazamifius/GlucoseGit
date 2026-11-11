@@ -183,8 +183,8 @@ fn peindre_tout(champs: &[&Membrane], (l, h): (u32, u32)) -> Vec<Pixel> {
 
 /// **Ce que la liste écarte ne se voyait pas** : des régions emboîtées, vues de loin puis de si
 /// près que la plus petite couvre l'écran ; l'image de la liste est celle de tous les champs —
-/// tous les sols, puis toutes les frontières —, au bit près. Et de près, la liste a bien écarté
-/// quelque chose : les mères sous la fille, leurs frontières loin de l'écran.
+/// tous les sols, puis toutes les frontières —, au bit près. Rien ne se pose sous un corps qui
+/// couvre l'écran : les mères sous la fille, leurs frontières loin de l'écran, s'écartent.
 #[test]
 fn region_1_ce_qui_ne_se_voit_pas_ne_se_pose_pas() {
     let (l, h) = (160, 120);
@@ -224,6 +224,21 @@ fn region_1_ce_qui_ne_se_voit_pas_ne_se_pose_pas() {
             peindre_tout(&poses, (l, h)),
             peindre_tout(&tous, (l, h)),
             "au zoom {zoom}, la liste change l'image"
+        );
+        // Chaque frontière posée se voit : posées en dernier, rien ne les couvre.
+        let vide = peindre_tout(&[], (l, h));
+        for f in liste.frontieres() {
+            assert_ne!(
+                peindre_tout(&[f], (l, h)),
+                vide,
+                "au zoom {zoom}, une frontière posée ne pose rien"
+            );
+        }
+        // Rien ne se pose sous un corps qui couvre l'écran : un champ qui couvre ne peut être que
+        // le premier du sol.
+        assert!(
+            liste.sol().iter().skip(1).all(|m| !m.couvre(ecran)),
+            "au zoom {zoom}, un corps qui couvre l'écran est posé sur d'autres"
         );
         assert_eq!(
             liste.len() < tous.len(),

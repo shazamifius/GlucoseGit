@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 11/11/2026** (fiche 104). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 11/11/2026** (fiche 105). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -16,12 +16,14 @@
   documents s'ouvrent, ses données ne sont jamais touchées.
 * **Sur `main`, depuis la beta 10** : `Alt+Z` d'un geste (RETOUR-2), les liens près des blocs (LIEN-4),
   les titres qui ne refont plus leurs lettres (LETTRES-1 : de loin, sur la carte de Wikipédia, 25,5 →
-  15,5 ms par image). **Son Glucose installé** (profil Nix `GlucoseGit`) est sur `465794a`.
+  15,5 ms par image) ; **les membranes en carte** (REGION-1, fiche 105 : la plus petite région
+  l'emporte, le papier des textes toujours gris, une membrane sans couleur grise ; au fond de « Eau »,
+  7,8 ms par image au lieu de 17,6). **Son Glucose installé** (profil Nix `GlucoseGit`) : __INSTALLE__.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Le chantier en cours** : les documents (sa demande du 11/11), puis la carte de Wikipédia — ses cinq
-  défauts (VISION § 7) — et les membranes en carte, approuvées (fiche 104).
+* **Le chantier en cours** : la carte de Wikipédia — ses cinq défauts (VISION § 7). Les membranes en carte
+  sont écrites (fiche 105) ; l'allure de leurs frontières attend sa parole. Puis le halo des textes.
 
 ## 2. Ce que fait Glucose Rust
 
@@ -32,9 +34,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Naviguer** | canevas infini, zoom jusqu'à ×256 ; souris, pavé (pincement sous Windows, Linux et macOS), doigts ; `F` cadre la sélection, `Alt+F` tout ; **`Alt+Z`** le `Ctrl+Z` de la caméra ; signets ; minimap ; onglets ; **`Ctrl+F`** cherche dans tout le document ; le mode Focus par un geste choisi |
 | **Le document** | `.glucose` écrit geste après geste, brouillons, reprise au lancement, Time Machine (`Ctrl+H`), les documents de Tauri lus ; au terminal, `glucose document.glucose` et une commande par outil des agents (`glucose aide`) |
 | **Images** | PNG, JPEG, WebP, GIF (figé), BMP ; coller, déposer ; rotation, recadrage ; la mémoire par étages |
-| **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; la couleur choisie teinte son fond (**à défaire**, § 3) |
+| **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; la couleur choisie va à sa lueur |
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **de loin, une trace** ; leur présence suit leur nombre et la souris ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
-| **Organiser** | membranes (titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) |
+| **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) |
 | **L'interface** | 105 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence |
 | **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi) et y pose textes, membranes, flèches, domaines — chaque geste annulable, rien sans son accord |
@@ -44,14 +46,14 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 **Ce qu'il voit, ses mots du 11/11** (la carte de Wikipédia, son usage réel) — le détail dans VISION § 5 à 7 :
 
-* **pas encore lisible** : les membranes emboîtées s'empilent en boue. La loi des régions est approuvée,
-  pas encore écrite (prototype : `~/.cache/glucose-bancs/membranes-104/`) ;
+* **pas encore lisible** : les membranes emboîtées s'empilaient en boue — **réglé sur `main`** (fiche 105),
+  pas encore à son écran ; l'allure des frontières attend sa parole ;
 * **trop de flèches**, qui partent des blocs et non des mots, au tracé brouillon (surtout en courbe) ;
 * **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (au-dessus
   du plancher de 10 ms) ;
-* **le fond d'un texte se colore** (COULEUR-3) alors qu'il le veut toujours gris ; la couleur choisie doit
-  aller au **halo**, et le halo dire la parenté des textes (une IA de similarité) — aujourd'hui, c'est un
-  bruit sans sens (la teinte symbiotique de Tauri, « temporaire »).
+* **le halo d'un texte** ne dit rien : la teinte symbiotique de Tauri, « temporaire » ; il doit dire la
+  parenté des textes (une IA de similarité), et porter la couleur qu'on choisit pour un texte — qui,
+  depuis que le papier est toujours gris, ne se voit plus que dans sa lueur.
 
 **Connus, mesurés, pas réglés** :
 
@@ -66,7 +68,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : ~3 110, toutes vertes au 11/11 (`cargo test --workspace`) ; clippy strict et
+* **Les épreuves** : 3 110, toutes vertes au 11/11 (`cargo test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve

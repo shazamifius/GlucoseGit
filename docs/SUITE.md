@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 11/11/2026** (fiche 104). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 11/11/2026** (fiche 105). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -29,8 +29,7 @@ vraies (la ligne d'arrivée proposée le 25/10, à remettre en question) :
 
 | | chantier | fini quand |
 |---|---|---|
-| [~] | **Les documents** (sa demande : *« trop de choses qui se contredisent, d'autres qui se répètent »*) : un fait, un seul endroit ; VISION par thème et seule demeure de ses paroles et de la charte ; ÉTAT en une page ; SUITE en une ligne par chantier ; MÉTHODE en principes ; les mémoires de Claude qui pointent vers le dépôt (fiche 104) | une session neuve démarre en lisant `CLAUDE.md`, sans s'y perdre |
-| [ ] | **Les membranes en carte** (approuvé le 11/11, fiche 104 § 2) : la plus petite région l'emporte, la mère avant ses filles, une force unique déduite de la lecture ; **une membrane sans couleur choisie, neutre** ; **les frontières à la loi du titre, mais plus légères** (à trouver, et à lui montrer) ; **le fond d'un texte toujours gris** — *« le gris sombre et neutre des blocs d'aujourd'hui »* (défaire COULEUR-3 ; la force des régions ne se déduit alors plus du texte posé dessus — à repenser). Prototype : `~/.cache/glucose-bancs/membranes-104/prototype-104.patch` | écrit dans les deux voies (la même liste de champs), éprouvé, saboté, regardé sur les quatre vues, puis à son écran |
+| [~] | **Les membranes en carte** (fiche 105) : écrites, éprouvées, sabotées, regardées sur les quatre vues et sur les deux voies. Reste **l'allure de la frontière**, à sa parole (le trait continu, qui ferait partir le pointillé de toutes les membranes : https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
 | [ ] | **Le halo d'un texte dit sa parenté** (VISION § 5) : une IA minuscule et rapide qui ne sait qu'une chose — à combien de % ce texte parle de celui-là ; des textes parents ont des couleurs proches, même éloignés si l'IA est sûre (adoucis par leurs voisins), séparées si elle doute et qu'ils sont loin ; l'opacité et la clarté y prennent leur sens ; le geste qui colore un texte va au halo. **Recherche d'abord** : les petits modèles de similarité (plongements de phrases), en Rust, sans exclure une machine | regardé sur la carte de Wikipédia, éprouvé, saboté, puis sa parole |
 | [ ] | **Les flèches de Wikipédia** (VISION § 6) : partir des **mots** qui citent (les ancres de texte existent) ; moins de flèches à la fois, qu'on peut **suivre** ; un tracé à logique de câblage, sans tomber dans le pur câblage — et l'IA pour le sens. **Recherche d'abord** (le routage des arêtes, le *edge bundling*, les cartes de métro) | à son écran, sur la carte de Wikipédia |
 | [ ] | **Son lag** (*« pour ce qui est capital et nécessaire, il faut pouvoir optimiser »*) : sur son VivoBook, 13,8 ms l'image typique, 2,6 s la pire (la télémétrie du 11/11) ; lire sa chronique, nommer les postes au profil, régler ce qui pèse | sa chronique sous 10 ms au 99ᵉ centile, sur sa carte |
