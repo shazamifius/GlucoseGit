@@ -186,13 +186,15 @@ fn parente_1_le_hasard_se_lit_sans_les_vraies_parentes() {
 
 /// **PARENTE-1 — un anneau de familles se retrouve sur le cercle** : six familles dont chacune n'est
 /// parente que de ses deux voisines ; sur le cercle des teintes, les voisines d'une famille sont ses
-/// voisines de l'anneau.
+/// voisines de l'anneau. Le document les pose **dans le désordre** : posées dans l'ordre de l'anneau,
+/// leur ordre d'arrivée était déjà le bon, et un cercle qui ne cherchait rien passait (fiche 106).
 #[test]
 fn parente_1_l_anneau_des_familles_se_retrouve_sur_le_cercle() {
     let d = 70;
     let mut t = Tirages(5);
+    let dans_le_document = [0, 3, 1, 4, 2, 5];
     let mut sens = Vec::new();
-    for f in 0..6 {
+    for &f in &dans_le_document {
         let theta = std::f32::consts::TAU * f as f32 / 6.0;
         let centre = axes(
             d,
@@ -210,9 +212,10 @@ fn parente_1_l_anneau_des_familles_se_retrouve_sur_le_cercle() {
         sens.push(t.sens(d));
     }
     let p = parente(&sens);
-    let familles: Vec<usize> = (0..6)
-        .map(|f| p.famille[f * 5].expect("une famille"))
-        .collect();
+    let mut familles = [0usize; 6];
+    for (bloc, &f) in dans_le_document.iter().enumerate() {
+        familles[f] = p.famille[bloc * 5].expect("une famille");
+    }
     let mut ordre: Vec<usize> = (0..6).collect();
     ordre.sort_by(|&a, &b| p.teintes[familles[a]].total_cmp(&p.teintes[familles[b]]));
     for (i, &f) in ordre.iter().enumerate() {

@@ -356,8 +356,19 @@ fn test_survol_1_viser_par_les_rangs_rend_ce_que_rend_la_visee_naive() {
     // longueur, un nœud remplacé à sa place.
     let mut moins = board.clone();
     moins.annotations.remove(3);
+    // Le remplaçant prend la **place** de l'ancien, sous un autre nom : la position que l'index
+    // connaît désigne alors un nœud qu'il ne connaît pas. Posé ailleurs, il n'était jamais sous le
+    // pointeur là où l'index cherchait, et une visée qui ne vérifiait pas ses rangs passait (le
+    // sabotage « un rang ne se vérifie pas » était aveugle, fiche 106).
+    let ancien = board.annotations[10].rect().expect("une boîte");
     let mut remplace = board.clone();
-    remplace.annotations[10] = text_ann("T-neuf", 0.0, 0.0, 6000.0, 4000.0);
+    remplace.annotations[10] = text_ann(
+        "T-neuf",
+        ancien.left,
+        ancien.top,
+        ancien.width.max(1.0),
+        ancien.height.max(1.0),
+    );
     let mut s = 11u64;
     let mut tirer = move |a: f64, b: f64| {
         s = s

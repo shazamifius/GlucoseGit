@@ -1079,8 +1079,9 @@ fn test_la_lueur_suit_la_saisie_par_les_entrees_du_rendu() {
     );
 }
 
-/// La même trousse, chaque texte de ce document de cette sûreté.
-fn trousse_a(store: &Store, surete: f32) -> Trousse {
+/// La même trousse, chaque texte de ce document de cette sûreté — dans une famille de cette teinte,
+/// ou dans aucune.
+fn trousse_a(store: &Store, (teinte, surete): (Option<f64>, f32)) -> Trousse {
     let mut trousse = Trousse::new();
     let avis = store
         .active_board()
@@ -1088,8 +1089,8 @@ fn trousse_a(store: &Store, surete: f32) -> Trousse {
             glucose_core::sens::textes_du_tableau(b)
                 .map(|(id, _)| {
                     let avis = crate::parente::AvisDUnTexte {
-                        famille: Some(0),
-                        teinte: Some(1.0),
+                        famille: teinte.map(|_| 0),
+                        teinte,
                         surete,
                     };
                     (id.to_string(), avis)
@@ -1103,8 +1104,9 @@ fn trousse_a(store: &Store, surete: f32) -> Trousse {
 
 /// **PARENTE-2 — l'opacité dit la sûreté, et chaque bloc garde son contour** : sans aucune sûreté,
 /// la lueur du bloc (les 38 de Tauri) ; à moitié sûre, elle brille plus ; sûre, plus encore. Sur
-/// les deux voies. **La preuve à l'envers** : un tableau sans texte n'a aucune lueur — celle d'un
-/// texte seul n'est pas le fond.
+/// les deux voies. Sans famille, pour que seule l'opacité change : la vivacité suit aussi la
+/// sûreté, et suffisait à faire passer une opacité figée (fiche 106). **La preuve à l'envers** : un
+/// tableau sans texte n'a aucune lueur — celle d'un texte seul n'est pas le fond.
 #[test]
 fn parente_2_l_opacite_dit_la_surete_sur_les_deux_voies() {
     let mut store = Store::new("surete");
@@ -1118,7 +1120,8 @@ fn parente_2_l_opacite_dit_la_surete_sur_les_deux_voies() {
             .sum()
     };
     let mesure = |surete: f32| {
-        let (pixels, boites) = lueurs_des_deux_voies(&store, &trousse_a(&store, surete), None);
+        let trousse = trousse_a(&store, (None, surete));
+        let (pixels, boites) = lueurs_des_deux_voies(&store, &trousse, None);
         assert_eq!(
             boites.len(),
             1,

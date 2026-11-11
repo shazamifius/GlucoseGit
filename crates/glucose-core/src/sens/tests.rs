@@ -114,3 +114,15 @@ fn sens_1_les_textes_d_un_tableau() {
     let lus: Vec<(&str, &str)> = textes_du_tableau(&tableau).collect();
     assert_eq!(lus, vec![("a", "l'eau"), ("b", "le feu")]);
 }
+
+/// **SENS-1 — un mot qui bute est inconnu tout entier** : « eau » se trouve, puis un hiéroglyphe que
+/// le vocabulaire ne sait pas continuer ; la référence rend « [UNK] » seul, sans le morceau déjà
+/// trouvé. Les rangs sont ceux du découpeur de Hugging Face (`tokenizers`, le 11/11/2026) : aucun
+/// texte de la référence ne bute au milieu d'un mot, et un découpeur qui gardait ses morceaux
+/// passait (fiche 106).
+#[test]
+fn sens_1_un_mot_qui_bute_est_inconnu_tout_entier() {
+    let sens = modele();
+    assert_eq!(sens.decouper("l eau\u{13000} bout"), vec![154, 100, 33169]);
+    assert_eq!(sens.decouper("eau"), vec![16147], "« eau » seul se trouve");
+}
