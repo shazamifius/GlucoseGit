@@ -2,7 +2,8 @@
 
 > Session du 11/11/2026, de 2 h 33 à 5 h 45, sans lui (il dormait). La passation (fiche 103 § 6)
 > laissait 66 sabotages écrits et pas joués, et les membranes emboîtées mesurées, un prototype en image,
-> rien de décidé. Envoyé : `f8b188e` (les sabotages), `465794a` (LETTRES-1) ; son Glucose mis à jour.
+> rien de décidé. Envoyé : `f8b188e` (les sabotages), `465794a` (LETTRES-1) ; son Glucose mis à jour ; puis, après
+> ses réponses du matin, le nettoyage des documents (§ 3 bis).
 
 ## 1. Les 66 sabotages
 
@@ -139,6 +140,32 @@ question de coût ; c'est une question de forme : un titre détouré porte un ha
 d'un pixel et demi quel que soit le corps — son encre ne croît pas comme le carré du corps, et le gris
 exact doit la compter.
 
+## 3 bis. Sa parole du 11/11 au matin, et le nettoyage des documents
+
+Ses réponses (rangées dans VISION § 5 à 7) : **oui** à la loi des régions, aux membranes sans couleur
+neutres, au plancher des liens tel qu'il l'a dit ; les frontières, **plus légères** ; **le fond d'un texte
+toujours gris** — le geste de couleur devait changer le **halo**, que la teinte symbiotique remplissait
+« temporairement » ; le halo dira la **parenté des textes**, par une petite IA de similarité. Et cinq
+défauts de la carte de Wikipédia (illisible, trop de flèches, des flèches qui ne partent pas des mots, un
+tracé brouillon, le lag). Puis sa demande : *« rectifier les .md, trop de choses qui se contredisent,
+d'autres qui se répètent »*.
+
+**Le diagnostic** : ce qu'une session devait lire faisait **47 000 mots** (VISION, ÉTAT, SUITE, MÉTHODE,
+ARCHITECTURE, les mémoires) ; chaque chantier y était raconté trois fois (sa fiche, SUITE, ÉTAT), et les
+trois récits divergeaient ; des phrases fausses côtoyaient les vraies (« la beta 6 est la dernière »,
+« sa machine : Windows 11 », un chapitre sur Git Bash et WSL) ; la charte vivait dans VISION **et** dans
+les mémoires, avec des écarts (100 ou 140 images par seconde ; « le chantier, c'est la pixelisation »
+contre « pas une église de l'optimisation »).
+
+**La règle : un fait, un seul endroit.** VISION est rangé par thème et devient le seul lieu de ses paroles
+et de la charte (chaque citation vérifiée contre l'ancien texte) ; ÉTAT dit le présent en une page (8 200 →
+1 400 mots, la télémétrie relue : 160 sessions, 9 installations, son VivoBook à 13,8 ms l'image typique) ;
+SUITE, une ligne par chantier ouvert, ses priorités du 11/11 en tête (8 000 → 2 100) ; MÉTHODE, 24 principes
+au lieu de 165 leçons (12 400 → 2 500), les cas dans `carnet/lecons.md`, le PC Windows dans
+`carnet/ancien-pc-windows.md` ; `CLAUDE.md` dit l'ordre de lecture ; les mémoires de Claude ne gardent que
+des préférences de travail (la charte en est sortie). **Une session lit désormais environ 8 000 mots.** Le
+nombre des commandes, compté dans le code : 105, non 78.
+
 ## 4. Les leçons
 
 * **Un sabotage aveugle ne dit pas toujours « garde inutile »** : les deux de cette session avaient une
@@ -154,3 +181,5 @@ exact doit la compter.
   pas une affaire de force ni de taille, mais une couleur que personne n'a choisie.
 * **Les cliquets, une troisième fois** : `renderer.rs` à 601 lignes ; le décodage des couleurs
   hexadécimales n'avait rien à y faire (`renderer/hexa.rs`).
+* **Un document qui raconte ce qu'une fiche raconte déjà finit par la contredire** : ÉTAT, SUITE et les
+  fiches portaient trois récits de chaque chantier ; il ne doit y en avoir qu'un.

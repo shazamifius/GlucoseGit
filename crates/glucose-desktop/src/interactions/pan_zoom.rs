@@ -151,7 +151,7 @@ pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool, doigt: bool) 
 /// même (`% 120`). Windows ne dit pas d'où vient un défilement — `GetCurrentInputMessageSource`
 /// répond « souris » pour un pavé —, et la seule réponse exacte connue est celle de Chromium
 /// et de Blender : prendre le pavé par *Direct Manipulation*, après quoi tout ce qui arrive
-/// encore en molette vient d'une molette (`docs/SUITE.md`, chantier 5).
+/// encore en molette vient d'une molette — fait sous Windows (fiche 53 § 2), sous Linux (fiche 93).
 pub fn vient_d_une_molette(delta: MouseScrollDelta, pincement: bool, doigt: bool) -> bool {
     let (dx, dy, ligne) = deltas(delta);
     !pincement && !doigt && cran_de_souris(dx, dy, ligne)
