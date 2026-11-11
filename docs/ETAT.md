@@ -18,7 +18,8 @@
   les titres qui ne refont plus leurs lettres (LETTRES-1 : de loin, sur la carte de Wikipédia, 25,5 →
   15,5 ms par image) ; **les membranes en carte** (REGION-1, fiche 105 : la plus petite région
   l'emporte, le papier des textes toujours gris, une membrane sans couleur grise ; au fond de « Eau »,
-  7,8 ms par image au lieu de 17,6). **Son Glucose installé** (profil Nix `GlucoseGit`) : __INSTALLE__.
+  7,8 ms par image au lieu de 17,6). **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec `main` (fiche 105, les membranes
+  en carte comprises).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.

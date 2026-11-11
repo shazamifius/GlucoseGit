@@ -1,8 +1,8 @@
 # 105 — Les membranes en carte, le papier gris des blocs
 
-> Session du 11/11/2026, de 6 h 20 à __FIN__. La passation (fiche 104) laissait la loi des régions
+> Session du 11/11/2026, de 6 h 20 à 16 h 30 (avec une longue pause, de 7 h à 15 h). La passation (fiche 104) laissait la loi des régions
 > approuvée et prototypée, rien d'écrit ; ses paroles du matin (VISION § 5) : le fond d'un texte
-> toujours gris, les frontières plus légères, une membrane sans couleur neutre. Envoyé : __COMMITS__.
+> toujours gris, les frontières plus légères, une membrane sans couleur neutre. Envoyé : `eed6ee6`, `9a8fc22` et cette fiche ; son Glucose mis à jour.
 
 ## 1. Ce que la remise en question a changé au plan
 
@@ -29,7 +29,8 @@
 * **La loi coûte moins que l'ancienne.** Aujourd'hui, chaque membrane emboîtée qui couvre l'écran est un
   quad plein écran que la carte graphique compose ; au fond de « Eau », six. Un corps opaque qui couvre
   l'écran cache tout ce qui le précède : ces champs ne se posent plus (`Membrane::couvre`), ni une
-  frontière dont l'écran est loin à l'intérieur (`Membrane::touche`). __MESURE__
+  frontière dont l'écran est loin à l'intérieur (`Membrane::touche`). Mesuré (§ 5) : au fond de
+  « Eau », l'attente de la carte graphique passe de 9,7 à 0,1 ms.
 * **La bande « territoire » essayée, écartée.** Voir § 3.
 
 ## 2. La recherche (consultée le 11/11/2026)
@@ -62,7 +63,8 @@ Trois essais sur les quatre vues de sa carte, au prototype (`~/.cache/glucose-ba
 La page, avec les images et deux questions : https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4. **Le trait
 continu ferait disparaître le pointillé de toutes les membranes** — la marque de Tauri — et toute sa
 mécanique (le noyau, le nuanceur) deviendrait du code mort, à retirer : rien n'est retiré avant sa
-parole. __FRONTIERE__
+parole. En attendant, les membranes gardent leur pointillé d'aujourd'hui : la loi des régions,
+le papier gris et la membrane neutre, approuvés, sont écrits sans elle.
 
 ## 4. Ce qui est écrit
 
@@ -85,8 +87,49 @@ parole. __FRONTIERE__
 
 ## 5. Prouver
 
-__PROUVER__
+* **Les épreuves** : 3 110 vertes (`cargo test --workspace`), clippy et `cargo fmt` à zéro. Neuves :
+  `region_1_*` au noyau (ce qui couvre l'écran y vaut 1 partout, sur des formes de toutes tailles et
+  d'autres dont les bords frôlent l'écran ; ce qui ne touche pas l'écran n'y pose rien ; la liste rend
+  l'image de tous les champs au bit près, rien ne se pose sous un corps qui couvre, chaque frontière
+  posée se voit), au bureau (la plus petite région l'emporte quel que soit l'ordre du modèle et quelle
+  que soit la mère ; la grille se voit dans une membrane ; une case de storyboard aussi ;
+  `neutre_1_*`, `papier_1_*`), et sur les deux voies (`test_region_1_*` : la même image entière, la
+  grille dans deux membranes et une case dedans ; `test_papier_1_*`).
+* **Réécrites, avec leur raison** : LUEUR-3 et COULEUR-3 deviennent PAPIER-1 (le papier dans une
+  membrane, sur les deux voies) ; les épreuves de TITRE-1 cherchaient le bleu de Tauri — leur membrane
+  le choisit désormais ; BANDE-2 compte trois champs par membrane ; FLECHE-4 (le cadre d'un passage
+  épouse l'encre) mesurait l'encre par un seuil fixe qui lisait le papier — elle la mesure au
+  demi-couvert, relativement au papier et à la lettre, et sa borne, d'un pixel et demi qui ne tenait
+  que par les 3 % de teinte, passe à deux (1,57 mesuré au zoom 1,35, avant comme après : la chasse
+  des lettres et un pixel de mesure). Les trois empreintes témoins, regardées (la membrane grise, la
+  grille dedans), mises à jour.
+* **Les sabotages** (`outils/sabotages/regions-105.json`) : 17 ; 13 tombés au premier tour, **4 aveugles**,
+  aucun ne cachant un défaut du programme — deux gardes d'économie qui laissent l'image juste (rien
+  sous un corps qui couvre, une frontière hors de l'écran), une épreuve qui comparait l'image à la
+  fonction sabotée, et aucune épreuve des deux voies qui regardait une membrane et sa grille sur toute
+  l'image. Les épreuves écrites pour eux : **17 sur 17**.
+* **Regardé** : les quatre vues de sa carte au pilote, sur les deux voies — la même image pour les
+  régions, les frontières et les titres. L'écart qui reste à « Eau, de près » est ancien : à ce zoom,
+  la carte graphique écrit les lettres des textes là où le processeur montre le gris de leurs lignes
+  (vu aussi sur son Glucose installé) — noté pour le chantier de son lag.
+* **Mesuré** (le pilote, la carte graphique comme chez lui, sa carte de Wikipédia, deux paires
+  entrelacées contre son Glucose installé `465794a`, `~/.cache/glucose-bancs/regions-105/`) :
+
+  | | avant | après |
+  |---|---|---|
+  | de loin, la souris (médiane) | 15,7 / 15,9 ms | 15,7 / 15,9 ms |
+  | au fond de « Eau », la souris (médiane ; p90) | 17,6 / 15,1 ms ; 33 ms | **7,8 / 7,7 ms** ; 25 ms |
+  | — images en trois secondes | 83 / 82 | **128 / 128** |
+  | — l'attente de la carte graphique (`acquerir`, médiane) | 9,7 / 6,1 ms | **0,1 / 0,1 ms** |
+  | au fond de « Eau », déplacer la vue (images en 2,5 s) | 125 / 127 | **205 / 195** |
 
 ## 6. Les leçons
 
-__LECONS__
+* **Une épreuve d'image ne voit pas ce qu'on n'a pas besoin de peindre** : deux gardes d'économie
+  sabotées laissaient l'image juste. Énoncer la loi de la liste elle-même.
+* **Une épreuve qui compare l'image à la fonction qu'elle garde se compare à elle-même.**
+* **Un seuil fixe de clarté lit le papier** : mesurer l'encre relativement au papier et à la lettre.
+* **Une constante déduite d'une loi qui perd son objet devient un nombre de ressenti** : le dire,
+  l'ancrer à ce qu'il a approuvé, l'écrire avec les constantes qui existent.
+* **Un aplat opaque n'est pas qu'une couleur** : il cache ce qui est dessous (la grille, les cases), et
+  il rend inutile de peindre ce qu'il cache — la loi la plus juste a aussi été la moins chère.
