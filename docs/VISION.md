@@ -67,8 +67,10 @@ Chaque décision, chaque ligne de code se juge contre elles.
   pixelisation et d'une optimisation, c'est qu'elle ne se voie pas à l'œil nu »*. Et le logiciel
   **pré-optimise** au lieu de réagir : *« que mathématiquement le logiciel développe une intelligence et
   comprenne la machine afin de pré-optimiser des rendus et de pas recalculer les fps h24 »* — un modèle
-  de coût qui prédit. *(Une note du 21/09 parle d'une fluidité de « 140 images par seconde » : le
-  plancher qu'il a répété est 100 ; à lui confirmer si 140 est une cible.)*
+  de coût qui prédit. **Son ordre, le 11/11** : *« 100 ou 140, ce n'est pas trop la question : l'idée,
+  c'est avancer sur les fonctionnalités et optimiser ce qui est capital, avancer de manière propre sur le
+  dépôt et de manière pro ; si besoin, l'optimisation d'objectifs comme 100 fps minimum viendra après,
+  une fois qu'on aura terminé les betas et fini toutes les fonctionnalités »*.
 * **Mais pas une église de l'optimisation** (7/11) : *« Glucose n'a pas pour objectif d'être une église
   infime de finesse dans l'optimisation graphique, son but premier n'est pas là »* — le blocage de
   Glucose est le manque de fonctions. **Précisé le 11/11** : *« l'idée n'est pas de construire une église de
@@ -189,7 +191,8 @@ plus jamais le lui demander.**
 * **Le fond d'un texte** : *« il faudrait abandonner l'idée du background d'un texte : je préfère qu'il
   soit TOUJOURS gris »*. Le geste qui colore un bloc de texte devait changer **le halo lumineux** autour
   du bloc — *« PAS son background ! »*. (Son *« les couleurs de text box ne fonctionnent pas »* du 9/11
-  parlait donc du halo ; la fiche 99 a coloré le fond.)
+  parlait donc du halo ; la fiche 99 a coloré le fond.) Quel gris : *« yep, le gris sombre et neutre des
+  blocs d'aujourd'hui »* (11/11).
 * **Le halo lumineux** : la *noise map* qui y met des couleurs aléatoires (la teinte symbiotique, héritée
   de Glucose Tauri) *« n'était que temporaire »*. Son idée : *« une intelligence artificielle semi from
   scratch, ultra optimisée et minimale, capable de comprendre une seule et unique chose : est-ce que ce
