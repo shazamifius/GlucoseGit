@@ -228,6 +228,8 @@
 | **`prendre_la_touche` ne porte que ce qui passe avant tout** (une question, la roue, un champ) : une épreuve qui y pressait `B` ne déclenchait aucun raccourci (fiche 102) | les raccourcis passent par `handle_shortcut_input` ; la main déplace la vue par l'élan, posé à l'image suivante (`appliquer_l_elan`) |
 | **Viser sans index synchronisé** : le clic droit de la fenêtre des liens ne trouvait rien juste après l'ouverture — l'index était celui du tableau d'avant (fiche 102) | `renderer.sync_spatial_index(&store)` avant `pick_candidate_at`, comme `click_node_at` |
 | **L'encre ne baissait pas de huit fois** : ni l'arrondi à huit bits (vérifié en flottants, `Champ::couleur` : pire), mais les pastilles, déjà du monde (fiche 102) | mesurer la grandeur qu'on prétend régler, seule |
+| **Un cache plus petit qu'une image ne garde rien** : 4 096 variantes de lettres, mesurées justes (531 par image) avant que les titres prennent la taille de leur région ; la carte de Wikipédia en demande 5 654, et chaque image refaisait 7 727 lettres (fiche 104) | une mémoire de rendu tient ce que l'image d'avant a demandé (`nouvelle_image`), sans capacité ; compter demandes et ratés avant de soupçonner |
+| **Un sabotage aveugle peut cacher une épreuve qui regarde ailleurs** : une scène où deux lois donnent le même nombre (26 liens ou 54 nœuds : densité nulle) ; une garde dont le lecteur avait changé (le survol, puis le menu) (fiche 104) | chercher l'entrée qui fait diverger les deux lois, et le lecteur actuel de la garde (`grep` de la fonction), avant de la retirer |
 
 ## 5. Les pièges pratiques
 
