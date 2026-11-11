@@ -258,6 +258,51 @@ Devant la carte de Wikipédia et ses liens, à son écran :
 * Il a eu *« clairement 0 fps par moment »* : les itinéraires des flèches (ITINERAIRE-2, réparé).
 * Il a demandé la publication de la version la plus récente, pour travailler sur ses projets.
 
+## Ses réponses du 11/11/2026 au matin (fiche 104)
+
+Devant la page avant/après des membranes (fiche 104 § 2) :
+
+* **La loi des régions** (chaque endroit prend la couleur de la plus petite région qui le contient) :
+  *« je suis d'accord »*.
+* **Les frontières qui grandissent avec la région** : *« trouver quelque chose de plus léger ; sinon oui,
+  je suis d'accord »*.
+* **Le plancher des liens**, ses mots tels quels (jamais sous 8 %, même de très loin) : *« oui »*.
+* **Une membrane sans couleur choisie devient neutre** (un gris, au lieu du bleu par défaut) : *« oui
+  aussi »*.
+* **Le fond d'un texte** : *« il faudrait abandonner l'idée du background d'un texte : je préfère qu'il soit
+  TOUJOURS gris »*. Le geste de la fiche 99 qui colore un bloc de texte devait changer **le halo lumineux**
+  autour du bloc — *« PAS son background ! »*.
+* **Le halo lumineux autour d'un texte** : la *noise map* qui y met des couleurs aléatoires (la teinte
+  symbiotique, héritée de Glucose Tauri) *« n'était que temporaire »*. Son idée des couleurs : *« une
+  intelligence artificielle semi from scratch, ultra optimisée et minimale, capable de comprendre une seule
+  et unique chose : est-ce que ce texte a un rapport avec ce texte-là, et à combien de % »* — des modèles
+  faits *« uniquement pour des % »*, beaucoup plus rapides, petits et optimisés. La règle :
+  * des textes qui ont un rapport ont des **couleurs proches** ; si l'utilisateur les **éloigne** dans le
+    canevas, cela s'applique *« en mode smooth »* ;
+  * si l'IA est **sûre** d'un rapport fort avec un autre texte : garder la couleur, mais appliquer
+    **légèrement une moyenne des couleurs des blocs voisins** — *« peu importe la distance »* ;
+  * si l'IA **n'est pas sûre**, et qu'ils sont vraiment distants : **pas** de liaison de couleur ;
+  * *« et du coup le système d'opacité et de niveaux de blanc ou noir prend sens ! Avant, il n'était pas
+    utilisé »*.
+* La question « textes sans domaine neutres, liens gris » : *« je n'ai pas trop idée, je n'ai pas tout
+  compris »* — elle est remplacée par son idée du halo.
+
+**Ce qui ne va pas sur la carte de Wikipédia**, ses mots :
+
+1. elle n'est pas encore super lisible, à cause de l'opacité des membranes ;
+2. il y a **trop de flèches partout** : *« impossible de pouvoir naviguer »*, *« on ne comprend pas trop »* ;
+3. les flèches pointent des **blocs** ; or, dans Wikipédia, un article fait référence à un autre depuis des
+   **mots précis** — *« ce n'est pas du tout utilisé convenablement, on a juste des flèches random »* ;
+4. l'algorithme qui affiche les flèches sans que ce soit brouillon est plutôt mauvais, surtout en mode
+   *smooth* ; il propose de revoir le système pour qu'un humain puisse **suivre** les flèches, avec une
+   logique de **câblage** (*cable management*) — *« mais pas du pur câblage, on ne s'y retrouverait pas non
+   plus ; il faut une logique, et là encore passer par l'intelligence artificielle pour que ça fasse sens »* ;
+5. *« je lag plutôt beaucoup »* : *« l'idée n'est pas de construire une église de l'optimisation, MAIS pour
+   ce qui est capital et nécessaire, il faut pouvoir optimiser »*.
+
+Et, avant d'attaquer tout cela : rectifier les `.md` — *« trop de choses qui se contredisent, d'autres qui
+se répètent »* ; les sessions suivantes *« se retrouvent vite perdues »*.
+
 ## Ce qui est encore à définir — sa parole
 
 * ~~**Trans-domaines** : de la recherche ; *« j'ai une intention, mais je n'ai pas fini mon
