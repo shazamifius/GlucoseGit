@@ -120,7 +120,7 @@
   ]
  },
  {
-  "nom": "Un bout de lien n'est pas reconnu au survol",
+  "nom": "Un bout de lien n'ouvre pas sa fenêtre au menu",
   "fichier": "crates/glucose-core/src/arrow.rs",
   "avant": "                || source_id.as_deref() == Some(noeud)\n",
   "apres": "                || false\n",
@@ -131,7 +131,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "lien_1"
+   "lien_3_le_menu"
   ]
  },
  {

@@ -128,9 +128,11 @@ pub fn node_rect(board: &Board, id: &str) -> Option<Rect> {
     crate::quadtree::noeud_par_id(board, id)?.rect()
 }
 
-/// **Un lien touche-t-il ce nœud ?** — c'est une flèche, ou le bout de l'une (LIEN-1, fiche 102) :
-/// ce que le survol demande avant de redessiner, puisqu'un nœud sans lien qu'on survole ne change
-/// rien à l'image.
+/// **Un lien touche-t-il ce nœud ?** — c'est une flèche, ou le bout de l'une : ce que le menu
+/// demande avant d'offrir « Montrer ses liens » (LIEN-3, fiche 102). Le survol la posait aussi
+/// avant de redessiner (LIEN-1) ; depuis LIEN-4, il demande si la main change un lien à l'écran
+/// (`la_main_change_un_lien`, fiche 103), et le sabotage de cette ligne ne tombait plus que par le
+/// menu (fiche 104).
 pub fn touche_un_lien(board: &Board, noeud: &str) -> bool {
     board.annotations.iter().any(|a| match a {
         Annotation::Arrow {

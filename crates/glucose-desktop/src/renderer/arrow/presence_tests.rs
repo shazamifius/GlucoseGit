@@ -427,3 +427,22 @@ fn test_lien_4_au_doigt_il_n_y_a_pas_de_souris() {
         "un doigt n'est pas une souris"
     );
 }
+
+/// **Seuls les liens comptent** — sa droite parle de liens à l'écran, pas de nœuds : un lien entre
+/// deux textes, seul, est plein. (Les scènes d'au-dessus ont vingt-six liens : compter aussi leurs
+/// vingt-huit textes y laissait la densité à zéro, et le sabotage passait — fiche 104.)
+#[test]
+fn test_lien_4_seuls_les_liens_comptent() {
+    let board = glucose_core::types::Board {
+        annotations: vec![
+            Annotation::text("a", 0.0, 0.0, "un nœud"),
+            Annotation::text("b", 900.0, 0.0, "un autre"),
+            Annotation::arrow("f", 0.0, 0.0, 900.0, 0.0),
+        ],
+        ..Default::default()
+    };
+    let rangs = glucose_core::quadtree::tous_les_rangs(&board);
+    let n = super::presence::liens_a_l_ecran(&rangs, &board);
+    assert_eq!(n, 1, "un lien, deux textes");
+    assert_eq!(densite(n), 1.0, "un lien seul est plein");
+}
