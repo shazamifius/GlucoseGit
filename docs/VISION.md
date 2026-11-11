@@ -187,7 +187,9 @@ plus jamais le lui demander.**
   la carte n'est *« pas encore super lisible, à cause de l'opacité des membranes »*.
 * **Plus transparentes** (11/11 au soir, devant les images du halo, où les régions sont déjà en
   carte) : *« non, je trouve que les membranes ne sont pas encore assez transparentes ; il faudrait les
-  rendre plus transparentes »*.
+  rendre plus transparentes »*. Devant les quatre vues à 21, 11 et 6 %
+  ([la page](https://claude.ai/artifact/6cUix7pewFDikQumRqjnLZ)) : *« ok, c'est vraiment vraiment
+  parfait, 11 % ! on garde »* — le voile d'une seule membrane de Tauri (fiche 107).
 
 ### Les textes : un fond toujours gris, un halo qui dit le sens (11/11)
 
