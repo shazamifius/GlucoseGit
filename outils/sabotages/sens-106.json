@@ -527,5 +527,35 @@
    "papier_1",
    "lueur"
   ]
+ },
+ {
+  "nom": "Un agent ne lit pas la parenté",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "                parente_en_json(avis.and_then(|a| a.get(&d.id)), &mut j);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_3"
+  ]
+ },
+ {
+  "nom": "Un agent lit l'avis d'un autre tableau",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "            .filter(|(t, _)| t == tableau)",
+  "apres": "            .filter(|(t, _)| !t.is_empty() || t == tableau)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_3"
+  ]
  }
 ]

@@ -119,10 +119,12 @@ impl GlucoseApp {
             niveau: Niveau::lire(a.texte("niveau"))?,
         };
         let plan = demande.niveau == Niveau::Plan;
+        let avis = self.renderer.sens_des_textes.avis_du_tableau(board);
         let noeuds = choisir(&decrits, &demande)
             .into_iter()
             .map(|(d, rendu)| {
                 let mut j = decrit_en_json(d, &rendu);
+                parente_en_json(avis.and_then(|a| a.get(&d.id)), &mut j);
                 // Le plan dit ce que chaque membrane porte, sans le porter (fiche 90).
                 if let (true, Json::Objet(champs)) = (plan, &mut j) {
                     let n = decrits
@@ -529,6 +531,20 @@ fn coordonnee(v: f64) -> Json {
     let decimales = (f64::from(glucose_core::fixed::FRAC_BITS) * 2f64.log10()).ceil();
     let pas = 10f64.powf(decimales);
     Json::Nombre((v * pas).round() / pas)
+}
+
+/// **PARENTE-3 — ce que l'IA de Glucose dit d'un texte**, comme l'humain le voit à son halo (fiche
+/// 106 ; VISION § 1 : *« ce qu'un humain voit, une IA doit pouvoir le lire »*) : le numéro de sa
+/// famille — des textes de la même famille se ressemblent sûrement, leur halo a la même couleur —,
+/// rien s'il est seul ; et la sûreté qu'il a un parent, de 0 à 1, au centième.
+fn parente_en_json(avis: Option<&crate::parente::AvisDUnTexte>, noeud: &mut Json) {
+    let (Some(a), Json::Objet(champs)) = (avis, noeud) else {
+        return;
+    };
+    let famille = a.famille.map_or(Json::Nul, |f| Json::Nombre(f as f64));
+    let surete = Json::Nombre((f64::from(a.surete) * 100.0).round() / 100.0);
+    let parente = Json::objet([("famille", famille), ("surete", surete)]);
+    champs.push(("parente".to_string(), parente));
 }
 
 /// Un nœud pour l'agent : son texte entier, ou sa première phrase et sa taille (le sommaire), ou

@@ -29,10 +29,11 @@ use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::mpsc::{self, Receiver, Sender};
 
-/// **L'avis de l'IA sur un texte** : la teinte de sa famille, en radians — rien s'il est seul —, et
-/// la sûreté qu'il a un parent, de 0 à 1.
+/// **L'avis de l'IA sur un texte** : sa famille — son numéro et sa teinte, en radians ; rien s'il
+/// est seul —, et la sûreté qu'il a un parent, de 0 à 1.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AvisDUnTexte {
+    pub famille: Option<usize>,
     pub teinte: Option<f64>,
     pub surete: f32,
 }
@@ -43,9 +44,15 @@ pub type Avis = HashMap<String, AvisDUnTexte>;
 /// Les textes d'un tableau, dans l'ordre du document : identifiant et texte.
 type Textes = Vec<(String, String)>;
 
+/// Ce qu'on demande au fil : le tableau, et ses textes.
+type Demande = (String, Textes);
+
+/// Ce qu'il rend : le tableau, et l'avis sur ses textes.
+pub type AvisDuTableau = (String, Avis);
+
 struct Fil {
-    demandes: Sender<Textes>,
-    reponses: Receiver<Avis>,
+    demandes: Sender<Demande>,
+    reponses: Receiver<AvisDuTableau>,
 }
 
 /// **La parenté des textes** : ce qu'on a demandé, et le fil qui la calcule.
@@ -63,18 +70,19 @@ pub struct Parente {
 impl Parente {
     /// **Démarre le fil**, au vrai lancement : `reveil` réveille la boucle quand un avis est prêt.
     pub fn demarrer(&mut self, reveil: Reveil) {
-        let (demandes, recues) = mpsc::channel::<Textes>();
+        let (demandes, recues) = mpsc::channel::<Demande>();
         let (envoi, reponses) = mpsc::channel();
         let lance = std::thread::Builder::new()
             .name("parente".into())
             .spawn(move || {
                 let mut calcul = Calcul::default();
-                while let Ok(mut textes) = recues.recv() {
+                while let Ok(mut demande) = recues.recv() {
                     // Seule la dernière demande compte : celles d'avant sont déjà périmées.
                     while let Ok(plus_neuve) = recues.try_recv() {
-                        textes = plus_neuve;
+                        demande = plus_neuve;
                     }
-                    if envoi.send(calcul.calculer(textes)).is_err() {
+                    let (tableau, textes) = demande;
+                    if envoi.send((tableau, calcul.calculer(textes))).is_err() {
                         return;
                     }
                     reveil();
@@ -87,22 +95,22 @@ impl Parente {
 
     /// **Ce qui est neuf**, avant chaque image : l'avis que le fil vient de rendre — ou, sans fil,
     /// celui qu'on vient de calculer —, rien tant que les textes ne changent pas.
-    pub fn suivre(&mut self, store: &Store) -> Option<Avis> {
+    pub fn suivre(&mut self, store: &Store) -> Option<AvisDuTableau> {
         let mut neuf = self.fil.as_ref().and_then(|f| f.reponses.try_iter().last());
-        if let Some(textes) = self.textes_changes(store) {
+        if let Some((tableau, textes)) = self.textes_changes(store) {
             match &self.fil {
                 Some(fil) => {
                     // Un fil parti ne rend plus rien : l'avis d'avant reste peint.
-                    let _ = fil.demandes.send(textes);
+                    let _ = fil.demandes.send((tableau, textes));
                 }
-                None => neuf = Some(self.sur_place.calculer(textes)),
+                None => neuf = Some((tableau, self.sur_place.calculer(textes))),
             }
         }
         neuf
     }
 
-    /// Les textes du tableau actif, s'ils ont changé depuis la dernière demande.
-    fn textes_changes(&mut self, store: &Store) -> Option<Textes> {
+    /// Le tableau actif et ses textes, s'ils ont changé depuis la dernière demande.
+    fn textes_changes(&mut self, store: &Store) -> Option<Demande> {
         let tableau = store.active_board()?;
         let deja_vu = self
             .vu
@@ -123,7 +131,8 @@ impl Parente {
         }
         self.empreinte = empreinte;
         let textes = sens::textes_du_tableau(tableau);
-        Some(textes.map(|(i, t)| (i.into(), t.into())).collect())
+        let textes = textes.map(|(i, t)| (i.into(), t.into())).collect();
+        Some((tableau.id.clone(), textes))
     }
 }
 
@@ -164,8 +173,10 @@ impl Calcul {
         ids.into_iter()
             .enumerate()
             .map(|(k, id)| {
+                let famille = parente.famille[k];
                 let avis = AvisDUnTexte {
-                    teinte: parente.famille[k].map(|f| parente.teintes[f]),
+                    famille,
+                    teinte: famille.map(|f| parente.teintes[f]),
                     surete: parente.surete[k],
                 };
                 (id, avis)

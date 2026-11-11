@@ -40,6 +40,9 @@ pub struct SensDesTextes {
     gris: Rgb,
     /// Ce que l'IA dit des textes, et le fil qui le calcule (PARENTE-2).
     pub(crate) parente: crate::parente::Parente,
+    /// **Ce qu'elle a dit, tel quel**, et de quel tableau : un agent le lit (PARENTE-3) — ce que
+    /// l'humain voit, une IA doit pouvoir le lire.
+    avis: Option<crate::parente::AvisDuTableau>,
 }
 
 impl Default for SensDesTextes {
@@ -48,6 +51,7 @@ impl Default for SensDesTextes {
             par_texte: HashMap::new(),
             gris: super::scene::membranes::sans_couleur(),
             parente: Default::default(),
+            avis: None,
         }
     }
 }
@@ -59,8 +63,17 @@ impl SensDesTextes {
         let Some(avis) = self.parente.suivre(store) else {
             return false;
         };
-        self.poser(&avis);
+        self.poser(&avis.1);
+        self.avis = Some(avis);
         true
+    }
+
+    /// **L'avis de l'IA sur les textes de ce tableau**, s'il est celui qu'elle a lu.
+    pub(crate) fn avis_du_tableau(&self, tableau: &str) -> Option<&crate::parente::Avis> {
+        self.avis
+            .as_ref()
+            .filter(|(t, _)| t == tableau)
+            .map(|(_, a)| a)
     }
 
     /// **Pose ce que l'IA vient de dire** : chaque teinte sur le cercle de la clarté du bleu de
@@ -125,6 +138,7 @@ impl SensDesTextes {
                 glucose_core::sens::textes_du_tableau(b)
                     .map(|(id, _)| {
                         let sur = crate::parente::AvisDUnTexte {
+                            famille: Some(0),
                             teinte: Some(0.0),
                             surete: 1.0,
                         };

@@ -1088,6 +1088,7 @@ fn trousse_a(store: &Store, surete: f32) -> Trousse {
             glucose_core::sens::textes_du_tableau(b)
                 .map(|(id, _)| {
                     let avis = crate::parente::AvisDUnTexte {
+                        famille: Some(0),
                         teinte: Some(1.0),
                         surete,
                     };

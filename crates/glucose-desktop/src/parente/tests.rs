@@ -210,7 +210,8 @@ fn parente_2_le_fil_rend_l_avis_et_reveille() {
     reveille
         .recv_timeout(std::time::Duration::from_secs(30))
         .expect("le fil réveille la boucle");
-    let avis = parente.suivre(&store).expect("l'avis est là");
+    let (de, avis) = parente.suivre(&store).expect("l'avis est là");
+    assert_eq!(de, tableau, "l'avis dit de quel tableau il parle");
     assert_eq!(avis.len(), 14);
 }
 

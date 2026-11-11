@@ -10,7 +10,15 @@ use std::f64::consts::TAU;
 fn avis(liste: &[(&str, Option<f64>, f32)]) -> Avis {
     liste
         .iter()
-        .map(|&(id, teinte, surete)| (id.to_string(), AvisDUnTexte { teinte, surete }))
+        .map(|&(id, teinte, surete)| {
+            let famille = teinte.map(|_| 0);
+            let avis = AvisDUnTexte {
+                famille,
+                teinte,
+                surete,
+            };
+            (id.to_string(), avis)
+        })
         .collect()
 }
 
