@@ -81,6 +81,39 @@ Système solaire » sûr, « Soleil → Vêtement » nul).
   d'une flèche. Les cinq épreuves de LIEN-4 tombées attendent la réponse : leur document doit avoir
   des textes distincts, ou des flèches posées par un script.
 
+## 4 bis. Son lag — mesuré, profilé, commencé
+
+Sa chronique copiée (`derniere-session.txt`, le 11/11 à 5 h 41) datait d'avant les fiches 105 et 106 :
+81 % des images au-dessus de 10 ms, les membranes en tête. **Remesuré aujourd'hui** sur sa carte, par
+la carte graphique, son Glucose installé (`5e48642`) contre lui-même puis en paires entrelacées
+(`~/.cache/glucose-bancs/lag-107/` : `mesure.sh`, `lire.py`) :
+
+| geste | image médiane | p99 |
+|---|---|---|
+| de loin, la souris | 14,9 à 16,8 ms | 20 à 30 ms |
+| de loin, déplacer la vue | 16,1 à 17,9 ms | 18 à 23 ms |
+| de loin, zoomer | 19,1 à 19,8 ms | 21 à 22 ms |
+| au fond de « Eau », déplacer | 4,2 à 4,7 ms | 16 à 17 ms |
+
+**Le profil** (déplacer de loin, `profiler-leger.sh` ; une version à lignes de code dans
+`lag-107/cible`) : les **titres des membranes** redessinés lettre à lettre au processeur à chaque
+image (`draw_text_with_outline`, dont `blend_glyph` 20 %) — **26 %** ; le **tracé des flèches calculé
+deux fois** par image, pour la carte (`fleches_a_poser`, 15 %) puis pour la couche du processeur
+(`draw_arrow_node`, 11 %) — **21 %** ; renvoyer la couche du processeur à la carte graphique — 9 % ;
+des conversions de couleur à chaque image (`pow`, `cbrt`) — 5 % ; le hachage SipHash — 4 %.
+
+**Commencé, pas commité** : `porte_des_ornements` (`renderer/pass.rs`) — sur la voie graphique, une
+flèche sans poignée, sans étiquette ni badge ne recalcule plus son tracé ; son épreuve
+(`fleche_1_seule_une_fleche_ornee_se_recalcule`) et les 125 épreuves des flèches passent. Mesuré en
+paires : le poste « annotations » passe de 1,9 à moins de 0,7 ms ; les médianes de loin gagnent 1 à
+1,5 ms, dans le bruit de la machine. **Reste** : toute la suite, clippy, ses sabotages, le commit.
+Une copie : `~/.cache/glucose-bancs/lag-107/fleche-sans-ornement.patch`.
+
+**Le gros morceau, à concevoir** : les titres des membranes portés par la carte graphique, comme
+des composants (COMPOSANT-1 : rendus une fois, posés à chaque image) — attention à l'ordre des
+couches, un titre passe aujourd'hui sous les photos ; puis les conversions de couleur refaites à
+chaque image.
+
 ## 5. La recherche (consultée le 11/11/2026)
 
 * La couleur d'une surface et celle d'une marque : Szafir, *Modeling Color Difference for
@@ -99,6 +132,12 @@ Système solaire » sûr, « Soleil → Vêtement » nul).
   `~/.cache/glucose-bancs/membranes-107/recherche-meta.md` pour la page de conception.
 
 ## 6. Les leçons
+
+* **Un `pkill -f` dont le motif figure dans sa propre commande se tue lui-même** (MÉTHODE § 5 le
+  disait) : arrêter par numéro de processus.
+* **Le profileur, léger** : `-F 400 --call-graph dwarf,8192` (31 Mo, le rapport des appelants en deux
+  minutes) au lieu de `dwarf,16384` à pleine cadence (627 Mo, plus de vingt minutes) ; viser le
+  processus par `pgrep -n -x glucose-desktop`, jamais par un motif qui attrape le script.
 
 * **Mesurer l'encre de la vraie carte avant de croire une épreuve verte** : la première loi des
   flèches passait toutes ses épreuves et ne changeait aucun pixel — les flèches de la carte visent

@@ -57,8 +57,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   fois plus transparentes (fiche 107, sa parole sur les images) ; pas encore à son écran ; l'allure des
   frontières attend sa parole ;
 * **trop de flèches**, qui partent des blocs et non des mots, au tracé brouillon (surtout en courbe) ;
-* **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (au-dessus
-  du plancher de 10 ms) ;
+* **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** ;
+  remesuré le 11/11 au soir sur sa carte (fiche 107) : de près 4 à 5 ms, **de loin 15 à 20 ms** — les
+  titres des membranes redessinés au processeur et le tracé des flèches calculé deux fois en tête ;
 * **le halo d'un texte** dit sa parenté depuis la fiche 106 — pas encore à son écran ; beaucoup de
   flèches de la carte sont grises (leurs bouts n'ont pas de famille sûre) : acceptées *« seulement si
   c'est temporaire »* ; sous une quinzaine de textes, l'IA hésite ; la clarté (l'accessibilité) n'est
