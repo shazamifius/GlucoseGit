@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 11/11/2026** (fiche 105). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 11/11/2026** (fiche 106). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -30,7 +30,7 @@ vraies (la ligne d'arrivée proposée le 25/10, à remettre en question) :
 | | chantier | fini quand |
 |---|---|---|
 | [~] | **Les membranes en carte** (fiche 105) : écrites, éprouvées, sabotées, regardées sur les quatre vues et sur les deux voies. Reste **l'allure de la frontière**, à sa parole (le trait continu, qui ferait partir le pointillé de toutes les membranes : https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
-| [ ] | **Le halo d'un texte dit sa parenté** (VISION § 5) : une IA minuscule et rapide qui ne sait qu'une chose — à combien de % ce texte parle de celui-là ; des textes parents ont des couleurs proches, même éloignés si l'IA est sûre (adoucis par leurs voisins), séparées si elle doute et qu'ils sont loin ; l'opacité et la clarté y prennent leur sens ; le geste qui colore un texte va au halo. **Recherche d'abord** : les petits modèles de similarité (plongements de phrases), en Rust, sans exclure une machine | regardé sur la carte de Wikipédia, éprouvé, saboté, puis sa parole |
+| [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte — une IA du sens embarquée, des familles, une sûreté sans réglage ; chaque bloc garde son contour gris ; la teinte de bruit partie, flèches comprises ; un agent lit la parenté. Reste **sa parole** sur la page (https://claude.ai/artifact/LXZ89P8vZUiJ1bsqtvEzei) : les flèches grises, la force des familles ; puis son écran. **Ensuite, à concevoir avec lui** : sa couleur et ce que l'IA en apprend — la méta-compréhension (VISION § 8 bis), une page de conception d'abord | sa parole, puis son écran |
 | [ ] | **Les flèches de Wikipédia** (VISION § 6) : partir des **mots** qui citent (les ancres de texte existent) ; moins de flèches à la fois, qu'on peut **suivre** ; un tracé à logique de câblage, sans tomber dans le pur câblage — et l'IA pour le sens. **Recherche d'abord** (le routage des arêtes, le *edge bundling*, les cartes de métro) | à son écran, sur la carte de Wikipédia |
 | [ ] | **Son lag** (*« pour ce qui est capital et nécessaire, il faut pouvoir optimiser »*) : sur son VivoBook, 13,8 ms l'image typique, 2,6 s la pire (la télémétrie du 11/11) ; au fond d'une région, REGION-1 a retiré l'attente de la carte graphique (17,6 → 7,8 ms, fiche 105) ; de loin, 15,7 ms restent ; lire sa chronique, nommer les postes au profil, régler ce qui pèse | sa chronique sous 10 ms au 99ᵉ centile, sur sa carte |
 | [ ] | **Les liens bleus des textes** : contraste APCA 52, sous 60 (fiche 104) — la même teinte, à la clarté qui se lit ; après le fond gris | mesuré, regardé |
@@ -42,6 +42,10 @@ on lit nous-mêmes la sortie et sa chronique (`/tmp/glucose-chronique/derniere-s
 d'abord).
 
 **Sur la carte de Wikipédia** (`~/Documents/Glucose-essai-wikipedia-liens.glucose`, une copie) :
+
+* le halo de la parenté (fiche 106) : au fond de « Eau », les textes de l'eau d'une même couleur, ceux
+  de la chimie d'une autre, les autres au contour gris ; écrire un texte, attendre une seconde : sa
+  couleur suit ; colorer un texte (la barre de couleur) : sa lueur prend la couleur, pleine ;
 
 * les membranes en carte (fiche 105) : de loin, une couleur par région, aucune boue ; zoomer au fond
   de « Eau » : les blocs gris sombres sur la couleur de leur région, plus fluide qu'avant ; le grand

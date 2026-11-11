@@ -185,6 +185,9 @@ plus jamais le lui demander.**
   frontières qui grandissent avec la région** : *« trouver quelque chose de plus léger ; sinon oui, je
   suis d'accord »*. **Une membrane sans couleur choisie devient neutre** : *« oui aussi »*. Et (11/11) :
   la carte n'est *« pas encore super lisible, à cause de l'opacité des membranes »*.
+* **Plus transparentes** (11/11 au soir, devant les images du halo, où les régions sont déjà en
+  carte) : *« non, je trouve que les membranes ne sont pas encore assez transparentes ; il faudrait les
+  rendre plus transparentes »*.
 
 ### Les textes : un fond toujours gris, un halo qui dit le sens (11/11)
 
@@ -239,6 +242,10 @@ plus jamais le lui demander.**
     système pour qu'un humain puisse **suivre** une flèche, avec une logique de **câblage** — *« mais pas
     du pur câblage, on ne s'y retrouverait pas non plus ; il faut une logique, et là encore passer par
     l'intelligence artificielle pour que ça fasse sens »*.
+* **Les flèches grises** (11/11 au soir) : depuis la fiche 106, une flèche prend la couleur des lueurs
+  qu'elle relie, et beaucoup deviennent grises — *« si c'est temporaire qu'elles soient grises, ça me
+  va ; seulement si c'est temporaire »*. Le gris d'une flèche n'est accepté qu'en attendant que les
+  flèches disent quelque chose.
 
 ## 7. La caméra et la carte de Wikipédia
 
@@ -290,6 +297,10 @@ Ses mots, à propos de la petite IA du halo :
   que c'était ça ; alors elle essaie de chercher, et note son erreur ou tout ce qu'elle pense »* ; et
   *« un document complet qui a pour but de comprendre la MÉTA-compréhension d'un canva lors de sa
   création »*.
+* **Le cercle : l'IA aide, l'humain corrige, l'IA apprend** (11/11, plus tard dans la soirée) : *« il
+  faut que le maximum de choses fasse sens sans que l'humain doive trop y réfléchir ; l'IA doit pouvoir
+  aider l'humain, et l'humain doit corriger l'IA ; et l'IA doit enregistrer, apprendre, et ensuite un
+  re-fine-tuning, ou la création d'une vraie IA from scratch, plus tard »*.
 * **Ce qu'il en pense lui-même** : *« ce n'est pas du tout innovant, pas du tout dans les dernières
   technos, rien de bien impressionnant — c'est toi le pro, c'est toi qui seras mieux que moi »*.
 * **Le rappel** : *« l'idée que ce soit LE logiciel pour tous les projets du monde, et aussi pour les

@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 11/11/2026** (fiche 105). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 11/11/2026** (fiche 106). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -18,13 +18,17 @@
   les titres qui ne refont plus leurs lettres (LETTRES-1 : de loin, sur la carte de Wikipédia, 25,5 →
   15,5 ms par image) ; **les membranes en carte** (REGION-1, fiche 105 : la plus petite région
   l'emporte, le papier des textes toujours gris, une membrane sans couleur grise ; au fond de « Eau »,
-  7,8 ms par image au lieu de 17,6). **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec `main` (fiche 105, les membranes
-  en carte comprises).
+  7,8 ms par image au lieu de 17,6) ; la souris qui suit les nœuds par les rangs de l'index (SURVOL-1 et
+  2, fiche 106 : sur la carte, 8,2 → 4,9 ms) ; **le halo d'un texte dit sa parenté** (PARENTE, fiche
+  106 : une petite IA du sens embarquée, des familles, une sûreté ; la teinte de bruit de Tauri partie,
+  flèches comprises). **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec `main` (fiche
+  106).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Le chantier en cours** : la carte de Wikipédia — ses cinq défauts (VISION § 7). Les membranes en carte
-  sont écrites (fiche 105) ; l'allure de leurs frontières attend sa parole. Puis le halo des textes.
+  (fiche 105) et le halo de la parenté (fiche 106) sont écrits ; l'allure des frontières et les flèches
+  grises attendent sa parole. Puis les flèches de Wikipédia.
 
 ## 2. Ce que fait Glucose Rust
 
@@ -35,12 +39,12 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Naviguer** | canevas infini, zoom jusqu'à ×256 ; souris, pavé (pincement sous Windows, Linux et macOS), doigts ; `F` cadre la sélection, `Alt+F` tout ; **`Alt+Z`** le `Ctrl+Z` de la caméra ; signets ; minimap ; onglets ; **`Ctrl+F`** cherche dans tout le document ; le mode Focus par un geste choisi |
 | **Le document** | `.glucose` écrit geste après geste, brouillons, reprise au lancement, Time Machine (`Ctrl+H`), les documents de Tauri lus ; au terminal, `glucose document.glucose` et une commande par outil des agents (`glucose aide`) |
 | **Images** | PNG, JPEG, WebP, GIF (figé), BMP ; coller, déposer ; rotation, recadrage ; la mémoire par étages |
-| **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; la couleur choisie va à sa lueur |
-| **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **de loin, une trace** ; leur présence suit leur nombre et la souris ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
+| **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; **sa lueur dit sa parenté** : une IA du sens embarquée (15 Mo, multilingue, sans réseau) range les textes en familles — même couleur, d'autant plus forte et vive qu'elle est sûre ; un texte sans parent garde le contour gris de son bloc ; la couleur choisie va à sa lueur (PARENTE, fiche 106) |
+| **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
 | **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) |
 | **L'interface** | 105 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence |
-| **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi) et y pose textes, membranes, flèches, domaines — chaque geste annulable, rien sans son accord |
+| **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes) et y pose textes, membranes, flèches, domaines — chaque geste annulable, rien sans son accord |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
 
 ## 3. Ce qui ne va pas
@@ -52,9 +56,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 * **trop de flèches**, qui partent des blocs et non des mots, au tracé brouillon (surtout en courbe) ;
 * **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (au-dessus
   du plancher de 10 ms) ;
-* **le halo d'un texte** ne dit rien : la teinte symbiotique de Tauri, « temporaire » ; il doit dire la
-  parenté des textes (une IA de similarité), et porter la couleur qu'on choisit pour un texte — qui,
-  depuis que le papier est toujours gris, ne se voit plus que dans sa lueur.
+* **le halo d'un texte** dit sa parenté depuis la fiche 106 — pas encore à son écran ; beaucoup de
+  flèches de la carte deviennent grises (leurs bouts n'ont pas de famille sûre), à sa parole ; sous une
+  quinzaine de textes, l'IA hésite ; la clarté (l'accessibilité) n'est pas encore lue.
 
 **Connus, mesurés, pas réglés** :
 
@@ -69,12 +73,12 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 110, toutes vertes au 11/11 (`cargo test --workspace`) ; clippy strict et
+* **Les épreuves** : 3 122, toutes vertes au 11/11 (`cargo test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
-  (`outils/sabotages/`, un fichier par chantier) ; les derniers : 66 sur 66 (fiches 102-103), 10 sur 10
-  (LETTRES-1).
+  (`outils/sabotages/`, un fichier par chantier) ; les derniers : 66 sur 66 (fiches 102-103), 17 sur 17
+  (REGION-1, fiche 105), 36 sur 36 (le sens et la parenté, fiche 106).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
   sur `aebb3f7`** (la beta 10). La CI se lance avant une publication, pas à chaque envoi.

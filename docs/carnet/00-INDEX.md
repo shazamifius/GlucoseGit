@@ -143,6 +143,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 103 | [Alt+Z d'un geste, les liens près des blocs, les membranes qui s'empilent](103-ALT-Z-D-UN-GESTE-LES-LIENS-PRES-DES-BLOCS-LES-MEMBRANES-QUI-S-EMPILENT.md) | Regardé avant de saboter, et l'image a corrigé deux lois : **RETOUR-2**, cinq crans faisaient cinq pas — un pas tient tant que la main tient la vue, et en moins qu'un double-clic ; **LIEN-4**, la main ne redessine que ce que l'écran montrerait (un niveau), une seule question pour le survol et la souris, la souris rapproche des blocs et non des membranes (une pelote dans « Philosophie ») ; les membranes emboîtées mesurées (`1 − 0,887ᵏ`, une boue de teintes), la recherche (Imhof, treemaps, Material 3, APCA) et un prototype en image, sans décision |
 | 104 | [Les sabotages joués, les lettres d'une image, les membranes en carte](104-LES-SABOTAGES-JOUES-LES-LETTRES-D-UNE-IMAGE-LES-MEMBRANES-EN-CARTE.md) | Les 66 sabotages des fiches 102-103 tombent (deux aveugles : deux épreuves qui regardaient ailleurs) ; **LETTRES-1** : le cache des lettres (4 096) était plus petit qu'une image de la carte de Wikipédia (5 654) — il oublie désormais ce que l'image d'avant n'a pas demandé, de loin 25,5 → 15,5 ms ; les membranes en carte (la plus petite région l'emporte, une force déduite de la lecture du texte, APCA 75), en image, **à sa parole** |
 | 105 | [Les membranes en carte, le papier gris des blocs](105-LES-MEMBRANES-EN-CARTE-LE-PAPIER-GRIS-DES-BLOCS.md) | **REGION-1** : la couleur en un point est celle de la plus petite région qui le contient — le sol de chaque région (ses halos, son corps opaque, ordonnés par la surface), puis la grille et les zones, puis les frontières, sur les deux voies ; ce qu'un corps qui couvre l'écran cache ne se pose plus (au fond de « Eau », 17,6 → 7,8 ms par image, l'attente de la carte graphique 9,7 → 0,1 ms) ; la force des régions, un nombre de ressenti ancré à sa parole ; **PAPIER-1**, le papier des textes toujours gris ; **NEUTRE-1**, la membrane sans couleur grise ; la frontière « plus légère » essayée en image (une bande, un trait continu), à sa parole ; 17 sabotages sur 17 (4 aveugles réparés) |
+| 106 | [Le survol, la petite IA du sens, le halo qui dit la parenté](106-LE-SURVOL-LA-PETITE-IA-DU-SENS-LE-HALO-QUI-DIT-LA-PARENTE.md) | **SURVOL-1, SURVOL-2** : viser par les rangs de l'index, la présence des liens qui compte (8,2 → 4,9 ms) ; **SENS-1** : une IA du sens embarquée (15 Mo, sans dépendance) ; **PARENTE-1** : le hasard robuste, les familles, une sûreté sans réglage (Šidák puis Efron — la première, un centile, ne disait rien à l'œil) ; **PARENTE-2** : le halo dit la parenté, chaque bloc garde son contour gris (une image témoin a montré les blocs disparus) ; la teinte de bruit de Tauri partie, flèches comprises ; **PARENTE-3** : un agent lit la parenté ; ses mots sur la méta-compréhension ; les flèches grises, à sa parole |
 
 ## Les décisions — **foi**
 
@@ -160,13 +161,14 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [11](decisions/11-LA-SELECTION-X11-PAR-X11RB.md) la sélection de X11, servie par Glucose avec `x11rb` ·
 [12](decisions/12-L-EXPORT-EN-IMAGE-PAR-PNG.md) l'export en image, par `png` ·
 [13](decisions/13-LES-GLYPHES-PAR-TTF-PARSER-ET-L-ORACLE-RESVG.md) les glyphes du SVG par `ttf-parser`, et `resvg` pour l'éprouver ·
-[14](decisions/14-LE-PINCEMENT-WAYLAND-PAR-WAYLAND-CLIENT.md) le pincement sous Wayland, par `wayland-client`, déjà apporté par `winit`.
+[14](decisions/14-LE-PINCEMENT-WAYLAND-PAR-WAYLAND-CLIENT.md) le pincement sous Wayland, par `wayland-client`, déjà apporté par `winit` ·
+[15](decisions/15-LE-SENS-PAR-STATIC-SIMILARITY-MRL-MULTILINGUAL.md) le sens des textes, par `static-similarity-mrl-multilingual-v1` (une donnée embarquée, pas une caisse).
 
-La prochaine fiche porte le numéro **105**.
+La prochaine fiche porte le numéro **107**.
 
 ## Hors série — des archives, à consulter
 
-* [`lecons.md`](lecons.md) : chaque leçon payée, une par une, avec son cas (fiches 53 à 105) — rassemblées en
+* [`lecons.md`](lecons.md) : chaque leçon payée, une par une, avec son cas (fiches 53 à 106) — rassemblées en
   principes dans [MÉTHODE § 4](../METHODE.md).
 * [`ancien-pc-windows.md`](ancien-pc-windows.md) : les pièges du PC Windows (Git Bash, PowerShell, WSL,
   l'APK et le téléphone virtuel construits depuis Windows), pour le jour où une machine Windows reviendra.
