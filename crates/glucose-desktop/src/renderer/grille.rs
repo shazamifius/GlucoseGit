@@ -138,9 +138,9 @@ pub(super) struct Fond<'a> {
     pub theme: &'a super::Theme,
 }
 
-/// Le fond du canevas et sa grille de points — **sauf si les tuiles vont tout recouvrir**,
-/// auquel cas ces deux passes écrivent des pixels que personne ne lira jamais : un cinquième
-/// d'une image sur 2560 × 1600.
+/// Le fond du canevas — **sauf si les tuiles vont tout recouvrir**, auquel cas il écrit des pixels
+/// que personne ne lira jamais : un cinquième d'une image sur 2560 × 1600. Rend vrai s'il se voit :
+/// la grille de points, qui se pose après le sol des régions (REGION-1), ne se pose que là.
 ///
 /// C'est ici que l'écran se relève, une fois pour les deux questions qui en dépendent : « le
 /// fond se verra-t-il ? », posée maintenant, et « que faut-il poser ? », posée par la passe
@@ -151,8 +151,7 @@ pub(super) fn poser_le_fond(
     store: &Store,
     pass: ViewPass<'_>,
     cadrage: Cadrage,
-    header_h: f32,
-) {
+) -> bool {
     let (width, height) = (pixmap.width(), pixmap.height());
     relever(
         fond.couverture,
@@ -166,14 +165,11 @@ pub(super) fn poser_le_fond(
     crate::perf::compteur("fond_saute", f64::from(u8::from(recouvert)));
     crate::perf::stage("releve");
     if recouvert {
-        return;
+        return false;
     }
     pixmap.fill(fond.theme.bg_canvas);
     crate::perf::stage("clear");
-    if cadrage.reperes {
-        super::scene::grid::draw_grid(pixmap, &pass.vp, width, height, header_h);
-    }
-    crate::perf::stage("grid");
+    true
 }
 
 /// Ce que l'écran porte en tuiles, **relevé une fois par image**.

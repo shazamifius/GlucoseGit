@@ -176,11 +176,7 @@ pub(in crate::renderer) fn poses_des_photos(
 /// au-dessus des autres cartes, ce qui est exactement le rang que le processeur lui donnait
 /// en la dessinant dans sa seconde passe.
 pub(in crate::renderer) fn composants_de_texte(
-    (regime, contenants, eclairages): (
-        &Regime,
-        &crate::renderer::card::Contenants<'_>,
-        &[crate::params::Eclairage],
-    ),
+    (regime, eclairages): (&Regime, &[crate::params::Eclairage]),
     hue_cache: &mut SymbioticHueCache,
     kit: PaintKit<'_>,
     (store, pass, edition): (
@@ -212,10 +208,9 @@ pub(in crate::renderer) fn composants_de_texte(
             kit,
             ann.id(),
             (*x, *y, w as f32, h as f32),
-            (corps, teinte, crate::renderer::card::couleur_choisie(ann)),
+            (corps, teinte),
             (
                 saisie,
-                contenants,
                 crate::renderer::passages::eclaires_de(eclairages, ann.id(), teinte),
             ),
         ) else {

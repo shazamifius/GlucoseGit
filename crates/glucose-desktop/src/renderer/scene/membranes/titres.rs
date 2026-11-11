@@ -23,8 +23,11 @@ fn image_vue(titre: &str, (largeur, hauteur): (f64, f64), zoom: f64, haut: f64) 
     let mut app = GlucoseApp::new();
     let board = app.store.project.active_board_id.clone();
     let mut m = Annotation::membrane("m", 0.0, 0.0, largeur, hauteur);
-    if let Annotation::Membrane { text, .. } = &mut m {
+    if let Annotation::Membrane { text, color, .. } = &mut m {
         *text = Some(titre.to_string());
+        // Le bleu de Tauri, choisi : une membrane sans couleur est grise (NEUTRE-1, fiche 105),
+        // et le titre se reconnaît à sa teinte vive.
+        *color = Some("#60a5fa".to_string());
     }
     app.store.add_annotation(&board, m);
     app.store.clear_selection();
@@ -42,7 +45,7 @@ fn image_vue(titre: &str, (largeur, hauteur): (f64, f64), zoom: f64, haut: f64) 
 
 /// **Les lignes de l'écran qui portent le titre** : au-dessus du bord haut (le pointillé exclu),
 /// au droit de la membrane, un pixel de sa teinte vive — `#60a5fa`, que ni le fond du canevas, ni
-/// le voile de la membrane, ni ses halos n'atteignent.
+/// le corps de la membrane (REGION-1), ni ses halos n'atteignent.
 fn lignes_du_titre(app: &GlucoseApp, largeur_a_l_ecran: f64) -> usize {
     let droite = (40.0 + largeur_a_l_ecran).min(f64::from(TAILLE.0)) as usize;
     (0..(HAUT as usize - 3))

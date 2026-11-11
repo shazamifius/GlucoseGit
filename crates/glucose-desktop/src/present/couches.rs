@@ -445,11 +445,13 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
         multiview_mask: None,
     });
     temps.fond.poser(&mut passe);
-    // Le corps des zones d'un gabarit : le premier rang du monde, sous les membranes, comme
-    // le processeur le peint juste après le fond (PRESET-1).
+    // Le sol des régions, puis ce qui doit rester visible dans une membrane -- la grille, le
+    // corps des zones d'un gabarit et des cases (PRESET-1) --, puis les frontières (REGION-1) :
+    // l'ordre du processeur. Leurs titres sont dans la couche du dessous.
+    temps.membranes.poser_le_sol(&mut passe);
+    temps.fond.poser_la_grille(&mut passe);
     temps.zones.poser(&mut passe);
-    // La forme des membranes, sous leurs titres qui sont dans la couche du dessous.
-    temps.membranes.poser(&mut passe);
+    temps.membranes.poser_les_frontieres(&mut passe);
     temps
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());

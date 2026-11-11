@@ -47,8 +47,10 @@
 //! est l'arrondi de l'écriture, et une épreuve le borne.
 
 mod peindre;
+mod regions;
 
 pub use peindre::{peindre, peindre_un_rectangle};
+pub use regions::Regions;
 
 use std::f32::consts::FRAC_PI_2;
 
@@ -332,6 +334,48 @@ impl Membrane {
         couverture_d_un_trait(longueur(d, ecart), b.demi_largeur)
     }
 
+    /// **Couvre-t-elle, opaque, chaque pixel d'un écran de `largeur × hauteur` ?** (REGION-1)
+    ///
+    /// Vrai quand une de ses couches est pleine (une opacité de 1) et couvre entièrement chaque
+    /// pixel : sa loi y vaut alors exactement 1 — un facteur `1 − 1 × 1` annule le produit des
+    /// transparences —, et rien de ce qui a été peint avant elle ne se voit plus.
+    ///
+    /// Un pixel est entièrement couvert quand son centre est à un demi-pixel au moins à l'intérieur
+    /// ([`couverture_d_un_plein`]). La forme rentrée d'un demi-pixel est un rectangle arrondi, donc
+    /// convexe, et les centres des pixels de l'écran remplissent le rectangle de leurs quatre coins :
+    /// les quatre coins dedans, tous les centres le sont.
+    pub fn couvre(&self, ecran: (f32, f32)) -> bool {
+        let coins = coins_des_centres(ecran);
+        self.remplissages.iter().any(|(forme, alpha)| {
+            *alpha >= 1.0 && coins.iter().all(|&(x, y)| forme.distance(x, y) <= -0.5)
+        })
+    }
+
+    /// **Peut-elle poser de l'encre sur un écran de `largeur × hauteur` ?** (REGION-1)
+    ///
+    /// Hors de son [enveloppe](Self::enveloppe), sa loi vaut zéro. Et un champ qui n'est qu'un trait
+    /// — aucune couche qui remplit — ne pose d'encre qu'à moins d'une demi-largeur et d'un
+    /// demi-pixel de son bord ([`couverture_d_un_trait`]) : un écran dont tous les centres sont plus
+    /// loin à l'intérieur n'en reçoit aucune — la frontière d'une région dans laquelle on a zoomé.
+    /// La même convexité que [`Self::couvre`] fait suffire les quatre coins.
+    pub fn touche(&self, ecran: (f32, f32)) -> bool {
+        let e = self.enveloppe();
+        // Une enveloppe `NaN` n'est ni dedans ni dehors : elle ne pose rien, comme `peindre`.
+        let valide = e.gauche <= e.droite && e.haut <= e.bas;
+        let dehors = e.droite < 0.0 || e.bas < 0.0 || e.gauche > ecran.0 || e.haut > ecran.1;
+        if dehors || !valide {
+            return false;
+        }
+        if self.remplissages.iter().any(|(_, alpha)| *alpha > 0.0) {
+            return true;
+        }
+        let marge = self.bord.demi_largeur + 0.5;
+        self.bord.alpha > 0.0
+            && !coins_des_centres(ecran)
+                .iter()
+                .all(|&(x, y)| self.bord.forme.distance(x, y) < -marge)
+    }
+
     /// Ce que ses couches peuvent toucher : la plus large, et son demi-pixel d'anticrénelage.
     pub fn enveloppe(&self) -> Arrondi {
         let bord = self.bord.forme.dilate(self.bord.demi_largeur + 0.5);
@@ -347,6 +391,12 @@ impl Membrane {
                 rayon: 0.0,
             })
     }
+}
+
+/// Les centres des quatre pixels de coin d'un écran de `largeur × hauteur`.
+fn coins_des_centres((largeur, hauteur): (f32, f32)) -> [(f32, f32); 4] {
+    let (d, b) = (largeur - 0.5, hauteur - 0.5);
+    [(0.5, 0.5), (d, 0.5), (0.5, b), (d, b)]
 }
 
 /// La couverture d'un plein, pour un pixel dont le centre est à `d` de son bord : un

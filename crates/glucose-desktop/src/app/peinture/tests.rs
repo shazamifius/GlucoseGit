@@ -68,7 +68,13 @@ fn test_bande_2_le_dessous_ne_garde_rien_de_l_image_d_avant() {
     let mut dessous = Pixmap::new(TAILLE.0, TAILLE.1).expect("un pixmap");
     let premiere = une_image(&mut app, &mut dessous, &Confie::default());
 
-    assert_eq!(premiere.membranes.len(), 1, "la forme part sur la carte");
+    // Sa forme part sur la carte : ses halos et son corps au sol, sa frontière (REGION-1).
+    let regions = &premiere.membranes;
+    assert_eq!(
+        (regions.sol().len(), regions.frontieres().len()),
+        (2, 1),
+        "la forme part sur la carte"
+    );
     let lignes = premiere.bandes_du_dessous.lignes();
     assert!(
         lignes > 0 && lignes * 8 < TAILLE.1,

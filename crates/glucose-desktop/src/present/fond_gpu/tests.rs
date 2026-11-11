@@ -72,7 +72,10 @@ fn par_la_carte(taille: (u32, u32), vp: &Viewport) -> Option<Pixmap> {
             b: 0.0,
             a: 1.0,
         },
-        |p| fond.poser(p),
+        |p| {
+            fond.poser(p);
+            fond.poser_la_grille(p);
+        },
     );
     file.submit(Some(encodeur.finish()));
     banc_gpu::relire(&peripherique, &file, &cible, taille)

@@ -39,7 +39,7 @@ pub(crate) fn peindre_le_texte_seul(
         size: (largeur, 0.0),
         body: texte,
         tint: teinte,
-        fond: super::fond_du_canevas(kit.theme),
+        fond: super::papier(kit.theme),
         eclaires,
         selected: false,
         editing: None,

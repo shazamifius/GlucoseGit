@@ -61,8 +61,13 @@ impl Passes {
             .preparer(peripherique, file, ecran, &confie.zones);
         self.cadre
             .preparer(peripherique, file, ecran, confie.chrome.cadre());
-        self.membranes
-            .preparer(peripherique, file, ecran, &confie.membranes);
+        let regions = &confie.membranes;
+        self.membranes.preparer(
+            peripherique,
+            file,
+            ecran,
+            (regions.sol(), regions.frontieres()),
+        );
         self.fleches
             .preparer(peripherique, file, ecran, &confie.fleches);
         self.lisere.preparer(file, ecran, confie.lisere);

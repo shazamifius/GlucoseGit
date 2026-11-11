@@ -58,10 +58,12 @@ impl super::Renderer {
             membrane.and_then(|m| store.active_board().and_then(|b| masque_du_focus(b, m)));
         self.focus.courant = cle.zip(masque);
         let base = *self.focus.fond_de_base.get_or_insert(self.theme.bg_canvas);
-        let (r, g, b) = super::scene::MEMBRANE_SANS_COULEUR;
-        let sans_couleur = format!("#{r:02x}{g:02x}{b:02x}");
         self.theme.bg_canvas = match self.focus.masque() {
-            Some(m) => teinte(base, m.couleur.as_deref().unwrap_or(&sans_couleur)),
+            Some(m) => {
+                // La teinte qu'elle montre : la sienne, ou le gris d'une membrane sans couleur.
+                let (r, g, b) = super::scene::membranes::teinte_de_membrane(m.couleur.as_deref());
+                teinte(base, &format!("#{r:02x}{g:02x}{b:02x}"))
+            }
             None => {
                 self.focus.fond_de_base = None;
                 base

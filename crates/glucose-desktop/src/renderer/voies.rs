@@ -57,21 +57,25 @@ pub(super) fn dessiner_sous_les_photos(
     (cadrage, saisie): (Cadrage, Option<&crate::renderer::TextEditSession>),
     header_h: f32,
 ) -> bool {
-    if cadrage.couche.porte_le_fond() {
-        grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
-        // 3 bis. Le corps des zones d'un gabarit, sous tout le contenu — le premier rang de
-        // Tauri (PRESET-1). Sur la voie graphique, la carte pose les mêmes rectangles au même
-        // rang, avant ses membranes.
-        let ecran = (pixmap.width() as f32, pixmap.height() as f32);
-        super::zone::remplir(pixmap, &premier_rang(store, pass, ecran));
-        crate::perf::stage("zones");
-    }
     // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
     // carte sinon (MEMB-FORME-1) ; leurs titres, poignées et réglettes, ici sur les deux voies.
     let membranes = if cadrage.couche.porte_le_fond() {
-        scene::draw_membranes(kit, pixmap, (store, saisie), pass)
+        let fond_visible = grille::poser_le_fond(fond, pixmap, store, pass, cadrage);
+        // Le sol des régions, puis ce qui doit rester visible dans une membrane — la grille, le
+        // corps des zones d'un gabarit et des cases (PRESET-1) —, puis les frontières (REGION-1).
+        // La carte graphique pose les mêmes listes dans le même ordre.
+        let entre = |p: &mut PixmapMut| {
+            if fond_visible && cadrage.reperes {
+                scene::grid::draw_grid(p, &pass.vp, p.width(), p.height(), header_h);
+            }
+            crate::perf::stage("grid");
+            let ecran = (p.width() as f32, p.height() as f32);
+            super::zone::remplir(p, &premier_rang(store, pass, ecran));
+            crate::perf::stage("zones");
+        };
+        scene::membranes::draw_membranes((kit, pixmap), (store, saisie), pass, entre)
     } else {
-        scene::draw_membrane_ornaments(kit, pixmap, (store, saisie), pass)
+        scene::membranes::draw_membrane_ornaments(kit, pixmap, (store, saisie), pass)
     };
     crate::perf::stage("membranes");
     // 4 ter. Le nom et la phrase des zones, le numéro et la description des cases du
@@ -420,7 +424,7 @@ impl Renderer {
             ecran,
         );
         crate::perf::stage("lueurs");
-        let membranes = scene::formes_des_membranes(store, pass, taille);
+        let membranes = scene::membranes::formes_des_membranes((store, &self.theme), pass, taille);
         let zones = premier_rang(store, pass, ecran);
         crate::perf::stage("membranes");
         let fleches = super::arrow::fleches_a_poser(
@@ -438,10 +442,8 @@ impl Renderer {
             (&mut self.lot, &mut self.magasin, &mut self.carte),
             (store, &vp, &rangs),
         );
-        // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
-        let contenants = super::card::Contenants::nouveaux(&self.theme, &membranes);
         let de_texte = composants_de_texte(
-            (&regime, &contenants, overlay.eclairages),
+            (&regime, overlay.eclairages),
             &mut self.hue_cache,
             kit,
             (store, pass, edition),

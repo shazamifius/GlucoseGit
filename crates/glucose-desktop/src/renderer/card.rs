@@ -78,10 +78,8 @@ pub(in crate::renderer) mod vecteurs;
 use crate::theme::Theme;
 use dessus::dessiner_les_ornements;
 use glucose_core::text::{BlockKind, Selection};
-use habit::draw_card_brume;
-pub(super) use habit::{
-    couleur_choisie, fond_du_canevas, forme_de_la_carte, papier, teinte_de_carte, Contenants,
-};
+use habit::draw_card_papier;
+pub(super) use habit::{forme_de_la_carte, papier, teinte_de_carte};
 use ornament::{draw_code_plate, draw_ornament};
 pub(crate) use texte_seul::peindre_le_texte_seul;
 use tiny_skia::{Color, PixmapMut};
@@ -248,8 +246,8 @@ pub(super) struct TextCard<'a> {
     pub size: (f32, f32),
     pub body: &'a str,
     pub tint: (u8, u8, u8),
-    /// Ce que la carte peint sous son texte (LUEUR-3) : le fond du canevas vu au travers des
-    /// membranes qui la contiennent ([`Contenants`]).
+    /// Le papier : ce que la carte peint sous son texte — le gris sombre et neutre des blocs,
+    /// partout ([`papier`], PAPIER-1).
     pub fond: (u8, u8, u8),
     pub selected: bool,
     pub editing: Option<&'a TextEditSession>,
@@ -347,7 +345,7 @@ fn dessiner_le_contenu(
     text: &TextLayout,
     card: &TextCard,
 ) {
-    draw_card_brume(pixmap, at, layout, card);
+    draw_card_papier(pixmap, at, layout, card);
     // SCALE-2 — sous le seuil, une lettre ne se lit plus : la carte montre le gris de chaque
     // ligne (GRIS-1, fiche 95), jamais un cadre vide.
     if ctx.scale.draws_detail() {

@@ -1,10 +1,10 @@
-//! **Ce que l'écran sait montrer** (fiche 99) : le retour d'Oklab vers sRGB, le bord du gamut — la
-//! plus forte chroma qu'un écran sRGB montre à une clarté et une teinte données —, et le papier
-//! teinté qui en découle.
+//! **Ce que l'écran sait montrer** (fiche 99) : le retour d'Oklab vers sRGB, et le bord du gamut —
+//! la plus forte chroma qu'un écran sRGB montre à une clarté et une teinte données.
 //!
-//! La moitié aller (sRGB → Oklab) servait à ranger les images par leur couleur (ORDONNER-2). La
-//! couleur d'un texte, et demain la roue de couleur, demandent le retour : choisir une teinte et une
-//! clarté perçues, puis savoir quels pixels les montrent.
+//! La moitié aller (sRGB → Oklab) servait à ranger les images par leur couleur (ORDONNER-2). La roue
+//! de couleur et la membrane neutre demandent le retour : choisir une teinte et une clarté perçues,
+//! puis savoir quels pixels les montrent. (Le papier d'un texte teinté de sa couleur, COULEUR-3, est
+//! parti avec sa parole du 11/11/2026 : le fond d'un texte est toujours gris, fiche 105.)
 
 use super::{oklab, Oklch};
 
@@ -125,20 +125,6 @@ impl Oklch {
     }
 }
 
-/// **Un papier teinté sans changer sa clarté** (fiche 99) : la clarté perçue de `papier`, la
-/// teinte de `couleur`, et sa chroma — ramenée, s'il le faut, à la plus grande que l'écran montre à
-/// cette clarté. Ce qui s'écrit sur le papier se lit exactement aussi bien qu'avant : la clarté est
-/// ce qui fait le contraste, et elle ne bouge pas. Aucune opacité n'est à choisir.
-pub fn papier_teinte(papier: (u8, u8, u8), couleur: (u8, u8, u8)) -> (u8, u8, u8) {
-    let (p, c) = (Oklch::des_octets(papier), Oklch::des_octets(couleur));
-    Oklch {
-        l: p.l,
-        c: c.c.min(Oklch::chroma_maximale(p.l, c.h)),
-        h: c.h,
-    }
-    .octets()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,40 +174,6 @@ mod tests {
                     "L {l} h {h} : {c} n'est pas le bord"
                 );
             }
-        }
-    }
-
-    /// **Le papier teinté garde sa clarté et prend la teinte** : le texte s'y lit pareil.
-    #[test]
-    fn ecran_1_le_papier_teinte_garde_sa_clarte_et_prend_la_teinte() {
-        let papier = (21, 21, 23);
-        for couleur in [
-            (244, 114, 182),
-            (251, 146, 60),
-            (96, 165, 250),
-            (52, 211, 153),
-        ] {
-            let teinte = papier_teinte(papier, couleur);
-            let (p, t, c) = (
-                Oklch::des_octets(papier),
-                Oklch::des_octets(teinte),
-                Oklch::des_octets(couleur),
-            );
-            assert!(
-                (t.l - p.l).abs() < 0.01,
-                "la clarté du papier : {} contre {}",
-                t.l,
-                p.l
-            );
-            assert!(t.a_une_teinte(), "{couleur:?} se voit : chroma {}", t.c);
-            let ecart = (t.h - c.h + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU)
-                - std::f64::consts::PI;
-            assert!(
-                ecart.abs() < 0.15,
-                "{couleur:?} : la teinte {} contre {}",
-                t.h,
-                c.h
-            );
         }
     }
 }

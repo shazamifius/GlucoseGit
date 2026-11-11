@@ -176,6 +176,12 @@ pub struct Theme {
     pub card_subheading: Color,
     /// Le corps, les puces et les formules.
     pub card_body: Color,
+    /// **Le papier d'un texte** : ce que le bloc peint sous ses lettres, partout — sur le canevas,
+    /// dans une membrane de n'importe quelle couleur, dans le mode Focus. Sa parole du 11/11/2026 :
+    /// *« il faudrait abandonner l'idée du background d'un texte : je préfère qu'il soit TOUJOURS
+    /// gris »*, *« le gris sombre et neutre des blocs d'aujourd'hui »* — la valeur du canevas, sur
+    /// laquelle un bloc se posait. La couleur qu'on choisit pour un texte va à son halo (fiche 105).
+    pub card_paper: Color,
     /// Le fond d'un texte sélectionné pendant une saisie. Bleu, et non blanc : la chrome est
     /// monochrome (fiche 06 § 1.3) mais une sélection de texte est du **contenu**, et le blanc
     /// translucide se confondrait avec l'encre du texte qu'elle doit laisser lisible.
@@ -350,6 +356,7 @@ impl Theme {
             card_heading: hex(0xffffff),
             card_subheading: hex(0xf0f0f5),
             card_body: hex(0xdce1eb),
+            card_paper: hex(0x0d0d0d),
             card_marker: hex(0x7a8296),
             text_selection: Color::from_rgba8(74, 127, 181, 115),
             link: hex(0x60a5fa),
@@ -579,6 +586,8 @@ mod tests {
         let t = Theme::dark();
         let chrome = [
             ("bg_canvas", t.bg_canvas),
+            // Le papier d'un texte n'est pas de la chrome, mais sa loi est la même : neutre.
+            ("card_paper", t.card_paper),
             ("bg_header", t.bg_header),
             ("bg_panel", t.bg_panel),
             ("bg_card", t.bg_card),

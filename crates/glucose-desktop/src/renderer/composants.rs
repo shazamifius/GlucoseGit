@@ -76,7 +76,7 @@
 //! l'instant où, dézoomé, il retient dans l'écran — au lieu d'un trou, ou d'une image qui gèle
 //! le temps de la peindre.
 
-use super::card::{draw_card_contenu, CardLayout, Contenants};
+use super::card::{draw_card_contenu, CardLayout};
 use super::pass::{Clip, Pass, SELECTION_RING};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
@@ -370,10 +370,9 @@ impl Regime {
         kit: PaintKit<'_>,
         id: &str,
         (x, y, w, h): (f64, f64, f32, f32),
-        (corps, teinte, couleur): (&str, Rgb, Option<Rgb>),
-        (edition, contenants, eclaires): (
+        (corps, teinte): (&str, Rgb),
+        (edition, eclaires): (
             Option<&crate::renderer::TextEditSession>,
-            &Contenants<'_>,
             Option<super::passages::Eclaires<'_>>,
         ),
     ) -> Option<Pieces> {
@@ -419,10 +418,7 @@ impl Regime {
                     taille: (w, h),
                     corps: corps.to_string(),
                     teinte,
-                    fond: crate::renderer::card::papier(
-                        contenants.fond_en((sx + dx + vue.width / 2.0, sy + dy + vue.height / 2.0)),
-                        couleur,
-                    ),
+                    fond: crate::renderer::card::papier(kit.theme),
                     // Pendant l'édition, la carte montre sa source : rien n'y brille.
                     eclaires: eclaires
                         .filter(|_| edition.is_none())

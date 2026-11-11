@@ -19,12 +19,13 @@ pub struct Confie {
     /// Les lueurs des cartes visibles, dans l'ordre où le processeur les peindrait.
     pub lueurs: Vec<crate::present::lueurs_gpu::Lueur>,
     /// **Le corps des zones visibles** (PRESET-1) : les mêmes rectangles que le processeur
-    /// remplit, posés juste après le fond et avant les membranes — leurs textes restent dans la
-    /// couche du dessous.
+    /// remplit, posés après le sol des régions et avant leurs frontières (REGION-1) — leurs textes
+    /// restent dans la couche du dessous.
     pub zones: Vec<crate::renderer::zone::Rectangle>,
-    /// La forme des membranes visibles, dans l'ordre du modèle (MEMB-FORME-1) : leurs titres,
-    /// poignées et réglettes restent dans la couche du dessous.
-    pub membranes: Vec<glucose_core::membrane_forme::Membrane>,
+    /// **Les champs des régions** (REGION-1, MEMB-FORME-1) : leur sol, puis leurs frontières, de la
+    /// plus grande à la plus petite, ce qui ne se voit pas écarté ; leurs titres, poignées et
+    /// réglettes restent dans la couche du dessous.
+    pub membranes: glucose_core::membrane_forme::Regions,
     /// Le champ des flèches visibles, dans l'ordre du modèle (FLECHE-2) : leurs étiquettes,
     /// badges et poignées restent dans la couche du dessus.
     pub fleches: Vec<glucose_core::arrow::champ::Champ>,

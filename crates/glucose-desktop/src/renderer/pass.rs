@@ -2,7 +2,7 @@
 //! tri qui envoie chaque nœud à son dessin — la carte, le pense-bête, la flèche.
 
 use super::arrow::{draw_arrow, Fleche};
-use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, Contenants, TextCard};
+use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, TextCard};
 use super::domain::{draw_domain_gauge, DomainTints};
 use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
@@ -14,6 +14,7 @@ use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::arrow;
+use glucose_core::couleur::Rgb;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Board, DomainAssignment, Viewport};
@@ -124,9 +125,8 @@ pub(super) fn draw_annotations(
         },
         poignees: store.emprise_du_groupe(&board.id).is_none(),
     };
-    // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
-    let formes = super::scene::formes_des_membranes(store, pass, (pixmap.width(), pixmap.height()));
-    let contenants = Contenants::nouveaux(kit.theme, &formes);
+    // Le papier de chaque texte : le gris sombre et neutre des blocs (PAPIER-1).
+    let papier = super::card::papier(kit.theme);
 
     // **Deux passes, et c'est ce qui rend les deux voies identiques par construction**
     // (ORNEMENTS-1). Le contenu des cartes de texte d'abord, a son rang ; puis tout ce qui
@@ -141,7 +141,7 @@ pub(super) fn draw_annotations(
         for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
             let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
             if editing.is_none() {
-                let autour = (&contenants, survols.eclairages);
+                let autour = (papier, survols.eclairages);
                 if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, None) {
                     draw_card_contenu(&ctx, pixmap, carte);
                 }
@@ -151,7 +151,7 @@ pub(super) fn draw_annotations(
 
     let entieres = dessiner_ce_qui_passe_au_dessus(
         hue_cache,
-        (&ctx, pixmap, (&contenants, survols)),
+        (&ctx, pixmap, (papier, survols)),
         (store, board, pass),
         (editing_session, cartes_par_la_carte),
     );
@@ -175,7 +175,7 @@ pub(super) fn draw_annotations(
 /// que par un dessin direct ; ce compteur dit lequel, au lieu de le supposer.
 fn dessiner_ce_qui_passe_au_dessus(
     hue_cache: &mut SymbioticHueCache,
-    (ctx, pixmap, (contenants, survols)): (&Pass, &mut PixmapMut, (&Contenants<'_>, Survols<'_>)),
+    (ctx, pixmap, (papier, survols)): (&Pass, &mut PixmapMut, (Rgb, Survols<'_>)),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
     (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
 ) -> f64 {
@@ -186,7 +186,7 @@ fn dessiner_ce_qui_passe_au_dessus(
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
             Annotation::Text { x, y, .. } => {
-                let autour = (contenants, survols.eclairages);
+                let autour = (papier, survols.eclairages);
                 if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, editing) {
                     // **La carte qu'on edite est un composant comme les autres** depuis
                     // COMPOSANT-2, et seuls ses ornements restent ici -- poignees, curseur,
@@ -235,7 +235,7 @@ fn dessiner_ce_qui_passe_au_dessus(
 fn carte_de<'a>(
     hue_cache: &mut SymbioticHueCache,
     (ann, store, pass): (&'a Annotation, &Store, ViewPass<'_>),
-    (contenants, eclairages): (&Contenants<'_>, &'a [crate::params::Eclairage]),
+    (papier, eclairages): (Rgb, &'a [crate::params::Eclairage]),
     editing: Option<&'a TextEditSession>,
 ) -> Option<TextCard<'a>> {
     let Annotation::Text { x, y, text, .. } = ann else {
@@ -245,16 +245,12 @@ fn carte_de<'a>(
     let tint = super::card::teinte_de_carte(hue_cache, ann, (pass.index, board));
     let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
     let (w, h) = ann.size()?;
-    let (cx, cy) = world_to_screen(x + w / 2.0, y + h / 2.0, &pass.vp);
     Some(TextCard {
         origin: (*x, *y),
         size: (w as f32, h as f32),
         body,
         tint,
-        fond: super::card::papier(
-            contenants.fond_en((cx as f32, cy as f32)),
-            super::card::couleur_choisie(ann),
-        ),
+        fond: papier,
         eclaires: super::passages::eclaires_de(eclairages, ann.id(), tint),
         selected: store.selected_annotation_ids.contains(ann.id()),
         editing,

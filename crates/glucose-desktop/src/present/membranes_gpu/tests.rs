@@ -65,13 +65,14 @@ fn par_la_carte(taille: (u32, u32), membranes: &[Membrane]) -> Option<Pixmap> {
         &peripherique,
         &file,
         (taille.0 as f32, taille.1 as f32),
-        membranes,
+        (membranes, &[]),
     );
     let cible = banc_gpu::cible(&peripherique, taille);
     let vue = cible.create_view(&Default::default());
     let mut encodeur = peripherique.create_command_encoder(&Default::default());
     banc_gpu::passe(&mut encodeur, &vue, wgpu::Color::BLACK, |p| {
-        passe_membranes.poser(p);
+        passe_membranes.poser_le_sol(p);
+        passe_membranes.poser_les_frontieres(p);
     });
     file.submit(Some(encodeur.finish()));
     banc_gpu::relire(&peripherique, &file, &cible, taille)

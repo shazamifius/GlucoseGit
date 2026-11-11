@@ -8,7 +8,6 @@ use super::{carte_de, Clip, Pass};
 use crate::params::ViewPass;
 use crate::renderer::arrow::{fleche_en_svg, Fleche, NoeudsDuRendu};
 use crate::renderer::card::vecteurs::carte_en_vecteurs;
-use crate::renderer::card::Contenants;
 use crate::renderer::domain::reglette;
 use crate::renderer::hue::SymbioticHueCache;
 use crate::renderer::note::svg::sticky_en_svg;
@@ -45,11 +44,10 @@ pub(in crate::renderer) fn annotations_en_svg(
         },
         poignees: false,
     };
-    let formes = crate::renderer::scene::formes_des_membranes(store, pass, taille);
-    let contenants = Contenants::nouveaux(kit.theme, &formes);
+    let papier = crate::renderer::card::papier(kit.theme);
     let visibles = || Visibles::nouvelles(pass.visibles, board).annotations();
     for ann in visibles() {
-        if let Some(carte) = carte_de(hue_cache, (ann, store, pass), (&contenants, &[]), None) {
+        if let Some(carte) = carte_de(hue_cache, (ann, store, pass), (papier, &[]), None) {
             carte_en_vecteurs(&ctx, carte, svg);
         }
     }

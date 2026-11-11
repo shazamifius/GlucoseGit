@@ -1104,8 +1104,8 @@ fn document_carte_sur_photo(avec_carte: bool) -> glucose_core::store::Store {
 /// Sa capture du 26/09 : une carte sur une peinture claire, son texte blanc illisible, et
 /// « la zone de blur derrière les images ». Les deux étaient vrais : la lueur se posait sous
 /// les photos, et l'intérieur de la carte ne portait que 3 % de sa teinte — la photo passait
-/// au travers. La carte peint désormais son fond (le canevas, vu au travers de ses
-/// contenants), et sa lueur se pose entre les photos et les cartes.
+/// au travers. La carte peint désormais son papier (le gris des blocs, PAPIER-1), et sa lueur
+/// se pose entre les photos et les cartes.
 #[test]
 fn test_lueur_3_une_carte_sur_une_photo_la_cache_et_sa_lueur_passe_devant() {
     let taille = (800u32, 600u32);
@@ -1191,22 +1191,25 @@ fn document_carte_dans_une_membrane(avec_carte: bool) -> glucose_core::store::St
     store
 }
 
-/// **Une carte cache ce qu'elle recouvre, jamais ce qui la contient** (LUEUR-3).
+/// **PAPIER-1 — le papier d'un texte est le gris des blocs, sur les deux voies** (fiche 105).
 ///
-/// Posée dans une membrane, son papier part de ce que la membrane peint là : le canevas vu au
-/// travers d'elle, comme chez Tauri où la membrane se voyait sous le texte. Depuis COULEUR-3
-/// (fiche 99), un texte dont on a choisi la couleur teinte ce papier **à sa clarté** : la
-/// membrane y garde sa clarté, le texte y montre sa couleur — sans quoi la couleur choisie ne se
-/// voyait pas. Puis la brume. Mesuré contre la même scène sans la carte : au même pixel, ce qui
-/// était là, teinté à sa clarté, voilé de 3 % de la teinte de la carte, et rien d'autre.
+/// Une carte cache ce qu'elle recouvre ; elle cachait aussi, depuis LUEUR-3, ce qui la contient —
+/// son papier partait de ce que la membrane peignait là, puis COULEUR-3 le teintait de la couleur
+/// choisie. Sa parole du 11/11/2026 : le fond d'un texte est *« TOUJOURS gris »*, *« le gris sombre
+/// et neutre des blocs »*. Une carte d'une couleur choisie, dans une membrane violette : son papier
+/// est le jeton du thème, sur le processeur comme sur la carte graphique.
+///
+/// **La preuve à l'envers** : sans la carte, la membrane teinte vraiment ce pixel — l'ancienne loi
+/// l'aurait donné au papier.
 #[test]
-fn test_lueur_3_une_carte_garde_la_teinte_de_sa_membrane() {
+fn test_papier_1_le_papier_d_une_carte_dans_une_membrane_est_le_gris_des_blocs() {
     let taille = (800u32, 600u32);
     let avec = par_le_processeur(taille, &document_carte_dans_une_membrane(true));
     let sans = par_le_processeur(taille, &document_carte_dans_une_membrane(false));
-    let fond_du_canevas = glucose_desktop::theme::Theme::dark()
-        .bg_canvas
+    let gris = glucose_desktop::theme::Theme::dark()
+        .card_paper
         .to_color_u8();
+    let gris = [gris.red(), gris.green(), gris.blue()];
     // Dans la carte, loin de son texte et de ses coins ; et un pixel sans point de grille :
     // ses deux voisins disent la même chose que lui.
     let p = (470u32, 300u32);
@@ -1217,28 +1220,11 @@ fn test_lueur_3_une_carte_garde_la_teinte_de_sa_membrane() {
         "un point de grille sous la mesure"
     );
     assert!(
-        la[0].abs_diff(fond_du_canevas.red()) + la[2].abs_diff(fond_du_canevas.blue()) > 10,
+        la[0].abs_diff(gris[0]) + la[2].abs_diff(gris[2]) > 10,
         "la membrane ne teinte pas ce pixel ({la:?}) : sinon ce test ne la regarde pas"
     );
-    let (brume, teinte) = (8.0 / 255.0, [0x20u8, 0xc0, 0xff]);
-    let (r, g, b) = glucose_core::couleur::papier_teinte(
-        (la[0], la[1], la[2]),
-        (teinte[0], teinte[1], teinte[2]),
-    );
-    let papier = [r, g, b];
-    let attendu: Vec<u8> = (0..3)
-        .map(|k| {
-            (f32::from(papier[k]) * (1.0 - brume) + f32::from(teinte[k]) * brume).round() as u8
-        })
-        .collect();
     let vu = pixel(&avec, p.0, p.1);
-    for k in 0..3 {
-        assert!(
-            vu[k].abs_diff(attendu[k]) <= 1,
-            "la carte ne garde pas la teinte de sa membrane : {vu:?}, attendu {attendu:?}"
-        );
-    }
-    // La voie graphique calcule ce fond par un autre appel : elle doit dire la même chose.
+    assert_eq!(&vu[..3], &gris[..], "le papier de la carte, au processeur");
     let Some(carte) = par_la_carte(taille, &document_carte_dans_une_membrane(true)) else {
         eprintln!("aucune carte utilisable : epreuve sautee");
         return;

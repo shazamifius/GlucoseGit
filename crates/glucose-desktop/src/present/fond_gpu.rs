@@ -30,6 +30,14 @@
 //! L'écart entre les deux voies est donc celui de cette quantification : un huitième de pixel
 //! de position, soit au plus un huitième de niveau de couverture. Un test le borne.
 //!
+//! # Le fond, puis la grille : deux tracés (REGION-1, fiche 105)
+//!
+//! Le corps d'une membrane est opaque, et la grille doit rester visible dedans, comme une carte pose
+//! son quadrillage par-dessus les pays : le fond se pose d'abord, **seul**, puis le sol des régions,
+//! puis les points. Le même réglage sert aux deux tracés ; les points se composent sur ce qui est
+//! dessous (`gris × a + dessous × (1 − a)`), la loi même du processeur et celle que le nuanceur
+//! calculait déjà sur le fond.
+//!
 //! # Ce qui ne descend pas ici
 //!
 //! Le **pas** de la grille, son rayon, son opacité et son extinction sont décidés par le
@@ -117,21 +125,29 @@ fn vs(@builtin(vertex_index) v: u32) -> @builtin(position) vec4<f32> {
     return vec4<f32>(uv * 2.0 - 1.0, 0.0, 1.0);
 }
 
+// Le fond seul, opaque : il remplace ce qui etait la.
 @fragment
 fn fs(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let couleur = r.fond.rgb;
+    return vec4<f32>(r.fond.rgb, 1.0);
+}
+
+// Les points de la grille, premultiplies : ils se composent sur ce qui est dessous -- le fond,
+// ou le sol d'une region (REGION-1).
+@fragment
+fn points(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let rien = vec4<f32>(0.0);
     if (r.fond.w < 0.5) {
-        return vec4<f32>(couleur, 1.0);
+        return rien;
     }
     let p = position.xy;
     if (p.y < r.point.w) {
-        return vec4<f32>(couleur, 1.0);
+        return rien;
     }
     // Le pas a l'ecran. Un point du monde en `k x pas` se pose en `k x pas x echelle + vue`,
     // donc la grille est PERIODIQUE a l'ecran, et le point le plus proche est un arrondi.
     let pas = r.vue.w * r.vue.x;
     if (!(pas > 0.0)) {
-        return vec4<f32>(couleur, 1.0);
+        return rien;
     }
     let centre = round((p - r.vue.yz) / pas) * pas + r.vue.yz;
     // Le socle ne pose un point que si son CENTRE tombe dans le cadre, bandeau exclu : un
@@ -141,7 +157,7 @@ fn fs(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         && centre.x <= r.ecran.x
         && centre.y <= r.ecran.y;
     if (!dedans) {
-        return vec4<f32>(couleur, 1.0);
+        return rien;
     }
     // La couverture analytique du processeur : la distance signee au bord du disque.
     // FOND-GPU-1 : le pas ne descend jamais sous trente-deux pixels et le rayon plafonne a
@@ -149,18 +165,56 @@ fn fs(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let d = length(p - centre);
     let couverture = clamp(r.point.x + 0.5 - d, 0.0, 1.0);
     let a = couverture * r.point.y;
-    // Premultiplie : `gris x a + fond x (1 - a)`, la meme loi que le processeur.
-    return vec4<f32>(mix(couleur, vec3<f32>(r.point.z), a), 1.0);
+    // Premultiplie : `gris x a + dessous x (1 - a)`, la meme loi que le processeur.
+    return vec4<f32>(vec3<f32>(r.point.z) * a, a);
 }
 "#;
 
 /// La passe du fond : un triangle, un nuanceur, aucun pixel écrit par le processeur.
 pub struct FondGpu {
     pipeline: wgpu::RenderPipeline,
+    /// Les points de la grille, qui se composent sur le sol des régions.
+    grille: wgpu::RenderPipeline,
     liaison: wgpu::BindGroup,
     reglage: wgpu::Buffer,
     /// Cette image a-t-elle un fond que la carte doit peindre ?
     a_peindre: bool,
+    /// Et des points à y poser ?
+    points: bool,
+}
+
+/// Un tracé de la passe : le triangle de l'écran, l'entrée `entree` du nuanceur, ce mélange.
+fn pipeline(
+    peripherique: &wgpu::Device,
+    (agencement, module): (&wgpu::PipelineLayout, &wgpu::ShaderModule),
+    format: wgpu::TextureFormat,
+    (entree, blend): (&str, Option<wgpu::BlendState>),
+) -> wgpu::RenderPipeline {
+    peripherique.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("fond"),
+        layout: Some(agencement),
+        vertex: wgpu::VertexState {
+            module,
+            entry_point: Some("vs"),
+            buffers: &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module,
+            entry_point: Some(entree),
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: Default::default(),
+        depth_stencil: None,
+        multisample: Default::default(),
+        multiview_mask: None,
+        cache: None,
+    })
 }
 
 impl FondGpu {
@@ -187,33 +241,16 @@ impl FondGpu {
             bind_group_layouts: &[Some(&disposition)],
             immediate_size: 0,
         });
-        let pipeline = peripherique.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("fond"),
-            layout: Some(&agencement),
-            vertex: wgpu::VertexState {
-                module: &module,
-                entry_point: Some("vs"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: Some("fs"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    // Le fond REMPLACE : il est opaque et couvre tout, comme le `fill` du
-                    // processeur qu'il vient remplacer.
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: Default::default(),
-            depth_stencil: None,
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        // Le fond REMPLACE : il est opaque et couvre tout, comme le `fill` du processeur qu'il
+        // vient remplacer. Les points se composent sur ce qui est dessous.
+        let uni = pipeline(peripherique, (&agencement, &module), format, ("fs", None));
+        let melange = Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING);
+        let grille = pipeline(
+            peripherique,
+            (&agencement, &module),
+            format,
+            ("points", melange),
+        );
         let reglage = peripherique.create_buffer(&wgpu::BufferDescriptor {
             label: Some("fond: reglage"),
             size: OCTETS_FOND as u64,
@@ -229,16 +266,19 @@ impl FondGpu {
             }],
         });
         Self {
-            pipeline,
+            pipeline: uni,
+            grille,
             liaison,
             reglage,
             a_peindre: false,
+            points: false,
         }
     }
 
     /// **Écrit le réglage du fond.** À appeler avant d'ouvrir la passe.
     pub fn preparer(&mut self, file: &wgpu::Queue, ecran: (f32, f32), fond: Option<Fond>) {
         self.a_peindre = fond.is_some();
+        self.points = fond.is_some_and(|f| f.grille_visible());
         let Some(fond) = fond else {
             return;
         };
@@ -253,6 +293,17 @@ impl FondGpu {
             return;
         }
         passe.set_pipeline(&self.pipeline);
+        passe.set_bind_group(0, &self.liaison, &[]);
+        passe.draw(0..3, 0..1);
+    }
+
+    /// **Pose les points de la grille dans la passe en cours**, sur ce qui est dessous : après le
+    /// sol des régions (REGION-1).
+    pub fn poser_la_grille(&self, passe: &mut wgpu::RenderPass<'_>) {
+        if !self.points {
+            return;
+        }
+        passe.set_pipeline(&self.grille);
         passe.set_bind_group(0, &self.liaison, &[]);
         passe.draw(0..3, 0..1);
     }

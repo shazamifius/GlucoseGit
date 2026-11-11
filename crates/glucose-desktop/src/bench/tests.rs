@@ -260,7 +260,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Puis, le 11/11** (LIEN-4, fiches 102 et 103) : trois liens à l'écran — sa droite les met à
 /// 92,6 % ; 5 866 pixels, tous sur les trois flèches (497-1125 × 101-706), quatorze niveaux au plus.
 /// Regardé avant/après, avec l'image de leur écart.
-const EMPREINTE_TEMOIN: &str = "6f51f0ed9a7f259a";
+/// **Puis, le 11/11** (REGION-1, PAPIER-1, NEUTRE-1, fiche 105) : la membrane témoin, sans couleur,
+/// devient grise et son corps opaque, la grille de points posée dessus ; le papier des textes perd
+/// ses 3 % de teinte. Regardé, la membrane agrandie deux fois (la grille s'y voit).
+const EMPREINTE_TEMOIN: &str = "b458446caa3526c0";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -367,7 +370,7 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// ailleurs ; regardée avant/après, les deux images produites par `capture_temoin`.
 /// **Puis, le 11/11** (LIEN-4, fiches 102 et 103) : les liens à 92,6 % — 3 367 pixels, sur les
 /// flèches seules (497-1125 × 101-706) ; regardés avec l'image de l'écart.
-const EMPREINTE_TEMOIN_SELECTION: &str = "9b326ed6f3a06ecf";
+const EMPREINTE_TEMOIN_SELECTION: &str = "2c26ac1574bfb066";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -457,7 +460,7 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 10/11** (BAS-1, fiche 101) : les mêmes 5 935 pixels que la scène sélectionnée — la
 /// barre d'action, sous le menu ; regardée.
 /// **Puis, le 11/11** (LIEN-4) : les mêmes 3 367 pixels que la scène sélectionnée ; regardés.
-const EMPREINTE_TEMOIN_MENU: &str = "268b197067c73c5f";
+const EMPREINTE_TEMOIN_MENU: &str = "5f27ee61cddb208c";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

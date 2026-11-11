@@ -139,14 +139,6 @@ fn regime_temoin() -> (Viewport, Regime) {
 /// Un composant de carte, rendu à part et reposé sous ses ornements, comparé à la carte
 /// entière dessinée en place par le processeur : les deux voies.
 fn ecart_carte(selectionnee: bool, densite: f32) -> (u8, usize) {
-    ecart_carte_coloree((selectionnee, densite), None)
-}
-
-/// La même, pour une carte dont on a choisi la couleur (COULEUR-3) : son papier teinté.
-fn ecart_carte_coloree(
-    (selectionnee, densite): (bool, f32),
-    couleur: Option<(u8, u8, u8)>,
-) -> (u8, usize) {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let vp = Viewport {
@@ -165,10 +157,7 @@ Et un lien.";
         size: (w, h),
         body: corps,
         tint: teinte,
-        fond: crate::renderer::card::papier(
-            crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
-            couleur,
-        ),
+        fond: crate::renderer::card::papier(&crate::theme::Theme::dark()),
         eclaires: None,
         selected: selectionnee,
         editing: None,
@@ -192,17 +181,7 @@ Et un lien.";
     };
     crate::renderer::card::draw_text_card(&ctx, &mut en_place.as_mut(), carte());
     let composant = regime
-        .carte(
-            kit,
-            "c",
-            (x, y, w, h),
-            (corps, teinte, couleur),
-            (
-                None,
-                &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                None,
-            ),
-        )
+        .carte(kit, "c", (x, y, w, h), (corps, teinte), (None, None))
         .expect("un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -239,14 +218,6 @@ fn test_une_carte_selectionnee_se_repose_au_bit_pres() {
     assert_eq!(ecart_carte(true, 1.5), (0, 0), "a 150 %");
 }
 
-/// **Une carte colorée se repose au bit près** (COULEUR-3, fiche 99) : sa texture porte le papier
-/// teinté que le processeur peint en place — la carte graphique montre la même couleur.
-#[test]
-fn couleur_3_une_carte_coloree_se_repose_au_bit_pres() {
-    let rose = Some((244, 114, 182));
-    assert_eq!(ecart_carte_coloree((false, 1.0), rose), (0, 0));
-}
-
 // -- COMPOSANT-2 : la carte qu'on edite --------------------------------------
 
 /// **La carte qu'on edite est un composant**, et elle ne l'etait pas.
@@ -266,12 +237,8 @@ fn test_la_carte_qu_on_edite_est_un_composant() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), None),
-                (
-                    Some(&e),
-                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                    None,
-                ),
+                (corps, (96, 165, 250)),
+                (Some(&e), None,),
             )
             .is_some(),
         "une carte en saisie doit devenir une texture"
@@ -298,12 +265,8 @@ fn test_composant_3_la_cle_ignore_le_curseur_et_suit_la_selection() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), None),
-                (
-                    Some(&e),
-                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                    None,
-                ),
+                (corps, (96, 165, 250)),
+                (Some(&e), None),
             )
             .expect("un composant")
             .seule()
@@ -347,12 +310,8 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), None),
-                (
-                    Some(&e),
-                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                    None,
-                ),
+                (corps, (96, 165, 250)),
+                (Some(&e), None),
             )
             .expect("un composant")
             .seule()
@@ -386,7 +345,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
         size: (w, h),
         body: corps,
         tint: teinte,
-        fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
+        fond: crate::renderer::card::papier(&crate::theme::Theme::dark()),
         eclaires: None,
         selected: false,
         editing,
@@ -413,17 +372,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
     };
 
     let composant = regime
-        .carte(
-            kit,
-            "c",
-            (x, y, w, h),
-            (corps, teinte, None),
-            (
-                Some(&e),
-                &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                None,
-            ),
-        )
+        .carte(kit, "c", (x, y, w, h), (corps, teinte), (Some(&e), None))
         .expect("une carte en saisie est toujours un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -538,12 +487,8 @@ fn test_cent_images_de_saisie_immobile_ne_font_qu_une_texture() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), None),
-                (
-                    Some(&e),
-                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                    None,
-                ),
+                (corps, (96, 165, 250)),
+                (Some(&e), None),
             )
             .expect("un composant")
             .seule();
@@ -576,12 +521,8 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), None),
-                (
-                    Some(&e),
-                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
-                    None,
-                ),
+                (corps, (96, 165, 250)),
+                (Some(&e), None),
             )
             .expect("un composant")
             .seule();
@@ -605,15 +546,14 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
 fn test_une_translation_entiere_garde_les_textures_du_repos() {
     let renderer = Renderer::new();
     let kit = renderer.kit();
-    let contenants = crate::renderer::card::Contenants::nouveaux(kit.theme, &[]);
     let pose = |vp: Viewport, regard: Regard| {
         let composant = Regime::de((vp, 1.0), regard, (500, 300), 0.0)
             .carte(
                 kit,
                 "t",
                 (60.3, 40.7, 240.0, 60.0),
-                ("Un texte qui se déplace", (96, 165, 250), None),
-                (None, &contenants, None),
+                ("Un texte qui se déplace", (96, 165, 250)),
+                (None, None),
             )
             .and_then(|p| p.posee)
             .expect("une carte posée");

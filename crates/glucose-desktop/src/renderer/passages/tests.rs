@@ -49,9 +49,17 @@ fn test_fleche_4_un_passage_sur_deux_lignes() {
     assert!(r[1].1 > r[0].1);
 }
 
-/// **Le cadre épouse l'encre du mot, à tout zoom** : à un pixel et demi près de chaque côté,
-/// et la police entière dedans — sans la hauteur de ligne qui le faisait paraître décalé vers
-/// le bas. Mesuré sur l'image, pas sur les nombres.
+/// **Le cadre épouse l'encre du mot, à tout zoom** : à deux pixels près de chaque côté, et la
+/// police entière dedans — sans la hauteur de ligne qui le faisait paraître décalé vers le bas.
+/// Mesuré sur l'image, pas sur les nombres.
+///
+/// L'encre est ce qui est **au moins à demi couvert** : un pixel plus près de la lettre que du
+/// papier, lus dans le thème — le bord exact du dessin d'une lettre, quel que soit le papier. Un
+/// seuil fixe de clarté lisait le papier : quand ses 3 % de teinte sont partis (PAPIER-1, fiche
+/// 105), le flanc du « t » a reculé d'un pixel. Mesuré au demi-couvert, il est à 1,57 pixel du
+/// cadre au zoom 1,35, avant comme après : le cadre est la chasse des lettres, et le flanc d'une
+/// lettre plus un pixel de mesure font les deux pixels de la borne — celle d'un pixel et demi ne
+/// tenait que par le papier teinté.
 #[test]
 fn test_fleche_4_le_cadre_epouse_l_encre_a_tout_zoom() {
     use glucose_core::store::Store;
@@ -83,11 +91,18 @@ fn test_fleche_4_le_cadre_epouse_l_encre_a_tout_zoom() {
         )[0];
         let (x0, y0) = (100.0 + f64::from(r.0) * zoom, 100.0 + f64::from(r.1) * zoom);
         let (x1, y1) = (x0 + f64::from(r.2) * zoom, y0 + f64::from(r.3) * zoom);
+        let theme = crate::theme::Theme::dark();
+        let (papier, lettre) = (
+            theme.card_paper.to_color_u8(),
+            theme.card_body.to_color_u8(),
+        );
+        let plus_clair = |c: tiny_skia::ColorU8| c.red().min(c.green()).min(c.blue());
+        let demi = (u16::from(plus_clair(papier)) + u16::from(plus_clair(lettre))) / 2;
         let mut encre = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
         for y in (y0 as u32).saturating_sub(12)..(y1 as u32 + 12) {
             for x in (x0 as u32).saturating_sub(12)..(x1 as u32 + 12) {
                 let c = image.pixel(x, y).expect("dans l'image");
-                if c.red().min(c.green()).min(c.blue()) > 110 {
+                if u16::from(c.red().min(c.green()).min(c.blue())) > demi {
                     let (x, y) = (f64::from(x), f64::from(y));
                     encre = (
                         encre.0.min(x),
@@ -99,7 +114,7 @@ fn test_fleche_4_le_cadre_epouse_l_encre_a_tout_zoom() {
             }
         }
         assert!(
-            (encre.0 - x0).abs() <= 1.5 && (x1 - encre.2).abs() <= 1.5,
+            (encre.0 - x0).abs() <= 2.0 && (x1 - encre.2).abs() <= 2.0,
             "zoom {zoom} : cadre [{x0}, {x1}], encre [{}, {}]",
             encre.0,
             encre.2

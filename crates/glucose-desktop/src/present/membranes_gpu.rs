@@ -18,6 +18,12 @@
 //! qui sépare les deux voies est l'arrondi de l'écriture, et l'épreuve le borne.
 //!
 //! Une membrane est un quad, celui de son enveloppe ; aucun tampon de sommets.
+//!
+//! # Le sol, puis les frontières (REGION-1, fiche 105)
+//!
+//! Les champs des régions arrivent en deux listes, écrites l'une après l'autre dans le même
+//! tampon : le sol se pose avant la grille et les zones, les frontières après — deux tracés du
+//! même tampon, l'ordre du processeur.
 
 use glucose_core::membrane_forme::Membrane;
 
@@ -88,8 +94,10 @@ pub struct Membranes {
     ecran: wgpu::Buffer,
     /// Combien de membranes le tampon peut porter avant d'être refait.
     capacite: usize,
-    /// Combien [`Membranes::preparer`] en a retenues pour cette image.
+    /// Combien [`Membranes::preparer`] en a retenues pour cette image, sol et frontières.
     posees: usize,
+    /// Combien d'entre elles sont le sol des régions — les premières du tampon.
+    sol: usize,
 }
 
 /// Combien de membranes le tampon porte au départ — il grandit si l'écran en demande plus.
@@ -115,6 +123,7 @@ impl Membranes {
             ecran,
             capacite: MEMBRANES_AU_DEPART,
             posees: 0,
+            sol: 0,
         }
     }
 
@@ -220,27 +229,30 @@ impl Membranes {
         })
     }
 
-    /// **Écrit les membranes dans le tampon.** À appeler avant d'ouvrir la passe.
+    /// **Écrit les champs des régions dans le tampon** : le sol, puis les frontières. À appeler
+    /// avant d'ouvrir la passe.
     pub fn preparer(
         &mut self,
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
         ecran: (f32, f32),
-        membranes: &[Membrane],
+        (sol, frontieres): (&[Membrane], &[Membrane]),
     ) {
-        self.posees = membranes.len();
-        if membranes.is_empty() {
+        self.sol = sol.len();
+        self.posees = sol.len() + frontieres.len();
+        if self.posees == 0 {
             return;
         }
-        if membranes.len() > self.capacite {
+        let membranes = || sol.iter().chain(frontieres);
+        if self.posees > self.capacite {
             // Par doublements, comme les lueurs : il cesse de grandir en quelques images.
-            self.capacite = membranes.len().next_power_of_two();
+            self.capacite = self.posees.next_power_of_two();
             self.tampon = Self::tampon(peripherique, self.capacite);
             self.liaison =
                 Self::liaison(peripherique, &self.disposition, &self.tampon, &self.ecran);
         }
-        let mut octets = Vec::with_capacity(membranes.len() * OCTETS_MEMBRANE);
-        for m in membranes {
+        let mut octets = Vec::with_capacity(self.posees * OCTETS_MEMBRANE);
+        for m in membranes() {
             ecrire(m, &mut octets);
         }
         file.write_buffer(&self.tampon, 0, &octets);
@@ -251,17 +263,26 @@ impl Membranes {
         file.write_buffer(&self.ecran, 0, &cadre);
     }
 
-    /// **Pose dans la passe en cours** les membranes que [`Membranes::preparer`] a reçues.
-    pub fn poser(&self, passe: &mut wgpu::RenderPass<'_>) {
-        let Ok(combien) = u32::try_from(self.posees) else {
+    /// **Pose dans la passe en cours le sol des régions** que [`Membranes::preparer`] a reçu.
+    pub fn poser_le_sol(&self, passe: &mut wgpu::RenderPass<'_>) {
+        self.poser(passe, 0..self.sol);
+    }
+
+    /// **Pose dans la passe en cours les frontières des régions**, après le sol.
+    pub fn poser_les_frontieres(&self, passe: &mut wgpu::RenderPass<'_>) {
+        self.poser(passe, self.sol..self.posees);
+    }
+
+    fn poser(&self, passe: &mut wgpu::RenderPass<'_>, rangs: std::ops::Range<usize>) {
+        let (Ok(debut), Ok(fin)) = (u32::try_from(rangs.start), u32::try_from(rangs.end)) else {
             return;
         };
-        if combien == 0 {
+        if debut >= fin {
             return;
         }
         passe.set_pipeline(&self.pipeline);
         passe.set_bind_group(0, &self.liaison, &[]);
-        passe.draw(0..6, 0..combien);
+        passe.draw(0..6, debut..fin);
     }
 }
 

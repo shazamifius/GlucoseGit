@@ -105,8 +105,8 @@ impl Renderer {
 }
 
 /// **Ce qui passe sous les photos**, en SVG — dans l'ordre de `dessiner_sous_les_photos` : le
-/// fond, le premier rang (les zones, les cases), les membranes et leurs ornements, les textes
-/// des zones et des cases, les dossiers.
+/// fond, le sol des régions, le premier rang (les zones, les cases), les frontières des régions
+/// (REGION-1), les ornements des membranes, les textes des zones et des cases, les dossiers.
 fn sous_les_photos_en_svg(
     kit: super::PaintKit<'_>,
     svg: &mut super::svg::Svg,
@@ -120,10 +120,14 @@ fn sous_les_photos_en_svg(
         svg,
         typographie: kit.typography,
     };
+    let regions = super::scene::membranes::formes_des_membranes((store, kit.theme), pass, taille);
+    super::scene::membranes::champs_en_svg(vecteurs.svg, regions.sol());
     for r in super::voies::premier_rang(store, pass, ecran) {
         super::surface::Surface::remplir_net(&mut vecteurs, r.rect, r.couleur);
     }
-    super::scene::membranes_en_svg((kit, store, pass), taille, vecteurs.svg);
+    super::scene::membranes::champs_en_svg(vecteurs.svg, regions.frontieres());
+    let quoi = (kit, store, pass);
+    super::scene::membranes::ornements_des_membranes_en_svg(quoi, taille, vecteurs.svg);
     super::zone::textes(&mut vecteurs, (store, pass), ecran);
     super::storyboard::textes(&mut vecteurs, (store, pass), ecran);
     super::folder::dossiers_en_svg(kit, vecteurs.svg, (store, pass), taille);

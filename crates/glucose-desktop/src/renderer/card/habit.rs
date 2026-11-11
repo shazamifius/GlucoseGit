@@ -1,5 +1,5 @@
-//! **L'habit d'une carte** (LUEUR-1, LUEUR-3) : sa teinte, le fond qu'elle peint sous son
-//! texte, sa brume, et la forme qui les porte.
+//! **L'habit d'une carte** (LUEUR-1, LUEUR-3, PAPIER-1) : sa teinte, le papier qu'elle peint sous
+//! son texte, et la forme qui les porte.
 //!
 //! Extrait de [`super`] quand les passages qui brillent (PASSAGE-2) y sont entrés : six cent
 //! onze lignes là où la fiche 05 en admet six cents. La coupure tombe là où la question change —
@@ -33,136 +33,69 @@ pub(crate) fn teinte_de_carte(
         .unwrap_or(symbiose)
 }
 
-/// **La couleur qu'on a choisie pour ce texte**, s'il en a une — pas sa teinte symbiotique, que le
-/// voisinage décide.
-pub(crate) fn couleur_choisie(ann: &glucose_core::types::Annotation) -> Option<(u8, u8, u8)> {
-    match ann {
-        glucose_core::types::Annotation::Text { color, .. } => {
-            color.as_deref().and_then(crate::renderer::parse_hex_rgb)
-        }
-        _ => None,
-    }
-}
-
-/// **Le papier d'un texte** (fiche 99) : ce que la carte peint sous ses lettres — le fond qu'elle
-/// laisse voir (LUEUR-3), teinté de la couleur qu'on lui a choisie **sans changer sa clarté**
-/// ([`glucose_core::couleur::papier_teinte`]). Ses lettres s'y lisent exactement aussi bien, la
-/// couleur se voit de près comme de loin, et aucune opacité n'est à régler.
+/// **PAPIER-1 — le papier d'un texte** (fiche 105) : le gris sombre et neutre des blocs, partout
+/// ([`Theme::card_paper`]).
 ///
-/// La couleur ne touchait que la lueur, les puces et la brume — à 3 % : la barre de couleur
-/// semblait ne rien faire sur un texte (sa parole du 9/11/2026, « les couleurs de text box ne
-/// fonctionnent pas »), et sa couleur se perdait dans les lueurs symbiotiques des voisins.
-pub(crate) fn papier(fond: (u8, u8, u8), couleur: Option<(u8, u8, u8)>) -> (u8, u8, u8) {
-    couleur.map_or(fond, |c| glucose_core::couleur::papier_teinte(fond, c))
-}
-
-/// Le fond du canevas en octets — celui du thème, ou celui que le mode Focus teinte.
-pub(crate) fn fond_du_canevas(theme: &Theme) -> (u8, u8, u8) {
-    let c = theme.bg_canvas.to_color_u8();
+/// Il était le fond vu au travers des membranes qui contiennent la carte (LUEUR-3), puis teinté de
+/// la couleur choisie (COULEUR-3, fiche 99). Sa parole du 11/11/2026 : *« il faudrait abandonner
+/// l'idée du background d'un texte : je préfère qu'il soit TOUJOURS gris »* — le geste qui colore
+/// un texte devait changer le halo autour du bloc, *« PAS son background ! »*. Une membrane se lit
+/// maintenant autour de ses blocs, et le papier ne dépend plus de ce qu'il y a dessous : la
+/// texture d'un texte ne se refait plus quand une membrane change de couleur.
+pub(crate) fn papier(theme: &Theme) -> (u8, u8, u8) {
+    let c = theme.card_paper.to_color_u8();
     (c.red(), c.green(), c.blue())
 }
 
-/// **Ce qu'une carte ne cache pas** (LUEUR-3) : le fond du canevas, et les membranes visibles.
+/// **Le papier de la carte** (LUEUR-1, LUEUR-3, PAPIER-1).
 ///
-/// Une carte cache le **contenu** qu'elle recouvre — une photo, la grille, la lueur d'une
-/// voisine —, jamais son **contenant**. Posée dans une membrane, elle en garde la teinte, comme
-/// chez Tauri où la membrane se voyait au travers ; posée sur une photo, elle ne montre plus
-/// la photo sous son texte.
-pub(crate) struct Contenants<'a> {
-    fond: (u8, u8, u8),
-    membranes: &'a [Membrane],
-    /// L'enveloppe de chaque membrane ([`Membrane::enveloppe`]), relevée une fois par image :
-    /// hors d'elle, sa loi vaut zéro au bit près.
-    enveloppes: Vec<glucose_core::membrane_forme::Arrondi>,
-}
-
-impl<'a> Contenants<'a> {
-    pub(crate) fn nouveaux(theme: &Theme, membranes: &'a [Membrane]) -> Self {
-        Self {
-            fond: fond_du_canevas(theme),
-            membranes,
-            enveloppes: membranes.iter().map(Membrane::enveloppe).collect(),
-        }
-    }
-
-    /// **Le fond vu au point `(x, y)` de l'écran** : celui du canevas, sur lequel chaque
-    /// membrane se compose dans l'ordre du modèle — sa loi même, lue en ce point
-    /// ([`Membrane::alpha`]), donc la couleur exacte qu'elle y peint.
-    ///
-    /// Une membrane dont l'enveloppe ne contient pas le point n'y pose rien : sa loi y vaut zéro,
-    /// et la composer ne changerait pas un bit (fiche 97). Sur le squelette de Wikipédia, chaque
-    /// nœud lisait les 190 membranes du tableau, deux fois par image.
-    pub(crate) fn fond_en(&self, (x, y): (f32, f32)) -> (u8, u8, u8) {
-        let (r, g, b) = self.fond;
-        let mut c = [r, g, b].map(|v| f32::from(v) / 255.0);
-        for (m, e) in self.membranes.iter().zip(&self.enveloppes) {
-            if !(x >= e.gauche && x <= e.droite && y >= e.haut && y <= e.bas) {
-                continue;
-            }
-            let a = m.alpha(x, y);
-            for (canal, teinte) in c.iter_mut().zip(m.teinte) {
-                *canal = *canal * (1.0 - a) + teinte * a;
-            }
-        }
-        let [r, g, b] = c.map(|v| (v * 255.0).round().clamp(0.0, 255.0) as u8);
-        (r, g, b)
-    }
-}
-
-/// **Le fond de la carte, puis sa brume** (LUEUR-1, LUEUR-3).
-///
-/// Tauri pose sous le texte la teinte de la carte **à 3 %** (`color-mix(AURA 3%)`) et rien
+/// Tauri posait sous le texte la teinte de la carte **à 3 %** (`color-mix(AURA 3%)`) et rien
 /// d'autre : aucun cadre au repos, et la lueur, découpée à l'intérieur de la boîte, ne passe
 /// jamais sous le texte ([`crate::renderer::halo`]). C'est ce qu'il appelle « le texte sur fond noir,
-/// le contour en lueur ». Ici, la carte portait un fond presque opaque à 12 % de sa teinte et
-/// un filet : un rectangle plein, qu'il trouvait laid.
+/// le contour en lueur ».
 ///
-/// # Le fond noir est peint (LUEUR-3)
+/// # Le papier est peint (LUEUR-3)
 ///
-/// Chez Tauri, ce fond noir n'était que la toile, vue au travers de 3 % de teinte. Posée sur
-/// une photo, la carte montrait donc la photo sous son texte, qui devenait illisible (sa
-/// capture du 26/09) ; et sur la toile, les points de la grille passaient entre les mots, où
-/// ils se lisent comme une ponctuation — « que.on », sur une autre de ses captures.
+/// Chez Tauri, ce fond noir n'était que la toile, vue au travers. Posée sur une photo, la carte
+/// montrait donc la photo sous son texte, qui devenait illisible (sa capture du 26/09) ; et sur la
+/// toile, les points de la grille passaient entre les mots, où ils se lisent comme une ponctuation
+/// — « que.on », sur une autre de ses captures. Le papier est donc **peint**, opaque.
 ///
-/// Le fond noir est désormais **peint** : le fond du canevas lui-même, opaque, puis la brume à
-/// 3 % — une seule couleur, un seul plein. Sur la toile vide, rien ne change à l'œil, sinon que
-/// la grille s'arrête au bord de la carte ; sur une photo, le texte retrouve son fond. Aucune
-/// opacité n'est choisie : « fond noir » veut dire le fond.
+/// # Neutre (PAPIER-1)
+///
+/// Les 3 % de la teinte de la carte s'y mêlaient encore — la teinte symbiotique, une couleur que le
+/// voisinage décide. Sa parole du 11/11/2026 : le fond d'un texte est *« TOUJOURS gris »*, *« neutre »*.
+/// Le papier est le jeton du thème, et rien d'autre ; la constante des 3 % disparaît.
 ///
 /// L'anneau qui désigne une carte sélectionnée ou éditée n'est pas ici : c'est une
 /// affordance, pas un habit, et il se pose avec les autres (`dessus.rs`, COMPOSANT-4).
 ///
-/// **La brume se peint par la loi des membranes** (COMPOSANT-4) : un plein d'une couche, une
+/// **Le papier se peint par la loi des membranes** (COMPOSANT-4) : un plein d'une couche, une
 /// composition par pixel là où il est constant, le calcul exact au seul bord. Le remplissage
 /// anticrénelé de `tiny-skia` en coûtait les trois quarts du rendu d'une carte qu'on écrit —
 /// 1,54 ms sur 2,05 pour sa carte de notes vue à ×2,3 (`bench_saisie`) —, pour un voile
 /// uniforme. Et une loi évaluée pixel par pixel donne le même pixel quel que soit le morceau
 /// de carte qu'on peint : c'est ce qui manquait pour ne refaire que les lignes qu'une frappe
 /// change.
-pub(super) fn draw_card_brume(
+pub(super) fn draw_card_papier(
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     layout: &CardLayout,
     card: &TextCard,
 ) {
     let forme = forme_de_la_carte(at, (layout.width, layout.height), layout.radius);
-    let brume = Membrane::plein(forme, voile_de_la_carte(card), 1.0);
+    let papier = Membrane::plein(forme, voile_de_la_carte(card), 1.0);
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
-    glucose_core::membrane_forme::peindre(&brume, pixels, largeur, hauteur);
+    glucose_core::membrane_forme::peindre(&papier, pixels, largeur, hauteur);
 }
 
-/// **La couleur de la brume** : le fond qu'elle couvre, et la teinte de la carte à 3 % — de 0 à
-/// 1 par canal, opaque. Le canevas la peint, le dessin vectoriel la pose.
+/// **La couleur du papier**, de 0 à 1 par canal, opaque. Le canevas la peint, le dessin vectoriel
+/// la pose.
 pub(super) fn voile_de_la_carte(card: &TextCard) -> [f32; 3] {
-    let brume = f32::from(BRUME) / 255.0;
-    let (t, f) = (card.tint, card.fond);
-    [(t.0, f.0), (t.1, f.1), (t.2, f.2)]
-        .map(|(t, f)| (f32::from(f) * (1.0 - brume) + f32::from(t) * brume) / 255.0)
+    let (r, g, b) = card.fond;
+    [r, g, b].map(|c| f32::from(c) / 255.0)
 }
-
-/// L'opacité de la brume sous le texte, sur 255 : les 3 % de Tauri.
-pub(super) const BRUME: u8 = 8;
 
 /// **La forme d'une carte à l'écran** : son rectangle aux coins de `rayon`, posé sur la grille
 /// de ses glyphes.
@@ -199,126 +132,4 @@ pub(crate) fn boite_de_la_carte(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::Contenants;
-    use crate::theme::Theme;
-    use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
-
-    /// **Sauter une membrane loin du point ne change pas un bit du fond** (fiche 97) : des
-    /// membranes emboîtées et voisines, à lueurs et à bord épais, et le fond lu en des milliers de
-    /// points — dedans, au bord, dans les lueurs, dehors — égal au calcul qui les lit toutes.
-    #[test]
-    fn le_fond_saute_les_membranes_loin_du_point_sans_rien_changer() {
-        let membrane = |x: f32, y: f32, l: f32, h: f32| {
-            let fond = Arrondi::nouveau(x, y, l, h, 24.0);
-            let halo = |pad: f32| {
-                Arrondi::nouveau(
-                    x - pad,
-                    y - pad,
-                    l + 2.0 * pad,
-                    h + 2.0 * pad,
-                    24.0 + pad / 2.0,
-                )
-            };
-            Membrane {
-                remplissages: [(halo(20.0), 0.03), (halo(10.0), 0.05), (fond, 0.03)],
-                bord: Bord {
-                    forme: fond,
-                    demi_largeur: 3.0,
-                    pointille: None,
-                    alpha: 0.45,
-                },
-                teinte: [0.38, 0.65, 0.98],
-            }
-        };
-        let membranes = [
-            membrane(50.0, 40.0, 500.0, 300.0),
-            membrane(80.0, 90.0, 200.0, 120.0),
-            membrane(300.0, 90.0, 220.0, 200.0),
-            membrane(600.0, 50.0, 100.0, 100.0),
-        ];
-        let theme = Theme::dark();
-        let contenants = Contenants::nouveaux(&theme, &membranes);
-        let toutes = |(x, y): (f32, f32)| {
-            let (r, g, b) = super::fond_du_canevas(&theme);
-            let mut c = [r, g, b].map(|v| f32::from(v) / 255.0);
-            for m in &membranes {
-                let a = m.alpha(x, y);
-                for (canal, teinte) in c.iter_mut().zip(m.teinte) {
-                    *canal = *canal * (1.0 - a) + teinte * a;
-                }
-            }
-            let [r, g, b] = c.map(|v| (v * 255.0).round().clamp(0.0, 255.0) as u8);
-            (r, g, b)
-        };
-        let mut teintes = std::collections::HashSet::new();
-        for i in 0..400 {
-            for j in 0..200 {
-                let p = (i as f32 * 1.87 + 0.3, j as f32 * 1.91 + 0.7);
-                let fond = contenants.fond_en(p);
-                assert_eq!(fond, toutes(p), "au point {p:?}");
-                teintes.insert(fond);
-            }
-        }
-        assert!(
-            teintes.len() > 20,
-            "l'épreuve doit traverser lueurs et bords : {}",
-            teintes.len()
-        );
-    }
-
-    /// Le pixel du papier d'un texte seul — loin de ses lettres —, rendu par l'application, avec ou
-    /// sans couleur choisie.
-    fn papier_rendu(couleur: Option<&str>) -> (u8, u8, u8) {
-        use glucose_core::types::{Annotation, Viewport};
-        let mut app = crate::app::GlucoseApp::new();
-        app.ui.current_toast = None;
-        if let Some(b) = app.store.active_board_mut() {
-            b.annotations.clear();
-        }
-        let tableau = app.store.project.active_board_id.clone();
-        let mut texte = Annotation::text("t", 0.0, 0.0, "Eau");
-        if let Annotation::Text { color, .. } = &mut texte {
-            *color = couleur.map(str::to_string);
-        }
-        app.store.add_annotation(&tableau, texte);
-        app.store.clear_selection();
-        let vue = Viewport {
-            x: 40.0,
-            y: 300.0,
-            scale: 1.0,
-        };
-        app.store.set_viewport(&tableau, vue);
-        app.une_image_sans_fenetre((800, 600));
-        let image = app.pixmap.as_ref().expect("une image");
-        let p = image.pixels()[340 * image.width() as usize + 220].demultiply();
-        (p.red(), p.green(), p.blue())
-    }
-
-    /// **La couleur d'un texte se voit, et son texte se lit pareil** (COULEUR-3, fiche 99 ; sa
-    /// parole du 9/11/2026 : « les couleurs de text box ne fonctionnent pas »). Un texte rose a un
-    /// papier rose — une teinte qu'on distingue d'un gris, celle du rose — à la clarté perçue du
-    /// papier d'un texte sans couleur.
-    #[test]
-    fn couleur_3_la_couleur_d_un_texte_teinte_son_papier_sans_changer_sa_clarte() {
-        use glucose_core::couleur::Oklch;
-        let rose = (244, 114, 182);
-        let sans = Oklch::des_octets(papier_rendu(None));
-        let avec = Oklch::des_octets(papier_rendu(Some("#f472b6")));
-        assert!(
-            (avec.l - sans.l).abs() < 0.015,
-            "la clarté du papier : {} contre {}",
-            avec.l,
-            sans.l
-        );
-        assert!(avec.a_une_teinte(), "le rose se voit : chroma {}", avec.c);
-        let voulue = Oklch::des_octets(rose).h;
-        let ecart = (avec.h - voulue + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU)
-            - std::f64::consts::PI;
-        assert!(
-            ecart.abs() < 0.2,
-            "la teinte du rose : {} contre {voulue}",
-            avec.h
-        );
-    }
-}
+mod tests;

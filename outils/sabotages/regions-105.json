@@ -1,0 +1,282 @@
+[
+ {
+  "nom": "Un pixel du bord compte comme couvert",
+  "fichier": "crates/glucose-core/src/membrane_forme.rs",
+  "avant": "*alpha >= 1.0 && coins.iter().all(|&(x, y)| forme.distance(x, y) <= -0.5)",
+  "apres": "*alpha >= 1.0 && coins.iter().all(|&(x, y)| forme.distance(x, y) <= 0.5)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "region_1"
+  ]
+ },
+ {
+  "nom": "Un voile couvre l'écran",
+  "fichier": "crates/glucose-core/src/membrane_forme.rs",
+  "avant": "*alpha >= 1.0 && coins",
+  "apres": "*alpha >= 0.5 && coins",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "region_1"
+  ]
+ },
+ {
+  "nom": "Le demi-pixel du trait est oublié",
+  "fichier": "crates/glucose-core/src/membrane_forme.rs",
+  "avant": "let marge = self.bord.demi_largeur + 0.5;",
+  "apres": "let marge = self.bord.demi_largeur;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "region_1"
+  ]
+ },
+ {
+  "nom": "Un remplissage se juge comme un trait",
+  "fichier": "crates/glucose-core/src/membrane_forme.rs",
+  "avant": "        if self.remplissages.iter().any(|(_, alpha)| *alpha > 0.0) {\n            return true;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "region_1"
+  ]
+ },
+ {
+  "nom": "Un corps qui couvre n'efface rien",
+  "fichier": "crates/glucose-core/src/membrane_forme/regions.rs",
+  "avant": "            self.sol.clear();\n",
+  "apres": "            let _ = &self.sol;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "region_1"
+  ]
+ },
+ {
+  "nom": "Une frontière hors de l'écran se pose",
+  "fichier": "crates/glucose-core/src/membrane_forme/regions.rs",
+  "avant": "        if frontiere.touche(ecran) {\n            self.frontieres.push(frontiere);\n        }",
+  "apres": "        self.frontieres.push(frontiere);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "region_1"
+  ]
+ },
+ {
+  "nom": "L'ordre du modèle et non la surface",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+  "avant": "    membranes.sort_by(|a, b| b.1.total_cmp(&a.1));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "La plus petite d'abord",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+  "avant": "membranes.sort_by(|a, b| b.1.total_cmp(&a.1));",
+  "apres": "membranes.sort_by(|a, b| a.1.total_cmp(&b.1));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "Le corps n'est pas opaque",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": "Membrane::plein(fond, corps, 1.0)",
+  "apres": "Membrane::plein(fond, corps, 0.6)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "La grille et les zones sous le sol",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+  "avant": "    let mut encre = peindre(pixmap, regions.sol());\n    entre(pixmap);\n",
+  "apres": "    entre(pixmap);\n    let mut encre = peindre(pixmap, regions.sol());\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "Sans couleur, le bleu de Tauri",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": ".unwrap_or_else(sans_couleur)",
+  "apres": ".unwrap_or(BLEU_DE_TAURI)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "Le gris garde un peu de chroma",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": "        c: 0.0,\n        ..Oklch::des_octets(BLEU_DE_TAURI)",
+  "apres": "        c: 0.03,\n        ..Oklch::des_octets(BLEU_DE_TAURI)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "Le papier prend la teinte de la carte",
+  "fichier": "crates/glucose-desktop/src/renderer/card/habit.rs",
+  "avant": "    let (r, g, b) = card.fond;\n    [r, g, b]",
+  "apres": "    let (r, g, b) = card.tint;\n    [r, g, b]",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "Le papier est un autre gris du thème",
+  "fichier": "crates/glucose-desktop/src/renderer/card/habit.rs",
+  "avant": "let c = theme.card_paper.to_color_u8();",
+  "apres": "let c = theme.bg_card.to_color_u8();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "Le papier n'est pas neutre",
+  "fichier": "crates/glucose-desktop/src/theme.rs",
+  "avant": "card_paper: hex(0x0d0d0d),",
+  "apres": "card_paper: hex(0x0d0d14),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "region_1",
+   "neutre_1",
+   "papier_1",
+   "test_every_chrome_token"
+  ]
+ },
+ {
+  "nom": "La carte pose la grille sous le sol",
+  "fichier": "crates/glucose-desktop/src/present/couches.rs",
+  "avant": "    temps.membranes.poser_le_sol(&mut passe);\n    temps.fond.poser_la_grille(&mut passe);\n",
+  "apres": "    temps.fond.poser_la_grille(&mut passe);\n    temps.membranes.poser_le_sol(&mut passe);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite"
+  ]
+ },
+ {
+  "nom": "La carte pose les frontières avec le sol",
+  "fichier": "crates/glucose-desktop/src/present/membranes_gpu.rs",
+  "avant": "        self.poser(passe, 0..self.sol);",
+  "apres": "        self.poser(passe, 0..self.posees);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite"
+  ]
+ }
+]
