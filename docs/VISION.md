@@ -205,6 +205,13 @@ plus jamais le lui demander.**
   * si l'IA **n'est pas sûre**, et qu'ils sont vraiment distants : **pas** de liaison de couleur ;
   * *« et du coup le système d'opacité et de niveaux de blanc ou noir prend sens ! Avant, il n'était pas
     utilisé »*.
+* **Ses choix, devant l'image du halo** (11/11 au soir,
+  [la page](https://claude.ai/artifact/ADmG6kEagEFNuRHprpRVhY)) : les couleurs **par familles** (des
+  textes que l'IA juge parents sans doute possible partagent une teinte, les familles voisines des
+  teintes voisines, un texte sans parent sûr reste gris) ; le halo à **76 au repos, 102 au survol** (il
+  était à 38, invisible sur une membrane colorée) ; l'**opacité dit la sûreté de l'IA**, la **clarté
+  l'accessibilité** — *« parfaitement d'accord »*. Sur la couleur qu'on choisit soi-même pour un texte, et
+  ce que l'IA en fait : *« c'est là le truc le plus complexe »* (§ 8 bis).
 * **Une utilité à la couleur des textes** (9/11) : *« c'est toute une question aussi »* — au sein d'une
   membrane il y a souvent du texte, et du texte de couleur : il faut lui proposer une signification.
 * ~~La couleur d'un texte dit le domaine dont il parle (*« j'avoue, je n'en ai aucune idée ; je partage ton
@@ -259,6 +266,40 @@ plus jamais le lui demander.**
   « optimiser » dans la Time Machine.
 * **Ordonner, « très très grandement »** (15/10) : à concevoir avec lui.
 * **Sa liste PureRef**, pour le preset.
+
+## 8 bis. L'IA de Glucose : la méta-compréhension (11/11 au soir)
+
+Ses mots, à propos de la petite IA du halo :
+
+* **Des IA selon la machine** : *« je pense que l'IA est plutôt OK pour des téléphones, mais il faut
+  qu'on ait des IA plus puissantes selon ce que l'utilisateur a comme machine »*.
+* **Une seconde interface** : *« Glucose, c'est quoi ? Pour un humain, c'est un canva 2D qui a pour but
+  d'être clair pour tous les humains ; mais pour une IA, il ne sera jamais parfait. Je propose de créer
+  une seconde interface à Glucose, que l'humain ne voit pas forcément mais à laquelle il peut
+  accéder. »*
+* **Le hub** : *« depuis la création de Glucose, le logiciel avait pour objectif de R&D l'injection de
+  mémoire, l'espace latent et la propagation de hub par des centaines d'IA. L'idée, c'est quoi ?
+  Glucose, c'est le hub ; des millions de plugins peuvent être attachés. »*
+* **Une IA locale qui évolue, en trois versions** : *« une IA locale, semi from scratch, qui évolue ;
+  elle a trois versions : une pour téléphone ou PC très mauvais, une pour un PC portable plutôt bon, une
+  pour des PC tours extrêmement puissants. TOUS doivent évoluer, et pour évoluer on a besoin de data,
+  et c'est là que l'utilisateur sera le meilleur pour ça — uniquement avec son accord. »*
+* **Le journal des rectifications** : *« un espèce d'énorme journal en arrière-plan, qui est là
+  uniquement pour la rectification — pas dans l'obligation de tout comprendre du canva 2D, mais
+  vraiment pour écrire des rectifications : l'utilisateur a mis cette couleur-là alors que l'IA pensait
+  que c'était ça ; alors elle essaie de chercher, et note son erreur ou tout ce qu'elle pense »* ; et
+  *« un document complet qui a pour but de comprendre la MÉTA-compréhension d'un canva lors de sa
+  création »*.
+* **Ce qu'il en pense lui-même** : *« ce n'est pas du tout innovant, pas du tout dans les dernières
+  technos, rien de bien impressionnant — c'est toi le pro, c'est toi qui seras mieux que moi »*.
+* **Le rappel** : *« l'idée que ce soit LE logiciel pour tous les projets du monde, et aussi pour les
+  équipes ; rénover la feuille de papier au goût de 2027 ; et rendre bien meilleure l'utilisation de
+  l'IA, comme on le voit rarement sur des projets »*.
+
+La réponse proposée le même soir (fiche 106) : apprendre **chez lui**, sans récolter — une petite
+matrice posée sur le modèle commun, apprise des gestes de l'utilisateur ; le journal comme une seconde
+colonne de l'histoire que Glucose écrit déjà ; la seconde interface comme le récit lisible du canevas
+et de sa construction ; les trois IA répondant à la même question. À concevoir avec lui.
 
 ## 9. Sur la façon de travailler
 

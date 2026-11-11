@@ -108,8 +108,11 @@ fn push_annotation(
         } => {
             let (w, h) = (*width, *height);
             let area = (w * h).abs();
-            // La bande du titre grandit avec lui (TITRE-1) : on saisit une membrane par son nom.
-            let bande = pick_consts::MEMBRANE_LABEL_BAND * crate::membrane_titre::echelle(w, h);
+            // La bande du titre grandit avec lui (TITRE-1) : on saisit une membrane par son nom,
+            // **là où il est dessiné** — la bande de son encre, celle que l'index connaît. Elle
+            // valait trente unités fois `√(A/A₀)` ici et dix-huit dans l'encre : au-dessus du nom,
+            // un clic prenait la membrane ou non selon la case de l'index où il tombait (fiche 106).
+            let bande = crate::membrane_titre::elevation(w, h);
             let on_label = crate::membrane_titre::porte_un_titre(text.as_deref())
                 && wx >= *x
                 && wx <= *x + w
@@ -220,34 +223,23 @@ pub fn collect_candidates_indexed(
     spatial_index: &crate::quadtree::SpatialHash,
 ) -> Vec<PickCandidate> {
     let slop = (pick_consts::HANDLE_SLOP_PX * 2.0) / input.scale.max(1e-6);
-    // R-39 : la requête d'index n'alloue aucune `String`. Les nœuds retenus, eux, sont
-    // **clonés** ci-dessous — quelques annotations par clic, en O(local), mais des clones
-    // tout de même : `collect_candidates` veut des tranches contiguës. À faire disparaître
-    // en le faisant travailler sur des références (fiche 07 § 3).
     // **Le groupe se lit sur toute la sélection** (fiche 53 § 10) : ici, avant que l'index ne
     // retienne que les nœuds proches — un coin du groupe peut n'en toucher aucun.
     let du_groupe = super::handles::poignees_du_groupe(input);
-    let nearby_ids = spatial_index.query_rect_refs(input.wx, input.wy, input.wx, input.wy, slop);
-    if nearby_ids.is_empty() {
+    // SURVOL-1 (fiche 106) : les nœuds proches se lisent **par leur rang**, pas par leur nom.
+    // On parcourait tout le tableau en hachant chaque identifiant pour savoir s'il était dans
+    // l'ensemble des proches : sur la carte de Wikipédia (1 672 nœuds), un cinquième du temps de
+    // Glucose pendant que la souris bougeait. Les rangs viennent triés de l'index, et chacun se
+    // vérifie : le nœud à cette place est-il celui que l'index y connaît ? Sinon (une tranche qui
+    // n'est pas celle du tableau indexé), le nom fait foi, comme avant.
+    let mut rangs = Vec::new();
+    spatial_index.query_rect_ranks_into(input.wx, input.wy, input.wx, input.wy, slop, &mut rangs);
+    if rangs.is_empty() {
         let mut seules = du_groupe.unwrap_or_default();
         sort_candidates(&mut seules);
         return seules;
     }
-
-    let filtered_images: Vec<BoardImage> = input
-        .images
-        .iter()
-        .filter(|img| nearby_ids.contains(img.id.as_str()))
-        .cloned()
-        .collect();
-
-    let filtered_annotations: Vec<Annotation> = input
-        .annotations
-        .iter()
-        .filter(|ann| nearby_ids.contains(ann.id()))
-        .cloned()
-        .collect();
-
+    let (filtered_images, filtered_annotations) = proches(input, spatial_index, &rangs);
     let filtered_input = PickInput {
         wx: input.wx,
         wy: input.wy,
@@ -268,6 +260,65 @@ pub fn collect_candidates_indexed(
         sort_candidates(&mut candidats);
     }
     candidats
+}
+
+/// **Les images et les annotations proches**, lues à leurs rangs dans les tranches de l'arbitre.
+///
+/// Les rangs de l'index sont ceux du tableau qu'il a lu : ses images, puis ses annotations, puis
+/// ses dossiers. Un rang ne vaut que si le nœud à cette place porte le nom que l'index y connaît ;
+/// si une seule place ne correspond pas, les tranches ne sont pas celles du tableau indexé, et la
+/// recherche par le nom — un parcours de tout le tableau — fait foi.
+fn proches(
+    input: &PickInput,
+    spatial_index: &crate::quadtree::SpatialHash,
+    rangs: &[u32],
+) -> (Vec<BoardImage>, Vec<Annotation>) {
+    let n_images = input.images.len();
+    if spatial_index.longueurs()[..2] != [n_images, input.annotations.len()] {
+        return par_le_nom(input, spatial_index);
+    }
+    let mut images = Vec::new();
+    let mut annotations = Vec::new();
+    for &r in rangs {
+        let r = r as usize;
+        let (id, juste) = if r < n_images {
+            let img = &input.images[r];
+            images.push(img.clone());
+            (img.id.as_str(), true)
+        } else if let Some(ann) = input.annotations.get(r - n_images) {
+            annotations.push(ann.clone());
+            (ann.id(), true)
+        } else {
+            // Un dossier : l'arbitre reçoit déjà tous les dossiers.
+            ("", false)
+        };
+        if juste && spatial_index.rang_de(id) != Some(r as u32) {
+            return par_le_nom(input, spatial_index);
+        }
+    }
+    (images, annotations)
+}
+
+/// Les mêmes, par le nom : tout le tableau parcouru, chaque identifiant cherché parmi les proches.
+fn par_le_nom(
+    input: &PickInput,
+    spatial_index: &crate::quadtree::SpatialHash,
+) -> (Vec<BoardImage>, Vec<Annotation>) {
+    let slop = (pick_consts::HANDLE_SLOP_PX * 2.0) / input.scale.max(1e-6);
+    let pres = spatial_index.query_rect_refs(input.wx, input.wy, input.wx, input.wy, slop);
+    let images = input
+        .images
+        .iter()
+        .filter(|img| pres.contains(img.id.as_str()))
+        .cloned()
+        .collect();
+    let annotations = input
+        .annotations
+        .iter()
+        .filter(|ann| pres.contains(ann.id()))
+        .cloned()
+        .collect();
+    (images, annotations)
 }
 
 /// La boîte d'un nœud désigné par son identifiant, dans ce qu'on donne à l'arbitre.

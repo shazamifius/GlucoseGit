@@ -446,3 +446,39 @@ fn test_lien_4_seuls_les_liens_comptent() {
     assert_eq!(n, 1, "un lien, deux textes");
     assert_eq!(densite(n), 1.0, "un lien seul est plein");
 }
+
+/// **SURVOL-2 — de loin, la souris ne redessine rien** (fiche 106) : sous le plancher à pleine
+/// présence (la lecture à 5 %, sous 8 %), aucun lien hors lumière ne quitte ses 8 % — la souris
+/// qui passe à côté de « a », sans rien survoler, ne salit pas l'image, et la présence de ses
+/// liens ne se calcule pas. **La preuve à l'envers** : à la taille réelle, le même geste la salit
+/// ([`test_lien_4_la_souris_fait_redessiner`]) ; et leur opacité de loin est bien le plancher
+/// ([`test_lien_4_le_plancher_vaut_aussi_de_loin`]).
+#[test]
+fn test_survol_2_de_loin_la_souris_ne_redessine_rien() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    app.store.set_viewport(
+        &board,
+        Viewport {
+            x: 600.0,
+            y: 400.0,
+            scale: 0.05,
+        },
+    );
+    app.une_image_sans_fenetre((1200, 800));
+    salit(&mut app, (1150.0, 780.0));
+    app.une_image_sans_fenetre((1200, 800));
+    // Entre les liens de « a », qui partent tous les 28° : à soixante et cent pixels de lui
+    // (douze cents et deux mille unités du monde : à la taille réelle, la souris les relèverait),
+    // puis de nouveau loin. Sur un lien, la main l'allumerait — et redessiner serait juste.
+    for ecran in [(645.0, 440.0), (697.0, 424.0), (1150.0, 780.0)] {
+        assert!(
+            !salit(&mut app, ecran),
+            "de loin, la souris en {ecran:?} salit l'image"
+        );
+        assert_eq!(
+            app.ui.noeud_survole, None,
+            "rien sous la souris en {ecran:?}"
+        );
+    }
+}

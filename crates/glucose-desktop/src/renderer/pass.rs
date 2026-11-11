@@ -299,7 +299,9 @@ fn draw_arrow_node(
         math: ctx.math,
         contournement: pass.contournement,
     };
-    let presence = super::arrow::presence::presence(ann, noeuds, souris, liens);
+    let lecture = pass.echelle().lecture();
+    let presence =
+        super::arrow::presence::presence_qui_compte(ann, noeuds, souris, (liens, lecture));
     let Some(fleche) = Fleche::de(
         hue_cache,
         ann,

@@ -70,6 +70,28 @@ pub(crate) fn opacite(en_lumiere: bool, presence: f32, lecture: f32) -> f32 {
     }
 }
 
+/// **La présence qui compte** (SURVOL-2, fiche 106) : celle du lien, ou 1 sans la calculer quand
+/// aucune présence ne peut changer son trait.
+///
+/// Une présence ne dépasse jamais 1 (la densité et la proximité y sont bornées). Plus pâle que le
+/// plancher à pleine présence — `lecture ≤ PLANCHER`, la carte vue de loin —, un lien hors lumière
+/// reste donc **au plancher** où que soit la souris : [`opacite`] y rend le plancher pour toute
+/// présence, celle-ci comprise. La calculer demandait les boîtes des deux nœuds de chaque lien, à
+/// chaque image et à chaque mouvement de la souris : sur la carte de Wikipédia vue de loin, mille
+/// cent vingt-huit liens, pour une opacité qui ne bougeait pas.
+pub(crate) fn presence_qui_compte(
+    ann: &Annotation,
+    noeuds: NoeudsDuRendu<'_>,
+    souris: Option<(f64, f64)>,
+    (n, lecture): (usize, f32),
+) -> f32 {
+    if lecture <= PLANCHER {
+        1.0
+    } else {
+        presence(ann, noeuds, souris, n)
+    }
+}
+
 /// **La main, passant d'`avant` à `apres`, change-t-elle l'un de ces liens à l'écran ?** Le nœud
 /// qu'elle survole les allume, la souris les rapproche. Au moins d'un niveau ([`UN_NIVEAU`]) : en
 /// deçà, l'image refaite serait la même, et la refaire coûterait une scène entière pour rien
@@ -84,7 +106,11 @@ pub(crate) fn la_main_change_un_lien<'a>(
 ) -> bool {
     let vue = |a: &Annotation, main: Main<'_>| {
         let lumiere = super::en_lumiere(store, main.survole, a);
-        opacite(lumiere, presence(a, noeuds, main.souris, n), lecture)
+        opacite(
+            lumiere,
+            presence_qui_compte(a, noeuds, main.souris, (n, lecture)),
+            lecture,
+        )
     };
     liens
         .filter(|a| matches!(a, Annotation::Arrow { .. }))

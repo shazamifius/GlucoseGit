@@ -306,7 +306,8 @@ pub(super) fn fleches_a_poser(
         .filter_map(|ann| {
             let selectionnee = store.selected_annotation_ids.contains(ann.id());
             let lumiere = en_lumiere(store, main.survole, ann);
-            let presence = presence::presence(ann, noeuds, main.souris, n);
+            let lecture = echelle.lecture();
+            let presence = presence::presence_qui_compte(ann, noeuds, main.souris, (n, lecture));
             Fleche::de(
                 hue_cache,
                 ann,

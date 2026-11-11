@@ -39,7 +39,6 @@ pub mod pick_consts {
     pub const EDGE_BAND_PX: f64 = 14.0;
     pub const FOLDER_HEADER: f64 = 38.0;
     pub const FOLDER_HANDLE_INSET: f64 = 8.0;
-    pub const MEMBRANE_LABEL_BAND: f64 = 30.0;
     pub const CYCLE_RADIUS_PX: f64 = 8.0;
     pub const CYCLE_TTL_MS: i64 = 2500;
     /// Fenêtre du double-clic (fiche 07 § 1, `DOUBLE_CLICK_WINDOW`). Une seule notion, une
