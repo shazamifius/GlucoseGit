@@ -162,3 +162,11 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [14](decisions/14-LE-PINCEMENT-WAYLAND-PAR-WAYLAND-CLIENT.md) le pincement sous Wayland, par `wayland-client`, déjà apporté par `winit`.
 
 La prochaine fiche porte le numéro **105**.
+
+## Hors série — des archives, à consulter
+
+* [`lecons.md`](lecons.md) : chaque leçon payée, une par une, avec son cas (fiches 53 à 104) — rassemblées en
+  principes dans [MÉTHODE § 4](../METHODE.md).
+* [`ancien-pc-windows.md`](ancien-pc-windows.md) : les pièges du PC Windows (Git Bash, PowerShell, WSL,
+  l'APK et le téléphone virtuel construits depuis Windows), pour le jour où une machine Windows reviendra.
+* [`decisions/`](decisions/) : une note par dépendance.
