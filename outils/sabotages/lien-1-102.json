@@ -137,8 +137,8 @@
  {
   "nom": "Le SVG ne suit pas la loi",
   "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
-  "avant": "    let lecture = fleche.lecture(scale);\n",
-  "apres": "    let lecture = 1.0_f32;\n",
+  "avant": "    let (lecture, part) = (fleche.lecture(scale), fleche.opacite(scale));\n",
+  "apres": "    let (lecture, part) = (1.0_f32, 1.0_f32);\n",
   "cmd": [
    "cargo",
    "test",
@@ -181,9 +181,9 @@
  },
  {
   "nom": "Les voies ne transmettent pas le survol au processeur",
-  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
-  "avant": "                survole: overlay.survole,\n",
-  "apres": "                survole: None,\n",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "            survole: overlay.survole,\n",
+  "apres": "            survole: None,\n",
   "cmd": [
    "cargo",
    "test",
@@ -196,9 +196,9 @@
  },
  {
   "nom": "La voie graphique oublie le survol",
-  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
-  "avant": "            (store, pass, overlay.survole),\n",
-  "apres": "            (store, pass, None),\n",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "            survole: overlay.survole,\n",
+  "apres": "            survole: None,\n",
   "cmd": [
    "cargo",
    "test",
@@ -242,8 +242,8 @@
  {
   "nom": "Tout survol redessine",
   "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
-  "avant": "            if self.le_survol_change_un_lien([avant.as_deref(), maintenant]) {\n",
-  "apres": "            if true || self.le_survol_change_un_lien([avant.as_deref(), maintenant]) {\n",
+  "avant": "        if self.la_main_change_un_lien() {\n",
+  "apres": "        if true || self.la_main_change_un_lien() {\n",
   "cmd": [
    "cargo",
    "test",
@@ -255,10 +255,10 @@
   ]
  },
  {
-  "nom": "Le survol redessine même à la taille réelle",
-  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
-  "avant": "        echelle.lecture() < 1.0\n",
-  "apres": "        echelle.lecture() < 2.0\n",
+  "nom": "Le survol redessine même quand aucun lien ne change",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": ".abs() >= UN_NIVEAU)",
+  "apres": ".abs() >= 0.0)",
   "cmd": [
    "cargo",
    "test",
@@ -287,7 +287,7 @@
  {
   "nom": "Le trait ne pâlit pas",
   "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
-  "avant": "                aspect::OPACITE_DU_TRAIT * lecture,\n",
+  "avant": "                aspect::OPACITE_DU_TRAIT * opacite,\n",
   "apres": "                aspect::OPACITE_DU_TRAIT,\n",
   "cmd": [
    "cargo",
@@ -317,7 +317,7 @@
  {
   "nom": "Le halo ne pâlit pas",
   "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
-  "avant": "                opacite_du_halo * lecture,\n",
+  "avant": "                opacite_du_halo * opacite,\n",
   "apres": "                opacite_du_halo,\n",
   "cmd": [
    "cargo",
@@ -332,7 +332,7 @@
  {
   "nom": "Le SVG ne pâlit pas",
   "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
-  "avant": "            aspect::OPACITE_DU_TRAIT * lecture,\n        ),\n",
+  "avant": "            aspect::OPACITE_DU_TRAIT * part,\n        ),\n",
   "apres": "            aspect::OPACITE_DU_TRAIT,\n        ),\n",
   "cmd": [
    "cargo",

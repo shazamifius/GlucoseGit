@@ -142,6 +142,10 @@ pub struct UiState {
     pub fleche_survolee: Option<String>,
     /// Le nœud que la souris survole, de toute sorte : ses liens se montrent pleins (LIEN-1).
     pub noeud_survole: Option<String>,
+    /// **Le nœud survolé et la souris que la dernière image entière montre** (LIEN-1, LIEN-4) :
+    /// la main ne refait l'image que si elle change un lien d'au moins un niveau depuis eux.
+    pub survole_des_liens: Option<String>,
+    pub souris_des_liens: Option<(f64, f64)>,
     /// Un appui dans la fenêtre des liens, pas encore relâché (LIEN-3).
     pub appui_dans_la_fenetre: Option<crate::interactions::fenetre::Appui>,
     /// Sous l'outil Flèche armé, le nœud dont une flèche partirait si l'on appuyait ici : sa
@@ -215,6 +219,14 @@ impl Default for UiState {
 }
 
 impl UiState {
+    /// **Retient ce que l'image entière montre de la main** (LIEN-1, LIEN-4) : le nœud survolé et
+    /// la souris auxquels chaque lien vient d'être refait. Une région repeinte n'en refait que
+    /// quelques-uns : elle ne les retient pas.
+    pub(crate) fn retenir_la_main_des_liens(&mut self, scene: &crate::params::SceneOverlay<'_>) {
+        self.survole_des_liens = scene.survole.map(str::to_owned);
+        self.souris_des_liens = scene.souris;
+    }
+
     /// Un état d'interface **neutre** : aucun message affiché, aucune horloge en marche.
     ///
     /// # Pourquoi le toast de bienvenue n'est plus ici
@@ -240,6 +252,8 @@ impl UiState {
             survol: bande::Survol::default(),
             fleche_survolee: None,
             noeud_survole: None,
+            survole_des_liens: None,
+            souris_des_liens: None,
             appui_dans_la_fenetre: None,
             noeud_pressenti: None,
             placement: Default::default(),

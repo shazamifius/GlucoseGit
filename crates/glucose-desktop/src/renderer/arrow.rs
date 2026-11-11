@@ -168,11 +168,7 @@ impl Fleche {
     /// présence (leur nombre à l'écran, la souris), pâlie avec la taille réelle — jamais sous le
     /// plancher de 8 % (sa parole : un lien ne disparaît jamais).
     pub(crate) fn opacite(&self, scale: WorldScale) -> f32 {
-        if self.en_lumiere {
-            1.0
-        } else {
-            (scale.lecture() * self.presence).max(presence::PLANCHER)
-        }
+        presence::opacite(self.en_lumiere, self.presence, scale.lecture())
     }
 
     /// Les disques de ses bouts, en pixels d'écran.

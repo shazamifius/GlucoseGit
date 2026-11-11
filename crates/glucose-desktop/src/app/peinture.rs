@@ -208,6 +208,7 @@ impl GlucoseApp {
             ),
             None => {
                 crate::perf::compteur("img_region", f64::from(fenetre.0) * f64::from(fenetre.1));
+                self.ui.retenir_la_main_des_liens(&overlay);
                 let echelle = self.ui.scale_factor;
                 let scene = self.resolution.scene_reduite(reduit.as_mut());
                 let chrome = Chrome {

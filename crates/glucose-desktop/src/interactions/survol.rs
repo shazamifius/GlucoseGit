@@ -29,15 +29,8 @@ impl GlucoseApp {
             self.ui.fleche_survolee = fleche;
             self.mark_dirty();
         }
-        let noeud = candidat.map(|c| c.id);
-        if noeud != self.ui.noeud_survole {
-            let avant = std::mem::replace(&mut self.ui.noeud_survole, noeud);
-            let maintenant = self.ui.noeud_survole.as_deref();
-            if self.le_survol_change_un_lien([avant.as_deref(), maintenant]) {
-                self.mark_dirty();
-            }
-        }
-        if self.les_liens_suivent_la_souris() {
+        self.ui.noeud_survole = candidat.map(|c| c.id);
+        if self.la_main_change_un_lien() {
             self.mark_dirty();
         }
     }
@@ -51,13 +44,26 @@ impl GlucoseApp {
         })
     }
 
-    /// **Les liens suivent-ils la souris ?** Dès que deux sont à l'écran, chacun a la présence que
-    /// la souris lui rend (LIEN-4) : chaque mouvement la change. Hors de la fenêtre des liens, où
-    /// tous sont pleins.
-    fn les_liens_suivent_la_souris(&mut self) -> bool {
-        if self.store.fenetre_des_liens().is_some() || self.au_doigt() {
+    /// **La main change-t-elle un lien à l'écran ?** Un lien est plein quand on survole l'un de
+    /// ses bouts (LIEN-1), et a sinon la présence que leur nombre et la souris lui laissent
+    /// (LIEN-4). L'image ne se refait que si l'un des liens visibles changerait d'au moins un
+    /// niveau d'écran depuis ce que la dernière image montre — le nœud survolé et la souris
+    /// d'alors : en deçà, elle serait la même. Une seule question pour le survol et la souris
+    /// (fiche 103 § 3 : « à la taille réelle, tout lien est déjà plein » n'était plus vrai depuis
+    /// LIEN-4). Dans la fenêtre des liens, tous sont pleins : rien n'y change.
+    fn la_main_change_un_lien(&mut self) -> bool {
+        use crate::renderer::arrow::{presence, Main, NoeudsDuRendu};
+        let ici = self.souris_dans_le_monde();
+        let montree = (
+            self.ui.survole_des_liens.as_deref(),
+            self.ui.souris_des_liens,
+        );
+        if montree == (self.ui.noeud_survole.as_deref(), ici) {
             return false;
         }
+        let Some(board) = self.store.active_board() else {
+            return false;
+        };
         let (l, h) = self.taille_de_la_fenetre();
         let vp = self.store.viewport();
         let (x0, y0) = crate::canvas::screen_to_world(0.0, 0.0, &vp);
@@ -65,27 +71,28 @@ impl GlucoseApp {
         let rangs = self
             .renderer
             .rangs_du_present(&self.store, (x0, y0, x1, y1));
-        self.store
-            .active_board()
-            .is_some_and(|b| crate::renderer::arrow::presence::liens_a_l_ecran(&rangs, b) >= 2)
-    }
-
-    /// **Le survol change-t-il l'aspect d'un lien ?** Seulement si les liens ne sont pas déjà
-    /// pleins à cette distance, et si l'un des deux nœuds — quitté, atteint — en touche un
-    /// (LIEN-1) : survoler un nœud sans lien ne redessine rien.
-    fn le_survol_change_un_lien(&self, noeuds: [Option<&str>; 2]) -> bool {
-        let echelle = crate::renderer::scale::WorldScale::new(
-            self.store.viewport().scale,
-            self.densite() as f32,
-        );
-        let Some(board) = self.store.active_board() else {
-            return false;
+        let n = presence::liens_a_l_ecran(&rangs, board);
+        let lecture =
+            crate::renderer::scale::WorldScale::new(vp.scale, self.densite() as f32).lecture();
+        let noeuds = NoeudsDuRendu {
+            board,
+            index: Some(&self.renderer.spatial_hash),
+            typographie: &self.renderer.typography,
+            math: &self.renderer.math,
+            contournement: None,
         };
-        echelle.lecture() < 1.0
-            && noeuds
-                .into_iter()
-                .flatten()
-                .any(|n| glucose_core::arrow::touche_un_lien(board, n))
+        let mains = [
+            Main {
+                survole: montree.0,
+                souris: montree.1,
+            },
+            Main {
+                survole: self.ui.noeud_survole.as_deref(),
+                souris: ici,
+            },
+        ];
+        let liens = glucose_core::quadtree::Visibles::nouvelles(&rangs, board).annotations();
+        presence::la_main_change_un_lien(&self.store, liens, noeuds, mains, (n, lecture))
     }
 
     /// **Suit le nœud dont une flèche partirait**, sous l'outil Flèche armé : l'image ne se

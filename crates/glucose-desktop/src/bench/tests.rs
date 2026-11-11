@@ -257,7 +257,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Puis, le 8/11** (TITRE-1, fiche 95) : le titre de la membrane témoin (420 × 300, plus grande
 /// qu'une neuve) grandit de 28 % ; 473 pixels, tous dans sa bande (795-982 × 94-115) ; le contour
 /// des lettres par le halo (TITRE-2). Regardé avant/après, agrandi trois fois.
-const EMPREINTE_TEMOIN: &str = "d57b175b0b0d1e3c";
+/// **Puis, le 11/11** (LIEN-4, fiches 102 et 103) : trois liens à l'écran — sa droite les met à
+/// 92,6 % ; 5 866 pixels, tous sur les trois flèches (497-1125 × 101-706), quatorze niveaux au plus.
+/// Regardé avant/après, avec l'image de leur écart.
+const EMPREINTE_TEMOIN: &str = "6f51f0ed9a7f259a";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -362,7 +365,9 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// individuelles » — un bouton à deux états ne bouge plus quand on le bascule —, la barre d'action
 /// s'élargit et se recentre. 5 935 pixels, tous dans les barres du bas (645-1471 × 810-887), rien
 /// ailleurs ; regardée avant/après, les deux images produites par `capture_temoin`.
-const EMPREINTE_TEMOIN_SELECTION: &str = "d16aad9f6e771444";
+/// **Puis, le 11/11** (LIEN-4, fiches 102 et 103) : les liens à 92,6 % — 3 367 pixels, sur les
+/// flèches seules (497-1125 × 101-706) ; regardés avec l'image de l'écart.
+const EMPREINTE_TEMOIN_SELECTION: &str = "9b326ed6f3a06ecf";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -451,7 +456,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (fiche 99 § 8 bis) : les mêmes 80 pixels du petit disque ; regardés.
 /// **Puis, le 10/11** (BAS-1, fiche 101) : les mêmes 5 935 pixels que la scène sélectionnée — la
 /// barre d'action, sous le menu ; regardée.
-const EMPREINTE_TEMOIN_MENU: &str = "a250d5cae83f267f";
+/// **Puis, le 11/11** (LIEN-4) : les mêmes 3 367 pixels que la scène sélectionnée ; regardés.
+const EMPREINTE_TEMOIN_MENU: &str = "268b197067c73c5f";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

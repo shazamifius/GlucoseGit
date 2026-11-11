@@ -1,0 +1,441 @@
+[
+ {
+  "nom": "Sa droite a une autre pente",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "const PENTE: f32 = 0.70 / 19.0;",
+  "apres": "const PENTE: f32 = 0.70 / 20.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le premier lien compte aussi",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "(n.max(1) - 1)",
+  "apres": "n.max(1)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le plancher n'est pas le sien",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "pub(crate) const PLANCHER: f32 = 0.08;",
+  "apres": "pub(crate) const PLANCHER: f32 = 0.05;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Aucun plancher",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        (lecture * presence).max(PLANCHER)\n",
+  "apres": "        lecture * presence\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La distance en unités du monde",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "dx.hypot(dy) / taille",
+  "apres": "dx.hypot(dy)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La taille est la largeur",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        aire.sqrt()\n",
+  "apres": "        boite.width.abs()\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Dans le nœud, la distance n'est pas nulle",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        .max(souris.0 - boite.right())\n        .max(0.0);",
+  "apres": "        .max(souris.0 - boite.right());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Les membranes rapprochent leurs liens",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": ".filter_map(|id| noeuds.bloc(id))",
+  "apres": ".filter_map(|id| glucose_core::arrow::Noeuds::boite(&noeuds, id))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Un bloc est n'importe quel nœud",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/noeuds.rs",
+  "avant": "        obstacle(par_l_index.or_else(|| noeud_par_id(self.board, id))?)\n",
+  "apres": "        par_l_index.or_else(|| noeud_par_id(self.board, id))?.rect()\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Un lien sans bloc ne se rapproche pas",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        boites.push(ann.encre());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La plus faible des deux",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": ".fold(densite(n), f32::max)",
+  "apres": ".fold(densite(n), f32::min)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Sans souris, plein",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        return densite(n);\n",
+  "apres": "        return 1.0;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Tout ce qui est visible compte",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        .filter(|a| matches!(a, Annotation::Arrow { .. }))\n        .count()",
+  "apres": "        .count()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le dessin ne compte qu'un lien",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "    let n = presence::liens_a_l_ecran(pass.visibles, board);\n",
+  "apres": "    let n = 1;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le processeur ne compte qu'un lien",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "    let liens = super::arrow::presence::liens_a_l_ecran(pass.visibles, board);\n",
+  "apres": "    let liens = 1;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le processeur n'a pas la souris",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "            souris: overlay.souris,\n",
+  "apres": "            souris: None,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La carte graphique n'a pas la souris",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "            souris: overlay.souris,\n",
+  "apres": "            souris: None,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "L'image ne reçoit pas la souris",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "            souris: self.souris_dans_le_monde(),\n",
+  "apres": "            souris: None,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Au doigt, la souris reste",
+  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
+  "avant": "(self.curseur_vu && !self.au_doigt())",
+  "apres": "self.curseur_vu",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "L'export ignore leur nombre",
+  "fichier": "crates/glucose-desktop/src/renderer/pass/svg.rs",
+  "avant": "        crate::renderer::arrow::presence::liens_a_l_ecran(pass.visibles, noeuds.board),\n",
+  "apres": "        1,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Moins d'un niveau redessine",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "pub(crate) const UN_NIVEAU: f32 = 1.0 / 255.0;",
+  "apres": "pub(crate) const UN_NIVEAU: f32 = 1.0 / 2550.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La main ne redessine jamais",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": ".abs() >= UN_NIVEAU)",
+  "apres": ".abs() >= 2.0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La main montrée n'est jamais retenue",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "                self.ui.retenir_la_main_des_liens(&overlay);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La souris comparée à elle-même",
+  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
+  "avant": "                souris: montree.1,\n",
+  "apres": "                souris: ici,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le survol comparé à lui-même",
+  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
+  "avant": "                survole: montree.0,\n",
+  "apres": "                survole: self.ui.noeud_survole.as_deref(),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La question ignore ce qu'on regarde",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        let lumiere = super::en_lumiere(store, main.survole, a);\n",
+  "apres": "        let lumiere = false;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La main ne demande jamais d'image",
+  "fichier": "crates/glucose-desktop/src/interactions/survol.rs",
+  "avant": "        if self.la_main_change_un_lien() {\n",
+  "apres": "        if false && self.la_main_change_un_lien() {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La souris montrée n'est pas retenue",
+  "fichier": "crates/glucose-desktop/src/ui.rs",
+  "avant": "        self.souris_des_liens = scene.souris;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le survol montré n'est pas retenu",
+  "fichier": "crates/glucose-desktop/src/ui.rs",
+  "avant": "        self.survole_des_liens = scene.survole.map(str::to_owned);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_1",
+   "lien_4"
+  ]
+ }
+]

@@ -13,7 +13,7 @@ use crate::renderer::richtext::{TextLayout, TextMode};
 use crate::typography::Typography;
 use glucose_core::arrow::{node_rect, node_rect_indexe, Itineraire, Noeuds};
 use glucose_core::geometry::Rect;
-use glucose_core::quadtree::{noeud_au_rang, Noeud, SpatialHash, SuiviDuGeste};
+use glucose_core::quadtree::{noeud_au_rang, noeud_par_id, Noeud, SpatialHash, SuiviDuGeste};
 use glucose_core::text_anchors::resolve_anchors;
 use glucose_core::types::{Annotation, Board, TextAnchor};
 
@@ -59,6 +59,17 @@ impl NoeudsDuRendu<'_> {
                 _ => None,
             });
         par_l_index.or_else(|| self.board.annotations.iter().find(|a| a.id() == id))
+    }
+
+    /// **La boîte de ce nœud s'il est un bloc** — une carte, une note, une photo, un dossier : ce
+    /// qu'une flèche contourne ([`obstacle`]). Rien pour une membrane, une région qu'on habite
+    /// plutôt qu'une chose qu'on approche (LIEN-4, fiche 103 § 3).
+    pub(crate) fn bloc(&self, id: &str) -> Option<Rect> {
+        let par_l_index = self
+            .index
+            .and_then(|i| noeud_au_rang(self.board, i.rang_de(id)?))
+            .filter(|n| n.id() == id);
+        obstacle(par_l_index.or_else(|| noeud_par_id(self.board, id))?)
     }
 }
 

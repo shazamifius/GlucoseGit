@@ -1,0 +1,216 @@
+[
+ {
+  "nom": "Le temps ne garde jamais le pas ouvert",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "maintenant - p.depuis < DBLCLICK_MS",
+  "apres": "maintenant - p.depuis < 0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Le temps garde le pas ouvert pour toujours",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "maintenant - p.depuis < DBLCLICK_MS",
+  "apres": "maintenant - p.depuis < i64::MAX",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "La main qui tient ne garde pas le pas",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "(p.tenu && tenue) || maintenant",
+  "apres": "false || maintenant",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Un mouvement n'ouvre jamais de pas",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        if bouge && !ouvert {\n",
+  "apres": "        if false && bouge && !ouvert {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Tenir sans bouger ouvre un pas",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        if bouge && !ouvert {\n",
+  "apres": "        if (bouge || tenue) && !ouvert {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Tenir ne rafraîchit pas le pas",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        if bouge || (ouvert && tenue) {\n",
+  "apres": "        if bouge {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Lâcher ne ferme pas la tenue",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "            pas.tenu = false;\n",
+  "apres": "            let _ = pas;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Le lieu noté est celui d'après le mouvement",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        let quitte = self.store.active_board().map(|b| b.viewport);\n        self.appliquer_la_demande(largeur, hauteur, pas);\n",
+  "apres": "        self.appliquer_la_demande(largeur, hauteur, pas);\n        let quitte = self.store.active_board().map(|b| b.viewport);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Le pas se note après le départ du vol",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+    "avant": "        self.noter_le_pas_de_la_camera(quitte);\n        self.appliquer_le_vol(largeur, hauteur, dt);\n",
+    "apres": "        self.appliquer_le_vol(largeur, hauteur, dt);\n        self.noter_le_pas_de_la_camera(quitte);\n"
+   }
+  ],
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Un retour ne ferme pas le pas",
+  "fichier": "crates/glucose-desktop/src/interactions/retour.rs",
+  "avant": "            self.fermer_le_pas_de_la_camera();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Un glisser ne tient pas la vue",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "        self.is_panning\n            || self",
+  "apres": "        false\n            || self",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Deux doigts ne tiennent pas la vue",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "self.toucher.doigts.nombre() >= 2",
+  "apres": "self.toucher.doigts.nombre() >= 99",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Le pavé en geste ne tient pas la vue",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": ".is_some_and(|p| p.en_geste())",
+  "apres": ".is_some_and(|p| p.en_geste() && false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ },
+ {
+  "nom": "Le compte des doigts ment",
+  "fichier": "crates/glucose-desktop/src/interactions/toucher.rs",
+  "avant": "        self.poses.len()\n",
+  "apres": "        0\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "retour_"
+  ]
+ }
+]

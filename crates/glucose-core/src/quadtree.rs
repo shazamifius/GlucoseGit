@@ -574,7 +574,7 @@ impl SpatialHash {
 mod geste;
 mod visibles;
 pub use geste::SuiviDuGeste;
-pub use visibles::{noeud_au_rang, tous_les_rangs, Noeud, Visibles};
+pub use visibles::{noeud_au_rang, noeud_par_id, tous_les_rangs, Noeud, Visibles};
 
 #[cfg(test)]
 mod tests;

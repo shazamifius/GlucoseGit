@@ -1,6 +1,6 @@
 //! **LIEN-4 — la présence d'un lien : leur nombre à l'écran, et la souris.** Sa droite et son
 //! plancher, exacts ; la proximité comptée en tailles de nœud ; la plus forte des deux ; et la
-//! souris qui fait redessiner dès que deux liens sont à l'écran.
+//! souris qui ne fait redessiner que quand un lien change d'au moins un niveau d'écran.
 
 use super::presence::{densite, proximite, PLANCHER};
 use super::*;
@@ -182,9 +182,9 @@ fn test_lien_4_le_plancher_vaut_aussi_de_loin() {
     }
 }
 
-/// **La souris fait redessiner dès que deux liens sont à l'écran** — par la vraie souris, même
-/// sur le vide ; et l'image du processeur montre le lien de « a » plus fort quand elle s'en
-/// approche.
+/// **La souris fait redessiner quand elle change un lien** — par la vraie souris, sur le vide ; et
+/// l'image du processeur montre le lien de « a » plus fort quand elle s'en approche, sans le
+/// survoler.
 #[test]
 fn test_lien_4_la_souris_fait_redessiner() {
     let mut app = application();
@@ -207,11 +207,53 @@ fn test_lien_4_la_souris_fait_redessiner() {
     };
     let (sale, loin) = encre(&mut app, (1150.0, 780.0));
     assert!(sale, "la souris bouge : les liens suivent");
-    let (sale, pres) = encre(&mut app, (600.0, 400.0));
+    // À côté de « a », sur le vide : rien n'y est survolé, seule la souris rapproche son lien.
+    let (sale, pres) = encre(&mut app, (850.0, 460.0));
+    assert_eq!(app.ui.noeud_survole, None, "rien sous la souris");
     assert!(sale);
     assert!(
         pres > loin,
         "plus fort près de « a » : {pres} contre {loin}"
+    );
+}
+
+/// La souris va en `ecran` par le vrai chemin : l'image en est-elle salie ?
+fn salit(app: &mut GlucoseApp, ecran: (f64, f64)) -> bool {
+    app.prendre_la_salissure();
+    app.handle_cursor_moved(PhysicalPosition::new(ecran.0, ecran.1));
+    app.prendre_la_salissure() != Salissure::Rien
+}
+
+/// **Une souris qui ne change aucun lien ne redessine rien** (fiche 103 § 3) : loin de « a », sa
+/// proximité reste sous la densité de ses treize liens — leur opacité ne bouge pas d'un niveau.
+#[test]
+fn test_lien_4_une_souris_qui_ne_change_aucun_lien_ne_redessine_rien() {
+    let mut app = application();
+    assert!(
+        salit(&mut app, (1150.0, 780.0)),
+        "la première souris se montre"
+    );
+    app.une_image_sans_fenetre((1200, 800));
+    assert!(
+        !salit(&mut app, (1160.0, 770.0)),
+        "loin de tout nœud lié, aucun lien ne change"
+    );
+}
+
+/// **Moins d'un niveau ne redessine pas, et les petits pas s'additionnent** : un demi-pixel près
+/// de « a » change ses liens de moins d'un 255ᵉ — rien ; trois demi-pixels depuis la souris que
+/// l'image montre, plus d'un — l'image se refait.
+#[test]
+fn test_lien_4_moins_d_un_niveau_ne_redessine_pas_et_les_pas_s_additionnent() {
+    let mut app = application();
+    // À 50 du bord droit de « a » : sa proximité vaut 0,8, au-dessus de la densité.
+    assert!(salit(&mut app, (850.0, 400.0)));
+    app.une_image_sans_fenetre((1200, 800));
+    assert!(!salit(&mut app, (850.5, 400.0)), "un demi-pixel : rien");
+    assert!(!salit(&mut app, (851.0, 400.0)), "un pixel : encore rien");
+    assert!(
+        salit(&mut app, (851.5, 400.0)),
+        "un pixel et demi depuis l'image : plus d'un niveau"
     );
 }
 
@@ -306,4 +348,82 @@ fn test_lien_4_l_export_prend_la_densite() {
         "l'âme au plancher"
     );
     assert!(!svg.contains(r#"stroke-opacity="0.92""#), "aucune pleine");
+}
+
+/// **Les blocs, pas les membranes** (fiche 103 § 3) : un lien d'un texte vers une grande membrane —
+/// la forme de chaque lien de la carte de Wikipédia. La souris dans la membrane, loin du texte, ne
+/// le rapproche pas : à quarante liens, il garde sa densité ; près du texte, il revient. La première
+/// loi comptait la boîte de la membrane, et la souris était partout « dedans ».
+#[test]
+fn test_lien_4_la_souris_rapproche_des_blocs_pas_des_membranes() {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+    }
+    let mut texte = Annotation::text("t", -200.0, -50.0, "un résumé");
+    if let Annotation::Text { width, height, .. } = &mut texte {
+        (*width, *height) = (Some(400.0), Some(100.0));
+    }
+    app.store.add_annotation(&board, texte);
+    app.store.add_annotation(
+        &board,
+        Annotation::membrane("m", 2_000.0, -3_000.0, 6_000.0, 6_000.0),
+    );
+    let mut lien = Annotation::arrow("l", 0.0, 0.0, 1.0, 1.0);
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    } = &mut lien
+    {
+        (*source_id, *target_id) = (Some("t".into()), Some("m".into()));
+    }
+    app.store.add_annotation(&board, lien);
+    app.une_image_sans_fenetre((1200, 800));
+    let b = app.store.active_board().expect("un tableau");
+    let lien = b
+        .annotations
+        .iter()
+        .find(|a| a.id() == "l")
+        .expect("le lien");
+    let noeuds = NoeudsDuRendu {
+        board: b,
+        index: Some(&app.renderer.spatial_hash),
+        typographie: &app.renderer.typography,
+        math: &app.renderer.math,
+        contournement: None,
+    };
+    let presence = super::presence::presence;
+    let dans_la_membrane = presence(lien, noeuds, Some((5_000.0, 0.0)), 40);
+    assert!(
+        dans_la_membrane < 0.05,
+        "dans la membrane, loin du texte : {dans_la_membrane}"
+    );
+    assert_eq!(
+        presence(lien, noeuds, Some((0.0, 0.0)), 40),
+        1.0,
+        "sur le texte"
+    );
+}
+
+/// **Au doigt, il n'y a pas de souris** : un doigt posé ne rapproche aucun lien — la souris
+/// qu'on avait s'efface de la scène.
+#[test]
+fn test_lien_4_au_doigt_il_n_y_a_pas_de_souris() {
+    let mut app = application();
+    app.handle_cursor_moved(PhysicalPosition::new(850.0, 460.0));
+    assert!(app.souris_dans_le_monde().is_some(), "la souris");
+    app.toucher(&winit::event::Touch {
+        device_id: winit::event::DeviceId::dummy(),
+        phase: winit::event::TouchPhase::Started,
+        location: PhysicalPosition::new(850.0, 460.0),
+        force: None,
+        id: 1,
+    });
+    assert_eq!(
+        app.souris_dans_le_monde(),
+        None,
+        "un doigt n'est pas une souris"
+    );
 }

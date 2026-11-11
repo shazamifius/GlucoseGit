@@ -14,10 +14,11 @@
 //!
 //! **RETOUR-2 — et chaque geste de la main** (fiche 102 ; sa parole du 10/11 au soir : *« c'est
 //! vraiment juste le Ctrl+Z, mais pour la caméra »*) : un tour de molette, un glisser, un pincement
-//! — la vue qui quitte son repos y laisse un lieu où revenir ([`GlucoseApp`], le suivi du
-//! mouvement). Une rafale de molette n'en laisse qu'un ; le premier arrêt de la vue ferme le pas.
-//! La fiche 99 disait le contraire (« on ne revient pas d'un tour de molette ») : sa parole l'a
-//! tranché.
+//! — la vue qui quitte son lieu y laisse un lieu où revenir ([`GlucoseApp`], le suivi du
+//! mouvement). Deux mouvements séparés de moins qu'un double-clic sont un seul pas, et la main qui
+//! tient la vue le garde ouvert (fiche 103 § 2 : la première loi, « le premier arrêt ferme le
+//! pas », faisait cinq pas de cinq crans). Un retour ferme le pas. La fiche 99 disait le contraire
+//! (« on ne revient pas d'un tour de molette ») : sa parole l'a tranché.
 //!
 //! # Le retour est instantané, et n'est pas un départ
 //!
@@ -65,6 +66,7 @@ impl GlucoseApp {
                 continue;
             }
             self.vol.poser();
+            self.fermer_le_pas_de_la_camera();
             self.store.set_viewport(&la.tableau, la.vue);
             self.mark_dirty();
             return true;

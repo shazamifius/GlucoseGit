@@ -112,6 +112,11 @@ pub fn similitude(avant: [(f64, f64); 2], apres: [(f64, f64); 2]) -> Option<Mouv
 // Sous Windows, les doigts ne sont pas encore branchés (en tête du module) : rien ne les lit.
 #[cfg_attr(windows, allow(dead_code))]
 impl Doigts {
+    /// Combien de doigts sont posés.
+    pub(crate) fn nombre(&self) -> usize {
+        self.poses.len()
+    }
+
     /// Les deux doigts qui mènent, s'ils sont là.
     fn les_deux(&self) -> Option<[(f64, f64); 2]> {
         match self.poses.as_slice() {

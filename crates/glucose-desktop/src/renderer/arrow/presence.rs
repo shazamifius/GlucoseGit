@@ -17,6 +17,12 @@
 //!   distance se compte **en tailles du nœud** — le côté du carré de même aire, `√(l × h)`, la loi
 //!   même qui fait grandir le titre d'une membrane (TITRE-1) : à une taille de nœud de distance,
 //!   ses liens sont à moitié. Elle ne dépend ni du zoom ni de l'écran ; la souris dans le nœud, 0.
+//! * **Les blocs, pas les membranes** (fiche 103 § 3) : la souris rapproche un lien des **blocs**
+//!   qu'il relie — une carte, une note, une photo, un dossier, ce qu'une flèche contourne. Une
+//!   membrane est une région qu'on habite : la première loi comptait sa boîte, et sur la carte de
+//!   Wikipédia, dont les liens arrivent sur des articles de mille unités, la souris était partout
+//!   « tout près » — chaque lien vif, une pelote sur le texte, regardée au pilote. Un lien sans
+//!   bloc à ses bouts (une flèche libre, ou entre deux membranes) se rapproche par lui-même.
 //! * **Les deux formules ensemble** : un lien prend **la plus forte** — ce que la densité lui laisse,
 //!   ou ce que la souris lui rend —, puis LIEN-1 (de loin, il pâlit avec la taille réelle), puis le
 //!   plancher. Ce qu'on regarde (choisi, survolé, la fenêtre des liens) reste plein.
@@ -46,6 +52,44 @@ impl<'a> Main<'a> {
 
 /// *« Je n'aimerais jamais tomber en dessous de 8 % »* (sa parole du 10/11).
 pub(crate) const PLANCHER: f32 = 0.08;
+
+/// **Un niveau d'écran** : la plus petite différence d'opacité qu'un écran à huit bits par canal
+/// sache montrer. Un pixel vaut le fond plus `(couleur − fond) × opacité`, et l'écart de deux
+/// couleurs ne dépasse pas 255 niveaux : deux opacités plus proches qu'un 255ᵉ ne changent aucun
+/// pixel de plus d'un arrondi. Le seuil n'est pas choisi : c'est l'écran.
+pub(crate) const UN_NIVEAU: f32 = 1.0 / 255.0;
+
+/// **L'opacité du trait d'un lien** (LIEN-1, LIEN-4) : pleine quand on le regarde (`en_lumiere`) ;
+/// sinon sa présence, pâlie avec la taille réelle (`lecture`), jamais sous le plancher. Une seule
+/// loi, que le dessin et la main lisent.
+pub(crate) fn opacite(en_lumiere: bool, presence: f32, lecture: f32) -> f32 {
+    if en_lumiere {
+        1.0
+    } else {
+        (lecture * presence).max(PLANCHER)
+    }
+}
+
+/// **La main, passant d'`avant` à `apres`, change-t-elle l'un de ces liens à l'écran ?** Le nœud
+/// qu'elle survole les allume, la souris les rapproche. Au moins d'un niveau ([`UN_NIVEAU`]) : en
+/// deçà, l'image refaite serait la même, et la refaire coûterait une scène entière pour rien
+/// (fiche 103 § 3 : la souris seule faisait redessiner toute la carte de Wikipédia trente-sept
+/// fois par seconde). `n` est le nombre de liens à l'écran, `lecture` le pâlissement de LIEN-1.
+pub(crate) fn la_main_change_un_lien<'a>(
+    store: &glucose_core::store::Store,
+    liens: impl Iterator<Item = &'a Annotation>,
+    noeuds: NoeudsDuRendu<'_>,
+    [avant, apres]: [Main<'_>; 2],
+    (n, lecture): (usize, f32),
+) -> bool {
+    let vue = |a: &Annotation, main: Main<'_>| {
+        let lumiere = super::en_lumiere(store, main.survole, a);
+        opacite(lumiere, presence(a, noeuds, main.souris, n), lecture)
+    };
+    liens
+        .filter(|a| matches!(a, Annotation::Arrow { .. }))
+        .any(|a| (vue(a, avant) - vue(a, apres)).abs() >= UN_NIVEAU)
+}
 /// Sa droite : combien un lien de plus à l'écran retire, jusqu'au vingtième (30 %).
 const PENTE: f32 = 0.70 / 19.0;
 
@@ -85,7 +129,7 @@ pub(crate) fn liens_a_l_ecran(visibles: &[u32], board: &Board) -> usize {
 }
 
 /// **La présence d'un lien** : la plus forte de la densité et de la proximité de la souris à l'un
-/// de ses bouts — à la flèche elle-même, si elle ne touche aucun nœud.
+/// des blocs qu'il relie — à la flèche elle-même, s'il n'en relie aucun.
 pub(crate) fn presence(
     ann: &Annotation,
     noeuds: NoeudsDuRendu<'_>,
@@ -106,7 +150,7 @@ pub(crate) fn presence(
     let mut boites: Vec<Rect> = [source_id, target_id]
         .into_iter()
         .flatten()
-        .filter_map(|id| glucose_core::arrow::Noeuds::boite(&noeuds, id))
+        .filter_map(|id| noeuds.bloc(id))
         .collect();
     if boites.is_empty() {
         boites.push(ann.encre());

@@ -55,7 +55,7 @@ use crate::quadtree::{noeud_au_rang, SpatialHash};
 use crate::types::TextSelection;
 
 use crate::types::Annotation;
-use crate::types::{Board, CanvasFolder};
+use crate::types::Board;
 
 /// Épaisseur de la bande qui désigne une flèche, en pixels **écran**.
 ///
@@ -125,17 +125,7 @@ fn anchor_of(
 
 /// La boîte d'un nœud du tableau, quelle que soit sa nature.
 pub fn node_rect(board: &Board, id: &str) -> Option<Rect> {
-    if let Some(img) = board.images.iter().find(|i| i.id == id) {
-        return Some(img.rect());
-    }
-    if let Some(ann) = board.annotations.iter().find(|a| a.id() == id) {
-        return ann.rect();
-    }
-    board
-        .folders
-        .iter()
-        .find(|f| f.id == id)
-        .map(CanvasFolder::rect)
+    crate::quadtree::noeud_par_id(board, id)?.rect()
 }
 
 /// **Un lien touche-t-il ce nœud ?** — c'est une flèche, ou le bout de l'une (LIEN-1, fiche 102) :

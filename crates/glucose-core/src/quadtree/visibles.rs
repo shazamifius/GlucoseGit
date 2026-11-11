@@ -120,6 +120,31 @@ pub fn noeud_au_rang(board: &crate::types::Board, rang: u32) -> Option<Noeud<'_>
     board.folders.get(r).map(Noeud::Dossier)
 }
 
+/// **Le nœud `id` du tableau, de quelque sorte qu'il soit** — une image, une annotation, un
+/// dossier —, en parcourant le tableau. Avec l'index, [`noeud_au_rang`] le trouve en temps
+/// constant ; ceci est la porte de ceux qui n'en ont pas, et de l'index en retard.
+pub fn noeud_par_id<'a>(board: &'a crate::types::Board, id: &str) -> Option<Noeud<'a>> {
+    board
+        .images
+        .iter()
+        .find(|i| i.id == id)
+        .map(Noeud::Image)
+        .or_else(|| {
+            board
+                .annotations
+                .iter()
+                .find(|a| a.id() == id)
+                .map(Noeud::Annotation)
+        })
+        .or_else(|| {
+            board
+                .folders
+                .iter()
+                .find(|f| f.id == id)
+                .map(Noeud::Dossier)
+        })
+}
+
 /// Les rangs de **tous** les nœuds d'un tableau, dans l'ordre de présentation.
 ///
 /// C'est le culling qui ne retient rien. Les preuves de rendu et les bancs en ont besoin :

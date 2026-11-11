@@ -16,9 +16,18 @@ use tiny_skia::Pixmap;
 pub(crate) struct VuesRetenues {
     precedente: Option<glucose_core::types::Viewport>,
     repos: Option<glucose_core::types::Viewport>,
-    /// La vue bougeait-elle à l'image précédente ? Le premier mouvement après un repos commence
-    /// un geste de caméra (RETOUR-2).
-    bougeait: bool,
+    /// **Le pas de caméra en cours** (RETOUR-2).
+    pas: Option<PasDeLaCamera>,
+}
+
+/// **Le pas de caméra en cours** (RETOUR-2) : quand la vue a bougé, ou la main l'a tenue, pour la
+/// dernière fois — et si la main la tenait alors. Une main qui tient sans bouger ne fait dessiner
+/// aucune image : c'est ce drapeau, et non une image, qui dit qu'elle n'a pas lâché.
+#[derive(Debug, Clone, Copy)]
+struct PasDeLaCamera {
+    /// En millisecondes de l'horloge des clics ([`GlucoseApp::now_ms`]).
+    depuis: i64,
+    tenu: bool,
 }
 
 impl GlucoseApp {
@@ -86,7 +95,13 @@ impl GlucoseApp {
         // et la mesure : deux d'entre elles divergeaient, et c'est ce qui se voyait.
         let pas = self.horloge.pas();
         let dt = pas.as_secs_f64();
+        // Le lieu que ce mouvement quitte, s'il en ouvre un pas (RETOUR-2) : la vue d'avant CETTE
+        // image — un retour posé entre deux images n'en a dessiné aucune.
+        let quitte = self.store.active_board().map(|b| b.viewport);
         self.appliquer_la_demande(largeur, hauteur, pas);
+        // Avant le départ d'un vol, qui note le sien (RETOUR-1) : un cran et `F` dans la même
+        // image laissent deux lieux, dans l'ordre où la vue les a quittés.
+        self.noter_le_pas_de_la_camera(quitte);
         self.appliquer_le_vol(largeur, hauteur, dt);
         // La vue vient de bouger : entre-t-on en focus, en sort-on (MEMB-2) ?
         self.suivre_le_focus((largeur, hauteur));
@@ -137,7 +152,6 @@ impl GlucoseApp {
             _ => (0.0, 0.0),
         };
         self.vues.precedente = Some(vue);
-        self.noter_le_repos_quitte();
         if !self.la_vue_bouge() {
             self.vues.repos = Some(vue);
         }
@@ -168,28 +182,68 @@ impl GlucoseApp {
     }
 
     /// **RETOUR-2 — `Alt+Z` est le `Ctrl+Z` de la caméra** (sa parole du 10/11 au soir : *« c'est
-    /// vraiment juste le Ctrl+Z, mais pour la caméra »*). La vue qui quitte son repos y laisse un
-    /// lieu où revenir : un tour de molette, un glisser, un pincement — chaque geste, comme un
-    /// geste du document. Une rafale de molette, que l'élan porte sans image immobile entre deux
-    /// crans, n'en laisse qu'un ; le premier arrêt de la vue ferme le pas. Aucun seuil de temps.
-    /// Un vol note déjà son départ (RETOUR-1) : il ne se note pas deux fois.
-    fn noter_le_repos_quitte(&mut self) {
-        let bouge = self.la_vue_bouge();
-        // Retenu à chaque image, qu'elle bouge ou non : un `&&` l'aurait sauté au repos.
-        let bougeait = std::mem::replace(&mut self.vues.bougeait, bouge);
-        let commence = bouge && !bougeait;
-        let (Some(repos), Some(tableau)) = (self.vues.repos, self.store.active_board()) else {
-            return;
-        };
-        if commence && !self.vol.en_cours() {
-            let tableau = tableau.id.clone();
-            self.store
-                .histoire_de_la_vue
-                .noter(glucose_core::store::retour::Lieu {
-                    tableau,
-                    vue: repos,
-                });
+    /// vraiment juste le Ctrl+Z, mais pour la caméra »*). Un **pas** de caméra s'ouvre quand la
+    /// vue quitte son lieu — un tour de molette, un glisser, un pincement — et y laisse ce lieu,
+    /// où `Alt+Z` revient. Il reste ouvert tant que la main tient la vue (un glisser, des doigts
+    /// posés, le pavé en geste), et tant que la vue rebouge **en moins qu'un double-clic** : deux
+    /// crans de molette séparés de moins que deux clics d'un double-clic sont un seul geste — la
+    /// même notion, la même constante (`DBLCLICK_MS`, fiche 07 § 1). `avant` est la vue d'avant
+    /// le mouvement de cette image : celle qu'il quitte.
+    ///
+    /// # Pourquoi une durée, et pourquoi celle-là (fiche 103 § 2)
+    ///
+    /// La première loi n'en avait pas : la première image immobile fermait le pas. Le pilote l'a
+    /// démentie — à la souris, chaque cran se montre d'un coup, et entre deux crans d'une même
+    /// main le vrai Glucose dessine des images immobiles (les textures qui reviennent nettes, les
+    /// flèches en cascade) : cinq crans faisaient cinq pas. Une molette n'a ni début ni fin de
+    /// geste ; les navigateurs bornent leur « transaction de molette » par une durée (1,5 s chez
+    /// Firefox). Glucose en avait déjà une pour dire « le même geste » : celle du double-clic.
+    ///
+    /// Un vol note aussi son départ (RETOUR-1) : le même lieu noté deux fois n'en fait qu'un
+    /// ([`glucose_core::store::retour::HistoireDeLaVue::noter`]).
+    fn noter_le_pas_de_la_camera(&mut self, avant: Option<glucose_core::types::Viewport>) {
+        use glucose_core::hit_priority::pick_consts::DBLCLICK_MS;
+        let (maintenant, bouge, tenue) = (
+            self.now_ms(),
+            self.la_vue_bouge(),
+            self.la_main_tient_la_vue(),
+        );
+        let ouvert = self
+            .vues
+            .pas
+            .is_some_and(|p| (p.tenu && tenue) || maintenant - p.depuis < DBLCLICK_MS);
+        if bouge && !ouvert {
+            if let (Some(vue), Some(tableau)) = (avant, self.store.active_board()) {
+                let tableau = tableau.id.clone();
+                self.store
+                    .histoire_de_la_vue
+                    .noter(glucose_core::store::retour::Lieu { tableau, vue });
+            }
         }
+        // La main qui tient la vue garde ouvert un pas commencé, jamais n'en ouvre un : un clic
+        // sur le vide, sans bouger, ne laisse aucun lieu. Lâchée, elle ne le garde plus.
+        if bouge || (ouvert && tenue) {
+            self.vues.pas = Some(PasDeLaCamera {
+                depuis: maintenant,
+                tenu: tenue,
+            });
+        } else if let Some(pas) = self.vues.pas.as_mut() {
+            pas.tenu = false;
+        }
+    }
+
+    /// **Un retour ferme le pas** (RETOUR-2) : ce que la main fait ensuite en ouvre un neuf,
+    /// même aussitôt.
+    pub(crate) fn fermer_le_pas_de_la_camera(&mut self) {
+        self.vues.pas = None;
+    }
+
+    /// **La main tient-elle la vue ?** Un glisser qui la déplace (la souris, un doigt seul),
+    /// deux doigts posés, le pavé en geste.
+    fn la_main_tient_la_vue(&self) -> bool {
+        self.is_panning
+            || self.toucher.doigts.nombre() >= 2
+            || self.toucher.pave.as_ref().is_some_and(|p| p.en_geste())
     }
 
     /// L'image en cours montre-t-elle la vue en mouvement ? C'est la question du rendu (ce
