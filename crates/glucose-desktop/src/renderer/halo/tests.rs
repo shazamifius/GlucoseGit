@@ -188,13 +188,15 @@ fn test_the_glow_hugs_its_card_instead_of_ballooning() {
         tall.0
     );
 
-    // Et il reste près du bord : le disque d'avant montait à 410 sur la carte large.
-    let ancien_rayon = 240.0 * 1.5 + 50.0;
+    // Et il est celui de l'ombre CSS, l'étalement plus la portée du flou, à la force d'une lueur
+    // sûre (PARENTE-2) — le disque d'avant montait à 410 sur la carte large.
+    let ombre = f64::from(debord_au_repos(1.0));
     assert!(
-        large.1 * 4.0 < ancien_rayon,
-        "le débord vertical vaut {}, pas assez loin du disque de {ancien_rayon}",
+        (large.1 - ombre).abs() < 1e-3,
+        "le débord vertical vaut {}, l'ombre {ombre}",
         large.1
     );
+    assert!(large.1 < 240.0 * 1.5 + 50.0, "loin du disque d'avant");
 }
 
 /// La lueur grandit avec sa carte (SCALE-1) : elle n'a pas d'exception écran.
@@ -446,10 +448,8 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         store.add_annotation(&board_id, card);
     }
 
-    let mut hue_cache = SymbioticHueCache::new();
     let vp = Viewport::default();
     let board = store.active_board().expect("le board vient d'être rempli");
-    hue_cache.suivre(1, &board.id);
 
     // Tous les nœuds sont visibles : le test mesure la passe entière, pas le culling.
     let rangs = glucose_core::quadtree::tous_les_rangs(board);
@@ -463,23 +463,13 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         header_h: 40.0,
         densite: 1.0,
     };
-    // Frame de chauffe : remplit le cache de teintes symbiotiques.
-    let trousse = Trousse::new();
+    // Frame de chauffe ; chaque texte sûr, pour que chaque lueur se peigne.
+    let trousse = Trousse::sure_de(&store);
     let kit = trousse.kit();
-    draw_halos(
-        &mut hue_cache,
-        &mut pixmap.as_mut(),
-        (&store, kit),
-        (pass, &[], None),
-    );
+    draw_halos(&mut pixmap.as_mut(), (&store, kit), (pass, &[], None));
 
     let started = std::time::Instant::now();
-    draw_halos(
-        &mut hue_cache,
-        &mut pixmap.as_mut(),
-        (&store, kit),
-        (pass, &[], None),
-    );
+    draw_halos(&mut pixmap.as_mut(), (&store, kit), (pass, &[], None));
     let elapsed = started.elapsed().as_millis();
 
     assert!(
@@ -839,7 +829,7 @@ fn test_lueur_1_la_geometrie_porte_la_carte() {
 #[test]
 fn test_lueur_2_l_eclat_suit_la_vivacite() {
     let carte = crate::renderer::card::tests::probe_card("c", 0.0, 0.0);
-    let alpha = |v: f32| Eclat::de(&carte, &[("c".to_string(), v)]).alpha();
+    let alpha = |v: f32| Eclat::de(&carte, &[("c".to_string(), v)]).alpha(1.0);
     assert_eq!(alpha(0.0), HALO_ALPHA);
     assert_eq!(alpha(1.0), 102);
     assert!(alpha(0.5) > HALO_ALPHA && alpha(0.5) < 102);
@@ -860,6 +850,7 @@ struct Trousse {
     mises: crate::renderer::card::MisesEnPage,
     teintes: crate::renderer::domain::DomainTints,
     theme: crate::theme::Theme,
+    sens: crate::renderer::sens::SensDesTextes,
 }
 
 impl Trousse {
@@ -870,7 +861,15 @@ impl Trousse {
             mises: Default::default(),
             teintes: crate::renderer::domain::DomainTints::new(),
             theme: crate::theme::Theme::dark(),
+            sens: Default::default(),
         }
+    }
+
+    /// La même, chaque texte de ce document sûr : chaque lueur se peint, pleine (PARENTE-2).
+    fn sure_de(store: &Store) -> Self {
+        let mut trousse = Self::new();
+        trousse.sens = crate::renderer::sens::SensDesTextes::tous_surs(store);
+        trousse
     }
 
     fn kit(&self) -> PaintKit<'_> {
@@ -880,6 +879,7 @@ impl Trousse {
             mises_en_page: &self.mises,
             tints: &self.teintes,
             theme: &self.theme,
+            sens: &self.sens,
         }
     }
 }
@@ -910,20 +910,9 @@ fn lueurs_des_deux_voies(
     let mut pixmap = Pixmap::new(1440, 900).expect("pixmap");
     pixmap.fill(background());
     let kit = trousse.kit();
-    let mut teintes = SymbioticHueCache::new();
-    draw_halos(
-        &mut teintes,
-        &mut pixmap.as_mut(),
-        (store, kit),
-        (pass, &[], edition),
-    );
-    let mut teintes = SymbioticHueCache::new();
-    let posees = crate::renderer::voies::lueurs_a_poser(
-        &mut teintes,
-        (store, kit),
-        (pass, &[], edition),
-        (1440.0, 900.0),
-    );
+    draw_halos(&mut pixmap.as_mut(), (store, kit), (pass, &[], edition));
+    let posees =
+        crate::renderer::voies::lueurs_a_poser((store, kit), (pass, &[], edition), (1440.0, 900.0));
     let bords = posees
         .iter()
         .map(|l| [l.gauche, l.haut, l.droite, l.bas])
@@ -940,12 +929,13 @@ fn lueurs_des_deux_voies(
 /// de la carte **après** — le même texte validé, la hauteur écrite.
 #[test]
 fn test_la_lueur_suit_la_carte_qu_on_ecrit_sur_les_deux_voies() {
-    let trousse = Trousse::new();
     let ecrit = "Un texte assez long pour passer a la ligne tout seul et voir le contour, puis \
                  encore une ligne, et une autre, pour que la carte grandisse vraiment.";
     let mut store = Store::new("saisie");
     let board = store.project.active_board_id.clone();
     store.add_annotation(&board, sized_card(Some(240.0), Some(60.0)));
+    // Sûre : une lueur que l'IA laisserait éteinte ne dirait rien de sa forme.
+    let trousse = Trousse::sure_de(&store);
     let saisie = TextEditSession {
         ann_id: "halo".into(),
         buffer: ecrit.into(),
@@ -1038,8 +1028,16 @@ fn test_la_lueur_suit_la_saisie_par_les_entrees_du_rendu() {
         },
     );
     let mut carte = Annotation::text("t", 0.0, 0.0, "court");
-    if let Annotation::Text { width, height, .. } = &mut carte {
+    if let Annotation::Text {
+        width,
+        height,
+        color,
+        ..
+    } = &mut carte
+    {
         (*width, *height) = (Some(240.0), Some(60.0));
+        // Une couleur choisie : sa lueur est pleine — l'IA, seule, laisserait un texte seul éteint.
+        *color = Some("#f472b6".into());
     }
     app.store.add_annotation(&tableau, carte);
     app.ui.current_toast = None;
@@ -1078,5 +1076,59 @@ fn test_la_lueur_suit_la_saisie_par_les_entrees_du_rendu() {
     assert_eq!(
         ecarts, 0,
         "pixels autour de la carte qui changent à la validation"
+    );
+}
+
+/// La même trousse, chaque texte de ce document de cette sûreté.
+fn trousse_a(store: &Store, surete: f32) -> Trousse {
+    let mut trousse = Trousse::new();
+    let avis = store
+        .active_board()
+        .map(|b| {
+            glucose_core::sens::textes_du_tableau(b)
+                .map(|(id, _)| {
+                    let avis = crate::parente::AvisDUnTexte {
+                        teinte: Some(1.0),
+                        surete,
+                    };
+                    (id.to_string(), avis)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    trousse.sens.poser(&avis);
+    trousse
+}
+
+/// **PARENTE-2 — l'opacité dit la sûreté, et chaque bloc garde son contour** : sans aucune sûreté,
+/// la lueur du bloc (les 38 de Tauri) ; à moitié sûre, elle brille plus ; sûre, plus encore. Sur
+/// les deux voies. **La preuve à l'envers** : un tableau sans texte n'a aucune lueur — celle d'un
+/// texte seul n'est pas le fond.
+#[test]
+fn parente_2_l_opacite_dit_la_surete_sur_les_deux_voies() {
+    let mut store = Store::new("surete");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, sized_card(Some(240.0), Some(60.0)));
+    let (rien, _) = lueurs_des_deux_voies(&Store::new("vide"), &Trousse::new(), None);
+    let energie = |p: &[u8]| -> u64 {
+        p.iter()
+            .zip(&rien)
+            .map(|(a, b)| u64::from(a.abs_diff(*b)))
+            .sum()
+    };
+    let mesure = |surete: f32| {
+        let (pixels, boites) = lueurs_des_deux_voies(&store, &trousse_a(&store, surete), None);
+        assert_eq!(
+            boites.len(),
+            1,
+            "la carte graphique pose la lueur ({surete})"
+        );
+        energie(&pixels)
+    };
+    let (e0, e_moitie, e1) = (mesure(0.0), mesure(0.5), mesure(1.0));
+    assert!(e0 > 0, "sans sûreté, le bloc garde son contour");
+    assert!(
+        e0 < e_moitie && e_moitie < e1,
+        "la lueur suit la sûreté : {e0} < {e_moitie} < {e1}"
     );
 }

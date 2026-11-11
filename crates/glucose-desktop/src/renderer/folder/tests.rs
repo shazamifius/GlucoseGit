@@ -41,6 +41,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
         mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
+        sens: &Default::default(),
     };
     let vp = store.viewport();
     let rangs = glucose_core::quadtree::tous_les_rangs(

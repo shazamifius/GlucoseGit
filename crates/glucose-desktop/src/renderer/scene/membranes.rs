@@ -21,7 +21,7 @@
 mod champs;
 mod saisie;
 
-pub(crate) use champs::teinte_de_membrane;
+pub(crate) use champs::{sans_couleur, teinte_de_membrane, BLEU_DE_TAURI};
 
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;

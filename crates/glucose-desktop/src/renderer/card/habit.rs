@@ -1,5 +1,6 @@
-//! **L'habit d'une carte** (LUEUR-1, LUEUR-3, PAPIER-1) : sa teinte, le papier qu'elle peint sous
-//! son texte, et la forme qui les porte.
+//! **L'habit d'une carte** (LUEUR-1, LUEUR-3, PAPIER-1) : le papier qu'elle peint sous son texte, et
+//! la forme qui le porte. Sa teinte est l'avis de l'IA, ou la couleur qu'on lui a choisie
+//! ([`crate::renderer::sens`], PARENTE-2).
 //!
 //! Extrait de [`super`] quand les passages qui brillent (PASSAGE-2) y sont entrés : six cent
 //! onze lignes là où la fiche 05 en admet six cents. La coupure tombe là où la question change —
@@ -9,29 +10,6 @@ use super::{CardLayout, TextCard};
 use crate::theme::Theme;
 use glucose_core::membrane_forme::{Arrondi, Membrane};
 use tiny_skia::PixmapMut;
-
-/// **La teinte d'une carte** : sa couleur, si elle en porte une, sinon sa teinte symbiotique.
-///
-/// Une seule fonction pour tout ce qui la lit — la carte, sa texture, ses passages qui
-/// brillent : elle s'écrivait en deux copies, et la lueur d'un passage prenait la symbiotique
-/// là où la carte avait une couleur.
-pub(crate) fn teinte_de_carte(
-    hue_cache: &mut crate::renderer::hue::SymbioticHueCache,
-    ann: &glucose_core::types::Annotation,
-    (index, board): (
-        &glucose_core::quadtree::SpatialHash,
-        &glucose_core::types::Board,
-    ),
-) -> (u8, u8, u8) {
-    let (_, symbiose) = hue_cache.get_or_compute(ann, index, board);
-    let couleur = match ann {
-        glucose_core::types::Annotation::Text { color, .. } => color.as_deref(),
-        _ => None,
-    };
-    couleur
-        .map(|c| crate::renderer::parse_hex_color(c, symbiose.0, symbiose.1, symbiose.2))
-        .unwrap_or(symbiose)
-}
 
 /// **PAPIER-1 — le papier d'un texte** (fiche 105) : le gris sombre et neutre des blocs, partout
 /// ([`Theme::card_paper`]).

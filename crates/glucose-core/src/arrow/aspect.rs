@@ -5,10 +5,15 @@
 //!
 //! # Une flèche porte la couleur de ce qu'elle relie
 //!
-//! Son trait passe, en dégradé, de la teinte de sa source à celle de sa cible, par une teinte
-//! médiane un peu plus vive et plus claire. Les deux bouts sont en `hsl(h, 80 %, 65 %)`, le
-//! milieu en `hsl(h̄, 85 %, 70 %)`, où `h̄` est la moyenne des deux teintes prise **par le plus
-//! court chemin** sur le cercle chromatique : de 350° à 10°, le milieu est 0°, pas 180°.
+//! Son trait passe, en dégradé, de la couleur de sa source à celle de sa cible — **celles de leurs
+//! lueurs** : la famille de sens d'un texte, ou la couleur qu'on lui a choisie (PARENTE-2, fiche
+//! 106) ; le gris neutre de ce dont on ne sait pas le sens (une photo, un bout dans le vide).
+//! Chez Tauri, c'était une teinte de bruit (`hsl(h, 80 %, 65 %)`), que la lueur partageait : sa
+//! parole du 11/11/2026, *« n'était que temporaire »*.
+//!
+//! Le milieu est **leur couleur médiane dans Oklch** : la clarté et la vivacité moyennes, la
+//! teinte au milieu du plus court arc — de 350° à 10°, 0°, pas 180° —, chaque teinte pesant de sa
+//! vivacité : un bout gris ne prête que sa clarté.
 //!
 //! # Trois épaisseurs, et elles sont **d'écran**
 //!
@@ -18,8 +23,7 @@
 //! la géométrie du monde : `1,5 × strokeWidth` pour la pastille terminale, `2,5 ×` pour les
 //! bouts d'une flèche sélectionnée, cerclés d'un contour de 2 pixels d'écran.
 
-use crate::symbiotic_hue::hsl_to_rgb;
-
+use crate::couleur::Oklch;
 pub use crate::couleur::Rgb;
 
 /// L'épaisseur du trait quand la flèche n'en dit pas, en pixels d'écran (`strokeWidth ?? 2`).
@@ -51,26 +55,23 @@ pub struct Teintes {
     pub arrivee: Rgb,
 }
 
-/// La teinte à la fraction `t` du chemin de `h1` à `h2`, **par le plus court arc** du cercle
-/// chromatique (`lerpHue` de Tauri).
-pub fn entre_deux_teintes(h1: f64, h2: f64, t: f64) -> f64 {
-    let mut ecart = h2 - h1;
-    if ecart > 180.0 {
-        ecart -= 360.0;
-    }
-    if ecart < -180.0 {
-        ecart += 360.0;
-    }
-    (h1 + ecart * t).rem_euclid(360.0)
-}
-
-/// Les couleurs d'une flèche qui va d'un nœud de teinte `depart` à un nœud de teinte
-/// `arrivee`, en degrés.
-pub fn teintes(depart: f64, arrivee: f64) -> Teintes {
+/// Les couleurs d'une flèche qui va d'un nœud de couleur `depart` à un nœud de couleur `arrivee`.
+pub fn teintes(depart: Rgb, arrivee: Rgb) -> Teintes {
+    let (a, b) = (Oklch::des_octets(depart), Oklch::des_octets(arrivee));
+    // La teinte médiane : la somme des deux points du plan (a, b), chacun à sa vivacité.
+    let (x, y) = (
+        a.c * a.h.cos() + b.c * b.h.cos(),
+        a.c * a.h.sin() + b.c * b.h.sin(),
+    );
+    let milieu = Oklch {
+        l: (a.l + b.l) / 2.0,
+        c: (a.c + b.c) / 2.0,
+        h: y.atan2(x),
+    };
     Teintes {
-        depart: hsl_to_rgb(depart, 0.80, 0.65),
-        milieu: hsl_to_rgb(entre_deux_teintes(depart, arrivee, 0.5), 0.85, 0.70),
-        arrivee: hsl_to_rgb(arrivee, 0.80, 0.65),
+        depart,
+        milieu: milieu.octets(),
+        arrivee,
     }
 }
 
@@ -87,23 +88,57 @@ pub fn halo(epaisseur: f64, selectionnee: bool) -> (f64, f32) {
 mod tests {
     use super::*;
 
-    /// **Le milieu d'un dégradé passe par le plus court arc** : de 350° à 10°, il est à 0°,
-    /// et non à 180° — un dégradé du rouge au rouge ne traverse pas le cyan.
-    #[test]
-    fn test_fleche_1_le_milieu_prend_le_plus_court_arc() {
-        assert!((entre_deux_teintes(350.0, 10.0, 0.5) - 0.0).abs() < 1e-9);
-        assert!((entre_deux_teintes(10.0, 350.0, 0.5) - 0.0).abs() < 1e-9);
-        assert!((entre_deux_teintes(90.0, 210.0, 0.5) - 150.0).abs() < 1e-9);
+    /// L'écart de deux teintes, en radians.
+    fn ecart(a: f64, b: f64) -> f64 {
+        let e = (a - b).rem_euclid(std::f64::consts::TAU);
+        e.min(std::f64::consts::TAU - e)
     }
 
-    /// **Les couleurs sont celles de Tauri** : `hsl(h, 80 %, 65 %)` aux bouts, `hsl(h̄, 85 %,
-    /// 70 %)` au milieu. Valeurs de référence : l'algorithme HSL de CSS (`colorsys` de
-    /// Python, arrondi à l'octet) pour `hsl(200, 80%, 65%)` et `hsl(200, 85%, 70%)`.
+    /// **Le milieu d'un dégradé passe par le plus court arc** : d'un rouge à un rouge voisin, il
+    /// reste rouge — il ne traverse pas le cyan.
     #[test]
-    fn test_fleche_1_les_couleurs_sont_celles_de_tauri() {
-        let t = teintes(200.0, 200.0);
-        assert_eq!(t.depart, (94, 190, 237));
-        assert_eq!(t.arrivee, (94, 190, 237));
-        assert_eq!(t.milieu, (113, 200, 244));
+    fn test_fleche_1_le_milieu_prend_le_plus_court_arc() {
+        let rouge = |h: f64| {
+            Oklch {
+                l: 0.7,
+                c: 0.12,
+                h: h.to_radians(),
+            }
+            .octets()
+        };
+        let m = Oklch::des_octets(teintes(rouge(10.0), rouge(50.0)).milieu);
+        assert!(
+            ecart(m.h, 30f64.to_radians()) < 0.05,
+            "{}",
+            m.h.to_degrees()
+        );
+        let m = Oklch::des_octets(teintes(rouge(-20.0), rouge(20.0)).milieu);
+        assert!(ecart(m.h, 0.0) < 0.05, "{}", m.h.to_degrees());
+    }
+
+    /// **Les bouts sont les couleurs de ce que la flèche relie**, telles quelles ; **un bout gris ne
+    /// prête que sa clarté** : le milieu garde la teinte de l'autre bout, à mi-vivacité.
+    #[test]
+    fn test_fleche_1_les_bouts_sont_leurs_couleurs_et_le_gris_ne_prete_que_sa_clarte() {
+        let (bleu, gris) = ((96, 165, 250), (160, 160, 160));
+        let t = teintes(bleu, gris);
+        assert_eq!((t.depart, t.arrivee), (bleu, gris));
+        let (b, g, m) = (
+            Oklch::des_octets(bleu),
+            Oklch::des_octets(gris),
+            Oklch::des_octets(t.milieu),
+        );
+        assert!(ecart(m.h, b.h) < 0.05, "la teinte du bleu");
+        assert!(
+            (m.c - (b.c + g.c) / 2.0).abs() < 0.01,
+            "à mi-vivacité : {}",
+            m.c
+        );
+        assert!(
+            (m.l - (b.l + g.l) / 2.0).abs() < 0.01,
+            "à mi-clarté : {}",
+            m.l
+        );
+        assert_eq!(teintes(bleu, bleu).milieu, bleu);
     }
 }

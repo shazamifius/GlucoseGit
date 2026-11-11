@@ -58,10 +58,9 @@ fn ink_bbox(frame: &Pixmap) -> Option<(u32, u32, u32, u32)> {
 
 /// Boîte englobante des pixels qui diffèrent entre deux frames, à l'intérieur de `clip`.
 ///
-/// Le découpage n'est pas un confort : le **halo** d'une carte tire sa teinte de son contenu
-/// (`SymbioticHueCache` → `get_symbiotic_hue`), donc deux frames qui ne diffèrent que par le
-/// texte diffèrent **aussi** sur tout le disque du halo, large de plusieurs centaines de
-/// pixels. Sans découpage, la mesure rendrait la taille du halo et non celle du texte.
+/// Le découpage n'est pas un confort : le **halo** d'une carte tire sa couleur de son texte (ce
+/// que l'IA en dit, PARENTE-2), donc deux frames qui ne diffèrent que par le texte peuvent
+/// différer **aussi** sur tout le halo, large de plusieurs dizaines de pixels. Sans découpage, la mesure rendrait la taille du halo et non celle du texte.
 ///
 /// On mesure donc l'encre **dans la carte**, qui est précisément ce que la preuve affirme :
 /// le texte a reflué à l'intérieur de sa boîte. Qu'un mot trop long soit coupé plutôt que de

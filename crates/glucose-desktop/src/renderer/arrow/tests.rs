@@ -15,9 +15,9 @@ use tiny_skia::Pixmap;
 
 const TAILLE: (u32, u32) = (400, 300);
 
-/// Deux teintes franches : un rouge au départ, un bleu à l'arrivée.
+/// Deux couleurs franches : un rouge au départ, un bleu à l'arrivée (`hsl(0 / 240, 80 %, 65 %)`).
 fn teintes() -> Teintes {
-    aspect::teintes(0.0, 240.0)
+    aspect::teintes((237, 94, 94), (94, 94, 237))
 }
 
 /// Rend une flèche passant par ces points du monde, sur un fond noir, au zoom donné (la vue
@@ -194,10 +194,13 @@ fn test_fleche_1_un_coude_n_est_pas_couvert_deux_fois() {
 #[test]
 fn test_dpi_1_le_trait_suit_la_densite_de_l_ecran() {
     use glucose_core::store::Store;
-    let epaisseur = |densite: f32| {
+    // La même vue, la flèche dedans ou loin hors de l'écran — un tableau vide montrerait autre
+    // chose.
+    let image = |densite: f32, avec: bool| {
         let mut store = Store::new("dpi");
         let board = store.project.active_board_id.clone();
-        store.add_annotation(&board, Annotation::arrow("f", -150.0, 0.0, 150.0, 0.0));
+        let y = if avec { 0.0 } else { 50_000.0 };
+        store.add_annotation(&board, Annotation::arrow("f", -150.0, y, 150.0, y));
         store.clear_selection();
         // À la taille réelle de chaque écran (une unité du monde par pixel logique) : plus loin,
         // un lien rétrécit avec le monde (LIEN-1, fiche 102), et ce n'est pas ce que cette
@@ -213,17 +216,25 @@ fn test_dpi_1_le_trait_suit_la_densite_de_l_ecran() {
         let mut renderer = crate::renderer::Renderer::new();
         let mut ui = crate::ui::UiState::new();
         ui.scale_factor = densite;
-        let image = crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 800);
-        // L'encre de la colonne du milieu, halo et âme ensemble, fond retranché : sa somme
-        // est proportionnelle à la largeur du trait, quelle que soit la façon dont ses bords
-        // tombent sur la grille de pixels.
-        let teinte = |x: u32, y: u32| {
-            let c = image.pixel(x, y).expect("dans l'image");
+        crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 800)
+    };
+    // L'encre d'une colonne du trait, halo et âme ensemble : sa somme est proportionnelle à la
+    // largeur du trait, quelle que soit la façon dont ses bords tombent sur la grille de pixels.
+    // **La colonne tombe entre deux points de la grille du canevas** : celle du milieu passait
+    // sur le point de l'origine, plus gros à 150 %, que le trait recouvre — il comptait pour du
+    // trait (fiche 106 : la flèche, grise depuis PARENTE-2, a moins d'encre, et ce point faussait
+    // le rapport de 3 %). Elle se lit contre la même vue, la flèche ailleurs.
+    let epaisseur = |densite: f32| {
+        let pas = crate::renderer::scene::grid::grid_step(f64::from(densite));
+        let x = (400.0 + pas / 2.0 * f64::from(densite)).round() as u32;
+        let (avec, sans) = (image(densite, true), image(densite, false));
+        let teinte = |p: &tiny_skia::Pixmap, y: u32| {
+            let c = p.pixel(x, y).expect("dans l'image");
             f64::from(c.red()) + f64::from(c.green()) + f64::from(c.blue())
         };
-        // Le fond du canevas, lu loin du trait, entre deux points de la grille.
-        let fond = teinte(401, 250);
-        (360..440).map(|y| teinte(401, y) - fond).sum::<f64>()
+        (360..440)
+            .map(|y| teinte(&avec, y) - teinte(&sans, y))
+            .sum::<f64>()
     };
     let rapport = epaisseur(1.5) / epaisseur(1.0);
     assert!(
@@ -298,7 +309,7 @@ fn test_dpi_1_la_carte_recoit_des_fleches_a_la_densite_de_l_ecran() {
         densite: 1.5,
     };
     let champs = fleches_a_poser(
-        &mut SymbioticHueCache::new(),
+        &Default::default(),
         (&store, pass, Default::default()),
         (&typographie, &math),
         (400.0, 300.0),

@@ -25,7 +25,7 @@ use glucose_core::couleur::Oklch;
 use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
 
 /// Le bleu des membranes de Glucose Tauri : la **clarté** d'une membrane sans couleur.
-const BLEU_DE_TAURI: (u8, u8, u8) = (96, 165, 250);
+pub(crate) const BLEU_DE_TAURI: (u8, u8, u8) = (96, 165, 250);
 
 /// L'opacité du fond translucide d'une membrane chez Glucose Tauri, sur 255 : avec ses deux halos,
 /// ce qui fait le voile d'une membrane seule.
@@ -44,7 +44,7 @@ pub(crate) fn teinte_de_membrane(couleur: Option<&str>) -> (u8, u8, u8) {
 }
 
 /// **Le gris d'une membrane sans couleur** : la clarté perçue du bleu de Tauri, sans chroma.
-fn sans_couleur() -> (u8, u8, u8) {
+pub(crate) fn sans_couleur() -> (u8, u8, u8) {
     Oklch {
         c: 0.0,
         ..Oklch::des_octets(BLEU_DE_TAURI)

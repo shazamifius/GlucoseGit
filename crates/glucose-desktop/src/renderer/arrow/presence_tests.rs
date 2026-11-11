@@ -103,7 +103,7 @@ fn ames(app: &GlucoseApp, souris: Option<(f64, f64)>) -> Vec<(String, f32)> {
         .map(|a| a.id().to_string())
         .collect();
     let champs = fleches_a_poser(
-        &mut SymbioticHueCache::new(),
+        &Default::default(),
         (
             &app.store,
             pass,

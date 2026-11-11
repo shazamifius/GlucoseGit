@@ -66,12 +66,9 @@ pub fn lancer(
     }
     brancher_les_reveils(&mut app, &event_loop);
     app.charger_le_scenario();
-    // Le plancher de la charte, sa marge déduite : une image ne s'arrête jamais pour ses teintes
-    // (TEINTES-1). Ici et non dans `new` : les épreuves gardent le calcul entier, déterministe.
-    app.renderer.hue_cache.accorder_la_tranche(Some(
-        crate::cadence::BUDGET_TOTAL.saturating_sub(crate::cadence::MARGE),
-    ));
-    // Ni pour ses itinéraires de flèches (ITINERAIRE-2, fiche 102).
+    // Le plancher de la charte, sa marge déduite : une image ne s'arrête jamais pour les
+    // itinéraires de ses flèches (ITINERAIRE-2, fiche 102). Ici et non dans `new` : les épreuves
+    // gardent le calcul entier, déterministe.
     app.renderer.itineraires.accorder_la_tranche(Some(
         crate::cadence::BUDGET_TOTAL.saturating_sub(crate::cadence::MARGE),
     ));
@@ -116,6 +113,11 @@ fn brancher_les_reveils(app: &mut GlucoseApp, event_loop: &EventLoop<()>) {
     app.ouvrir_la_porte_des_agents(reveil_de(event_loop));
     // Quand un fichier connu dit quelque chose de neuf de ses domaines (fiche 88).
     app.demarrer_le_recensement(reveil_de(event_loop));
+    // Quand l'IA a lu les textes du tableau (PARENTE-2, fiche 106).
+    app.renderer
+        .sens_des_textes
+        .parente
+        .demarrer(reveil_de(event_loop));
     // Quand un sélecteur de fichiers rend son choix (DIAL-2).
     crate::dialogue::brancher(reveil_de(event_loop));
     // Quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).

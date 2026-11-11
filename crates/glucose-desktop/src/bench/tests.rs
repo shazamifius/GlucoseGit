@@ -263,7 +263,12 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Puis, le 11/11** (REGION-1, PAPIER-1, NEUTRE-1, fiche 105) : la membrane témoin, sans couleur,
 /// devient grise et son corps opaque, la grille de points posée dessus ; le papier des textes perd
 /// ses 3 % de teinte. Regardé, la membrane agrandie deux fois (la grille s'y voit).
-const EMPREINTE_TEMOIN: &str = "b458446caa3526c0";
+/// **Puis, le 11/11 au soir** (PARENTE-2, fiche 106) : l'IA ne trouve aucune parenté entre ces
+/// textes — chacun garde la lueur grise de son bloc, ses puces et sa barre de citation grises, et
+/// les flèches dont aucun bout ne touche un texte coloré sont grises (la teinte de bruit de Tauri
+/// est partie). 221 214 pixels, tous des lueurs, des flèches et des ornements ; regardé
+/// avant/après — le papier des blocs garde son contour.
+const EMPREINTE_TEMOIN: &str = "98faafd6e827a136";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -370,7 +375,9 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// ailleurs ; regardée avant/après, les deux images produites par `capture_temoin`.
 /// **Puis, le 11/11** (LIEN-4, fiches 102 et 103) : les liens à 92,6 % — 3 367 pixels, sur les
 /// flèches seules (497-1125 × 101-706) ; regardés avec l'image de l'écart.
-const EMPREINTE_TEMOIN_SELECTION: &str = "2c26ac1574bfb066";
+/// **Puis, le 11/11 au soir** (PARENTE-2, fiche 106) : les lueurs, les flèches et les ornements
+/// gris de la scène témoin — 195 110 pixels ; regardée.
+const EMPREINTE_TEMOIN_SELECTION: &str = "cd85dd06f4419cee";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -460,7 +467,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 10/11** (BAS-1, fiche 101) : les mêmes 5 935 pixels que la scène sélectionnée — la
 /// barre d'action, sous le menu ; regardée.
 /// **Puis, le 11/11** (LIEN-4) : les mêmes 3 367 pixels que la scène sélectionnée ; regardés.
-const EMPREINTE_TEMOIN_MENU: &str = "5f27ee61cddb208c";
+/// **Puis, le 11/11 au soir** (PARENTE-2, fiche 106) : les lueurs, les flèches et les ornements
+/// gris de la scène témoin, sous le menu — 191 557 pixels ; regardée.
+const EMPREINTE_TEMOIN_MENU: &str = "f5119c1991cc37c7";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

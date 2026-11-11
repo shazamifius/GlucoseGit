@@ -21,7 +21,7 @@ const TAILLE: (u32, u32) = (1200, 800);
 fn fleche(en_lumiere: bool) -> Fleche {
     Fleche {
         morceaux: morceaux(&[(0.0, 0.0), (1000.0, 0.0)], false),
-        teintes: aspect::teintes(0.0, 240.0),
+        teintes: aspect::teintes((237, 94, 94), (94, 94, 237)),
         epaisseur: aspect::EPAISSEUR,
         selectionnee: false,
         en_lumiere,
@@ -165,7 +165,7 @@ fn ame_pour_la_carte(app: &GlucoseApp, survole: Option<&str>) -> f32 {
         densite: 1.0,
     };
     let champs = fleches_a_poser(
-        &mut SymbioticHueCache::new(),
+        &Default::default(),
         (
             &app.store,
             pass,

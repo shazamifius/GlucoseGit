@@ -24,7 +24,6 @@
 //! coûtait 0,43 ms : quatre-vingts flèches, 34 ms par image (`bench_fleches`). La loi du champ
 //! ne visite que les pixels que la flèche peut toucher.
 
-use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
 use super::pass::Pass;
 use super::scale::WorldScale;
@@ -58,16 +57,15 @@ pub(crate) struct Fleche {
 
 impl Fleche {
     /// **Ce qu'une flèche du tableau montre** : son tracé ancré à ses nœuds, retrouvés par
-    /// l'index en temps constant, et les teintes de ses deux bouts.
+    /// l'index en temps constant, et les couleurs de ses deux bouts.
     pub(super) fn de(
-        hue_cache: &mut SymbioticHueCache,
+        sens: &super::sens::SensDesTextes,
         ann: &Annotation,
         (pass, noeuds): (ViewPass<'_>, NoeudsDuRendu<'_>),
         (selectionnee, en_lumiere, presence): (bool, bool, f32),
     ) -> Option<Self> {
         let board = noeuds.board;
         let Annotation::Arrow {
-            id,
             source_id,
             target_id,
             stroke_width,
@@ -78,10 +76,9 @@ impl Fleche {
             return None;
         };
         let morceaux = noyau::morceaux_with(ann, noeuds)?;
-        let bouts = (morceaux.first()?.depart(), morceaux.last()?.arrivee());
         let teintes = aspect::teintes(
-            teinte_d_un_bout(hue_cache, (board, pass), id, source_id.as_deref(), bouts.0),
-            teinte_d_un_bout(hue_cache, (board, pass), id, target_id.as_deref(), bouts.1),
+            couleur_d_un_bout(sens, (board, pass), source_id.as_deref()),
+            couleur_d_un_bout(sens, (board, pass), target_id.as_deref()),
         );
         Some(Self {
             morceaux,
@@ -211,23 +208,21 @@ fn unite((r, g, b): Rgb) -> [f32; 3] {
     ]
 }
 
-/// La teinte d'un bout de flèche : celle du nœud qu'il touche, si c'est une annotation ; sinon
-/// celle qu'aurait la flèche posée là — le choix de Tauri, qui ne cherche la source que parmi
-/// les annotations.
-fn teinte_d_un_bout(
-    hue_cache: &mut SymbioticHueCache,
+/// **La couleur d'un bout de flèche** : la lueur du texte qu'il touche — sa famille de sens, ou la
+/// couleur qu'on lui a choisie (PARENTE-2) —, le gris neutre de ce dont on ne sait pas le sens :
+/// une photo, un post-it, un bout dans le vide. Chez Tauri, une teinte de bruit, *« temporaire »*.
+fn couleur_d_un_bout(
+    sens: &super::sens::SensDesTextes,
     (board, pass): (&Board, ViewPass<'_>),
-    fleche: &str,
     noeud: Option<&str>,
-    point: (f64, f64),
-) -> f64 {
-    let annotation = noeud.and_then(|id| match noeud_au_rang(board, pass.index.rang_de(id)?)? {
+) -> Rgb {
+    let touche = noeud.and_then(|id| match noeud_au_rang(board, pass.index.rang_de(id)?)? {
         Noeud::Annotation(a) if a.id() == id => Some(a),
         _ => None,
     });
-    match annotation {
-        Some(a) => hue_cache.get_or_compute(a, pass.index, board).0,
-        None => hue_cache.au_point(fleche, point, pass.index, board),
+    match touche {
+        Some(a @ Annotation::Text { .. }) => sens.teinte(a),
+        _ => sens.gris(),
     }
 }
 
@@ -283,7 +278,7 @@ pub(super) fn draw_arrow(ctx: &Pass, pixmap: &mut PixmapMut, fleche: &Fleche) ->
 /// diagonale y touchait beaucoup de lignes pour peu de pixels, et chacune partait sur le bus.
 /// Leurs étiquettes, badges et poignées y restent.
 pub(super) fn fleches_a_poser(
-    hue_cache: &mut SymbioticHueCache,
+    sens: &super::sens::SensDesTextes,
     (store, pass, main): (&Store, ViewPass<'_>, Main<'_>),
     (typographie, math): (&Typography, &MathRenderer),
     ecran: (f32, f32),
@@ -308,13 +303,8 @@ pub(super) fn fleches_a_poser(
             let lumiere = en_lumiere(store, main.survole, ann);
             let lecture = echelle.lecture();
             let presence = presence::presence_qui_compte(ann, noeuds, main.souris, (n, lecture));
-            Fleche::de(
-                hue_cache,
-                ann,
-                (pass, noeuds),
-                (selectionnee, lumiere, presence),
-            )?
-            .champ(&pass.vp, echelle, ecran)
+            Fleche::de(sens, ann, (pass, noeuds), (selectionnee, lumiere, presence))?
+                .champ(&pass.vp, echelle, ecran)
         })
         .collect()
 }

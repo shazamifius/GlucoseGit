@@ -126,7 +126,10 @@ fn teinte(a: &Pixmap, b: &Pixmap) -> f64 {
 /// 26,6 en forme et 6,3 en teinte — des liserés d'anticrénelage, le canevas qui cale les photos
 /// et les glyphes des formules sur la grille de pixels là où le SVG les pose exactement. Les
 /// fautes simulées les plus fines donnent 56,6 (une ligne décalée de deux pixels) et 13,3 (une
-/// teinte faussée de douze niveaux). Chaque borne est le milieu des deux.
+/// teinte faussée de douze niveaux). Chaque borne est le milieu des deux. **Remesurée le
+/// 11/11/2026** (fiche 106) : la lueur deux fois plus forte faisait monter l'écart des coins à
+/// 12,9, aussi haut qu'une faute ; depuis que le SVG peint les coins du canevas, 26,5 et 3,3 —
+/// la borne de teinte passe au milieu de 3,3 et 13,3.
 #[test]
 fn test_p5_le_canevas_et_le_svg_se_superposent() {
     let dossier = Dossier::nouveau("export-svg-superposition");
@@ -134,7 +137,7 @@ fn test_p5_le_canevas_et_le_svg_se_superposent() {
     let (canevas, lu) = les_deux_images(&app);
     let (f, t) = (forme(&canevas, &lu), teinte(&canevas, &lu));
     assert!(f <= 41.6, "la forme : {f:.1} (bruit mesuré 26,6)");
-    assert!(t <= 9.8, "la teinte : {t:.1} (bruit mesuré 6,3)");
+    assert!(t <= 8.3, "la teinte : {t:.1} (bruit mesuré 3,3)");
 }
 
 /// La valeur de l'attribut `nom` dans un élément.

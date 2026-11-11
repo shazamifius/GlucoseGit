@@ -38,8 +38,9 @@
 //! La seule chose que le produit ne capture pas est le `border-radius: 32px` de la boîte
 //! de Tauri : il sépare un rectangle **droit**, donc la lueur est très légèrement plus
 //! carrée dans les coins. L'écart s'y borne à la différence d'aire entre le carré du coin
-//! et son quart de disque, étalée par le flou — quelques niveaux sur une lueur qui
-//! plafonne à 38.
+//! et son quart de disque, étalée par le flou — une douzaine de niveaux sur une lueur qui
+//! plafonne à 76 (PARENTE-2). L'export SVG peint la même (fiche 106) : il montre ce que le
+//! canevas montre.
 //!
 //! La comparaison de coût, à géométrie égale (une carte de 240 × 60 à ×1) :
 //!
@@ -59,12 +60,11 @@
 //! # HALO-3 — pourquoi il n'y a *aucun* cache ici
 //!
 //! Un cache de lueurs pré-rastérisées achèterait de la mémoire — et une borne à tenir, et
-//! une invalidation — pour supprimer une multiplication par pixel. Le seul état conservé
-//! d'une frame à l'autre reste la teinte symbiotique, dans [`SymbioticHueCache`] : elle,
-//! contrairement au profil, dépend du voisinage et coûte cher à recalculer.
+//! une invalidation — pour supprimer une multiplication par pixel. La couleur d'une lueur et sa
+//! force viennent de l'avis de l'IA sur son texte, décidé hors des images (PARENTE-2,
+//! [`super::sens`]) : elles se lisent, elles ne se calculent pas ici.
 
 use super::scale::WorldScale;
-use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 
@@ -84,8 +84,15 @@ pub const HALO_SPREAD: f32 = 30.0;
 /// donc 30 unités monde.
 pub const HALO_BLUR: f32 = 60.0;
 
-/// Opacité de la lueur, sur 255 — les 15 % de `color-mix(in srgb, AURA 15%, transparent)`.
-pub const HALO_ALPHA: u8 = 38;
+/// **La lueur d'un bloc**, sur 255 — les 15 % de Tauri (`color-mix(in srgb, AURA 15%,
+/// transparent)`) : le contour qui dit « ici, un bloc de texte ». Le papier d'un texte est presque
+/// le noir du canevas ; sans elle, un bloc n'a plus de bord (« le texte sur fond noir, le contour
+/// en lueur »). Elle est là pour chaque texte, sûr ou non.
+pub const LUEUR_DU_BLOC: u8 = 38;
+
+/// **L'opacité de la lueur au repos quand l'IA est sûre** : 76 — son choix du 11/11/2026, devant
+/// l'image (PARENTE-2, fiche 106). Les 38 de Tauri ne se voyaient plus sur une membrane colorée.
+pub const HALO_ALPHA: u8 = 76;
 
 /// **L'éclat d'une lueur, entre deux intensités — celles de Tauri** : au repos, et quand la
 /// carte est **désignée** — la cible qu'une flèche en train de naître vise, les bouts d'une
@@ -131,9 +138,15 @@ impl Eclat {
         self.entre(HALO_BLUR / 2.0, DESIGNEE.1)
     }
 
-    /// L'opacité au plateau, sur 255.
-    pub fn alpha(self) -> u8 {
-        self.entre(f32::from(HALO_ALPHA), DESIGNEE.2).round() as u8
+    /// **L'opacité au plateau**, sur 255 : au repos, la lueur du bloc, et ce que la sûreté de l'IA
+    /// y ajoute jusqu'à la lueur sûre — l'opacité dit la sûreté (sa parole du 11/11/2026 :
+    /// *« parfaitement d'accord »* ; *« un texte presque seul, un halo pâle »*, la page qu'il a
+    /// approuvée) ; désignée, pleine quelle que soit la sûreté, puisqu'elle dit alors à quoi une
+    /// flèche va se lier.
+    pub fn alpha(self, surete: f32) -> u8 {
+        let (bloc, sure) = (f32::from(LUEUR_DU_BLOC), f32::from(HALO_ALPHA));
+        let repos = bloc + (sure - bloc) * surete.clamp(0.0, 1.0);
+        self.entre(repos, DESIGNEE.2).round() as u8
     }
 }
 
@@ -464,8 +477,9 @@ pub(crate) fn halo_geometry(
     // Ce n'est pas qu'une question de lisibilité : un viewport brisé rend des bornes
     // `NaN`, toute comparaison avec `NaN` est fausse, et une condition de **rejet** les
     // laissait donc toutes passer — `halo_geometry` annonçait alors une boîte qui n'existe
-    // pas. Écrite en positif, elle les rejette sans avoir à les nommer.
-    let reach = EdgeProfile::new(halo.sigma).reach(eclat.alpha());
+    // pas. Écrite en positif, elle les rejette sans avoir à les nommer. La portée est celle
+    // d'une lueur sûre : une moins sûre s'éteint plus tôt, dans la même boîte (PARENTE-2).
+    let reach = EdgeProfile::new(halo.sigma).reach(eclat.alpha(1.0));
     let visible = halo.right + reach >= 0.0
         && halo.left - reach <= screen_w
         && halo.bottom + reach >= header_h
@@ -488,13 +502,12 @@ pub(crate) fn portee_du_flou(sigma: f32, alpha: u8) -> f32 {
 /// d'un export (EXPORT-PNG-1).
 pub(crate) fn debord_au_repos(echelle: f32) -> f32 {
     let eclat = Eclat::REPOS;
-    eclat.etalement() * echelle + portee_du_flou(eclat.sigma() * echelle, eclat.alpha())
+    eclat.etalement() * echelle + portee_du_flou(eclat.sigma() * echelle, eclat.alpha(1.0))
 }
 
 /// Passe de rendu des lueurs d'ambiance (L1 : ne parcourt que les cartes visibles). Chaque
 /// lueur épouse sa carte telle qu'elle se montre — celle qu'on édite comprise (fiche 100).
 pub fn draw_halos(
-    hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     (store, kit): (&Store, PaintKit<'_>),
     (pass, designees, edition): (ViewPass<'_>, &[(String, f32)], Option<&TextEditSession>),
@@ -514,10 +527,8 @@ pub fn draw_halos(
     // entier en demandant de chacun s'il était visible : sur un million de nœuds dont cinq
     // cents à l'écran, c'était un million de hachages de chaîne pour cette seule passe.
     //
-    // **Deux temps, parce que la teinte s'écrit et que la lueur se peint.** Le cache des
-    // teintes symbiotiques se modifie — il dépend du voisinage et coûte cher —, donc il tient
-    // le premier temps à lui seul. La peinture, elle, ne lit plus que des couleurs déjà
-    // décidées, et seize fils peuvent la faire ensemble.
+    // **Deux temps** : chaque lueur lit sa couleur et sa sûreté, déjà décidées par l'IA
+    // (PARENTE-2) ; puis seize fils peuvent les peindre ensemble.
     let mut a_peindre: Vec<(HaloBox, (u8, u8, u8), u8)> = Vec::new();
     for ann in Visibles::nouvelles(visibles, board).annotations() {
         let eclat = Eclat::de(ann, designees);
@@ -526,11 +537,13 @@ pub fn draw_halos(
         let Some(boite) = super::card::boite_montree(mesure, ann, edition) else {
             continue;
         };
+        // Sa famille, ou la couleur qu'on lui a choisie (COULEUR-4) ; sa sûreté, l'opacité.
+        let (rgb, surete) = kit.sens.lueur(ann);
+        let alpha = eclat.alpha(surete);
         let Some(halo) = halo_geometry(boite, (vp, pass.echelle()), ecran, eclat) else {
             continue;
         };
-        let (_hue, rgb) = hue_cache.get_or_compute(ann, pass.index, board);
-        a_peindre.push((halo, rgb, eclat.alpha()));
+        a_peindre.push((halo, rgb, alpha));
     }
     peindre_en_bandes(pixmap, &a_peindre);
 }

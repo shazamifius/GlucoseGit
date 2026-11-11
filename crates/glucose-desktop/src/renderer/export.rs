@@ -85,19 +85,15 @@ impl Renderer {
             mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
+            sens: &self.sens_des_textes,
         };
         let mut svg = super::svg::Svg::new();
         sous_les_photos_en_svg(kit, &mut svg, (store, pass), taille);
         super::scene::image::svg::images_en_svg(store, pass, &mut svg, octets);
         // Ce qui passe sur les photos (`dessiner_sur_les_photos`) : les lueurs, toutes avant les
         // cartes (LUEUR-3) ; les annotations ; puis les ornements des photos, au-dessus de tout.
-        super::halo::svg::lueurs_en_svg(&mut self.hue_cache, (store, pass, kit), taille, &mut svg);
-        super::pass::svg::annotations_en_svg(
-            &mut self.hue_cache,
-            (kit, store, pass),
-            taille,
-            &mut svg,
-        );
+        super::halo::svg::lueurs_en_svg((store, pass, kit), taille, &mut svg);
+        super::pass::svg::annotations_en_svg((kit, store, pass), taille, &mut svg);
         let quoi = (kit.typography, kit.tints);
         super::scene::image::svg::reglettes_des_images_en_svg(quoi, (store, pass), &mut svg);
         svg.finir(taille)

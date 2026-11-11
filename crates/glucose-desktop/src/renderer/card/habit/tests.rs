@@ -81,3 +81,52 @@ fn papier_1_le_papier_d_un_texte_est_le_gris_des_blocs_partout() {
         }
     }
 }
+
+/// Un pixel de la lueur d'un texte « Eau » à la couleur `couleur` : juste sous son bloc, où la lueur
+/// déborde (voie du processeur).
+fn lueur_rendue(couleur: Option<&str>) -> (u8, u8, u8) {
+    let mut app = crate::app::GlucoseApp::new();
+    app.ui.current_toast = None;
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+    }
+    let tableau = app.store.project.active_board_id.clone();
+    let mut texte = Annotation::text("t", 0.0, 0.0, "Eau");
+    if let Annotation::Text { color, .. } = &mut texte {
+        *color = couleur.map(str::to_string);
+    }
+    let (_, h) = texte.size().expect("une taille");
+    app.store.add_annotation(&tableau, texte);
+    app.store.clear_selection();
+    let vue = Viewport {
+        x: 40.0,
+        y: 300.0,
+        scale: 1.0,
+    };
+    app.store.set_viewport(&tableau, vue);
+    app.une_image_sans_fenetre((800, 600));
+    let image = app.pixmap.as_ref().expect("une image");
+    let y = (300.0 + h + 12.0) as usize;
+    let p = image.pixels()[y * image.width() as usize + 120].demultiply();
+    (p.red(), p.green(), p.blue())
+}
+
+/// **COULEUR-4 — la couleur choisie d'un texte va à sa lueur** (fiche 106 ; sa parole du 11/11/2026 :
+/// le geste qui colore un texte change *« le halo lumineux autour du bloc — PAS son background »*).
+/// Rose, la lueur sous le bloc tire vers le rose : son rouge passe devant son vert. **La preuve à
+/// l'envers** : sans couleur choisie, ce texte seul garde la lueur grise de son bloc — l'IA ne lui
+/// connaît aucun parent, et ne lie sa couleur à rien (PARENTE-2).
+#[test]
+fn couleur_4_la_couleur_choisie_d_un_texte_va_a_sa_lueur() {
+    let rose = lueur_rendue(Some("#f472b6"));
+    let sans = lueur_rendue(None);
+    assert_ne!(rose, sans, "la couleur choisie change la lueur");
+    assert!(
+        sans.0.abs_diff(sans.1) <= 1 && sans.1.abs_diff(sans.2) <= 1,
+        "sans couleur choisie, la lueur d'un texte seul est grise : {sans:?}"
+    );
+    assert!(
+        rose.0 > rose.1 + 2 && rose.2 > rose.1,
+        "la lueur d'un texte rose tire vers le rose : {rose:?}"
+    );
+}

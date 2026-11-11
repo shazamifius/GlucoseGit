@@ -6,6 +6,10 @@
 //! d'annulation — à l'image où ce qu'elle attendait est là. Elles vivent ensemble parce que
 //! la boucle les relance au même instant, avant la peinture, et que le réveil les attend
 //! pour la même raison.
+//!
+//! **L'avis de l'IA sur les textes** (PARENTE-2, fiche 106) entre au même instant : un fil le
+//! calcule quand les textes changent, et il se pose ici, avant la peinture, pour que l'image qui
+//! suit le montre — une seule.
 
 use super::rangement::RangementEnAttente;
 use super::GlucoseApp;
@@ -40,5 +44,14 @@ impl GlucoseApp {
     pub(crate) fn poursuivre_les_attentes(&mut self) {
         self.poursuivre_les_bordures();
         self.poursuivre_le_rangement();
+        self.suivre_la_parente();
+    }
+
+    /// **L'avis de l'IA**, s'il est neuf, passe au rendu ; toute l'image se refait — chaque halo,
+    /// chaque ornement de texte peut avoir changé de couleur.
+    fn suivre_la_parente(&mut self) {
+        if self.renderer.sens_des_textes.suivre(&self.store) {
+            self.mark_dirty();
+        }
     }
 }

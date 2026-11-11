@@ -11,7 +11,7 @@
 use super::arrow::Contournement;
 use super::{
     folder, grille, halo, noter_le_cout_de_la_scene, pass, scene, Couche, PaintKit, Regard,
-    Renderer, SymbioticHueCache,
+    Renderer,
 };
 use crate::params::ViewPass;
 use crate::params::{Pointer, SceneOverlay};
@@ -112,7 +112,6 @@ pub(super) fn premier_rang(
 /// Une fonction libre, comme sa jumelle : `pass` tient déjà `&self.spatial_hash`, donc un
 /// `&mut self` par-dessus ne compilerait pas.
 pub(super) fn dessiner_sur_les_photos(
-    hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
     (ui, overlay): (&UiState, SceneOverlay<'_>),
@@ -122,7 +121,6 @@ pub(super) fn dessiner_sur_les_photos(
     // voie graphique, la carte les pose au meme rang, entre ses photos et ses cartes.
     if cadrage.couche.porte_le_fond() {
         halo::draw_halos(
-            hue_cache,
             pixmap,
             (store, kit),
             (pass, overlay.designees, overlay.editing),
@@ -134,7 +132,6 @@ pub(super) fn dessiner_sur_les_photos(
     // ornements se dessinent ici (COMPOSANT-1).
     let cartes_par_la_carte = !cadrage.couche.porte_les_photos();
     pass::draw_annotations(
-        hue_cache,
         kit,
         pixmap,
         store,
@@ -148,7 +145,7 @@ pub(super) fn dessiner_sur_les_photos(
     // Ce qu'une flèche survolée désigne : son fond, son liseré et ses lettres sont dans la
     // carte ; sa lueur passe par-dessus (FLECHE-4, PASSAGE-2).
     super::passages::eclairer(
-        hue_cache,
+        kit.sens,
         (kit.typography, kit.math, kit.mises_en_page),
         pixmap,
         (store, overlay.eclairages, pass),
@@ -254,21 +251,12 @@ pub(super) fn fond_a_peindre(
     }
 }
 
-/// **Les lueurs que l'écran montre**, et où chacune se pose.
-///
-/// # Ce que cette fonction emporte avec elle, et qu'il ne faut pas perdre
-///
-/// `draw_halos` faisait **deux** choses sans rapport : calculer la teinte symbiotique de
-/// chaque carte — qui dépend du voisinage, coûte cher, et sert aussi aux annotations — et
-/// peindre. Déplacer la peinture sur la carte sans garder le calcul laisserait les teintes
-/// périmées ; c'est exactement le piège qui a fait disparaître les poignées quand la pose des
-/// photos est descendue sur la carte (fiche 21). Le calcul reste donc ici, au même endroit du
-/// même parcours.
+/// **Les lueurs que l'écran montre**, et où chacune se pose : la couleur et la sûreté que l'IA a
+/// données à chaque texte (PARENTE-2), lues comme la voie processeur les lit ([`halo::draw_halos`]).
 ///
 /// Chaque lueur épouse sa carte telle qu'elle se montre ([`super::card::boite_montree`]) — celle
 /// qu'on édite comprise, qui a grandi avant que le document ne l'apprenne (fiche 100).
 pub(super) fn lueurs_a_poser(
-    hue_cache: &mut SymbioticHueCache,
     (store, kit): (&Store, PaintKit<'_>),
     (pass, designees, edition): (ViewPass<'_>, &[(String, f32)], Option<&TextEditSession>),
     ecran: (f32, f32),
@@ -284,16 +272,13 @@ pub(super) fn lueurs_a_poser(
         let Some(montree) = super::card::boite_montree(mesure, ann, edition) else {
             continue;
         };
+        let (teinte, surete) = kit.sens.lueur(ann);
+        let alpha = eclat.alpha(surete);
         let Some(boite) = halo::halo_geometry(montree, (&pass.vp, pass.echelle()), cadre, eclat)
         else {
             continue;
         };
-        let (_hue, teinte) = hue_cache.get_or_compute(ann, pass.index, board);
-        lueurs.push(crate::present::lueurs_gpu::Lueur::de(
-            boite,
-            teinte,
-            eclat.alpha(),
-        ));
+        lueurs.push(crate::present::lueurs_gpu::Lueur::de(boite, teinte, alpha));
     }
     lueurs
 }
@@ -416,19 +401,15 @@ impl Renderer {
             mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
+            sens: &self.sens_des_textes,
         };
-        let lueurs = lueurs_a_poser(
-            &mut self.hue_cache,
-            (store, kit),
-            (pass, overlay.designees, edition),
-            ecran,
-        );
+        let lueurs = lueurs_a_poser((store, kit), (pass, overlay.designees, edition), ecran);
         crate::perf::stage("lueurs");
         let membranes = scene::membranes::formes_des_membranes((store, &self.theme), pass, taille);
         let zones = premier_rang(store, pass, ecran);
         crate::perf::stage("membranes");
         let fleches = super::arrow::fleches_a_poser(
-            &mut self.hue_cache,
+            &self.sens_des_textes,
             (store, pass, super::arrow::Main::de(&overlay)),
             (&self.typography, &self.math),
             ecran,
@@ -442,12 +423,8 @@ impl Renderer {
             (&mut self.lot, &mut self.magasin, &mut self.carte),
             (store, &vp, &rangs),
         );
-        let de_texte = composants_de_texte(
-            (&regime, overlay.eclairages),
-            &mut self.hue_cache,
-            kit,
-            (store, pass, edition),
-        );
+        let de_texte =
+            composants_de_texte((&regime, overlay.eclairages), kit, (store, pass, edition));
         crate::perf::stage("composants");
         let confie = Confie {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),

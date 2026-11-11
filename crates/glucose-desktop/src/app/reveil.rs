@@ -98,7 +98,7 @@ impl Raison {
             Self::Elan => "la vue glisse encore",
             Self::Vol => "vol de camera",
             Self::Decodage => "images en decodage",
-            Self::Chantier => "vignettes ou teintes a refaire",
+            Self::Chantier => "vignettes ou itineraires a refaire",
             Self::Pomodoro => "minuteur",
             Self::Commande => "une commande attend ses images",
             Self::Pave => "le pave tactile",
@@ -446,36 +446,33 @@ impl GlucoseApp {
         Some(self.animation_interval_ms())
     }
 
-    /// Des vignettes attendent leur tour au chantier (CASCADE-1), ou des teintes le leur
-    /// (TEINTES-1, fiche 86 ; REPOS-2, fiche 98).
+    /// Des vignettes attendent leur tour au chantier (CASCADE-1), ou des itinéraires de flèches le
+    /// leur (ITINERAIRE-2, fiche 102).
     ///
     /// **Une vignette ne salit rien, et c'est voulu** : elle donne exactement les mêmes pixels
     /// que le chemin général, donc l'image à l'écran est déjà juste. Elle ne la rend pas plus
     /// belle, elle la rend beaucoup moins chère — il faut donc seulement revenir, pour que
     /// l'atelier dispose d'une nouvelle tranche de temps libre.
     ///
-    /// **CHANTIER-2 — une teinte en retard salit la scène** (fiche 95) : elle ne se refait que
-    /// dans une image qui redessine les nœuds, et la teinte d'avant n'a pas ses pixels. Une image
-    /// demandée sans rien salir n'avait rien à redessiner, ne consultait pas le cache, et son
-    /// retard ne retombait jamais : Glucose redessinait à vide, tableau immobile, jusqu'à 128
-    /// images par seconde (mesuré sur l'article « Eau »), au compte du « système ». Depuis
-    /// REPOS-2, la teinte se refait sans image au repos, et l'image qui la montre est salie.
+    /// **CHANTIER-2 — un travail en retard qui change des pixels salit la scène** (fiche 95) : une
+    /// image demandée sans rien salir n'a rien à redessiner, et un retard qui ne se refait qu'en
+    /// peignant ne retomberait jamais — Glucose redessinait à vide, jusqu'à 128 images par
+    /// seconde, quand les teintes symbiotiques des textes en avaient (elles sont parties avec
+    /// PARENTE-2, fiche 106 : l'avis de l'IA se calcule sur son fil et ne doit rien aux images).
     ///
     /// Sans ce réveil, une application immobile s'endormirait avec son chantier en plan, et le
     /// premier geste suivant paierait tout ce qui n'a pas été fait.
     fn attente_du_chantier(&mut self) -> Option<u64> {
-        let teintes = self.attente_des_teintes();
         let itineraires = self.attente_des_itineraires();
         let vignettes = self.renderer.magasin.vignettes.en_chantier() > 0;
-        if vignettes && teintes != Some(true) && itineraires != Some(true) {
+        if vignettes && itineraires != Some(true) {
             self.demander_une_image();
         }
-        (vignettes || teintes.is_some() || itineraires.is_some())
-            .then(|| self.animation_interval_ms())
+        (vignettes || itineraires.is_some()).then(|| self.animation_interval_ms())
     }
 
     /// **ITINERAIRE-2 — au repos, les itinéraires des flèches se rattrapent sans image** (fiche
-    /// 102), comme les teintes : une image montre le tout. Quand la vue bouge, les images viennent
+    /// 102), comme le faisaient les teintes (REPOS-2, fiche 98) : une image montre le tout. Quand la vue bouge, les images viennent
     /// de toute façon, et chacune refait ce que sa tranche permet.
     pub(crate) fn attente_des_itineraires(&mut self) -> Option<bool> {
         if !self.renderer.itineraires.en_retard() {
@@ -485,37 +482,6 @@ impl GlucoseApp {
             Some(true)
         } else {
             self.renderer.rattraper_les_itineraires(&self.store)
-        };
-        if image_due == Some(true) {
-            self.mark_dirty();
-        }
-        image_due
-    }
-
-    /// **REPOS-2 — au repos, les teintes se rattrapent sans image** (fiche 98).
-    ///
-    /// CHANTIER-2 faisait redessiner toute la scène tant qu'une teinte était en retard, parce
-    /// qu'une teinte ne se refaisait qu'en peignant son nœud. Sur le squelette de Wikipédia, la
-    /// peinture des membranes mangeait la tranche : une teinte par image, 290 images de 22 ms
-    /// après chaque « tout cadrer », pour quelques millisecondes de calcul. Le cache retient
-    /// désormais ce qu'il doit ; quand la vue ne bouge pas, il le paie ici, hors de toute image,
-    /// et **une** image montre le tout. Quand elle bouge, les images viennent de toute façon,
-    /// et chacune refait ce que sa tranche permet.
-    ///
-    /// `Some(true)` : une image est demandée. `Some(false)` : il reste à payer, revenir sans
-    /// image. `None` : rien n'est dû.
-    fn attente_des_teintes(&mut self) -> Option<bool> {
-        if !self.renderer.hue_cache.en_retard() {
-            return None;
-        }
-        let image_due = if self.la_vue_bouge() {
-            Some(true)
-        } else {
-            let tableau = self.store.active_board()?;
-            let renderer = &mut self.renderer;
-            renderer
-                .hue_cache
-                .rattraper(&renderer.spatial_hash, tableau, self.store.version)
         };
         if image_due == Some(true) {
             self.mark_dirty();

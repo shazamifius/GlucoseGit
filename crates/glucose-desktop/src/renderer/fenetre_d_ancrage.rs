@@ -30,9 +30,7 @@ impl Renderer {
         let Some(texte) = ann.own_text() else {
             return;
         };
-        let (_, teinte) = self
-            .hue_cache
-            .get_or_compute(ann, &self.spatial_hash, board);
+        let teinte = self.sens_des_textes.teinte(ann);
         let ecran = (pixmap.width() as f32, pixmap.height() as f32);
         let fenetre = crate::ui::ancrage::layout_ancrage(
             ancrage,
@@ -47,6 +45,7 @@ impl Renderer {
             mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
+            sens: &self.sens_des_textes,
         };
         crate::ui::ancrage::dessiner(pixmap, (&fenetre, ancrage), (&texte, teinte), kit);
     }

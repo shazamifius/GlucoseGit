@@ -8,7 +8,7 @@
 //! | Module | Passe |
 //! |---|---|
 //! | [`scale`] | l'unique mise à l'échelle monde → écran (standard § 4.4) |
-//! | [`hue`] | les teintes symbiotiques et leur invalidation |
+//! | [`sens`] | la couleur de chaque texte : ce que l'IA dit de sa parenté (PARENTE-2) |
 //! | [`domain`] | la réglette de domaines et la table de teintes qui l'alimente |
 //! | [`scene`] | grille, membranes, images, guides, boîte de sélection |
 //! | [`halo`] | les halos d'ambiance |
@@ -38,7 +38,6 @@ pub mod grille;
 pub mod halo;
 pub mod handles;
 mod hexa;
-pub mod hue;
 pub mod lecture;
 pub mod magasin;
 pub mod math;
@@ -52,6 +51,7 @@ pub mod richtext;
 mod rien_ne_se_tait_tests;
 pub mod scale;
 pub mod scene;
+pub mod sens;
 pub mod storyboard;
 mod surface;
 pub mod svg;
@@ -72,7 +72,6 @@ use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
 use glucose_core::text::Selection;
 pub(crate) use hexa::{parse_hex_color, parse_hex_rgb};
-use hue::SymbioticHueCache;
 use tiny_skia::PixmapMut;
 
 #[derive(Debug, Clone)]
@@ -129,6 +128,8 @@ pub struct PaintKit<'a> {
     pub mises_en_page: &'a card::MisesEnPage,
     pub tints: &'a DomainTints,
     pub theme: &'a Theme,
+    /// La couleur de chaque texte et la sûreté qu'elle porte (PARENTE-2).
+    pub sens: &'a sens::SensDesTextes,
 }
 
 /// La zone du monde qu'une image a cadrée, et ses rangs (PHOTO-1).
@@ -144,7 +145,8 @@ pub struct Renderer {
     /// Les mises en page des nœuds de texte, gardées d'une image à l'autre : elles ne dépendent
     /// pas du zoom (P8 bis, fiche 73 § 7).
     pub mises_en_page: card::MisesEnPage,
-    pub hue_cache: SymbioticHueCache,
+    /// Ce que l'IA dit des textes, en couleurs (PARENTE-2, fiche 106).
+    pub sens_des_textes: sens::SensDesTextes,
     /// Combien de nœuds la dernière image a retenus à l'écran (CHARGE-1).
     pub noeuds_visibles: usize,
     /// Combien de requêtes spatiales ont été faites : une par image sur la voie graphique (PHOTO-1).
@@ -209,7 +211,7 @@ impl Renderer {
             typography: Typography::new(),
             math: math::MathRenderer::new(),
             mises_en_page: Default::default(),
-            hue_cache: SymbioticHueCache::new(),
+            sens_des_textes: Default::default(),
             noeuds_visibles: 0,
             requetes_spatiales: 0,
             lot: voies::Lot::default(),
@@ -292,11 +294,7 @@ impl Renderer {
         crate::perf::stage("recolte");
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");
-        if let Some(board) = store.active_board() {
-            self.hue_cache.suivre(store.version, &board.id);
-        }
         self.itineraires.ouvrir_la_tranche();
-        crate::perf::stage("hues");
         self.sync_spatial_index(store);
         crate::perf::stage("index");
     }
@@ -425,6 +423,7 @@ impl Renderer {
             mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
+            sens: &self.sens_des_textes,
         }
     }
 
@@ -459,6 +458,7 @@ impl Renderer {
             mises_en_page: &self.mises_en_page,
             tints: &self.domain_tints,
             theme: &self.theme,
+            sens: &self.sens_des_textes,
         };
 
         let mut encre = false;
@@ -493,13 +493,7 @@ impl Renderer {
         }
 
         if cadrage.couche.porte_le_dessus() {
-            dessiner_sur_les_photos(
-                &mut self.hue_cache,
-                pixmap,
-                (store, pass, kit),
-                (ui, overlay),
-                cadrage,
-            );
+            dessiner_sur_les_photos(pixmap, (store, pass, kit), (ui, overlay), cadrage);
             // Le dessus porte toujours la chrome, donc toujours de l'encre.
             encre = true;
         }

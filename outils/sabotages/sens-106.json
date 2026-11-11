@@ -1,0 +1,531 @@
+[
+ {
+  "nom": "Un rang ne se vérifie pas",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "        if juste && spatial_index.rang_de(id) != Some(r as u32) {",
+  "apres": "        if juste && false && spatial_index.rang_de(id) != Some(r as u32) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite"
+  ]
+ },
+ {
+  "nom": "Les longueurs ne se comparent pas",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "    if spatial_index.longueurs()[..2] != [n_images, input.annotations.len()] {",
+  "apres": "    if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite"
+  ]
+ },
+ {
+  "nom": "La bande du titre reprend trente",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "            let bande = crate::membrane_titre::elevation(w, h);",
+  "apres": "            let bande = 30.0 * crate::membrane_titre::echelle(w, h);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite"
+  ]
+ },
+ {
+  "nom": "La présence se tait trop tôt",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "    if lecture <= PLANCHER {",
+  "apres": "    if lecture <= 1.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_4",
+   "survol_2"
+  ]
+ },
+ {
+  "nom": "Les accents restent",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "        retirer_les_marques(c, &mut sans_accent);",
+  "apres": "        sans_accent.push(c);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Les minuscules à la mode de Python",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "        minuscules.extend(c.to_lowercase());",
+  "apres": "        minuscules.push_str(&c.to_string());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "La ponctuation se colle aux mots",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "            if est_ponctuation(c) {",
+  "apres": "            if c == '\\u{1}' {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le plus court morceau d'abord",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "        let trouve = (debut + 1..=n).rev().find_map(|fin| {",
+  "apres": "        let trouve = (debut + 1..=n).find_map(|fin| {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Un mot inachevé garde ses morceaux",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "            rangs.truncate(premier);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Les syllabes coréennes restent entières",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "    if let Some(jamos) = decomposer_un_hangul(o) {",
+  "apres": "    if let Some(jamos) = decomposer_un_hangul(o).filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le sens n'est pas ramené à 1",
+  "fichier": "crates/glucose-core/src/sens.rs",
+  "avant": "        (norme > 0.0).then(|| somme.into_iter().map(|x| x / norme).collect())",
+  "apres": "        (norme > 0.0).then_some(somme)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le seuil à un écart-type",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "const ECARTS_TYPES: f64 = 2.0;",
+  "apres": "const ECARTS_TYPES: f64 = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "La liaison simple au lieu de la moyenne",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "            let r = (ta * m[a * n + k] + tb * m[b * n + k]) / (ta + tb);",
+  "apres": "            let r = m[a * n + k].max(m[b * n + k]);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Un texte seul fait une famille",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "            if compte[r] < 2 {",
+  "apres": "            if compte[r] < 1 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Les familles en rang sur le cercle",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "    let ordre = ordre_circulaire(f, &w);",
+  "apres": "    let ordre: Vec<usize> = (0..f).collect();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Tout ce qui fusionne s'unit",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "        if meilleure > seuil {",
+  "apres": "        if meilleure > f32::NEG_INFINITY {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le hasard par la moyenne et l'écart-type",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "        let ecart = la_mediane(paires)? * MAD_VERS_ECART_TYPE;",
+  "apres": "        let ecart = la_mediane(paires)?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "La médiane ne se lit pas : le hasard à zéro",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "        let mediane = la_mediane(paires)?;",
+  "apres": "        let mediane = la_mediane(paires).map(|_| 0.0)?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Šidák oublié : la chance d'une seule paire",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "        -((comparaisons as f64) * (-queue).ln_1p()).exp_m1()",
+  "apres": "        queue + 0.0 * comparaisons as f64",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Efron oublié : la sûreté est la chance retournée",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "    let surete = efron(&chances);",
+  "apres": "    let surete: Vec<f32> = chances.iter().map(|p| (1.0 - p) as f32).collect();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le majorant n'est pas concave",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "            if (b.1 - a.1) * (p.0 - a.0) <= (p.1 - a.1) * (b.0 - a.0) {",
+  "apres": "            if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le cercle ne se retourne jamais",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "            Some(&f) if (self.teintes[f] - depart).rem_euclid(TAU) > PI => -1.0,",
+  "apres": "            Some(&f) if (self.teintes[f] - depart).rem_euclid(TAU) > TAU => -1.0,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le cercle ne tourne pas vers l'origine",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "            *t = (origine + sens * (*t - depart)).rem_euclid(TAU);",
+  "apres": "            *t = (sens * *t).rem_euclid(TAU);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "erfc perd sa queue",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": "    let r = t * (-z * z + poly).exp();",
+  "apres": "    let r = t * (-z * z).exp();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "sens::"
+  ]
+ },
+ {
+  "nom": "Le cercle des teintes ne se resserre pas",
+  "fichier": "crates/glucose-core/src/couleur/ecran.rs",
+  "avant": "        bord((a + b) / 2.0).min(bord(f64::from(creux) * degre))",
+  "apres": "        bord(f64::from(creux) * degre) + 0.0 * (a + b)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "couleur::"
+  ]
+ },
+ {
+  "nom": "La couleur choisie ne passe plus devant",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "super::parse_hex_rgb(c),",
+  "apres": "super::parse_hex_rgb(c).filter(|_| false),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1"
+  ]
+ },
+ {
+  "nom": "Un texte seul n'est pas gris",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "                let couleur = a.teinte.map_or(self.gris, |t| {",
+  "apres": "                let couleur = a.teinte.map_or((0, 0, 0), |t| {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1"
+  ]
+ },
+ {
+  "nom": "La famille d'origine ne prend pas le bleu",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "                        h: (t + bleu.h).rem_euclid(std::f64::consts::TAU),",
+  "apres": "                        h: t.rem_euclid(std::f64::consts::TAU),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1"
+  ]
+ },
+ {
+  "nom": "La clarté n'est pas celle du gris neutre",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "                        l: bleu.l,",
+  "apres": "                        l: 0.6,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1"
+  ]
+ },
+ {
+  "nom": "Un déplacement relance la parenté",
+  "fichier": "crates/glucose-desktop/src/parente.rs",
+  "avant": "        if self.empreinte == empreinte {\n            return None;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1"
+  ]
+ },
+ {
+  "nom": "La mémoire n'a pas de règle",
+  "fichier": "crates/glucose-desktop/src/parente.rs",
+  "avant": "    libre.is_none_or(|l| besoin <= l)",
+  "apres": "    libre.is_none_or(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1"
+  ]
+ },
+ {
+  "nom": "L'opacité ne dit pas la sûreté",
+  "fichier": "crates/glucose-desktop/src/renderer/halo.rs",
+  "avant": "        let repos = bloc + (sure - bloc) * surete.clamp(0.0, 1.0);",
+  "apres": "        let repos = sure + 0.0 * bloc * surete;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1",
+   "lueur"
+  ]
+ },
+ {
+  "nom": "La lueur du bloc s'éteint",
+  "fichier": "crates/glucose-desktop/src/renderer/halo.rs",
+  "avant": "        let (bloc, sure) = (f32::from(LUEUR_DU_BLOC), f32::from(HALO_ALPHA));",
+  "apres": "        let (bloc, sure) = (0.0, f32::from(HALO_ALPHA));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1",
+   "lueur"
+  ]
+ },
+ {
+  "nom": "La vivacité ne suit pas la sûreté",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "                        c: vivacite * f64::from(a.surete.clamp(0.0, 1.0)),",
+  "apres": "                        c: vivacite,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_2",
+   "couleur_4",
+   "papier_1",
+   "lueur"
+  ]
+ }
+]

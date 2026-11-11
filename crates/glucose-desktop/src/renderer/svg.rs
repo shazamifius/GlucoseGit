@@ -112,8 +112,8 @@ impl Svg {
         self.poser(&e);
     }
 
-    /// **Une lueur** : ce rectangle arrondi, de cette teinte, flouté d'une gaussienne
-    /// d'écart-type `sigma` — l'ombre de boîte de Glucose Tauri, exactement (HALO-1).
+    /// **Une lueur** : ce rectangle, de cette teinte, flouté d'une gaussienne d'écart-type
+    /// `sigma` — l'ombre séparable que le canevas peint, exactement (HALO-1).
     ///
     /// **La région du filtre est la boîte élargie de `portee`** — la distance au-delà de
     /// laquelle cette lueur ne change plus aucun niveau ([`super::halo::portee_du_flou`],
@@ -123,7 +123,6 @@ impl Svg {
     pub fn lueur(
         &mut self,
         (x, y, l, h): (f32, f32, f32, f32),
-        rayon: f32,
         (teinte, alpha): (&str, f32),
         (sigma, portee): (f32, f32),
     ) {
@@ -137,8 +136,8 @@ impl Svg {
             n(sigma)
         ));
         self.poser(&format!(
-            r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="{teinte}" fill-opacity="{}" filter="url(#{nom})"/>"#,
-            n(x), n(y), n(l), n(h), n(rayon_tenu(rayon, (l, h))), n(alpha)
+            r#"<rect x="{}" y="{}" width="{}" height="{}" fill="{teinte}" fill-opacity="{}" filter="url(#{nom})"/>"#,
+            n(x), n(y), n(l), n(h), n(alpha)
         ));
     }
 

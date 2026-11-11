@@ -231,8 +231,8 @@ impl Store {
     /// **COULEUR-1 — colorer chaque nœud nommé** (fiche 98), ou lui rendre sa couleur par
     /// défaut (`None`). Ce que « sa couleur » veut dire dépend de la sorte, et seul le noyau le
     /// sait : le papier d'un post-it (Glucose Tauri changeait son fond, `bgColor`), la teinte
-    /// d'une membrane, la teinte d'un texte (qui l'emporte sur sa teinte symbiotique). Ce qui ne se
-    /// colore pas ([`Annotation::se_colore`]) est ignoré ; rend combien ont changé.
+    /// d'une membrane, la lueur d'un texte (qui l'emporte sur celle que l'IA lui donne). Ce qui ne
+    /// se colore pas ([`Annotation::se_colore`]) est ignoré ; rend combien ont changé.
     pub fn colorer(&mut self, board_id: &str, ids: &[String], couleur: Option<&str>) -> usize {
         let voulue = couleur.map(str::to_string);
         let mut changes = 0;

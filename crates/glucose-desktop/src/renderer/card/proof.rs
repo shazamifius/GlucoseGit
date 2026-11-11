@@ -8,7 +8,6 @@
 
 use super::*;
 use crate::params::ViewPass;
-use crate::renderer::hue::SymbioticHueCache;
 use crate::renderer::pass::draw_annotations;
 use crate::renderer::PaintKit;
 use glucose_core::store::Store;
@@ -71,7 +70,6 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
         header_h: 0.0,
         densite: 1.0,
     };
-    let mut hue = SymbioticHueCache::new();
     let theme = crate::theme::Theme::dark();
     let mut tints = crate::renderer::domain::DomainTints::new();
     tints.refresh(&store, &theme);
@@ -82,9 +80,9 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
         mises_en_page: &Default::default(),
         tints: &tints,
         theme: &theme,
+        sens: &Default::default(),
     };
     draw_annotations(
-        &mut hue,
         kit,
         &mut view,
         &store,

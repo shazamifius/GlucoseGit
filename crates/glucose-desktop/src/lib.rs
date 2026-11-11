@@ -64,6 +64,7 @@ pub mod interactions;
 pub mod memoire;
 pub mod mise_a_jour;
 pub mod params;
+pub mod parente;
 pub mod perception;
 pub mod perf;
 pub mod persist;

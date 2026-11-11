@@ -264,7 +264,6 @@ fn session_a_la_phase(
 /// La carte d'essai portant `texte`, rendue avec ou sans session d'édition.
 fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> tiny_skia::Pixmap {
     use crate::params::ViewPass;
-    use crate::renderer::hue::SymbioticHueCache;
     use crate::renderer::pass::draw_annotations;
     use crate::renderer::PaintKit;
     use glucose_core::store::Store;
@@ -294,16 +293,15 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
     if let Some(b) = store.active_board() {
         index.index_board(b);
     }
-    let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
     draw_annotations(
-        &mut hue,
         PaintKit {
             typography: &typo,
             math: &math,
             mises_en_page: &Default::default(),
             tints: &tints,
             theme: &theme,
+            sens: &Default::default(),
         },
         &mut view,
         &store,

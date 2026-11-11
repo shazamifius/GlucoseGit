@@ -43,10 +43,6 @@ fn tableau(n: usize, ecart: (f64, f64)) -> Store {
 /// La médiane d'une image quand le document change à chaque image.
 fn en_changeant(store: &mut Store) -> f64 {
     let mut renderer = Renderer::new();
-    // La tranche du vrai lancement (TEINTES-1).
-    renderer.hue_cache.accorder_la_tranche(Some(
-        glucose_desktop::cadence::BUDGET_TOTAL.saturating_sub(glucose_desktop::cadence::MARGE),
-    ));
     let mut ui = UiState::new();
     let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("un tampon");
     bench::render_into(&mut renderer, &mut ui, store, &mut pixmap);

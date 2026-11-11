@@ -116,6 +116,38 @@ impl Oklch {
         dedans
     }
 
+    /// **Le plus grand cercle de teintes à cette clarté** : la plus forte chroma que **toutes** les
+    /// teintes atteignent sur l'écran — le creux du bord, que fixe le cyan aux clartés moyennes.
+    /// Des couleurs posées sur ce cercle ont toutes la même vivacité : aucune ne crie plus fort
+    /// qu'une autre parce que l'écran la montre mieux (les familles du sens, PARENTE-2, fiche 106).
+    ///
+    /// Le bord se lit une fois par degré — son creux s'étend sur des dizaines de degrés, un degré
+    /// tombe dedans —, puis la section dorée le resserre entre les deux degrés voisins jusqu'à ce
+    /// qu'il ne bouge plus d'un milliardième.
+    pub fn cercle_des_teintes(l: f64) -> f64 {
+        use std::f64::consts::TAU;
+        let bord = |h: f64| Self::chroma_maximale(l, h);
+        let degre = TAU / 360.0;
+        let creux = (0..360)
+            .map(|i| (i, bord(f64::from(i) * degre)))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map_or(0, |(i, _)| i);
+        let (mut a, mut b) = (
+            (f64::from(creux) - 1.0) * degre,
+            (f64::from(creux) + 1.0) * degre,
+        );
+        let or = (5f64.sqrt() - 1.0) / 2.0;
+        while b - a > 1e-9 {
+            let (c, d) = (b - or * (b - a), a + or * (b - a));
+            if bord(c) < bord(d) {
+                b = d;
+            } else {
+                a = c;
+            }
+        }
+        bord((a + b) / 2.0).min(bord(f64::from(creux) * degre))
+    }
+
     /// **En octets sRGB**, arrondis au plus proche.
     pub fn octets(self) -> (u8, u8, u8) {
         let [r, g, b] = self
@@ -152,6 +184,26 @@ mod tests {
 
     /// **Le bord du gamut est un bord** : à la chroma maximale, la couleur est sur l'écran ; un
     /// centième au-delà, elle en sort — pour des clartés et des teintes tirées sur tout le cercle.
+    /// **Le cercle des teintes tient tout entier dans l'écran**, et il est le plus grand : chaque
+    /// teinte y est montrable, et un cran au-delà, une teinte au moins sort de l'écran. À la clarté
+    /// du bleu de Tauri, le cyan le fixe (≈ 0,121).
+    #[test]
+    fn parente_2_le_cercle_des_teintes_est_le_plus_grand_qui_tient() {
+        let l = Oklch::des_octets((96, 165, 250)).l;
+        let c = Oklch::cercle_des_teintes(l);
+        assert!((c - 0.1213).abs() < 5e-4, "{c}");
+        let degre = std::f64::consts::TAU / 3600.0;
+        for i in 0..3600 {
+            let h = f64::from(i) * degre;
+            assert!(
+                Oklch::chroma_maximale(l, h) >= c - 1e-9,
+                "la teinte {h} sort"
+            );
+        }
+        let au_dela = (0..3600).any(|i| Oklch::chroma_maximale(l, f64::from(i) * degre) < c + 1e-4);
+        assert!(au_dela, "un cran au-delà, une teinte sort de l'écran");
+    }
+
     #[test]
     fn ecran_1_la_chroma_maximale_est_le_bord_de_l_ecran() {
         for i in 1..20 {

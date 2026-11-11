@@ -13,7 +13,7 @@ use crate::params::ViewPass;
 use crate::present::formes_gpu::{Formes, Suite, Tranche};
 use crate::present::scene_gpu::Cle;
 use crate::renderer::composants::{Composant, Pieces, Regime};
-use crate::renderer::{PaintKit, SymbioticHueCache};
+use crate::renderer::PaintKit;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::Viewport;
@@ -177,7 +177,6 @@ pub(in crate::renderer) fn poses_des_photos(
 /// en la dessinant dans sa seconde passe.
 pub(in crate::renderer) fn composants_de_texte(
     (regime, eclairages): (&Regime, &[crate::params::Eclairage]),
-    hue_cache: &mut SymbioticHueCache,
     kit: PaintKit<'_>,
     (store, pass, edition): (
         &Store,
@@ -200,7 +199,7 @@ pub(in crate::renderer) fn composants_de_texte(
         let Some((w, h)) = ann.size() else {
             continue;
         };
-        let teinte = crate::renderer::card::teinte_de_carte(hue_cache, ann, (pass.index, board));
+        let teinte = kit.sens.teinte(ann);
         // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
         // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
         let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());

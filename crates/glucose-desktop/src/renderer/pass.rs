@@ -4,7 +4,6 @@
 use super::arrow::{draw_arrow, Fleche};
 use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, TextCard};
 use super::domain::{draw_domain_gauge, DomainTints};
-use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
 use super::note::draw_sticky;
 use super::scale::WorldScale;
@@ -100,7 +99,6 @@ impl<'a> Survols<'a> {
 /// graphique pose elle-même (COMPOSANT-1) : cette passe ne dessine alors que leurs
 /// ornements — poignées, réglette — et la carte en édition, qui reste au processeur.
 pub(super) fn draw_annotations(
-    hue_cache: &mut SymbioticHueCache,
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
@@ -142,7 +140,7 @@ pub(super) fn draw_annotations(
             let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
             if editing.is_none() {
                 let autour = (papier, survols.eclairages);
-                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, None) {
+                if let Some(carte) = carte_de(kit.sens, (ann, store), autour, None) {
                     draw_card_contenu(&ctx, pixmap, carte);
                 }
             }
@@ -150,7 +148,7 @@ pub(super) fn draw_annotations(
     }
 
     let entieres = dessiner_ce_qui_passe_au_dessus(
-        hue_cache,
+        kit.sens,
         (&ctx, pixmap, (papier, survols)),
         (store, board, pass),
         (editing_session, cartes_par_la_carte),
@@ -174,7 +172,7 @@ pub(super) fn draw_annotations(
 /// `annotations` à 9,74 ms au p99 du zoom avec **zéro** texture rendue, ce qui ne s'explique
 /// que par un dessin direct ; ce compteur dit lequel, au lieu de le supposer.
 fn dessiner_ce_qui_passe_au_dessus(
-    hue_cache: &mut SymbioticHueCache,
+    sens: &super::sens::SensDesTextes,
     (ctx, pixmap, (papier, survols)): (&Pass, &mut PixmapMut, (Rgb, Survols<'_>)),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
     (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
@@ -187,7 +185,7 @@ fn dessiner_ce_qui_passe_au_dessus(
         match ann {
             Annotation::Text { x, y, .. } => {
                 let autour = (papier, survols.eclairages);
-                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, editing) {
+                if let Some(carte) = carte_de(sens, (ann, store), autour, editing) {
                     // **La carte qu'on edite est un composant comme les autres** depuis
                     // COMPOSANT-2, et seuls ses ornements restent ici -- poignees, curseur,
                     // previsualisation de formule (COMPOSANT-3). Elle ne se dessine entiere
@@ -215,7 +213,7 @@ fn dessiner_ce_qui_passe_au_dessus(
                 draw_arrow_node(
                     ctx,
                     pixmap,
-                    hue_cache,
+                    sens,
                     (ann, board, pass),
                     ((selected, lumiere), editing, !cartes_par_la_carte),
                     (survols.effacement(ann.id()), (survols.souris, liens)),
@@ -228,21 +226,17 @@ fn dessiner_ce_qui_passe_au_dessus(
 }
 
 /// Ce qu'une carte de texte montre, tel que la passe le dessine — ou `None` si ce nœud n'en
-/// est pas une.
-///
-/// La teinte symbiotique se calcule ici, et une seule fois par carte et par passe : c'est ce
-/// que `draw_annotations` faisait déjà, au même endroit du même parcours.
+/// est pas une. Sa teinte est celle que l'IA lui donne, ou celle qu'on lui a choisie (PARENTE-2).
 fn carte_de<'a>(
-    hue_cache: &mut SymbioticHueCache,
-    (ann, store, pass): (&'a Annotation, &Store, ViewPass<'_>),
+    sens: &super::sens::SensDesTextes,
+    (ann, store): (&'a Annotation, &Store),
     (papier, eclairages): (Rgb, &'a [crate::params::Eclairage]),
     editing: Option<&'a TextEditSession>,
 ) -> Option<TextCard<'a>> {
     let Annotation::Text { x, y, text, .. } = ann else {
         return None;
     };
-    let board = store.active_board()?;
-    let tint = super::card::teinte_de_carte(hue_cache, ann, (pass.index, board));
+    let tint = sens.teinte(ann);
     let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
     let (w, h) = ann.size()?;
     Some(TextCard {
@@ -284,7 +278,7 @@ fn draw_node_gauge(
 fn draw_arrow_node(
     ctx: &Pass<'_>,
     pixmap: &mut PixmapMut,
-    hue_cache: &mut SymbioticHueCache,
+    sens: &super::sens::SensDesTextes,
     (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
     ((selected, lumiere), editing, au_processeur): ((bool, bool), Option<&TextEditSession>, bool),
     (efface, (souris, liens)): (f32, (Option<(f64, f64)>, usize)),
@@ -302,12 +296,7 @@ fn draw_arrow_node(
     let lecture = pass.echelle().lecture();
     let presence =
         super::arrow::presence::presence_qui_compte(ann, noeuds, souris, (liens, lecture));
-    let Some(fleche) = Fleche::de(
-        hue_cache,
-        ann,
-        (pass, noeuds),
-        (selected, lumiere, presence),
-    ) else {
+    let Some(fleche) = Fleche::de(sens, ann, (pass, noeuds), (selected, lumiere, presence)) else {
         return;
     };
     if au_processeur {

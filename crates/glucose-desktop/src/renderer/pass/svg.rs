@@ -9,7 +9,6 @@ use crate::params::ViewPass;
 use crate::renderer::arrow::{fleche_en_svg, Fleche, NoeudsDuRendu};
 use crate::renderer::card::vecteurs::carte_en_vecteurs;
 use crate::renderer::domain::reglette;
-use crate::renderer::hue::SymbioticHueCache;
 use crate::renderer::note::svg::sticky_en_svg;
 use crate::renderer::surface::Vecteurs;
 use crate::renderer::svg::Svg;
@@ -21,7 +20,6 @@ use glucose_core::types::Annotation;
 
 /// **Écrit les annotations visibles** de la passe.
 pub(in crate::renderer) fn annotations_en_svg(
-    hue_cache: &mut SymbioticHueCache,
     (kit, store, pass): (PaintKit<'_>, &Store, ViewPass<'_>),
     taille: (u32, u32),
     svg: &mut Svg,
@@ -47,7 +45,7 @@ pub(in crate::renderer) fn annotations_en_svg(
     let papier = crate::renderer::card::papier(kit.theme);
     let visibles = || Visibles::nouvelles(pass.visibles, board).annotations();
     for ann in visibles() {
-        if let Some(carte) = carte_de(hue_cache, (ann, store, pass), (papier, &[]), None) {
+        if let Some(carte) = carte_de(kit.sens, (ann, store), (papier, &[]), None) {
             carte_en_vecteurs(&ctx, carte, svg);
         }
     }
@@ -81,7 +79,7 @@ pub(in crate::renderer) fn annotations_en_svg(
             }
             Annotation::Arrow { predicate, .. } => {
                 let Some(fleche) =
-                    Fleche::de(hue_cache, ann, (pass, noeuds), (false, false, densite))
+                    Fleche::de(kit.sens, ann, (pass, noeuds), (false, false, densite))
                 else {
                     continue;
                 };

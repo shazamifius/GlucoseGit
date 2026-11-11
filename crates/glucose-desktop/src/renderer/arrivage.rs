@@ -107,6 +107,7 @@ mod tests {
             mises_en_page: &Default::default(),
             tints: &tints,
             theme: &theme,
+            sens: &Default::default(),
         };
         let arrivages = [Arrivage {
             numero: 1,

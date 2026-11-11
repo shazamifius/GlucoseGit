@@ -28,7 +28,6 @@
 
 use super::card::{text_box, MisesEnPage, TEXT_ORIGIN};
 use super::halo::{draw_halo, HaloBox};
-use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
 use super::richtext::hit::{offset_to_x, x_du_caractere};
 use super::richtext::place::ouvrir_la_place;
@@ -431,7 +430,7 @@ pub(crate) fn peindre_une_selection(
 /// **La lueur des passages que la flèche survolée désigne**, chacun à la couleur de sa carte —
 /// ou à la sienne, s'il en porte une. Le fond, le liseré et les lettres sont déjà dans la carte.
 pub(super) fn eclairer(
-    hue_cache: &mut SymbioticHueCache,
+    sens: &super::sens::SensDesTextes,
     (typographie, math, memoire): (&Typography, &MathRenderer, &MisesEnPage),
     pixmap: &mut PixmapMut,
     (store, eclairages, pass): (&Store, &[Eclairage], ViewPass<'_>),
@@ -453,9 +452,7 @@ pub(super) fn eclairer(
         let Some((largeur, _)) = carte.size() else {
             continue;
         };
-        let teinte = eclairage
-            .teinte
-            .unwrap_or_else(|| super::card::teinte_de_carte(hue_cache, carte, (pass.index, board)));
+        let teinte = eclairage.teinte.unwrap_or_else(|| sens.teinte(carte));
         let eclaires = Eclaires {
             plages: &eclairage.plages,
             teinte,
