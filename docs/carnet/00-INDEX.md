@@ -144,6 +144,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 104 | [Les sabotages joués, les lettres d'une image, les membranes en carte](104-LES-SABOTAGES-JOUES-LES-LETTRES-D-UNE-IMAGE-LES-MEMBRANES-EN-CARTE.md) | Les 66 sabotages des fiches 102-103 tombent (deux aveugles : deux épreuves qui regardaient ailleurs) ; **LETTRES-1** : le cache des lettres (4 096) était plus petit qu'une image de la carte de Wikipédia (5 654) — il oublie désormais ce que l'image d'avant n'a pas demandé, de loin 25,5 → 15,5 ms ; les membranes en carte (la plus petite région l'emporte, une force déduite de la lecture du texte, APCA 75), en image, **à sa parole** |
 | 105 | [Les membranes en carte, le papier gris des blocs](105-LES-MEMBRANES-EN-CARTE-LE-PAPIER-GRIS-DES-BLOCS.md) | **REGION-1** : la couleur en un point est celle de la plus petite région qui le contient — le sol de chaque région (ses halos, son corps opaque, ordonnés par la surface), puis la grille et les zones, puis les frontières, sur les deux voies ; ce qu'un corps qui couvre l'écran cache ne se pose plus (au fond de « Eau », 17,6 → 7,8 ms par image, l'attente de la carte graphique 9,7 → 0,1 ms) ; la force des régions, un nombre de ressenti ancré à sa parole ; **PAPIER-1**, le papier des textes toujours gris ; **NEUTRE-1**, la membrane sans couleur grise ; la frontière « plus légère » essayée en image (une bande, un trait continu), à sa parole ; 17 sabotages sur 17 (4 aveugles réparés) |
 | 106 | [Le survol, la petite IA du sens, le halo qui dit la parenté](106-LE-SURVOL-LA-PETITE-IA-DU-SENS-LE-HALO-QUI-DIT-LA-PARENTE.md) | **SURVOL-1, SURVOL-2** : viser par les rangs de l'index, la présence des liens qui compte (8,2 → 4,9 ms) ; **SENS-1** : une IA du sens embarquée (15 Mo, sans dépendance) ; **PARENTE-1** : le hasard robuste, les familles, une sûreté sans réglage (Šidák puis Efron — la première, un centile, ne disait rien à l'œil) ; **PARENTE-2** : le halo dit la parenté, chaque bloc garde son contour gris (une image témoin a montré les blocs disparus) ; la teinte de bruit de Tauri partie, flèches comprises ; **PARENTE-3** : un agent lit la parenté ; ses mots sur la méta-compréhension ; les flèches grises, à sa parole |
+| 107 | [Les membranes à 11 %, des flèches qui ont un sens](107-LES-MEMBRANES-A-ONZE-POUR-CENT-DES-FLECHES-QUI-ONT-UN-SENS.md) | La fiche 106 finie (36 sabotages sur 36) ; **REGION-1** : le corps d'une membrane prend le voile d'une membrane seule de Tauri, 11 % au lieu de 21 — essayé à quatre forces sur ses vues, *« vraiment vraiment parfait »* ; **PARENTE-4**, prototype : l'IA juge chaque flèche (le sens d'une région, le hasard de la cible lu hors d'elle) — la première loi ne changeait aucun pixel, la deuxième doublait l'encre, la troisième (la souris ne rapproche que les liens de sens) attend sa réponse : juger aussi ses propres flèches ? |
 
 ## Les décisions — **foi**
 
@@ -164,11 +165,11 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [14](decisions/14-LE-PINCEMENT-WAYLAND-PAR-WAYLAND-CLIENT.md) le pincement sous Wayland, par `wayland-client`, déjà apporté par `winit` ·
 [15](decisions/15-LE-SENS-PAR-STATIC-SIMILARITY-MRL-MULTILINGUAL.md) le sens des textes, par `static-similarity-mrl-multilingual-v1` (une donnée embarquée, pas une caisse).
 
-La prochaine fiche porte le numéro **107**.
+La prochaine fiche porte le numéro **108**.
 
 ## Hors série — des archives, à consulter
 
-* [`lecons.md`](lecons.md) : chaque leçon payée, une par une, avec son cas (fiches 53 à 106) — rassemblées en
+* [`lecons.md`](lecons.md) : chaque leçon payée, une par une, avec son cas (fiches 53 à 107) — rassemblées en
   principes dans [MÉTHODE § 4](../METHODE.md).
 * [`ancien-pc-windows.md`](ancien-pc-windows.md) : les pièges du PC Windows (Git Bash, PowerShell, WSL,
   l'APK et le téléphone virtuel construits depuis Windows), pour le jour où une machine Windows reviendra.

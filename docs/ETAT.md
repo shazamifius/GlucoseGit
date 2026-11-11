@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 11/11/2026** (fiche 106). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 11/11/2026** (fiche 107). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -21,14 +21,16 @@
   7,8 ms par image au lieu de 17,6) ; la souris qui suit les nœuds par les rangs de l'index (SURVOL-1 et
   2, fiche 106 : sur la carte, 8,2 → 4,9 ms) ; **le halo d'un texte dit sa parenté** (PARENTE, fiche
   106 : une petite IA du sens embarquée, des familles, une sûreté ; la teinte de bruit de Tauri partie,
-  flèches comprises). **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec `main` (fiche
-  106).
+  flèches comprises) ; **les membranes deux fois plus transparentes** (le voile d'une membrane seule de
+  Tauri, 11 % — *« vraiment vraiment parfait »*, fiche 107). **Son Glucose installé** (profil Nix
+  `GlucoseGit`) : à jour avec `main` (fiche 107).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Le chantier en cours** : la carte de Wikipédia — ses cinq défauts (VISION § 7). Les membranes en carte
-  (fiche 105) et le halo de la parenté (fiche 106) sont écrits ; l'allure des frontières et les flèches
-  grises attendent sa parole. Puis les flèches de Wikipédia.
+  (fiches 105 et 107) et le halo de la parenté (fiche 106) sont écrits ; l'allure des frontières attend
+  sa parole. **Les flèches** : un prototype où l'IA juge chaque flèche (PARENTE-4, fiche 107), regardé
+  sur la carte, attend sa réponse — l'IA doit-elle juger aussi les flèches qu'il tire lui-même ?
 
 ## 2. Ce que fait Glucose Rust
 
@@ -51,14 +53,16 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 **Ce qu'il voit, ses mots du 11/11** (la carte de Wikipédia, son usage réel) — le détail dans VISION § 5 à 7 :
 
-* **pas encore lisible** : les membranes emboîtées s'empilaient en boue — **réglé sur `main`** (fiche 105),
-  pas encore à son écran ; l'allure des frontières attend sa parole ;
+* **pas encore lisible** : les membranes emboîtées s'empilaient en boue — **réglé** (fiche 105), et deux
+  fois plus transparentes (fiche 107, sa parole sur les images) ; pas encore à son écran ; l'allure des
+  frontières attend sa parole ;
 * **trop de flèches**, qui partent des blocs et non des mots, au tracé brouillon (surtout en courbe) ;
 * **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (au-dessus
   du plancher de 10 ms) ;
 * **le halo d'un texte** dit sa parenté depuis la fiche 106 — pas encore à son écran ; beaucoup de
-  flèches de la carte deviennent grises (leurs bouts n'ont pas de famille sûre), à sa parole ; sous une
-  quinzaine de textes, l'IA hésite ; la clarté (l'accessibilité) n'est pas encore lue.
+  flèches de la carte sont grises (leurs bouts n'ont pas de famille sûre) : acceptées *« seulement si
+  c'est temporaire »* ; sous une quinzaine de textes, l'IA hésite ; la clarté (l'accessibilité) n'est
+  pas encore lue.
 
 **Connus, mesurés, pas réglés** :
 
@@ -73,12 +77,13 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 122, toutes vertes au 11/11 (`cargo test --workspace`) ; clippy strict et
+* **Les épreuves** : 3 123, toutes vertes au 11/11 (`cargo test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
   (`outils/sabotages/`, un fichier par chantier) ; les derniers : 66 sur 66 (fiches 102-103), 17 sur 17
-  (REGION-1, fiche 105), 36 sur 36 (le sens et la parenté, fiche 106).
+  (REGION-1, fiche 105), 36 sur 36 (le sens et la parenté, fiche 106), 3 sur 3 (le voile des membranes,
+  fiche 107).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
   sur `aebb3f7`** (la beta 10). La CI se lance avant une publication, pas à chaque envoi.
