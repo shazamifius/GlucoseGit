@@ -370,8 +370,12 @@ pub struct Temps<'a> {
     /// Combien des textures demandées sont des photos — les premières : la pose se coupe
     /// après elles pour laisser passer les lueurs (LUEUR-3).
     pub photos: usize,
-    /// Combien passent sous la couche du dessus — photos et cartes : les suivantes sont la
-    /// chrome et les panneaux, posés après elle (PANNEAUX-1, CHROME-1).
+    /// **Les rangs des titres des membranes** (TITRE-3) : après les cartes dans la liste, posés
+    /// juste après les frontières des régions, sous la couche du dessous et les photos. Les
+    /// cartes sont entre les photos et eux.
+    pub titres: std::ops::Range<usize>,
+    /// Combien passent sous la couche du dessus — photos, cartes et titres : les suivantes sont
+    /// la chrome et les panneaux, posés après elle (PANNEAUX-1, CHROME-1).
     pub sous_le_dessus: usize,
     /// Combien passent sous le rectangle de la vue : jusqu'au fond de la minimap. Le rail, les
     /// panneaux et ce qui attend une décision viennent après (CHROME-1).
@@ -447,22 +451,31 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
     temps.fond.poser(&mut passe);
     // Le sol des régions, puis ce qui doit rester visible dans une membrane -- la grille, le
     // corps des zones d'un gabarit et des cases (PRESET-1) --, puis les frontières (REGION-1) :
-    // l'ordre du processeur. Leurs titres sont dans la couche du dessous.
+    // l'ordre du processeur.
     temps.membranes.poser_le_sol(&mut passe);
     temps.fond.poser_la_grille(&mut passe);
     temps.zones.poser(&mut passe);
     temps.membranes.poser_les_frontieres(&mut passe);
+    // Les titres des régions au-dessus de toutes leurs formes, comme le processeur les écrit ;
+    // puis la couche du dessous — les poignées, les réglettes, les titres qu'elle seule porte
+    // (TITRE-3).
+    let retenues = temps.retenues;
+    let titres = &temps.titres;
+    temps.scene.poser(
+        &mut passe,
+        retenues,
+        retenues.avant(titres.start)..retenues.avant(titres.end),
+    );
     temps
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
-    let retenues = temps.retenues;
     let cartes = retenues.avant(temps.sous_le_dessus);
     poser_une_tranche(&mut passe, &temps, (Tranche::Photos, 0..temps.photos));
     temps.lueurs.poser(&mut passe);
     poser_une_tranche(
         &mut passe,
         &temps,
-        (Tranche::Cartes, temps.photos..temps.sous_le_dessus),
+        (Tranche::Cartes, temps.photos..temps.titres.start),
     );
     // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
     // poignées qui sont dans la couche du dessus (FLECHE-2).

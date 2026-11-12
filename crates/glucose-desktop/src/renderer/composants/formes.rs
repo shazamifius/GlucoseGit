@@ -52,6 +52,9 @@ impl Composant {
                 let at = (cx as f32 - taille.0 / 2.0, cy as f32 - taille.1 / 2.0);
                 cadre_manquant_en_vecteurs(kit, &mut releve, (at, taille), (id, *rotation));
             }
+            // Un titre qui dépasserait la fenêtre ne devient pas un composant : il reste au
+            // processeur (TITRE-3). Il n'a donc jamais de formes.
+            Contenu::Titre { .. } => {}
         }
         releve.primitives
     }

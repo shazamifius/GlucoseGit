@@ -100,6 +100,7 @@ impl Passes {
             formes: &self.formes,
             suites: &confie.formes.suites,
             photos: confie.nombre_de_photos(),
+            titres: confie.rangs_des_titres(),
             sous_le_dessus: confie.sous_le_dessus(),
             sous_le_cadre: confie.sous_le_cadre(),
         }

@@ -1847,3 +1847,194 @@ fn test_lot_1_une_image_reprise_ne_touche_pas_au_magasin() {
     );
     assert_eq!(renderer.magasin.changements(), vus, "et rien n'a bougé");
 }
+
+// ── TITRE-3 : le titre d'une membrane est un composant (fiche 108) ────────────────────────
+
+/// Un document d'une membrane titrée, à cette vue — et, si on la donne, une photo blanche
+/// (centre et taille dans le monde) posée sur son titre.
+fn document_titre(
+    titre: &str,
+    (largeur, hauteur): (f64, f64),
+    vue: glucose_core::types::Viewport,
+    photo: Option<(f64, f64, f64, f64)>,
+) -> glucose_core::store::Store {
+    let mut store = glucose_core::store::Store::new("Titres");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = vue;
+    }
+    let mut m = glucose_core::types::Annotation::membrane("m", 0.0, 0.0, largeur, hauteur);
+    if let glucose_core::types::Annotation::Membrane { text, color, .. } = &mut m {
+        *text = Some(titre.to_string());
+        *color = Some("#60a5fa".to_string());
+    }
+    store.add_annotation(&board, m);
+    if let Some((x, y, l, h)) = photo {
+        let mut img = glucose_core::types::BoardImage::new("blanche", x, y, l, h);
+        let blanche = photo_d_epreuve("blanche", (64, 64), |_, _| 255);
+        img.src = Some(blanche.to_string_lossy().into_owned());
+        store.add_image(&board, img);
+    }
+    store.clear_selection();
+    store
+}
+
+/// Un pixel du bleu vif du titre : ni le canevas, ni le voile de la membrane, ni le blanc d'une
+/// photo ne l'atteignent.
+fn bleu_vif(p: &Pixmap, x: u32, y: u32) -> bool {
+    let [r, g, b, _] = pixel(p, x, y);
+    b > 170 && r < 150 && g > 110
+}
+
+/// **TITRE-3 — sur la voie graphique, la carte pose le titre, et la couche du dessous reste
+/// vide** : rien ne s'y dessine, rien ne part sur le bus. Le titre qu'on écrit, lui, y reste —
+/// sa sélection et son curseur bougent à chaque frappe —, et la carte ne le pose pas.
+#[test]
+fn test_titre_3_la_carte_pose_le_titre_et_la_couche_du_dessous_reste_vide() {
+    let taille = (800u32, 600u32);
+    let vue = glucose_core::types::Viewport {
+        x: 40.0,
+        y: 300.0,
+        scale: 1.0,
+    };
+    let store = document_titre("Hydrologie", (600.0, 250.0), vue, None);
+    let (_, dessous, _, confie) = les_deux_couches(taille, &store);
+    assert_eq!(confie.titres.len(), 1, "la carte pose le titre");
+    assert_eq!(encre(&dessous), 0, "la couche du dessous ne le peint pas");
+    assert!(
+        !confie.dessous_porte_quelque_chose,
+        "une couche du dessous vide ne part pas sur le bus"
+    );
+
+    let saisie = glucose_desktop::renderer::TextEditSession {
+        ann_id: "m".into(),
+        buffer: "Hydrologie".into(),
+        selection: glucose_core::text::Selection::at(4),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible: true,
+    };
+    let (_, dessous, _, confie) = les_deux_couches_en_editant(taille, &store, Some(&saisie));
+    assert!(
+        confie.titres.is_empty(),
+        "le titre qu'on écrit n'est pas une texture"
+    );
+    assert!(encre(&dessous) > 0, "il s'écrit dans la couche du dessous");
+}
+
+/// **TITRE-3 — une photo passe sur un titre, sur les deux voies** : les titres se posent sous les
+/// photos, juste après les frontières, comme le processeur les écrit. Le contrepoint dans la même
+/// épreuve : sans la photo, son rectangle porte bien le bleu du titre.
+#[test]
+fn test_titre_3_une_photo_passe_sur_un_titre_par_les_deux_voies() {
+    let taille = (800u32, 600u32);
+    let vue = glucose_core::types::Viewport {
+        x: 40.0,
+        y: 300.0,
+        scale: 1.0,
+    };
+    // Le titre de la loi pour cette membrane : un corps de 23 pixels, sa plume 26 pixels au-dessus
+    // du bord haut — ses lettres entre les lignes 274 et 300 de l'écran, à partir de x = 63. La
+    // photo couvre x de 60 à 200 et y de 262 à 302.
+    let membrane = (600.0, 250.0);
+    let sur_le_titre = Some((90.0, -18.0, 140.0, 40.0));
+    let (gauche, haut, droite, bas) = (63u32, 265u32, 197u32, 299u32);
+    let dans_la_photo = || (gauche..droite).flat_map(|x| (haut..bas).map(move |y| (x, y)));
+
+    let sans = document_titre("Hydrologie", membrane, vue, None);
+    let temoin = par_le_processeur(taille, &sans);
+    assert!(
+        dans_la_photo().any(|(x, y)| bleu_vif(&temoin, x, y)),
+        "sans la photo, son rectangle doit porter le titre : sinon l'épreuve ne regarde rien"
+    );
+
+    let store = document_titre("Hydrologie", membrane, vue, sur_le_titre);
+    let (renderer, dessous, dessus, confie) = les_deux_couches_decodees(taille, &store);
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.pixels(&renderer, cle),
+    )
+    .expect("la composition en cinq temps");
+    let processeur = par_le_processeur_decode(taille, &store);
+    for (nom, image) in [("processeur", &processeur), ("carte", &carte)] {
+        let bleus = dans_la_photo()
+            .filter(|&(x, y)| bleu_vif(image, x, y))
+            .count();
+        assert_eq!(
+            bleus, 0,
+            "{nom} : le titre passe sur la photo ({bleus} pixels)"
+        );
+    }
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux sur un titre sous une photo"
+    );
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+}
+
+/// Ce que la voie graphique confie pendant un zoom (`en_mouvement`), à cette vue.
+fn confie_en_zoom(
+    taille: (u32, u32),
+    store: &glucose_core::store::Store,
+    vue: glucose_core::types::Viewport,
+) -> Confie {
+    let mut store = store.clone();
+    let board = store.project.active_board_id.clone();
+    store.set_viewport(&board, vue);
+    let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    let mut renderer = Renderer::new();
+    let mut ui = UiState::new();
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    renderer.rendre_les_couches(
+        &mut dessous.as_mut(),
+        &mut dessus.as_mut(),
+        &store,
+        (&mut ui, Pointer { x: 0.0, y: 0.0 }),
+        SceneOverlay::sans_rien(&guides),
+        Regard {
+            degradation_permise: true,
+            en_mouvement: true,
+            translation_entiere: None,
+        },
+    )
+}
+
+/// **TITRE-3 — de loin, pendant un zoom, la texture d'un titre réduit garde sa clé** : le titre
+/// est ramené à la largeur de sa membrane **dans le monde**. Mesuré à l'écran, où ses lettres
+/// font moins d'un pixel et se mesurent comme d'un pixel, l'ajustement changeait avec le zoom —
+/// et la texture se refaisait à chaque image.
+#[test]
+fn test_titre_3_de_loin_un_titre_reduit_garde_sa_cle_pendant_un_zoom() {
+    let taille = (800u32, 600u32);
+    let titre = "Une très longue histoire de l'hydrologie continentale et de ses bassins versants";
+    let vue = |scale| glucose_core::types::Viewport {
+        x: 300.0,
+        y: 300.0,
+        scale,
+    };
+    let store = document_titre(titre, (4000.0, 3000.0), vue(0.004), None);
+    let cles: Vec<_> = [0.004, 0.0042]
+        .into_iter()
+        .map(|scale| {
+            let confie = confie_en_zoom(taille, &store, vue(scale));
+            assert_eq!(confie.titres.len(), 1, "à ×{scale}, la carte pose le titre");
+            confie.titres[0].cle.clone()
+        })
+        .collect();
+    assert_eq!(cles[0], cles[1], "le même palier, la même texture");
+}

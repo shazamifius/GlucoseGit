@@ -57,6 +57,10 @@
 //!   la couche du dessus, donc au-dessus de tout ; il se pose maintenant **à son rang**, et
 //!   l'écart d'ordre de la fiche 22 § 5.1 n'existe plus.
 //!
+//! * **Le titre d'une membrane** (TITRE-3, fiche 108), sauf celui qu'on écrit et celui qui
+//!   dépasserait la fenêtre : il se pose sous les photos, juste après les frontières des
+//!   régions ([`titre`]).
+//!
 //! Ce qui ne l'est pas : les **ornements** — poignées, réglette de domaines — qui sont des
 //! affordances en pixels écran, pas du contenu : ils restent dans la couche du dessus, comme
 //! pour les photos.
@@ -93,6 +97,7 @@ use tiny_skia::Pixmap;
 
 mod contenu;
 mod formes;
+pub(in crate::renderer) mod titre;
 
 use contenu::{cadre_en_chemin, Contenu};
 
@@ -516,6 +521,7 @@ impl Composant {
                     draw_card_contenu(&ctx, &mut pixmap.as_mut(), carte);
                 }
             }
+            Contenu::Titre { .. } => titre::rendre(kit, self, &mut pixmap),
             Contenu::PhotoEnChemin {
                 id,
                 taille,

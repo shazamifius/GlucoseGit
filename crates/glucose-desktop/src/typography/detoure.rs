@@ -76,6 +76,39 @@ impl Typography {
         x
     }
 
+    /// **Où une ligne détourée peut poser de l'encre** (TITRE-3, fiche 108) : la boîte
+    /// `(gauche, haut, droite, bas)` des pixels que [`Self::draw_text_with_outline`] peut
+    /// toucher, relative au point où on l'appelle — le haut du corps en `0`, sa ligne de base
+    /// en `size`.
+    ///
+    /// Lue sur les mesures de chaque lettre, plus ce que le dessin y ajoute : le détourage
+    /// ([`DETOURAGE`], ou la demi-largeur du trait d'une lettre tracée, qui ne la dépasse pas),
+    /// la cellule où une lettre tombe selon sa position (un pixel au plus), et le pixel dont une
+    /// lettre décalée de sa phase s'élargit. C'est ce que la texture d'un titre doit contenir
+    /// pour ne couper aucune encre.
+    pub fn encre_detouree(&self, text: &str, size: f32, face: Face) -> (f32, f32, f32, f32) {
+        let size = clamp_font_size(size);
+        let (mut g, mut h, mut d, mut b) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+        let mut plume = 0.0;
+        for ch in text.chars().filter(|&ch| ch != '\n') {
+            let (police, indice) = self.police(ch, face);
+            let m = police.metrics_indexed(indice, size);
+            g = g.min(plume + m.xmin as f32);
+            d = d.max(plume + m.xmin as f32 + m.width as f32);
+            h = h.min(size - (m.ymin + m.height as i32) as f32);
+            b = b.max(size - m.ymin as f32);
+            plume += m.advance_width;
+        }
+        if g > d {
+            return (0.0, 0.0, 0.0, 0.0);
+        }
+        let halo = DETOURAGE
+            .iter()
+            .fold(0.0_f32, |m, &(x, y)| m.max(x.abs()).max(y.abs()));
+        let deborde = halo + 2.0;
+        (g - deborde, h - deborde, d + deborde, b + deborde)
+    }
+
     /// **Une lettre tracée, détourée** (TITRE-2) : le trait du contour, puis la lettre — de la
     /// demi-largeur des huit copies d'une petite lettre ([`DETOURAGE`]). Rend son avance.
     fn detourer(

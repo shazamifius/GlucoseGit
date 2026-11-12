@@ -2,9 +2,10 @@
 //! qu'elle écrit.
 //!
 //! Le défaut que ces épreuves attrapent ne se voit dans aucune image isolée : il faut
-//! **deux** images. Si la seconde n'efface pas les lignes que la première avait écrites, le
-//! titre d'une membrane laisse une traînée derrière lui dès que la vue glisse — et le relevé,
-//! qui balaie ce que le tampon porte, enverrait la traînée à la carte avec le reste.
+//! **deux** images. Si la seconde n'efface pas les lignes que la première avait écrites, ce
+//! qu'elle porte — les poignées d'une membrane choisie ; son titre jusqu'à la fiche 108, que la
+//! carte pose désormais (TITRE-3) — laisse une traînée derrière lui dès que la vue glisse, et le
+//! relevé, qui balaie ce que le tampon porte, enverrait la traînée à la carte avec le reste.
 
 use super::*;
 use crate::renderer::{Confie, Regard};
@@ -60,10 +61,12 @@ fn une_image(app: &mut GlucoseApp, dessous: &mut Pixmap, precedente: &Confie) ->
 }
 
 /// **Deux images de suite laissent le dessous qu'une seule aurait laissé**, au bit près — et
-/// il ne porte que les lignes du titre, jamais l'écran entier.
+/// il ne porte que les lignes des poignées de la membrane choisie, jamais l'écran entier. Son
+/// titre, la carte le pose (TITRE-3).
 #[test]
 fn test_bande_2_le_dessous_ne_garde_rien_de_l_image_d_avant() {
     let mut app = application();
+    app.store.select_annotation("m".to_string(), false);
     regarder(&mut app, 0.0);
     let mut dessous = Pixmap::new(TAILLE.0, TAILLE.1).expect("un pixmap");
     let premiere = une_image(&mut app, &mut dessous, &Confie::default());
@@ -75,14 +78,15 @@ fn test_bande_2_le_dessous_ne_garde_rien_de_l_image_d_avant() {
         (2, 1),
         "la forme part sur la carte"
     );
+    assert_eq!(premiere.titres.len(), 1, "la carte pose le titre");
     let lignes = premiere.bandes_du_dessous.lignes();
     assert!(
         lignes > 0 && lignes * 8 < TAILLE.1,
-        "le dessous ne porte que le titre : {lignes} lignes sur {}",
+        "le dessous ne porte que les poignées : {lignes} lignes sur {}",
         TAILLE.1
     );
 
-    // La vue glisse : le titre descend de cent cinquante pixels.
+    // La vue glisse : la membrane descend de cent cinquante pixels.
     regarder(&mut app, 150.0);
     let seconde = une_image(&mut app, &mut dessous, &premiere);
 
@@ -95,7 +99,7 @@ fn test_bande_2_le_dessous_ne_garde_rien_de_l_image_d_avant() {
     assert_eq!(seconde.bandes_du_dessous, reference.bandes_du_dessous);
     assert_ne!(
         seconde.bandes_du_dessous, premiere.bandes_du_dessous,
-        "le titre a bougé : ses bandes aussi"
+        "les poignées ont bougé : leurs bandes aussi"
     );
 }
 

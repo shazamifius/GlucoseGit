@@ -23,8 +23,8 @@ pub struct Confie {
     /// restent dans la couche du dessous.
     pub zones: Vec<crate::renderer::zone::Rectangle>,
     /// **Les champs des régions** (REGION-1, MEMB-FORME-1) : leur sol, puis leurs frontières, de la
-    /// plus grande à la plus petite, ce qui ne se voit pas écarté ; leurs titres, poignées et
-    /// réglettes restent dans la couche du dessous.
+    /// plus grande à la plus petite, ce qui ne se voit pas écarté ; leurs poignées et réglettes
+    /// restent dans la couche du dessous, leurs titres sont des textures ([`Self::titres`]).
     pub membranes: glucose_core::membrane_forme::Regions,
     /// Le champ des flèches visibles, dans l'ordre du modèle (FLECHE-2) : leurs étiquettes,
     /// badges et poignées restent dans la couche du dessus.
@@ -36,6 +36,11 @@ pub struct Confie {
     /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
     /// annotations passent au-dessus (COMPOSANT-1).
     pub cartes: Vec<APoser>,
+    /// **Où chaque titre de membrane se pose** (TITRE-3, fiche 108) : sous les photos, juste
+    /// après les frontières des régions. Ils viennent après les cartes dans la liste des
+    /// textures — les photos doivent en rester les premières (LOT-1) —, et se posent à leur rang
+    /// par [`Self::rangs_des_titres`].
+    pub titres: Vec<APoser>,
     /// **Les photos de cette image sont celles que la carte tient déjà** (LOT-1) : `photos` est
     /// alors vide, et elles se posent à la similitude près.
     pub lot: Option<super::LotEnPlace>,
@@ -68,9 +73,10 @@ pub struct Confie {
     pub bandes_du_dessus: crate::present::bandes::Bandes,
     /// **Les lignes que la couche du dessous porte**, relevées de même (BANDE-2).
     ///
-    /// Depuis que la forme des membranes est sur la carte, il n'y reste que leurs titres,
-    /// poignées et réglettes, et les dossiers : quelques bandes, là où elle partait entière
-    /// dès qu'une membrane était visible — quinze mébioctets effacés et envoyés à chaque image.
+    /// Depuis que la forme des membranes est sur la carte, il n'y reste que leurs poignées et
+    /// réglettes, les titres que la carte ne pose pas (TITRE-3), et les dossiers : quelques
+    /// bandes, là où elle partait entière dès qu'une membrane était visible — quinze mébioctets
+    /// effacés et envoyés à chaque image.
     pub bandes_du_dessous: crate::present::bandes::Bandes,
     /// Le liseré du passé, quand la Time Machine en montre un : la carte le pose par-dessus
     /// tout.
@@ -104,13 +110,15 @@ pub struct APoser {
 }
 
 impl Confie {
-    /// **Tout ce que la carte pose comme texture**, dans l'ordre du modèle : les photos, puis
-    /// les cartes de texte par-dessus — puis les panneaux, qui passent après la couche du
-    /// dessus.
+    /// **Tout ce que la carte pose comme texture** : les photos, puis les cartes de texte
+    /// par-dessus, puis les titres des membranes (qui se posent, eux, sous les photos :
+    /// [`Self::rangs_des_titres`]) — puis la chrome et les panneaux, qui passent après la couche
+    /// du dessus.
     pub fn textures(&self) -> Vec<APoser> {
         self.photos
             .iter()
             .chain(&self.cartes)
+            .chain(&self.titres)
             .chain(self.chrome.sous_le_cadre())
             .chain(self.chrome.sur_le_cadre())
             .chain(&self.panneaux)
@@ -118,10 +126,31 @@ impl Confie {
             .collect()
     }
 
-    /// Combien des textures demandées passent **sous** la couche du dessus : les photos et les
-    /// cartes. Les panneaux viennent après.
+    /// Combien des textures demandées passent **sous** la couche du dessus : les photos, les
+    /// cartes et les titres. La chrome et les panneaux viennent après.
     pub fn sous_le_dessus(&self) -> usize {
-        self.nombre_de_photos() + self.cartes.len()
+        self.rangs_des_titres().end
+    }
+
+    /// **Les rangs des titres des membranes** parmi les textures demandées (TITRE-3) : après
+    /// les photos et les cartes dans la liste, posés avant les photos à l'image.
+    pub fn rangs_des_titres(&self) -> std::ops::Range<usize> {
+        let debut = self.nombre_de_photos() + self.cartes.len();
+        debut..debut + self.titres.len()
+    }
+
+    /// **Confie les titres des membranes** (TITRE-3) : leurs poses, et leurs composants, qui
+    /// savent se rendre quand la carte ne connaît pas leur clé.
+    pub fn confier_les_titres(&mut self, titres: Vec<crate::renderer::composants::Composant>) {
+        for c in titres {
+            self.titres.push(APoser {
+                cle: (&c.cle).into(),
+                identite: (&c.identite).into(),
+                pose: c.pose,
+                repli: None,
+            });
+            self.composants.push(c);
+        }
     }
 
     /// Combien de photos cette image pose, qu'elle les dise ou que la carte les tienne (LOT-1).

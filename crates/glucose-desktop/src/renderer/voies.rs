@@ -75,7 +75,8 @@ pub(super) fn dessiner_sous_les_photos(
         };
         scene::membranes::draw_membranes((kit, pixmap), (store, saisie), pass, entre)
     } else {
-        scene::membranes::draw_membrane_ornaments(kit, pixmap, (store, saisie), pass)
+        // Sur la voie graphique, la carte pose les titres qu'elle peut (TITRE-3).
+        scene::membranes::draw_membrane_ornaments(kit, pixmap, (store, saisie), (pass, true))
     };
     crate::perf::stage("membranes");
     // 4 ter. Le nom et la phrase des zones, le numéro et la description des cases du
@@ -425,6 +426,8 @@ impl Renderer {
         );
         let de_texte =
             composants_de_texte((&regime, overlay.eclairages), kit, (store, pass, edition));
+        let titres =
+            scene::membranes::titres_par_la_carte((kit, &regime), (store, edition), pass, taille);
         crate::perf::stage("composants");
         let confie = Confie {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
@@ -439,6 +442,8 @@ impl Renderer {
             // chrome se dessine APRES le renderer, donc rien de juste ne peut en etre dit ici.
             ..Confie::default()
         };
-        des_photos.puis_les_cartes(de_texte, confie)
+        let mut confie = des_photos.puis_les_cartes(de_texte, confie);
+        confie.confier_les_titres(titres);
+        confie
     }
 }

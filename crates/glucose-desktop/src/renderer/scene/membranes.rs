@@ -16,7 +16,7 @@
 //! plus petite région qui le contient. Les deux voies posent la même liste dans le même ordre —
 //! le sol de toutes les régions, puis la grille et les zones, puis toutes les frontières, puis
 //! les titres —, le processeur par [`draw_membranes`], la carte graphique par ce que
-//! [`formes_des_membranes`] lui confie.
+//! [`formes_des_membranes`] et [`titres_par_la_carte`] lui confient (TITRE-3, fiche 108).
 
 mod champs;
 mod saisie;
@@ -25,6 +25,7 @@ pub(crate) use champs::{sans_couleur, teinte_de_membrane, BLEU_DE_TAURI};
 
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
+use crate::renderer::composants::{titre, Composant, Regime};
 use crate::renderer::domain::{draw_domain_gauge, gauge_width};
 use crate::renderer::handles::draw_resize_handles;
 use crate::renderer::pass::Clip;
@@ -99,14 +100,21 @@ impl MembraneLayout {
 
 /// Une membrane que l'écran montre : ce que le document en dit, et où elle se pose.
 struct MembraneVue<'a> {
+    id: &'a str,
     /// Son titre : celui du document, ou **ce qu'on y tape** quand on l'écrit (fiche 99).
     text: Option<&'a str>,
     /// La saisie de son titre, s'il s'écrit : sa sélection et son curseur se dessinent.
     saisie: Option<&'a TextEditSession>,
     domains: &'a [glucose_core::types::DomainAssignment],
-    /// Son coin haut-gauche, à l'écran.
+    /// Son coin haut-gauche, à l'écran, et dans le monde.
     coin: (f32, f32),
+    origine: (f64, f64),
     layout: MembraneLayout,
+    /// Sa mise en page **dans le monde** : le titre s'y ajuste à la largeur, et ne change donc
+    /// pas pendant un zoom (TITRE-3).
+    monde: MembraneLayout,
+    /// L'échelle de la vue, telle que le régime des composants la lit.
+    vue: f64,
     teinte: (u8, u8, u8),
     selectionnee: bool,
     /// Choisie seule, ou avec d'autres en un groupe qui porte les poignées (fiche 53 § 10).
@@ -120,13 +128,26 @@ struct MembraneVue<'a> {
 /// La saisie en cours y remplace le titre du document, **à la source** : le titre, sa mesure, son
 /// ajustement à la largeur ne connaissent qu'un texte — celui qu'on voit.
 fn pour_chaque_membrane(
-    (store, saisie): (&Store, Option<&TextEditSession>),
+    store_et_saisie: (&Store, Option<&TextEditSession>),
     pass: ViewPass<'_>,
     taille: (f32, f32),
-    mut faire: impl FnMut(MembraneVue<'_>),
+    faire: impl FnMut(MembraneVue<'_>),
 ) {
+    membranes_visibles(store_et_saisie, pass, taille)
+        .into_iter()
+        .for_each(faire);
+}
+
+/// **Les membranes visibles**, dans l'ordre de [`pour_chaque_membrane`] : une liste qu'on
+/// parcourt plusieurs fois — les titres, puis celui qu'on écrit, puis les poignées.
+fn membranes_visibles<'a>(
+    (store, saisie): (&'a Store, Option<&'a TextEditSession>),
+    pass: ViewPass<'a>,
+    taille: (f32, f32),
+) -> Vec<MembraneVue<'a>> {
+    let mut vues = Vec::new();
     let Some(board) = store.active_board() else {
-        return;
+        return vues;
     };
     let en_groupe = store.emprise_du_groupe(&board.id).is_some();
     let scale = pass.echelle();
@@ -161,7 +182,8 @@ fn pour_chaque_membrane(
         else {
             continue;
         };
-        let layout = MembraneLayout::new(*width as f32, *height as f32).scaled(scale);
+        let monde = MembraneLayout::new(*width as f32, *height as f32);
+        let layout = monde.scaled(scale);
         let (wx, wy) = world_to_screen(*x, *y, &pass.vp);
         let coin = (wx as f32, wy as f32);
         // Le titre au-dessus du bord compte (TITRE-1) : une membrane encore sous l'écran peut y
@@ -171,18 +193,23 @@ fn pour_chaque_membrane(
             continue;
         }
         let saisie = saisie.filter(|s| s.ann_id == *id);
-        faire(MembraneVue {
+        vues.push(MembraneVue {
+            id,
             text: saisie.map_or(text.as_deref(), |s| Some(s.buffer.as_str())),
             saisie,
             domains,
             coin,
+            origine: (*x, *y),
             layout,
+            monde,
+            vue: pass.vp.scale,
             teinte: champs::teinte_de_membrane(color.as_deref()),
             selectionnee: store.selected_annotation_ids.contains(id),
             poignees: !en_groupe,
             scale,
         });
     }
+    vues
 }
 
 impl<'a> MembraneVue<'a> {
@@ -197,20 +224,71 @@ impl<'a> MembraneVue<'a> {
     ///
     /// Rend le texte, puis le corps, le retrait et l'élévation, en pixels.
     fn titre(&self, kit: PaintKit<'_>) -> Option<(&'a str, [f32; 3])> {
+        let (label, mesures) = self.titre_du_monde(kit)?;
+        Some((label, mesures.map(|v| self.scale.world(v))))
+    }
+
+    /// **Le même, en unités du monde** (TITRE-3) : l'ajustement à la largeur se mesure dans le
+    /// monde, puis passe à l'écran par la seule mise à l'échelle (SCALE-1). Mesuré à l'écran, il
+    /// variait d'un zoom à l'autre — d'un ulp, ou franchement de loin, où une lettre de moins
+    /// d'un pixel se mesure comme d'un pixel — et la texture du titre se serait refaite à
+    /// chaque image d'un zoom. Le corps du monde vaut au moins celui d'une membrane neuve.
+    fn titre_du_monde(&self, kit: PaintKit<'_>) -> Option<(&'a str, [f32; 3])> {
         // Un titre vide qu'on écrit a sa place : son curseur s'y pose avant la première lettre.
         let label = self
             .text
             .filter(|l| self.saisie.is_some() || porte_un_titre(Some(l)))?;
-        let l = &self.layout;
+        let l = &self.monde;
         let large = kit
             .typography
             .measure_text(label, l.label_font, Face::Bold)
             .0;
         let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);
-        let [corps, retrait, elevation] =
-            [l.label_font, l.label_dx, l.label_dy].map(|v| v * ajuste);
-        Some((label, [corps, retrait, elevation]))
+        Some((
+            label,
+            [l.label_font, l.label_dx, l.label_dy].map(|v| v * ajuste),
+        ))
     }
+
+    /// **Son titre se pose-t-il par la carte graphique ?** (TITRE-3) — jamais celui qu'on écrit.
+    fn titre_par_la_carte(&self, kit: PaintKit<'_>, fenetre: (u32, u32)) -> bool {
+        self.saisie.is_none()
+            && self
+                .titre_du_monde(kit)
+                .is_some_and(|(texte, [corps, ..])| {
+                    titre::titre_par_la_carte(kit, (texte, corps), self.vue, fenetre)
+                })
+    }
+}
+
+/// **Les titres que la carte graphique pose** (TITRE-3), dans l'ordre des membranes : la
+/// texture de chacun, sous les photos, juste après les frontières des régions. Ceux qu'elle ne
+/// pose pas — celui qu'on écrit, ceux qui dépasseraient la fenêtre — restent dans la couche du
+/// dessous ([`draw_membrane_ornaments`]).
+pub(in crate::renderer) fn titres_par_la_carte(
+    (kit, regime): (PaintKit<'_>, &Regime),
+    store_et_saisie: (&Store, Option<&TextEditSession>),
+    pass: ViewPass<'_>,
+    fenetre: (u32, u32),
+) -> Vec<Composant> {
+    let taille = (fenetre.0 as f32, fenetre.1 as f32);
+    membranes_visibles(store_et_saisie, pass, taille)
+        .iter()
+        .filter(|m| m.titre_par_la_carte(kit, fenetre))
+        .filter_map(|m| {
+            let (texte, mesures) = m.titre_du_monde(kit)?;
+            Some(regime.titre(
+                kit,
+                &titre::TitreDuMonde {
+                    membrane: m.id,
+                    texte,
+                    coin: m.origine,
+                    mesures,
+                    teintes: (m.teinte, kit.theme.bg_canvas),
+                },
+            ))
+        })
+        .collect()
 }
 
 /// **Les champs des régions que l'écran montre** (REGION-1), dans l'ordre où ils se posent :
@@ -315,7 +393,7 @@ pub(in crate::renderer) fn draw_membranes(
     let mut encre = peindre(pixmap, regions.sol());
     entre(pixmap);
     encre |= peindre(pixmap, regions.frontieres());
-    draw_membrane_ornaments(kit, pixmap, (store, saisie), pass) || encre
+    draw_membrane_ornaments(kit, pixmap, (store, saisie), (pass, false)) || encre
 }
 
 /// Peint des champs de membrane, dans l'ordre. Rend vrai si l'un d'eux a posé de l'encre.
@@ -329,50 +407,77 @@ fn peindre(pixmap: &mut PixmapMut, champs: &[Membrane]) -> bool {
     encre
 }
 
-/// **Ce qui reste au processeur sur les deux voies** : le titre, les poignées, la réglette des
-/// domaines. Rend vrai si quelque chose a été posé — c'est ce qui décide si la couche du
-/// dessous doit être relevée et envoyée.
+/// **Les ornements des membranes** : les titres, les poignées, les réglettes des domaines. Rend
+/// vrai si quelque chose a été posé — c'est ce qui décide si la couche du dessous doit être
+/// relevée et envoyée.
+///
+/// **Tous les titres, puis toutes les poignées et réglettes** : une affordance passe sur le
+/// contenu, et reste attrapable (ORNEMENTS-1). Le titre qu'on écrit passe **après** les autres,
+/// au-dessus, comme la carte qu'on écrit (COMPOSANT-2). `par_la_carte` : sur la voie graphique,
+/// la carte pose déjà les autres titres, sous cette couche (TITRE-3) — ils ne se dessinent pas
+/// ici, et seuls restent celui qu'on écrit et ceux qui dépasseraient la fenêtre. Ceux-là passent
+/// donc au-dessus des titres posés par la carte : le seul écart d'ordre entre les deux voies, et
+/// il ne se voit que si un titre plus grand que la fenêtre en chevauche un autre.
 pub(in crate::renderer) fn draw_membrane_ornaments(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store_et_saisie: (&Store, Option<&TextEditSession>),
-    pass: ViewPass<'_>,
+    (pass, par_la_carte): (ViewPass<'_>, bool),
 ) -> bool {
-    let taille = (pixmap.width() as f32, pixmap.height() as f32);
+    let fenetre = (pixmap.width(), pixmap.height());
+    let taille = (fenetre.0 as f32, fenetre.1 as f32);
+    let membranes = membranes_visibles(store_et_saisie, pass, taille);
     let mut encre = false;
-    pour_chaque_membrane(store_et_saisie, pass, taille, |m| {
-        encre |= poser_les_ornements(kit, pixmap, &m);
-    });
+    let ecrits = membranes.iter().filter(|m| m.saisie.is_none());
+    for m in ecrits.filter(|m| !(par_la_carte && m.titre_par_la_carte(kit, fenetre))) {
+        encre |= poser_le_titre(kit, pixmap, m);
+    }
+    for m in membranes.iter().filter(|m| m.saisie.is_some()) {
+        encre |= poser_le_titre(kit, pixmap, m);
+    }
+    for m in &membranes {
+        encre |= poser_les_poignees(kit, pixmap, m);
+    }
     encre
 }
 
-fn poser_les_ornements(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVue<'_>) -> bool {
+/// Le titre d'une membrane, détouré du fond du canevas — et, s'il s'écrit, sa sélection
+/// dessous et son curseur dessus. Rend vrai s'il a posé de l'encre.
+fn poser_le_titre(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVue<'_>) -> bool {
     let (sx, sy) = m.coin;
-    let (layout, (r, g, b)) = (m.layout, m.teinte);
-    let mut encre = !m.domains.is_empty();
-    if let Some((label, [corps, retrait, elevation])) = m.titre(kit) {
-        let titre = saisie::Titre {
-            texte: label,
-            at: (sx + retrait, sy - elevation),
-            corps,
-        };
-        let couleur = Color::from_rgba8(r, g, b, 255);
-        if let Some(s) = m.saisie {
-            saisie::surligner(kit, pixmap, titre, s);
-        }
-        let style = TextStyle {
-            size: corps,
-            color: couleur,
-            face: Face::Bold,
-        };
-        let (x, y) = titre.at;
-        kit.typography
-            .draw_text_with_outline(pixmap, label, x, y, style, kit.theme.bg_canvas);
-        if let Some(s) = m.saisie {
-            saisie::poser_le_curseur(kit, pixmap, titre, (s, m.scale, couleur));
-        }
-        encre = true;
+    let (r, g, b) = m.teinte;
+    let Some((label, [corps, retrait, elevation])) = m.titre(kit) else {
+        return false;
+    };
+    let titre = saisie::Titre {
+        texte: label,
+        at: (sx + retrait, sy - elevation),
+        corps,
+    };
+    let couleur = Color::from_rgba8(r, g, b, 255);
+    if let Some(s) = m.saisie {
+        saisie::surligner(kit, pixmap, titre, s);
     }
+    let style = TextStyle {
+        size: corps,
+        color: couleur,
+        face: Face::Bold,
+    };
+    let (x, y) = titre.at;
+    kit.typography
+        .draw_text_with_outline(pixmap, label, x, y, style, kit.theme.bg_canvas);
+    if let Some(s) = m.saisie {
+        saisie::poser_le_curseur(kit, pixmap, titre, (s, m.scale, couleur));
+    }
+    true
+}
+
+/// Les poignées d'une membrane choisie, et sa réglette de domaines. Rend vrai s'il a posé de
+/// l'encre.
+fn poser_les_poignees(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVue<'_>) -> bool {
+    let (sx, sy) = m.coin;
+    let layout = m.layout;
+    let mut encre = !m.domains.is_empty();
     if m.selectionnee && m.poignees {
         draw_resize_handles(
             pixmap,

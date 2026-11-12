@@ -1,5 +1,5 @@
-//! **Ce qu'un composant montre** : une carte de texte, ou le cadre d'une photo en chemin — et
-//! l'empreinte qui dit quand ses pixels changent.
+//! **Ce qu'un composant montre** : une carte de texte, le cadre d'une photo en chemin, ou le titre
+//! d'une membrane — et l'empreinte qui dit quand ses pixels changent.
 //!
 //! Extrait de [`super`] quand le découpage des composants plus grands que l'écran (DE-PRES-1) y
 //! est entré : six cent sept lignes là où la fiche 05 en admet six cents. La coupure tombe là
@@ -50,6 +50,19 @@ pub(super) enum Contenu {
         taille: (f64, f64),
         /// En radians, autour du centre — l'unité du modèle.
         rotation: f64,
+    },
+    /// **Le titre d'une membrane** (TITRE-3, fiche 108) : le même dessin que la voie processeur
+    /// pose en place — le texte détouré de la teinte du canevas.
+    Titre {
+        texte: String,
+        /// Son corps **dans le monde**, déjà ramené à la largeur de sa membrane (TITRE-1) : celui
+        /// de rendu s'en déduit à chaque échelle, et il ne change pas pendant un zoom — la
+        /// texture ne se refait qu'à chaque palier.
+        corps: f32,
+        /// La teinte de ses lettres : celle de sa membrane.
+        teinte: (u8, u8, u8),
+        /// La teinte de son détourage : le fond du canevas, que le mode Focus teinte.
+        contour: tiny_skia::Color,
     },
 }
 
@@ -155,6 +168,20 @@ impl Contenu {
                 taille.0.to_bits().hash(h);
                 taille.1.to_bits().hash(h);
                 rotation.to_bits().hash(h);
+            }
+            Self::Titre {
+                texte,
+                corps,
+                teinte,
+                contour,
+            } => {
+                2u8.hash(h);
+                texte.hash(h);
+                corps.to_bits().hash(h);
+                teinte.hash(h);
+                for c in [contour.red(), contour.green(), contour.blue()] {
+                    c.to_bits().hash(h);
+                }
             }
         }
     }

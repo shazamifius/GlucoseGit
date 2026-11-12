@@ -1,0 +1,173 @@
+[
+ {
+  "nom": "Les titres ni posés par la carte ni écrits",
+  "fichier": "crates/glucose-desktop/src/renderer/voies/confie.rs",
+  "avant": "        for c in titres {",
+  "apres": "        for c in titres.into_iter().take(0) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "Les titres écrits aussi dans la couche du dessous",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+  "avant": "    for m in ecrits.filter(|m| !(par_la_carte && m.titre_par_la_carte(kit, fenetre))) {",
+  "apres": "    for m in ecrits.filter(|m| par_la_carte || !m.titre_par_la_carte(kit, fenetre)) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "Les titres posés après les photos",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/present/couches.rs",
+    "avant": "    let retenues = temps.retenues;\n    let titres = &temps.titres;\n    temps.scene.poser(\n        &mut passe,\n        retenues,\n        retenues.avant(titres.start)..retenues.avant(titres.end),\n    );\n",
+    "apres": "    let retenues = temps.retenues;\n    let titres = &temps.titres;\n"
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/present/couches.rs",
+    "avant": "    poser_une_tranche(&mut passe, &temps, (Tranche::Photos, 0..temps.photos));\n",
+    "apres": "    poser_une_tranche(&mut passe, &temps, (Tranche::Photos, 0..temps.photos));\n    temps.scene.poser(\n        &mut passe,\n        retenues,\n        retenues.avant(titres.start)..retenues.avant(titres.end),\n    );\n"
+   }
+  ],
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "L'ajustement mesuré à l'écran",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+  "avant": "        let l = &self.monde;\n        let large = kit\n            .typography\n            .measure_text(label, l.label_font, Face::Bold)\n            .0;\n        let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);",
+  "apres": "        let l = &self.monde;\n        let e = &self.layout;\n        let large = kit\n            .typography\n            .measure_text(label, e.label_font, Face::Bold)\n            .0;\n        let ajuste = (e.width / (large + 2.0 * e.label_dx)).min(1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "Le titre qu'on écrit posé par la carte",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+  "avant": "        self.saisie.is_none()\n            && self\n",
+  "apres": "        self.saisie.is_none() == self.saisie.is_none()\n            && self\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "La texture sans débord (le halo, la cellule, la phase)",
+  "fichier": "crates/glucose-desktop/src/typography/detoure.rs",
+  "avant": "        let deborde = halo + 2.0;",
+  "apres": "        let deborde = 0.0 * halo;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "La texture sans la cellule ni la phase",
+  "fichier": "crates/glucose-desktop/src/typography/detoure.rs",
+  "avant": "        let deborde = halo + 2.0;",
+  "apres": "        let deborde = halo;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "Le palier oublié dans la règle",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/titre.rs",
+  "avant": "    let echelle = vue.max(palier_dyadique(vue));",
+  "apres": "    let echelle = vue.max(0.0 * palier_dyadique(vue));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "Le coin de la texture mesuré à l'échelle de la vue",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/titre.rs",
+  "avant": "                .encre_detouree(t.texte, corps_a(corps, self.echelle), Face::Bold);",
+  "apres": "                .encre_detouree(t.texte, corps_a(corps, self.vue.scale), Face::Bold);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "titre_3",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ }
+]
