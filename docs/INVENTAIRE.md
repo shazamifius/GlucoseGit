@@ -145,7 +145,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Les presets d'interface** : un preset de Glucose jamais vu, un PureRef, un Figma, un Miro — la disposition, le comportement, les couleurs, les raccourcis, les fenêtres (sa parole du 15/10, `VISION.md`) | sa vision | à concevoir | la fondation d'abord (SUITE P4), sa liste PureRef à venir |
 | **Les choix à l'utilisateur** : planche claire ou sombre, champs sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux (fiche 71) | sa parole | la question d'export, le panneau Storyboard | à faire |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
-| **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | barre d'action, panneau | noyau écrit (`timeline`), à brancher |
+| **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | `Maj+T`, la palette, le menu d'une sélection ; la réglette en bas | **dater un nœud écrit en correctif** (DATE-1, fiche 113 : la question, la pastille) ; la réglette et le filtre à faire — les dates de Tauri sont lues, jamais montrées |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it, palette, `Alt+0…4` ; une IA par `operateur=` | **faits** (fiche 98, OPERATEUR-1 et 2) — attendent son écran |
@@ -156,7 +156,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Mode zen** (`F11`) | Tauri | menu | le mode référence en fait une partie |
 | **Vidéos** | Tauri | comme les images | — |
 | **Provenance des images** (SauceNAO) | sa demande | menu d'une image | **sa clé SauceNAO** |
-| **Collaborer** | Tauri, obligatoire | bande | plus tard |
+| **Collaborer** | Tauri, obligatoire | bande | **la page attend sa parole** (fiche 113) |
 | **Plugins, IA locale** | Tauri, PLUGINS.md | panneau Plugins | plus tard — **le MCP est fait** : la porte des agents (fiche 75) |
 | **Trans-domaines** | Tauri | bande | sa définition, à sa parole |
 | **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire |
