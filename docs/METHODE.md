@@ -184,8 +184,12 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   d'avance ; annoncer la fenêtre (elle prend le focus) et le nombre **exact** de fenêtres.
 * **Sa chronique** : `/tmp/glucose-chronique/derniere-session.txt`, et son journal technique
   `~/.local/state/glucose/journal-technique/` — les **copier**, puis les lire.
-* **Son Glucose installé** : le profil Nix `GlucoseGit` ; après un envoi qui change le programme, `nix
-  profile upgrade --refresh GlucoseGit` (une grosse compilation).
+* **Son Glucose installé** : le profil Nix `GlucoseGit` ; après un envoi qui change le programme, `bash
+  outils/mettre_a_jour.sh` — `nix profile upgrade --refresh GlucoseGit` sous un chien de garde : la
+  compilation se fait dans le service de Nix, hors de `borne.sh` (fiche 110).
+* **Son mot de passe** (une commande système) : `pkexec bash <script>` ouvre la fenêtre
+  « Authentification » au milieu de l'écran ; le script commence par `source /etc/set-environment`
+  (pkexec vide l'environnement), et se simule d'abord dans `env -i`.
 
 **GitHub, la télémétrie, les autres machines**
 * **Envoyer** : `git push "https://x-access-token:$JETON@github.com/shazamifius/GlucoseGit.git" main:main`,

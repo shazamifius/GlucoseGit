@@ -61,7 +61,7 @@ GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la v
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
 bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran : clic, molette, taper, capture
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
-nix profile upgrade --refresh GlucoseGit  # son Glucose installé, après un envoi qui change le programme
+bash outils/mettre_a_jour.sh  # son Glucose installé, après un envoi qui change le programme (sous chien de garde)
 ```
 
 Cloudflare, si `tableau.mjs` dit qu'on n'est pas connecté — demander son clic, et lui donner le lien :
