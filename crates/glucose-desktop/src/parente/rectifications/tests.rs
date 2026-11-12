@@ -42,13 +42,18 @@ fn rectifications(app: &mut GlucoseApp) -> (Vec<Note>, Ouvert) {
     (notes, o)
 }
 
-/// Donne une couleur à un texte, par un geste.
-fn colorer(app: &mut GlucoseApp, board: &str, id: &str) {
+/// Donne cette couleur à un texte, par un geste.
+fn colorer_de(app: &mut GlucoseApp, board: &str, id: &str, couleur: &str) {
     app.store.update_annotation(board, id, |t| {
         if let Annotation::Text { color, .. } = t {
-            *color = Some("#e06c75".into());
+            *color = Some(couleur.into());
         }
     });
+}
+
+/// Donne la couleur de l'épreuve à un texte, par un geste.
+fn colorer(app: &mut GlucoseApp, board: &str, id: &str) {
+    colorer_de(app, board, id, "#e06c75");
 }
 
 /// **Colorer un texte que l'IA rangeait dans une famille s'écrit** : au rang de ce geste, sur ce
@@ -67,7 +72,9 @@ fn rectif_1_colorer_un_texte_de_famille_s_ecrit() {
         app.store
             .add_annotation(&board, Annotation::text(id, 0.0, 0.0, texte));
     }
-    colorer(&mut app, &board, "deja");
+    // Une autre couleur que celle qu'il recevra : un geste qui ne change rien ne s'écrit pas, et
+    // l'épreuve ne verrait plus le cas (le sabotage l'a montré, fiche 110).
+    colorer_de(&mut app, &board, "deja", "#112233");
     app.consigner();
     let a: Avis = [
         ("a", avis(Some(0), 0.9, Some("b"))),
