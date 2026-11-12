@@ -33,17 +33,16 @@ pub struct SceneReduite<'a> {
 ///
 /// **C'est un choix de ressenti, et il se juge a l'ecran**, pas sur le papier : la charte le
 /// dit de la nettete en mouvement. Il est ecrit ici pour qu'on sache ou il se defait.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Regard {
     /// L'oeil tolere-t-il qu'on abime l'image ? (voir [`crate::perception`])
     pub degradation_permise: bool,
     /// La vue bouge-t-elle encore ?
     pub en_mouvement: bool,
-    /// **Ce mouvement n'est-il qu'une translation entière de la vue du repos ?** Le décalage,
-    /// en pixels entiers, quand la vue n'a fait que glisser d'autant à la même échelle :
-    /// l'image du repos, décalée, est alors exacte, et ses textures restent les bonnes
-    /// (fiche 100).
-    pub translation_entiere: Option<(i64, i64)>,
+    /// **La vue de la dernière image au repos**, pendant un mouvement : ses textures servent
+    /// encore tant que la vue reste à moins d'une demi-octave de son échelle (REPOS-4, fiche
+    /// 109 ; la translation entière de la fiche 100 en est le cas exact).
+    pub repos: Option<glucose_core::types::Viewport>,
 }
 
 impl Regard {

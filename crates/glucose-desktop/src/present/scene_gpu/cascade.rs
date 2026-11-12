@@ -155,31 +155,56 @@ impl SceneGpu {
     }
 }
 
-/// **Ce qu'une texture coûte sur cette machine**, par pixel qu'elle couvre à l'écran : les
-/// pixels posés et le temps qu'ils ont pris, cumulés depuis le début (CASCADE-3).
+/// **Ce qu'une texture coûte sur cette machine** : un prix fixe, plus un prix par pixel qu'elle
+/// couvre à l'écran — la droite des moindres carrés sur toutes les textures rendues depuis le
+/// début (CASCADE-3, puis CASCADE-4, fiche 109).
 ///
-/// Une moyenne cumulée et non glissante : glisser demanderait une fenêtre, donc un nombre à
-/// choisir. Photos et cartes de texte y sont mêlées — la carte ne sait lesquelles elle rend
-/// qu'une fois qu'elle les a rendues ; l'erreur tient dans un facteur deux, et le rôle de la
-/// prévision est d'écarter la texture de quinze millisecondes, pas de compter au pixel.
+/// **Par pixel seulement, la prévision se trompait dans les deux sens** : le prix fixe d'une
+/// texture (préparer son tampon, la rendre, l'envoyer), réparti sur les pixels de toutes celles
+/// mesurées, gonflait le prix d'une grande texture après beaucoup de petites — de loin, sur sa
+/// carte de Wikipédia, deux cent soixante-quinze textures de quelques centaines de pixels — et
+/// sous-estimait une petite après de grandes. La droite apprend les deux prix de ce que la machine
+/// montre : aucun nombre n'est choisi. Mesuré sur le zoom de sa carte (fiche 109) : sans gain
+/// visible là, où la cascade s'arrête de toute façon au bord de son budget.
+///
+/// Cumulée et non glissante — glisser demanderait une fenêtre, donc un nombre à choisir —, tenue
+/// par les moyennes et les écarts (Welford), que de grandes sommes n'abîment pas. Photos et cartes
+/// de texte y sont mêlées : le rôle de la prévision est d'écarter la texture de quinze
+/// millisecondes et de borner la rafale, pas de compter à la microseconde.
 #[derive(Debug, Default, Clone, Copy)]
 pub(super) struct Debit {
-    pixels: u64,
-    nanos: u64,
+    n: f64,
+    /// La moyenne des pixels, et celle des durées en secondes.
+    pixels: f64,
+    duree: f64,
+    /// La somme des carrés des écarts des pixels à leur moyenne, et celle de leurs produits avec
+    /// les écarts des durées.
+    ecarts: f64,
+    ensemble: f64,
 }
 
 impl Debit {
     pub(super) fn noter(&mut self, pixels: u64, duree: Duration) {
-        self.pixels = self.pixels.saturating_add(pixels);
-        self.nanos = self
-            .nanos
-            .saturating_add(duree.as_nanos().min(u128::from(u64::MAX)) as u64);
+        let (p, t) = (pixels as f64, duree.as_secs_f64());
+        self.n += 1.0;
+        let dp = p - self.pixels;
+        self.pixels += dp / self.n;
+        self.duree += (t - self.duree) / self.n;
+        self.ecarts += dp * (p - self.pixels);
+        self.ensemble += dp * (t - self.duree);
     }
 
-    /// Ce que `pixels` coûteront, ou rien tant que rien n'est mesuré.
-    fn prevoir(&self, pixels: u64) -> Option<Duration> {
-        (self.pixels > 0).then(|| {
-            Duration::from_nanos((pixels as f64 * self.nanos as f64 / self.pixels as f64) as u64)
+    /// Ce que `pixels` coûteront, ou rien tant que rien n'est mesuré. Tant que toutes les
+    /// textures mesurées ont eu la même taille, la pente ne se lit pas : leur durée moyenne.
+    pub(super) fn prevoir(&self, pixels: u64) -> Option<Duration> {
+        (self.n > 0.0).then(|| {
+            let pente = if self.ecarts > 0.0 {
+                self.ensemble / self.ecarts
+            } else {
+                0.0
+            };
+            let t = self.duree + pente * (pixels as f64 - self.pixels);
+            Duration::from_secs_f64(t.max(0.0))
         })
     }
 }

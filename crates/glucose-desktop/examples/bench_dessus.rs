@@ -127,7 +127,7 @@ fn mesurer(cartes: usize, selection: bool) -> Empreinte {
         Regard {
             degradation_permise: false,
             en_mouvement: false,
-            translation_entiere: None,
+            repos: None,
         },
     );
     // Le relevé se mesure sur dix passes : une seule serait noyée dans le bruit de la

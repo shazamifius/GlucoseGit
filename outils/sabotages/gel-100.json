@@ -30,10 +30,10 @@
   ]
  },
  {
-  "nom": "Le regime oublie la translation entiere",
+  "nom": "Le régime oublie le repos (REPOS-4)",
   "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
-  "avant": "        let decalage = regard.translation_entiere.filter(|_| regard.en_mouvement);",
-  "apres": "        let decalage: Option<(i64, i64)> = None;",
+  "avant": ".filter(|&r| regard.en_mouvement && le_repos_sert(r, vue));",
+  "apres": ".filter(|&r| false && regard.en_mouvement && le_repos_sert(r, vue));",
   "cmd": [
    "cargo",
    "test",
@@ -41,7 +41,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "renderer::composants::tests::test_une_translation_entiere"
+   "repos_4"
   ]
  },
  {
@@ -60,10 +60,10 @@
   ]
  },
  {
-  "nom": "Le regard tait la translation entiere",
+  "nom": "Le regard tait le repos (REPOS-4)",
   "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
-  "avant": "            translation_entiere: self.translation_entiere_du_repos().filter(|_| en_mouvement),",
-  "apres": "            translation_entiere: None,",
+  "avant": "repos: self.vues.repos.filter(|_| en_mouvement),",
+  "apres": "repos: self.vues.repos.filter(|_| false && en_mouvement),",
   "cmd": [
    "cargo",
    "test",

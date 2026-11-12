@@ -97,9 +97,11 @@ use tiny_skia::Pixmap;
 
 mod contenu;
 mod formes;
+mod passage;
 pub(in crate::renderer) mod titre;
 
 use contenu::{cadre_en_chemin, Contenu};
+use passage::{le_repos_sert, VersLEcran};
 
 /// Un composant que la carte graphique posera, et tout ce qu'il faut pour le rendre **hors
 /// contexte** — sans le document, sans la vue — si sa texture manque encore.
@@ -188,11 +190,10 @@ pub(super) struct Regime {
     /// La densité de l'écran (DPI-1).
     densite: f32,
     en_mouvement: bool,
-    /// **La vue où les textures se composent, et le décalage entier qui la sépare de l'écran**
-    /// (fiche 100) : pendant une translation entière, celle du repos — chaque texture y garde
-    /// sa clé et sa phase, et se pose décalée d'un nombre entier de pixels ; sinon, la vue
-    /// elle-même et aucun décalage.
-    textures: (Viewport, (f32, f32)),
+    /// **La vue où les textures se composent, et le passage de cette vue à l'écran** (REPOS-4,
+    /// fiche 109) : en mouvement près du repos, celle du repos — chaque texture y garde sa clé et
+    /// sa phase ; sinon, la vue elle-même, et le passage ne change rien.
+    textures: (Viewport, VersLEcran),
     clip: Clip,
     ecran: (u32, u32),
 }
@@ -204,29 +205,28 @@ impl Regime {
         ecran: (u32, u32),
         header_h: f32,
     ) -> Self {
-        // **Une translation entière montre l'image du repos, décalée** (fiche 100) : chaque
-        // texture s'y compose comme au repos — même échelle, même phase, donc même clé — et se
-        // pose le nombre entier de pixels plus loin. Passer au palier dès que la souris bougeait
-        // refaisait toutes les textures visibles au premier mouvement d'un simple déplacement,
-        // et le geste commençait par un raté. La phase se lit dans la vue du repos, et non à la
-        // position décalée : en `f32`, un nœud qui franchit 256 ou 1 024 pixels changerait de
-        // pas d'arrondi, donc de phase d'un cent-millième — et de clé.
-        let decalage = regard.translation_entiere.filter(|_| regard.en_mouvement);
-        let en_mouvement = regard.en_mouvement && decalage.is_none();
-        let (dx, dy) = decalage.map_or((0.0, 0.0), |(x, y)| (x as f64, y as f64));
-        let vue_des_textures = Viewport {
-            x: vue.x - dx,
-            y: vue.y - dy,
-            ..vue
-        };
+        // **Un mouvement près du repos montre les textures du repos** (REPOS-4, fiche 109 ; la
+        // fiche 100 pour la translation entière) : chaque texture s'y compose comme au repos —
+        // même échelle, même phase, donc même clé — et la carte graphique la pose par le passage
+        // exact du repos à l'écran. Passer au palier dès que la vue bougeait refaisait toutes les
+        // textures visibles au premier mouvement, et chaque cran de molette deux fois. La phase
+        // se lit dans la vue du repos, et non à la position posée : en `f32`, un nœud qui
+        // franchit 256 ou 1 024 pixels changerait de pas d'arrondi, donc de phase d'un
+        // cent-millième — et de clé.
+        let repos = regard
+            .repos
+            .filter(|&r| regard.en_mouvement && le_repos_sert(r, vue));
+        let en_mouvement = regard.en_mouvement && repos.is_none();
+        let (vue_des_textures, passage) =
+            repos.map_or((vue, VersLEcran::RIEN), |r| (r, VersLEcran::entre(r, vue)));
         Self {
             vue,
-            textures: (vue_des_textures, (dx as f32, dy as f32)),
+            textures: (vue_des_textures, passage),
             densite,
             echelle: if en_mouvement {
                 palier_dyadique(vue.scale)
             } else {
-                vue.scale
+                vue_des_textures.scale
             },
             en_mouvement,
             clip: Clip {
@@ -238,10 +238,15 @@ impl Regime {
         }
     }
 
-    /// Le rapport entre l'échelle de la vue et celle du rendu : ce par quoi la carte
-    /// graphique agrandit la texture.
-    fn rapport(&self) -> f32 {
-        (self.vue.scale / self.echelle) as f32
+    /// Le rapport entre l'échelle de la vue des textures et celle du rendu : d'un pixel de la
+    /// texture à un pixel de la vue où elle se compose (REPOS-4).
+    fn rapport_des_textures(&self) -> f32 {
+        (self.textures.0.scale / self.echelle) as f32
+    }
+
+    /// Un point de la vue des textures, à l'écran (REPOS-4).
+    fn sur_l_ecran(&self, point: (f32, f32)) -> (f32, f32) {
+        self.textures.1.poser(point)
     }
 
     /// Où un composant de coin écran `(sx, sy)` se pose, et avec quelle phase.
@@ -274,8 +279,7 @@ impl Regime {
         let identite = format!("{prefixe}:{id}");
         let contenu = Arc::new(contenu);
         let (phase, pose) = self.phase_et_coin(coin.0, coin.1);
-        let (dx, dy) = self.textures.1;
-        let pose = (pose.0 + dx, pose.1 + dy);
+        let pose = self.sur_l_ecran(pose);
         let entier = self.assembler(
             (identite, &contenu),
             self.echelle,
@@ -291,7 +295,7 @@ impl Regime {
         Pieces {
             posee: None,
             formes: entier.en_formes(kit, self),
-            a_preparer: self.repli(&entier, (coin.0 + dx, coin.1 + dy), mesure),
+            a_preparer: self.repli(&entier, self.sur_l_ecran(coin), mesure),
         }
     }
 
@@ -398,11 +402,11 @@ impl Regime {
             .line_count();
         let vue = CardLayout::text_card(w, h, lignes)
             .scaled(WorldScale::new(self.vue.scale, self.densite));
-        // Le coin dans la vue des textures ; l'écran le voit décalé (fiche 100).
-        let ((vue_des_textures, (dx, dy)), clip) = (self.textures, self.clip);
-        let (sx, sy) = world_to_screen(x, y, &vue_des_textures);
+        // Le coin dans la vue des textures ; l'écran le voit par le passage (REPOS-4).
+        let (sx, sy) = world_to_screen(x, y, &self.textures.0);
         let (sx, sy) = (sx as f32, sy as f32);
-        if clip.rejects(sx + dx, sy + dy, vue.width, vue.height) {
+        let (ex, ey) = self.sur_l_ecran((sx, sy));
+        if self.clip.rejects(ex, ey, vue.width, vue.height) {
             return None;
         }
         let mesure = |echelle: f64| {
@@ -442,20 +446,27 @@ impl Regime {
     /// La texture est la boîte englobante du cadre **tourné** : le libellé, lui, reste droit,
     /// comme le processeur le dessine — la texture se pose donc sans angle.
     pub(super) fn photo_en_chemin(&self, kit: PaintKit<'_>, img: &BoardImage) -> Option<Pieces> {
-        let (vue_des_textures, (dx, dy)) = self.textures;
+        let vue_des_textures = self.textures.0;
         let (sx, sy) = world_to_screen(
             img.x - img.width / 2.0,
             img.y - img.height / 2.0,
             &vue_des_textures,
         );
         let (sx, sy) = (sx as f32, sy as f32);
-        let (sw, sh) = (
-            (img.width * self.vue.scale) as f32,
-            (img.height * self.vue.scale) as f32,
-        );
-        if self.clip.rejects(sx + dx, sy + dy, sw, sh) {
+        let (ex, ey) = self.sur_l_ecran((sx, sy));
+        let a_l_ecran = |l: f64, echelle: f64| (l * echelle) as f32;
+        if self.clip.rejects(
+            ex,
+            ey,
+            a_l_ecran(img.width, self.vue.scale),
+            a_l_ecran(img.height, self.vue.scale),
+        ) {
             return None;
         }
+        let (sw, sh) = (
+            a_l_ecran(img.width, vue_des_textures.scale),
+            a_l_ecran(img.height, vue_des_textures.scale),
+        );
         let taille = (img.width, img.height);
         let mesure = |echelle: f64| {
             let (_, englobante) = cadre_en_chemin(taille, img.rotation, echelle);
@@ -464,7 +475,7 @@ impl Regime {
         // Le centre de la photo à l'écran, d'où le coin de la boîte englobante se déduit. La
         // boîte est prise à l'échelle de RENDU puis ramenée à la vue, exactement comme avant
         // le découpage : les deux voies gardent le même coin, au bit près.
-        let rapport = self.rapport();
+        let rapport = self.rapport_des_textures();
         let (_, englobante) = cadre_en_chemin(taille, img.rotation, self.echelle);
         let centre = (sx + sw / 2.0, sy + sh / 2.0);
         let coin = (

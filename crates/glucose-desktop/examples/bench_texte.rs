@@ -125,7 +125,7 @@ fn jouer(
             Regard {
                 degradation_permise: false,
                 en_mouvement: true,
-                translation_entiere: None,
+                repos: None,
             },
         );
         // Ce que la carte ne connait pas se rend maintenant, comme la presentation le fait --

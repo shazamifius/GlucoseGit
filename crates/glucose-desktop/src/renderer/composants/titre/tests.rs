@@ -207,7 +207,7 @@ fn titre_3_sa_cle_ne_change_pas_pendant_un_zoom() {
     let en_zoom = Regard {
         degradation_permise: true,
         en_mouvement: true,
-        translation_entiere: None,
+        repos: None,
     };
     let cle = |scale: f64| {
         let vp = Viewport {
@@ -309,7 +309,7 @@ fn titre_3_en_mouvement_le_titre_reste_a_sa_place() {
     let en_zoom = Regard {
         degradation_permise: true,
         en_mouvement: true,
-        translation_entiere: None,
+        repos: None,
     };
     let composant = Regime::de((vp, 1.0), en_zoom, TAILLE, 0.0).titre(kit, &t);
     let texture = composant.rendre(kit).expect("une texture");

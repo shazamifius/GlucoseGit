@@ -1,0 +1,266 @@
+[
+ {
+  "nom": "Le repos ne sert jamais (toujours le palier)",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/passage.rs",
+  "avant": "(vue.scale / repos.scale).log2().abs() <= 0.5",
+  "apres": "(vue.scale / repos.scale).log2().abs() < 0.0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le repos sert même loin",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/passage.rs",
+  "avant": "(vue.scale / repos.scale).log2().abs() <= 0.5",
+  "apres": "(vue.scale / repos.scale).log2().abs() <= 5.0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le passage oublie le zoom dans son décalage",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/passage.rs",
+  "avant": "d: (vers.x - depuis.x * k, vers.y - depuis.y * k),",
+  "apres": "d: (vers.x - depuis.x, vers.y - depuis.y * k),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "La pose reste dans la vue du repos",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "        let pose = self.sur_l_ecran(pose);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "L'écran se lit dans la vue du repos (carte)",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "        let (ex, ey) = self.sur_l_ecran((sx, sy));\n        if self.clip.rejects(ex, ey, vue.width, vue.height) {",
+  "apres": "        let (ex, ey) = (sx, sy);\n        if self.clip.rejects(ex, ey, vue.width, vue.height) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "La photo en chemin mesurée à l'échelle de la vue",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "            a_l_ecran(img.width, vue_des_textures.scale),",
+  "apres": "            a_l_ecran(img.width, self.vue.scale),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "La photo en chemin ramenée par le mauvais rapport",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "        let rapport = self.rapport_des_textures();\n        let (_, englobante)",
+  "apres": "        let rapport = (self.vue.scale / self.echelle) as f32;\n        let (_, englobante)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le titre mesuré à l'échelle de la vue",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/titre.rs",
+  "avant": "let s = WorldScale::new(vue_des_textures.scale, self.densite);",
+  "apres": "let s = WorldScale::new(self.vue.scale, self.densite);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le titre ramené par le mauvais rapport",
+  "fichier": "crates/glucose-desktop/src/renderer/composants/titre.rs",
+  "avant": "let rapport = self.rapport_des_textures();",
+  "apres": "let rapport = (self.vue.scale / self.echelle) as f32;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Composé au repos, rendu à l'échelle de la vue",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": "            } else {\n                vue_des_textures.scale\n            },",
+  "apres": "            } else {\n                vue.scale\n            },",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le coût d'une texture sans sa pente",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "self.ensemble / self.ecarts",
+  "apres": "0.0 * self.ensemble / self.ecarts",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le coût d'une texture par pixel seulement",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "let t = self.duree + pente * (pixels as f64 - self.pixels);",
+  "apres": "let t = self.duree / self.pixels.max(1.0) * pixels as f64 + 0.0 * pente;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Welford écarté de sa moyenne neuve",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "self.ecarts += dp * (p - self.pixels);",
+  "apres": "self.ecarts += dp * dp;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "composants",
+   "titre",
+   "clic_molette",
+   "cascade"
+  ]
+ },
+ {
+  "nom": "Le régime oublie le repos (REPOS-4)",
+  "fichier": "crates/glucose-desktop/src/renderer/composants.rs",
+  "avant": ".filter(|&r| regard.en_mouvement && le_repos_sert(r, vue));",
+  "apres": ".filter(|&r| false && regard.en_mouvement && le_repos_sert(r, vue));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "repos_4"
+  ]
+ },
+ {
+  "nom": "Le regard tait le repos (REPOS-4)",
+  "fichier": "crates/glucose-desktop/src/app/mouvement.rs",
+  "avant": "repos: self.vues.repos.filter(|_| en_mouvement),",
+  "apres": "repos: self.vues.repos.filter(|_| false && en_mouvement),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::pan_zoom::tests::test_au_clic_molette"
+  ]
+ }
+]

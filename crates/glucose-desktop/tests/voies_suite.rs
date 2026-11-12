@@ -2009,7 +2009,7 @@ fn confie_en_zoom(
         Regard {
             degradation_permise: true,
             en_mouvement: true,
-            translation_entiere: None,
+            repos: None,
         },
     )
 }

@@ -133,7 +133,7 @@ fn couches(renderer: &mut Renderer, store: &Store, corps: &str) -> Option<Confie
         Regard {
             degradation_permise: false,
             en_mouvement: false,
-            translation_entiere: None,
+            repos: None,
         },
     );
     Some(confie)

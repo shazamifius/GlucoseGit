@@ -121,7 +121,7 @@ fn preparer(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> Option<
         Regard {
             degradation_permise: false,
             en_mouvement: false,
-            translation_entiere: None,
+            repos: None,
         },
     );
     confie.composants.first().cloned()

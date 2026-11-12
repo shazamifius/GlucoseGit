@@ -932,14 +932,14 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
 }
 
 /// **La cascade n'entame pas ce qu'elle ne finira pas** (CASCADE-3) : sur une machine qui a
-/// montré qu'un pixel posé coûte une seconde, une texture de seize pixels n'a aucune chance
-/// de tenir dans cinq millisecondes — elle attend l'image suivante, même s'il en restait
+/// montré, trois fois, qu'une texture de seize pixels coûte une seconde, la suivante n'a aucune
+/// chance de tenir dans cinq millisecondes — elle attend l'image suivante, même s'il en restait
 /// presque cinq quand on l'a regardée. La première passe toujours : c'est elle qui mesure, et
 /// une scène doit finir par se compléter.
 ///
-/// Une seconde et non une milliseconde : la première texture, mesurée pour de bon en quelques
-/// microsecondes, entre dans la moyenne — et une milliseconde semée s'y diluait assez pour
-/// laisser passer la seconde. Le débit suit ce que la machine montre, c'est voulu.
+/// Trois secondes semées : la première texture, mesurée pour de bon en quelques microsecondes,
+/// entre dans ce que la machine a montré pour seize pixels — et une seule semée s'y diluait de
+/// moitié. Le débit suit ce que la machine montre, c'est voulu.
 #[test]
 fn test_la_cascade_prevoit_avant_d_entamer() {
     let Some((peripherique, file)) = carte() else {
@@ -948,7 +948,9 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
     };
     let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
-    scene.debit.noter(1, std::time::Duration::from_secs(1));
+    for _ in 0..3 {
+        scene.debit.noter(16, std::time::Duration::from_secs(1));
+    }
     scene.ouvrir();
     let a_poser = |cle: &str| APoser {
         repli: None,
@@ -983,6 +985,31 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
         !scene.connait(&"seconde".into(), &"seconde".into()),
         "prevue bien au-dela des cinq millisecondes du budget : elle attend"
     );
+}
+
+/// **CASCADE-4 — une texture a un prix fixe** (fiche 109) : sur une machine où chaque texture
+/// coûte une milliseconde quelle que soit sa taille, une texture de quatre pixels se prévoit à
+/// une milliseconde ; une machine où le prix suit les pixels la prévoit à leur mesure. **La
+/// preuve à l'envers** : le débit par pixel seul (deux millisecondes pour 10 100 pixels) la
+/// prévoyait à 0,8 µs — de loin, deux cent soixante-quinze textures passaient pour gratuites.
+#[test]
+fn test_cascade_4_une_texture_a_un_prix_fixe() {
+    use std::time::Duration;
+    let ms = Duration::from_millis;
+    let mut fixe = super::cascade::Debit::default();
+    assert_eq!(fixe.prevoir(4), None, "rien de mesuré");
+    fixe.noter(100, ms(1));
+    fixe.noter(10_000, ms(1));
+    let prevu = fixe.prevoir(4).expect("mesuré").as_secs_f64();
+    assert!((prevu - 1e-3).abs() < 1e-9, "{prevu}");
+    let par_pixel_seul = 4.0 * 2e-3 / 10_100.0;
+    assert!(par_pixel_seul < 1e-6, "l'ancienne loi : {par_pixel_seul}");
+
+    let mut au_pixel = super::cascade::Debit::default();
+    au_pixel.noter(100, Duration::from_micros(100));
+    au_pixel.noter(10_000, ms(10));
+    let prevu = au_pixel.prevoir(4).expect("mesuré").as_secs_f64();
+    assert!((prevu - 4e-6).abs() < 1e-9, "{prevu}");
 }
 
 /// **NETTETE-1 — la cascade dit qu'elle n'a pas fini.**

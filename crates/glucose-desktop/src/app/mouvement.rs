@@ -10,8 +10,8 @@ use super::GlucoseApp;
 use tiny_skia::Pixmap;
 
 /// **Ce que la vue a été** : à l'image précédente, pour mesurer de combien elle bouge ; à la
-/// dernière image au repos, pour reconnaître un geste qui n'en est qu'une translation entière —
-/// il garde alors les textures du repos (fiche 100, [`crate::renderer::Regard::translation_entiere`]).
+/// dernière image au repos, dont un geste proche garde les textures (REPOS-4, fiche 109 ; la
+/// translation entière de la fiche 100, [`crate::renderer::Regard::repos`]).
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct VuesRetenues {
     precedente: Option<glucose_core::types::Viewport>,
@@ -256,25 +256,15 @@ impl GlucoseApp {
         self.elan.bouge() || self.vol.en_cours()
     }
 
-    /// Ce que l'oeil et la main font en ce moment, pour le rendu.
+    /// Ce que l'oeil et la main font en ce moment, pour le rendu : en mouvement, la vue du
+    /// dernier repos, dont les textures servent encore de près (REPOS-4).
     pub(crate) fn regard(&self) -> crate::renderer::Regard {
         let en_mouvement = self.la_vue_bouge();
         crate::renderer::Regard {
             degradation_permise: self.perception.autorise_a_degrader(),
             en_mouvement,
-            translation_entiere: self.translation_entiere_du_repos().filter(|_| en_mouvement),
+            repos: self.vues.repos.filter(|_| en_mouvement),
         }
-    }
-
-    /// **La vue n'est-elle qu'une translation entière de celle du repos ?** Même échelle, et
-    /// un déplacement d'un nombre entier de pixels sur chaque axe : la souris avance ainsi
-    /// (fiche 100, [`crate::interactions::elan`]).
-    fn translation_entiere_du_repos(&self) -> Option<(i64, i64)> {
-        let (repos, tableau) = (self.vues.repos?, self.store.active_board()?);
-        let vue = tableau.viewport;
-        let (dx, dy) = (vue.x - repos.x, vue.y - repos.y);
-        (vue.scale == repos.scale && dx.fract() == 0.0 && dy.fract() == 0.0)
-            .then_some((dx as i64, dy as i64))
     }
 
     /// Ce que cette image a coute decide de la finesse de la suivante.

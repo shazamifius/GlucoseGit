@@ -535,15 +535,17 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
     );
 }
 
-/// **Une translation entière garde les textures du repos ; une fraction, non** (fiche 100).
+/// **REPOS-4 — un mouvement près du repos garde ses textures** (fiches 100 et 109).
 ///
 /// Au clic molette, la vue avançait de fractions de pixel : chaque nœud changeait de phase,
 /// passait au palier du mouvement, et toutes les textures visibles se refaisaient au premier
-/// mouvement — la rafale qui faisait rater le début de chaque déplacement sur sa carte. Une
-/// vue décalée d'un nombre entier de pixels garde la clé du repos, et sa texture se pose
-/// exactement ce nombre de pixels plus loin.
+/// mouvement (fiche 100) ; à la molette, chaque cran les refaisait deux fois — au palier, puis
+/// exactes au repos (fiche 109). Près du repos, la texture du repos garde sa clé, et se pose par
+/// le passage exact du repos à l'écran : une translation entière au pixel entier près, une
+/// fraction à sa place exacte, un cran de zoom agrandie d'autant. **La preuve à l'envers** :
+/// au-delà d'une demi-octave, ou sans repos connu, le palier — une autre clé.
 #[test]
-fn test_une_translation_entiere_garde_les_textures_du_repos() {
+fn test_repos_4_un_mouvement_pres_du_repos_garde_ses_textures() {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let pose = |vp: Viewport, regard: Regard| {
@@ -557,45 +559,158 @@ fn test_une_translation_entiere_garde_les_textures_du_repos() {
             )
             .and_then(|p| p.posee)
             .expect("une carte posée");
-        (composant.cle, composant.pose.x, composant.pose.y)
+        (composant.cle, composant.pose)
     };
     let repos = Viewport {
         scale: 1.37,
         x: 20.5,
         y: 10.25,
     };
-    let (cle_du_repos, x0, y0) = pose(repos, Regard::immobile());
-    let au_clic_molette = Regard {
+    let (cle_du_repos, p0) = pose(repos, Regard::immobile());
+    let en_mouvement = Regard {
         degradation_permise: true,
         en_mouvement: true,
-        translation_entiere: Some((37, -12)),
+        repos: Some(repos),
     };
-    let decalee = Viewport {
-        x: repos.x + 37.0,
-        y: repos.y - 12.0,
-        ..repos
+    let ailleurs = |dx: f64, dy: f64, zoom: f64| Viewport {
+        scale: repos.scale * zoom,
+        x: repos.x + dx,
+        y: repos.y + dy,
     };
-    let (cle, x1, y1) = pose(decalee, au_clic_molette);
-    assert_eq!(cle, cle_du_repos, "la texture du repos reste la bonne");
+    let (cle, p) = pose(ailleurs(37.0, -12.0, 1.0), en_mouvement);
+    assert_eq!(cle, cle_du_repos, "une translation entière");
     assert_eq!(
-        (x1 - x0, y1 - y0),
-        (37.0, -12.0),
+        (p.x - p0.x, p.y - p0.y, p.largeur),
+        (37.0, -12.0, p0.largeur),
         "posée au pixel entier près"
     );
+    let (cle, p) = pose(ailleurs(0.5, 0.0, 1.0), en_mouvement);
+    assert_eq!(cle, cle_du_repos, "une fraction");
+    assert!((p.x - p0.x - 0.5).abs() < 1e-4, "{} pour {}", p.x, p0.x);
+    // Un cran de molette : le monde garde sa place sous le point fixe du zoom.
+    let zoom = 1.25;
+    let vue = ailleurs(-40.0, -30.0, zoom);
+    let (cle, p) = pose(vue, en_mouvement);
+    assert_eq!(cle, cle_du_repos, "un cran de zoom");
+    let monde = (
+        (p0.x as f64 - repos.x) / repos.scale,
+        (p0.y as f64 - repos.y) / repos.scale,
+    );
+    let attendu = (monde.0 * vue.scale + vue.x, monde.1 * vue.scale + vue.y);
+    assert!(
+        (f64::from(p.x) - attendu.0).abs() < 1e-3 && (f64::from(p.y) - attendu.1).abs() < 1e-3,
+        "le coin du repos, vu d'ici : {:?} pour {attendu:?}",
+        (p.x, p.y)
+    );
+    assert!((p.largeur - p0.largeur * zoom as f32).abs() < 1e-3);
 
-    let en_fractions = Regard {
-        translation_entiere: None,
-        ..au_clic_molette
+    // Hors de l'écran du repos, à l'écran maintenant : il se pose — l'écran se lit à l'écran.
+    let hors_du_repos = |vp: Viewport, regard: Regard| {
+        Regime::de((vp, 1.0), regard, (500, 300), 0.0)
+            .carte(
+                kit,
+                "u",
+                (400.0, 40.7, 240.0, 60.0),
+                ("Un texte qui entre", (96, 165, 250)),
+                (None, None),
+            )
+            .is_some()
     };
-    let (cle, ..) = pose(
-        Viewport {
-            x: repos.x + 0.5,
-            ..repos
-        },
-        en_fractions,
+    assert!(
+        !hors_du_repos(repos, Regard::immobile()),
+        "hors de l'écran au repos"
     );
-    assert_ne!(
-        cle, cle_du_repos,
-        "une fraction passe au palier du mouvement"
+    assert!(
+        hors_du_repos(ailleurs(-200.0, 0.0, 1.0), en_mouvement),
+        "à l'écran après le geste"
     );
+
+    let (loin, _) = pose(ailleurs(0.0, 0.0, 1.5), en_mouvement);
+    let sans_repos = Regard {
+        repos: None,
+        ..en_mouvement
+    };
+    let (inconnu, _) = pose(ailleurs(0.5, 0.0, 1.0), sans_repos);
+    assert!(
+        loin != cle_du_repos && inconnu != cle_du_repos,
+        "au-delà d'une demi-octave, ou sans repos : le palier"
+    );
+}
+
+/// **REPOS-4 — chaque sorte de composant se pose par le passage exact** (fiche 109) : une carte, le
+/// titre d'une membrane et une photo en chemin calculent chacun leur coin ; pendant un cran de zoom
+/// près du repos, chacun garde la clé du repos, et son coin et sa taille à l'écran sont ceux du
+/// repos vus d'ici — `(repos − vue du repos) / échelle du repos × échelle + vue`.
+#[test]
+fn test_repos_4_chaque_composant_se_pose_par_le_passage_exact() {
+    let renderer = Renderer::new();
+    let kit = renderer.kit();
+    let repos = Viewport {
+        scale: 0.83,
+        x: 31.4,
+        y: -12.6,
+    };
+    let vue = Viewport {
+        scale: 0.83 * 1.3,
+        x: -55.2,
+        y: 4.1,
+    };
+    let en_mouvement = Regard {
+        degradation_permise: true,
+        en_mouvement: true,
+        repos: Some(repos),
+    };
+    let img = BoardImage::new("p".to_string(), 150.3, 100.7, 180.0, 120.0);
+    let titre = titre::TitreDuMonde {
+        membrane: "m",
+        texte: "Hydrologie",
+        coin: (100.3, 260.7),
+        mesures: [20.0, 20.0, 22.5],
+        teintes: (
+            (96, 165, 250),
+            tiny_skia::Color::from_rgba8(18, 18, 20, 255),
+        ),
+    };
+    let composants = |vp: Viewport, regard: Regard| {
+        let regime = Regime::de((vp, 1.0), regard, (2400, 1200), 0.0);
+        let carte = regime.carte(
+            kit,
+            "t",
+            (60.3, 40.7, 240.0, 60.0),
+            ("Un texte", (96, 165, 250)),
+            (None, None),
+        );
+        let photo = regime.photo_en_chemin(kit, &img);
+        [
+            carte.and_then(|p| p.posee).expect("la carte"),
+            regime.titre(kit, &titre),
+            photo.and_then(|p| p.posee).expect("la photo en chemin"),
+        ]
+    };
+    let k = vue.scale / repos.scale;
+    for (a, b) in composants(repos, Regard::immobile())
+        .iter()
+        .zip(&composants(vue, en_mouvement))
+    {
+        assert_eq!(a.cle, b.cle, "{} : la clé du repos", a.identite);
+        let vu_d_ici = |x: f32, origine: f64, fin: f64| {
+            (f64::from(x) - origine) / repos.scale * vue.scale + fin
+        };
+        let attendu = (
+            vu_d_ici(a.pose.x, repos.x, vue.x),
+            vu_d_ici(a.pose.y, repos.y, vue.y),
+        );
+        assert!(
+            (f64::from(b.pose.x) - attendu.0).abs() < 1e-3
+                && (f64::from(b.pose.y) - attendu.1).abs() < 1e-3,
+            "{} : {:?} pour {attendu:?}",
+            a.identite,
+            (b.pose.x, b.pose.y)
+        );
+        assert!(
+            (f64::from(b.pose.largeur) - f64::from(a.pose.largeur) * k).abs() < 1e-3,
+            "{} : agrandie d'autant",
+            a.identite
+        );
+    }
 }

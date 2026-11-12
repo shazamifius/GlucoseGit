@@ -83,19 +83,19 @@ impl Regime {
     ///
     /// Sa plume tombe là où la voie processeur l'écrit — le coin de la membrane, plus son
     /// retrait, moins son élévation, par la même mise à l'échelle (SCALE-1) — dans la vue des
-    /// textures, décalée comme une carte pendant une translation entière (fiche 100). Le coin
+    /// textures, posée comme une carte par le passage à l'écran (REPOS-4, fiche 109). Le coin
     /// de la texture est celui de son encre mesurée **à l'échelle de rendu**, ramenée à la vue :
     /// en mouvement, la plume reste exactement à sa place.
     pub(in crate::renderer) fn titre(&self, kit: PaintKit<'_>, t: &TitreDuMonde<'_>) -> Composant {
-        let s = WorldScale::new(self.vue.scale, self.densite);
-        let (vue_des_textures, (dx, dy)) = self.textures;
+        let vue_des_textures = self.textures.0;
+        let s = WorldScale::new(vue_des_textures.scale, self.densite);
         let (sx, sy) = world_to_screen(t.coin.0, t.coin.1, &vue_des_textures);
         let [corps, retrait, elevation] = t.mesures;
         let plume = (sx as f32 + s.world(retrait), sy as f32 - s.world(elevation));
         let (g, h, d, b) =
             kit.typography
                 .encre_detouree(t.texte, corps_a(corps, self.echelle), Face::Bold);
-        let rapport = self.rapport();
+        let rapport = self.rapport_des_textures();
         let (phase, pose) = self.phase_et_coin(plume.0 + g * rapport, plume.1 + h * rapport);
         let contenu = Arc::new(Contenu::Titre {
             texte: t.texte.to_string(),
@@ -106,7 +106,7 @@ impl Regime {
         self.assembler(
             (format!("titre:{}", t.membrane), &contenu),
             self.echelle,
-            (phase, (pose.0 + dx, pose.1 + dy)),
+            (phase, self.sur_l_ecran(pose)),
             (d - g, b - h, 0.0),
         )
     }
