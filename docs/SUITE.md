@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 11/11/2026** (fiche 107). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 12/11/2026** (fiches 108-109). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -25,15 +25,16 @@ vraies (la ligne d'arrivée proposée le 25/10, à remettre en question) :
 5. l'ergonomie : le preset de Glucose et l'interface du téléphone, jugés par lui ;
 6. toutes les machines qu'on peut servir sans argent.
 
-## 2. Maintenant, dans l'ordre — ses paroles du 11/11
+## 2. Maintenant, dans l'ordre — ses paroles du 11 et du 12/11
 
 | | chantier | fini quand |
 |---|---|---|
-| [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; leur corps deux fois plus transparent (11 %, le voile d'une membrane seule de Tauri : *« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (le trait continu, qui ferait partir le pointillé de toutes les membranes : https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
-| [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte ; sa parole : les flèches grises *« seulement si c'est temporaire »*, et les membranes plus transparentes (fait, fiche 107). Reste **son écran**. **Ensuite, à concevoir avec lui** : sa couleur et ce que l'IA en apprend — la méta-compréhension (VISION § 8 bis : l'IA aide, l'humain corrige, l'IA enregistre et apprend), une page de conception d'abord ; la recherche est rangée dans `~/.cache/glucose-bancs/membranes-107/recherche-meta.md` | son écran ; la page de conception |
-| [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4, prototype** (fiche 107) — l'IA juge chaque flèche (le sens d'une région, le hasard de la cible hors d'elle) ; la souris ne rapproche que les flèches de sens. Sauvé : `~/.cache/glucose-bancs/fleches-107/prototype-parente-4.patch` (sur `5e48642`). **Attend sa réponse** (https://claude.ai/artifact/M5YZbYFWmwH3jScdcKwWws) : l'IA juge-t-elle aussi les flèches qu'il tire lui-même ? (défaut proposé : non — retenir qui a posé chaque flèche). Puis : une couleur qui dit quelque chose, partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | sa réponse, puis à son écran, sur la carte de Wikipédia |
-| [~] | **Son lag** (*« pour ce qui est capital et nécessaire, il faut pouvoir optimiser »*) : **remesuré et profilé** (fiche 107 § 4 bis) — de loin, 15 à 20 ms l'image ; les titres des membranes redessinés au processeur à chaque image (26 %), le tracé des flèches calculé deux fois (21 %), l'envoi de la couche du processeur (9 %), des conversions de couleur (5 %). **Commencé** (pas commité) : une flèche sans ornement ne se recalcule plus (`renderer/pass.rs`, à éprouver en entier et saboter). **Ensuite** : les titres des membranes par la carte graphique (des composants), l'ordre des couches à garder | sa chronique sous 10 ms au 99ᵉ centile, sur sa carte |
-| [ ] | **Les liens bleus des textes** : contraste APCA 52, sous 60 (fiche 104) — la même teinte, à la clarté qui se lit ; après le fond gris | mesuré, regardé |
+| [~] | **Son lag au zoom** (*« pour ce qui est capital et nécessaire, il faut pouvoir optimiser »*) : REPOS-4 (fiche 109) — une image du mouvement 19-21 → 4-5 ms. **Reste** l'image de netteté après chaque cran (≈ 20 ms : la cascade remplit la période de l'écran, puis l'envoi à la carte graphique déborde la marge fixe de 0,3 ms — fiche 109 § 2, deux pistes). Ensuite, le tracé des flèches pour la carte graphique (2,5 ms de loin) | de loin, sous 10 ms au 99ᵉ centile, zoom compris, mesuré en paires |
+| [ ] | **Le cercle de l'IA, sur la Time Machine** (VISION § 8 bis ; la page : https://claude.ai/artifact/8WJTkJLvv7HvDDrJMng7CL, sa réponse : tout accepté) : la Time Machine signe chaque geste et porte des écrits (fiche 108). **La première marche**, conçue dans la fiche 109 § 3 (RECTIF-1, pas encore écrite) : le journal des rectifications — quand il recolore un texte que l'IA avait coloré, ou suit, garde ou retouche une flèche qu'elle avait éteinte, Glucose écrit lui-même l'écrit de la correction ; l'IA s'en souvient sur ce document (D1) ; elle dit **pourquoi** elle a proposé (B3). Pas encore d'apprentissage : regarder d'abord ce que le journal récolte. **Puis** les couleurs et l'interface de la Time Machine pour tout y voir (*« d'abord le fonctionnement, l'esthétisme et l'ergonomie après »*) | écrit, éprouvé, saboté ; puis à son écran |
+| [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4 dans `main`** (fiche 108) — l'IA juge les flèches qu'un agent ou un script a posées, la souris ne rapproche que celles de sens ; jamais les siennes. Sa carte actuelle a été posée avant MAIN-1 : à reposer par la version neuve pour le voir. **Ensuite** : une couleur qui dit quelque chose (le gris n'est que temporaire), partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | à son écran, sur la carte de Wikipédia reposée |
+| [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; 11 % (*« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
+| [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte. Reste **son écran** ; sa couleur et ce que l'IA en apprend passent par le cercle de l'IA, plus haut | son écran |
+| [ ] | **Les liens bleus des textes** : contraste APCA 52, sous 60 (fiche 104) — la même teinte, à la clarté qui se lit | mesuré, regardé |
 
 ## 3. Ce qui attend son écran
 
@@ -51,7 +52,8 @@ d'abord).
   de « Eau » : les blocs gris sombres sur la couleur de leur région, plus fluide qu'avant ; le grand
   cadre « Wikipédia » gris ;
 
-* dézoomer, bouger la souris : plus fluide (LETTRES-1, fiche 104) ;
+* dézoomer, bouger la souris, déplacer la vue de loin : bien plus fluide (LETTRES-1, fiche 104 ; TITRE-3
+  et les deux mémoires, fiche 108 : 17 → 7,5 ms par image) ;
 * plusieurs coups de molette avec des pauses d'une seconde, puis `Alt+Z` : un pas par série — le veut-il
   ainsi ? (RETOUR-2, fiche 103) ;
 * survoler un nœud, `Ctrl`+clic sur une flèche, `Alt+Z`, choisir un nœud, `B`, cliquer un amené (les
@@ -72,7 +74,8 @@ d'abord).
 * copier un texte vers Discord, coller une image, glisser depuis Nautilus et vers lui (le pont Wayland) ;
 * un très long texte vu de près ; zoomer très près d'une formule, d'un emoji (P8) ;
 * la palette (`Ctrl+Maj+P`), changer un raccourci ;
-* un agent dans Glucose (`glucose --mcp`) : « Autoriser », une demande ;
+* un agent dans Glucose (`glucose --mcp`) : « Autoriser », une demande ; puis la Time Machine
+  (`Ctrl+H`) : sous chaque geste de l'agent, son nom et ses écrits (MAIN-1, NOTE-1, fiche 108) ;
 * le Storyboard, Mood board, Ordonner, l'export SVG et PNG, le mode référence.
 
 **Au téléphone** (le sien est encore en **beta 4**, 17 fins anormales sur 22 sessions) : **l'ouvrir et le
@@ -84,6 +87,10 @@ doigt ; la pile des barres du bas (BAS-1 : gêne-t-elle ?).
 Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 
 ## 4. Ce qui attend sa parole
+
+* **La prochaine publication** (son geste) : depuis la fiche 108, un document qu'un agent a touché, ou
+  qui porte un écrit, ne s'ouvre plus dans les versions publiées (message net, rien de perdu) — son
+  téléphone en beta 4 et le PC de l'école en beta 9 en ont besoin pour lire ces documents.
 
 * **Le cap** : l'iPad par le web dans la partie 1 ? (défaut : oui, en dernier) ; les presets Figma et Miro
   (défaut : partie 2) ; « avec des utilisateurs » = des gens qui s'en servent sans rien perdre (des comptes
