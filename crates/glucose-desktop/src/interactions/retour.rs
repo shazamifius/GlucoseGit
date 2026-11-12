@@ -236,7 +236,7 @@ mod tests {
     fn menu_du_vide(app: &GlucoseApp) -> Vec<String> {
         crate::ui::context_menu::layout_context_menu(
             &app.store,
-            (&app.renderer.typography, &app.ui.clavier),
+            (&app.renderer.typography, &app.ui),
             ((400.0, 300.0), None),
             (800.0, 600.0),
             1.0,

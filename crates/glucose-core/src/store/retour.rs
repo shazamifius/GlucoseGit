@@ -51,6 +51,11 @@ impl HistoireDeLaVue {
         !self.arriere.is_empty()
     }
 
+    /// Y a-t-il un lieu où repartir (`Alt+Maj+Z`) ?
+    pub fn peut_avancer(&self) -> bool {
+        !self.avant.is_empty()
+    }
+
     /// Tout oublier : le document a été remplacé.
     pub fn oublier(&mut self) {
         self.arriere.clear();

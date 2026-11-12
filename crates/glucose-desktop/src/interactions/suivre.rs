@@ -19,7 +19,16 @@
 
 use crate::app::GlucoseApp;
 use glucose_core::geometry::Rect;
+use glucose_core::store::Store;
 use glucose_core::types::Annotation;
+
+/// **Une flèche seule est choisie, et rien d'autre** (APPLIQUE-1) : ce que « Suivre le lien »
+/// demande — la loi de la palette et du menu, et le geste.
+pub(crate) fn une_fleche_seule(store: &Store) -> bool {
+    store.selected_arrows().len() == 1
+        && store.selected_annotation_ids.len() == 1
+        && store.selected_image_ids.is_empty()
+}
 
 impl GlucoseApp {
     /// **`Ctrl`+clic sur une flèche la suit** ; rend vrai si le clic a été pris.
@@ -38,17 +47,13 @@ impl GlucoseApp {
     /// **La commande « Suivre le lien »** : la flèche choisie, seule, depuis le centre de l'écran.
     /// Rend faux si la sélection n'est pas une flèche seule — l'accord passe à la suivante.
     pub(crate) fn suivre_le_lien_choisi(&mut self) -> bool {
-        let fleches = self.store.selected_arrows();
-        if fleches.len() != 1
-            || self.store.selected_annotation_ids.len() != 1
-            || !self.store.selected_image_ids.is_empty()
-        {
+        if !une_fleche_seule(&self.store) {
             return false;
         }
+        let id = self.store.selected_arrows()[0].id().to_string();
         let (l, h) = self.taille_de_la_fenetre();
         let vp = self.store.viewport();
         let centre = crate::canvas::screen_to_world(f64::from(l) / 2.0, f64::from(h) / 2.0, &vp);
-        let id = fleches[0].id().to_string();
         self.suivre_le_lien(&id, centre)
     }
 

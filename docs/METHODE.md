@@ -148,6 +148,10 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   seules.
 * **Un témoin de format s'écrit par la version d'avant** : un arbre détaché au dernier commit qui produit ce
   schéma, une épreuve jetable, sa propre cible, puis `git worktree remove --force`.
+* **Un arbre détaché ne partage jamais la cible du dépôt** (`CARGO_TARGET_DIR`) : Cargo ne distingue
+  pas leurs `glucose-core` du même nom, et le dépôt a ensuite compilé contre le noyau de l'arbre
+  détaché (fiche 113 — `cargo clean -p glucose-core -p glucose-desktop` l'a réparé). Sa propre
+  cible, copiée de celle du dépôt pour aller vite (`cp -a target/<profil> <cible>/`).
 * `undefined reference` après une coupure : `cargo clean -p glucose-desktop` ; `target/` grossit vite
   (`cargo clean` ne coûte qu'une recompilation).
 

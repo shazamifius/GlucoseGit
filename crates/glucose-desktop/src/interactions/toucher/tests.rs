@@ -505,7 +505,7 @@ fn test_appui_1_l_appui_long_dans_une_membrane_offre_supprimer() {
     let typo = crate::typography::Typography::new();
     let menu = layout_context_menu(
         &app.store,
-        (&typo, &app.ui.clavier),
+        (&typo, &app.ui),
         (at, None),
         (1280.0, 720.0),
         1.0,
@@ -553,7 +553,7 @@ fn test_dossier_1_l_appui_long_sur_un_dossier_le_supprime_et_s_annule() {
     let typo = crate::typography::Typography::new();
     let menu = layout_context_menu(
         &app.store,
-        (&typo, &app.ui.clavier),
+        (&typo, &app.ui),
         (at, None),
         (1280.0, 720.0),
         1.0,

@@ -69,6 +69,9 @@ impl Store {
     /// autour d'un nœud qu'elle montre (celui qu'on y désigne), **là où elle le montre** — le
     /// Bring & Go qui s'enchaîne. Rend faux si le nœud n'a aucun lien : rien à montrer.
     pub fn montrer_les_liens(&mut self, id: &str) -> bool {
+        if !self.peut_montrer_les_liens(id) {
+            return false;
+        }
         let (original, ancre, vue, ouverture) = match &self.fenetre_des_liens {
             Some(f) => {
                 let original = f.original(id).unwrap_or(id).to_string();
@@ -103,6 +106,24 @@ impl Store {
         self.clear_selection();
         self.set_viewport(&f.d_ou, f.tableau.viewport);
         true
+    }
+
+    /// **APPLIQUE-1 : la fenêtre des liens de ce nœud s'ouvrirait-elle ?** Un nœud du tableau
+    /// actif — ou, fenêtre ouverte, le nœud qu'une copie désigne — lié par une flèche à un autre.
+    /// Rien ne se construit : le menu pose la question à chaque image où il est ouvert, et
+    /// [`Self::montrer_les_liens`] la pose avant de construire.
+    pub fn peut_montrer_les_liens(&self, id: &str) -> bool {
+        let original = self
+            .fenetre_des_liens
+            .as_ref()
+            .and_then(|f| f.original(id))
+            .unwrap_or(id);
+        let actif = &self.project.active_board_id;
+        self.project
+            .boards
+            .iter()
+            .find(|b| &b.id == actif)
+            .is_some_and(|b| !liens_de(b, original).is_empty())
     }
 
     /// La fenêtre des liens, si elle est ouverte.

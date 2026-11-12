@@ -38,13 +38,28 @@ impl Store {
     /// ce qui est choisi n'a de boîte (une flèche seule, un dossier, rien).
     pub fn grouper_dans_une_membrane(&mut self) -> Option<String> {
         let board_id = self.project.active_board_id.clone();
-        let choisis: Vec<String> = self
-            .selected_image_ids
+        let choisis = self.choisis_a_grouper();
+        self.grouper(&board_id, &choisis)
+    }
+
+    /// **APPLIQUE-1 : la sélection se grouperait-elle ?** L'une de ses racines au moins a une boîte
+    /// — ce que [`Self::grouper`] demande, par la même loi ([`boite_du_groupe`]) : la palette et le
+    /// menu n'offrent « Grouper » que là où il fait quelque chose.
+    pub fn peut_grouper_la_selection(&self) -> bool {
+        let actif = &self.project.active_board_id;
+        let Some(board) = self.project.boards.iter().find(|b| &b.id == actif) else {
+            return false;
+        };
+        boite_du_groupe(board, &racines(board, &self.choisis_a_grouper())).is_some()
+    }
+
+    /// Ce que l'humain a choisi, nœuds et images : ce que `Ctrl+G` groupe.
+    fn choisis_a_grouper(&self) -> Vec<String> {
+        self.selected_image_ids
             .iter()
             .chain(&self.selected_annotation_ids)
             .cloned()
-            .collect();
-        self.grouper(&board_id, &choisis)
+            .collect()
     }
 
     /// **Groupe ces nœuds de ce tableau dans une membrane neuve**, par la loi plus haut — la
@@ -53,10 +68,7 @@ impl Store {
     pub fn grouper(&mut self, board_id: &str, ids: &[String]) -> Option<String> {
         let board = self.project.boards.iter().find(|b| b.id == board_id)?;
         let racines = racines(board, ids);
-        let boite = racines
-            .iter()
-            .filter_map(|id| boite_de(board, id))
-            .reduce(|a, b| a.union(b))?;
+        let boite = boite_du_groupe(board, &racines)?;
         let parent = ancetre_commun(board, &racines);
         let cadre = Self::cadre_autour(boite);
         let id = self.generate_id("membrane");
@@ -142,6 +154,15 @@ fn ancetre_commun(board: &Board, racines: &[String]) -> Option<String> {
 }
 
 /// La boîte d'un nœud de ce tableau — une flèche n'en a pas.
+/// **La boîte de ces racines** : l'union de celles qui en ont une, ou rien si aucune n'en a (une
+/// flèche seule, un dossier, rien) — la loi qui dit si un groupe se fait (APPLIQUE-1).
+fn boite_du_groupe(board: &Board, racines: &[String]) -> Option<Rect> {
+    racines
+        .iter()
+        .filter_map(|id| boite_de(board, id))
+        .reduce(|a, b| a.union(b))
+}
+
 fn boite_de(board: &Board, id: &str) -> Option<Rect> {
     if let Some(i) = board.images.iter().find(|i| i.id == id) {
         return Some(i.rect());

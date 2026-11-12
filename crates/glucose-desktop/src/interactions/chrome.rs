@@ -86,7 +86,7 @@ impl GlucoseApp {
         let onglet = self.ui.onglets.menu.take();
         let menu = crate::ui::context_menu::layout_context_menu(
             &self.store,
-            (&self.renderer.typography, &self.ui.clavier),
+            (&self.renderer.typography, &self.ui),
             (at, onglet.as_deref()),
             (screen.width, screen.height),
             self.ui.scale_factor,

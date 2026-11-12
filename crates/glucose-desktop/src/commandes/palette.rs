@@ -137,7 +137,8 @@ impl GlucoseApp {
                 self.aller_au_resultat(&etat.filtre, &etat.trouves, i);
                 return;
             }
-            match (trouvees_pour(&etat.filtre, etat.but).get(i), etat.but) {
+            let trouvees = trouvees_pour(&etat.filtre, etat.but, &|c| self.s_applique(c));
+            match (trouvees.get(i), etat.but) {
                 (Some(&commande), But::Lancer) => {
                     self.executer(commande);
                 }
@@ -166,7 +167,7 @@ impl GlucoseApp {
                     }
                 })
                 .collect(),
-            _ => trouvees_pour(&etat.filtre, etat.but)
+            _ => trouvees_pour(&etat.filtre, etat.but, &|c| self.s_applique(c))
                 .into_iter()
                 .map(|c| self.libelle(c))
                 .collect(),
@@ -204,23 +205,30 @@ impl GlucoseApp {
     }
 }
 
-/// **Combien de rangées cet état porte** : les nœuds trouvés, ou les commandes.
-pub(crate) fn total(etat: &Etat) -> usize {
-    match etat.but {
-        But::Chercher => etat.trouves.len(),
-        _ => trouvees_pour(&etat.filtre, etat.but).len(),
+impl GlucoseApp {
+    /// **Combien de rangées cet état porte** : les nœuds trouvés, ou les commandes.
+    pub(crate) fn total_de_la_palette(&self, etat: &Etat) -> usize {
+        match etat.but {
+            But::Chercher => etat.trouves.len(),
+            _ => trouvees_pour(&etat.filtre, etat.but, &|c| self.s_applique(c)).len(),
+        }
     }
 }
 
-/// **Les commandes que ce filtre trouve, pour ce but**, les meilleures d'abord : pour en lancer une, la palette ne se
-/// trouve pas elle-même ; pour changer un raccourci, toutes — le sien compris.
-pub(crate) fn trouvees_pour(filtre: &str, but: But) -> Vec<Commande> {
+/// **Les commandes que ce filtre trouve, pour ce but**, les meilleures d'abord. Pour en lancer
+/// une : celles qui s'appliquent (`s_applique`, APPLIQUE-1), sauf la palette elle-même ; pour
+/// changer un raccourci, toutes — la sienne comprise, et celles qui ne s'appliquent pas encore.
+pub(crate) fn trouvees_pour(
+    filtre: &str,
+    but: But,
+    s_applique: &dyn Fn(Commande) -> bool,
+) -> Vec<Commande> {
     if but == But::Chercher {
         return Vec::new();
     }
     let mut v: Vec<(u8, usize, Commande)> = Commande::toutes()
         .into_iter()
-        .filter(|c| but == But::ChangerLeRaccourci || *c != Commande::Palette)
+        .filter(|c| but == But::ChangerLeRaccourci || (*c != Commande::Palette && s_applique(*c)))
         .enumerate()
         .filter_map(|(rang, c)| Some((rang_de(filtre, &c.nom(), &c.id())?, rang, c)))
         .collect();

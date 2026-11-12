@@ -16,6 +16,7 @@ use crate::ui::ActiveTool;
 use glucose_core::raccourcis::{Clavier, Couche, ErreurDeLigne};
 use glucose_core::types::StickyOperator;
 
+pub(crate) mod applique;
 mod executer;
 pub(crate) mod palette;
 pub(crate) mod utilisateur;

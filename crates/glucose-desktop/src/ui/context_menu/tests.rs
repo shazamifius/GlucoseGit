@@ -30,10 +30,7 @@ fn store_with(images: usize, cartes: usize, selection: bool) -> Store {
 fn menu(store: &Store, at: (f32, f32)) -> ContextMenu {
     layout_context_menu(
         store,
-        (
-            &Typography::new(),
-            &crate::commandes::clavier_de_glucose().0,
-        ),
+        (&Typography::new(), &crate::ui::UiState::default()),
         (at, None),
         SCREEN,
         1.0,
@@ -229,10 +226,7 @@ fn test_au_doigt_chaque_entree_fait_quarante_huit_points_sans_raccourci() {
     for densite in [1.0f32, 2.0, 3.0] {
         let m = layout_context_menu(
             &store,
-            (
-                &Typography::new(),
-                &crate::commandes::clavier_de_glucose().0,
-            ),
+            (&Typography::new(), &crate::ui::UiState::default()),
             ((100.0, 100.0), None),
             SCREEN,
             densite,
@@ -333,7 +327,7 @@ fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
     let typo = Typography::new();
     let haut = layout_context_menu(
         &store,
-        (&typo, &crate::commandes::clavier_de_glucose().0),
+        (&typo, &crate::ui::UiState::default()),
         ((10.0, 10.0), None),
         SCREEN,
         1.0,
@@ -345,7 +339,7 @@ fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
     let bas = (SCREEN.0, 300.0);
     let range = layout_context_menu(
         &store,
-        (&typo, &crate::commandes::clavier_de_glucose().0),
+        (&typo, &crate::ui::UiState::default()),
         ((10.0, 10.0), None),
         bas,
         1.0,

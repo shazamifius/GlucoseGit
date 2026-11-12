@@ -171,10 +171,9 @@ fn test_lien_2_le_menu_et_la_commande_suivent_la_fleche_choisie() {
     use crate::ui::context_menu::{layout_context_menu, MenuAction, MenuRow};
     let mut app = application();
     let actions = |app: &GlucoseApp| -> Vec<MenuAction> {
-        let clavier = crate::commandes::clavier_de_glucose().0;
         layout_context_menu(
             &app.store,
-            (&app.renderer.typography, &clavier),
+            (&app.renderer.typography, &app.ui),
             ((100.0, 100.0), None),
             ECRAN,
             1.0,

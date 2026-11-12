@@ -121,7 +121,7 @@ fn dessiner_le_menu(
     };
     let Some(menu) = context_menu::layout_context_menu(
         store,
-        (typo, &ui.clavier),
+        (typo, ui),
         (at, ui.onglets.menu.as_deref()),
         (w, h),
         ui.scale_factor,

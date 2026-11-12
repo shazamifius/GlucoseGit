@@ -250,7 +250,7 @@ pub struct ContextMenu {
 /// « mode téléphone » — une tablette Windows au doigt reçoit la même.
 pub fn layout_context_menu(
     store: &Store,
-    (typography, clavier): (&Typography, &Clavier),
+    (typography, ui): (&Typography, &crate::ui::UiState),
     (at, onglet): ((f32, f32), Option<&str>),
     screen: (f32, f32),
     scale: f32,
@@ -263,9 +263,9 @@ pub fn layout_context_menu(
         (ROW, FONT)
     };
     let (rangee, font) = (rangee * s, corps * s);
-    let defs: Vec<Ligne> = entrees(store, onglet)?
+    let defs: Vec<Ligne> = entrees(store, ui, onglet)?
         .into_iter()
-        .map(|d| d.map(|(a, l, k)| (a, l, raccourci((a, k), clavier, doigt))))
+        .map(|d| d.map(|(a, l, k)| (a, l, raccourci((a, k), &ui.clavier, doigt))))
         .collect();
 
     let largeur_ligne = |label: &str, shortcut: &str| {

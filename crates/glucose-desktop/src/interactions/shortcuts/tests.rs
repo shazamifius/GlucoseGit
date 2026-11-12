@@ -194,7 +194,7 @@ fn test_une_entree_du_menu_agit_vraiment() {
 
     let menu = crate::ui::context_menu::layout_context_menu(
         &app.store,
-        (&app.renderer.typography, &app.ui.clavier),
+        (&app.renderer.typography, &app.ui),
         (app.ui.context_menu_at.expect("un menu ouvert"), None),
         (1440.0, 900.0),
         app.ui.scale_factor,

@@ -477,7 +477,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// gris de la scène témoin, sous le menu — 191 557 pixels ; regardée.
 /// **Puis, le 11/11 à 22 h** (REGION-1, fiche 107) : le corps de la membrane, plus transparent, sous
 /// le menu — 113 723 pixels ; regardée.
-const EMPREINTE_TEMOIN_MENU: &str = "16e284e8eb6f1a45";
+/// **Puis, le 12/11 à 23 h** (APPLIQUE-1, fiche 113) : les mêmes entrées, rangées par leur sens —
+/// l'édition, « Grouper », les images, l'ordre, « Supprimer » — et deux filets de plus ;
+/// 15 354 pixels, tous dans le menu (639-888 × 424-621) ; regardé avant/après, agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "ece197b78e48a11d";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -7,20 +7,24 @@ use crate::app::GlucoseApp;
 use glucose_core::store::StackMove;
 
 impl GlucoseApp {
-    /// **Exécute cette commande** ; rend `false` si elle ne s'applique pas — l'accord passe
-    /// alors à la suivante de sa liste. Seules les relations des flèches, les opérateurs des
-    /// post-it, les couleurs et le groupe peuvent ne pas s'appliquer : sans flèche choisie, un chiffre vole au signet.
+    /// **Exécute cette commande** ; rend `false` si elle ne s'applique pas (APPLIQUE-1, la loi
+    /// que la palette et le menu lisent aussi) — rien d'autre n'est alors touché, et l'accord
+    /// passe à la suivante de sa liste : sans flèche choisie, un chiffre vole au signet.
     pub(crate) fn executer(&mut self, commande: Commande) -> bool {
-        // La fenêtre des liens est passagère : ce qui ne la regarde pas la ferme d'abord, et ne
+        // La fenêtre des liens est passagère : ce qui ne la regarde pas la ferme d'abord, même
+        // pour ne rien faire ensuite — `Suppr` sans rien à supprimer la ferme aussi —, et ne
         // s'exécute que sur le document (LIEN-3, fiche 102).
         if !commande.regarde_la_fenetre() {
             self.fermer_la_fenetre_des_liens();
+        }
+        if !self.s_applique(commande) {
+            return false;
         }
         self.faire(commande)
     }
 
     /// **Le geste de chaque commande** : un seul `match`, sans joker.
-    fn faire(&mut self, commande: Commande) -> bool {
+    pub(super) fn faire(&mut self, commande: Commande) -> bool {
         match commande {
             Commande::NouveauDocument => self.nouveau_document(),
             Commande::OuvrirUnDocument => self.choisir_un_document(),

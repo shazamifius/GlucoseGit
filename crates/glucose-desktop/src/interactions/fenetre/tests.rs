@@ -254,10 +254,9 @@ fn test_lien_3_echap_et_tout_autre_geste_la_ferment() {
 
 /// Les entrées du menu, tel qu'il s'ouvrirait.
 fn menu(app: &GlucoseApp) -> Vec<MenuAction> {
-    let clavier = crate::commandes::clavier_de_glucose().0;
     layout_context_menu(
         &app.store,
-        (&app.renderer.typography, &clavier),
+        (&app.renderer.typography, &app.ui),
         ((100.0, 100.0), None),
         ECRAN,
         1.0,

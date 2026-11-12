@@ -1,0 +1,227 @@
+[
+ {
+  "nom": "APPLIQUE-1 : l'exécution ne lit pas la loi",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "        if !self.s_applique(commande) {",
+  "apres": "        if false && !self.s_applique(commande) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : la palette offre tout",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "(*c != Commande::Palette && s_applique(*c))",
+  "apres": "(*c != Commande::Palette || s_applique(*c))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : le menu ne lit pas la loi",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "Some((action, ..)) if !action.commande().is_none_or(&s_applique) => {}",
+  "apres": "Some((action, ..)) if false && !action.commande().is_none_or(&s_applique) => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : deux filets de suite",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "None if out.last().is_none_or(Option::is_none) => {}",
+  "apres": "None if out.is_empty() => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : un filet en queue",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "        out.pop();",
+  "apres": "        let _ = out.last();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : la fenêtre des liens ne se ferme pas d'abord",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "            !fermee_d_abord && selon_le_choix(store, ui, commande)",
+  "apres": "            let _ = fermee_d_abord;\n            selon_le_choix(store, ui, commande)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : une couleur déjà portée reste offerte",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": ".any(|c| *c != voulue)",
+  "apres": ".any(|c| *c != voulue || true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : un opérateur déjà porté reste offert",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "if *operator != voulu)",
+  "apres": "if *operator != voulu || true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : « Aller à ce nœud » sans copie choisie",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "C::AllerAuNoeud => noeud_montre_choisi(store).is_some(),",
+  "apres": "C::AllerAuNoeud => noeud_montre_choisi(store).is_some() || store.fenetre_des_liens().is_some(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : « Vue suivante » sans lieu où repartir",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "C::VueSuivante => store.histoire_de_la_vue.peut_avancer(),",
+  "apres": "C::VueSuivante => true,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : sortir d'une membrane sans focus",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "Commande::SortirDeLaMembrane => self.focus.membrane().is_some(),",
+  "apres": "Commande::SortirDeLaMembrane => true,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : montrer les liens d'un nœud qui n'en a pas (le noyau)",
+  "fichier": "crates/glucose-core/src/store/fenetre.rs",
+  "avant": ".is_some_and(|b| !liens_de(b, original).is_empty())",
+  "apres": ".is_some_and(|b| !b.annotations.is_empty() || !liens_de(b, original).is_empty())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : grouper une flèche seule (le noyau)",
+  "fichier": "crates/glucose-core/src/store/grouper.rs",
+  "avant": "boite_du_groupe(board, &racines(board, &self.choisis_a_grouper())).is_some()",
+  "apres": "!self.choisis_a_grouper().is_empty() || boite_du_groupe(board, &racines(board, &self.choisis_a_grouper())).is_some()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "applique_1"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : suivre un lien avec un texte choisi",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "        && store.selected_annotation_ids.len() == 1\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_2"
+  ]
+ },
+ {
+  "nom": "APPLIQUE-1 : la loi avant la fenêtre — Suppr ne la ferme plus",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "        if !commande.regarde_la_fenetre() {\n            self.fermer_la_fenetre_des_liens();\n        }\n        if !self.s_applique(commande) {\n            return false;\n        }\n",
+  "apres": "        if !self.s_applique(commande) {\n            return false;\n        }\n        if !commande.regarde_la_fenetre() {\n            self.fermer_la_fenetre_des_liens();\n        }\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lien_3"
+  ]
+ }
+]

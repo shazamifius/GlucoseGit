@@ -17,12 +17,59 @@
 
 use crate::app::GlucoseApp;
 use crate::commandes::Commande;
+use glucose_core::store::Store;
 
 /// **Un appui dans la fenêtre, pas encore relâché** : où il est tombé, et ce qu'il visait.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Appui {
     pub ou: (f64, f64),
     pub vise: Option<String>,
+}
+
+/// **Les nœuds dont « Montrer ses liens » partirait** (APPLIQUE-1) : le seul choisi ; une flèche
+/// seule choisie, ses bouts qui ont une place. Lus du document seul : la loi qui dit si la commande
+/// s'applique et le geste qui l'exécute posent la même question.
+pub(crate) fn candidats_a_montrer(store: &Store) -> Vec<String> {
+    let mut choisis = store
+        .selected_annotation_ids
+        .iter()
+        .chain(&store.selected_image_ids);
+    let (Some(seul), None) = (choisis.next(), choisis.next()) else {
+        return Vec::new();
+    };
+    let Some(board) = store.active_board() else {
+        return Vec::new();
+    };
+    let Some(glucose_core::types::Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    }) = store.project.annotation(&board.id, seul)
+    else {
+        return vec![seul.clone()];
+    };
+    [source_id, target_id]
+        .into_iter()
+        .flatten()
+        .filter(|id| glucose_core::arrow::emprise(board, id).is_some())
+        .cloned()
+        .collect()
+}
+
+/// **Le nœud du document que désigne la copie choisie seule dans la fenêtre des liens**
+/// (APPLIQUE-1) : là où « Aller à ce nœud » volerait.
+pub(crate) fn noeud_montre_choisi(store: &Store) -> Option<String> {
+    let mut choisis = store
+        .selected_annotation_ids
+        .iter()
+        .chain(&store.selected_image_ids);
+    let (Some(choisi), None) = (choisis.next(), choisis.next()) else {
+        return None;
+    };
+    store
+        .fenetre_des_liens()?
+        .original(choisi)
+        .map(str::to_string)
 }
 
 impl Commande {
@@ -53,40 +100,22 @@ impl GlucoseApp {
         true
     }
 
-    /// Le nœud dont on montrerait les liens : le seul choisi ; une flèche seule choisie, son bout
-    /// le plus proche du centre de l'écran.
+    /// Le nœud dont on montrerait les liens : parmi ceux qui en ont ([`candidats_a_montrer`]), le
+    /// plus proche du centre de l'écran — sur une flèche, le bout qu'on regarde.
     fn noeud_a_montrer(&self) -> Option<String> {
-        let mut choisis = self
-            .store
-            .selected_annotation_ids
-            .iter()
-            .chain(&self.store.selected_image_ids);
-        let (seul, autre) = (choisis.next()?.clone(), choisis.next());
-        if autre.is_some() {
-            return None;
-        }
         let board = self.store.active_board()?;
-        let Some(glucose_core::types::Annotation::Arrow {
-            source_id,
-            target_id,
-            ..
-        }) = self.store.project.annotation(&board.id, &seul)
-        else {
-            return Some(seul);
-        };
         let (l, h) = self.taille_de_la_fenetre();
         let vp = self.store.viewport();
         let ici = crate::canvas::screen_to_world(f64::from(l) / 2.0, f64::from(h) / 2.0, &vp);
         let pres = |id: &String| {
-            let b = glucose_core::arrow::emprise(board, id)?;
-            Some((b.left + b.width / 2.0 - ici.0).hypot(b.top + b.height / 2.0 - ici.1))
+            glucose_core::arrow::emprise(board, id).map_or(0.0, |b| {
+                (b.left + b.width / 2.0 - ici.0).hypot(b.top + b.height / 2.0 - ici.1)
+            })
         };
-        [source_id, target_id]
+        candidats_a_montrer(&self.store)
             .into_iter()
-            .flatten()
-            .filter_map(|id| Some((id.clone(), pres(id)?)))
-            .min_by(|a, b| a.1.total_cmp(&b.1))
-            .map(|(id, _)| id)
+            .filter(|id| self.store.peut_montrer_les_liens(id))
+            .min_by(|a, b| pres(a).total_cmp(&pres(b)))
     }
 
     /// **« Aller à ce nœud »** : la copie choisie dans la fenêtre, à sa vraie place.
