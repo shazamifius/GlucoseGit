@@ -59,6 +59,8 @@ mod glisser_windows;
 pub mod pave_wayland;
 #[cfg(windows)]
 mod pave_windows;
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+mod presentation_wayland;
 /// La table des types de la sélection, commune à X11 et à Wayland (fiche 100).
 #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 mod selection_unix;
@@ -337,4 +339,35 @@ fn poser_le_pont(
     _reveil: Reveil,
 ) -> bool {
     false
+}
+
+/// **Ce que l'écran montre vraiment** (PARU-1, fiche 112) : sous Wayland, le compositeur le dit
+/// par `wp_presentation`. Ailleurs, `None` — la chronique se tait plutôt que d'inventer.
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+pub fn installer_la_sonde(
+    fenetre: &winit::window::Window,
+) -> Option<Box<dyn crate::chronique::ecran::Sonde>> {
+    use winit::raw_window_handle::{
+        HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
+    };
+    let affichage = fenetre.display_handle().ok()?.as_raw();
+    let surface = fenetre.window_handle().ok()?.as_raw();
+    let (RawDisplayHandle::Wayland(a), RawWindowHandle::Wayland(s)) = (affichage, surface) else {
+        return None;
+    };
+    match presentation_wayland::installer(a.display, s.surface) {
+        Ok(sonde) => Some(Box::new(sonde)),
+        Err(raison) => {
+            crate::dire!("[Glucose] ecran : ce qu'il montre ne se lit pas : {raison}");
+            None
+        }
+    }
+}
+
+/// Hors de Wayland, aucun compositeur ne le dit encore à Glucose.
+#[cfg(not(all(unix, not(any(target_os = "macos", target_os = "android")))))]
+pub fn installer_la_sonde(
+    _fenetre: &winit::window::Window,
+) -> Option<Box<dyn crate::chronique::ecran::Sonde>> {
+    None
 }

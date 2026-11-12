@@ -331,8 +331,11 @@ fn test_le_rapport_dit_le_cout_par_tempo_et_ou_vont_les_images_ratees() {
     let mut t = String::new();
     c.ecrire_le_tempo(&mut t);
     assert!(t.contains(" 3 bal.") && t.contains(" 8 bal."), "{t}");
-    assert!(t.contains("20 image(s) ont rate"), "{t}");
-    let bloc = t.split("ont rate").nth(1).expect("le tableau des ratees");
+    assert!(t.contains("20 image(s) ont manque l'heure"), "{t}");
+    let bloc = t
+        .split("ont manque l'heure")
+        .nth(1)
+        .expect("le tableau des ratees");
     let premier = bloc.lines().nth(2).map(str::trim_start).unwrap_or_default();
     assert!(
         premier.starts_with("blit"),

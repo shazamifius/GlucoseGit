@@ -107,9 +107,13 @@ impl GlucoseApp {
         match issue {
             // MOTEUR-1 : le moteur a tenu jusqu'à une image à l'écran.
             Ok(Issue::Presentee) => crate::present::echelle::survecu(),
-            Ok(Issue::Cachee) => crate::perf::compteur("images_cachees", 1.0),
+            Ok(Issue::Cachee) => {
+                crate::perf::compteur("images_cachees", 1.0);
+                self.chronique.ecran.rien_n_est_parti();
+            }
             Ok(Issue::Perdue) => {
                 crate::perf::compteur("images_perdues", 1.0);
+                self.chronique.ecran.rien_n_est_parti();
                 self.mark_dirty();
             }
             Err(e) => {
@@ -134,6 +138,8 @@ impl GlucoseApp {
         debut_du_rendu: std::time::Instant,
         due: Option<std::time::Instant>,
     ) {
+        // PARU-1 : demander au compositeur ce qu'il fera de cette image — avant le `commit`.
+        self.chronique.ecran.avant_d_envoyer(due);
         if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
             // On presente meme quand rien n'a ete redessine : la demande peut venir du
             // systeme -- une fenetre recouverte puis degagee -- et non de nous.

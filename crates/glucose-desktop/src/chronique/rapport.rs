@@ -60,6 +60,8 @@ impl Chronique {
         self.ecrire_la_machine(&mut t);
         self.ecrire_le_resume(&mut t);
         self.ecrire_le_rythme(&mut t);
+        // PARU-1 : ce que le compositeur a dit, en face de ce que le tempo visait.
+        self.ecran.ecrire(&mut t);
         self.ecrire_les_gestes(&mut t);
         self.ecrire_la_navigation(&mut t);
         self.ecrire_les_reveils(&mut t);
@@ -471,7 +473,7 @@ impl Chronique {
     }
 }
 
-fn ms(us: u32) -> f64 {
+pub(in crate::chronique) fn ms(us: u32) -> f64 {
     f64::from(us) / 1000.0
 }
 

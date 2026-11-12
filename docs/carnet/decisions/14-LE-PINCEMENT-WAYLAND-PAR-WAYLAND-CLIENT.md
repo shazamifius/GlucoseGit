@@ -24,3 +24,10 @@ Glucose s'en sert directement, là où `winit` s'arrête.
 
 **Quand la retirer** : le jour où `winit` transmet le pincement sous Wayland, ce pont disparaît et la
 même similitude ([`Mouvement::pincement`]) vient de `PinchGesture`.
+
+**Un second usage, sans rien ajouter** (12/11/2026, fiche 112) : la sonde de PARU-1
+(`plateforme/presentation_wayland.rs`) se branche de la même façon sur la connexion de la fenêtre
+pour `wp_presentation` — un protocole **stable**, déjà dans `wayland-protocols` avec `client` ;
+aucune fonctionnalité ni caisse de plus. Le jour où ce pont disparaît pour le pincement, il reste
+pour elle, tant que `winit` ne dit pas quand une image a paru.
+

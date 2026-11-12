@@ -258,18 +258,19 @@ impl Chronique {
         }
     }
 
-    /// **Où les images qui ratent leur balayage passent leur temps** (TEMPO-2).
+    /// **Où les images qui manquent l'heure du tempo passent leur temps** (TEMPO-2).
     ///
     /// Trié par la **médiane**, et c'est voulu : toutes ces images ont raté, la question n'est
     /// plus « laquelle gèle » mais « qu'est-ce qui les rend, d'ordinaire, trop longues ».
     fn ecrire_les_ratees(&self, t: &mut String, en_mouvement: u64) {
         let Some((durees, parts)) = self.ratees() else {
-            t.push_str("    aucune image n'a rate son balayage\n");
+            t.push_str("    aucune image n'a manque l'heure que visait le tempo\n");
             return;
         };
         t.push_str(&format!(
-            "    {} image(s) ont rate leur balayage ({:.1} % des images en mouvement), \
-             median {:.2}ms -- ce sont elles qui font monter le tempo\n\
+            "    {} image(s) ont manque l'heure que visait le tempo ({:.1} % des images en \
+             mouvement), median {:.2}ms -- ce sont elles qui font monter le tempo ; ce que \
+             l'ecran a montre est plus bas\n\
              \x20      poste            median       p90      pire\n",
             durees.compte(),
             100.0 * durees.compte() as f64 / en_mouvement.max(1) as f64,

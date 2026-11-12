@@ -388,6 +388,16 @@ des plantages de Windows, la batterie.
 * **La chronique** (`chronique/`) : ce que chaque image coûte poste par poste, ce que l'écran a
   montré, les gels décomposés, le verdict. Écrite à la fin de chaque session dans
   `%TEMP%\glucose-chronique\derniere-session.txt`.
+* **Ce qui a paru à l'écran** (PARU-1, fiche 112, `chronique/ecran.rs`) : le rythme (RYTHME-1)
+  date l'instant où la présentation rend la main — sous Wayland, en `mailbox`, tout de suite, et
+  l'image paraît deux battements plus tard, ou jamais. Le compositeur, lui, le sait : une
+  **sonde** (`plateforme/presentation_wayland.rs`, `wp_presentation`, sur la connexion de la
+  fenêtre comme le pincement) lui demande, juste avant chaque présentation, ce qu'il fera de
+  l'image ; ses verdicts (montrée à tel battement, ou jetée) disent dans la chronique les images
+  jetées, les **battements sautés alors qu'une image était due** (son échéance, GEL-1, précède
+  l'instant où la précédente a paru) et le temps de l'envoi à l'écran avec sa gigue. Sans
+  compositeur qui le dise (Windows, macOS, X11), la section se tait. Les images « qui manquent
+  l'heure du tempo » sont celles du tempo, sur SA grille : ce n'est pas l'écran.
 * **La boîte noire** (`boite_noire/`) : le **journal technique**, un fichier par session dans
   `%LOCALAPPDATA%\Glucose\journal-technique\`, nommé à l'heure de la session et lisible d'un
   double clic, avec un `LISEZ-MOI.txt` en colonnes (`boite_noire::fichiers`, fiche 58),

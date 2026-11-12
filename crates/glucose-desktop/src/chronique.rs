@@ -32,6 +32,7 @@
 //! gardées entières, avec leur geste, leurs postes et leurs quantités — c'est là que se lit la
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
+pub mod ecran;
 pub mod ecrivain;
 pub mod entracte;
 pub mod etages;
@@ -165,6 +166,9 @@ pub struct Chronique {
     durees: Histogramme,
     /// Ce que l'écran a montré, par opposition à ce que les images ont coûté (RYTHME-1).
     pub rythme: Rythme,
+    /// **Ce que le compositeur a fait de chaque image** (PARU-1) : montrée, à quel battement,
+    /// ou jetée. Le rythme mesure l'instant où la présentation rend la main ; lui, l'écran.
+    pub ecran: ecran::Ecran,
     /// Combien d'images n'ont **rien** redessiné du tout.
     evitees: u64,
     /// Combien d'images chaque raison de réveil a tenues éveillées, dans l'ordre des bits.
@@ -337,6 +341,7 @@ impl Chronique {
             pixelisees: 0,
             durees: Histogramme::nouveau(),
             rythme: Rythme::nouveau(),
+            ecran: ecran::Ecran::default(),
             evitees: 0,
             reveils: [0; 16],
             panneaux_refaits: [0; 16],

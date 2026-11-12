@@ -159,6 +159,12 @@ impl GlucoseApp {
                  Windows, pointer-gestures sous Wayland)"
             );
         }
+        // **Ce que l'écran montre vraiment** (PARU-1, fiche 112) : le compositeur le dit.
+        let sonde = crate::plateforme::installer_la_sonde(window);
+        if sonde.is_some() {
+            crate::dire!("[Glucose] ecran : le compositeur dit ce qu'il montre (wp_presentation)");
+        }
+        self.chronique.ecran.brancher(sonde);
         // **L'extinction de Windows** finit Glucose au lieu de le tuer (FIN-SESSION-1).
         self.ui.cadre_maison = crate::plateforme::cadre::habiller(window);
         self.lancement.session = crate::plateforme::fin::veiller_sur_la_fenetre(window);

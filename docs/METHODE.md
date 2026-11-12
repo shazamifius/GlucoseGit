@@ -164,10 +164,11 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   `<maison>/state/glucose/moteurs.txt` ; sans cela, il dessine par la carte graphique.
 * **La copie de sa carte de Wikipédia avec ses liens** : `~/Documents/Glucose-essai-wikipedia-liens.glucose`.
   Le squelette se pose par `outils/wikipedia/essai_squelette.sh`.
-* **Le rythme se mesure sous niri** (fiche 111) : sous sway sans écran, présenter ne bloque jamais,
-  et un banc y manque le défaut que son écran montre (1 % d'images ratées contre 31 %) —
-  `PILOTE_COMPOSITEUR=niri bash ~/.cache/glucose-bancs/lag-107/mesure-niri.sh <nom> <exe>`, puis
-  `lag-107/rythme.sh <dossiers>`. Et mesurer le geste qu'il fait : le pavé tactile.
+* **Le rythme ne se juge qu'à son écran** (fiches 111-112) : sous sway sans écran, présenter ne
+  bloque jamais ; sous niri imbriqué, niri bloque sur son hôte et date ses retours à l'envoi — il
+  ne sait pas juger un rythme. Le juge est le compositeur : la section « Ce que l'ecran a montre »
+  de la chronique (PARU-1). Les « images qui manquent l'heure du tempo » sont celles du tempo,
+  sur sa grille, **pas l'écran**.
 * **Sous niri** : `PILOTE_COMPOSITEUR=niri` ; **à la taille d'un téléphone** : `PILOTE_ECRAN=1080x2400
   PILOTE_ECHELLE=2.75` (son moto g54). **Le presse-papiers et le glisser de Wayland** : `bash
   outils/pilote/essai_wayland.sh <dossier>`.
@@ -184,6 +185,12 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
 * **Faire tomber un moteur** : `GLUCOSE_TOMBER=vulkan` (ou `gl`).
 
 **À son écran**
+* **Ses vrais gestes, mesurés** (fiche 112) : `bash outils/pilote/essai_ecran.sh <dossier>
+  [VAR=valeur…]` — une fenêtre ~75 s, la souris par le pointeur virtuel de niri, **le pavé par un
+  pavé virtuel** (`pave_virtuel.py`, uinput : pincer, deux doigts), sa carte copiée, la chronique
+  et sa section PARU-1 dans le dossier ; `LOURD='pincer 1.8 700\n…'` zoome d'abord. Annoncer le
+  nombre de fenêtres ; l'outil met Glucose au premier plan, flottant, et vérifie le focus (par le
+  numéro du processus) avant chaque geste.
 * **Un essai réel** : `bash outils/essai_isole.sh <secondes> [capture.png]` — dossier neuf, télémétrie coupée
   d'avance ; annoncer la fenêtre (elle prend le focus) et le nombre **exact** de fenêtres.
 * **Sa chronique** : `/tmp/glucose-chronique/derniere-session.txt`, et son journal technique

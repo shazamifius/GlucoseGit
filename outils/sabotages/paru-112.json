@@ -1,0 +1,272 @@
+[
+ {
+  "nom": "PARU-1 : l'échéance prise à l'envoi, sans son âge",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "envoi.saturating_sub(micro(d.elapsed()))",
+  "apres": "envoi.saturating_sub(0 * micro(d.elapsed()))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : l'envoi n'attend pas son verdict",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.en_attente.push_back((envoi, du));",
+  "apres": "let _ = (envoi, du);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : une image refusée reste dans l'attente",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.en_attente.pop_back();",
+  "apres": "let _ = self.en_attente.back();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : les envois sans verdict ne sortent pas de l'attente",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": ".is_some_and(|(e, _)| *e < retour.envoi_us)",
+  "apres": ".is_some_and(|(e, _)| *e < retour.envoi_us && false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : un verdict orphelin compté",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": ".filter(|(e, _)| *e == retour.envoi_us)",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : les jetées ne se comptent pas",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.jetees += 1;",
+  "apres": "self.jetees += 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : les montrées ne se comptent pas",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.montrees += 1;",
+  "apres": "self.montrees += 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : la latence n'est pas notée",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": ".ajouter(sature(vue.us.saturating_sub(retour.envoi_us)));",
+  "apres": ".ajouter(sature(0));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : une pause comptée comme un saut",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "if du <= avant.us {",
+  "apres": "if du <= u64::MAX {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : les battements dus comptés un par image",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.dus += ecart;",
+  "apres": "self.dus += 1;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : les sauts ne se comptent pas",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.sautes += ecart.saturating_sub(1);",
+  "apres": "self.sautes += 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : l'image montrée n'est pas retenue",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "self.derniere = Some(vue);",
+  "apres": "let _ = vue;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : le compte de l'écran ignoré",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "if avant.battement > 0 && apres.battement > avant.battement {",
+  "apres": "if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : le temps tronqué au lieu d'arrondi",
+  "fichier": "crates/glucose-desktop/src/chronique/ecran.rs",
+  "avant": "((ecart_ns + periode / 2) / periode).max(1)",
+  "apres": "(ecart_ns / periode).max(1)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : la présentation ne demande rien au compositeur",
+  "fichier": "crates/glucose-desktop/src/app/presentation.rs",
+  "avant": "self.chronique.ecran.avant_d_envoyer(due);",
+  "apres": "let _ = due;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : une image cachée compte",
+  "fichier": "crates/glucose-desktop/src/app/presentation.rs",
+  "avant": "crate::perf::compteur(\"images_cachees\", 1.0);\n                self.chronique.ecran.rien_n_est_parti();",
+  "apres": "crate::perf::compteur(\"images_cachees\", 1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : une image perdue compte",
+  "fichier": "crates/glucose-desktop/src/app/presentation.rs",
+  "avant": "crate::perf::compteur(\"images_perdues\", 1.0);\n                self.chronique.ecran.rien_n_est_parti();",
+  "apres": "crate::perf::compteur(\"images_perdues\", 1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ },
+ {
+  "nom": "PARU-1 : le rapport tait l'écran",
+  "fichier": "crates/glucose-desktop/src/chronique/rapport.rs",
+  "avant": "self.ecran.ecrire(&mut t);",
+  "apres": "let _ = &self.ecran;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "paru_1"
+  ]
+ }
+]
