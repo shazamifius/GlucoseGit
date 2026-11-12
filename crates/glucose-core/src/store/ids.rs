@@ -170,6 +170,32 @@ mod tests {
         );
     }
 
+    /// **MAIN-1 — un document chargé oublie la provenance de l'autre** (fiche 108) : ce qu'un
+    /// agent avait posé appartient au document d'avant, même quand le nouveau porte un nœud du
+    /// même nom (un agent nomme ses nœuds lui-même) — sans quoi l'IA jugerait la flèche que
+    /// l'humain y a tirée.
+    #[test]
+    fn main_1_un_document_charge_oublie_la_provenance_de_l_autre() {
+        use crate::store::journal::Main;
+        use crate::types::Annotation;
+        let mut store = Store::new("P");
+        let b = store.project.active_board_id.clone();
+        store.journal.main = Main::Agent("proteo".into());
+        store.add_annotation(&b, Annotation::arrow("p1", 0.0, 0.0, 1.0, 1.0));
+        store.journal.main = Main::Humain;
+        assert!(store.journal.des_agents.contains("p1"), "posée par l'agent");
+        let mut autre = Project::new("Autre");
+        autre.boards[0]
+            .annotations
+            .push(Annotation::arrow("p1", 0.0, 0.0, 2.0, 2.0));
+        store.load_project(autre);
+        assert!(
+            store.journal.des_agents.is_empty(),
+            "{:?}",
+            store.journal.des_agents
+        );
+    }
+
     #[test]
     fn test_generate_id_is_monotonic_and_unique() {
         let mut store = Store::new("P");

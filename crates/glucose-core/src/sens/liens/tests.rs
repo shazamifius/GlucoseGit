@@ -174,3 +174,55 @@ fn parente_4_trop_peu() {
     let liens = [(Bout::Texte(0), Bout::Texte(0))];
     assert_eq!(surete_des_liens(&sens, &[], &liens), vec![0.0]);
 }
+
+/// **Une membrane porte aussi les textes de ses filles** (fiche 107) : « Eau » contient « Océans »,
+/// qui contient un texte ; la flèche de l'agent vers « Eau » la juge par ses deux textes, celui de
+/// sa fille compris, et par son nom. La flèche que l'humain tire vers la fille n'est pas collectée
+/// (MAIN-1, fiche 108) — la fille, que seule elle touche, n'est donc pas une région à juger.
+#[test]
+fn parente_4_une_region_porte_les_textes_de_ses_filles() {
+    use super::liens_du_tableau;
+    use crate::types::{Annotation, Board};
+    let mut tableau = Board::new("main", "Tableau");
+    let dans = |mut a: Annotation, mere: &str| {
+        a.set_membrane_id(Some(mere.into()));
+        a
+    };
+    let mut eau = Annotation::membrane("eau", 0.0, 0.0, 100.0, 100.0);
+    if let Annotation::Membrane { text, .. } = &mut eau {
+        *text = Some("Eau".into());
+    }
+    let fleche = |id: &str, (de, vers): (&str, &str)| {
+        let mut f = Annotation::arrow(id, 0.0, 0.0, 1.0, 1.0);
+        if let Annotation::Arrow {
+            source_id,
+            target_id,
+            ..
+        } = &mut f
+        {
+            (*source_id, *target_id) = (Some(de.into()), Some(vers.into()));
+        }
+        f
+    };
+    tableau.annotations = vec![
+        eau,
+        dans(Annotation::membrane("oceans", 0.0, 0.0, 50.0, 50.0), "eau"),
+        dans(Annotation::text("vague", 0.0, 0.0, "La vague"), "oceans"),
+        dans(Annotation::text("pluie", 0.0, 0.0, "La pluie"), "eau"),
+        Annotation::text("nuage", 0.0, 0.0, "Le nuage"),
+        fleche("de-l-agent", ("nuage", "eau")),
+        fleche("de-l-humain", ("nuage", "oceans")),
+    ];
+    let des_agents = std::collections::HashSet::from(["de-l-agent".to_string()]);
+    let (fleches, regions) = liens_du_tableau(&tableau, &des_agents);
+    assert_eq!(fleches, [["de-l-agent", "nuage", "eau"].map(String::from)]);
+    assert_eq!(
+        regions,
+        [(
+            "eau".to_string(),
+            Some("Eau".to_string()),
+            vec!["vague".to_string(), "pluie".to_string()]
+        )],
+        "la vague, dans la fille, compte pour la mère"
+    );
+}

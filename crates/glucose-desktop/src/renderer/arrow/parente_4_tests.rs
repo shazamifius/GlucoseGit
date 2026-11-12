@@ -201,3 +201,48 @@ fn test_parente_4_le_processeur_suit_la_surete() {
     let (sur, habitude) = (trait_de(&mut app, 3), trait_de(&mut app, 4));
     assert!(sur > habitude + 40, "le sûr {sur}, l'habitude {habitude}");
 }
+
+/// **La souris ne redessine pas pour un lien d'habitude** (PARENTE-4, SURVOL-2) : quarante liens que
+/// l'IA juge d'habitude, la souris qui vient de loin tout près du nœud central (sans le survoler) —
+/// aucun ne change d'un niveau, donc aucune image n'est due ; refaire la carte pour un trait qui ne
+/// bouge pas est la dépense que la fiche 103 a chassée. **La preuve à l'envers** : un seul lien sûr,
+/// et le même geste demande une image.
+#[test]
+fn test_parente_4_la_souris_ne_redessine_pas_pour_un_lien_d_habitude() {
+    use super::presence::{la_main_change_un_lien, liens_a_l_ecran};
+    let app = etoile(40);
+    let board = app.store.active_board().expect("un tableau");
+    let rangs = glucose_core::quadtree::tous_les_rangs(board);
+    let noeuds = NoeudsDuRendu {
+        board,
+        index: Some(&app.renderer.spatial_hash),
+        typographie: &app.renderer.typography,
+        math: &app.renderer.math,
+        contournement: None,
+    };
+    let n = liens_a_l_ecran(&rangs, board);
+    let lecture = crate::renderer::scale::WorldScale::new(1.0, 1.0).lecture();
+    let mains = [
+        Main {
+            survole: None,
+            souris: Some((90_000.0, 90_000.0)),
+        },
+        Main {
+            survole: None,
+            souris: Some((80.0, 0.0)),
+        },
+    ];
+    let change = |sens: &SensDesTextes| {
+        let liens = Visibles::nouvelles(&rangs, board).annotations();
+        la_main_change_un_lien((&app.store, sens), liens, noeuds, mains, (n, lecture))
+    };
+    let ids: Vec<String> = (0..40).map(|k| format!("f{k}")).collect();
+    let habitudes: Vec<(&str, f32)> = ids.iter().map(|id| (id.as_str(), 0.0)).collect();
+    assert!(
+        !change(&avis(&habitudes)),
+        "des liens d'habitude ne demandent aucune image"
+    );
+    let mut un_sur = habitudes.clone();
+    un_sur[0].1 = 1.0;
+    assert!(change(&avis(&un_sur)), "un lien de sens s'allume");
+}

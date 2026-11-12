@@ -176,12 +176,10 @@
    "cargo",
    "test",
    "-p",
-   "glucose-desktop",
+   "glucose-core",
    "--lib",
    "--",
-   "parente_4",
-   "main_1",
-   "lien_4"
+   "parente_4"
   ]
  },
  {
