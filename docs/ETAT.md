@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 12/11/2026, 19 h 20** (fiches 108-111). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 12/11/2026, 22 h** (fiches 108-112). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -33,15 +33,19 @@
   (RECTIF-1, fiche 110) : quand il fait autrement que l'IA — une couleur, une flèche retouchée,
   retirée ou suivie —, l'IA de Glucose l'écrit dans l'histoire, avec ce qu'elle pensait et
   **pourquoi** (les mots qui rapprochent deux textes, exacts) ; **la cascade qui compte la fin de
-  l'image** (QUEUE-1, fiche 110). **Son Glucose installé** (profil Nix `GlucoseGit`) : `c9b746f`, le
+  l'image** (QUEUE-1, fiche 110) ; **ce qui a paru à l'écran** (PARU-1, fiche 112) : sous Wayland, le
+compositeur dit pour chaque image si elle a paru, à quel battement, ou si elle a été jetée — la
+chronique en tire les battements sautés et le temps de l'envoi à l'écran. **Son Glucose installé** (profil Nix `GlucoseGit`) : `c9b746f`, le
   même programme (la version de travail dit désormais `2.0.4-dev`).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Le chantier en cours** : **son lag est surtout un rythme** (fiche 111) — sur son vrai écran,
-  32 % des images en mouvement ratent leur balayage pour un travail modeste ; niri imbriqué le
-  reproduit (31 %), sway sans écran non (1 %) : Glucose ne demande jamais à niri quand dessiner. Un
-  prototype attend sa mesure. **La porte publique** (les IA publiques dans son canevas) attend sa
+* **Le chantier en cours** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
+  ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
+  93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
+  des battements). Ce qui reste : **deux battements (33 à 42 ms) entre l'envoi d'une image et
+  l'écran**, avec une gigue d'un battement — un calage sur le battement l'efface (prototype, à
+  écrire) — et le travail quand il zoome. **La porte publique** (les IA publiques dans son canevas) attend sa
   parole sur sa page. Et la carte de Wikipédia — ses cinq défauts (VISION § 7) —, et le cercle de
   l'IA bâti sur la Time Machine (VISION § 8 bis : elle propose, il corrige, Glucose note, elle
   apprend — les trois premiers temps sont écrits). L'allure des frontières des membranes attend sa
@@ -76,10 +80,12 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 * **trop de flèches**, qui partent des blocs et non des mots, au tracé brouillon (surtout en courbe) ;
   l'IA ne juge que les flèches d'un agent ou d'un script — celles de sa carte actuelle n'en sont pas
   (posées avant MAIN-1) ;
-* **il lague** — **et la cause principale est probablement le rythme avec niri** (fiche 111 § 2) :
-  son essai du 12/11 à 18 h 16, au pavé tactile, 32 % des images en mouvement ratent leur balayage,
-  l'attente d'une image libre (`acquerir`) en tête ; nos bancs sous sway sans écran ne le voyaient
-  pas. Avant : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (avant
+* **il lague** — **mesuré à son écran, par ses gestes** (fiche 112 : un pavé tactile virtuel, le
+  pincement et les deux doigts) : l'écran montre une image neuve à 93-99 % des battements ; le
+  « 32 % ratées » de son essai du 12/11 à 18 h 16 était le compteur du tempo. Ce qui se voit et se
+  sent : **deux battements de l'envoi à l'écran** (33 à 42 ms ; la carte graphique est partagée
+  avec niri), une gigue d'un battement d'une image à l'autre, 5 % de battements sautés zoomé dans
+  « Eau », et le travail quand il zoome (dans sa session, les flèches à 9-12 ms). Avant : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (avant
   la fiche 105) ; remesuré le 12/11 sur sa carte (fiche 108) : **de loin 7,5 ms** (17 avant), au fond de
   « Eau » 2,8 ms ; **au zoom** : une image du mouvement 4-5 ms au lieu de 19-21 (fiche 109), et les
   images qui ratent un battement de l'écran 8-10 → 3 par série de crans, p90 24 → 17 ms (fiche 110) ;
@@ -112,7 +118,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 164, toutes vertes au 12/11 au soir (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 173, toutes vertes au 12/11 à 22 h (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -121,9 +127,11 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   (REGION-1, fiche 105), 36 sur 36 (le sens et la parenté, fiche 106), 3 sur 3 (le voile des membranes,
   fiche 107), 46 sur 46 (fiche 108 : les flèches, les titres, les mémoires, la Time Machine, la
   provenance — trois épreuves aveugles trouvées et écrites), 15 sur 15 (le zoom, fiche 109), 22 sur
-  22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite) et 4 sur 4 (QUEUE-1).
-* **Les bancs** : sous sway sans écran, présenter ne bloque jamais — le rythme réel se mesure sous
-  niri (`PILOTE_COMPOSITEUR=niri`, `~/.cache/glucose-bancs/lag-107/mesure-niri.sh`, fiche 111).
+  22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite), 4 sur 4 (QUEUE-1) et 18 sur 18
+  (PARU-1, fiche 112).
+* **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
+  hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
+  pavé compris) et la section PARU-1 de la chronique (fiche 112).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
   sur `f9027fd`** (la 2.0.4-beta.1). La CI se lance avant une publication, pas à chaque envoi.
