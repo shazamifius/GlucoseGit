@@ -248,6 +248,9 @@ plus jamais le lui demander.**
   qu'elle relie, et beaucoup deviennent grises — *« si c'est temporaire qu'elles soient grises, ça me
   va ; seulement si c'est temporaire »*. Le gris d'une flèche n'est accepté qu'en attendant que les
   flèches disent quelque chose.
+* **L'IA et les flèches** (12/11) : *« il ne faut pas que l'IA juge les flèches, mais qu'elle comprenne
+  leur importance, afin de capter la méta derrière un document »* — une flèche qu'il tire n'est ni
+  éteinte ni jugée : elle est un signal dont l'IA apprend (§ 8 bis).
 
 ## 7. La caméra et la carte de Wikipédia
 
@@ -312,7 +315,30 @@ Ses mots, à propos de la petite IA du halo :
 La réponse proposée le même soir (fiche 106) : apprendre **chez lui**, sans récolter — une petite
 matrice posée sur le modèle commun, apprise des gestes de l'utilisateur ; le journal comme une seconde
 colonne de l'histoire que Glucose écrit déjà ; la seconde interface comme le récit lisible du canevas
-et de sa construction ; les trois IA répondant à la même question. À concevoir avec lui.
+et de sa construction ; les trois IA répondant à la même question.
+
+**Sa réponse à la page de conception** (12/11,
+[« Le cercle de l'IA »](https://claude.ai/artifact/8WJTkJLvv7HvDDrJMng7CL), fiche 108) :
+
+* *« Pour tes six questions, il y a 100 % de tes propositions et de ton avis qui me conviennent
+  absolument parfaitement, même si je suis plus enthousiaste que toi à faire E3 »* — qui a fait quoi se
+  lit dans l'histoire, chaque geste signé (A2) ; les corrections par les gestes ordinaires d'abord, et
+  l'IA qui explique (B3) ; ce qui regarde un document vit dans le document, ce que l'IA apprend de lui
+  sur sa machine (C3) ; se souvenir d'abord, apprendre ensuite, le journal comme vraie mémoire (D) ;
+  rien ne sort sans son accord (E1), l'apprentissage fédéré (E3) **plus tôt que je ne le proposais**.
+* **La Time Machine est le socle** : *« pour F2, on ne fait pas COMME la Time Machine, on UTILISE la
+  Time Machine : c'est la vraie invention de Glucose, celle où repose la plupart des choses déjà
+  existantes. Je pense que nous allons pousser les choses à fond en utilisant la Time Machine vraiment
+  à son plein potentiel, et oui, tout le système IA se basera là-dessus. »*
+* **Un geste qui porte un écrit** : *« pourquoi pas la faire évoluer : la Time Machine, c'est un peu des
+  push GitHub. Pourquoi pas avoir parfois plus d'info que juste un simple geste, mais vraiment des
+  écrits de ce qu'une IA comprend de ce geste, et pourquoi c'est important. »*
+* **La voir** : *« revoir les couleurs et l'interface utilisateur de la Time Machine afin de pouvoir
+  vraiment tout visualiser : le système IA, les notes et bien plus »* — **mais** *« d'abord s'attaquer au
+  fonctionnement ; l'esthétisme et l'ergonomie après »*.
+* Qui a fait quoi, lu dans l'histoire : *« oui »*. Ses corrections partent avec un document qu'il
+  partage (retirables à l'export) : *« oui »*. Ses propres flèches : *« il ne faut pas que l'IA juge les
+  flèches, mais qu'elle comprenne leur importance, afin de capter la méta derrière un document »* (§ 6).
 
 ## 9. Sur la façon de travailler
 
