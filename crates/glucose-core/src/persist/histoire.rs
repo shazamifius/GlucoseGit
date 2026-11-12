@@ -14,7 +14,8 @@
 //! .glucose
 //! ├── la BASE    le conteneur v2 inchangé : en-tête, table, manifeste, document, images
 //! └── la QUEUE   des entrées à la suite, chacune :
-//!                  0..1   nature        1 objet, 2 geste, 3 instantané, 4 jalon, 5 lien, 6 vue
+//!                  0..1   nature        1 objet, 2 geste, 3 instantané, 4 jalon, 5 lien, 6 vue ;
+//!                                       facultatives (PERSIST-5) : 129 auteur, 130 note
 //!                  1..4   réservés, nuls
 //!                  4..8   u32 LE        longueur du contenu
 //!                  8..16  somme         chaînée à l'entrée précédente
@@ -55,6 +56,13 @@ use crate::hash::sha256;
 use crate::types::Project;
 
 /// Les natures d'entrée. INVARIANT PERSIST-4 : un numéro attribué ne bouge jamais.
+///
+/// **PERSIST-5 — une nature à bit haut est facultative** (fiche 108) : son entrée ne change pas
+/// l'état du document — qui a fait un geste, ce qu'on en a écrit. Une version qui ne la connaît
+/// pas l'**enjambe**, sa chaîne vérifiée, au lieu de refuser le document : la règle des morceaux
+/// « ancillaires » du PNG, qu'un décodeur « peut ignorer sans risque ». Les versions d'avant
+/// cette règle refusent un document qui en porte ; un document que seul l'humain a touché, sans
+/// note, n'en porte aucune.
 pub mod nature {
     /// Les octets d'une image : son empreinte, puis ses octets.
     pub const OBJET: u8 = 1;
@@ -68,6 +76,14 @@ pub mod nature {
     pub const LIEN: u8 = 5;
     /// La navigation : tableau actif, caméras, signets.
     pub const VUE: u8 = 6;
+    /// Le bit des natures facultatives (PERSIST-5).
+    pub const FACULTATIVE: u8 = 0x80;
+    /// **Qui est un auteur** (MAIN-1) : son identifiant, son genre, son nom — déclaré une fois
+    /// par document, avant son premier geste.
+    pub const AUTEUR: u8 = 0x81;
+    /// **Un écrit attaché à un geste** (NOTE-1) : ce qu'une IA ou l'humain en comprend, et
+    /// pourquoi il compte — sans toucher le geste, comme une note de git sur un commit.
+    pub const NOTE: u8 = 0x82;
 }
 
 /// Longueur de l'en-tête d'une entrée.
@@ -158,6 +174,43 @@ pub struct Jalon {
     pub libelle: String,
 }
 
+/// **Qui est un auteur de l'histoire** (MAIN-1) : l'identifiant que ses gestes portent
+/// ([`Geste::auteur`]), et ce qu'il est. Un identifiant que rien ne déclare est un lancement de
+/// Glucose par l'humain — tout ce qu'écrivaient les versions d'avant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Auteur {
+    pub id: u64,
+    pub agent: bool,
+    /// Le nom qu'il se donne : celui du client d'un agent (« claude-code »), vide pour l'humain.
+    pub nom: String,
+}
+
+impl Auteur {
+    /// **L'identifiant d'un agent** : tiré de son nom, le même d'un lancement à l'autre et d'un
+    /// document à l'autre — ses gestes se reconnaissent partout.
+    pub fn d_un_agent(nom: &str) -> Self {
+        let e = sha256(format!("glucose/agent/{nom}").as_bytes());
+        let mut id = [0u8; 8];
+        id.copy_from_slice(&e[..8]);
+        Self {
+            id: u64::from_le_bytes(id),
+            agent: true,
+            nom: nom.to_string(),
+        }
+    }
+}
+
+/// **Un écrit attaché à un geste** (NOTE-1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Note {
+    pub instant: i64,
+    /// Qui l'écrit : un identifiant d'auteur, comme un geste.
+    pub auteur: u64,
+    /// Le rang du geste qu'elle commente dans l'histoire, à partir de zéro.
+    pub geste: u64,
+    pub texte: String,
+}
+
 /// Qui a posé un jalon.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Genre {
@@ -194,6 +247,40 @@ pub fn contenu_jalon(j: &Jalon) -> Vec<u8> {
     });
     w.text(&j.libelle);
     w.into_bytes()
+}
+
+pub fn contenu_auteur(a: &Auteur) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.u64(a.id);
+    w.u8(u8::from(a.agent));
+    w.text(&a.nom);
+    w.into_bytes()
+}
+
+pub fn contenu_note(n: &Note) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.i64(n.instant);
+    w.u64(n.auteur);
+    w.u64(n.geste);
+    w.text(&n.texte);
+    w.into_bytes()
+}
+
+fn lire_auteur(r: &mut Reader<'_>) -> CoreResult<Auteur> {
+    Ok(Auteur {
+        id: r.u64()?,
+        agent: r.u8()? != 0,
+        nom: r.text()?,
+    })
+}
+
+fn lire_note(r: &mut Reader<'_>) -> CoreResult<Note> {
+    Ok(Note {
+        instant: r.i64()?,
+        auteur: r.u64()?,
+        geste: r.u64()?,
+        texte: r.text()?,
+    })
 }
 
 pub fn contenu_lien(cle: &str, empreinte: &[u8; 32]) -> Vec<u8> {

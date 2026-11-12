@@ -92,6 +92,17 @@ code=$?
 [ "$code" = 1 ] && grep -q 'ne répond pas' "$T/err.txt" && ! grep -q 'SUN_LEN' "$T/err.txt"
 ok $? "une porte qui ne répond pas : code $code, $(cat "$T/err.txt")"
 
+echo "=== 5 bis. La Time Machine : un geste signé, un écrit attaché (MAIN-1, NOTE-1, fiche 108)"
+lancer poser-texte id=pluie "La pluie est de l'eau qui tombe."
+lancer noter "texte=Ce texte relie la pluie à l'eau : c'est pourquoi il compte."
+ok $(( code != 0 )) "glucose noter : code $code, $(cat "$T/out.txt") $(cat "$T/err.txt")"
+lancer histoire nombre=3
+dernier="d['gestes'][-1]"
+[ "$(json "$dernier['auteur']")" = "agent le terminal" ] \
+  && json "$dernier['fait']" | grep -q 'pose le texte « pluie »' \
+  && json "$dernier['ecrits'][0]['texte']" | grep -q "relie la pluie"
+ok $? "glucose histoire : le dernier geste, son auteur, ce qu'il a fait, son écrit — $(cat "$T/out.txt" | head -c 400)"
+
 echo "=== 6. Ouvrir un document par son nom (OUVRIR-1), dans un écran invisible"
 doc="$T/projets/demande.glucose"
 mkdir -p "$T/projets"

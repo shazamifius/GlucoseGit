@@ -17,8 +17,8 @@ use super::super::container::{
     MIN_READABLE_VERSION,
 };
 use super::super::manifest::{self, Manifest};
-use super::{lire_geste, lire_instantane, lire_jalon, lire_lien, nature, suivante, vue};
-use super::{Chaine, Jalon, Vue, ENTETE};
+use super::{lire_auteur, lire_geste, lire_instantane, lire_jalon, lire_lien, lire_note};
+use super::{nature, suivante, vue, Auteur, Chaine, Jalon, Note, Vue, ENTETE};
 use crate::error::{CoreError, CoreResult};
 use crate::hash::sha256;
 use crate::persist::bytes::Reader;
@@ -33,12 +33,14 @@ pub struct Tranche {
     pub longueur: u64,
 }
 
-/// Un geste de l'histoire, repéré sans être relu : de quoi le retrouver et le dater.
+/// Un geste de l'histoire, repéré sans être relu : de quoi le retrouver, le dater, et savoir qui
+/// l'a fait (MAIN-1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Repere {
     /// Position de son contenu dans le fichier, et longueur.
     pub tranche: Tranche,
     pub instant: i64,
+    pub auteur: u64,
 }
 
 /// Un instantané de l'histoire : après combien de gestes, et où.
@@ -62,6 +64,11 @@ pub struct Ouvert {
     pub gestes: Vec<Repere>,
     /// Les jalons, chacun avec le nombre de gestes qui le précèdent.
     pub jalons: Vec<(usize, Jalon)>,
+    /// **Qui sont les auteurs déclarés** (MAIN-1), par identifiant. Un identifiant absent est
+    /// un lancement de Glucose par l'humain.
+    pub auteurs: HashMap<u64, Auteur>,
+    /// **Les écrits attachés aux gestes** (NOTE-1), dans l'ordre où ils ont été écrits.
+    pub notes: Vec<Note>,
     pub instantanes: Vec<Instantane>,
     /// Là où la prochaine entrée s'écrira, et la chaîne à y reprendre.
     pub fin: u64,
@@ -112,6 +119,8 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         manifeste,
         gestes: Vec::new(),
         jalons: Vec::new(),
+        auteurs: HashMap::new(),
+        notes: Vec::new(),
         instantanes: Vec::new(),
         fin: base.fin,
         chaine: base.graine,
@@ -346,11 +355,20 @@ fn ranger(
             );
         }
         nature::GESTE => {
-            let instant = contenu
-                .get(2..10)
-                .map(|c| i64::from_le_bytes(c.try_into().unwrap_or([0; 8])))
-                .unwrap_or(0);
-            o.gestes.push(Repere { tranche, instant });
+            // Le schéma (deux octets), puis l'instant et l'auteur : de quoi dater et signer le
+            // geste sans le relire.
+            let mot = |de: usize| {
+                contenu
+                    .get(de..de + 8)
+                    .and_then(|c| c.try_into().ok())
+                    .map_or(0, u64::from_le_bytes)
+            };
+            let (instant, auteur) = (mot(2) as i64, mot(10));
+            o.gestes.push(Repere {
+                tranche,
+                instant,
+                auteur,
+            });
             o.dernier_geste = o.chaine;
             o.octets_depuis_l_instantane += tranche.longueur;
             a_rejouer.push(ARejouer::Geste(o.gestes.len() - 1, contenu));
@@ -374,6 +392,14 @@ fn ranger(
             o.liens.insert(cle, empreinte);
         }
         nature::VUE => a_rejouer.push(ARejouer::Vue(vue::lire(&mut Reader::new(&contenu))?)),
+        nature::AUTEUR => {
+            let auteur = lire_auteur(&mut Reader::new(&contenu))?;
+            o.auteurs.insert(auteur.id, auteur);
+        }
+        nature::NOTE => o.notes.push(lire_note(&mut Reader::new(&contenu))?),
+        // PERSIST-5 : une nature facultative qu'on ne connaît pas s'enjambe — sa chaîne est
+        // vérifiée, et ce qu'elle dit ne change pas le document.
+        autre if autre & nature::FACULTATIVE != 0 => {}
         autre => {
             return Err(CoreError::DeserializationError(format!(
                 "entrée d'histoire de nature {autre} : ce document vient d'une version plus \

@@ -376,6 +376,101 @@ fn test_une_nature_inconnue_demande_une_version_plus_recente() {
     assert!(err.contains("plus récente"), "{err}");
 }
 
+/// **PERSIST-5 — une nature facultative inconnue s'enjambe** (fiche 108) : sa chaîne vérifiée,
+/// ce qui la suit se relit, et le document s'ouvre. Le contrepoint est l'épreuve d'avant : la même
+/// entrée sans le bit haut est refusée.
+#[test]
+fn test_persist_5_une_nature_facultative_inconnue_s_enjambe() {
+    let mut store = Store::new("x");
+    let b = store.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&store);
+    let e = disque.chaine.encadrer(0xF0, b"de l'avenir, facultatif");
+    disque.octets.extend_from_slice(&e);
+    store.add_image(&b, image("a", 0.0));
+    disque.ecrire(&mut store);
+    let o = histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets))
+        .expect("une nature facultative inconnue n'empêche pas d'ouvrir");
+    assert_eq!(o.gestes.len(), 1, "ce qui la suit se relit");
+    assert!(o.projet == store.project);
+}
+
+/// **MAIN-1 et NOTE-1 — qui a fait un geste, et ce qu'on en a écrit, se relisent** (fiche 108) :
+/// l'auteur de chaque geste, la déclaration d'un agent, l'écrit attaché à un geste — et rien de
+/// cela ne change le document.
+#[test]
+fn test_main_1_l_auteur_et_l_ecrit_d_un_geste_se_relisent() {
+    let mut store = Store::new("x");
+    let b = store.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&store);
+    let agent = histoire::Auteur::d_un_agent("proteo");
+    assert_eq!(
+        agent,
+        histoire::Auteur::d_un_agent("proteo"),
+        "un nom, un identifiant"
+    );
+    assert_ne!(agent.id, histoire::Auteur::d_un_agent("claude-code").id);
+    store.add_image(&b, image("a", 0.0));
+    disque.ecrire(&mut store);
+    let declaration = disque
+        .chaine
+        .encadrer(nature::AUTEUR, &histoire::contenu_auteur(&agent));
+    disque.octets.extend_from_slice(&declaration);
+    store.add_image(&b, image("b", 300.0));
+    for transaction in store.journal.prendre_les_ecrits() {
+        let g = Geste {
+            instant: 1_700_000_000_001,
+            auteur: agent.id,
+            transaction,
+        };
+        let e = disque
+            .chaine
+            .encadrer(nature::GESTE, &histoire::contenu_geste(&g));
+        disque.octets.extend_from_slice(&e);
+    }
+    let note = histoire::Note {
+        instant: 1_700_000_000_002,
+        auteur: agent.id,
+        geste: 1,
+        texte: "J'ai posé la seconde image à côté de la première : elles vont ensemble.".into(),
+    };
+    let e = disque
+        .chaine
+        .encadrer(nature::NOTE, &histoire::contenu_note(&note));
+    disque.octets.extend_from_slice(&e);
+    let o = histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets)).expect("ouvert");
+    let auteurs: Vec<u64> = o.gestes.iter().map(|g| g.auteur).collect();
+    assert_eq!(auteurs, [7, agent.id], "chaque geste a son auteur");
+    assert_eq!(o.auteurs.get(&agent.id), Some(&agent));
+    assert_eq!(o.notes, [note]);
+    assert!(
+        o.projet == store.project,
+        "un auteur, un écrit : le document ne change pas"
+    );
+}
+
+/// **MAIN-1 — la main suit le geste** : ce qu'un agent fait sort de la file signé de son nom ;
+/// défaire son geste est un geste de l'humain.
+#[test]
+fn test_main_1_la_main_suit_le_geste_et_defaire_est_humain() {
+    use glucose_core::store::journal::Main;
+    let mut store = Store::new("x");
+    let b = store.project.active_board_id.clone();
+    store.journal.main = Main::Agent("proteo".into());
+    store.add_image(&b, image("a", 0.0));
+    store.journal.main = Main::Humain;
+    let ecrits = store.journal.prendre_les_ecrits_signes();
+    assert_eq!(ecrits.len(), 1);
+    assert_eq!(ecrits[0].main, Main::Agent("proteo".into()));
+    assert!(store.undo(), "le geste de l'agent se défait");
+    let ecrits = store.journal.prendre_les_ecrits_signes();
+    assert_eq!(ecrits.len(), 1);
+    assert_eq!(
+        ecrits[0].main,
+        Main::Humain,
+        "défaire est un geste de l'humain"
+    );
+}
+
 /// **Le retour dans le temps** (HISTOIRE-3) : pour chaque point du passé, l'état relu est
 /// celui qu'avait le document à ce geste ; restaurer y ramène le document par **un** geste
 /// annulable ; et défaire ce geste rend le présent.

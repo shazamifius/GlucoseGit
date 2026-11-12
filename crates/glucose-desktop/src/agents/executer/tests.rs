@@ -8,6 +8,7 @@ mod heritage;
 mod operateur_2;
 mod parente_3;
 mod plan;
+mod temps_1;
 
 use crate::agents::json::Json;
 use crate::app::GlucoseApp;

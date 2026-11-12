@@ -151,6 +151,23 @@ const OUTILS: &[(&str, &str, &str)] = &[
         "Retire des nœuds, et les flèches qui n'ont plus de bout.",
         r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"}},"tableau":{"type":"string"}},"required":["ids"]}"##,
     ),
+    (
+        "glucose_histoire",
+        "Relit l'histoire du document — la Time Machine de Glucose : ses gestes les plus récents, \
+         dans l'ordre, chacun avec son rang, sa date, son auteur (« humain », ou « agent » et son \
+         nom), ce qu'il a fait (« pose le texte « a-12 » », « retire la flèche « f-3 » ») et les \
+         écrits qui s'y attachent ; ses jalons (les moments nommés, les enregistrements). C'est \
+         ainsi qu'on comprend comment le document s'est fait, et ce que l'humain a corrigé.",
+        r##"{"type":"object","properties":{"nombre":{"type":"number","description":"combien de gestes, les plus récents ; 50 par défaut"}}}"##,
+    ),
+    (
+        "glucose_noter",
+        "Attache un écrit à un geste de l'histoire, sans le changer — comme une note sur un \
+         commit : ce que tu comprends de ce geste, et pourquoi il compte. Par défaut ton dernier \
+         geste ; « geste » en donne le rang (glucose_histoire les dit). L'humain le lira dans la \
+         Time Machine, et une autre IA dans glucose_histoire.",
+        r##"{"type":"object","properties":{"texte":{"type":"string"},"geste":{"type":"number","description":"le rang du geste dans l'histoire ; par défaut ton dernier geste"}},"required":["texte"]}"##,
+    ),
 ];
 
 /// Les noms des outils, dans l'ordre de la liste.

@@ -117,7 +117,11 @@ impl GlucoseApp {
                     let Some(d) = self.lancement.agents.attente.pop_front() else {
                         return;
                     };
+                    // MAIN-1 : ce que l'agent écrit porte son nom dans l'histoire.
+                    let main = glucose_core::store::journal::Main::Agent(client);
+                    let avant = std::mem::replace(&mut self.store.journal.main, main);
                     let issue = self.executer_pour_un_agent(&d.appel.nom, &d.appel.arguments);
+                    self.store.journal.main = avant;
                     repondre(d, issue);
                 }
                 Some(false) => {

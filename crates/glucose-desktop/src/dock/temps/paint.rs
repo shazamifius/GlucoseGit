@@ -44,8 +44,42 @@ pub fn render_temps_panel(pixmap: &mut PixmapMut, brush: &Brush, frame: ScaledRe
             Face::Bold,
         );
     }
+    detail(pixmap, brush, &layout, ui);
     jalons(pixmap, brush, &layout, ui);
     pied(pixmap, brush, layout.pied, ui);
+}
+
+/// **Le geste regardé** (MAIN-1, NOTE-1) : qui l'a fait, puis ses écrits, une ligne chacun, sous
+/// les boutons — coupée de « … » quand elle déborde du panneau.
+fn detail(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &TempsUi) {
+    let Some((maintenant, _)) = layout.boutons else {
+        return;
+    };
+    let (x, largeur) = (layout.reglette.x, layout.reglette.w);
+    let mut y = maintenant.y + maintenant.h + brush.px(10.0);
+    for (i, ligne) in ui.detail().iter().enumerate() {
+        let (corps, couleur) = if i == 0 {
+            (9.5, brush.theme.text_secondary)
+        } else {
+            (10.0, brush.theme.text_primary)
+        };
+        let texte = tenir_dans(brush, ligne, corps, largeur);
+        brush.text(pixmap, &texte, (x, y), corps, couleur, Face::Regular);
+        y += brush.px(super::LIGNE_DU_DETAIL);
+    }
+}
+
+/// Le texte, coupé de « … » s'il dépasse cette largeur.
+fn tenir_dans(brush: &Brush, texte: &str, corps: f32, largeur: f32) -> String {
+    let large = |t: &str| brush.typo.measure_text(t, brush.px(corps), Face::Regular).0;
+    if large(texte) <= largeur {
+        return texte.to_string();
+    }
+    let mut coupe: String = texte.to_string();
+    while !coupe.is_empty() && large(&format!("{coupe}…")) > largeur {
+        coupe.pop();
+    }
+    format!("{coupe}…")
 }
 
 /// « EN DIRECT » au présent, « APERÇU » dans le passé.

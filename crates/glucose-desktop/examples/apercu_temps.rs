@@ -7,7 +7,7 @@
 //! ```
 
 use glucose_core::store::Store;
-use glucose_desktop::dock::temps::{JalonVu, TempsUi};
+use glucose_desktop::dock::temps::{EcritVu, JalonVu, TempsUi};
 use glucose_desktop::dock::{render_docks, DockManager, DockPass, TabId};
 use glucose_desktop::interactions::text_entry::TextEntry;
 use glucose_desktop::params::{Pointer, ScreenFrame};
@@ -48,6 +48,18 @@ fn temps(regarde: Option<usize>, nom: Option<&str>) -> TempsUi {
         nom: nom.map(TextEntry::new),
         maintenant,
         glisse: false,
+        // Le geste 17 (rang 16) posé par un agent, et l'écrit qu'il y a attaché (fiche 108).
+        auteurs: (0..42)
+            .map(|i| if i == 16 { "agent proteo" } else { "toi" }.to_string())
+            .collect(),
+        ecrits: vec![EcritVu {
+            geste: 16,
+            auteur: "agent proteo".into(),
+            texte:
+                "J'ai rangé les textes de l'eau dans leur membrane : ils parlent du même sujet, \
+                    et la carte se lit mieux ainsi."
+                    .into(),
+        }],
     }
 }
 

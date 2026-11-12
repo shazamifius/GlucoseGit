@@ -113,6 +113,21 @@ impl GlucoseApp {
         let o = histoire::ouvrir(&mut std::io::BufReader::new(fichier)).ok()?;
         let t = &mut self.dock_manager.temps;
         t.gestes = o.gestes.iter().map(|g| g.instant).collect();
+        // Qui a fait chaque geste, et ce qu'on en a écrit (MAIN-1, NOTE-1).
+        let qui = |id: u64| match o.auteurs.get(&id).filter(|a| a.agent) {
+            Some(a) => format!("agent {}", a.nom),
+            None => "toi".to_string(),
+        };
+        t.auteurs = o.gestes.iter().map(|g| qui(g.auteur)).collect();
+        t.ecrits = o
+            .notes
+            .iter()
+            .map(|n| crate::dock::temps::EcritVu {
+                geste: n.geste as usize,
+                auteur: qui(n.auteur),
+                texte: n.texte.clone(),
+            })
+            .collect();
         t.jalons = o
             .jalons
             .iter()

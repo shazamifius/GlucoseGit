@@ -177,3 +177,39 @@ fn sans_agent_autorise_la_question_le_dit_et_ne_retire_rien() {
     assert!(question.texte.contains("Aucun agent"));
     assert_eq!(question.choix.len(), 1);
 }
+
+/// **MAIN-1 — par la vraie boucle, le geste d'un agent porte son nom, et la main revient à
+/// l'humain** (fiche 108) : sans ce retour, chaque geste qui suit l'appel d'un agent lui serait
+/// attribué dans l'histoire.
+#[test]
+fn main_1_apres_un_agent_la_main_revient_a_l_humain() {
+    use glucose_core::store::journal::Main;
+    use glucose_core::types::Annotation;
+    let (mut app, boite) = app_et_boite();
+    app.store.journal.prendre_les_ecrits_signes();
+    let reponse = appeler(
+        &boite,
+        "proteo",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    app.suivre_les_agents();
+    repondre(&mut app, Reponse::Oui);
+    assert!(!en_erreur(&reponse.try_recv().expect("répondu")));
+    assert_eq!(
+        app.store.journal.main,
+        Main::Humain,
+        "la main revient à l'humain"
+    );
+    let b = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&b, Annotation::text("h", 0.0, 0.0, "à la main"));
+    let mains: Vec<Main> = app
+        .store
+        .journal
+        .prendre_les_ecrits_signes()
+        .into_iter()
+        .map(|e| e.main)
+        .collect();
+    assert_eq!(mains, [Main::Agent("proteo".into()), Main::Humain]);
+}

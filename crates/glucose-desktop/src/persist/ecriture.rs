@@ -28,14 +28,22 @@
 //! Ce qu'une carte en édition contient se confie au scribe à chaque changement
 //! ([`Ecriture::saisir`]) ; il le garde à côté du document jusqu'à ce que la saisie devienne
 //! un geste. Rouvrir le document le retrouve ([`Ecriture::reprendre`]).
+//!
+//! # Qui a fait chaque geste, et ce qu'on en écrit (MAIN-1, NOTE-1 — fiche 108)
+//!
+//! Chaque geste porte la main qui l'a fait : l'humain signe de l'identifiant de ce lancement,
+//! un agent de l'identifiant tiré de son nom, déclaré une fois par document avant son premier
+//! geste. Un écrit s'attache à un geste par son rang ([`Ecriture::noter`]) : la Time Machine
+//! devient le socle de l'IA de Glucose (sa parole du 12/11/2026).
 
 use super::objets::{Objets, Source};
 use super::scribe::{chemin_de_saisie, Depart, Octets, Ordre, Scribe};
 use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Saisie, Vue};
-use glucose_core::store::journal::Transaction;
+use glucose_core::persist::histoire::{Auteur, Note};
+use glucose_core::store::journal::{Ecrit, Main};
 use glucose_core::text::Selection;
 use glucose_core::types::{BoardImage, Project};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -50,8 +58,12 @@ pub struct Ecriture {
     /// Octets de gestes écrits depuis le dernier instantané, et taille de celui-ci.
     depuis: u64,
     taille: u64,
-    /// Qui écrit : un identifiant par lancement.
+    /// Qui écrit : un identifiant par lancement — l'humain (MAIN-1).
     auteur: u64,
+    /// Les auteurs que ce fichier déclare déjà (MAIN-1).
+    declares: HashSet<u64>,
+    /// Le rang du dernier geste de chaque auteur : ce qu'un écrit commente par défaut (NOTE-1).
+    derniers: HashMap<u64, usize>,
     /// Les clés confiées au scribe et pas encore revenues scellées.
     confiees: HashSet<String>,
     /// Le texte en cours de frappe confié au scribe — ce que son fichier garde. `None` : il
@@ -107,6 +119,10 @@ impl Ecriture {
         );
         e.gestes = ouvert.gestes.len();
         e.dernier_jalon = ouvert.jalons.last().map(|(apres, _)| *apres);
+        e.declares = ouvert.auteurs.keys().copied().collect();
+        e.derniers = (ouvert.gestes.iter().enumerate())
+            .map(|(rang, g)| (g.auteur, rang))
+            .collect();
         // Une saisie qui ne vaut plus est à effacer dès qu'aucune autre ne l'occupe : un geste
         // l'a suivie, et pendant qu'on tape seule la validation écrit — son texte est dans
         // l'histoire.
@@ -147,6 +163,8 @@ impl Ecriture {
             depuis,
             taille,
             auteur: auteur_de_ce_lancement(),
+            declares: HashSet::new(),
+            derniers: HashMap::new(),
             confiees: HashSet::new(),
             saisie: None,
             gestes: 0,
@@ -185,21 +203,23 @@ impl Ecriture {
     /// entrent, et pose un instantané quand l'histoire le demande.
     pub fn consigner(
         &mut self,
-        transactions: Vec<Transaction>,
+        ecrits: Vec<Ecrit>,
         projet: &Project,
         objets: &Objets,
         instant: i64,
     ) {
-        for transaction in transactions {
+        for Ecrit { transaction, main } in ecrits {
             for img in transaction.images_posees() {
                 self.sceller(img, objets);
             }
+            let auteur = self.signer(&main);
             let contenu = histoire::contenu_geste(&Geste {
                 instant,
-                auteur: self.auteur,
+                auteur,
                 transaction,
             });
             self.depuis += contenu.len() as u64;
+            self.derniers.insert(auteur, self.gestes);
             self.gestes += 1;
             self.envoyer(nature::GESTE, contenu);
         }
@@ -214,6 +234,63 @@ impl Ecriture {
         self.taille = contenu.len() as u64;
         self.depuis = 0;
         self.envoyer(nature::INSTANTANE, contenu);
+    }
+
+    /// **L'identifiant dont cette main signe** (MAIN-1) : celui du lancement pour l'humain ; pour
+    /// un agent, celui de son nom, déclaré une fois par fichier, avant son premier geste.
+    fn signer(&mut self, main: &Main) -> u64 {
+        let Main::Agent(nom) = main else {
+            return self.auteur;
+        };
+        let auteur = Auteur::d_un_agent(nom);
+        if self.declares.insert(auteur.id) {
+            self.envoyer(nature::AUTEUR, histoire::contenu_auteur(&auteur));
+        }
+        auteur.id
+    }
+
+    /// L'identifiant de cette main, sans rien écrire.
+    fn identifiant(&self, main: &Main) -> u64 {
+        match main {
+            Main::Humain => self.auteur,
+            Main::Agent(nom) => Auteur::d_un_agent(nom).id,
+        }
+    }
+
+    /// **Attache un écrit à un geste** (NOTE-1) : celui de rang `geste`, ou le dernier que cette
+    /// main a fait. Rend le rang commenté ; refuse un geste qui n'existe pas, et un écrit vide —
+    /// sans rien écrire.
+    pub fn noter(
+        &mut self,
+        main: &Main,
+        (geste, texte): (Option<usize>, &str),
+        instant: i64,
+    ) -> Result<usize, String> {
+        if texte.trim().is_empty() {
+            return Err("un écrit vide ne dit rien".to_string());
+        }
+        let rang = match geste {
+            Some(rang) if rang < self.gestes => rang,
+            Some(rang) => {
+                return Err(format!(
+                    "le geste {rang} n'existe pas : l'histoire en compte {}",
+                    self.gestes
+                ))
+            }
+            None => *self
+                .derniers
+                .get(&self.identifiant(main))
+                .ok_or("tu n'as encore fait aucun geste dans ce document : donne son rang")?,
+        };
+        let auteur = self.signer(main);
+        let note = Note {
+            instant,
+            auteur,
+            geste: rang as u64,
+            texte: texte.to_string(),
+        };
+        self.envoyer(nature::NOTE, histoire::contenu_note(&note));
+        Ok(rang)
     }
 
     fn envoyer(&self, nature: u8, contenu: Vec<u8>) {

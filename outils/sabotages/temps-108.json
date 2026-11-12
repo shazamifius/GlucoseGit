@@ -1,0 +1,180 @@
+[
+ {
+  "nom": "La nature facultative refusée",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "        autre if autre & nature::FACULTATIVE != 0 => {}\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "histoire_suite",
+   "--lib",
+   "--",
+   "persist_5",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "L'auteur d'un geste lu à zéro",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "let (instant, auteur) = (mot(2) as i64, mot(10));",
+  "apres": "let (instant, auteur) = (mot(2) as i64, 0 * mot(10));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "histoire_suite",
+   "--lib",
+   "--",
+   "persist_5",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "La main oubliée par le journal",
+  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "avant": "            transaction,\n            main: self.main.clone(),\n",
+  "apres": "            transaction,\n            main: Main::Humain,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "histoire_suite",
+   "--lib",
+   "--",
+   "persist_5",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "L'agent signé comme l'humain",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "            let auteur = self.signer(&main);\n",
+  "apres": "            let auteur = self.signer(&Main::Humain);\n            let _ = main;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps_1",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "L'écrit sur le geste suivant",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "            self.derniers.insert(auteur, self.gestes);\n",
+  "apres": "            self.derniers.insert(auteur, self.gestes + 1);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps_1",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "Un écrit refusé laisse sa déclaration",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "        let rang = match geste {\n",
+  "apres": "        let _ = self.signer(main);\n        let rang = match geste {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps_1",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "Les écrits de tous les gestes",
+  "fichier": "crates/glucose-desktop/src/agents/executer/temps.rs",
+  "avant": "        .filter(|n| n.geste == rang as u64)\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps_1",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "Le geste regardé lu au mauvais rang",
+  "fichier": "crates/glucose-desktop/src/dock/temps.rs",
+  "avant": "        let rang = k - 1;\n",
+  "apres": "        let rang = k;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps_1",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "Le verbe d'une case qui apparaît",
+  "fichier": "crates/glucose-core/src/store/journal/en_mots.rs",
+  "avant": "        (None, Some(_)) => \"pose\",\n",
+  "apres": "        (None, Some(_)) => \"change\",\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "histoire_suite",
+   "--lib",
+   "--",
+   "persist_5",
+   "main_1",
+   "note_1"
+  ]
+ },
+ {
+  "nom": "La main de l'agent qui ne revient pas",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                    self.store.journal.main = avant;\n",
+  "apres": "                    let _ = avant;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps_1",
+   "main_1",
+   "note_1"
+  ]
+ }
+]

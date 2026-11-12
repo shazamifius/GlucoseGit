@@ -10,6 +10,7 @@ mod disposer;
 mod domaines;
 mod grouper;
 mod partir;
+mod temps;
 
 use super::json::Json;
 use super::lecture::{choisir, empreinte, premiere_phrase, Demande, Niveau, Rendu};
@@ -86,6 +87,8 @@ impl GlucoseApp {
             "glucose_chercher" => self.agent_chercher(&a),
             "glucose_disposer" => self.agent_disposer(&board, &a),
             "glucose_grouper" => self.agent_grouper(&board, &a),
+            "glucose_histoire" => self.agent_histoire(&a),
+            "glucose_noter" => self.agent_noter(&a),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),
         };
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.

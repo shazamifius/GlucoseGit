@@ -30,6 +30,16 @@ pub struct JalonVu {
     pub date: Option<crate::plateforme::heure::HeureLocale>,
 }
 
+/// **Un écrit attaché à un geste**, tel que le panneau le montre (NOTE-1, fiche 108).
+#[derive(Debug, Clone, PartialEq)]
+pub struct EcritVu {
+    /// Le rang du geste qu'il commente.
+    pub geste: usize,
+    /// Qui l'a écrit, en mots : « toi », ou « agent » et son nom.
+    pub auteur: String,
+    pub texte: String,
+}
+
 /// Ce que la Time Machine montre, et ce qu'on y est en train de faire.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TempsUi {
@@ -44,12 +54,37 @@ pub struct TempsUi {
     pub maintenant: i64,
     /// La réglette est tenue : tant que le bouton l'est, le passé suit le curseur.
     pub glisse: bool,
+    /// **Qui a fait chaque geste**, en mots (MAIN-1), tel que le fichier le dit — relu avec lui.
+    pub auteurs: Vec<String>,
+    /// **Les écrits attachés aux gestes** (NOTE-1).
+    pub ecrits: Vec<EcritVu>,
 }
 
 impl TempsUi {
     /// Le point où se tient le curseur : le regardé, ou le présent.
     pub fn point(&self) -> usize {
         self.regarde.unwrap_or(self.gestes.len())
+    }
+
+    /// **Ce que le panneau dit du geste regardé** (MAIN-1, NOTE-1) : qui l'a fait, puis chacun de
+    /// ses écrits — une ligne chacun. Rien au présent : on y regarde l'état, pas un geste.
+    ///
+    /// La première marche, la plus simple : sa parole du 12/11/2026 demande de revoir l'interface
+    /// de la Time Machine pour tout y voir — l'IA, ses écrits —, mais le fonctionnement d'abord.
+    pub fn detail(&self) -> Vec<String> {
+        let Some(k) = self.regarde.filter(|&k| k > 0) else {
+            return Vec::new();
+        };
+        let rang = k - 1;
+        let qui = self.auteurs.get(rang).map_or("toi", String::as_str);
+        std::iter::once(format!("Geste {k} · par {qui}"))
+            .chain(
+                self.ecrits
+                    .iter()
+                    .filter(|e| e.geste == rang)
+                    .map(|e| format!("{} : « {} »", e.auteur, e.texte)),
+            )
+            .collect()
     }
 
     /// Des gestes viennent de s'écrire : la réglette s'allonge sans relire le fichier.
@@ -93,6 +128,8 @@ pub struct TempsLayout {
 
 /// Hauteur d'une ligne de jalon, en unités de la fiche.
 const LIGNE: f32 = 38.0;
+/// Hauteur d'une ligne du détail du geste regardé.
+pub const LIGNE_DU_DETAIL: f32 = 16.0;
 
 pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
     let s = crate::theme::clamp_ui_scale(frame.scale);
@@ -106,7 +143,13 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
         let droite = WidgetRect::new(px + marge + 118.0 * s, y, interieur - 118.0 * s, 24.0 * s);
         (gauche, droite)
     });
-    let liste_y = py + if boutons.is_some() { 140.0 } else { 108.0 } * s;
+    let detail = ui.detail().len() as f32 * LIGNE_DU_DETAIL;
+    let liste_y = py
+        + if boutons.is_some() {
+            140.0 + detail
+        } else {
+            108.0
+        } * s;
     let pied = WidgetRect::new(px + marge, py + ph - marge - 30.0 * s, interieur, 30.0 * s);
     // Les jalons les plus récents d'abord, tant qu'ils tiennent au-dessus du pied.
     let premiere = liste_y + 18.0 * s;
@@ -338,5 +381,32 @@ mod tests {
             paint::detail_du_jalon(&j, 1_000_000 + 3 * 3_600_000),
             "nommé · il y a 3 h · geste 12"
         );
+    }
+
+    /// **MAIN-1, NOTE-1 — le geste regardé dit qui l'a fait, et ses écrits** (fiche 108) ; le
+    /// présent n'en dit rien, et la liste des jalons descend d'une ligne par ligne du détail.
+    #[test]
+    fn main_1_le_geste_regarde_dit_qui_l_a_fait_et_ses_ecrits() {
+        let mut u = ui(3, &[1]);
+        u.auteurs = vec!["toi".into(), "agent proteo".into(), "toi".into()];
+        u.ecrits = vec![EcritVu {
+            geste: 1,
+            auteur: "agent proteo".into(),
+            texte: "la pluie est de l'eau qui tombe".into(),
+        }];
+        assert!(u.detail().is_empty(), "au présent, rien");
+        u.regarde = Some(1);
+        assert_eq!(u.detail(), ["Geste 1 · par toi"]);
+        let une = layout_temps_panel(cadre(), &u).liste_y;
+        u.regarde = Some(2);
+        assert_eq!(
+            u.detail(),
+            [
+                "Geste 2 · par agent proteo",
+                "agent proteo : « la pluie est de l'eau qui tombe »"
+            ]
+        );
+        let deux = layout_temps_panel(cadre(), &u).liste_y;
+        assert_eq!(deux - une, LIGNE_DU_DETAIL, "la liste descend d'une ligne");
     }
 }

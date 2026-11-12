@@ -83,7 +83,7 @@ impl Disque {
 impl GlucoseApp {
     /// **Écrit ce que le journal a appliqué au document** depuis la dernière image.
     pub fn consigner(&mut self) {
-        let transactions = self.store.journal.prendre_les_ecrits();
+        let transactions = self.store.journal.prendre_les_ecrits_signes();
         if self.disque.voyage.is_some() {
             // On regarde le passé : ce qui s'y fait n'est pas de l'histoire (HISTOIRE-3).
             return;
@@ -97,7 +97,7 @@ impl GlucoseApp {
         self.dire_l_erreur_d_ecriture();
     }
 
-    fn ecrire_les_gestes(&mut self, transactions: Vec<glucose_core::store::journal::Transaction>) {
+    fn ecrire_les_gestes(&mut self, transactions: Vec<glucose_core::store::journal::Ecrit>) {
         let instant = now_millis();
         if let Err(e) = self.s_assurer_d_un_fichier() {
             self.dire_l_echec(&e);

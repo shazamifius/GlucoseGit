@@ -56,8 +56,30 @@
 //!   passe par la file de sortie ([`Journal::prendre_les_ecrits`]), dans l'ordre où elle a été
 //!   appliquée. C'est tout ce que l'histoire du disque écrit (`persist::histoire`) : rejouer
 //!   cette file depuis l'état de départ redonne le document, et rien d'autre ne le modifie.
+//! - **MAIN-1** (fiche 108) — chaque transaction de la file porte **la main qui l'a faite**
+//!   ([`Main`]) : l'humain, ou un agent sous le nom que son client se donne. L'histoire signe
+//!   ainsi chaque geste, et une IA qui la relit sait qui a fait quoi (sa parole du 12/11/2026 :
+//!   tout le système d'IA repose sur la Time Machine). Défaire le geste d'un agent est un geste
+//!   de l'humain.
 
 use crate::types::Project;
+
+/// **Qui fait un geste** (MAIN-1) : l'humain devant Glucose, ou un agent — sous le nom que son
+/// client se donne, déclaré et jamais vérifié, comme la question « Autoriser » le montre.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum Main {
+    #[default]
+    Humain,
+    Agent(String),
+}
+
+/// **Un geste appliqué, et la main qui l'a fait** : ce que la file de sortie porte (JRN-5,
+/// MAIN-1).
+#[derive(Debug, Clone)]
+pub struct Ecrit {
+    pub transaction: Transaction,
+    pub main: Main,
+}
 
 /// Profondeur maximale de la pile d'annulation, en **nombre de gestes** (fiche 09 § 2.1).
 ///
@@ -198,6 +220,7 @@ impl<T> Whole<T> {
 }
 
 pub mod edit;
+mod en_mots;
 mod fondre;
 
 pub use edit::{Bouts, Edit};
@@ -282,8 +305,11 @@ pub struct Journal {
     done: Vec<Transaction>,
     undone: Vec<Transaction>,
     open: Option<Transaction>,
-    /// Ce qui a été appliqué au document depuis la dernière lecture de la file (JRN-5).
-    ecrits: Vec<Transaction>,
+    /// Ce qui a été appliqué au document depuis la dernière lecture de la file (JRN-5), et par
+    /// quelle main (MAIN-1).
+    ecrits: Vec<Ecrit>,
+    /// **La main qui agit en ce moment** (MAIN-1) : l'humain, sauf pendant l'appel d'un agent.
+    pub main: Main,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
     /// Combien de gestes se sont ouverts : le numéro du geste en cours. Celui qui suit ce
@@ -299,6 +325,7 @@ impl Journal {
             undone: Vec::new(),
             open: None,
             ecrits: Vec::new(),
+            main: Main::Humain,
             max_depth,
             ouverts: 0,
         }
@@ -335,7 +362,23 @@ impl Journal {
     /// Un geste validé y entre tel quel ; un pas d'annulation y entre **retourné**, tel qu'il a
     /// été appliqué. Un geste abandonné n'y entre jamais : il n'a rien laissé.
     pub fn prendre_les_ecrits(&mut self) -> Vec<Transaction> {
+        self.prendre_les_ecrits_signes()
+            .into_iter()
+            .map(|e| e.transaction)
+            .collect()
+    }
+
+    /// **La même file, chaque geste avec sa main** (MAIN-1) : ce que l'histoire écrit.
+    pub fn prendre_les_ecrits_signes(&mut self) -> Vec<Ecrit> {
         std::mem::take(&mut self.ecrits)
+    }
+
+    /// La file d'un geste appliqué : la transaction, et la main qui agit.
+    fn publier(&mut self, transaction: Transaction) {
+        self.ecrits.push(Ecrit {
+            transaction,
+            main: self.main.clone(),
+        });
     }
 
     /// Vide tout. Appelé quand une édition a contourné le journal (chargement d'un projet,
@@ -458,7 +501,7 @@ impl Journal {
     }
 
     fn commit(&mut self, tx: Transaction) {
-        self.ecrits.push(tx.clone());
+        self.publier(tx.clone());
         self.done.push(tx);
         if self.done.len() > self.max_depth {
             self.done.remove(0);
@@ -504,8 +547,8 @@ impl Journal {
             self.clear();
             return false;
         }
-        self.ecrits.push(tx.clone());
-        to.push(tx);
+        to.push(tx.clone());
+        self.publier(tx);
         true
     }
 }
