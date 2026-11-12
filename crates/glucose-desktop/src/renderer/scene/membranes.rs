@@ -241,8 +241,8 @@ impl<'a> MembraneVue<'a> {
         let l = &self.monde;
         let large = kit
             .typography
-            .measure_text(label, l.label_font, Face::Bold)
-            .0;
+            .ligne_detouree(label, l.label_font, Face::Bold)
+            .avance;
         let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);
         Some((
             label,

@@ -65,8 +65,8 @@
  {
   "nom": "L'ajustement mesuré à l'écran",
   "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
-  "avant": "        let l = &self.monde;\n        let large = kit\n            .typography\n            .measure_text(label, l.label_font, Face::Bold)\n            .0;\n        let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);",
-  "apres": "        let l = &self.monde;\n        let e = &self.layout;\n        let large = kit\n            .typography\n            .measure_text(label, e.label_font, Face::Bold)\n            .0;\n        let ajuste = (e.width / (large + 2.0 * e.label_dx)).min(1.0);",
+  "avant": "        let l = &self.monde;\n        let large = kit\n            .typography\n            .ligne_detouree(label, l.label_font, Face::Bold)\n            .avance;\n        let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);",
+  "apres": "        let l = &self.monde;\n        let e = &self.layout;\n        let large = kit\n            .typography\n            .ligne_detouree(label, e.label_font, Face::Bold)\n            .avance;\n        let ajuste = (e.width / (large + 2.0 * e.label_dx)).min(1.0);",
   "cmd": [
    "cargo",
    "test",

@@ -291,6 +291,7 @@ impl Renderer {
         // Ce que l'image d'avant n'a pas mis en page, ni écrit, s'oublie (P8 bis, fiche 104).
         self.mises_en_page.nouvelle_image();
         self.typography.nouvelle_image();
+        self.sens_des_textes.nouvelle_image();
         crate::perf::stage("recolte");
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");

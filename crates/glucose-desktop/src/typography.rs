@@ -61,7 +61,7 @@ pub use encre::{forme_grise, peindre_exact, LETTRE_LISIBLE};
 pub mod glyph;
 pub(crate) mod trace;
 
-pub use detoure::DETOURAGE;
+pub use detoure::{LigneDetouree, DETOURAGE};
 
 use fontdue::{Font, FontSettings};
 use glyph::{
@@ -193,7 +193,14 @@ pub struct Typography {
     contours: trace::Contours,
     /// L'encre de chaque lettre, lue une fois (GRIS-1, fiche 95) : [`Typography::encre`].
     encres: RefCell<HashMap<(Face, char), f32>>,
+    /// **Les lignes détourées mesurées** (TITRE-3), par graisse et taille, puis par texte, avec
+    /// la dernière image qui les a demandées : [`Typography::ligne_detouree`].
+    lignes: RefCell<HashMap<(Face, u32), LignesRetenues>>,
 }
+
+/// Les lignes détourées retenues d'une graisse et d'une taille, par texte, avec la dernière image
+/// qui les a demandées.
+type LignesRetenues = HashMap<Box<str>, (LigneDetouree, u64)>;
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
 /// Le déclarer évite qu'un appelant générique ait à connaître le nom `new`.
@@ -220,6 +227,7 @@ impl Typography {
             image: Cell::new(0),
             contours: trace::Contours::de(&octets),
             encres: RefCell::new(HashMap::new()),
+            lignes: RefCell::new(HashMap::new()),
         }
     }
 
@@ -367,6 +375,10 @@ impl Typography {
         self.glyph_cache
             .borrow_mut()
             .retain(|_, (_, vue)| *vue == image);
+        self.lignes.borrow_mut().retain(|_, par_texte| {
+            par_texte.retain(|_, (_, vue)| *vue == image);
+            !par_texte.is_empty()
+        });
         self.image.set(image + 1);
     }
 

@@ -76,7 +76,7 @@ impl Fleche {
             return None;
         };
         let morceaux = noyau::morceaux_with(ann, noeuds)?;
-        let teintes = aspect::teintes(
+        let teintes = sens.degrade(
             couleur_d_un_bout(sens, (board, pass), source_id.as_deref()),
             couleur_d_un_bout(sens, (board, pass), target_id.as_deref()),
         );

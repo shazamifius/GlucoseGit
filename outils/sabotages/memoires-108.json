@@ -1,0 +1,91 @@
+[
+ {
+  "nom": "La taille oubliée dans la clé des lignes",
+  "fichier": "crates/glucose-desktop/src/typography/detoure.rs",
+  "avant": "let par_texte = lignes.entry((face, size.to_bits())).or_default();",
+  "apres": "let par_texte = lignes.entry((face, 0_f32.to_bits())).or_default();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_3",
+   "degrade"
+  ]
+ },
+ {
+  "nom": "Les lignes jamais oubliées",
+  "fichier": "crates/glucose-desktop/src/typography.rs",
+  "avant": "        self.lignes.borrow_mut().retain(|_, par_texte| {\n            par_texte.retain(|_, (_, vue)| *vue == image);\n            !par_texte.is_empty()\n        });\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_3",
+   "degrade"
+  ]
+ },
+ {
+  "nom": "Le dégradé rangé sans son sens",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+    "avant": "degrades.get_mut(&(depart, arrivee))",
+    "apres": "degrades.get_mut(&(depart.min(arrivee), depart.max(arrivee)))"
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+    "avant": "degrades.insert((depart, arrivee), (teintes, image));",
+    "apres": "degrades.insert((depart.min(arrivee), depart.max(arrivee)), (teintes, image));"
+   }
+  ],
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_3",
+   "degrade"
+  ]
+ },
+ {
+  "nom": "Les dégradés jamais oubliés",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "        self.degrades\n            .borrow_mut()\n            .retain(|_, (_, vue)| *vue == image);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_3",
+   "degrade"
+  ]
+ },
+ {
+  "nom": "Le rendu n'oublie pas les dégradés",
+  "fichier": "crates/glucose-desktop/src/renderer.rs",
+  "avant": "        self.sens_des_textes.nouvelle_image();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_3",
+   "degrade"
+  ]
+ }
+]

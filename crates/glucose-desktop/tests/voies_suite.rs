@@ -2018,6 +2018,11 @@ fn confie_en_zoom(
 /// est ramené à la largeur de sa membrane **dans le monde**. Mesuré à l'écran, où ses lettres
 /// font moins d'un pixel et se mesurent comme d'un pixel, l'ajustement changeait avec le zoom —
 /// et la texture se refaisait à chaque image.
+///
+/// Une membrane neuve (un corps de 16 dans le monde), à ×0,03 et ×0,033 : le même palier (2⁻⁵),
+/// des lettres d'un demi-pixel. La première version de cette épreuve regardait ×0,004 et ×0,0042
+/// — sous le plus petit zoom (`Viewport::MIN_SCALE`), donc deux fois la même vue : le sabotage de
+/// l'ajustement passait. Elle vérifie désormais qu'elle regarde deux vues.
 #[test]
 fn test_titre_3_de_loin_un_titre_reduit_garde_sa_cle_pendant_un_zoom() {
     let taille = (800u32, 600u32);
@@ -2027,14 +2032,25 @@ fn test_titre_3_de_loin_un_titre_reduit_garde_sa_cle_pendant_un_zoom() {
         y: 300.0,
         scale,
     };
-    let store = document_titre(titre, (4000.0, 3000.0), vue(0.004), None);
-    let cles: Vec<_> = [0.004, 0.0042]
+    let (zooms, naissance) = ([0.03, 0.033], glucose_core::membrane_titre::NAISSANCE);
+    assert!(zooms
+        .iter()
+        .all(|&z| z >= glucose_core::types::Viewport::MIN_SCALE && 16.0 * z < 1.0));
+    let store = document_titre(titre, naissance, vue(zooms[0]), None);
+    let titres: Vec<_> = zooms
         .into_iter()
         .map(|scale| {
             let confie = confie_en_zoom(taille, &store, vue(scale));
             assert_eq!(confie.titres.len(), 1, "à ×{scale}, la carte pose le titre");
-            confie.titres[0].cle.clone()
+            confie.titres[0].clone()
         })
         .collect();
-    assert_eq!(cles[0], cles[1], "le même palier, la même texture");
+    assert_ne!(
+        titres[0].pose.largeur, titres[1].pose.largeur,
+        "deux vues différentes : sinon l'épreuve compare une vue à elle-même"
+    );
+    assert_eq!(
+        titres[0].cle, titres[1].cle,
+        "le même palier, la même texture"
+    );
 }

@@ -7,6 +7,14 @@ use super::{clamp_font_size, trace, Face, TextStyle, Typography};
 use std::rc::Rc;
 use tiny_skia::{Color, PixmapMut};
 
+/// **Ce qu'une ligne détourée occupe** ([`Typography::ligne_detouree`]) : son avance — la largeur
+/// que [`Typography::measure_text`] dit — et la boîte de son encre, `(gauche, haut, droite, bas)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LigneDetouree {
+    pub avance: f32,
+    pub encre: (f32, f32, f32, f32),
+}
+
 /// **Le détourage d'un texte** ([`Typography::draw_text_with_outline`]) : les huit copies, de la
 /// teinte du contour, qui passent sous le texte — le SVG pose les mêmes (P5, fiche 70).
 pub const DETOURAGE: [(f32, f32); 8] = [
@@ -87,7 +95,31 @@ impl Typography {
     /// lettre décalée de sa phase s'élargit. C'est ce que la texture d'un titre doit contenir
     /// pour ne couper aucune encre.
     pub fn encre_detouree(&self, text: &str, size: f32, face: Face) -> (f32, f32, f32, f32) {
+        self.ligne_detouree(text, size, face).encre
+    }
+
+    /// **Ce qu'une ligne détourée occupe** — son avance et son encre ([`Self::encre_detouree`]) —,
+    /// **retenu** : une fonction de son texte, de sa taille et de sa graisse seuls, que chaque
+    /// image redemandait à l'identique pour chaque titre de membrane, quatre fois (TITRE-3, fiche
+    /// 108). Ce que l'image d'avant n'a pas demandé s'oublie ([`Self::nouvelle_image`]), la loi
+    /// des lettres et des mises en page.
+    pub fn ligne_detouree(&self, text: &str, size: f32, face: Face) -> LigneDetouree {
         let size = clamp_font_size(size);
+        let image = self.image.get();
+        let mut lignes = self.lignes.borrow_mut();
+        let par_texte = lignes.entry((face, size.to_bits())).or_default();
+        if let Some((ligne, vue)) = par_texte.get_mut(text) {
+            *vue = image;
+            return *ligne;
+        }
+        let ligne = self.mesurer_la_ligne(text, size, face);
+        par_texte.insert(text.into(), (ligne, image));
+        ligne
+    }
+
+    /// La mesure elle-même, lettre par lettre : l'avance est celle de [`Self::measure_text`],
+    /// sommée dans le même ordre.
+    fn mesurer_la_ligne(&self, text: &str, size: f32, face: Face) -> LigneDetouree {
         let (mut g, mut h, mut d, mut b) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
         let mut plume = 0.0;
         for ch in text.chars().filter(|&ch| ch != '\n') {
@@ -100,13 +132,19 @@ impl Typography {
             plume += m.advance_width;
         }
         if g > d {
-            return (0.0, 0.0, 0.0, 0.0);
+            return LigneDetouree {
+                avance: plume,
+                encre: (0.0, 0.0, 0.0, 0.0),
+            };
         }
         let halo = DETOURAGE
             .iter()
             .fold(0.0_f32, |m, &(x, y)| m.max(x.abs()).max(y.abs()));
         let deborde = halo + 2.0;
-        (g - deborde, h - deborde, d + deborde, b + deborde)
+        LigneDetouree {
+            avance: plume,
+            encre: (g - deborde, h - deborde, d + deborde, b + deborde),
+        }
     }
 
     /// **Une lettre tracée, détourée** (TITRE-2) : le trait du contour, puis la lettre — de la
@@ -169,5 +207,55 @@ impl Typography {
             .borrow_mut()
             .insert(cle, (entry.clone(), image));
         entry
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::typography::{Face, Typography};
+
+    /// **La ligne retenue est celle qu'on mesure, et s'oublie** (TITRE-3, fiche 108) : son avance
+    /// est celle de `measure_text` au bit près — le titre s'ajuste sur elle —, son encre celle de
+    /// la mesure ; la mémoire garde ce que l'image d'avant a demandé, et oublie le reste.
+    #[test]
+    fn titre_3_la_ligne_retenue_est_celle_qu_on_mesure_et_s_oublie() {
+        let typo = Typography::new();
+        for (texte, taille) in [
+            ("Hydrologie", 16.0_f32),
+            ("Économie d'Ågård", 23.7),
+            ("", 9.0),
+        ] {
+            let ligne = typo.ligne_detouree(texte, taille, Face::Bold);
+            assert_eq!(
+                ligne.avance.to_bits(),
+                typo.measure_text(texte, taille, Face::Bold).0.to_bits(),
+                "« {texte} » : l'avance est celle de measure_text"
+            );
+            assert_eq!(ligne, typo.mesurer_la_ligne(texte, taille, Face::Bold));
+            assert_eq!(typo.ligne_detouree(texte, taille, Face::Bold), ligne);
+        }
+        let retenues = || {
+            typo.lignes
+                .borrow()
+                .values()
+                .map(|par_texte| par_texte.len())
+                .sum::<usize>()
+        };
+        assert_eq!(retenues(), 3);
+        // Le même texte à une autre taille est une autre ligne : la taille est dans la clé.
+        let grand = typo.ligne_detouree("Hydrologie", 32.0, Face::Bold);
+        assert_eq!(grand, typo.mesurer_la_ligne("Hydrologie", 32.0, Face::Bold));
+        assert!(grand.avance > typo.ligne_detouree("Hydrologie", 16.0, Face::Bold).avance);
+        assert_eq!(retenues(), 4);
+        typo.nouvelle_image();
+        typo.ligne_detouree("Hydrologie", 16.0, Face::Bold);
+        typo.nouvelle_image();
+        assert_eq!(
+            retenues(),
+            1,
+            "ce que l'image d'avant n'a pas demandé s'oublie"
+        );
+        typo.nouvelle_image();
+        assert_eq!(retenues(), 0);
     }
 }
