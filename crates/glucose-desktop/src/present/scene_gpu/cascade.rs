@@ -88,6 +88,20 @@ impl SceneGpu {
                 gardee.vue = image;
             }
         }
+        self.clore(&tranche);
+    }
+
+    /// **La cascade se ferme** : l'instant d'où la fin de l'image se mesure (QUEUE-1), et ce
+    /// qu'elle a fait, pour la mesure.
+    fn clore(&mut self, tranche: &Tranche) {
+        self.fin_de_cascade = Some((Instant::now(), tranche.faites as u64));
+        // Ce que la fin de cette image devrait coûter : nul tant que la présentation ne l'a
+        // jamais apprise — c'est la mesure réelle qui dit qu'elle l'apprend.
+        let fin_prevue = self.queue.prevoir(tranche.faites as u64);
+        crate::perf::compteur(
+            "fin_prevue_us",
+            fin_prevue.unwrap_or_default().as_secs_f64() * 1e6,
+        );
         crate::perf::compteur("textures_kpx", tranche.surface);
         crate::perf::compteur("textures_rendu_us", tranche.rendu.as_secs_f64() * 1e6);
         crate::perf::compteur("textures_faites", tranche.faites);
@@ -97,6 +111,18 @@ impl SceneGpu {
     /// **La dernière cascade a-t-elle reporté du contenu ?** (NETTETE-1)
     pub fn inachevee(&self) -> bool {
         self.inachevee
+    }
+
+    /// **L'image est à l'écran** : ce que sa fin a coûté depuis la cascade s'apprend (QUEUE-1) —
+    /// moins `attente`, le temps passé à attendre que l'écran rende une image. Attendre n'est pas
+    /// travailler : comptée, l'attente de l'écran (jusqu'à vingt millisecondes quand la souris
+    /// bouge, sur les images qui ne font aucune texture) tordait la droite, qui prévoyait quatre
+    /// millisecondes de fin pour une texture et zéro pour deux cent quatre-vingts (fiche 110).
+    pub fn noter_la_fin_de_l_image(&mut self, attente: Duration) {
+        if let Some((fin, faites)) = self.fin_de_cascade.take() {
+            self.queue
+                .noter(faites, fin.elapsed().saturating_sub(attente));
+        }
     }
 
     /// Rend et téléverse `t` si ce tour le concerne et que le budget le permet.
@@ -119,6 +145,15 @@ impl SceneGpu {
         let surface =
             (f64::from(t.pose.largeur.max(1.0)) * f64::from(t.pose.hauteur.max(1.0))) as u64;
         let prevu = self.debit.prevoir(surface).unwrap_or_default();
+        // **QUEUE-1 : l'image ne finit pas avec la cascade** (fiche 110). Après elle viennent
+        // les poses, l'envoi à la carte et la présentation — de 1 à 4 ms sur sa carte de
+        // Wikipédia, d'autant plus que la cascade a fait de textures. Le budget est ce qui
+        // reste de la période : la fin de l'image y tient aussi, ou l'écran saute un battement
+        // et la netteté d'un cran de molette arrive une image plus tard (fiche 109 § 2).
+        let fin = self
+            .queue
+            .prevoir(tranche.faites as u64 + 1)
+            .unwrap_or_default();
         // **Le budget vaut pour les deux tours**, et la première version se trompait ici.
         // Elle n'en exemptait que l'urgent, au motif qu'un trou est pire qu'un flou — vrai
         // pour une carte isolée, faux pour quatre cent quatre-vingts. Le terrain a tranché :
@@ -131,7 +166,7 @@ impl SceneGpu {
         // se compléter, même quand chaque image dépasse déjà le plancher et que le budget est
         // nul — la même raison qui fait que `tranche_de_fond` ne rend jamais zéro à l'atelier
         // de décodage.
-        if tranche.faites > 0.0 && tranche.debut.elapsed() + prevu >= tranche.budget {
+        if tranche.faites > 0.0 && tranche.debut.elapsed() + prevu + fin >= tranche.budget {
             tranche.reportees += 1.0;
             return;
         }
@@ -155,55 +190,56 @@ impl SceneGpu {
     }
 }
 
-/// **Ce qu'une texture coûte sur cette machine** : un prix fixe, plus un prix par pixel qu'elle
-/// couvre à l'écran — la droite des moindres carrés sur toutes les textures rendues depuis le
-/// début (CASCADE-3, puis CASCADE-4, fiche 109).
+/// **Une durée qui suit une grandeur, apprise sur cette machine** : un prix fixe, plus un prix par
+/// unité — la droite des moindres carrés sur tout ce qui a été mesuré depuis le début. Elle sert
+/// deux fois : **une texture** coûte selon les pixels qu'elle couvre à l'écran (CASCADE-3, puis
+/// CASCADE-4, fiche 109) ; **la fin d'une image** — poser, envoyer, présenter — selon les textures
+/// que la cascade vient de faire (QUEUE-1, fiche 110).
 ///
-/// **Par pixel seulement, la prévision se trompait dans les deux sens** : le prix fixe d'une
-/// texture (préparer son tampon, la rendre, l'envoyer), réparti sur les pixels de toutes celles
+/// **Par pixel seulement, la prévision d'une texture se trompait dans les deux sens** : le prix fixe
+/// d'une texture (préparer son tampon, la rendre, l'envoyer), réparti sur les pixels de toutes celles
 /// mesurées, gonflait le prix d'une grande texture après beaucoup de petites — de loin, sur sa
 /// carte de Wikipédia, deux cent soixante-quinze textures de quelques centaines de pixels — et
 /// sous-estimait une petite après de grandes. La droite apprend les deux prix de ce que la machine
-/// montre : aucun nombre n'est choisi. Mesuré sur le zoom de sa carte (fiche 109) : sans gain
-/// visible là, où la cascade s'arrête de toute façon au bord de son budget.
+/// montre : aucun nombre n'est choisi.
 ///
 /// Cumulée et non glissante — glisser demanderait une fenêtre, donc un nombre à choisir —, tenue
 /// par les moyennes et les écarts (Welford), que de grandes sommes n'abîment pas. Photos et cartes
 /// de texte y sont mêlées : le rôle de la prévision est d'écarter la texture de quinze
 /// millisecondes et de borner la rafale, pas de compter à la microseconde.
 #[derive(Debug, Default, Clone, Copy)]
-pub(super) struct Debit {
+pub(super) struct Droite {
     n: f64,
-    /// La moyenne des pixels, et celle des durées en secondes.
-    pixels: f64,
+    /// La moyenne de la grandeur, et celle des durées en secondes.
+    x: f64,
     duree: f64,
-    /// La somme des carrés des écarts des pixels à leur moyenne, et celle de leurs produits avec
+    /// La somme des carrés des écarts de la grandeur à sa moyenne, et celle de leurs produits avec
     /// les écarts des durées.
     ecarts: f64,
     ensemble: f64,
 }
 
-impl Debit {
-    pub(super) fn noter(&mut self, pixels: u64, duree: Duration) {
-        let (p, t) = (pixels as f64, duree.as_secs_f64());
+impl Droite {
+    pub(super) fn noter(&mut self, x: u64, duree: Duration) {
+        let (v, t) = (x as f64, duree.as_secs_f64());
         self.n += 1.0;
-        let dp = p - self.pixels;
-        self.pixels += dp / self.n;
+        let dx = v - self.x;
+        self.x += dx / self.n;
         self.duree += (t - self.duree) / self.n;
-        self.ecarts += dp * (p - self.pixels);
-        self.ensemble += dp * (t - self.duree);
+        self.ecarts += dx * (v - self.x);
+        self.ensemble += dx * (t - self.duree);
     }
 
-    /// Ce que `pixels` coûteront, ou rien tant que rien n'est mesuré. Tant que toutes les
-    /// textures mesurées ont eu la même taille, la pente ne se lit pas : leur durée moyenne.
-    pub(super) fn prevoir(&self, pixels: u64) -> Option<Duration> {
+    /// Ce que coûtera `x`, ou rien tant que rien n'est mesuré. Tant que tout ce qui a été mesuré
+    /// avait la même grandeur, la pente ne se lit pas : la durée moyenne.
+    pub(super) fn prevoir(&self, x: u64) -> Option<Duration> {
         (self.n > 0.0).then(|| {
             let pente = if self.ecarts > 0.0 {
                 self.ensemble / self.ecarts
             } else {
                 0.0
             };
-            let t = self.duree + pente * (pixels as f64 - self.pixels);
+            let t = self.duree + pente * (x as f64 - self.x);
             Duration::from_secs_f64(t.max(0.0))
         })
     }

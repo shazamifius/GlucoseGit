@@ -100,7 +100,13 @@ pub struct SceneGpu {
     /// Ce que les textures gardées hors de l'écran occupent, en octets (VRAM-1).
     en_cache: u64,
     /// Ce qu'une texture a coûté sur cette machine, par pixel posé (CASCADE-3).
-    debit: cascade::Debit,
+    debit: cascade::Droite,
+    /// **Ce que coûte la fin de l'image** après la cascade — poser, envoyer, présenter —, selon
+    /// le nombre de textures qu'elle a faites (QUEUE-1, fiche 110).
+    queue: cascade::Droite,
+    /// L'instant où la dernière cascade a fini, et combien de textures elle a faites : la fin
+    /// de l'image se mesure de là ([`SceneGpu::noter_la_fin_de_l_image`]).
+    fin_de_cascade: Option<(std::time::Instant, u64)>,
     /// **La dernière cascade a-t-elle reporté quelque chose ?** (NETTETE-1) Ce qui attend
     /// demande l'image suivante, même quand plus rien ne bouge.
     inachevee: bool,
@@ -173,7 +179,9 @@ impl SceneGpu {
             en_cache: 0,
             atlas: atlas::Atlas::default(),
             sans_atlas: std::env::var_os("GLUCOSE_SANS_ATLAS").is_some(),
-            debit: cascade::Debit::default(),
+            debit: cascade::Droite::default(),
+            queue: cascade::Droite::default(),
+            fin_de_cascade: None,
             inachevee: false,
             lot: None,
         }

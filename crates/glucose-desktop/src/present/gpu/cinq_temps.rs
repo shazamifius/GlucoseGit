@@ -37,6 +37,7 @@ pub(super) fn presenter(
     envoyer_les_couches(p, (dessous, dessus), confie);
     crate::perf::stage("blit");
 
+    let avant_l_ecran = std::time::Instant::now();
     let frame = match p.acquerir()? {
         Ok(frame) => frame,
         // La surface a refusé l'image : on ferme la scène comme si on l'avait posée — ce qui
@@ -49,6 +50,8 @@ pub(super) fn presenter(
         }
     };
     crate::perf::stage("acquerir");
+    // Ce que l'image a attendu de l'écran : pas du travail, la fin de l'image ne le compte pas.
+    let attente = avant_l_ecran.elapsed();
     let cible = frame
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
@@ -67,6 +70,7 @@ pub(super) fn presenter(
     drop(cible);
     p.queue.present(frame);
     crate::perf::stage("present");
+    p.scene.noter_la_fin_de_l_image(attente);
     fermer_la_scene(p);
     Ok(crate::present::Issue::Presentee)
 }

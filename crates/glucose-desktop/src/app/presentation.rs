@@ -148,14 +148,15 @@ impl GlucoseApp {
                     let (renderer, confie, panneaux) =
                         (&self.renderer, &self.confie, &self.dock_cache);
                     let decision = &self.tampons.decision;
-                    // **Ce qui sépare cette image du plancher de la charte**, et c'est tout
-                    // le budget que le rendu des textures manquantes a le droit de prendre.
+                    // **Ce qui reste de la période de l'écran — ou du plancher de la charte,
+                    // s'il laisse plus** (`Cadence::tranche_de_fond`), et c'est tout le budget
+                    // que le rendu des textures manquantes a le droit de prendre, **la fin de
+                    // l'image comprise** : la cascade la prévoit (QUEUE-1, fiche 110).
                     //
-                    // Il ne se choisit pas : l'image a déjà coûté ce qu'elle a coûté, et la
-                    // charte dit qu'elle et son travail de fond tiennent ensemble dans dix
-                    // millisecondes. Ce qui ne rentre pas attend l'image suivante, en gardant
-                    // son ancien palier posé (CASCADE-2). Sur une image déjà en retard, le
-                    // budget est nul : on ne creuse pas un trou en le remplissant.
+                    // Il ne se choisit pas : l'image a déjà coûté ce qu'elle a coûté. Ce qui ne
+                    // rentre pas attend l'image suivante, en gardant son ancien palier posé
+                    // (CASCADE-2). Sur une image déjà en retard, la cascade en fait une seule :
+                    // on ne creuse pas un trou en le remplissant.
                     let budget = self.cadence.tranche_de_fond(debut_du_rendu.elapsed());
                     // Ce que la carte ne connait pas encore : une photo vient du magasin,
                     // un composant -- carte de texte, photo en chemin -- se rend a la

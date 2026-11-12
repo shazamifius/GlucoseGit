@@ -1,0 +1,70 @@
+[
+ {
+  "nom": "QUEUE-1 : la fin de l'image hors du budget",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "tranche.debut.elapsed() + prevu + fin >= tranche.budget",
+  "apres": "tranche.debut.elapsed() + prevu + 0 * fin >= tranche.budget",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "queue_1",
+   "cascade",
+   "prevoit"
+  ]
+ },
+ {
+  "nom": "QUEUE-1 : l'attente de l'écran comptée comme du travail",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "fin.elapsed().saturating_sub(attente)",
+  "apres": "fin.elapsed().saturating_sub(attente * 0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "queue_1",
+   "cascade",
+   "prevoit"
+  ]
+ },
+ {
+  "nom": "QUEUE-1 : la cascade ne dit pas quand elle a fini",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "self.fin_de_cascade = Some((Instant::now(), tranche.faites as u64));",
+  "apres": "let _ = tranche.faites as u64;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "queue_1",
+   "cascade",
+   "prevoit"
+  ]
+ },
+ {
+  "nom": "QUEUE-1 : la fin prévue pour les textures déjà faites, sans celle qu'on lance",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": ".prevoir(tranche.faites as u64 + 1)",
+  "apres": ".prevoir(0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "queue_1",
+   "cascade",
+   "prevoit"
+  ]
+ }
+]

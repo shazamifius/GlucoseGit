@@ -987,6 +987,87 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
     );
 }
 
+/// **QUEUE-1 — la cascade compte la fin de l'image** (fiche 110) : sur une machine où une texture
+/// coûte une microseconde, mais où la fin d'une image qui en a fait deux coûte huit millisecondes,
+/// la seconde n'entre pas dans un budget de cinq — l'image entière ne tiendrait pas. **La preuve à
+/// l'envers** : sans la fin apprise, la même scène les fait toutes deux. Et l'image posée apprend
+/// ce que sa fin a coûté, l'attente de l'écran retirée.
+#[test]
+fn test_queue_1_la_cascade_compte_la_fin_de_l_image() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let ms = std::time::Duration::from_millis;
+    let faire = |fin_apprise: bool| {
+        let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+        let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+        for _ in 0..3 {
+            scene.debit.noter(16, std::time::Duration::from_micros(1));
+        }
+        if fin_apprise {
+            scene.queue.noter(1, ms(4));
+            scene.queue.noter(2, ms(8));
+        }
+        scene.ouvrir();
+        let a_poser = |cle: &str| APoser {
+            repli: None,
+            cle: cle.into(),
+            identite: cle.into(),
+            pose: Pose {
+                x: 0.0,
+                y: 0.0,
+                largeur: 4.0,
+                hauteur: 4.0,
+                opacite: 1.0,
+                angle: 0.0,
+                fenetre: Pose::TOUT,
+                bornes: Pose::PARTOUT,
+            },
+        };
+        scene.assurer(
+            &peripherique,
+            &mut envoi,
+            (&[a_poser("premiere"), a_poser("seconde")], &[], ms(5)),
+            &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
+        );
+        scene
+    };
+    let mut apprise = faire(true);
+    assert!(
+        apprise.connait(&"premiere".into(), &"premiere".into()),
+        "la premiere passe toujours"
+    );
+    assert!(
+        !apprise.connait(&"seconde".into(), &"seconde".into()),
+        "l'image entiere ne tiendrait pas : elle attend"
+    );
+    let sans = faire(false);
+    assert!(
+        sans.connait(&"seconde".into(), &"seconde".into()),
+        "l'ancienne loi la faisait"
+    );
+    let avant = apprise.queue.prevoir(1);
+    apprise.noter_la_fin_de_l_image(std::time::Duration::ZERO);
+    assert_ne!(
+        apprise.queue.prevoir(1),
+        avant,
+        "la fin de l'image s'apprend"
+    );
+
+    // Attendre l'écran n'est pas travailler : une fin de cinq millisecondes, toutes passées à
+    // attendre, s'apprend nulle.
+    let mut attendue = faire(false);
+    let cinq_ms_plus_tot = std::time::Instant::now() - ms(5);
+    attendue.fin_de_cascade = Some((cinq_ms_plus_tot, 3));
+    attendue.noter_la_fin_de_l_image(ms(3_600_000));
+    assert_eq!(
+        attendue.queue.prevoir(3),
+        Some(std::time::Duration::ZERO),
+        "l'attente de l'écran retirée"
+    );
+}
+
 /// **CASCADE-4 — une texture a un prix fixe** (fiche 109) : sur une machine où chaque texture
 /// coûte une milliseconde quelle que soit sa taille, une texture de quatre pixels se prévoit à
 /// une milliseconde ; une machine où le prix suit les pixels la prévoit à leur mesure. **La
@@ -996,7 +1077,7 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
 fn test_cascade_4_une_texture_a_un_prix_fixe() {
     use std::time::Duration;
     let ms = Duration::from_millis;
-    let mut fixe = super::cascade::Debit::default();
+    let mut fixe = super::cascade::Droite::default();
     assert_eq!(fixe.prevoir(4), None, "rien de mesuré");
     fixe.noter(100, ms(1));
     fixe.noter(10_000, ms(1));
@@ -1005,7 +1086,7 @@ fn test_cascade_4_une_texture_a_un_prix_fixe() {
     let par_pixel_seul = 4.0 * 2e-3 / 10_100.0;
     assert!(par_pixel_seul < 1e-6, "l'ancienne loi : {par_pixel_seul}");
 
-    let mut au_pixel = super::cascade::Debit::default();
+    let mut au_pixel = super::cascade::Droite::default();
     au_pixel.noter(100, Duration::from_micros(100));
     au_pixel.noter(10_000, ms(10));
     let prevu = au_pixel.prevoir(4).expect("mesuré").as_secs_f64();

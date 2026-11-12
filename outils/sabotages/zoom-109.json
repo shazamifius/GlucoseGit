@@ -200,8 +200,8 @@
  {
   "nom": "Le coût d'une texture par pixel seulement",
   "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
-  "avant": "let t = self.duree + pente * (pixels as f64 - self.pixels);",
-  "apres": "let t = self.duree / self.pixels.max(1.0) * pixels as f64 + 0.0 * pente;",
+  "avant": "let t = self.duree + pente * (x as f64 - self.x);",
+  "apres": "let t = self.duree / self.x.max(1.0) * x as f64 + 0.0 * pente;",
   "cmd": [
    "cargo",
    "test",
@@ -218,8 +218,8 @@
  {
   "nom": "Welford écarté de sa moyenne neuve",
   "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
-  "avant": "self.ecarts += dp * (p - self.pixels);",
-  "apres": "self.ecarts += dp * dp;",
+  "avant": "self.ecarts += dx * (v - self.x);",
+  "apres": "self.ecarts += dx * dx;",
   "cmd": [
    "cargo",
    "test",
