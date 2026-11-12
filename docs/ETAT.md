@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 12/11/2026** (fiches 108-109). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 12/11/2026, au soir** (fiches 108-110). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -26,16 +26,22 @@
   carte graphique** et deux mémoires pures (TITRE-3, fiche 108 : de loin, 17 → 7,5 ms par image) ;
   **la Time Machine, socle de l'IA** (fiche 108) : chaque geste signé — l'humain, ou un agent sous son
   nom —, un écrit qui s'attache à un geste, une IA qui relit toute l'histoire avec ses écrits ;
-  **l'IA ne juge que les flèches qu'un agent ou un script a posées**, jamais les siennes (PARENTE-4).
-  **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec `main` (`365c9a8`).
+  **l'IA ne juge que les flèches qu'un agent ou un script a posées**, jamais les siennes (PARENTE-4) ;
+  **le zoom qui réutilise le repos** (REPOS-4, fiche 109) ; **le journal des rectifications**
+  (RECTIF-1, fiche 110) : quand il fait autrement que l'IA — une couleur, une flèche retouchée,
+  retirée ou suivie —, l'IA de Glucose l'écrit dans l'histoire, avec ce qu'elle pensait et
+  **pourquoi** (les mots qui rapprochent deux textes, exacts) ; **la cascade qui compte la fin de
+  l'image** (QUEUE-1, fiche 110). **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec
+  `main` au soir du 12/11.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Le chantier en cours** : la carte de Wikipédia — ses cinq défauts (VISION § 7) —, et le cercle de
   l'IA bâti sur la Time Machine (VISION § 8 bis : elle propose, il corrige, Glucose note, elle
-  apprend). L'allure des frontières des membranes attend sa parole. **Une limite** : sa carte de
-  Wikipédia a été posée par un script avant MAIN-1 — ses gestes y sont signés comme les siens, et l'IA
-  n'en juge aucune flèche tant qu'elle n'est pas reposée par la version neuve.
+  apprend — les trois premiers temps sont écrits). L'allure des frontières des membranes attend sa
+  parole. **Sa carte de Wikipédia signée** : `~/Documents/Glucose-essai-wikipedia-signee.glucose`,
+  reposée par la version neuve (1 870 gestes de « agent le terminal ») — l'IA en juge les flèches ;
+  l'ancienne (`…-liens.glucose`), posée avant MAIN-1, reste telle quelle.
 
 ## 2. Ce que fait Glucose Rust
 
@@ -44,7 +50,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | domaine | ce qui marche |
 |---|---|
 | **Naviguer** | canevas infini, zoom jusqu'à ×256 ; souris, pavé (pincement sous Windows, Linux et macOS), doigts ; `F` cadre la sélection, `Alt+F` tout ; **`Alt+Z`** le `Ctrl+Z` de la caméra ; signets ; minimap ; onglets ; **`Ctrl+F`** cherche dans tout le document ; le mode Focus par un geste choisi |
-| **Le document** | `.glucose` écrit geste après geste, brouillons, reprise au lancement, Time Machine (`Ctrl+H`) — **chaque geste signé**, ses écrits —, les documents de Tauri lus ; au terminal, `glucose document.glucose` et une commande par outil des agents (`glucose aide`) |
+| **Le document** | `.glucose` écrit geste après geste, brouillons, reprise au lancement, Time Machine (`Ctrl+H`) — **chaque geste signé**, ses écrits, **le journal des rectifications** de l'IA de Glucose —, les documents de Tauri lus ; au terminal, `glucose document.glucose` et une commande par outil des agents (`glucose aide`) |
 | **Images** | PNG, JPEG, WebP, GIF (figé), BMP ; coller, déposer ; rotation, recadrage ; la mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; **sa lueur dit sa parenté** : une IA du sens embarquée (15 Mo, multilingue, sans réseau) range les textes en familles — même couleur, d'autant plus forte et vive qu'elle est sûre ; un texte sans parent garde le contour gris de son bloc ; la couleur choisie va à sa lueur (PARENTE, fiche 106) |
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris — **la souris ne rapproche que les flèches de sens** parmi celles qu'un agent ou un script a posées (PARENTE-4) ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
@@ -66,9 +72,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   (posées avant MAIN-1) ;
 * **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (avant
   la fiche 105) ; remesuré le 12/11 sur sa carte (fiche 108) : **de loin 7,5 ms** (17 avant), au fond de
-  « Eau » 2,8 ms ; **au zoom** (fiche 109, pas encore installé chez lui) : une image du mouvement
-  4-5 ms au lieu de 19-21, la latence 7 ms au lieu de 20 — reste l'image de netteté après chaque
-  cran (≈ 20 ms) ; pas encore à son écran ;
+  « Eau » 2,8 ms ; **au zoom** : une image du mouvement 4-5 ms au lieu de 19-21 (fiche 109), et les
+  images qui ratent un battement de l'écran 8-10 → 3 par série de crans, p90 24 → 17 ms (fiche 110) ;
+  reste une image sur six autour de 18-22 ms ; pas encore à son écran ;
 * **le halo d'un texte** dit sa parenté depuis la fiche 106 — pas encore à son écran ; beaucoup de
   flèches de la carte sont grises (leurs bouts n'ont pas de famille sûre) : acceptées *« seulement si
   c'est temporaire »* ; sous une quinzaine de textes, l'IA hésite ; la clarté (l'accessibilité) n'est
@@ -78,7 +84,13 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 * **les versions publiées refusent un document qui porte une entrée neuve** (un geste d'agent signé, un
   écrit — PERSIST-5, fiche 108) : message net, rien de perdu, mais son téléphone (beta 4) et le PC de
-  l'école (beta 9) ne l'ouvriront qu'une fois à jour ;
+  l'école (beta 9) ne l'ouvriront qu'une fois à jour. **Depuis RECTIF-1, un document ordinaire en
+  porte dès qu'il colore un texte que l'IA rangeait dans une famille** ;
+* **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
+  110) — toute commande lourde passe désormais par `outils/borne.sh` ; une protection pour toute la
+  machine attend sa parole ;
+* la palette propose « Couleur » quand une flèche est choisie, et rien ne change : la couleur d'une
+  flèche vient des halos qu'elle relie (fiche 110) — un bouton qui ment ;
 * les liens bleus dans les textes (`#60a5fa`) : contraste APCA 52, sous le minimum de 60 (fiche 104) ;
 * choisir 8 000 images coûte 28 ms par image (fiche 87 § 7 bis) ;
 * le fondu d'un message redessine toute la carte (REPOS-3, fiche 98 § 7) ;
@@ -90,14 +102,16 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 157, toutes vertes au 12/11 (`cargo test --workspace`) ; clippy strict et
+* **Les épreuves** : 3 164, toutes vertes au 12/11 au soir (`bash outils/borne.sh nix develop -c cargo
+  test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
   (`outils/sabotages/`, un fichier par chantier) ; les derniers : 66 sur 66 (fiches 102-103), 17 sur 17
   (REGION-1, fiche 105), 36 sur 36 (le sens et la parenté, fiche 106), 3 sur 3 (le voile des membranes,
   fiche 107), 46 sur 46 (fiche 108 : les flèches, les titres, les mémoires, la Time Machine, la
-  provenance — trois épreuves aveugles trouvées et écrites).
+  provenance — trois épreuves aveugles trouvées et écrites), 15 sur 15 (le zoom, fiche 109), 22 sur
+  22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite) et 4 sur 4 (QUEUE-1).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
   sur `aebb3f7`** (la beta 10). La CI se lance avant une publication, pas à chaque envoi.

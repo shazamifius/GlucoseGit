@@ -38,7 +38,18 @@ def lancer(sab):
         sortie = r.stdout + r.stderr
         if "error[" in sortie or "could not compile" in sortie:
             return "NE COMPILE PAS"
-        return "TOMBE" if r.returncode != 0 else "PASSE (épreuve aveugle !)"
+        if r.returncode != 0:
+            return "TOMBE"
+        # Une épreuve graphique qui n'obtient pas la carte se saute, et compte comme réussie :
+        # en parallèle, plusieurs se la disputent (fiche 110). Avant de dire une épreuve aveugle,
+        # la rejouer seule, un fil à la fois.
+        if "--" in sab["cmd"]:
+            seul = subprocess.run(sab["cmd"] + ["--test-threads=1"], cwd=RACINE,
+                                  capture_output=True, text=True, encoding="utf-8",
+                                  errors="replace")
+            if seul.returncode != 0:
+                return "TOMBE (un fil à la fois : une épreuve graphique s'était sautée)"
+        return "PASSE (épreuve aveugle !)"
     finally:
         for chemin, texte in originaux.items():
             with open(chemin, "w", encoding="utf-8", newline="") as f:
