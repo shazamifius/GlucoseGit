@@ -351,6 +351,61 @@ fn test_selectionner_une_carte_ne_refait_pas_sa_texture() {
     );
 }
 
+/// **FLECHE-1 — une flèche nue montre ses ornements dans la couche du dessus** (fiches 107 et
+/// 108) : ses poignées quand on la choisit, sa pastille quand on écrit son étiquette.
+///
+/// Sur la voie graphique, la carte peint le trait ; la couche du dessus ne porte d'une flèche
+/// que ses ornements, et une flèche qui n'en porte aucun ne s'y calcule plus
+/// (`porte_des_ornements`). L'épreuve de la fonction seule ne voit pas un appel qui lui
+/// passerait la mauvaise chose, et le témoin des deux voies non plus : sa flèche choisie porte
+/// un badge, qui la ferait calculer quand même. Ici, la flèche est nue.
+#[test]
+fn test_fleche_1_une_fleche_nue_montre_ses_ornements_dans_la_couche_du_dessus() {
+    use glucose_core::types::Annotation;
+    let taille = synth::WITNESS_SIZE;
+    let mut store = glucose_core::store::Store::new("Une flèche nue");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
+    }
+    store.add_annotation(
+        &board,
+        Annotation::arrow("f-nue", 200.0, 200.0, 700.0, 450.0),
+    );
+    store.clear_selection();
+    let (_, _, repos, _) = les_deux_couches(taille, &store);
+
+    store.select_annotation("f-nue".into(), false);
+    let (_, _, choisie, _) = les_deux_couches(taille, &store);
+    store.clear_selection();
+
+    // Écrire dans une flèche qui n'a pas d'étiquette : la pastille, vide, montre qu'on écrit.
+    let session = glucose_desktop::renderer::TextEditSession {
+        ann_id: "f-nue".into(),
+        buffer: String::new(),
+        selection: glucose_core::text::Selection::at(0),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible: true,
+    };
+    let (_, _, saisie, _) = les_deux_couches_en_editant(taille, &store, Some(&session));
+
+    let (r, c, s) = (encre(&repos), encre(&choisie), encre(&saisie));
+    assert!(
+        c > r,
+        "choisie, la flèche nue doit poser ses poignées ({c} pixels d'encre contre {r} au repos)"
+    );
+    assert!(
+        s > r,
+        "en saisie, la flèche nue doit poser sa pastille ({s} pixels d'encre contre {r} au repos)"
+    );
+}
+
 /// **Sur la voie graphique, le curseur de la carte qu'on écrit se pose dans la couche du
 /// dessus** (COMPOSANT-3) — et rien d'autre ne change quand il clignote.
 ///

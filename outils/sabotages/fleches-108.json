@@ -1,0 +1,110 @@
+[
+ {
+  "nom": "La porte toujours ouverte (une flèche nue se recalcule)",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "-> bool {\n    choisie\n        || super::arrow_label::montre_une_etiquette(ann, saisie)\n",
+  "apres": "-> bool {\n    true || choisie\n        || super::arrow_label::montre_une_etiquette(ann, saisie)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "fleche_1",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "« Choisie » oubliée dans la porte",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "-> bool {\n    choisie\n        || super::arrow_label::montre_une_etiquette(ann, saisie)\n",
+  "apres": "-> bool {\n    let _ = choisie;\n    false\n        || super::arrow_label::montre_une_etiquette(ann, saisie)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "fleche_1",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "L'étiquette oubliée dans la porte",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "-> bool {\n    choisie\n        || super::arrow_label::montre_une_etiquette(ann, saisie)\n",
+  "apres": "-> bool {\n    let _ = saisie;\n    choisie\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "fleche_1",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "Le badge oublié dans la porte",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "        || matches!(\n            ann,\n            Annotation::Arrow {\n                predicate: Some(_),\n                ..\n            }\n        )\n}",
+  "apres": "}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "fleche_1",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "L'appel passe « non choisie »",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "    if !au_processeur && !porte_des_ornements(ann, selected, editing) {\n",
+  "apres": "    if !au_processeur && !porte_des_ornements(ann, false, editing) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "fleche_1",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ },
+ {
+  "nom": "L'appel oublie la saisie",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "    if !au_processeur && !porte_des_ornements(ann, selected, editing) {\n",
+  "apres": "    if !au_processeur && !porte_des_ornements(ann, selected, None) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--test",
+   "voies_suite",
+   "--",
+   "fleche_1",
+   "les_deux_voies_rendent_la_meme_scene"
+  ]
+ }
+]

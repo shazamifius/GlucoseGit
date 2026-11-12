@@ -274,7 +274,8 @@ fn draw_node_gauge(
 /// Sa description se calcule **une fois** par image, et tout la lit : le trait, l'étiquette,
 /// le badge, les poignées. Le trait ne se peint ici que sur la voie processeur : sur la voie
 /// graphique, la carte le peint (FLECHE-2), et seuls l'étiquette, le badge et les poignées
-/// restent dans la couche du dessus.
+/// restent dans la couche du dessus — une flèche qui n'en porte aucun n'a donc rien à calculer
+/// ici ([`porte_des_ornements`]).
 fn draw_arrow_node(
     ctx: &Pass<'_>,
     pixmap: &mut PixmapMut,
@@ -286,6 +287,9 @@ fn draw_arrow_node(
     let Annotation::Arrow { predicate, .. } = ann else {
         return;
     };
+    if !au_processeur && !porte_des_ornements(ann, selected, editing) {
+        return;
+    }
     let noeuds = super::arrow::NoeudsDuRendu {
         board,
         index: Some(pass.index),
@@ -330,4 +334,63 @@ fn draw_arrow_node(
     }
 }
 
+/// **Ce qu'une flèche pose au processeur quand la carte porte son trait** (FLECHE-2) : les poignées
+/// d'une flèche choisie, son étiquette (ou celle qu'on écrit), son badge de prédicat.
+///
+/// Le profil de la fiche 107 — un déplacement de loin sur la carte de Wikipédia, par la carte
+/// graphique — trouvait le tracé de chaque flèche calculé **deux fois** par image, pour la carte
+/// puis ici : 11 % du temps, presque toujours pour ne rien dessiner (ses mille liens n'ont ni
+/// étiquette ni badge).
+fn porte_des_ornements(ann: &Annotation, choisie: bool, saisie: Option<&TextEditSession>) -> bool {
+    choisie
+        || super::arrow_label::montre_une_etiquette(ann, saisie)
+        || matches!(
+            ann,
+            Annotation::Arrow {
+                predicate: Some(_),
+                ..
+            }
+        )
+}
+
 pub(in crate::renderer) mod svg;
+
+#[cfg(test)]
+mod tests {
+    use super::porte_des_ornements;
+    use glucose_core::types::{Annotation, ArrowPredicate};
+
+    /// **FLECHE-1 — une flèche sans ornement ne se calcule pas deux fois** (fiche 107) : sur la
+    /// voie graphique, le processeur ne pose que les poignées d'une flèche choisie, son étiquette
+    /// et son badge ; une flèche nue n'en porte aucun.
+    #[test]
+    fn fleche_1_seule_une_fleche_ornee_se_recalcule() {
+        let nue = Annotation::arrow("f", 0.0, 0.0, 1.0, 1.0);
+        assert!(!porte_des_ornements(&nue, false, None), "nue");
+        assert!(
+            porte_des_ornements(&nue, true, None),
+            "choisie : ses poignées"
+        );
+        let mut etiquetee = nue.clone();
+        let mut blanche = nue.clone();
+        let mut badgee = nue.clone();
+        if let Annotation::Arrow { text, .. } = &mut etiquetee {
+            *text = Some("cause".into());
+        }
+        if let Annotation::Arrow { text, .. } = &mut blanche {
+            *text = Some("  ".into());
+        }
+        if let Annotation::Arrow { predicate, .. } = &mut badgee {
+            *predicate = Some(ArrowPredicate::Inspire);
+        }
+        assert!(
+            porte_des_ornements(&etiquetee, false, None),
+            "son étiquette"
+        );
+        assert!(
+            !porte_des_ornements(&blanche, false, None),
+            "une étiquette vide ne se montre pas"
+        );
+        assert!(porte_des_ornements(&badgee, false, None), "son badge");
+    }
+}
