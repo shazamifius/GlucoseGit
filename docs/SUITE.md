@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 12/11/2026, au soir** (fiches 108-110). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 12/11/2026, 19 h 20** (fiches 108-111). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -33,16 +33,17 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 
 | | chantier | fini quand |
 |---|---|---|
-| [ ] | **Publier la 2.0.4-beta.1** (son geste : le clic « Publish release ») : le numéro de version, la CI entière (dix tâches), le serveur de télémétrie vérifié (`outils/publication/verifier_serveur.py`), les notes de version, le brouillon — comme les dix betas d'avant (`outils/publication/`). Pressant : depuis PERSIST-5, ses autres machines ne lisent plus un document touché par un agent ou par RECTIF-1 | publiée par son clic, installée chez lui et au téléphone |
-| [ ] | **Ses essais réels, lus par nous** : sa sortie, sa chronique, la télémétrie, son journal technique — puis corriger ce qu'ils montrent | ses journaux lus, ses retours dans une fiche |
-| [ ] | **Les connexions MCP avec des IA publiques** : aujourd'hui `glucose --mcp` sert un agent local (Claude Code) par l'entrée standard ; une IA publique (Claude.ai, ChatGPT…) parle à un serveur MCP **distant** (transport HTTP, autorisation). Recherche d'abord, une page de conception à sa parole, sans argent | une IA publique lit et écrit son canevas, chaque geste signé et annulable |
-| [ ] | **Le co-working sur un canevas** (Collaborer, obligatoire) : la Time Machine qui signe chaque geste (MAIN-1) en est le socle ; la synchronisation, l'identité, le réseau sans argent sont à concevoir — recherche (CRDT, pair-à-pair), puis une page de conception à sa parole, avant une ligne | à sa parole sur la page, puis écrit |
+| [~] | **Publier la 2.0.4-beta.1** : **le brouillon est prêt** (CI dix sur dix sur `f9027fd`, « Publier » vert, onze fichiers ; fiche 111). Reste **son clic** « Publish release » (laisser « Set as the latest release » coché, ne pas cocher « pre-release »), puis l'installer **au téléphone par-dessus** (jamais désinstaller) et au PC de l'école | publiée par son clic, installée chez lui et au téléphone |
+| [~] | **Ses essais réels, lus par nous** : son essai du 12/11 à 18 h 16 est lu (fiche 111 § 2) — **le rythme avec niri** : 32 % des images en mouvement ratent leur balayage, reproduit sous niri imbriqué (31 %), pas sous sway. **Ensuite** : compiler et mesurer en paires le prototype (`~/.cache/glucose-bancs/rythme-111/rythme-du-compositeur.patch` — `pre_present_notify` sous Wayland, le tempo de côté ; `GLUCOSE_RYTHME_TEMPO=1` rend l'ancien), sous niri imbriqué (`lag-107/mesure-niri.sh`, `lag-107/rythme.sh`), puis sur son vrai écran (pointeur virtuel de niri, annoncé) ; mesurer aussi **le pavé tactile** (pincement, deux doigts), le geste qu'il fait ; puis ses journaux après la beta | aucun battement raté de plus que sous sway, sur son écran ; ses retours dans une fiche |
+| [~] | **Les connexions MCP avec des IA publiques** (« la porte publique ») : la recherche est faite et **la page attend sa parole** — https://claude.ai/artifact/36hpNTPEH2mCEENhKjyvzF (fiche 111 § 3) : un relais Cloudflare à lui, l'accord donné dans Glucose (un code), ses quatre questions | une IA publique lit et écrit son canevas, chaque geste signé et annulable |
+| [ ] | **Le co-working sur un canevas** (Collaborer, obligatoire) : esquissé sur la page de la porte publique (fiche 111 § 3) — une salle par canevas sur le même relais, un arbitre (Figma, tldraw), chaque geste signé ; à concevoir : les photos, l'invitation, et des gestes qui désignent un nœud par son identifiant plutôt que par son rang. Sa propre page avant une ligne | à sa parole sur la page, puis écrit |
 | [~] | **Son lag au zoom** (*« pour ce qui est capital et nécessaire, il faut pouvoir optimiser »*) : REPOS-4 (fiche 109) — une image du mouvement 19-21 → 4-5 ms ; QUEUE-1 (fiche 110) — la cascade compte la fin de l'image : battements ratés 8-10 → 3 par série de crans, p90 24 → 17 ms. **Reste** : trois images par série à 18-22 ms (la fin de l'image qui varie, une texture plus chère que sa droite au premier cran) ; **remettre en question l'objectif** — « sous 10 ms au p99 » contredit la règle qui donne la période de l'écran à la cascade ; le critère qui se voit est « aucun battement raté », les 10 ms pèsent sur la latence : mesurer la latence d'un geste pendant une image de cascade avant de trancher (fiche 110 § 4). Ensuite, le tracé des flèches pour la carte graphique (2,5 ms de loin) | aucun battement raté au zoom de loin, mesuré en paires ; la latence mesurée |
 | [~] | **Le cercle de l'IA, sur la Time Machine** (VISION § 8 bis ; la page : https://claude.ai/artifact/8WJTkJLvv7HvDDrJMng7CL — sa source : `~/.cache/glucose-bancs/cercle-ia/`) : la Time Machine signe chaque geste et porte des écrits (fiche 108) ; **le journal des rectifications** est écrit (RECTIF-1, fiche 110) — une couleur, une flèche retouchée, retirée ou suivie, sans seuil, avec le pourquoi (B3, exact). **Ensuite** : regarder ce que le journal récolte chez lui (pas d'apprentissage avant, sa règle) ; le pourquoi d'une flèche ; ses propres flèches, que l'IA ne juge pas mais dont elle doit *« comprendre l'importance »* ; **puis** les couleurs et l'interface de la Time Machine pour tout y voir — un écrit y tient aujourd'hui sur une ligne coupée (*« d'abord le fonctionnement, l'esthétisme et l'ergonomie après »*) | à son écran : ses rectifications lues dans la Time Machine |
 | [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4 dans `main`** (fiche 108) — l'IA juge les flèches qu'un agent ou un script a posées, la souris ne rapproche que celles de sens ; jamais les siennes. Sa carte signée (`~/Documents/Glucose-essai-wikipedia-signee.glucose`, fiche 110) le montre : la souris près d'un texte n'éclaire qu'une poignée de flèches. **Ensuite** : une couleur qui dit quelque chose (le gris n'est que temporaire), partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | à son écran, sur la carte signée |
 | [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; 11 % (*« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
 | [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte. Reste **son écran** ; sa couleur et ce que l'IA en apprend passent par le cercle de l'IA, plus haut | son écran |
-| [ ] | **Les liens bleus des textes** : contraste APCA 52, sous 60 (fiche 104) — la même teinte, à la clarté qui se lit | mesuré, regardé |
+| [ ] | **Les liens bleus des textes** : APCA 52 ; Lc 75 (`#a8cfff`) ou 60 (`#7ab5ff`), même teinte (fiche 111 § 4) — trancher sur une image | mesuré, regardé |
+| [ ] | **La palette qui propose ce qui ne s'applique pas** (« Couleur » sur une flèche, fiche 111 § 4) : absent ou grisé, par une seule loi que l'exécution et la palette partagent | regardé au pilote |
 
 ## 3. Ce qui attend son écran
 
@@ -103,7 +104,11 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 
 ## 4. Ce qui attend sa parole
 
-* **La prochaine publication** (son geste) : depuis la fiche 108, un document qu'un agent a touché, ou
+* **La porte publique** (fiche 111, https://claude.ai/artifact/36hpNTPEH2mCEENhKjyvzF) : le relais sur
+  son compte Cloudflare (A2) ; l'accord gardé jusqu'à ce qu'il le retire (B1) ; le document ouvert
+  seulement (C1) ; quelle IA d'abord et avec quel compte ; la porte avant le co-working.
+
+* **Publier la 2.0.4-beta.1** (son geste, le brouillon est prêt, fiche 111) : depuis la fiche 108, un document qu'un agent a touché, ou
   qui porte un écrit, ne s'ouvre plus dans les versions publiées (message net, rien de perdu) — son
   téléphone en beta 4 et le PC de l'école en beta 9 en ont besoin pour lire ces documents. **Plus
   pressante depuis RECTIF-1** : colorer un texte que l'IA rangeait dans une famille suffit.

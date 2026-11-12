@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 12/11/2026, au soir** (fiches 108-110). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 12/11/2026, 19 h 20** (fiches 108-111). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -10,6 +10,8 @@
 
 ## 1. En bref
 
+* **En brouillon, prête à son clic** : la **2.0.4-beta.1** (CI verte sur `f9027fd`, dix tâches ;
+  flux « Publier » vert, onze fichiers ; fiche 111) — tout ce qui suit, « sur `main` », y est.
 * **Publié** : la **2.0.3-beta.10** (son clic, le 10/11 à 23 h 59 ; la CI verte sur `aebb3f7`, dix
   tâches) — installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et `nix run
   github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé passe de lui-même à Glucose Rust ; ses
@@ -31,12 +33,16 @@
   (RECTIF-1, fiche 110) : quand il fait autrement que l'IA — une couleur, une flèche retouchée,
   retirée ou suivie —, l'IA de Glucose l'écrit dans l'histoire, avec ce qu'elle pensait et
   **pourquoi** (les mots qui rapprochent deux textes, exacts) ; **la cascade qui compte la fin de
-  l'image** (QUEUE-1, fiche 110). **Son Glucose installé** (profil Nix `GlucoseGit`) : à jour avec
-  `main` au soir du 12/11.
+  l'image** (QUEUE-1, fiche 110). **Son Glucose installé** (profil Nix `GlucoseGit`) : `c9b746f`, le
+  même programme (la version de travail dit désormais `2.0.4-dev`).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Le chantier en cours** : la carte de Wikipédia — ses cinq défauts (VISION § 7) —, et le cercle de
+* **Le chantier en cours** : **son lag est surtout un rythme** (fiche 111) — sur son vrai écran,
+  32 % des images en mouvement ratent leur balayage pour un travail modeste ; niri imbriqué le
+  reproduit (31 %), sway sans écran non (1 %) : Glucose ne demande jamais à niri quand dessiner. Un
+  prototype attend sa mesure. **La porte publique** (les IA publiques dans son canevas) attend sa
+  parole sur sa page. Et la carte de Wikipédia — ses cinq défauts (VISION § 7) —, et le cercle de
   l'IA bâti sur la Time Machine (VISION § 8 bis : elle propose, il corrige, Glucose note, elle
   apprend — les trois premiers temps sont écrits). L'allure des frontières des membranes attend sa
   parole. **Sa carte de Wikipédia signée** : `~/Documents/Glucose-essai-wikipedia-signee.glucose`,
@@ -70,7 +76,10 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 * **trop de flèches**, qui partent des blocs et non des mots, au tracé brouillon (surtout en courbe) ;
   l'IA ne juge que les flèches d'un agent ou d'un script — celles de sa carte actuelle n'en sont pas
   (posées avant MAIN-1) ;
-* **il lague** : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (avant
+* **il lague** — **et la cause principale est probablement le rythme avec niri** (fiche 111 § 2) :
+  son essai du 12/11 à 18 h 16, au pavé tactile, 32 % des images en mouvement ratent leur balayage,
+  l'attente d'une image libre (`acquerir`) en tête ; nos bancs sous sway sans écran ne le voyaient
+  pas. Avant : sur son VivoBook, la télémétrie dit **13,8 ms l'image typique, 2,6 s la pire** (avant
   la fiche 105) ; remesuré le 12/11 sur sa carte (fiche 108) : **de loin 7,5 ms** (17 avant), au fond de
   « Eau » 2,8 ms ; **au zoom** : une image du mouvement 4-5 ms au lieu de 19-21 (fiche 109), et les
   images qui ratent un battement de l'écran 8-10 → 3 par série de crans, p90 24 → 17 ms (fiche 110) ;
@@ -82,16 +91,17 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 **Connus, mesurés, pas réglés** :
 
-* **les versions publiées refusent un document qui porte une entrée neuve** (un geste d'agent signé, un
+* **les versions publiées (jusqu'à la beta 10) refusent un document qui porte une entrée neuve** (un geste d'agent signé, un
   écrit — PERSIST-5, fiche 108) : message net, rien de perdu, mais son téléphone (beta 4) et le PC de
   l'école (beta 9) ne l'ouvriront qu'une fois à jour. **Depuis RECTIF-1, un document ordinaire en
   porte dès qu'il colore un texte que l'IA rangeait dans une famille** ;
 * **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
   110) — toute commande lourde passe désormais par `outils/borne.sh`, et `earlyoom` veille sur toute
   la machine (arrêter le plus gros programme avant l'étouffement) ;
-* la palette propose « Couleur » quand une flèche est choisie, et rien ne change : la couleur d'une
-  flèche vient des halos qu'elle relie (fiche 110) — un bouton qui ment ;
-* les liens bleus dans les textes (`#60a5fa`) : contraste APCA 52, sous le minimum de 60 (fiche 104) ;
+* la palette propose **toutes** les commandes, et celle qui ne s'applique pas (« Couleur » sur une
+  flèche) ne fait rien, en silence — un bouton qui ment (fiche 111 § 4) ;
+* les liens bleus dans les textes (`#60a5fa`) : contraste APCA 52 ; un texte courant demande 75
+  (`#a8cfff`, même teinte), 60 au moins (`#7ab5ff`) — à trancher sur une image (fiche 111 § 4) ;
 * choisir 8 000 images coûte 28 ms par image (fiche 87 § 7 bis) ;
 * le fondu d'un message redessine toute la carte (REPOS-3, fiche 98 § 7) ;
 * les titres des membranes ne suivent pas encore la loi du gris de loin (fiche 104 § 3) ; les traits plus
@@ -112,15 +122,17 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   fiche 107), 46 sur 46 (fiche 108 : les flèches, les titres, les mémoires, la Time Machine, la
   provenance — trois épreuves aveugles trouvées et écrites), 15 sur 15 (le zoom, fiche 109), 22 sur
   22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite) et 4 sur 4 (QUEUE-1).
+* **Les bancs** : sous sway sans écran, présenter ne bloque jamais — le rythme réel se mesure sous
+  niri (`PILOTE_COMPOSITEUR=niri`, `~/.cache/glucose-bancs/lag-107/mesure-niri.sh`, fiche 111).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
-  sur `aebb3f7`** (la beta 10). La CI se lance avant une publication, pas à chaque envoi.
+  sur `f9027fd`** (la 2.0.4-beta.1). La CI se lance avant une publication, pas à chaque envoi.
 
 ## 5. Ses utilisateurs, et ce qu'on en sait
 
 * **La télémétrie** (avec l'accord de chacun ; un serveur Cloudflare de son compte,
-  [TELEMETRIE](TELEMETRIE.md)) au 12/11 : **165 sessions, 9 installations, 33 fins anormales**.
-  * son VivoBook (Intel UHD 620, la version `dev` de son profil Nix) : 8 sessions du 7 au 11/11 ;
+  [TELEMETRIE](TELEMETRIE.md)) au 12/11 au soir : **166 sessions, 9 installations, 33 fins anormales**.
+  * son VivoBook (Intel UHD 620, la version `dev` de son profil Nix) : 9 sessions du 7 au 12/11 ;
   * une GTX 1660 SUPER sous Windows, 48 sessions jusqu'au 12/11, encore en beta 9 — **très probablement
     lui, au PC de l'école** ;
   * un Linux à RTX 4070 SUPER, en beta 10 (10 sessions, la dernière le 11/11) ; un Windows à AMD Radeon

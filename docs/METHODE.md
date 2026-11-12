@@ -164,6 +164,10 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   `<maison>/state/glucose/moteurs.txt` ; sans cela, il dessine par la carte graphique.
 * **La copie de sa carte de Wikipédia avec ses liens** : `~/Documents/Glucose-essai-wikipedia-liens.glucose`.
   Le squelette se pose par `outils/wikipedia/essai_squelette.sh`.
+* **Le rythme se mesure sous niri** (fiche 111) : sous sway sans écran, présenter ne bloque jamais,
+  et un banc y manque le défaut que son écran montre (1 % d'images ratées contre 31 %) —
+  `PILOTE_COMPOSITEUR=niri bash ~/.cache/glucose-bancs/lag-107/mesure-niri.sh <nom> <exe>`, puis
+  `lag-107/rythme.sh <dossiers>`. Et mesurer le geste qu'il fait : le pavé tactile.
 * **Sous niri** : `PILOTE_COMPOSITEUR=niri` ; **à la taille d'un téléphone** : `PILOTE_ECRAN=1080x2400
   PILOTE_ECHELLE=2.75` (son moto g54). **Le presse-papiers et le glisser de Wayland** : `bash
   outils/pilote/essai_wayland.sh <dossier>`.
