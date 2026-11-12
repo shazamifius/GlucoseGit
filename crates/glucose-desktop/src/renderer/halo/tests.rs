@@ -1092,6 +1092,7 @@ fn trousse_a(store: &Store, (teinte, surete): (Option<f64>, f32)) -> Trousse {
                         famille: teinte.map(|_| 0),
                         teinte,
                         surete,
+                        parent: None,
                     };
                     (id.to_string(), avis)
                 })

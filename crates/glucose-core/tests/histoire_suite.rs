@@ -409,6 +409,25 @@ fn test_main_1_l_auteur_et_l_ecrit_d_un_geste_se_relisent() {
         "un nom, un identifiant"
     );
     assert_ne!(agent.id, histoire::Auteur::d_un_agent("claude-code").id);
+    // RECTIF-1 : l'IA de Glucose a son identifiant, qu'aucun nom d'agent ne prend.
+    let ia = histoire::Auteur::de_glucose();
+    let imposteur = histoire::Auteur::d_un_agent(histoire::L_IA_DE_GLUCOSE);
+    assert_ne!(
+        ia.id, imposteur.id,
+        "un agent qui se nomme comme elle n'est pas elle"
+    );
+    assert_eq!(ia.en_mots().as_deref(), Some("l'IA de Glucose"));
+    assert_eq!(
+        imposteur.en_mots().as_deref(),
+        Some("agent l'IA de Glucose")
+    );
+    assert_eq!(agent.en_mots().as_deref(), Some("agent proteo"));
+    let humain = histoire::Auteur {
+        id: 7,
+        agent: false,
+        nom: String::new(),
+    };
+    assert_eq!(humain.en_mots(), None, "l'humain, chaque lecteur le nomme");
     store.add_image(&b, image("a", 0.0));
     disque.ecrire(&mut store);
     let declaration = disque
@@ -432,16 +451,36 @@ fn test_main_1_l_auteur_et_l_ecrit_d_un_geste_se_relisent() {
         auteur: agent.id,
         geste: 1,
         texte: "J'ai posé la seconde image à côté de la première : elles vont ensemble.".into(),
+        sujets: vec!["b".into(), "a".into()],
     };
     let e = disque
         .chaine
         .encadrer(nature::NOTE, &histoire::contenu_note(&note));
     disque.octets.extend_from_slice(&e);
+    // RECTIF-1 (fiche 110) : un écrit d'avant les sujets — sans leur queue — se lit sans eux.
+    let mut w = glucose_core::persist::bytes::Writer::new();
+    w.i64(1_700_000_000_003);
+    w.u64(agent.id);
+    w.u64(0);
+    w.text("écrit avant les sujets");
+    let e = disque.chaine.encadrer(nature::NOTE, &w.into_bytes());
+    disque.octets.extend_from_slice(&e);
     let o = histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets)).expect("ouvert");
     let auteurs: Vec<u64> = o.gestes.iter().map(|g| g.auteur).collect();
     assert_eq!(auteurs, [7, agent.id], "chaque geste a son auteur");
     assert_eq!(o.auteurs.get(&agent.id), Some(&agent));
-    assert_eq!(o.notes, [note]);
+    let ancien = histoire::Note {
+        instant: 1_700_000_000_003,
+        auteur: agent.id,
+        geste: 0,
+        texte: "écrit avant les sujets".into(),
+        sujets: Vec::new(),
+    };
+    assert_eq!(
+        o.notes,
+        [note, ancien],
+        "les sujets se relisent, et leur absence aussi"
+    );
     assert!(
         o.projet == store.project,
         "un auteur, un écrit : le document ne change pas"
@@ -466,6 +505,9 @@ fn test_main_1_ce_qu_un_agent_a_pose_se_relit() {
     store.journal.main = Main::Agent("squelette".into());
     store.add_annotation(&b, Annotation::arrow("f1", 0.0, 0.0, 1.0, 1.0));
     store.add_annotation(&b, Annotation::arrow("f2", 0.0, 0.0, 2.0, 2.0));
+    // Un agent qui retire sa propre flèche ne la rend pas à l'humain (RECTIF-1).
+    store.add_annotation(&b, Annotation::arrow("f3", 0.0, 0.0, 4.0, 4.0));
+    store.remove_annotations(&b, &["f3"]);
     // Un agent qui retouche la flèche de l'humain ne la lui prend pas.
     store.update_annotation(&b, "h", |f| {
         if let Annotation::Arrow { text, .. } = f {
@@ -485,7 +527,20 @@ fn test_main_1_ce_qu_un_agent_a_pose_se_relit() {
         .map(String::as_str)
         .collect();
     assert_eq!(en_memoire, ["f1"], "en mémoire");
-    for e in store.journal.prendre_les_ecrits_signes() {
+    let ecrits = store.journal.prendre_les_ecrits_signes();
+    // RECTIF-1 (fiche 110) : seul le geste de l'humain sur « f2 » la reprend à l'agent.
+    let repris: Vec<Vec<String>> = ecrits.iter().map(|e| e.repris.clone()).collect();
+    let attendu: [Vec<String>; 7] = [
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec!["f2".into()],
+    ];
+    assert_eq!(repris, attendu, "ce que l'humain reprend aux agents");
+    for e in ecrits {
         let g = Geste {
             instant: 1_700_000_000_000,
             auteur: if e.main == Main::Humain { 7 } else { agent.id },

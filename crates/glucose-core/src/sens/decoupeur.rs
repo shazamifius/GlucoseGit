@@ -38,6 +38,36 @@ pub(super) fn decouper(texte: &str, vocabulaire: &impl Vocabulaire) -> Vec<u32> 
     rangs
 }
 
+/// **Les mots d'un texte tels qu'il les écrit**, chacun avec les rangs de ses morceaux (B3, fiche
+/// 110) : séparés là où la référence les sépare — aux blancs, et chaque signe de ponctuation à part
+/// (« l'eau » : « l », « ' », « eau ») —, mais avec leurs accents et leurs majuscules. Mis bout à
+/// bout, leurs rangs sont **exactement** ceux de [`decouper`] : la normalisation se fait caractère
+/// par caractère, et chaque séparation faite ici en est une de la référence (un blanc qui ne part
+/// pas au nettoyage ; un signe de ponctuation, qui le reste une fois normalisé). Ce qu'un mot
+/// d'origine cache encore de séparations, [`decouper`] le fait sous lui.
+pub(super) fn decouper_en_mots<'t>(
+    texte: &'t str,
+    vocabulaire: &impl Vocabulaire,
+) -> Vec<(&'t str, Vec<u32>)> {
+    let mut mots = Vec::new();
+    for bloc in texte.split(|c| est_blanc(c) && !est_controle(c)) {
+        let mut debut = 0;
+        for (i, c) in bloc.char_indices() {
+            if est_ponctuation(c) {
+                mots.push(&bloc[debut..i]);
+                mots.push(&bloc[i..i + c.len_utf8()]);
+                debut = i + c.len_utf8();
+            }
+        }
+        mots.push(&bloc[debut..]);
+    }
+    mots.into_iter()
+        .filter(|mot| !mot.is_empty())
+        .map(|mot| (mot, decouper(mot, vocabulaire)))
+        .filter(|(_, rangs)| !rangs.is_empty())
+        .collect()
+}
+
 /// Les étapes 1 à 3 : nettoyé, sans accents, en minuscules.
 fn normaliser(texte: &str) -> String {
     let mut propre = String::with_capacity(texte.len());

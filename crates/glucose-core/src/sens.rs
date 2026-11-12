@@ -26,12 +26,15 @@
 //! référence), la lecture du fichier, le plongement d'un texte, la ressemblance de deux ; et
 //! [`familles`], qui tire des ressemblances d'un document ses familles sûres et leurs teintes.
 //! [`liens`] dit la sûreté d'un lien : que ses deux bouts — un texte, une région — parlent de la
-//! même chose (PARENTE-4).
+//! même chose (PARENTE-4). [`Sens::pourquoi`] dit, mot par mot, ce qui rapproche deux textes (B3).
 
 mod decoupeur;
 pub mod familles;
 pub mod liens;
+mod pourquoi;
 mod unicode;
+
+pub use pourquoi::Part;
 
 use crate::types::{Annotation, Board};
 use std::collections::HashMap;
@@ -134,18 +137,29 @@ impl<'a> Sens<'a> {
         if rangs.is_empty() {
             return None;
         }
+        let somme = self.somme(&rangs);
+        let norme = norme(&somme);
+        (norme > 0.0).then(|| somme.into_iter().map(|x| x / norme).collect())
+    }
+
+    /// **La somme des morceaux** de ces rangs, avant d'être ramenée à la longueur 1.
+    fn somme(&self, rangs: &[u32]) -> Vec<f32> {
         let d = self.dimensions;
         let mut somme = vec![0.0f32; d];
-        for &r in &rangs {
+        for &r in rangs {
             let r = r as usize;
             let echelle = self.echelles[r];
             for (s, &o) in somme.iter_mut().zip(&self.table[r * d..(r + 1) * d]) {
                 *s += echelle * f32::from(o as i8);
             }
         }
-        let norme = somme.iter().map(|x| x * x).sum::<f32>().sqrt();
-        (norme > 0.0).then(|| somme.into_iter().map(|x| x / norme).collect())
+        somme
     }
+}
+
+/// La longueur d'un vecteur.
+fn norme(v: &[f32]) -> f32 {
+    v.iter().map(|x| x * x).sum::<f32>().sqrt()
 }
 
 /// **La ressemblance de deux sens** : leur cosinus (ils sont de longueur 1), de −1 à 1.

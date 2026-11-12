@@ -18,7 +18,7 @@
  },
  {
   "nom": "Une flèche reprise par l'humain restée à l'agent",
-  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "fichier": "crates/glucose-core/src/store/journal/mains.rs",
   "avant": "if slot.after.is_none() || !agent {",
   "apres": "if slot.after.is_none() {",
   "cmd": [
@@ -36,7 +36,7 @@
  },
  {
   "nom": "Un agent qui prend la flèche de l'humain en la retouchant",
-  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "fichier": "crates/glucose-core/src/store/journal/mains.rs",
   "avant": "} else if slot.before.is_none() {",
   "apres": "} else {",
   "cmd": [

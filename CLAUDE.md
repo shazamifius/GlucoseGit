@@ -48,12 +48,15 @@ graphique » en entier. Un point en français simple toutes les 30 à 45 minutes
 ## Les commandes
 
 Rust n'existe ici que dans `nix develop` : préfixer par `nix develop -c`. **Une seule grosse compilation
-à la fois** (7,6 Go) : compter 5 à 8 minutes pour une compilation d'épreuves.
+à la fois** (7,6 Go) : compter 5 à 8 minutes pour une compilation d'épreuves. **Et toujours bornée** :
+toute compilation, suite, mesure ou `nix profile upgrade` passe par `bash outils/borne.sh <commande>`.
+Le 12/11, un `cargo test --workspace` nu a lancé huit compilations à la fois et figé sa machine deux
+heures et demie (le swap compressé ne tue rien) ; bornée, une commande qui déborde meurt seule.
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --no-fail-fast  # ~3 100 épreuves, dont les cliquets
+bash outils/borne.sh nix develop -c cargo clippy --workspace --all-targets -- -D warnings
+bash outils/borne.sh nix develop -c cargo test --workspace --no-fail-fast  # ~3 160 épreuves, dont les cliquets
 GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
 bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran : clic, molette, taper, capture

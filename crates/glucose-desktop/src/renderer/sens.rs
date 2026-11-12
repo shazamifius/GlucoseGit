@@ -194,6 +194,7 @@ impl SensDesTextes {
                             famille: Some(0),
                             teinte: Some(0.0),
                             surete: 1.0,
+                            parent: None,
                         };
                         (id.to_string(), sur)
                     })
@@ -202,6 +203,15 @@ impl SensDesTextes {
             .unwrap_or_default();
         let mut sens = Self::default();
         sens.poser(&avis);
+        sens
+    }
+
+    /// Pour une épreuve qui regarde ce qu'on fait de l'avis de l'IA, et non l'IA : cet avis-là,
+    /// sur ce tableau, comme si le fil venait de le rendre.
+    pub(crate) fn avec_l_avis(tableau: &str, avis: Avis) -> Self {
+        let mut sens = Self::default();
+        sens.poser(&avis);
+        sens.avis = Some((tableau.to_string(), avis));
         sens
     }
 }

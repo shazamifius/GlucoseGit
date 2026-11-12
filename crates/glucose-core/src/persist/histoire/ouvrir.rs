@@ -340,6 +340,42 @@ fn entree_suivante<R: Read + Seek>(
     Ok(Some((e[0], contenu, longueur)))
 }
 
+/// **Range un geste** : de quoi le dater et le signer sans le relire, la provenance qu'il change
+/// (MAIN-1), et sa place parmi ce qui reste à rejouer.
+fn ranger_un_geste(
+    o: &mut Ouvert,
+    a_rejouer: &mut Vec<ARejouer>,
+    contenu: Vec<u8>,
+    tranche: Tranche,
+) {
+    // Le schéma (deux octets), puis l'instant et l'auteur : de quoi dater et signer le
+    // geste sans le relire.
+    let mot = |de: usize| {
+        contenu
+            .get(de..de + 8)
+            .and_then(|c| c.try_into().ok())
+            .map_or(0, u64::from_le_bytes)
+    };
+    let (instant, auteur) = (mot(2) as i64, mot(10));
+    o.gestes.push(Repere {
+        tranche,
+        instant,
+        auteur,
+    });
+    // La provenance (MAIN-1) : le geste d'un agent la change ; celui de l'humain, seulement
+    // s'il reste quelque chose à un agent. Un document de l'humain seul — même avec les
+    // rectifications de l'IA de Glucose, qui ne fait aucun geste — n'en relit aucun.
+    let agent = o.auteurs.get(&auteur).is_some_and(|a| a.agent);
+    if agent || !o.des_agents.is_empty() {
+        if let Ok(g) = lire_geste(&contenu) {
+            suivre_les_mains(&mut o.des_agents, &g.transaction, agent);
+        }
+    }
+    o.dernier_geste = o.chaine;
+    o.octets_depuis_l_instantane += tranche.longueur;
+    a_rejouer.push(ARejouer::Geste(o.gestes.len() - 1, contenu));
+}
+
 /// Range une entrée lue et vérifiée.
 fn ranger(
     o: &mut Ouvert,
@@ -360,31 +396,7 @@ fn ranger(
                 },
             );
         }
-        nature::GESTE => {
-            // Le schéma (deux octets), puis l'instant et l'auteur : de quoi dater et signer le
-            // geste sans le relire.
-            let mot = |de: usize| {
-                contenu
-                    .get(de..de + 8)
-                    .and_then(|c| c.try_into().ok())
-                    .map_or(0, u64::from_le_bytes)
-            };
-            let (instant, auteur) = (mot(2) as i64, mot(10));
-            o.gestes.push(Repere {
-                tranche,
-                instant,
-                auteur,
-            });
-            if !o.auteurs.is_empty() {
-                if let Ok(g) = lire_geste(&contenu) {
-                    let agent = o.auteurs.get(&auteur).is_some_and(|a| a.agent);
-                    suivre_les_mains(&mut o.des_agents, &g.transaction, agent);
-                }
-            }
-            o.dernier_geste = o.chaine;
-            o.octets_depuis_l_instantane += tranche.longueur;
-            a_rejouer.push(ARejouer::Geste(o.gestes.len() - 1, contenu));
-        }
+        nature::GESTE => ranger_un_geste(o, a_rejouer, contenu, tranche),
         nature::INSTANTANE => {
             o.instantanes.push(Instantane {
                 apres: o.gestes.len(),

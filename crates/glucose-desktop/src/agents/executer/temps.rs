@@ -75,12 +75,10 @@ impl GlucoseApp {
     }
 }
 
-/// **Qui est cet auteur**, en mots : « humain », ou « agent » et son nom.
+/// **Qui est cet auteur**, en mots : « humain », « l'IA de Glucose », ou « agent » et son nom.
 fn auteur_en_json(o: &Ouvert, id: u64) -> Json {
-    match o.auteurs.get(&id).filter(|a| a.agent) {
-        Some(a) => Json::texte(format!("agent {}", a.nom)),
-        None => Json::texte("humain"),
-    }
+    let auteur = o.auteurs.get(&id).and_then(|a| a.en_mots());
+    Json::texte(auteur.unwrap_or_else(|| "humain".to_string()))
 }
 
 /// Un geste de l'histoire : son rang, sa date, son auteur, ce qu'il a fait — relu dans le
@@ -97,9 +95,11 @@ fn geste_en_json(o: &Ouvert, rang: usize, fichier: &mut std::fs::File) -> Json {
         .iter()
         .filter(|n| n.geste == rang as u64)
         .map(|n| {
+            let sujets = n.sujets.iter().map(|s| Json::texte(s.clone())).collect();
             Json::objet([
                 ("auteur", auteur_en_json(o, n.auteur)),
                 ("texte", Json::texte(n.texte.clone())),
+                ("sujets", Json::Liste(sujets)),
             ])
         })
         .collect();

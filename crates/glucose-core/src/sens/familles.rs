@@ -71,6 +71,10 @@ pub struct Parente {
     pub teintes: Vec<f64>,
     /// La sûreté de chaque texte, de 0 à 1.
     pub surete: Vec<f32>,
+    /// **Le plus proche parent de chaque texte** : celui qui lui ressemble le plus, d'où sa sûreté
+    /// se tire — la première raison de sa famille, ce que l'IA montre quand elle dit pourquoi (B3,
+    /// fiche 110). Rien pour un document trop petit pour juger.
+    pub parent: Vec<Option<usize>>,
 }
 
 /// Deux écarts au-dessus du hasard : le seuil de signification d'usage.
@@ -93,16 +97,21 @@ pub fn parente(sens: &[Vec<f32>]) -> Parente {
             famille: vec![None; n],
             teintes: Vec::new(),
             surete: vec![0.0; n],
+            parent: vec![None; n],
         };
     };
     drop(paires);
+    let parent: Vec<Option<usize>> = (0..n)
+        .map(|i| {
+            (0..n)
+                .filter(|&j| j != i)
+                .max_by(|&a, &b| s.de_paire(i, a).total_cmp(&s.de_paire(i, b)))
+        })
+        .collect();
     let chances: Vec<f64> = (0..n)
         .map(|i| {
-            let parent = (0..n)
-                .filter(|&j| j != i)
-                .map(|j| s.de_paire(i, j))
-                .fold(f32::NEG_INFINITY, f32::max);
-            hasard.chance(parent, n - 1)
+            let ressemblance = parent[i].map_or(f32::NEG_INFINITY, |j| s.de_paire(i, j));
+            hasard.chance(ressemblance, n - 1)
         })
         .collect();
     let surete = efron(&chances);
@@ -112,6 +121,7 @@ pub fn parente(sens: &[Vec<f32>]) -> Parente {
         famille,
         teintes,
         surete,
+        parent,
     }
 }
 

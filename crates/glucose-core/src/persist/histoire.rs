@@ -185,19 +185,51 @@ pub struct Auteur {
     pub nom: String,
 }
 
+/// Le nom de l'IA de Glucose dans l'histoire (RECTIF-1).
+pub const L_IA_DE_GLUCOSE: &str = "l'IA de Glucose";
+
 impl Auteur {
     /// **L'identifiant d'un agent** : tiré de son nom, le même d'un lancement à l'autre et d'un
     /// document à l'autre — ses gestes se reconnaissent partout.
     pub fn d_un_agent(nom: &str) -> Self {
-        let e = sha256(format!("glucose/agent/{nom}").as_bytes());
-        let mut id = [0u8; 8];
-        id.copy_from_slice(&e[..8]);
         Self {
-            id: u64::from_le_bytes(id),
+            id: identifiant(&format!("glucose/agent/{nom}")),
             agent: true,
             nom: nom.to_string(),
         }
     }
+
+    /// **L'IA de Glucose elle-même** (RECTIF-1, fiche 110) : celle qui écrit le journal des
+    /// rectifications. Son identifiant ne se tire pas d'un nom d'agent : un agent qui se nommerait
+    /// comme elle garde le sien, et se montre « agent » — un nom est déclaré, jamais vérifié.
+    pub fn de_glucose() -> Self {
+        Self {
+            id: identifiant("glucose/ia-de-glucose"),
+            agent: true,
+            nom: L_IA_DE_GLUCOSE.to_string(),
+        }
+    }
+
+    /// **Qui est cet auteur, en mots** : « l'IA de Glucose », ou « agent » et son nom — rien pour
+    /// l'humain, que chaque lecteur nomme à sa façon (« toi » dans la Time Machine, « humain » pour
+    /// un agent).
+    pub fn en_mots(&self) -> Option<String> {
+        if !self.agent {
+            None
+        } else if self.id == Self::de_glucose().id {
+            Some(L_IA_DE_GLUCOSE.to_string())
+        } else {
+            Some(format!("agent {}", self.nom))
+        }
+    }
+}
+
+/// Un identifiant d'auteur : les huit premiers octets de l'empreinte de ce nom.
+fn identifiant(nom: &str) -> u64 {
+    let e = sha256(nom.as_bytes());
+    let mut id = [0u8; 8];
+    id.copy_from_slice(&e[..8]);
+    u64::from_le_bytes(id)
 }
 
 /// **Un écrit attaché à un geste** (NOTE-1).
@@ -209,6 +241,10 @@ pub struct Note {
     /// Le rang du geste qu'elle commente dans l'histoire, à partir de zéro.
     pub geste: u64,
     pub texte: String,
+    /// **Les nœuds dont elle parle** (RECTIF-1, fiche 110) : une rectification nomme le texte ou la
+    /// flèche que l'humain a repris à l'IA — un geste peut en toucher beaucoup, et suivre une flèche
+    /// n'est pas un geste. Champ de queue : un écrit d'avant n'en a pas.
+    pub sujets: Vec<String>,
 }
 
 /// Qui a posé un jalon.
@@ -263,6 +299,7 @@ pub fn contenu_note(n: &Note) -> Vec<u8> {
     w.u64(n.auteur);
     w.u64(n.geste);
     w.text(&n.texte);
+    w.seq(&n.sujets, |w, s| w.text(s));
     w.into_bytes()
 }
 
@@ -280,6 +317,13 @@ fn lire_note(r: &mut Reader<'_>) -> CoreResult<Note> {
         auteur: r.u64()?,
         geste: r.u64()?,
         texte: r.text()?,
+        // NOTE n'a jamais été publié : son format s'allonge par la queue, et un écrit d'avant les
+        // sujets se lit sans eux.
+        sujets: if r.remaining() > 0 {
+            r.seq(|r| r.text())?
+        } else {
+            Vec::new()
+        },
     })
 }
 

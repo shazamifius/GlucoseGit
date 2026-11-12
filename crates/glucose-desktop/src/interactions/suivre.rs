@@ -13,6 +13,9 @@
 //! vole à sa taille de lecture (`F`), et le vol note d'où il part : `Alt+Z` ramène (RETOUR-1). C'est
 //! le « Go » de Bring & Go et le bout de Link Sliding (Moscovich et al., CHI 2009) : la vue voyage,
 //! la carte ne bouge pas. Une flèche qui ne touche aucun nœud se cadre elle-même.
+//!
+//! Suivre une flèche qu'un agent a posée et que l'IA jugeait s'écrit au journal des rectifications
+//! (RECTIF-1, fiche 110).
 
 use crate::app::GlucoseApp;
 use glucose_core::geometry::Rect;
@@ -76,7 +79,28 @@ impl GlucoseApp {
             .max_by(|a, b| loin(&a.1).total_cmp(&loin(&b.1)))
             .map(|(id, _)| id);
         let vise = bout.unwrap_or_else(|| fleche.to_string());
+        self.noter_le_suivi(fleche);
         self.voler_vers_le_noeud(&vise)
+    }
+
+    /// **RECTIF-1 — il suit une flèche que l'IA jugeait** : l'IA de Glucose l'écrit, attaché au
+    /// dernier geste du document (suivre n'en est pas un). Rien pour une flèche de l'humain.
+    fn noter_le_suivi(&mut self, fleche: &str) {
+        let board = self.store.project.active_board_id.clone();
+        let Some(dit) = crate::parente::rectifications::d_une_fleche_suivie(
+            fleche,
+            &board,
+            &self.store.journal.des_agents,
+            &self.renderer.sens_des_textes,
+        ) else {
+            return;
+        };
+        // Ce qui attend d'être écrit l'est d'abord : l'écrit dit où en était le document.
+        self.consigner();
+        if let Some(ecriture) = self.disque.ecriture.as_mut() {
+            let instant = crate::persist::now_millis();
+            ecriture.rectifier(None, (fleche, &dit), instant);
+        }
     }
 }
 

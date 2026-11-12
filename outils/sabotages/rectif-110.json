@@ -1,0 +1,380 @@
+[
+ {
+  "nom": "B3 : la part d'un mot sans la longueur de son texte",
+  "fichier": "crates/glucose-core/src/sens/pourquoi.rs",
+  "avant": "let diviseur = norme(&self.somme(&tous)) * norme(&vers);",
+  "apres": "let diviseur = norme(&vers);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "B3 : « Eau » et « eau » deux mots",
+  "fichier": "crates/glucose-core/src/sens/pourquoi.rs",
+  "avant": "rang_de.entry(mot.to_lowercase())",
+  "apres": "rang_de.entry(mot.to_string())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "B3 : les mots d'origine sans la ponctuation à part",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "        for (i, c) in bloc.char_indices() {\n            if est_ponctuation(c) {\n                mots.push(&bloc[debut..i]);",
+  "apres": "        for (i, c) in bloc.char_indices() {\n            if false && est_ponctuation(c) {\n                mots.push(&bloc[debut..i]);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "B3 : un contrôle qui sépare deux mots",
+  "fichier": "crates/glucose-core/src/sens/decoupeur.rs",
+  "avant": "texte.split(|c| est_blanc(c) && !est_controle(c))",
+  "apres": "texte.split(est_blanc)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "B3 : le plus lointain pris pour parent",
+  "fichier": "crates/glucose-core/src/sens/familles.rs",
+  "avant": ".max_by(|&a, &b| s.de_paire(i, a).total_cmp(&s.de_paire(i, b)))",
+  "apres": ".min_by(|&a, &b| s.de_paire(i, a).total_cmp(&s.de_paire(i, b)))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : les sujets d'un écrit ne s'écrivent pas",
+  "fichier": "crates/glucose-core/src/persist/histoire.rs",
+  "avant": "w.seq(&n.sujets, |w, s| w.text(s));",
+  "apres": "w.seq(&Vec::<String>::new(), |w, s| w.text(s));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : un écrit d'avant les sujets refusé",
+  "fichier": "crates/glucose-core/src/persist/histoire.rs",
+  "avant": "sujets: if r.remaining() > 0 {",
+  "apres": "sujets: if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : l'IA de Glucose a l'identifiant d'un agent de son nom",
+  "fichier": "crates/glucose-core/src/persist/histoire.rs",
+  "avant": "id: identifiant(\"glucose/ia-de-glucose\"),",
+  "apres": "id: identifiant(\"glucose/agent/l'IA de Glucose\"),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : l'IA de Glucose montrée comme un agent",
+  "fichier": "crates/glucose-core/src/persist/histoire.rs",
+  "avant": "} else if self.id == Self::de_glucose().id {",
+  "apres": "} else if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : ce qu'un agent retire compté comme repris par l'humain",
+  "fichier": "crates/glucose-core/src/store/journal/mains.rs",
+  "avant": "if des_agents.remove(id) && !agent {",
+  "apres": "if des_agents.remove(id) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : ce que l'humain reprend jamais dit",
+  "fichier": "crates/glucose-core/src/store/journal/mains.rs",
+  "avant": "if des_agents.remove(id) && !agent {",
+  "apres": "if des_agents.remove(id) && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "MAIN-1 : à l'ouverture, les gestes de l'humain ne reprennent rien",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "if agent || !o.des_agents.is_empty() {",
+  "apres": "if agent {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "pourquoi_1",
+   "parente_1",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : un agent qui recolore corrige l'IA",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "if ecrit.main != Main::Humain {",
+  "apres": "if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : un texte sans famille rectifié",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "    avis.famille?;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : un texte déjà coloré rectifié",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "(Some(Annotation::Text { color: None, .. }), Some(texte)) => {",
+  "apres": "(Some(Annotation::Text { .. }), Some(texte)) => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : la flèche de l'humain rectifiée",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "if ecrit.repris.iter().any(|r| r == fleche.id()) =>",
+  "apres": "if true =>",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : une flèche retirée dite retouchée",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "d_une_fleche_reprise(fleche.id(), board, apres.is_none(), sens)",
+  "apres": "d_une_fleche_reprise(fleche.id(), board, false, sens)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : suivre la flèche de l'humain s'écrit",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "    if !des_agents.contains(id) {\n        return None;\n    }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : suivre ne s'écrit pas",
+  "fichier": "crates/glucose-desktop/src/interactions/suivre.rs",
+  "avant": "        self.noter_le_suivi(fleche);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : l'IA de Glucose jamais déclarée",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "if self.declares.insert(ia.id) {",
+  "apres": "if false && self.declares.insert(ia.id) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : chaque rectification au premier geste de la file",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "ecriture.rectifier(Some(premier + r.geste), (&r.sujet, &r.texte), instant);",
+  "apres": "ecriture.rectifier(Some(premier), (&r.sujet, &r.texte), instant);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ },
+ {
+  "nom": "RECTIF-1 : la file comptée depuis zéro",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "let premier = self.gestes;",
+  "apres": "let premier = 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_1"
+  ]
+ }
+]

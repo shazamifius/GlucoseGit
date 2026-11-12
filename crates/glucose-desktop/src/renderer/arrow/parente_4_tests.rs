@@ -19,6 +19,7 @@ fn avis_de(liens: &[(&str, f32)]) -> Avis {
                 famille: None,
                 teinte: None,
                 surete,
+                parent: None,
             };
             (id.to_string(), a)
         })

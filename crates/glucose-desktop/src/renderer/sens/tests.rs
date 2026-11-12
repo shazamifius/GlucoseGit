@@ -16,6 +16,7 @@ fn avis(liste: &[(&str, Option<f64>, f32)]) -> Avis {
                 famille,
                 teinte,
                 surete,
+                parent: None,
             };
             (id.to_string(), avis)
         })

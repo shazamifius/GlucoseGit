@@ -90,6 +90,12 @@ fn parente_1_les_familles_plantees_se_retrouvent() {
         }
     }
     assert!(plantees[0] != plantees[1] && plantees[1] != plantees[2]);
+    // B3 (fiche 110) : le plus proche parent d'un membre est un autre membre de son groupe.
+    for i in 0..15 {
+        let groupe = i / 5 * 5..i / 5 * 5 + 5;
+        let parent = p.parent[i].expect("un parent");
+        assert!(parent != i && groupe.contains(&parent), "{i} : {parent}");
+    }
     assert!(
         p.surete[..15].iter().all(|&s| s > 0.9),
         "{:?}",
@@ -236,6 +242,7 @@ fn parente_1_le_cercle_s_oriente_par_le_document() {
         famille: vec![None, Some(1), Some(0), Some(1), Some(2)],
         teintes: vec![1.0, 2.0, 4.0],
         surete: vec![0.0; 5],
+        parent: vec![None; 5],
     };
     p.orienter(0.5);
     let attendues = [1.5, 0.5, 0.5 - 2.0 + TAU];
@@ -247,6 +254,7 @@ fn parente_1_le_cercle_s_oriente_par_le_document() {
         famille: vec![Some(0), Some(1)],
         teintes: vec![1.0, 2.0],
         surete: vec![0.0; 2],
+        parent: vec![None; 2],
     };
     q.orienter(3.0);
     assert!((q.teintes[0] - 3.0).abs() < 1e-12 && (q.teintes[1] - 4.0).abs() < 1e-12);
@@ -314,4 +322,9 @@ fn parente_1_trop_peu() {
     assert_eq!(seul.famille, vec![None]);
     assert!(seul.teintes.is_empty());
     assert_eq!(seul.surete, vec![0.0]);
+    assert_eq!(
+        seul.parent,
+        vec![None],
+        "trop peu pour juger : pas de parent"
+    );
 }

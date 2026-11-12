@@ -103,16 +103,25 @@ impl GlucoseApp {
             self.dire_l_echec(&e);
             return;
         }
+        // RECTIF-1 : ce que ces gestes de l'humain rectifient, lu avant que l'IA ne se refasse.
+        let rectifications = crate::parente::rectifications::des_gestes(
+            &transactions,
+            &self.store.project,
+            &self.renderer.sens_des_textes,
+        );
         let Some(ecriture) = self.disque.ecriture.as_mut() else {
             return;
         };
         let nombre = transactions.len();
-        ecriture.consigner(
+        let premier = ecriture.consigner(
             transactions,
             &self.store.project,
             &self.disque.objets,
             instant,
         );
+        for r in rectifications {
+            ecriture.rectifier(Some(premier + r.geste), (&r.sujet, &r.texte), instant);
+        }
         // La réglette de la Time Machine s'allonge sans relire le fichier.
         self.dock_manager.temps.noter(nombre, instant);
         if !ecriture.brouillon {

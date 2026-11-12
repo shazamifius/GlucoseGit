@@ -38,11 +38,25 @@ fn main() {
         Err(e) => return eprintln!("{chemin} ne se lit pas : {e}"),
     };
     println!(
-        "{} geste(s), {} jalon(s), {} instantané(s), {} octet(s) de fin ignorés\n",
+        "{} geste(s), {} jalon(s), {} instantané(s), {} octet(s) de fin ignorés",
         ouvert.gestes.len(),
         ouvert.jalons.len(),
         ouvert.instantanes.len(),
         ouvert.fin_ignoree
+    );
+    // MAIN-1 et NOTE-1 (fiche 108) : qui est déclaré, ce qui est écrit, ce que les agents tiennent.
+    for a in ouvert.auteurs.values() {
+        let gestes = ouvert.gestes.iter().filter(|r| r.auteur == a.id).count();
+        let genre = if a.agent { "agent" } else { "humain" };
+        println!(
+            "auteur {:016x} : {genre} « {} », {gestes} geste(s)",
+            a.id, a.nom
+        );
+    }
+    println!(
+        "{} écrit(s) ; {} nœud(s) posés par un agent et que l'humain n'a pas touchés\n",
+        ouvert.notes.len(),
+        ouvert.des_agents.len()
     );
     let debut = ouvert.gestes.len().saturating_sub(combien);
     for (k, repere) in ouvert.gestes.iter().enumerate().skip(debut) {
@@ -52,18 +66,30 @@ fn main() {
             .and_then(|_| f.read_exact(&mut octets));
         match lu.ok().and_then(|()| histoire::lire_geste(&octets).ok()) {
             Some(g) => println!(
-                "#{k:<4} {}  lancement {:016x}\n       {}",
+                "#{k:<4} {}  {}\n       {}",
                 heure(g.instant),
-                g.auteur,
+                qui(&ouvert.auteurs, g.auteur),
                 resume(&g.transaction.edits)
             ),
             None => println!("#{k:<4} illisible"),
+        }
+        for note in ouvert.notes.iter().filter(|n| n.geste == k as u64) {
+            let auteur = qui(&ouvert.auteurs, note.auteur);
+            let sujets = note.sujets.join(", ");
+            println!("       écrit de {auteur} [{sujets}] : {}", note.texte);
         }
     }
     println!();
     for (apres, jalon) in &ouvert.jalons {
         println!("jalon après {apres} geste(s) : « {} »", jalon.libelle);
     }
+}
+
+/// Qui est un auteur : l'IA de Glucose, l'agent sous son nom, ou le lancement de Glucose par
+/// l'humain (un identifiant que rien ne déclare, MAIN-1).
+fn qui(auteurs: &std::collections::HashMap<u64, histoire::Auteur>, id: u64) -> String {
+    let auteur = auteurs.get(&id).and_then(histoire::Auteur::en_mots);
+    auteur.unwrap_or_else(|| format!("humain, lancement {id:016x}"))
 }
 
 /// L'heure d'un instant Unix en millisecondes, en temps universel.

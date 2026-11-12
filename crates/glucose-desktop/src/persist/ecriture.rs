@@ -200,15 +200,20 @@ impl Ecriture {
     }
 
     /// Écrit les transactions appliquées depuis la dernière fois, scelle les images qui
-    /// entrent, et pose un instantané quand l'histoire le demande.
+    /// entrent, et pose un instantané quand l'histoire le demande. Rend le rang du premier geste
+    /// écrit : la file suit, un rang après l'autre.
     pub fn consigner(
         &mut self,
         ecrits: Vec<Ecrit>,
         projet: &Project,
         objets: &Objets,
         instant: i64,
-    ) {
-        for Ecrit { transaction, main } in ecrits {
+    ) -> usize {
+        let premier = self.gestes;
+        for Ecrit {
+            transaction, main, ..
+        } in ecrits
+        {
             for img in transaction.images_posees() {
                 self.sceller(img, objets);
             }
@@ -226,6 +231,7 @@ impl Ecriture {
         if self.depuis >= self.taille {
             self.instantane(projet);
         }
+        premier
     }
 
     /// Pose un instantané de l'état courant, tout de suite.
@@ -288,9 +294,32 @@ impl Ecriture {
             auteur,
             geste: rang as u64,
             texte: texte.to_string(),
+            sujets: Vec::new(),
         };
         self.envoyer(nature::NOTE, histoire::contenu_note(&note));
         Ok(rang)
+    }
+
+    /// **Écrit une rectification** (RECTIF-1, fiche 110) : signée de l'IA de Glucose — déclarée
+    /// une fois par fichier, comme un agent —, attachée au geste de rang `geste`, ou au dernier du
+    /// document (suivre une flèche n'est pas un geste : l'écrit dit où en était le document), et
+    /// nommant le nœud dont elle parle. Rien dans un document sans geste.
+    pub fn rectifier(&mut self, geste: Option<usize>, (sujet, texte): (&str, &str), instant: i64) {
+        let Some(rang) = geste.or(self.gestes.checked_sub(1)) else {
+            return;
+        };
+        let ia = Auteur::de_glucose();
+        if self.declares.insert(ia.id) {
+            self.envoyer(nature::AUTEUR, histoire::contenu_auteur(&ia));
+        }
+        let note = Note {
+            instant,
+            auteur: ia.id,
+            geste: rang as u64,
+            texte: texte.to_string(),
+            sujets: vec![sujet.to_string()],
+        };
+        self.envoyer(nature::NOTE, histoire::contenu_note(&note));
     }
 
     fn envoyer(&self, nature: u8, contenu: Vec<u8>) {

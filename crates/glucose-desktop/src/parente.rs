@@ -36,13 +36,15 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::mpsc::{self, Receiver, Sender};
 
 /// **L'avis de l'IA sur un nœud** — un texte : sa famille (son numéro et sa teinte, en radians ;
-/// rien s'il est seul), et la sûreté qu'il a un parent, de 0 à 1 ; une flèche entre deux textes :
+/// rien s'il est seul), la sûreté qu'il a un parent, de 0 à 1, et ce parent — le texte qui lui
+/// ressemble le plus, d'où la sûreté se tire (B3, fiche 110) ; une flèche entre deux textes :
 /// aucune famille, et la sûreté que ses deux textes parlent de la même chose (PARENTE-4).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AvisDUnNoeud {
     pub famille: Option<usize>,
     pub teinte: Option<f64>,
     pub surete: f32,
+    pub parent: Option<String>,
 }
 
 /// L'avis de l'IA sur les textes d'un tableau et leurs liens, par identifiant. Un texte sans mot
@@ -194,12 +196,17 @@ impl Calcul {
         let fleches = liens.juger((&ids, &vecteurs), |nom| {
             self.sens.get(nom).cloned().flatten()
         });
-        let textes = ids.into_iter().enumerate().map(|(k, id)| {
+        let parents: Vec<Option<String>> = (parente.parent.iter())
+            .map(|p| p.map(|j| ids[j].clone()))
+            .collect();
+        let textes = ids.into_iter().zip(parents).enumerate();
+        let textes = textes.map(|(k, (id, parent))| {
             let famille = parente.famille[k];
             let avis = AvisDUnNoeud {
                 famille,
                 teinte: famille.map(|f| parente.teintes[f]),
                 surete: parente.surete[k],
+                parent,
             };
             (id, avis)
         });
@@ -208,6 +215,7 @@ impl Calcul {
                 famille: None,
                 teinte: None,
                 surete,
+                parent: None,
             };
             (id, avis)
         });
@@ -249,6 +257,7 @@ fn suffit(besoin: u64, libre: Option<u64>) -> bool {
 }
 
 mod liens;
+pub(crate) mod rectifications;
 
 #[cfg(test)]
 mod tests;

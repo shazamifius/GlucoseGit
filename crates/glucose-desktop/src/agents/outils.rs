@@ -156,8 +156,11 @@ const OUTILS: &[(&str, &str, &str)] = &[
         "Relit l'histoire du document — la Time Machine de Glucose : ses gestes les plus récents, \
          dans l'ordre, chacun avec son rang, sa date, son auteur (« humain », ou « agent » et son \
          nom), ce qu'il a fait (« pose le texte « a-12 » », « retire la flèche « f-3 » ») et les \
-         écrits qui s'y attachent ; ses jalons (les moments nommés, les enregistrements). C'est \
-         ainsi qu'on comprend comment le document s'est fait, et ce que l'humain a corrigé.",
+         écrits qui s'y attachent, avec les nœuds dont ils parlent ; ses jalons (les moments \
+         nommés, les enregistrements). Les écrits de « l'IA de Glucose » sont ses rectifications : \
+         là où l'humain a fait autrement qu'elle ne proposait (une couleur, une flèche retouchée ou \
+         suivie), ce qu'elle pensait et pourquoi. C'est ainsi qu'on comprend comment le document \
+         s'est fait, et ce que l'humain a corrigé.",
         r##"{"type":"object","properties":{"nombre":{"type":"number","description":"combien de gestes, les plus récents ; 50 par défaut"}}}"##,
     ),
     (

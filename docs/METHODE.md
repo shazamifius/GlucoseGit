@@ -128,6 +128,10 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
 
 **Compiler, éprouver**
 * Rust n'existe que dans `nix develop -c …` ; `cargo test --workspace` compte 5 à 8 minutes de compilation.
+* **Toute commande lourde est bornée** : `bash outils/borne.sh <commande>` — 60 % de la mémoire, sans
+  swap, une compilation par 1,5 Go de borne. Le 12/11, une suite nue (huit `rustc` à la fois) a noyé
+  les 7,6 Go dans le swap compressé, où Linux ne tue rien : sa machine figée de 14 h 36 à 17 h 05
+  (fiche 110). Bornée, elle meurt seule, en une seconde (code 137) — alors baisser `CARGO_BUILD_JOBS`.
 * **Nix ne voit que ce que git connaît** : un fichier neuf que le paquet nomme empêche `nix develop` de
   s'ouvrir tant qu'il n'est pas ajouté (`git add`).
 * **Pendant qu'une suite tourne, n'écrire aucun `.rs` dans le dépôt** : les cliquets lisent tous les
