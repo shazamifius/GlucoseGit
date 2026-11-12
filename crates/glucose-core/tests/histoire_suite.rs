@@ -448,6 +448,67 @@ fn test_main_1_l_auteur_et_l_ecrit_d_un_geste_se_relisent() {
     );
 }
 
+/// **MAIN-1 — ce qu'un agent a posé se relit dans l'histoire** (fiche 108) : deux flèches d'un
+/// agent, l'humain en reprend une — seule l'autre reste à l'agent, en mémoire comme à la relecture.
+/// Le contrepoint : sans agent déclaré, rien n'est à personne.
+#[test]
+fn test_main_1_ce_qu_un_agent_a_pose_se_relit() {
+    use glucose_core::store::journal::Main;
+    let mut store = Store::new("x");
+    let b = store.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&store);
+    let agent = histoire::Auteur::d_un_agent("squelette");
+    let declaration = disque
+        .chaine
+        .encadrer(nature::AUTEUR, &histoire::contenu_auteur(&agent));
+    disque.octets.extend_from_slice(&declaration);
+    store.add_annotation(&b, Annotation::arrow("h", 0.0, 0.0, 3.0, 3.0));
+    store.journal.main = Main::Agent("squelette".into());
+    store.add_annotation(&b, Annotation::arrow("f1", 0.0, 0.0, 1.0, 1.0));
+    store.add_annotation(&b, Annotation::arrow("f2", 0.0, 0.0, 2.0, 2.0));
+    // Un agent qui retouche la flèche de l'humain ne la lui prend pas.
+    store.update_annotation(&b, "h", |f| {
+        if let Annotation::Arrow { text, .. } = f {
+            *text = Some("retouchée".into());
+        }
+    });
+    store.journal.main = Main::Humain;
+    store.update_annotation(&b, "f2", |f| {
+        if let Annotation::Arrow { text, .. } = f {
+            *text = Some("je la garde".into());
+        }
+    });
+    let en_memoire: Vec<&str> = store
+        .journal
+        .des_agents
+        .iter()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(en_memoire, ["f1"], "en mémoire");
+    for e in store.journal.prendre_les_ecrits_signes() {
+        let g = Geste {
+            instant: 1_700_000_000_000,
+            auteur: if e.main == Main::Humain { 7 } else { agent.id },
+            transaction: e.transaction,
+        };
+        let entree = disque
+            .chaine
+            .encadrer(nature::GESTE, &histoire::contenu_geste(&g));
+        disque.octets.extend_from_slice(&entree);
+    }
+    let o = histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets)).expect("ouvert");
+    let relu: Vec<&str> = o.des_agents.iter().map(String::as_str).collect();
+    assert_eq!(relu, ["f1"], "relu dans l'histoire");
+
+    let mut seul = Store::new("y");
+    let b = seul.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&seul);
+    seul.add_annotation(&b, Annotation::arrow("f", 0.0, 0.0, 1.0, 1.0));
+    disque.ecrire(&mut seul);
+    let o = histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets)).expect("ouvert");
+    assert!(o.des_agents.is_empty(), "sans agent, rien n'est à personne");
+}
+
 /// **MAIN-1 — la main suit le geste** : ce qu'un agent fait sort de la file signé de son nom ;
 /// défaire son geste est un geste de l'humain.
 #[test]

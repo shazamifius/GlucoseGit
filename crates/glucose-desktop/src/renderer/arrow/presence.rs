@@ -26,6 +26,24 @@
 //! * **Les deux formules ensemble** : un lien prend **la plus forte** — ce que la densité lui laisse,
 //!   ou ce que la souris lui rend —, puis LIEN-1 (de loin, il pâlit avec la taille réelle), puis le
 //!   plancher. Ce qu'on regarde (choisi, survolé, la fenêtre des liens) reste plein.
+//!
+//! # PARENTE-4 — la souris ne rapproche que les liens de sens (fiche 107)
+//!
+//! Ses mots du 11/11/2026 : *« trop de flèches partout, impossible de pouvoir naviguer »*, *« on a
+//! juste des flèches random »*, *« passer par l'intelligence artificielle pour que ça fasse
+//! sens »* ; et le soir, *« l'IA doit pouvoir aider l'humain, et l'humain doit corriger l'IA »*.
+//!
+//! **Sa densité ne change pas** ; la proximité de la souris est multipliée par la sûreté que l'IA
+//! donne au lien — que ses deux bouts parlent de la même chose : `max(d, proximité × s)`. Approcher
+//! un nœud allume ses liens de sens ; ses liens d'habitude restent à leur densité. Un lien que
+//! l'IA n'a pas jugé (vers une photo) se rapproche comme avant. Survoler ou choisir le nœud
+//! lui-même allume toujours tous ses liens : rien ne se cache, et l'humain voit ce que l'IA a
+//! écarté. Aucune constante neuve.
+//!
+//! **Essayé d'abord, et regardé** : donner à un lien de sens sa force même loin de la souris —
+//! `d + (1 − d) s`. Sur la carte de Wikipédia, quatre liens sur dix ont du sens : à « Philosophie »,
+//! l'encre des flèches doublait, et la toile devenait plus dense qu'avant. La densité borne ce que
+//! l'écran montre ; l'IA ne doit pas l'augmenter.
 
 use super::NoeudsDuRendu;
 use glucose_core::geometry::Rect;
@@ -71,7 +89,8 @@ pub(crate) fn opacite(en_lumiere: bool, presence: f32, lecture: f32) -> f32 {
 }
 
 /// **La présence qui compte** (SURVOL-2, fiche 106) : celle du lien, ou 1 sans la calculer quand
-/// aucune présence ne peut changer son trait.
+/// aucune présence ne peut changer son trait. `sens` est la sûreté que l'IA donne au lien
+/// (PARENTE-4) : la souris ne rapproche que les liens de sens.
 ///
 /// Une présence ne dépasse jamais 1 (la densité et la proximité y sont bornées). Plus pâle que le
 /// plancher à pleine présence — `lecture ≤ PLANCHER`, la carte vue de loin —, un lien hors lumière
@@ -83,12 +102,12 @@ pub(crate) fn presence_qui_compte(
     ann: &Annotation,
     noeuds: NoeudsDuRendu<'_>,
     souris: Option<(f64, f64)>,
-    (n, lecture): (usize, f32),
+    (n, lecture, sens): (usize, f32, Option<f32>),
 ) -> f32 {
     if lecture <= PLANCHER {
         1.0
     } else {
-        presence(ann, noeuds, souris, n)
+        presence(ann, noeuds, souris, (n, sens))
     }
 }
 
@@ -96,9 +115,13 @@ pub(crate) fn presence_qui_compte(
 /// qu'elle survole les allume, la souris les rapproche. Au moins d'un niveau ([`UN_NIVEAU`]) : en
 /// deçà, l'image refaite serait la même, et la refaire coûterait une scène entière pour rien
 /// (fiche 103 § 3 : la souris seule faisait redessiner toute la carte de Wikipédia trente-sept
-/// fois par seconde). `n` est le nombre de liens à l'écran, `lecture` le pâlissement de LIEN-1.
+/// fois par seconde). `n` est le nombre de liens à l'écran, `lecture` le pâlissement de LIEN-1,
+/// `sens` ce que l'IA dit des liens (PARENTE-4).
 pub(crate) fn la_main_change_un_lien<'a>(
-    store: &glucose_core::store::Store,
+    (store, sens): (
+        &glucose_core::store::Store,
+        &crate::renderer::sens::SensDesTextes,
+    ),
     liens: impl Iterator<Item = &'a Annotation>,
     noeuds: NoeudsDuRendu<'_>,
     [avant, apres]: [Main<'_>; 2],
@@ -106,9 +129,10 @@ pub(crate) fn la_main_change_un_lien<'a>(
 ) -> bool {
     let vue = |a: &Annotation, main: Main<'_>| {
         let lumiere = super::en_lumiere(store, main.survole, a);
+        let surete = sens.surete_d_un_lien(a);
         opacite(
             lumiere,
-            presence_qui_compte(a, noeuds, main.souris, (n, lecture)),
+            presence_qui_compte(a, noeuds, main.souris, (n, lecture, surete)),
             lecture,
         )
     };
@@ -155,12 +179,13 @@ pub(crate) fn liens_a_l_ecran(visibles: &[u32], board: &Board) -> usize {
 }
 
 /// **La présence d'un lien** : la plus forte de la densité et de la proximité de la souris à l'un
-/// des blocs qu'il relie — à la flèche elle-même, s'il n'en relie aucun.
+/// des blocs qu'il relie — à la flèche elle-même, s'il n'en relie aucun —, celle-ci à la mesure de
+/// sa sûreté (`sens`, PARENTE-4 ; un lien que l'IA n'a pas jugé se rapproche entier).
 pub(crate) fn presence(
     ann: &Annotation,
     noeuds: NoeudsDuRendu<'_>,
     souris: Option<(f64, f64)>,
-    n: usize,
+    (n, sens): (usize, Option<f32>),
 ) -> f32 {
     let Annotation::Arrow {
         source_id,
@@ -173,6 +198,7 @@ pub(crate) fn presence(
     let Some(souris) = souris else {
         return densite(n);
     };
+    let sens = sens.map_or(1.0, |s| s.clamp(0.0, 1.0));
     let mut boites: Vec<Rect> = [source_id, target_id]
         .into_iter()
         .flatten()
@@ -183,6 +209,6 @@ pub(crate) fn presence(
     }
     boites
         .into_iter()
-        .map(|b| proximite(souris, b))
+        .map(|b| proximite(souris, b) * sens)
         .fold(densite(n), f32::max)
 }

@@ -22,8 +22,9 @@ use super::{nature, suivante, vue, Auteur, Chaine, Jalon, Note, Vue, ENTETE};
 use crate::error::{CoreError, CoreResult};
 use crate::hash::sha256;
 use crate::persist::bytes::Reader;
+use crate::store::journal::suivre_les_mains;
 use crate::types::Project;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek, SeekFrom};
 
 /// Où sont les octets d'une image dans le fichier.
@@ -69,6 +70,10 @@ pub struct Ouvert {
     pub auteurs: HashMap<u64, Auteur>,
     /// **Les écrits attachés aux gestes** (NOTE-1), dans l'ordre où ils ont été écrits.
     pub notes: Vec<Note>,
+    /// **Les nœuds qu'un agent a posés et que l'humain n'a pas touchés depuis** (MAIN-1), relus
+    /// dans l'histoire — seulement quand un agent y est déclaré : un document où seul l'humain a
+    /// travaillé n'en relit aucun geste de plus.
+    pub des_agents: HashSet<String>,
     pub instantanes: Vec<Instantane>,
     /// Là où la prochaine entrée s'écrira, et la chaîne à y reprendre.
     pub fin: u64,
@@ -121,6 +126,7 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         jalons: Vec::new(),
         auteurs: HashMap::new(),
         notes: Vec::new(),
+        des_agents: HashSet::new(),
         instantanes: Vec::new(),
         fin: base.fin,
         chaine: base.graine,
@@ -369,6 +375,12 @@ fn ranger(
                 instant,
                 auteur,
             });
+            if !o.auteurs.is_empty() {
+                if let Ok(g) = lire_geste(&contenu) {
+                    let agent = o.auteurs.get(&auteur).is_some_and(|a| a.agent);
+                    suivre_les_mains(&mut o.des_agents, &g.transaction, agent);
+                }
+            }
             o.dernier_geste = o.chaine;
             o.octets_depuis_l_instantane += tranche.longueur;
             a_rejouer.push(ARejouer::Geste(o.gestes.len() - 1, contenu));

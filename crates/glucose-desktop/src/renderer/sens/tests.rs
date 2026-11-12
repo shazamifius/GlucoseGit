@@ -1,7 +1,7 @@
 //! Les épreuves de la grammaire des couleurs du sens (PARENTE-2).
 
 use super::SensDesTextes;
-use crate::parente::{Avis, AvisDUnTexte};
+use crate::parente::{Avis, AvisDUnNoeud};
 use crate::renderer::scene::membranes::{sans_couleur, BLEU_DE_TAURI};
 use glucose_core::couleur::Oklch;
 use glucose_core::types::Annotation;
@@ -12,7 +12,7 @@ fn avis(liste: &[(&str, Option<f64>, f32)]) -> Avis {
         .iter()
         .map(|&(id, teinte, surete)| {
             let famille = teinte.map(|_| 0);
-            let avis = AvisDUnTexte {
+            let avis = AvisDUnNoeud {
                 famille,
                 teinte,
                 surete,

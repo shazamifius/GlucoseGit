@@ -298,8 +298,9 @@ fn draw_arrow_node(
         contournement: pass.contournement,
     };
     let lecture = pass.echelle().lecture();
+    let surete = sens.surete_d_un_lien(ann);
     let presence =
-        super::arrow::presence::presence_qui_compte(ann, noeuds, souris, (liens, lecture));
+        super::arrow::presence::presence_qui_compte(ann, noeuds, souris, (liens, lecture, surete));
     let Some(fleche) = Fleche::de(sens, ann, (pass, noeuds), (selected, lumiere, presence)) else {
         return;
     };

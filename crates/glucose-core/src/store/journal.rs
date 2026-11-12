@@ -63,6 +63,7 @@
 //!   de l'humain.
 
 use crate::types::Project;
+use std::collections::HashSet;
 
 /// **Qui fait un geste** (MAIN-1) : l'humain devant Glucose, ou un agent — sous le nom que son
 /// client se donne, déclaré et jamais vérifié, comme la question « Autoriser » le montre.
@@ -71,6 +72,30 @@ pub enum Main {
     #[default]
     Humain,
     Agent(String),
+}
+
+/// **Ce qu'un geste change à la provenance des nœuds** (MAIN-1) : une annotation qu'un agent pose
+/// est à lui ; celle que l'humain pose, change ou retire devient sienne ; une annotation retirée
+/// n'est plus à personne. Un agent qui change ce que l'humain a fait ne le lui prend pas.
+pub fn suivre_les_mains(des_agents: &mut HashSet<String>, transaction: &Transaction, agent: bool) {
+    for edit in &transaction.edits {
+        let Edit::Annotation { slot, .. } = edit else {
+            continue;
+        };
+        let Some(id) = slot
+            .after
+            .as_deref()
+            .or(slot.before.as_deref())
+            .map(|a| a.id())
+        else {
+            continue;
+        };
+        if slot.after.is_none() || !agent {
+            des_agents.remove(id);
+        } else if slot.before.is_none() {
+            des_agents.insert(id.to_string());
+        }
+    }
 }
 
 /// **Un geste appliqué, et la main qui l'a fait** : ce que la file de sortie porte (JRN-5,
@@ -310,6 +335,12 @@ pub struct Journal {
     ecrits: Vec<Ecrit>,
     /// **La main qui agit en ce moment** (MAIN-1) : l'humain, sauf pendant l'appel d'un agent.
     pub main: Main,
+    /// **Les nœuds qu'un agent a posés et que l'humain n'a pas touchés depuis** (MAIN-1, fiche
+    /// 108) : ce que l'IA de Glucose a le droit de juger. Une flèche que l'humain tire n'est jamais
+    /// jugée (sa parole du 12/11/2026 : *« il ne faut pas que l'IA juge les flèches, mais qu'elle
+    /// comprenne leur importance »*). Suivi geste après geste ([`suivre_les_mains`]), relu dans
+    /// l'histoire à l'ouverture.
+    pub des_agents: HashSet<String>,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
     /// Combien de gestes se sont ouverts : le numéro du geste en cours. Celui qui suit ce
@@ -326,6 +357,7 @@ impl Journal {
             open: None,
             ecrits: Vec::new(),
             main: Main::Humain,
+            des_agents: HashSet::new(),
             max_depth,
             ouverts: 0,
         }
@@ -375,6 +407,8 @@ impl Journal {
 
     /// La file d'un geste appliqué : la transaction, et la main qui agit.
     fn publier(&mut self, transaction: Transaction) {
+        let agent = self.main != Main::Humain;
+        suivre_les_mains(&mut self.des_agents, &transaction, agent);
         self.ecrits.push(Ecrit {
             transaction,
             main: self.main.clone(),

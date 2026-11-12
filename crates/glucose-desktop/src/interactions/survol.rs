@@ -92,7 +92,8 @@ impl GlucoseApp {
             },
         ];
         let liens = glucose_core::quadtree::Visibles::nouvelles(&rangs, board).annotations();
-        presence::la_main_change_un_lien(&self.store, liens, noeuds, mains, (n, lecture))
+        let qui = (&self.store, &self.renderer.sens_des_textes);
+        presence::la_main_change_un_lien(qui, liens, noeuds, mains, (n, lecture))
     }
 
     /// **Suit le nœud dont une flèche partirait**, sous l'outil Flèche armé : l'image ne se

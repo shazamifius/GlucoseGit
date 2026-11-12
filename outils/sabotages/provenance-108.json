@@ -1,0 +1,272 @@
+[
+ {
+  "nom": "Les flèches de l'humain jugées",
+  "fichier": "crates/glucose-core/src/sens/liens.rs",
+  "avant": "} if des_agents.contains(id) => Some(",
+  "apres": "} if !des_agents.is_empty() => Some(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "main_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Une flèche reprise par l'humain restée à l'agent",
+  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "avant": "if slot.after.is_none() || !agent {",
+  "apres": "if slot.after.is_none() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "parente_4",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "Un agent qui prend la flèche de l'humain en la retouchant",
+  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "avant": "} else if slot.before.is_none() {",
+  "apres": "} else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "parente_4",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "Les gestes de l'histoire relus sans leur main",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "suivre_les_mains(&mut o.des_agents, &g.transaction, agent);",
+  "apres": "let _ = (&g, agent);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "parente_4",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "Un geste d'auteur inconnu relu comme d'un agent",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "is_some_and(|a| a.agent)",
+  "apres": "is_none_or(|a| a.agent)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "parente_4",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "La provenance oubliée à l'ouverture",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "        self.store.journal.des_agents = ouvert.des_agents.clone();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "main_1"
+  ]
+ },
+ {
+  "nom": "La provenance d'un autre document gardée",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        self.journal.des_agents.clear();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--test",
+   "histoire_suite",
+   "--",
+   "main_1",
+   "load_project",
+   "ids"
+  ]
+ },
+ {
+  "nom": "Une flèche tendue ne relance pas l'IA",
+  "fichier": "crates/glucose-desktop/src/parente.rs",
+  "avant": "        liens.hash(&mut h);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente"
+  ]
+ },
+ {
+  "nom": "Le hasard d'une région lu sur elle",
+  "fichier": "crates/glucose-core/src/sens/liens.rs",
+  "avant": ".filter(|&t| !dedans(t))",
+  "apres": ".filter(|&t| t == usize::MAX || !dedans(t) || true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "parente_4"
+  ]
+ },
+ {
+  "nom": "Le nom d'une membrane oublié dans son sens",
+  "fichier": "crates/glucose-core/src/sens/liens.rs",
+  "avant": "for v in porte.iter().map(|&t| sens[t].as_slice()).chain(nom) {",
+  "apres": "for v in porte.iter().map(|&t| sens[t].as_slice()).chain(nom.filter(|_| false)) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "parente_4"
+  ]
+ },
+ {
+  "nom": "Une région sans les textes de ses filles",
+  "fichier": "crates/glucose-core/src/sens/liens.rs",
+  "avant": "                mere = meres.get(m);\n",
+  "apres": "                mere = None.or(meres.get(m)).filter(|_| false);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "main_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La souris rapproche tous les liens",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": ".map(|b| proximite(souris, b) * sens)",
+  "apres": ".map(|b| proximite(souris, b) * sens.max(1.0))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "main_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La voie graphique ignore la sûreté",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+  "avant": "            let surete = sens.surete_d_un_lien(ann);\n",
+  "apres": "            let surete: Option<f32> = None;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "main_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "Le processeur ignore la sûreté",
+  "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+  "avant": "    let surete = sens.surete_d_un_lien(ann);\n",
+  "apres": "    let surete: Option<f32> = None;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "main_1",
+   "lien_4"
+  ]
+ },
+ {
+  "nom": "La souris ne voit pas la sûreté pour redessiner",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/presence.rs",
+  "avant": "        let surete = sens.surete_d_un_lien(a);\n",
+  "apres": "        let surete: Option<f32> = Some(sens).and(None);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "lien_4",
+   "survol"
+  ]
+ },
+ {
+  "nom": "Une flèche sans avis",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "Annotation::Arrow { id, .. } => self.par_texte.get(id).map(|&(_, s)| s),",
+  "apres": "Annotation::Arrow { .. } => None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "parente_4",
+   "main_1",
+   "lien_4"
+  ]
+ }
+]

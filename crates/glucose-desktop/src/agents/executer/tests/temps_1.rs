@@ -92,11 +92,32 @@ fn main_1_un_agent_signe_ses_gestes_et_y_attache_un_ecrit() {
         .expect("un brouillon")
         .chemin
         .clone();
-    let octets = std::fs::read(chemin).expect("le brouillon");
+    let octets = std::fs::read(&chemin).expect("le brouillon");
     let o = histoire::ouvrir(&mut std::io::Cursor::new(octets)).expect("il se relit");
     assert_eq!(o.auteurs.len(), 1, "une déclaration par auteur");
     let proteo = histoire::Auteur::d_un_agent("proteo");
     assert_eq!(o.auteurs.get(&proteo.id), Some(&proteo));
+
+    // Rouvert, le document sait ce que l'agent y a posé, et ce que l'humain a fait (MAIN-1).
+    // Un seul scribe par fichier : la première fenêtre se ferme avant que l'autre l'ouvre.
+    drop(app);
+    let mut rouvert = GlucoseApp::new();
+    rouvert.habiter(&dossier);
+    rouvert.open_from(chemin);
+    let b = rouvert.store.project.active_board_id.clone();
+    assert!(
+        rouvert.store.project.annotation(&b, "p1").is_some(),
+        "le document s'est rouvert"
+    );
+    let des_agents = &rouvert.store.journal.des_agents;
+    assert!(
+        des_agents.contains("p1") && des_agents.contains("p2"),
+        "{des_agents:?}"
+    );
+    assert!(
+        !des_agents.contains("h"),
+        "le texte de l'humain reste à l'humain"
+    );
 }
 
 /// **Un écrit vide, ou sur un geste qui n'existe pas, est refusé** — et un agent qui n'a encore

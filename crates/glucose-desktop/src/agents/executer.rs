@@ -539,8 +539,10 @@ fn coordonnee(v: f64) -> Json {
 /// **PARENTE-3 — ce que l'IA de Glucose dit d'un texte**, comme l'humain le voit à son halo (fiche
 /// 106 ; VISION § 1 : *« ce qu'un humain voit, une IA doit pouvoir le lire »*) : le numéro de sa
 /// famille — des textes de la même famille se ressemblent sûrement, leur halo a la même couleur —,
-/// rien s'il est seul ; et la sûreté qu'il a un parent, de 0 à 1, au centième.
-fn parente_en_json(avis: Option<&crate::parente::AvisDUnTexte>, noeud: &mut Json) {
+/// rien s'il est seul ; et la sûreté qu'il a un parent, de 0 à 1, au centième. D'une flèche entre
+/// deux textes (PARENTE-4, fiche 107) : aucune famille, et la sûreté que ses deux textes parlent de
+/// la même chose — ce que l'humain voit à sa force quand les liens abondent.
+fn parente_en_json(avis: Option<&crate::parente::AvisDUnNoeud>, noeud: &mut Json) {
     let (Some(a), Json::Objet(champs)) = (avis, noeud) else {
         return;
     };

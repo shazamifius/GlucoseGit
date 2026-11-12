@@ -1088,7 +1088,7 @@ fn trousse_a(store: &Store, (teinte, surete): (Option<f64>, f32)) -> Trousse {
         .map(|b| {
             glucose_core::sens::textes_du_tableau(b)
                 .map(|(id, _)| {
-                    let avis = crate::parente::AvisDUnTexte {
+                    let avis = crate::parente::AvisDUnNoeud {
                         famille: teinte.map(|_| 0),
                         teinte,
                         surete,

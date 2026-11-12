@@ -284,18 +284,18 @@ fn test_lien_4_la_plus_forte_des_deux() {
     };
     let presence = super::presence::presence;
     assert_eq!(
-        presence(fleche, noeuds, Some((0.0, 90_000.0)), 1),
+        presence(fleche, noeuds, Some((0.0, 90_000.0)), (1, None)),
         1.0,
         "seul : plein"
     );
     assert_eq!(
-        presence(fleche, noeuds, None, 1),
+        presence(fleche, noeuds, None, (1, None)),
         1.0,
         "sans souris : la densité"
     );
-    assert_eq!(presence(fleche, noeuds, None, 20), densite(20));
+    assert_eq!(presence(fleche, noeuds, None, (20, None)), densite(20));
     assert_eq!(
-        presence(fleche, noeuds, Some((500.0, 0.0)), 40),
+        presence(fleche, noeuds, Some((500.0, 0.0)), (40, None)),
         1.0,
         "sur elle"
     );
@@ -395,13 +395,13 @@ fn test_lien_4_la_souris_rapproche_des_blocs_pas_des_membranes() {
         contournement: None,
     };
     let presence = super::presence::presence;
-    let dans_la_membrane = presence(lien, noeuds, Some((5_000.0, 0.0)), 40);
+    let dans_la_membrane = presence(lien, noeuds, Some((5_000.0, 0.0)), (40, None));
     assert!(
         dans_la_membrane < 0.05,
         "dans la membrane, loin du texte : {dans_la_membrane}"
     );
     assert_eq!(
-        presence(lien, noeuds, Some((0.0, 0.0)), 40),
+        presence(lien, noeuds, Some((0.0, 0.0)), (40, None)),
         1.0,
         "sur le texte"
     );

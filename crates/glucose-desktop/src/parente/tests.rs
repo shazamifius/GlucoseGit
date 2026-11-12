@@ -224,3 +224,136 @@ fn parente_2_la_regle_de_la_memoire() {
     assert!(!suffit(besoin(1000), Some(5_999_999)));
     assert!(suffit(besoin(1_000_000), None));
 }
+
+/// **PARENTE-4 — chaque flèche entre deux textes reçoit l'avis de l'IA** (fiche 107), par le vrai
+/// chemin : seize flèches de sens (la musique entre elle, l'eau entre elle) et treize d'habitude (la
+/// musique vers des textes sans rapport, ou vers l'eau). Sur un si petit document, l'IA hésite parfois
+/// sur une paire (mesuré en Python sur le même modèle : une paire de musique à 0, un lien d'habitude
+/// à 0,8) : l'épreuve juge l'ensemble. Une flèche vers une membrane se juge par ce qu'elle porte et
+/// son nom ; vers rien, elle n'est pas jugée.
+/// **La preuve à l'envers** : les bouts de la flèche « m0 → e0 » sont chacun sûrs d'un parent, et
+/// elle n'est pas sûre.
+#[test]
+fn parente_4_chaque_fleche_entre_deux_textes_recoit_un_avis() {
+    let mut app = application();
+    let tableau = app.store.project.active_board_id.clone();
+    let fleche = |app: &mut GlucoseApp, id: String, (de, vers): (String, String)| {
+        let mut f = Annotation::arrow(id, 0.0, 0.0, 1.0, 1.0);
+        if let Annotation::Arrow {
+            source_id,
+            target_id,
+            ..
+        } = &mut f
+        {
+            (*source_id, *target_id) = (Some(de), Some(vers));
+        }
+        // Posée par un script, comme la carte de Wikipédia : l'IA la juge (MAIN-1, fiche 108).
+        app.store.journal.main = glucose_core::store::journal::Main::Agent("squelette".into());
+        app.store.add_annotation(&tableau, f);
+        app.store.journal.main = glucose_core::store::journal::Main::Humain;
+    };
+    let paires = |p: &'static str, n: usize| {
+        (0..n).flat_map(move |a| (a + 1..n).map(move |b| (format!("{p}{a}"), format!("{p}{b}"))))
+    };
+    let de_sens: Vec<(String, String)> = paires("m", 5).chain(paires("e", 4)).collect();
+    let mut habitudes: Vec<(String, String)> = Vec::new();
+    for k in 0..5 {
+        habitudes.push((format!("m{k}"), format!("s{k}")));
+    }
+    for k in [0, 2, 4, 6] {
+        habitudes.push((format!("s{k}"), format!("s{}", k + 1)));
+    }
+    for k in 0..4 {
+        habitudes.push((format!("m{k}"), format!("e{k}")));
+    }
+    for (k, p) in de_sens.iter().enumerate() {
+        fleche(&mut app, format!("sens{k}"), p.clone());
+    }
+    for (k, p) in habitudes.iter().enumerate() {
+        fleche(&mut app, format!("habitude{k}"), p.clone());
+    }
+    fleche(
+        &mut app,
+        "vers-rien".into(),
+        ("m0".into(), "nulle-part".into()),
+    );
+    // Une membrane « L'eau » qui porte les textes de l'eau, visée par la molécule d'eau et par le chat.
+    let mut eau = Annotation::membrane("r-eau", -100.0, -100.0, 50.0, 50.0);
+    if let Annotation::Membrane { text, .. } = &mut eau {
+        *text = Some("L'eau".into());
+    }
+    app.store.add_annotation(&tableau, eau);
+    if let Some(b) = app.store.active_board_mut() {
+        for a in b.annotations.iter_mut().filter(|a| a.id().starts_with('e')) {
+            if let Annotation::Text { membrane_id, .. } = a {
+                *membrane_id = Some("r-eau".into());
+            }
+        }
+    }
+    fleche(
+        &mut app,
+        "molecule-eau".into(),
+        ("a0".into(), "r-eau".into()),
+    );
+    fleche(&mut app, "chat-eau".into(), ("s0".into(), "r-eau".into()));
+    // Deux flèches que l'humain tire entre deux textes de la musique, et une flèche du script qu'il
+    // touche : l'IA ne les juge pas (sa parole du 12/11/2026).
+    let mut a_la_main = Annotation::arrow("a-la-main", 0.0, 0.0, 1.0, 1.0);
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    } = &mut a_la_main
+    {
+        (*source_id, *target_id) = (Some("m0".into()), Some("m1".into()));
+    }
+    app.store.add_annotation(&tableau, a_la_main);
+    fleche(&mut app, "reprise".into(), ("m1".into(), "m2".into()));
+    app.store.update_annotation(&tableau, "reprise", |f| {
+        if let Annotation::Arrow { text, .. } = f {
+            *text = Some("je la garde".into());
+        }
+    });
+    app.une_image_sans_fenetre((800, 600));
+    let board = app.store.active_board().expect("un tableau");
+    let surete = |id: &str| {
+        let ann = board.annotations.iter().find(|a| a.id() == id).expect(id);
+        app.renderer.sens_des_textes.surete_d_un_lien(ann)
+    };
+    let lire = |prefixe: &str, n: usize| -> Vec<f32> {
+        (0..n)
+            .map(|k| surete(&format!("{prefixe}{k}")).expect("jugée"))
+            .collect()
+    };
+    let (sens, habitude) = (
+        lire("sens", de_sens.len()),
+        lire("habitude", habitudes.len()),
+    );
+    let moyenne = |v: &[f32]| v.iter().sum::<f32>() / v.len() as f32;
+    let surs = |v: &[f32]| v.iter().filter(|&&s| s > 0.5).count();
+    assert!(
+        moyenne(&sens) > 0.6 && surs(&sens) >= 12,
+        "le sens : {sens:?}"
+    );
+    assert!(
+        moyenne(&habitude) < 0.25 && surs(&habitude) <= 2,
+        "l'habitude : {habitude:?}"
+    );
+    assert!(habitude[9..].iter().all(|&s| s < 0.5), "{habitude:?}");
+    assert_eq!(
+        surete("vers-rien"),
+        None,
+        "un bout qui n'est ni un texte ni une membrane"
+    );
+    let (molecule, chat) = (surete("molecule-eau"), surete("chat-eau"));
+    assert!(
+        molecule.zip(chat).is_some_and(|(m, c)| m > c),
+        "vers la membrane de l'eau : la molécule {molecule:?}, le chat {chat:?}"
+    );
+    assert!(lueur(&app, "m0").1 > 0.5 && lueur(&app, "e0").1 > 0.5);
+    assert_eq!(
+        (surete("a-la-main"), surete("reprise")),
+        (None, None),
+        "une flèche que l'humain tire, ou qu'il a reprise, n'est pas jugée"
+    );
+}

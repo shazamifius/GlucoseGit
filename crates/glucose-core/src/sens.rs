@@ -25,9 +25,12 @@
 //! Le découpeur ([`decoupeur`], le WordPiece de BERT multilingue, réécrit à l'identique de la
 //! référence), la lecture du fichier, le plongement d'un texte, la ressemblance de deux ; et
 //! [`familles`], qui tire des ressemblances d'un document ses familles sûres et leurs teintes.
+//! [`liens`] dit la sûreté d'un lien : que ses deux bouts — un texte, une région — parlent de la
+//! même chose (PARENTE-4).
 
 mod decoupeur;
 pub mod familles;
+pub mod liens;
 mod unicode;
 
 use crate::types::{Annotation, Board};

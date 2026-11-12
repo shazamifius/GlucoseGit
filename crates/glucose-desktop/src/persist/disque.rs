@@ -277,6 +277,8 @@ impl GlucoseApp {
         self.selection_box = None;
         self.dock_manager.domains.reset();
         let repares = self.store.load_project(ouvert.projet.clone());
+        // Ce que les agents y ont posé, lu dans son histoire (MAIN-1).
+        self.store.journal.des_agents = ouvert.des_agents.clone();
         // Ce que le chargement a pu mettre dans la file de sortie n'appartient à personne :
         // l'état qu'on vient de lire est déjà sur le disque.
         self.store.journal.prendre_les_ecrits();

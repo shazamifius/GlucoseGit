@@ -169,6 +169,15 @@ impl SensDesTextes {
     pub(crate) fn degrades_retenus(&self) -> usize {
         self.degrades.borrow().len()
     }
+
+    /// **La sûreté d'un lien** (PARENTE-4) : que les deux textes qu'il relie parlent de la même
+    /// chose ; rien pour un lien que l'IA n'a pas jugé — un bout qui n'est pas un texte lu.
+    pub(crate) fn surete_d_un_lien(&self, lien: &Annotation) -> Option<f32> {
+        match lien {
+            Annotation::Arrow { id, .. } => self.par_texte.get(id).map(|&(_, s)| s),
+            _ => None,
+        }
+    }
 }
 
 /// Pour une épreuve qui regarde la lueur et non l'IA : chaque texte du tableau actif sûr, dans la
@@ -181,7 +190,7 @@ impl SensDesTextes {
             .map(|b| {
                 glucose_core::sens::textes_du_tableau(b)
                     .map(|(id, _)| {
-                        let sur = crate::parente::AvisDUnTexte {
+                        let sur = crate::parente::AvisDUnNoeud {
                             famille: Some(0),
                             teinte: Some(0.0),
                             surete: 1.0,

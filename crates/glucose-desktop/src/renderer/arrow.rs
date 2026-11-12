@@ -302,7 +302,9 @@ pub(super) fn fleches_a_poser(
             let selectionnee = store.selected_annotation_ids.contains(ann.id());
             let lumiere = en_lumiere(store, main.survole, ann);
             let lecture = echelle.lecture();
-            let presence = presence::presence_qui_compte(ann, noeuds, main.souris, (n, lecture));
+            let surete = sens.surete_d_un_lien(ann);
+            let presence =
+                presence::presence_qui_compte(ann, noeuds, main.souris, (n, lecture, surete));
             Fleche::de(sens, ann, (pass, noeuds), (selectionnee, lumiere, presence))?
                 .champ(&pass.vp, echelle, ecran)
         })
@@ -413,3 +415,7 @@ mod cascade_tests;
 #[cfg(test)]
 #[path = "arrow/presence_tests.rs"]
 mod presence_tests;
+
+#[cfg(test)]
+#[path = "arrow/parente_4_tests.rs"]
+mod parente_4_tests;

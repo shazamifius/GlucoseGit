@@ -4,10 +4,15 @@
 //! famille, sur un cercle dont l'origine est le document lui-même, et la sûreté de l'IA. Le rendu
 //! en fait des couleurs ([`crate::renderer::sens`]).
 //!
+//! **PARENTE-4** (fiche 107) : chaque flèche entre deux textes, ou entre un texte et une membrane
+//! (ce qu'elle porte, et son nom), reçoit aussi un avis — la sûreté que ses deux bouts parlent de
+//! la même chose ([`liens`]). Le rendu en fait la place d'un lien quand ils abondent
+//! ([`crate::renderer::arrow::presence::part`]).
+//!
 //! # Quand
 //!
-//! Seulement quand les **textes** du tableau changent : un texte écrit, ajouté, retiré, un autre
-//! tableau. La version du document n'avance qu'à un vrai geste, et une empreinte de ses textes dit
+//! Seulement quand les **textes** du tableau, ou les liens qui les relient, changent : un texte
+//! écrit, ajouté, retiré, une flèche tendue ou défaite, un autre tableau. La version du document n'avance qu'à un vrai geste, et une empreinte de ses textes dit
 //! si ce geste les a touchés — déplacer un nœud ne relance rien. Le rendu n'attend jamais : l'avis
 //! d'avant reste peint (au lancement, le gris) jusqu'à ce que le fil rende le neuf, et une seule
 //! image le montre.
@@ -25,27 +30,30 @@
 use crate::plateforme::Reveil;
 use glucose_core::sens::{self, familles};
 use glucose_core::store::Store;
+use liens::Liens;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::mpsc::{self, Receiver, Sender};
 
-/// **L'avis de l'IA sur un texte** : sa famille — son numéro et sa teinte, en radians ; rien s'il
-/// est seul —, et la sûreté qu'il a un parent, de 0 à 1.
+/// **L'avis de l'IA sur un nœud** — un texte : sa famille (son numéro et sa teinte, en radians ;
+/// rien s'il est seul), et la sûreté qu'il a un parent, de 0 à 1 ; une flèche entre deux textes :
+/// aucune famille, et la sûreté que ses deux textes parlent de la même chose (PARENTE-4).
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct AvisDUnTexte {
+pub struct AvisDUnNoeud {
     pub famille: Option<usize>,
     pub teinte: Option<f64>,
     pub surete: f32,
 }
 
-/// L'avis de l'IA sur les textes d'un tableau, par identifiant. Un texte sans mot n'en a pas.
-pub type Avis = HashMap<String, AvisDUnTexte>;
+/// L'avis de l'IA sur les textes d'un tableau et leurs liens, par identifiant. Un texte sans mot
+/// n'en a pas, ni une flèche dont un bout n'est ni un texte lu, ni une membrane (PARENTE-4).
+pub type Avis = HashMap<String, AvisDUnNoeud>;
 
 /// Les textes d'un tableau, dans l'ordre du document : identifiant et texte.
 type Textes = Vec<(String, String)>;
 
-/// Ce qu'on demande au fil : le tableau, et ses textes.
-type Demande = (String, Textes);
+/// Ce qu'on demande au fil : le tableau, ses textes et ses liens.
+type Demande = (String, Textes, Liens);
 
 /// Ce qu'il rend : le tableau, et l'avis sur ses textes.
 pub type AvisDuTableau = (String, Avis);
@@ -81,8 +89,11 @@ impl Parente {
                     while let Ok(plus_neuve) = recues.try_recv() {
                         demande = plus_neuve;
                     }
-                    let (tableau, textes) = demande;
-                    if envoi.send((tableau, calcul.calculer(textes))).is_err() {
+                    let (tableau, textes, liens) = demande;
+                    if envoi
+                        .send((tableau, calcul.calculer(textes, liens)))
+                        .is_err()
+                    {
                         return;
                     }
                     reveil();
@@ -97,19 +108,20 @@ impl Parente {
     /// celui qu'on vient de calculer —, rien tant que les textes ne changent pas.
     pub fn suivre(&mut self, store: &Store) -> Option<AvisDuTableau> {
         let mut neuf = self.fil.as_ref().and_then(|f| f.reponses.try_iter().last());
-        if let Some((tableau, textes)) = self.textes_changes(store) {
+        if let Some((tableau, textes, liens)) = self.textes_changes(store) {
             match &self.fil {
                 Some(fil) => {
                     // Un fil parti ne rend plus rien : l'avis d'avant reste peint.
-                    let _ = fil.demandes.send((tableau, textes));
+                    let _ = fil.demandes.send((tableau, textes, liens));
                 }
-                None => neuf = Some((tableau, self.sur_place.calculer(textes))),
+                None => neuf = Some((tableau, self.sur_place.calculer(textes, liens))),
             }
         }
         neuf
     }
 
-    /// Le tableau actif et ses textes, s'ils ont changé depuis la dernière demande.
+    /// Le tableau actif, ses textes et ses liens, s'ils ont changé depuis la dernière demande —
+    /// ce qu'une membrane touchée par une flèche porte compris.
     fn textes_changes(&mut self, store: &Store) -> Option<Demande> {
         let tableau = store.active_board()?;
         let deja_vu = self
@@ -125,6 +137,8 @@ impl Parente {
         for texte in sens::textes_du_tableau(tableau) {
             texte.hash(&mut h);
         }
+        let liens = Liens::du_tableau(tableau, &store.journal.des_agents);
+        liens.hash(&mut h);
         let empreinte = Some(h.finish());
         if self.empreinte == empreinte {
             return None;
@@ -132,7 +146,7 @@ impl Parente {
         self.empreinte = empreinte;
         let textes = sens::textes_du_tableau(tableau);
         let textes = textes.map(|(i, t)| (i.into(), t.into())).collect();
-        Some((tableau.id.clone(), textes))
+        Some((tableau.id.clone(), textes, liens))
     }
 }
 
@@ -147,22 +161,29 @@ struct Calcul {
 }
 
 impl Calcul {
-    fn calculer(&mut self, textes: Textes) -> Avis {
+    fn calculer(&mut self, textes: Textes, liens: Liens) -> Avis {
         let Some(modele) = sens::embarque() else {
             return Avis::new();
         };
         let mut gardes = HashMap::with_capacity(textes.len());
+        let mut lire = |texte: &str| {
+            let lu = gardes
+                .get(texte)
+                .cloned()
+                .or_else(|| self.sens.remove(texte))
+                .unwrap_or_else(|| modele.plonger(texte));
+            gardes.insert(texte.to_string(), lu.clone());
+            lu
+        };
         let (mut ids, mut vecteurs) = (Vec::new(), Vec::new());
         for (id, texte) in textes {
-            let lu = match self.sens.remove(&texte) {
-                Some(lu) => lu,
-                None => modele.plonger(&texte),
-            };
-            if let Some(v) = &lu {
+            if let Some(v) = lire(&texte) {
                 ids.push(id);
-                vecteurs.push(v.clone());
+                vecteurs.push(v);
             }
-            gardes.insert(texte, lu);
+        }
+        for nom in liens.noms() {
+            lire(nom);
         }
         self.sens = gardes;
         if !self.la_memoire_suffit(vecteurs.len()) {
@@ -170,18 +191,27 @@ impl Calcul {
         }
         let mut parente = familles::parente(&vecteurs);
         parente.orienter(0.0);
-        ids.into_iter()
-            .enumerate()
-            .map(|(k, id)| {
-                let famille = parente.famille[k];
-                let avis = AvisDUnTexte {
-                    famille,
-                    teinte: famille.map(|f| parente.teintes[f]),
-                    surete: parente.surete[k],
-                };
-                (id, avis)
-            })
-            .collect()
+        let fleches = liens.juger((&ids, &vecteurs), |nom| {
+            self.sens.get(nom).cloned().flatten()
+        });
+        let textes = ids.into_iter().enumerate().map(|(k, id)| {
+            let famille = parente.famille[k];
+            let avis = AvisDUnNoeud {
+                famille,
+                teinte: famille.map(|f| parente.teintes[f]),
+                surete: parente.surete[k],
+            };
+            (id, avis)
+        });
+        let fleches = fleches.into_iter().map(|(id, surete)| {
+            let avis = AvisDUnNoeud {
+                famille: None,
+                teinte: None,
+                surete,
+            };
+            (id, avis)
+        });
+        textes.chain(fleches).collect()
     }
 
     /// **La règle de la mémoire** : au plus fort du calcul, la matrice des ressemblances (`n²`
@@ -217,6 +247,8 @@ fn besoin(n: usize) -> u64 {
 fn suffit(besoin: u64, libre: Option<u64>) -> bool {
     libre.is_none_or(|l| besoin <= l)
 }
+
+mod liens;
 
 #[cfg(test)]
 mod tests;
