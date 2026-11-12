@@ -99,9 +99,6 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
   qui porte un écrit, ne s'ouvre plus dans les versions publiées (message net, rien de perdu) — son
   téléphone en beta 4 et le PC de l'école en beta 9 en ont besoin pour lire ces documents. **Plus
   pressante depuis RECTIF-1** : colorer un texte que l'IA rangeait dans une famille suffit.
-* **Protéger toute la machine** (fiche 110 § 5) : `outils/borne.sh` protège des commandes de Claude ;
-  pour que plus aucun programme ne la fige (le swap compressé étouffe au lieu de tuer), `earlyoom` ou
-  `systemd-oomd` sur ses parts — dans `/etc/nixos`, avec son mot de passe une fois.
 
 * **Le cap** : l'iPad par le web dans la partie 1 ? (défaut : oui, en dernier) ; les presets Figma et Miro
   (défaut : partie 2) ; « avec des utilisateurs » = des gens qui s'en servent sans rien perdre (des comptes

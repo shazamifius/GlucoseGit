@@ -146,9 +146,21 @@ bornée par systemd (60 % de la mémoire, sans swap, `nice`), une compilation pa
 (trois ici). Prouvé : 400 Mo demandés dans une borne de 200 Mo, tués en 0,6 s, rien d'autre touché.
 Bornée, la suite entière a pris 13 minutes, 2 Go toujours libres (un moniteur le relevait toutes
 les trois minutes). La règle est dans `CLAUDE.md`, MÉTHODE § 5 et la carte de la machine
-(`~/Projets/LISEZ-MOI.md`, pour tous ses projets). **Reste à sa parole** : une protection pour toute
-la machine (`earlyoom`, ou `systemd-oomd` sur les parts de l'utilisateur), qui demande son mot de
-passe.
+(`~/Projets/LISEZ-MOI.md`, pour tous ses projets).
+
+**Et toute la machine** (sa parole : *« yep je veux bien que tu mettes earlyoom »*) : `earlyoom` veille
+depuis 18 h 32 (`/etc/nixos/materiel-vivobook.nix`, commit `f3150c3` de sa configuration) — les seuils
+de Fedora, 4 % de mémoire disponible et 10 % de swap libre pour demander (SIGTERM), la moitié pour
+tuer ; il vise d'abord un compilateur (`rustc`, `cc1`, `ld`), jamais le bureau (niri, Xwayland, la
+barre, kitty) ; une notification dit qui il arrête. Vérifié : la configuration évaluée sur une copie,
+la reconstruction réduite à 26 Ko, le service lancé avec ces seuils. **Pas éprouvé en vrai** : il
+faudrait remplir sa mémoire exprès. Les sources : la page de manuel (<https://www.mankier.com/1/earlyoom>),
+la discussion de Fedora sur earlyoom et zram (<https://lists.fedorahosted.org/archives/list/devel@lists.fedoraproject.org/message/6YDJMPXQB3YC5S7CPI7MLUSLAILU7CB4>).
+Deux essais pour le mot de passe : un terminal ouvert par niri est resté hors de sa vue (`sudo` a
+abandonné au bout de cinq minutes) ; puis `pkexec`, dont l'environnement vide a fait tomber mon script
+(`set -u` avant `/etc/set-environment`) — simulé ensuite dans un environnement vide avant le
+troisième. `nix profile upgrade`, lui, compile hors de toute borne : il s'est fait sous un chien de
+garde qui l'aurait coupé sous 0,8 Go libres.
 
 ## 6. Les sabotages
 

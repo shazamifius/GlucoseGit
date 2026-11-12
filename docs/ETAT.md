@@ -87,8 +87,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   l'école (beta 9) ne l'ouvriront qu'une fois à jour. **Depuis RECTIF-1, un document ordinaire en
   porte dès qu'il colore un texte que l'IA rangeait dans une famille** ;
 * **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
-  110) — toute commande lourde passe désormais par `outils/borne.sh` ; une protection pour toute la
-  machine attend sa parole ;
+  110) — toute commande lourde passe désormais par `outils/borne.sh`, et `earlyoom` veille sur toute
+  la machine (arrêter le plus gros programme avant l'étouffement) ;
 * la palette propose « Couleur » quand une flèche est choisie, et rien ne change : la couleur d'une
   flèche vient des halos qu'elle relie (fiche 110) — un bouton qui ment ;
 * les liens bleus dans les textes (`#60a5fa`) : contraste APCA 52, sous le minimum de 60 (fiche 104) ;
