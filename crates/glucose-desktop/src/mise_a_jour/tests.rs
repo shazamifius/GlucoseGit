@@ -61,7 +61,7 @@ fn test_les_versions_s_ordonnent_comme_semver() {
 /// Tauri, elle proposerait de réinstaller Glucose Tauri ; en dessous de la dernière de Glucose Rust
 /// (oubli de la 2.0.1, corrigé le 06/10/2026), elle se croirait plus vieille que ce que ses
 /// utilisateurs ont déjà. À relever après chaque publication (fiche 48 § 15.4) — et la suivante
-/// s'y inscrit dès qu'on la prépare : la 2.0.3-beta.1 (fiche 63).
+/// s'y inscrit dès qu'on la prépare : la 2.0.4-beta.1 (fiche 111).
 #[test]
 fn test_la_version_depasse_tout_ce_qui_est_publie() {
     for publiee in [
@@ -69,6 +69,8 @@ fn test_la_version_depasse_tout_ce_qui_est_publie() {
         "2.0.1-beta.1",
         "2.0.2-beta.2",
         "2.0.3-beta.1",
+        "2.0.3-beta.10",
+        "2.0.4-beta.1",
     ] {
         assert!(
             Version::courante() > v(publiee),

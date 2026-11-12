@@ -1,18 +1,15 @@
 **Glucose {version}** — Glucose, réécrit en Rust.
 
-**Ce qui change depuis la 2.0.3-beta.9**
+**À lire d'abord : mettez à jour toutes vos machines.** Un document où une IA a travaillé, ou dont vous avez coloré un texte que Glucose avait rangé dans une famille, ne s'ouvre plus dans les versions d'avant : elles disent « ce document vient d'une version plus récente de Glucose » et n'y touchent pas. Rien n'est perdu — il s'ouvrira dès qu'elles seront à jour. Au téléphone, installez l'APK **par-dessus** l'ancien : ne désinstallez jamais Glucose, vos brouillons vivent dans l'application.
 
-* **Les liens.** De loin, ils pâlissent et laissent la carte se lire ; ceux du nœud qu'on survole ou qu'on choisit s'allument. `Ctrl`+clic sur une flèche fait voler la vue jusqu'à son autre bout. `B` (ou « Montrer ses liens » au menu) amène autour d'un nœud tous ceux qui lui sont liés, chacun dans la direction de sa vraie place et avec sa provenance ; un clic y mène.
-* **Revenir où l'on était** : `Alt+Z` ramène la caméra au lieu d'où elle est partie, `Alt+Maj+Z` y repart (« Vue précédente » au menu).
-* **Chercher dans tout le document** : `Ctrl+F`, puis `F3` pour le suivant.
-* **La couleur** : une barre de couleur pour les textes, les post-it, les membranes et les dossiers ; une roue de couleur, avec le code qu'on tape et la pipette ; la couleur d'un texte se voit enfin.
-* **Ranger** : « Disposer en colonnes » sur une membrane ; `Ctrl+G` entoure la sélection d'une membrane neuve ; « Entrer dans la membrane » (le mode Focus) au menu.
-* **Les opérateurs ET, OU, MAIS, PARCE QUE** sur les post-it (`Alt+1` à `Alt+4`, et le menu).
-* **Les domaines** traversent les documents, et une membrane donne les siens à ce qu'elle contient.
-* **Les grandes cartes** : le nom d'une membrane grandit avec elle, et de loin un texte montre le gris de ses lignes au lieu de disparaître.
-* **Sous Linux** : copier et coller (vers Discord, un navigateur…) et le glisser-déposer marchent sous Wayland ; le pincement du pavé zoome ; des commandes au terminal (`glucose aide`).
-* **Plus fluide** : déplacer la vue à la souris sans à-coups ; les photos ne clignotent plus ; une carte immobile laisse l'ordinateur au repos ; beaucoup de flèches ne figent plus l'image.
-* **Au téléphone** : les barres du bas passent à la ligne et ne couvrent plus la minimap.
-* **Corrigé** : le titre d'une membrane montre ce qu'on tape ; le contour d'un texte ne se décroche plus pendant qu'on écrit.
+**Ce qui change depuis la 2.0.3-beta.10**
 
-**Encore connu** : sélectionner plusieurs milliers d'images d'un coup reste lent à chaque image ; des membranes emboîtées les unes dans les autres se lisent mal — c'est le prochain chantier.
+* **Les membranes se lisent comme une carte.** Chaque endroit prend la couleur de la plus petite membrane qui le contient : des membranes emboîtées ne s'empilent plus en une couleur boueuse. Elles sont deux fois plus transparentes ; une membrane sans couleur choisie reste grise ; le fond d'un texte est toujours le gris sombre des blocs.
+* **La lueur d'un texte dit sa parenté.** Une petite IA, dans Glucose même (sans réseau : rien ne quitte votre machine), range dans une même famille les textes qui parlent de la même chose : ils prennent la même couleur, d'autant plus vive qu'elle en est sûre. Un texte sans parent garde un contour gris. La couleur que vous choisissez pour un texte va à sa lueur. Les couleurs au hasard de Glucose Tauri disparaissent.
+* **Glucose apprend de vos corrections.** Si vous colorez un texte autrement que l'IA ne l'avait rangé, ou si vous retouchez, retirez ou suivez une flèche qu'elle jugeait, la Time Machine (`Ctrl+H`) garde ce qu'elle pensait, et pourquoi : les mots qui rapprochaient deux textes. Ces notes restent dans votre document ; rien n'est envoyé.
+* **La Time Machine signe chaque geste** : le vôtre, ou celui d'une IA qui travaille dans Glucose (`glucose --mcp`), sous son nom. Une IA peut attacher à un geste un écrit qui dit ce qu'elle en a compris, et relire toute l'histoire. Chacun de ses gestes s'annule, et rien ne se fait sans votre accord.
+* **Les flèches.** Leur présence suit leur nombre à l'écran et la souris : beaucoup de flèches pâlissent, celles des nœuds proches de la souris s'allument. Celles qu'une IA ou un script a posées, l'IA de Glucose les juge, et la souris n'éclaire que celles qui ont du sens. Les vôtres ne sont jamais jugées.
+* **`Alt+Z` défait chaque geste de la caméra**, une série de crans de molette comprise, d'un seul pas.
+* **Plus fluide sur les grandes cartes** : de loin, environ deux fois moins de travail par image (les titres des membranes posés par la carte graphique, les lettres qui ne se refont plus) ; au zoom à la molette, presque plus d'images qui sautent un battement de l'écran ; survoler beaucoup de nœuds coûte moins.
+
+**Encore connu** : sur les très grandes cartes, le zoom a encore des à-coups ; beaucoup de flèches restent grises en attendant de dire quelque chose ; dans la palette (`Ctrl+Maj+P`), « Couleur » ne change rien quand une flèche est choisie ; sélectionner plusieurs milliers d'images d'un coup reste lent.
