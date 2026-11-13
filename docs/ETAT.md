@@ -41,9 +41,12 @@
   l'estompe** (FRISE-1 et 2, ESTOMPE-1 et 2, fiches 114-115 : `Maj+R`, une bande du bas qui pousse
   la minimap comme le clavier, les ères entières dans leurs couloirs, la répartition des dates, une
   fenêtre ambre — ce qui en sort pâlit à 12 %, sur les deux voies ; une flèche sans date pâlit avec
-  ce qu'elle relie ; regardée dans le vrai Glucose, au PC et à la taille du téléphone).
-  **Son Glucose installé** (profil Nix `GlucoseGit`) : `4f0c167` (DATE-1 et APPLIQUE-1 compris) ;
-  la frise est en route (`outils/mettre_a_jour.sh`).
+  ce qu'elle relie ; regardée dans le vrai Glucose, au PC et à la taille du téléphone) ; **regarder
+  un domaine** (DOMAINE-1 et LENTILLE-1, fiche 115 : « voir » dans le panneau Domaines — ce qui
+  n'appartient pas au domaine pâlit selon son poids, de 12 % à plein ; avec la frise, le minimum
+  des deux lentilles).
+  **Son Glucose installé** (profil Nix `GlucoseGit`) : `f87d344` (la frise comprise ; regarder un
+  domaine n'y est pas encore).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
@@ -74,7 +77,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Images** | PNG, JPEG, WebP, GIF (figé), BMP ; coller, déposer ; rotation, recadrage ; la mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; **sa lueur dit sa parenté** : une IA du sens embarquée (15 Mo, multilingue, sans réseau) range les textes en familles — même couleur, d'autant plus forte et vive qu'elle est sûre ; un texte sans parent garde le contour gris de son bloc ; la couleur choisie va à sa lueur (PARENTE, fiche 106) |
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris — **la souris ne rapproche que les flèches de sens** parmi celles qu'un agent ou un script a posées (PARENTE-4) ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
-| **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) |
+| **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) ; **dater** un nœud (`Maj+T`), **la frise chronologique** (`Maj+R`) et **regarder un domaine** (« voir ») : deux lentilles qui estompent ce qu'elles écartent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) |
 | **L'interface** | 106 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence |
 | **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
@@ -125,7 +128,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 219, toutes vertes au 13/11 à 21 h 41 (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 225, toutes vertes au 13/11 à 22 h 45 (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -136,8 +139,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   provenance — trois épreuves aveugles trouvées et écrites), 15 sur 15 (le zoom, fiche 109), 22 sur
   22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite), 4 sur 4 (QUEUE-1), 18 sur 18
   (PARU-1, fiche 112), 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
-  désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114) et 51 sur 51 (la frise et
-  l'estompe, fiche 115).
+  désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114), 51 sur 51 (la frise et
+  l'estompe) et 16 sur 16 (le domaine regardé, fiche 115).
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).

@@ -132,6 +132,12 @@ sabotage ne compilait pas d'abord (`let n = 1;` laissait le compilateur sans typ
 `saturating_sub`) : écrit `1_usize`, rejoué seul, il tombe. La suite entière, sur la version
 envoyée : **3 219 épreuves vertes**, clippy et la mise en forme à zéro.
 
+**Puis la lentille de domaine** (§ 7) : `outils/sabotages/domaine-115.json`, **16 sur 16** ; et les
+51 de la frise **rejoués** sur la loi neuve de la présence (chaque appel passe désormais ce que le
+nœud montre) : **51 sur 51** — un « avant » mis à jour (le bout d'une flèche rend son regard, plus
+sa seule date). La suite entière : 3 224 vertes et un cliquet tombé — un message de plus que permis,
+le mien, retiré (§ 7) — puis les seize cliquets verts.
+
 ## 7. DOMAINE-1 et LENTILLE-1 — regarder un domaine
 
 Le chantier suivant de la passation : « filtrer par domaine (Tauri) ». **Tauri ne le faisait
