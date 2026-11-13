@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 13/11/2026, 1 h** (fiches 108-113). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 13/11/2026, 18 h 30** (fiches 108-114). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -37,7 +37,11 @@
 compositeur dit pour chaque image si elle a paru, à quel battement, ou si elle a été jetée — la
 chronique en tire les battements sautés et le temps de l'envoi à l'écran ; **une seule loi dit si
 une commande s'applique** (APPLIQUE-1, fiche 113) : la palette, le menu du clic droit et
-l'exécution la lisent — plus de « Couleur » proposée sur une flèche ; le menu rangé par sens.
+l'exécution la lisent — plus de « Couleur » proposée sur une flèche ; le menu rangé par sens ;
+**la date des nœuds** (DATE-1, fiches 113-114) : `Maj+T`, la palette ou le menu d'une sélection
+datent un nœud (une année, une plage, une ère) ; une pastille ambre le dit à son coin, sur les deux
+voies et dans l'export SVG ; une IA date par `glucose_dater` et lit les dates par `glucose_lire` ;
+**le bleu des liens** éclairci jusqu'au contraste d'un texte courant (`#a8cfff`).
 **Son Glucose installé** (profil Nix `GlucoseGit`) : `b44113c` (PARU-1 compris, pas encore
 APPLIQUE-1).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
@@ -46,10 +50,8 @@ APPLIQUE-1).
 * **Ce qui attend sa parole** : **la page du co-working** (https://claude.ai/artifact/SLp5cJzTb7FvsKp7iEtUpS,
   fiche 113 : partager un canevas, c'est partager sa Time Machine — une salle sur son relais
   numérote les gestes chiffrés sans les lire) et **la porte publique** (fiche 111).
-* **En correctif, pas dans `main`** (`~/.cache/glucose-bancs/date-113/`) : le bleu des liens tranché
-  (`#a8cfff`, Lc 75) et **la date des nœuds** (DATE-1, la temporalité de Tauri : `Maj+T`, la
-  question, la pastille) — les dates des documents de Tauri sont lues et enregistrées, jamais
-  montrées.
+* **En cours** : **la réglette du temps** (`Maj+R`) et le filtre qui estompe ce qu'il écarte —
+  conçus (fiche 114 § 6), la loi de présence écrite dans le noyau.
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
@@ -76,7 +78,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris — **la souris ne rapproche que les flèches de sens** parmi celles qu'un agent ou un script a posées (PARENTE-4) ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
 | **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) |
-| **L'interface** | 105 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence |
+| **L'interface** | 106 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence |
 | **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
 
@@ -114,10 +116,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 * **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
   110) — toute commande lourde passe désormais par `outils/borne.sh`, et `earlyoom` veille sur toute
   la machine (arrêter le plus gros programme avant l'étouffement) ;
-* les liens bleus dans les textes (`#60a5fa`) : contraste APCA 52 ; un texte courant demande 75 —
-  **tranché sur une image : `#a8cfff`**, dans le correctif de la fiche 113 ;
-* **les dates des nœuds** (Tauri, `Maj+T`) : lues, enregistrées, **jamais montrées** — DATE-1 en
-  correctif (fiche 113) ; la réglette (`Maj+R`) et le filtre restent à faire ;
+* **la réglette du temps** (`Maj+R`) et son filtre : à faire (DATE-1 date et montre, fiche 114) ;
+* l'étiquette d'une photo en chemin ne suit pas le zoom (fiche 114 § 5) ;
 * choisir 8 000 images coûte 28 ms par image (fiche 87 § 7 bis) ;
 * le fondu d'un message redessine toute la carte (REPOS-3, fiche 98 § 7) ;
 * les titres des membranes ne suivent pas encore la loi du gris de loin (fiche 104 § 3) ; les traits plus
@@ -128,7 +128,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 178, toutes vertes au 13/11 à 0 h 10 (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 193, toutes vertes au 13/11 à 18 h 12 (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -138,8 +138,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   fiche 107), 46 sur 46 (fiche 108 : les flèches, les titres, les mémoires, la Time Machine, la
   provenance — trois épreuves aveugles trouvées et écrites), 15 sur 15 (le zoom, fiche 109), 22 sur
   22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite), 4 sur 4 (QUEUE-1), 18 sur 18
-  (PARU-1, fiche 112) et 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
-  désigné une garde redondante, retirée dans le correctif).
+  (PARU-1, fiche 112), 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
+  désigné une garde redondante, retirée) et 21 sur 21 (DATE-1, fiche 114).
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).

@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 13/11/2026, 1 h** (fiches 108-113). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 13/11/2026, 18 h 30** (fiches 108-114). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -42,7 +42,7 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 | [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4 dans `main`** (fiche 108) — l'IA juge les flèches qu'un agent ou un script a posées, la souris ne rapproche que celles de sens ; jamais les siennes. Sa carte signée (`~/Documents/Glucose-essai-wikipedia-signee.glucose`, fiche 110) le montre : la souris près d'un texte n'éclaire qu'une poignée de flèches. **Ensuite** : une couleur qui dit quelque chose (le gris n'est que temporaire), partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | à son écran, sur la carte signée |
 | [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; 11 % (*« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
 | [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte. Reste **son écran** ; sa couleur et ce que l'IA en apprend passent par le cercle de l'IA, plus haut | son écran |
-| [~] | **Finir le correctif de la fiche 113** (`~/.cache/glucose-bancs/date-113/date-bleu-menu.patch`) : le bleu des liens tranché (`#a8cfff`, Lc 75, regardé), la garde redondante du menu retirée, et **DATE-1** — dater un nœud (`Maj+T`, la question et ses ères, la pastille ambre), la temporalité de Tauri dont les dates étaient lues et jamais montrées. Reste : le verdict des épreuves du bureau, les trois empreintes du témoin regardées puis mises à jour, la pastille vérifiée sur la voie graphique (`voies_suite`), les sabotages de DATE-1, l'export SVG, un agent qui date ; **puis la réglette** (`Maj+R`) et le filtre qui estompe (fiche 113 § 5) | dans `main`, sabotée ; la pastille regardée sur les deux voies |
+| [~] | **La réglette du temps** (`Maj+R`) et **le filtre qui estompe** (ESTOMPE-1) : DATE-1 est dans `main` (fiche 114 : la pastille sur les deux voies et dans l'export, `glucose_dater`, `glucose_lire`) ; la réglette est **conçue** (fiche 114 § 6 : estomper plutôt que cacher, l'histogramme des dates du document, la vue tirée de ses dates, une bande du bas qui pousse la minimap comme le clavier, la molette par la loi du canevas) et **commencée** dans le noyau (`timeline::presence`). Reste : la bande, ses gestes (poignées, fenêtre, molette, au doigt), l'opacité de chaque sorte de nœud sur les deux voies (`Pose::opacite`, l'alpha des flèches, des régions, des lueurs ; au processeur, une vraie opacité de groupe ; l'occlusion des photos estompées), `voies_suite`, les sabotages ; puis **filtrer par domaine** sur la même loi | dans `main`, sabotée ; l'estompe regardée sur les deux voies |
 
 ## 3. Ce qui attend son écran
 
@@ -90,6 +90,9 @@ posée par la version neuve — l'ancienne, `…-liens.glucose`, ne connaît pas
 * un très long texte vu de près ; zoomer très près d'une formule, d'un emoji (P8) ;
 * la palette (`Ctrl+Maj+P`), changer un raccourci ; **une flèche choisie : la palette ne propose
   plus « Couleur »**, et le clic droit montre un menu rangé par sens (APPLIQUE-1, fiche 113) ;
+* **dater** : choisir un texte et une photo, `Maj+T`, taper « renais » puis choisir la Renaissance ;
+  la pastille ambre à leur coin ; dézoomer ; `Ctrl+Z` ; un lien dans un texte, plus clair
+  qu'avant (DATE-1, fiche 114) ;
 * un agent dans Glucose (`glucose --mcp`) : « Autoriser », une demande ; puis la Time Machine
   (`Ctrl+H`) : sous chaque geste de l'agent, son nom et ses écrits (MAIN-1, NOTE-1, fiche 108) ;
 * le Storyboard, Mood board, Ordonner, l'export SVG et PNG, le mode référence.
@@ -148,8 +151,8 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 **Tout ce qui manque** (la parité avec Tauri, et ses demandes)
 * [ ] P6 — relire chaque panneau contre Tauri, champ par champ : Pomodoro, Domaines, Time Machine, la
   bande, Ordonner, Mood board.
-* [ ] Les miroirs (`Ctrl+Maj+M`) ; la temporalité (dater un nœud : commencée, fiche 113 ; puis la
-  réglette de −10 000 à 2 100 et le filtre) ; les GIF animés et
+* [ ] Les miroirs (`Ctrl+Maj+M`) ; la temporalité (dater un nœud : fait, fiche 114 ; la réglette
+  et le filtre : SUITE § 2) ; filtrer par domaine (la même loi d'estompe) ; les GIF animés et
   les vidéos ; l'export HTML ; le mode zen (`F11`) ; la provenance des images (SauceNAO).
 * [ ] Les choix à l'utilisateur : la planche claire ou sombre, l'export PNG à 100 % ou aux originaux, les
   photos du SVG, la numérotation « 2.3 », la place du numéro.
