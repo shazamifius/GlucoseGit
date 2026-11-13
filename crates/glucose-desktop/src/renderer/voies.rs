@@ -152,6 +152,9 @@ pub(super) fn dessiner_sur_les_photos(
         (store, overlay.eclairages, pass),
     );
     crate::perf::stage("annotations");
+    // 6 ter. La date des nœuds, au-dessus de ce qu'elle date, sur les deux voies (DATE-1, fiche
+    // 113) : du sens, jamais une prise — elle se pose même pendant une lecture, sous son voile.
+    super::date::poser_les_dates(pixmap, (store, pass, kit));
     // 6 bis. Les ornements des photos -- cadre de selection, poignees, reglette -- passent
     // au-dessus de TOUT, sur les deux voies (ORNEMENTS-1). Ils vivaient au bout de la pose de
     // chaque photo, donc sous les cartes qui la recouvraient : une poignee cachee par une

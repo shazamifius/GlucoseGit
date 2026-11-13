@@ -39,6 +39,7 @@ mod boards;
 mod catalog;
 pub mod choix;
 mod colonnes;
+mod dates;
 mod domains;
 pub mod fenetre;
 mod folders;

@@ -57,6 +57,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::StoryboardDeLaSelection
         | C::EnregistrerLImage
         | C::RemplacerParLImage
+        | C::Dater
         | C::SuivreLeLien
         | C::MontrerLesLiens
         | C::AllerAuNoeud
@@ -130,6 +131,7 @@ fn selon_le_choix(store: &Store, ui: &UiState, commande: Commande) -> bool {
             store.selected_image_ids.len() == 1 && store.selected_annotation_ids.is_empty()
         }
         C::RemplacerParLImage => !liens_choisis(store).is_empty(),
+        C::Dater => noeuds,
         C::SuivreLeLien => une_fleche_seule(store),
         C::MontrerLesLiens => candidats_a_montrer(store)
             .iter()

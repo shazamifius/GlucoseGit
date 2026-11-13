@@ -91,9 +91,17 @@ impl Renderer {
         sous_les_photos_en_svg(kit, &mut svg, (store, pass), taille);
         super::scene::image::svg::images_en_svg(store, pass, &mut svg, octets);
         // Ce qui passe sur les photos (`dessiner_sur_les_photos`) : les lueurs, toutes avant les
-        // cartes (LUEUR-3) ; les annotations ; puis les ornements des photos, au-dessus de tout.
+        // cartes (LUEUR-3) ; les annotations ; leurs dates ; puis les ornements des photos,
+        // au-dessus de tout.
         super::halo::svg::lueurs_en_svg((store, pass, kit), taille, &mut svg);
         super::pass::svg::annotations_en_svg((kit, store, pass), taille, &mut svg);
+        // La date des nœuds, au-dessus de ce qu'elle date (DATE-1) : le même tracé qu'au canevas.
+        let mut vecteurs = super::surface::Vecteurs {
+            svg: &mut svg,
+            typographie: kit.typography,
+        };
+        let ecran = (taille.0 as f32, taille.1 as f32);
+        super::date::dessiner_les_dates(&mut vecteurs, kit.theme, (store, pass), ecran);
         let quoi = (kit.typography, kit.tints);
         super::scene::image::svg::reglettes_des_images_en_svg(quoi, (store, pass), &mut svg);
         svg.finir(taille)

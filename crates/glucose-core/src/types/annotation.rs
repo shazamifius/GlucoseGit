@@ -215,6 +215,21 @@ pub enum Annotation {
     },
 }
 
+/// **Un champ que les quatre sortes portent** (`id`, la place, la membrane, les domaines, la
+/// date) : le standard § 2.1 voudrait qu'il remonte dans un tronc commun ; tant que le modèle n'est
+/// pas composé, ce `match` à quatre bras s'écrit **une fois**, ici, au lieu d'une fois par
+/// accesseur. `champ_commun!(self, domains => domains)` lie le champ et rend l'expression.
+macro_rules! champ_commun {
+    ($soi:expr, $champ:ident => $rend:expr) => {
+        match $soi {
+            Self::Text { $champ, .. }
+            | Self::Sticky { $champ, .. }
+            | Self::Arrow { $champ, .. }
+            | Self::Membrane { $champ, .. } => $rend,
+        }
+    };
+}
+
 impl Annotation {
     /// Une carte de texte, avec ses seuls champs obligatoires.
     ///
@@ -320,12 +335,7 @@ impl Annotation {
     }
 
     pub fn id(&self) -> &str {
-        match self {
-            Self::Text { id, .. }
-            | Self::Sticky { id, .. }
-            | Self::Arrow { id, .. }
-            | Self::Membrane { id, .. } => id,
-        }
+        champ_commun!(self, id => id)
     }
 
     /// La taille d'une annotation, tailles de naissance comprises. `None` pour une flèche :
@@ -512,49 +522,24 @@ impl Annotation {
     }
 
     pub fn x(&self) -> f64 {
-        match self {
-            Self::Text { x, .. }
-            | Self::Sticky { x, .. }
-            | Self::Arrow { x, .. }
-            | Self::Membrane { x, .. } => *x,
-        }
+        champ_commun!(self, x => *x)
     }
 
     pub fn y(&self) -> f64 {
-        match self {
-            Self::Text { y, .. }
-            | Self::Sticky { y, .. }
-            | Self::Arrow { y, .. }
-            | Self::Membrane { y, .. } => *y,
-        }
+        champ_commun!(self, y => *y)
     }
 
     pub fn membrane_id(&self) -> Option<&str> {
-        match self {
-            Self::Text { membrane_id, .. }
-            | Self::Sticky { membrane_id, .. }
-            | Self::Arrow { membrane_id, .. }
-            | Self::Membrane { membrane_id, .. } => membrane_id.as_deref(),
-        }
+        champ_commun!(self, membrane_id => membrane_id.as_deref())
     }
 
     /// Une autre identité — ce qu'une copie prend (la fenêtre des liens, LIEN-3).
     pub fn set_id(&mut self, nouvelle: Id) {
-        match self {
-            Self::Text { id, .. }
-            | Self::Sticky { id, .. }
-            | Self::Arrow { id, .. }
-            | Self::Membrane { id, .. } => *id = nouvelle,
-        }
+        champ_commun!(self, id => *id = nouvelle)
     }
 
     pub fn set_membrane_id(&mut self, mid: Option<Id>) {
-        match self {
-            Self::Text { membrane_id, .. }
-            | Self::Sticky { membrane_id, .. }
-            | Self::Arrow { membrane_id, .. }
-            | Self::Membrane { membrane_id, .. } => *membrane_id = mid,
-        }
+        champ_commun!(self, membrane_id => *membrane_id = mid)
     }
 
     /// Les pondérations de domaine portées par cette annotation.
@@ -565,20 +550,20 @@ impl Annotation {
     /// tronc commun »). Tant que le modèle n'est pas composé, ces deux accesseurs sont le seul
     /// moyen de ne pas répéter un `match` à quatre bras à chaque lecture.
     pub fn domains(&self) -> &[DomainAssignment] {
-        match self {
-            Self::Text { domains, .. }
-            | Self::Sticky { domains, .. }
-            | Self::Arrow { domains, .. }
-            | Self::Membrane { domains, .. } => domains,
-        }
+        champ_commun!(self, domains => domains)
     }
 
     pub fn domains_mut(&mut self) -> &mut Vec<DomainAssignment> {
-        match self {
-            Self::Text { domains, .. }
-            | Self::Sticky { domains, .. }
-            | Self::Arrow { domains, .. }
-            | Self::Membrane { domains, .. } => domains,
-        }
+        champ_commun!(self, domains => domains)
+    }
+
+    /// **La date de ce nœud** (DATE-1, fiche 113), s'il en porte une — même raison d'être que
+    /// [`Annotation::domains`] : le champ est recopié dans les quatre variantes.
+    pub fn temporal_anchor(&self) -> Option<&TemporalAnchor> {
+        champ_commun!(self, temporal_anchor => temporal_anchor.as_ref())
+    }
+
+    pub fn temporal_anchor_mut(&mut self) -> &mut Option<TemporalAnchor> {
+        champ_commun!(self, temporal_anchor => temporal_anchor)
     }
 }

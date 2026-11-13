@@ -62,12 +62,15 @@ fn coord_1_une_coordonnee_au_plus_court_sans_rien_perdre() {
     let grille = f64::from(1u32 << glucose_core::fixed::FRAC_BITS);
     for k in -2000..2000 {
         let v = 13777.0 + f64::from(k) / grille;
-        let Json::Nombre(ecrit) = super::super::coordonnee(v) else {
+        let Json::Nombre(ecrit) = super::super::decrit::coordonnee(v) else {
             panic!("un nombre");
         };
         assert_eq!((ecrit * grille).round() / grille, v, "{v} écrit {ecrit}");
     }
     let hauteur = f64::from(51.6f32);
-    assert_eq!(super::super::coordonnee(hauteur), Json::Nombre(51.6));
+    assert_eq!(
+        super::super::decrit::coordonnee(hauteur),
+        Json::Nombre(51.6)
+    );
     assert_eq!(Json::Nombre(51.6).ecrire(), "51.6");
 }

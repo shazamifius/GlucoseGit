@@ -14,7 +14,7 @@
 use super::domaines::{decrire_les_domaines, DomaineDecrit};
 use super::{texte_porte, Sorte};
 use crate::geometry::Rect;
-use crate::types::{Annotation, ArrowPredicate, Board, Domain, StickyOperator};
+use crate::types::{Annotation, ArrowPredicate, Board, Domain, StickyOperator, TemporalAnchor};
 
 /// **Un nœud, tel qu'un agent le lit.**
 #[derive(Debug, Clone, PartialEq)]
@@ -40,6 +40,9 @@ pub struct Decrit {
     pub domaines: Vec<DomaineDecrit>,
     /// **Ceux qu'il hérite de ses membranes** (DOM-6), et de laquelle — sans ceux qu'il porte.
     pub herites: Vec<Herite>,
+    /// **Sa date** (DATE-1, fiche 113) : ce que la pastille montre à l'humain, en bas à droite du
+    /// nœud — une année, une plage, une ère.
+    pub date: Option<TemporalAnchor>,
 }
 
 /// **Un domaine hérité** : le domaine, et la membrane qui le donne.
@@ -79,6 +82,7 @@ pub(crate) fn decrire_le_tableau(board: &Board, catalogue: &[Domain]) -> Vec<Dec
         adresse: i.source_url.clone(),
         domaines: decrire_les_domaines(catalogue, &i.domains),
         herites: Vec::new(),
+        date: i.temporal_anchor.clone(),
     });
     let annotations = board
         .annotations
@@ -151,5 +155,6 @@ fn decrire_une_annotation(a: &Annotation, catalogue: &[Domain]) -> Decrit {
         adresse: None,
         domaines: decrire_les_domaines(catalogue, a.domains()),
         herites: Vec::new(),
+        date: a.temporal_anchor().cloned(),
     }
 }

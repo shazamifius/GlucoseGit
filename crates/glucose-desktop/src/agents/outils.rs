@@ -152,6 +152,15 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"}},"tableau":{"type":"string"}},"required":["ids"]}"##,
     ),
     (
+        "glucose_dater",
+        "Date des nœuds — textes, post-it, flèches, membranes, photos —, comme l'humain par \
+         Maj+T : une année (« 1789 » ; « -500 » ou « 500 av. J.-C. », sans an zéro), une plage \
+         (« 1789-1799 »), une ère (« Renaissance »), « 10 ka », « 1,5 Ma ». Sans date, la \
+         retire. La date paraît au coin du nœud, et glucose_lire la rend (son mot, ses années). \
+         Rend combien de nœuds ont changé.",
+        r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"}},"date":{"type":"string","description":"une année, une plage ou une ère ; vide ou absente : retirer la date"},"tableau":{"type":"string"}},"required":["ids"]}"##,
+    ),
+    (
         "glucose_histoire",
         "Relit l'histoire du document — la Time Machine de Glucose : ses gestes les plus récents, \
          dans l'ordre, chacun avec son rang, sa date, son auteur (« humain », ou « agent » et son \

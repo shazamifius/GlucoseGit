@@ -72,6 +72,7 @@ impl MenuAction {
             MenuAction::Duplicate => Commande::Dupliquer,
             MenuAction::EnregistrerLImage => Commande::EnregistrerLImage,
             MenuAction::RemplacerParLImage => Commande::RemplacerParLImage,
+            MenuAction::Dater => Commande::Dater,
             MenuAction::ToggleLock => Commande::Verrouiller,
             MenuAction::TrimBorders => Commande::RetirerLesBordures,
             MenuAction::StoryboardDeLaSelection => Commande::StoryboardDeLaSelection,
@@ -154,6 +155,8 @@ pub enum MenuAction {
     EnregistrerLImage,
     /// Les liens choisis repartent chercher leur image, et lui laissent leur place (DEPOT-WEB-6).
     RemplacerParLImage,
+    /// Une année, une plage, une ère pour ce qui est choisi (DATE-1, fiche 113).
+    Dater,
     ToggleLock,
     /// Retirer les bandes unies des images sélectionnées (BORDURES-1).
     TrimBorders,

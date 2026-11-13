@@ -272,7 +272,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// d'une membrane seule de Tauri (11,3 %) au lieu de deux — 123 066 pixels, tous dans sa boîte
 /// (780-1200 × 114-414), au plus 15 niveaux ; regardé avant/après : la grille, le pointillé, le
 /// titre et les contours des blocs intacts.
-const EMPREINTE_TEMOIN: &str = "5f624f44fb29ecfd";
+/// **Puis, le 13/11** (LIEN-BLEU-1, fiches 113 et 114) : le bleu des liens éclairci jusqu'au
+/// contraste d'un texte courant (`#a8cfff`, Lc 75) — 247 pixels, le seul mot « lien »
+/// (261-285 × 472-486), au plus 67 niveaux ; regardé avant/après, agrandi : plus clair, toujours
+/// bleu et souligné.
+const EMPREINTE_TEMOIN: &str = "d51c3a9c3b682fcc";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -383,7 +387,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// gris de la scène témoin — 195 110 pixels ; regardée.
 /// **Puis, le 11/11 à 22 h** (REGION-1, fiche 107) : le corps de la membrane, plus transparent —
 /// 123 033 pixels dans sa boîte ; regardée.
-const EMPREINTE_TEMOIN_SELECTION: &str = "5af5c064d60b7deb";
+/// **Puis, le 13/11** (LIEN-BLEU-1, fiches 113 et 114) : le bleu des liens éclairci jusqu'au
+/// contraste d'un texte courant (`#a8cfff`, Lc 75) — 247 pixels, le seul mot « lien »
+/// (261-285 × 472-486), au plus 67 niveaux ; regardé avant/après, agrandi : plus clair, toujours
+/// bleu et souligné.
+const EMPREINTE_TEMOIN_SELECTION: &str = "ee9461be728cd885";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -480,7 +488,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 12/11 à 23 h** (APPLIQUE-1, fiche 113) : les mêmes entrées, rangées par leur sens —
 /// l'édition, « Grouper », les images, l'ordre, « Supprimer » — et deux filets de plus ;
 /// 15 354 pixels, tous dans le menu (639-888 × 424-621) ; regardé avant/après, agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "ece197b78e48a11d";
+/// **Puis, le 13/11** (DATE-1 et LIEN-BLEU-1, fiches 113 et 114) : « Dater… Maj+T » dans le
+/// groupe de l'édition, le menu plus haut d'une entrée, et le mot « lien » éclairci — 17 620
+/// pixels, tous dans le menu et sur ce mot (261-888 × 424-645) ; regardé avant/après, agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "573b67e679830281";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

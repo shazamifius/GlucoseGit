@@ -70,6 +70,7 @@ impl GlucoseApp {
             }
             Commande::EnregistrerLImage => self.enregistrer_l_image_sous(),
             Commande::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
+            Commande::Dater => self.demander_la_date(),
             Commande::StoryboardDeLaSelection => self.storyboard_de_la_selection(),
             Commande::LireLeStoryboard => {
                 let depuis = self.ui.storyboard.choisie.clone();

@@ -1,0 +1,318 @@
+[
+ {
+  "nom": "DATE-1 : le canevas ne pose pas les dates",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "    super::date::poser_les_dates(pixmap, (store, pass, kit));",
+  "apres": "    let _ = (store, kit);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : la carte graphique ne voit plus la date",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "    super::date::poser_les_dates(pixmap, (store, pass, kit));",
+  "apres": "    let _ = (store, kit);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "date_1"
+  ]
+ },
+ {
+  "nom": "DATE-1 : l'export SVG tait les dates",
+  "fichier": "crates/glucose-desktop/src/renderer/export.rs",
+  "avant": "        super::date::dessiner_les_dates(&mut vecteurs, kit.theme, (store, pass), ecran);",
+  "apres": "        let _ = (&mut vecteurs, ecran);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : les photos sans pastille",
+  "fichier": "crates/glucose-desktop/src/renderer/date.rs",
+  "avant": "    for img in visibles.images() {",
+  "apres": "    for img in visibles.images().take(0) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : les nœuds sans pastille",
+  "fichier": "crates/glucose-desktop/src/renderer/date.rs",
+  "avant": "    for ann in visibles.annotations() {",
+  "apres": "    for ann in visibles.annotations().take(0) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : la pastille loin de son coin",
+  "fichier": "crates/glucose-desktop/src/renderer/date.rs",
+  "avant": "    let x = droite as f32 + echelle.world(DEBORD) - largeur;",
+  "apres": "    let x = droite as f32 - echelle.world(200.0) - largeur;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : la pastille taillée trop tôt",
+  "fichier": "crates/glucose-desktop/src/renderer/date.rs",
+  "avant": "    if x > l || y > h || x + largeur < 0.0 || y + hauteur < 0.0 {",
+  "apres": "    if x > l / 4.0 || y > h || x + largeur < 0.0 || y + hauteur < 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : une photo ne se date pas",
+  "fichier": "crates/glucose-core/src/store/dates.rs",
+  "avant": "            } else if let Some(img) = self.image(board_id, id) {",
+  "apres": "            } else if let Some(img) = self.image(board_id, id).filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "temps_1"
+  ]
+ },
+ {
+  "nom": "DATE-1 : ce qui porte déjà la date compte comme changé",
+  "fichier": "crates/glucose-core/src/store/dates.rs",
+  "avant": "                if a.temporal_anchor() == ancre {",
+  "apres": "                if false && a.temporal_anchor() == ancre {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "temps_1"
+  ]
+ },
+ {
+  "nom": "DATE-1 : un agent date un nom inconnu",
+  "fichier": "crates/glucose-core/src/store/dates.rs",
+  "avant": "        if let Some(id) = ids.iter().find(inconnu) {",
+  "apres": "        if let Some(id) = ids.iter().find(inconnu).filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_un_nom"
+  ]
+ },
+ {
+  "nom": "DATE-1 : glucose_lire tait la date",
+  "fichier": "crates/glucose-desktop/src/agents/executer/decrit.rs",
+  "avant": "    if let Some(date) = &d.date {",
+  "apres": "    if let Some(date) = d.date.as_ref().filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_un_agent"
+  ]
+ },
+ {
+  "nom": "DATE-1 : les années lues arrondies",
+  "fichier": "crates/glucose-desktop/src/agents/executer/decrit.rs",
+  "avant": "        (\"debut\", Json::Nombre(date.start as f64)),",
+  "apres": "        (\"debut\", Json::Nombre((date.start / 1000 * 1000) as f64)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_les_annees"
+  ]
+ },
+ {
+  "nom": "DATE-1 : une date vide est illisible pour l'agent",
+  "fichier": "crates/glucose-desktop/src/agents/executer/dater.rs",
+  "avant": "            \"\" => None,",
+  "apres": "            \"\" if false => None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_sans_date"
+  ]
+ },
+ {
+  "nom": "DATE-1 : Dater ne s'applique jamais",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "        C::Dater => noeuds,",
+  "apres": "        C::Dater => false,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_maj_t"
+  ]
+ },
+ {
+  "nom": "DATE-1 : Dater ne demande rien",
+  "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+  "avant": "            Commande::Dater => self.demander_la_date(),",
+  "apres": "            Commande::Dater => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_maj_t"
+  ]
+ },
+ {
+  "nom": "DATE-1 : Maj+T n'est plus un raccourci",
+  "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+  "avant": "Maj+T           dater\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_maj_t"
+  ]
+ },
+ {
+  "nom": "DATE-1 : une date illisible ne se redemande pas",
+  "fichier": "crates/glucose-desktop/src/interactions/dater.rs",
+  "avant": "                    self.poser_la_date(board, ids, ecrit, pourquoi);",
+  "apres": "                    let _ = (board, ids, ecrit, pourquoi);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_une_date_illisible"
+  ]
+ },
+ {
+  "nom": "DATE-1 : les ères ne suivent pas ce qu'on tape",
+  "fichier": "crates/glucose-desktop/src/interactions/dater.rs",
+  "avant": "        q.choix = choix(&texte, datee);",
+  "apres": "        let _ = datee;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_une_ere"
+  ]
+ },
+ {
+  "nom": "DATE-1 : « Retirer la date » sans objet",
+  "fichier": "crates/glucose-desktop/src/interactions/dater.rs",
+  "avant": "    if datee {\n        choix.push((\"Retirer la date\".to_string(), Reponse::Non));",
+  "apres": "    if true || datee {\n        choix.push((\"Retirer la date\".to_string(), Reponse::Non));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "date_1_une_ere"
+  ]
+ },
+ {
+  "nom": "DATE-1 : le menu n'offre pas de dater",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+  "avant": "        Some((MenuAction::Dater, \"Dater…\", \"\")),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "context_menu"
+  ]
+ },
+ {
+  "nom": "DATE-1 : la pastille perd l'ambre de Tauri",
+  "fichier": "crates/glucose-desktop/src/theme.rs",
+  "avant": "            encre: hex(0xfde68a),",
+  "apres": "            encre: hex(0xfde689),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "theme::"
+  ]
+ }
+]

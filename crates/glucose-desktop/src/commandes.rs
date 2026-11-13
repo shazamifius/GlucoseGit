@@ -114,6 +114,8 @@ pub enum Commande {
     Operateur(Option<StickyOperator>),
     // La couleur de ce qui est choisi : une teinte du nuancier, ou par défaut (COULEUR-1).
     Couleur(Option<u8>),
+    /// **Dater ce qui est choisi** : une année, une plage, une ère (DATE-1, fiche 113).
+    Dater,
     /// La roue de couleur, pour une couleur hors du nuancier (ROUE-1, fiche 99).
     RoueDeCouleur,
     // Ce que le menu porte aussi (ACCES-1) : chaque action du menu qui ne dépend pas d'un
@@ -164,7 +166,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 51] = [
+const SIMPLES: [(Commande, &str, &str); 52] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -257,6 +259,7 @@ const SIMPLES: [(Commande, &str, &str); 51] = [
         "remplacer-par-l-image",
         "Remplacer par l'image",
     ),
+    (Commande::Dater, "dater", "Dater…"),
     (
         Commande::StoryboardDeLaSelection,
         "storyboard-de-la-selection",

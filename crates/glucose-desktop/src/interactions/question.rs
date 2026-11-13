@@ -182,6 +182,9 @@ impl GlucoseApp {
             Suite::MiseAJour(proposition) if oui => self.preparer_la_mise_a_jour(proposition),
             Suite::Signets => self.suivre_les_signets(reponse),
             Suite::Palette(etat) => self.lancer_depuis_la_palette(&etat, reponse),
+            Suite::Dater { board, ids, ecrit } => {
+                self.repondre_a_la_date((board, ids, ecrit), reponse, champ)
+            }
             Suite::Raccourci(commande) => self.suivre_le_raccourci(commande, reponse),
             Suite::RetablirLesRaccourcis if oui => self.retablir_les_raccourcis(),
             Suite::Exporter => self.exporter_au_format(reponse),

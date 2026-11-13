@@ -32,38 +32,8 @@
  {
   "nom": "APPLIQUE-1 : le menu ne lit pas la loi",
   "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
-  "avant": "Some((action, ..)) if !action.commande().is_none_or(&s_applique) => {}",
-  "apres": "Some((action, ..)) if false && !action.commande().is_none_or(&s_applique) => {}",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "applique_1"
-  ]
- },
- {
-  "nom": "APPLIQUE-1 : deux filets de suite",
-  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
-  "avant": "None if out.last().is_none_or(Option::is_none) => {}",
-  "apres": "None if out.is_empty() => {}",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "applique_1"
-  ]
- },
- {
-  "nom": "APPLIQUE-1 : un filet en queue",
-  "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
-  "avant": "        out.pop();",
-  "apres": "        let _ = out.last();",
+  "avant": "action.commande().is_none_or(|c| s_applique(store, ui, c))",
+  "apres": "action.commande().is_none_or(|c| true || s_applique(store, ui, c))",
   "cmd": [
    "cargo",
    "test",

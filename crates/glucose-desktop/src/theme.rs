@@ -190,7 +190,12 @@ pub struct Theme {
     /// confondre avec le texte qu'il commande — assez pâle pour s'effacer du regard, assez
     /// présent pour qu'on vise le bon octet en le corrigeant (MODE-1).
     pub card_marker: Color,
-    /// Le texte d'un `[lien](url)` : `#60a5fa`, le bleu de la référence.
+    /// Le texte d'un `[lien](url)` : **`#a8cfff`**, la teinte du bleu de la référence (`#60a5fa`,
+    /// h = 254,6 dans Oklch ; 253,9 ici, l'arrondi des octets), éclaircie jusqu'au contraste d'un
+    /// texte courant (LIEN-BLEU-1, fiche 113) : sur le papier des textes (`#0d0d0d`), le bleu de Tauri valait Lc 52 en APCA, le corps
+    /// Lc 88 ; un lien dans un paragraphe est du corps, qui demande Lc 75 au moins (ARC, le mode
+    /// « bronze »). Regardé à 13, 16 et 20 pixels : il se lit comme le texte, et son trait le dit
+    /// lien.
     ///
     /// Un état du **contenu**, comme `text_selection` et la famille `alert*` : la chrome est
     /// monochrome, ce qui l'est ici ne l'est pas.
@@ -244,13 +249,19 @@ pub struct Theme {
 }
 
 /// **L'ambre du temps** (fiche 06 § 1, fiche 10 § 5.7) : les jalons nommés, le curseur du
-/// passé, et le liseré qui dit qu'on regarde un état passé. Pour cela seulement.
+/// passé, le liseré qui dit qu'on regarde un état passé — et la date d'un nœud (DATE-1). Pour
+/// cela seulement.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CouleursDuTemps {
     /// `#fbbf24`.
     pub ambre: Color,
     /// Le voile ambré à l'intérieur du liseré d'aperçu (`rgba(251, 191, 36, 0.18)`).
     pub voile: Color,
+    /// **La pastille d'une date** (DATE-1, fiche 113), celle de Tauri (`TemporalBadge`) : son
+    /// encre `#fde68a`, son filet — l'ambre à 60 % —, son fond `rgba(15, 15, 25, 0.9)`.
+    pub encre: Color,
+    pub filet: Color,
+    pub fond: Color,
 }
 
 impl CouleursDuTemps {
@@ -258,6 +269,9 @@ impl CouleursDuTemps {
         Self {
             ambre: hex(0xfbbf24),
             voile: hexa(0xfbbf24, 46),
+            encre: hex(0xfde68a),
+            filet: hexa(0xfbbf24, 0x99),
+            fond: Color::from_rgba8(15, 15, 25, 230),
         }
     }
 }
@@ -359,7 +373,7 @@ impl Theme {
             card_paper: hex(0x0d0d0d),
             card_marker: hex(0x7a8296),
             text_selection: Color::from_rgba8(74, 127, 181, 115),
-            link: hex(0x60a5fa),
+            link: hex(0xa8cfff),
             code_bg: Color::from_rgba8(255, 255, 255, 20),
 
             minimap_bg: hexa(0x0d0d0d, 235),
@@ -483,7 +497,22 @@ mod tests {
         );
         // Fiche 06 § 4.3 — le cadre d'un nœud verrouillé, et le même rouge que l'état
         // « Verrouillé » de la barre d'action (fiche 10).
-        assert_eq!(rgba(t.link), (0x60, 0xa5, 0xfa, 255), "link #60a5fa");
+        assert_eq!(
+            rgba(t.link),
+            (0xa8, 0xcf, 0xff, 255),
+            "link #a8cfff, LIEN-BLEU-1"
+        );
+        // La pastille de la date, celle de Tauri (`TemporalBadge`, DATE-1).
+        let pastille = (t.temps.encre, t.temps.filet, t.temps.fond);
+        assert_eq!(
+            (rgba(pastille.0), rgba(pastille.1), rgba(pastille.2)),
+            (
+                (0xfd, 0xe6, 0x8a, 255),
+                (0xfb, 0xbf, 0x24, 0x99),
+                (15, 15, 25, 230)
+            ),
+            "l'encre #fde68a, le filet #fbbf24 à 60 %, le fond rgba(15, 15, 25, 0.9)"
+        );
         assert_eq!(rgba(t.alert), (0xf8, 0x71, 0x71, 255), "alert #f87171");
         assert_eq!(
             rgba(t.alert_bg),

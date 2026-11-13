@@ -107,6 +107,13 @@ pub enum Suite {
         case: String,
         texte: glucose_core::store::storyboard::Texte,
     },
+    /// **Dater ce qui est choisi** (DATE-1, fiche 113) : le tableau, les nœuds, et ce que le champ
+    /// disait quand les ères proposées ont été calculées.
+    Dater {
+        board: String,
+        ids: Vec<String>,
+        ecrit: String,
+    },
     /// **La palette de commandes** (P4, fiche 72) : son filtre, sa fenêtre, son évidence.
     Palette(crate::commandes::palette::Etat),
     /// **Le nouvel accord de cette commande** (P4, fiche 74) : la touche qu'on frappe le donne ;

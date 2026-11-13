@@ -2054,3 +2054,108 @@ fn test_titre_3_de_loin_un_titre_reduit_garde_sa_cle_pendant_un_zoom() {
         "le même palier, la même texture"
     );
 }
+
+// ── La date des nœuds (DATE-1, fiche 113) ─────────────────────────────────────────────────
+
+/// Un texte, une flèche, une membrane et une photo en chemin, **rien de choisi** — le cas où la
+/// couche du dessus de la carte graphique n'a, sans les dates, aucun ornement à porter
+/// (ARCHITECTURE § 4) ; datés chacun, ou aucun.
+fn document_date(datee: bool) -> glucose_core::store::Store {
+    use glucose_core::types::{Annotation, BoardImage, TemporalAnchor};
+    let mut store = glucose_core::store::Store::new("Dates");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
+    }
+    store.add_annotation(&board, Annotation::text("t", 100.0, 100.0, "La Révolution"));
+    store.add_annotation(&board, Annotation::arrow("f", 420.0, 120.0, 680.0, 300.0));
+    store.add_annotation(&board, Annotation::membrane("m", 80.0, 340.0, 300.0, 200.0));
+    store.add_image(&board, BoardImage::new("i", 500.0, 380.0, 160.0, 120.0));
+    if datee {
+        for (id, start, end) in [
+            ("t", 1789, 1799),
+            ("f", 1400, 1600),
+            ("m", -500, -500),
+            ("i", 1969, 1969),
+        ] {
+            let ancre = TemporalAnchor {
+                start,
+                end,
+                label: None,
+            };
+            store.ancrer_dans_le_temps(&board, &[id.to_string()], Some(&ancre));
+        }
+    }
+    store.clear_selection();
+    store
+}
+
+/// Les pixels **chauds** (le rouge passe le bleu) autour du coin en bas à droite de ce nœud, là
+/// où la pastille déborde : son ambre, l'encre `#fde68a` comme le filet `#fbbf24`. Rien d'autre
+/// n'est chaud dans la scène — les membranes sans couleur sont neutres, la photo en chemin
+/// grise, un texte sans parent garde le contour gris de son bloc (`renderer::date::tests`).
+fn chaud_au_coin(image: &Pixmap, store: &glucose_core::store::Store, id: &str) -> usize {
+    let board = store.active_board().expect("le tableau");
+    let b = glucose_core::arrow::emprise(board, id).expect("sa boîte");
+    // La vue est à l'origine, à l'échelle 1 : le monde est l'écran.
+    let (cx, cy) = ((b.left + b.width) as i64, (b.top + b.height) as i64);
+    let mut n = 0;
+    for y in (cy - 14).max(0)..(cy + 14).min(image.height() as i64) {
+        for x in (cx - 90).max(0)..(cx + 14).min(image.width() as i64) {
+            let [r, _, b, _] = pixel(image, x as u32, y as u32);
+            if r > b {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+/// **DATE-1 — la date paraît sur les deux voies, rien de choisi** (fiche 113).
+///
+/// La pastille se pose dans la moitié que les deux voies partagent (`dessiner_sur_les_photos`) ;
+/// sur la voie graphique, c'est la couche du dessus, qui ne part à l'écran que par les bandes
+/// qu'elle a réellement écrites (BANDE-1) et que la chrome a quittée (CHROME-1) — sans rien de
+/// choisi, elle était vide. Trois choses à prouver : la carte graphique montre l'ambre au coin de
+/// **chaque** sorte de nœud daté ; rien sans date (la preuve à l'envers : l'ambre vient bien de la
+/// date) ; et les deux voies rendent la même image.
+#[test]
+fn test_date_1_la_date_parait_sur_les_deux_voies_sans_rien_de_choisi() {
+    let taille = (800u32, 600u32);
+    let datee = document_date(true);
+    let Some(carte) = par_la_carte(taille, &datee) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let nue = document_date(false);
+    let carte_nue = par_la_carte(taille, &nue).expect("la même carte");
+    for id in ["t", "f", "m", "i"] {
+        let vu = chaud_au_coin(&carte, &datee, id);
+        assert!(
+            vu > 30,
+            "{id} daté : {vu} pixels d'ambre sur la carte graphique"
+        );
+        let sans = chaud_au_coin(&carte_nue, &nue, id);
+        assert_eq!(
+            sans, 0,
+            "{id} sans date : de l'ambre sur la carte graphique"
+        );
+    }
+    let processeur = par_le_processeur(taille, &datee);
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux sur les dates (admis {ECART_ADMIS})"
+    );
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux} : une date manque d'un côté"
+    );
+}

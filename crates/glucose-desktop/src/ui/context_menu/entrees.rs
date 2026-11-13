@@ -4,9 +4,9 @@
 //! pas pour les mêmes raisons.
 //!
 //! **Ce qui est sans objet, la loi le dit** (APPLIQUE-1, fiche 113) : chaque endroit range ses
-//! entrées, et une seule loi — celle que la palette et l'exécution lisent aussi — retire celles
-//! qui ne feraient rien. Le menu avait ses propres conditions, écrites à part de celles des
-//! gestes ; elles ne pouvaient que diverger.
+//! entrées par groupes, et une seule loi — celle que la palette et l'exécution lisent aussi —
+//! retire celles qui ne feraient rien. Le menu avait ses propres conditions, écrites à part de
+//! celles des gestes ; elles ne pouvaient que diverger.
 
 use super::MenuAction;
 use crate::commandes::applique::s_applique;
@@ -42,7 +42,7 @@ fn entrees_d_onglet(store: &Store) -> Vec<Def> {
 }
 
 pub(super) fn entrees(store: &Store, ui: &UiState, onglet: Option<&str>) -> Option<Vec<Def>> {
-    let defs = if onglet.is_some() {
+    let mut defs = if onglet.is_some() {
         entrees_d_onglet(store)
     } else if store.fenetre_des_liens().is_some() {
         entrees_de_la_fenetre()
@@ -55,30 +55,13 @@ pub(super) fn entrees(store: &Store, ui: &UiState, onglet: Option<&str>) -> Opti
         }
         defs
     };
-    Some(sans_ce_qui_est_sans_objet(defs, |c| {
-        s_applique(store, ui, c)
-    }))
-}
-
-/// **Retire ce que la loi dit sans objet** (APPLIQUE-1), puis les filets qui ne séparent plus
-/// rien : en tête, en queue, ou deux de suite. Les gestes d'un onglet, qui portent son nom et non
-/// une commande, restent.
-fn sans_ce_qui_est_sans_objet(
-    defs: Vec<Def>,
-    s_applique: impl Fn(crate::commandes::Commande) -> bool,
-) -> Vec<Def> {
-    let mut out: Vec<Def> = Vec::with_capacity(defs.len());
-    for def in defs {
-        match def {
-            Some((action, ..)) if !action.commande().is_none_or(&s_applique) => {}
-            None if out.last().is_none_or(Option::is_none) => {}
-            def => out.push(def),
-        }
-    }
-    if out.last().is_some_and(Option::is_none) {
-        out.pop();
-    }
-    out
+    // Ce que la loi dit sans objet se retire (APPLIQUE-1) ; les gestes d'un onglet, qui portent
+    // son nom et non une commande, restent. Les filets qui ne séparent plus rien, la mise en page
+    // les tait d'elle-même : elle ne pose un filet qu'entre deux groupes non vides (`en_colonnes`).
+    defs.retain(|def| {
+        def.is_none_or(|(action, ..)| action.commande().is_none_or(|c| s_applique(store, ui, c)))
+    });
+    Some(defs)
 }
 
 /// **Dans la fenêtre des liens** (LIEN-3, fiche 102) : aller au nœud choisi, en montrer les liens,
@@ -121,6 +104,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         Some((MenuAction::Couper, "Couper", "")),
         Some((MenuAction::Duplicate, "Dupliquer", "")),
         Some((MenuAction::CadrerLaSelection, "Cadrer la sélection", "")),
+        // Une date, une plage, une ère : la temporalité de Tauri (DATE-1, fiche 113).
+        Some((MenuAction::Dater, "Dater…", "")),
         // Ce qui a des liens les montre, amenés près de lui (LIEN-3).
         Some((MenuAction::MontrerLesLiens, "Montrer ses liens", "")),
         // Une flèche seule se suit jusqu'à son autre bout : au doigt, c'est le seul chemin

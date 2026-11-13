@@ -515,7 +515,7 @@ impl Store {
         }
     }
 
-    fn tableau_existe(&self, board_id: &str) -> Result<(), Refus> {
+    pub(super) fn tableau_existe(&self, board_id: &str) -> Result<(), Refus> {
         self.project
             .boards
             .iter()

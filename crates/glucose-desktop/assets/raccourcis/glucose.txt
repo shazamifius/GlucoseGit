@@ -26,6 +26,7 @@ Ctrl+X          couper
 Ctrl+V          coller
 Ctrl+D          dupliquer
 Ctrl+G          grouper
+Maj+T           dater
 Ctrl+A          tout-choisir
 Suppr           supprimer
 Effacer         supprimer

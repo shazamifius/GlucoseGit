@@ -85,6 +85,8 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
             MenuAction::Couper,
             MenuAction::Duplicate,
             MenuAction::CadrerLaSelection,
+            // Ce qui est choisi se date (DATE-1, fiche 113).
+            MenuAction::Dater,
             MenuAction::Grouper,
             MenuAction::ToggleLock,
             MenuAction::TrimBorders,
