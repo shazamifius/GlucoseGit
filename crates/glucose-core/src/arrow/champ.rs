@@ -81,6 +81,10 @@ pub struct Champ {
     /// Le trait est-il blanc (la flèche est sélectionnée) ?
     pub ame_blanche: bool,
     pub disques: [Option<Disque>; DISQUES],
+    /// **La présence de la flèche entière** (ESTOMPE-1, fiche 114), de 0 à 1 : ce qu'elle pose en
+    /// chaque point — trait, halo et pointes ensemble — s'y multiplie. Sur un prémultiplié, c'est
+    /// exactement une opacité de groupe ; le nuanceur fait de même.
+    pub opacite: f32,
 }
 
 /// La distance d'un point à un segment — à un point, si le segment est réduit à un point.
@@ -185,7 +189,7 @@ impl Champ {
                 couverture_d_un_trait(r.abs(), disque.demi_contour),
             );
         }
-        o
+        o.map(|v| v * self.opacite)
     }
 
     /// Ce que la flèche peut toucher : `(gauche, haut, droite, bas)`.

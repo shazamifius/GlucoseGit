@@ -84,7 +84,9 @@ impl Ecrit {
             .into_iter()
             .for_each(&mut f);
         let blanche = if c.ame_blanche { 1.0 } else { 0.0 };
-        [blanche, c.portee(), 0.0, 0.0].into_iter().for_each(&mut f);
+        [blanche, c.portee(), c.opacite, 0.0]
+            .into_iter()
+            .for_each(&mut f);
         for v in [premier, combien, 0, 0] {
             self.fleches.extend_from_slice(&v.to_le_bytes());
         }

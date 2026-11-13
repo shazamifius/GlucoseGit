@@ -21,6 +21,7 @@ pub mod drag;
 pub mod drop;
 pub mod elan;
 pub mod fenetre;
+pub mod frise;
 pub mod gabarit;
 pub mod grouper;
 pub mod lecture;

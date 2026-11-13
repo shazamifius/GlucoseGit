@@ -13,7 +13,7 @@
 #   « glisser » et « molette » rendent la main tout de suite : le pointeur joue le geste pendant
 #   que le script continue — attendre sa durée avant l'ordre suivant (un « relacher » trop tôt
 #   lâche au milieu du geste).
-#   bash outils/pilote/piloter.sh taper <texte> | touche <nom> | ctrl <t> | alt <t> | altmaj <t> | ctrlmaj <t>
+#   bash outils/pilote/piloter.sh taper <texte> | touche <nom> | ctrl <t> | alt <t> | maj <t> | altmaj <t> | ctrlmaj <t>
 #   bash outils/pilote/piloter.sh capture <f.png> | arreter
 #
 # `PILOTE_COMPOSITEUR=niri … demarrer` (fiche 100 § 10) : Glucose dans un vrai niri — le compositeur de son
@@ -112,6 +112,7 @@ taper) wtype_ -s 300 -d 40 -- "$2" ;;
 touche) wtype_ -s 300 -k "$2" ;;
 ctrl) wtype_ -s 300 -M ctrl -k "$2" -m ctrl ;;
 alt) wtype_ -s 300 -M alt -k "$2" -m alt ;;
+maj) wtype_ -s 300 -M shift -k "$2" -m shift ;;
 altmaj) wtype_ -s 300 -M alt -M shift -k "$2" -m shift -m alt ;;
 ctrlmaj) wtype_ -s 300 -M ctrl -M shift -k "$2" -m shift -m ctrl ;;
 capture) wl grim "$2" ;;

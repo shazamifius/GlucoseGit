@@ -11,7 +11,7 @@ use super::tenue::pose_tenue;
 use super::APoser;
 use crate::params::ViewPass;
 use crate::present::formes_gpu::{Formes, Suite, Tranche};
-use crate::present::scene_gpu::Cle;
+use crate::present::scene_gpu::{Cle, Pose};
 use crate::renderer::composants::{Composant, Pieces, Regime};
 use crate::renderer::PaintKit;
 use glucose_core::quadtree::Visibles;
@@ -34,6 +34,21 @@ pub(in crate::renderer) struct Recolte {
     pub a_preparer: Vec<APoser>,
     /// **Les échelles où chaque photo posée garde son niveau** (LOT-1).
     pub echelles: super::lot::Intervalle,
+}
+
+/// **ESTOMPE-1 — les pièces d'un nœud, à sa présence** (fiche 114) : sa texture posée à cette
+/// opacité — une opacité de groupe, comme le processeur la compose —, ses formes à cette part de
+/// leur couleur prémultipliée.
+fn estomper(pieces: &mut Pieces, presence: f32) {
+    if presence >= 1.0 {
+        return;
+    }
+    if let Some(c) = pieces.posee.as_mut() {
+        c.pose.opacite *= presence;
+    }
+    for p in &mut pieces.formes {
+        p.couleur = p.couleur.map(|v| v * presence);
+    }
 }
 
 impl Recolte {
@@ -127,6 +142,12 @@ pub(in crate::renderer) fn poses_des_photos(
     };
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
+        // ESTOMPE-1 : la photo se pose à la présence que la frise chronologique lui laisse.
+        let presence = store.presence(img.temporal_anchor.as_ref());
+        let estompee = |pose: Pose| Pose {
+            opacite: presence,
+            ..pose
+        };
         match pose_tenue(magasin, img, (vp, carte.cran, carte.plafond_des_textures)) {
             Some(tenue) => {
                 photos
@@ -135,19 +156,20 @@ pub(in crate::renderer) fn poses_des_photos(
                 photos.posees.push(APoser {
                     cle: Cle::Niveau(tenue.numero, tenue.facteur),
                     identite: Cle::Photo(tenue.numero),
-                    pose: tenue.pose,
+                    pose: estompee(tenue.pose),
                     repli: tenue.repli.map(|(facteur, pose)| {
                         Box::new(APoser {
                             cle: Cle::Niveau(tenue.numero, facteur),
                             identite: Cle::Repli(tenue.numero),
-                            pose,
+                            pose: estompee(pose),
                             repli: None,
                         })
                     }),
                 });
             }
             None => {
-                if let Some(pieces) = regime.photo_en_chemin(kit, img) {
+                if let Some(mut pieces) = regime.photo_en_chemin(kit, img) {
+                    estomper(&mut pieces, presence);
                     photos.ranger(pieces, Tranche::Photos);
                     en_chemin += 1.0;
                 }
@@ -203,7 +225,7 @@ pub(in crate::renderer) fn composants_de_texte(
         // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
         // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
         let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());
-        let Some(pieces) = regime.carte(
+        let Some(mut pieces) = regime.carte(
             kit,
             ann.id(),
             (*x, *y, w as f32, h as f32),
@@ -215,6 +237,7 @@ pub(in crate::renderer) fn composants_de_texte(
         ) else {
             continue;
         };
+        estomper(&mut pieces, store.presence(ann.temporal_anchor()));
         if saisie.is_some() {
             en_saisie = Some(pieces);
         } else {

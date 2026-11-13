@@ -90,7 +90,8 @@ fn force() -> f32 {
 
 impl MembraneVue<'_> {
     /// **Les champs de la membrane** : son sol (ses halos, puis son corps opaque, du ton qu'elle
-    /// aurait seule sur `canevas`), et sa frontière.
+    /// aurait seule sur `canevas`), et sa frontière — tous à sa présence (ESTOMPE-1) : d'une seule
+    /// couleur chacun, leur alpha multiplié est exactement leur opacité.
     pub(super) fn champs(&self, canevas: [f32; 3]) -> ([Membrane; 2], Membrane) {
         let fond = self.fond();
         let [r, g, b] = [self.teinte.0, self.teinte.1, self.teinte.2];
@@ -111,7 +112,10 @@ impl MembraneVue<'_> {
             bord: self.bord(fond),
             teinte,
         };
-        ([halos, Membrane::plein(fond, corps, 1.0)], frontiere)
+        (
+            [halos, Membrane::plein(fond, corps, self.presence)],
+            frontiere,
+        )
     }
 
     /// Le rectangle arrondi de la membrane, à l'écran.
@@ -134,7 +138,7 @@ impl MembraneVue<'_> {
             l.height + pad * 2.0,
             l.radius + pad * 0.5,
         );
-        (forme, f32::from(alpha) / 255.0)
+        (forme, f32::from(alpha) / 255.0 * self.presence)
     }
 
     /// Le contour d'une membrane : pointillé au repos, plein quand elle est prise.
@@ -159,7 +163,13 @@ impl MembraneVue<'_> {
             forme,
             demi_largeur: largeur / 2.0,
             pointille: pointille.then(|| forme.pointille(dash)),
-            alpha: f32::from(opacite) / 255.0,
+            // L'anneau d'une membrane choisie reste entier : on la voit pour la prendre.
+            alpha: f32::from(opacite) / 255.0
+                * if self.selectionnee {
+                    1.0
+                } else {
+                    self.presence
+                },
         }
     }
 }

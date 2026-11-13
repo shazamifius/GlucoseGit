@@ -120,7 +120,7 @@ pub fn parcourir(
     // marque de ce dépôt à absorber ce qui la précède (fiche 19 § 4.4, 22 § 5.4, 23 § 2).
     crate::perf::stage("ariane");
 
-    let retrait = (ui.marges.droite, ui.marges.sous());
+    let retrait = (ui.marges.droite, ui.sous());
     let mise = (ui.scale_factor, retrait);
     if let Some(mb) = minimap::tenir_la_minimap(store, theme, taille, mise, &mut ui.minimap_cache) {
         let morceaux = minimap::morceaux(&ui.minimap_cache, theme, (&mb, ui.scale_factor));

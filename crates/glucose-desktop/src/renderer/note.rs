@@ -98,7 +98,7 @@ pub(super) fn draw_sticky(
     pixmap: &mut PixmapMut,
     ann: &Annotation,
     selected: bool,
-    editing: Option<&TextEditSession>,
+    (editing, presence): (Option<&TextEditSession>, f32),
 ) {
     let Annotation::Sticky {
         x,
@@ -123,12 +123,21 @@ pub(super) fn draw_sticky(
     }
 
     let highlighted = selected || editing.is_some();
+    // ESTOMPE-1 : ce que la frise chronologique écarte s'estompe — sauf ce qu'on écrit, qui se
+    // voit entier. L'anneau et les poignées d'un post-it choisi restent entiers.
+    let presence = if editing.is_some() { 1.0 } else { presence };
+    let estomper = |c| super::estompe::estomper(c, presence);
     match operator {
-        Some(op) => draw_pill(ctx, pixmap, at, &layout, *op, highlighted),
+        Some(op) => draw_pill(ctx, pixmap, (at, &layout), (*op, presence), highlighted),
         None => {
             let paper = Paper {
-                bg: document_color(bg_color.as_deref()).unwrap_or(ctx.theme.sticky_yellow_bg),
-                ink: document_color(color.as_deref()).unwrap_or(ctx.theme.sticky_yellow_text),
+                bg: estomper(
+                    document_color(bg_color.as_deref()).unwrap_or(ctx.theme.sticky_yellow_bg),
+                ),
+                ink: estomper(
+                    document_color(color.as_deref()).unwrap_or(ctx.theme.sticky_yellow_text),
+                ),
+                presence,
                 text: editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str()),
                 world_width: w as f32,
                 // La phase se **lit** (BLINK-1), elle ne se recalcule pas dans le dessin.
@@ -155,6 +164,8 @@ pub(super) fn draw_sticky(
 struct Paper<'a> {
     bg: Color,
     ink: Color,
+    /// Sa présence (ESTOMPE-1) : son ombre la suit.
+    presence: f32,
     text: &'a str,
     /// La largeur du papier en unités monde : le reflux se calcule avant la mise à l'échelle.
     world_width: f32,
@@ -181,7 +192,8 @@ fn draw_paper(
         layout.height,
         layout.radius,
     ) {
-        fill(pixmap, &shadow, ctx.theme.sticky_shadow);
+        let ombre = super::estompe::estomper(ctx.theme.sticky_shadow, paper.presence);
+        fill(pixmap, &shadow, ombre);
     }
     fill(pixmap, &path, paper.bg);
     if highlighted {
@@ -236,12 +248,11 @@ fn draw_paper_gris(
 fn draw_pill(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &StickyLayout,
-    op: StickyOperator,
+    (at, layout): ((f32, f32), &StickyLayout),
+    (op, presence): (StickyOperator, f32),
     highlighted: bool,
 ) {
-    let color = operator_color(op);
+    let color = super::estompe::estomper(operator_color(op), presence);
     let radius = layout.height / 2.0;
     let Some(path) = rounded_path(at, layout.width, layout.height, radius) else {
         return;
@@ -250,7 +261,10 @@ fn draw_pill(
     fill(
         pixmap,
         &path,
-        Color::from_rgba8(c.red(), c.green(), c.blue(), PILL_FILL_ALPHA),
+        super::estompe::estomper(
+            Color::from_rgba8(c.red(), c.green(), c.blue(), PILL_FILL_ALPHA),
+            presence,
+        ),
     );
     stroke(pixmap, &path, color, ctx.scale.world(PILL_BORDER));
     if highlighted {
@@ -468,7 +482,7 @@ mod tests {
         let note = Annotation::sticky("n", 0.0, 0.0, "");
         let peindre = |choisi: bool| {
             let mut p = tiny_skia::Pixmap::new(300, 300).expect("pixmap");
-            draw_sticky(&ctx, &mut p.as_mut(), &note, choisi, None);
+            draw_sticky(&ctx, &mut p.as_mut(), &note, choisi, (None, 1.0));
             p
         };
         let (avec, sans) = (peindre(true), peindre(false));

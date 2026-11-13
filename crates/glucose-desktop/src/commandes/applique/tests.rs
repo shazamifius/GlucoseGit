@@ -91,7 +91,7 @@ fn scenes() -> Vec<(&'static str, GlucoseApp)> {
 
 /// **Ce qu'un geste peut changer** : le document, le choix, la vue et le vol de la caméra, la
 /// fenêtre des liens, une question, la roue, le focus, un message, un lot de bordures en
-/// attente.
+/// attente, la frise chronologique.
 #[derive(Debug, PartialEq)]
 struct Etat {
     document: Project,
@@ -99,6 +99,8 @@ struct Etat {
     vue: (String, Viewport, Option<Viewport>),
     fenetre: Option<String>,
     ouvert: (bool, bool, Option<String>, bool, bool),
+    /// La frise chronologique ouverte, et la période qu'elle garde (FRISE-1).
+    frise: (bool, Option<glucose_core::timeline::TemporalFilter>),
 }
 
 fn etat(app: &GlucoseApp) -> Etat {
@@ -122,6 +124,7 @@ fn etat(app: &GlucoseApp) -> Etat {
             app.ui.current_toast.is_some(),
             app.attentes.bordures.is_some(),
         ),
+        frise: (app.ui.frise.is_some(), app.store.temporal_filter),
     }
 }
 

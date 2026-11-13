@@ -19,6 +19,7 @@ pub mod chrome;
 pub mod context_menu;
 pub mod couleurs;
 pub mod decision;
+pub mod frise;
 pub mod minimap;
 pub mod onglets;
 pub mod options_de_fleche;
@@ -163,6 +164,8 @@ pub struct UiState {
     pub ancrage: Option<ancrage::Ancrage>,
     /// La roue de couleur, quand elle est ouverte (ROUE-1, fiche 99).
     pub roue: Option<crate::interactions::roue::RoueOuverte>,
+    /// **La frise chronologique**, quand elle est ouverte (FRISE-1, fiche 114).
+    pub frise: Option<frise::Frise>,
     pub current_toast: Option<Toast>,
     /// Le menu contextuel ouvert, et le point où il l'a été. `None` quand il est fermé.
     ///
@@ -262,6 +265,7 @@ impl UiState {
             lecture: None,
             ancrage: None,
             roue: None,
+            frise: None,
             current_toast: None,
             context_menu_at: None,
             menu_au_doigt: false,
@@ -309,6 +313,26 @@ impl UiState {
     /// marge de droite manquait ici, et les barres du bas n'auraient pas su où elle est.
     #[inline]
     pub fn ecran_visible(&self, (w, h): (f32, f32)) -> (f32, f32) {
+        (w - self.marges.droite, h - self.sous())
+    }
+
+    /// **Ce que le bas de l'écran cache** : la navigation du système ou son clavier, et la frise
+    /// chronologique quand elle est ouverte — une bande du bas, comme le clavier (FRISE-1). La seule
+    /// source de cette grandeur : l'écran visible, la minimap et ses gestes la lisent.
+    #[inline]
+    pub fn sous(&self) -> f32 {
+        let frise = self.frise.is_some() && !self.sans_interface();
+        self.marges.sous()
+            + if frise {
+                frise::prise_au_bas(self.scale())
+            } else {
+                0.0
+            }
+    }
+
+    /// **L'écran que le système laisse voir**, sans la frise : celui où elle se pose.
+    #[inline]
+    pub fn ecran_du_systeme(&self, (w, h): (f32, f32)) -> (f32, f32) {
         (w - self.marges.droite, h - self.marges.sous())
     }
 
@@ -421,7 +445,7 @@ pub fn handle_ui_click(
         x,
         y,
         (screen_w, screen_h),
-        (s, (ui.marges.droite, ui.marges.sous())),
+        (s, (ui.marges.droite, ui.sous())),
     ) {
         return Some(UiAction::MinimapPan(wx, wy));
     }

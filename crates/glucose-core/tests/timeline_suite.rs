@@ -361,3 +361,196 @@ fn test_the_anchor_examples_of_the_spec() {
     // d'une horloge, elle se construit et se relit à l'identique.
     assert_eq!(format_anchor(&year(-3000)), format_anchor(&year(-3000)));
 }
+
+// ── ESTOMPE-1 et la frise chronologique (fiche 114) ────────────────────────────────────────────────────
+
+fn date(start: i64, end: i64) -> TemporalAnchor {
+    TemporalAnchor {
+        start,
+        end,
+        label: None,
+    }
+}
+
+/// **Un filtre estompe ce qu'il écarte, jamais ce qui n'est pas daté** ; sans filtre, tout est là.
+#[test]
+fn estompe_1_la_presence_sous_un_filtre() {
+    use glucose_core::timeline::{presence, ESTOMPE};
+    let revolution = TemporalFilter {
+        start: 1789,
+        end: 1799,
+    };
+    assert_eq!(presence(Some(&date(1792, 1792)), Some(revolution)), 1.0);
+    assert_eq!(
+        presence(Some(&date(1700, 1789)), Some(revolution)),
+        1.0,
+        "un bord touche"
+    );
+    assert_eq!(presence(Some(&date(1914, 1918)), Some(revolution)), ESTOMPE);
+    assert_eq!(
+        presence(None, Some(revolution)),
+        1.0,
+        "hors du temps, jamais écarté"
+    );
+    assert_eq!(presence(Some(&date(1914, 1918)), None), 1.0, "sans filtre");
+    const { assert!(ESTOMPE > 0.0 && ESTOMPE < 1.0, "estompé, jamais caché") };
+}
+
+/// **L'étendue va du plus ancien début à la plus récente fin** ; rien sans date.
+#[test]
+fn estompe_1_l_etendue_des_dates() {
+    use glucose_core::timeline::etendue;
+    let dates = [date(1789, 1799), date(-500, -500), date(1914, 1918)];
+    assert_eq!(
+        etendue(&dates),
+        Some(TemporalFilter {
+            start: -500,
+            end: 1918
+        })
+    );
+    assert_eq!(etendue(&[]), None);
+}
+
+/// **Chaque graduation compte les dates qui la croisent** : une plage compte dans chacune, une
+/// date hors de la vue ne compte pas, et les graduations négatives se rangent sans an zéro qui
+/// décale (la division euclidienne : -500 tombe dans [-500, -400[).
+#[test]
+fn estompe_1_la_repartition_par_graduation() {
+    use glucose_core::timeline::repartition;
+    let vue = TemporalFilter {
+        start: -500,
+        end: 299,
+    };
+    let dates = [
+        date(-500, -500),
+        date(-450, -250),
+        date(100, 150),
+        date(1789, 1799),
+    ];
+    // Les graduations : [-500,-400[, [-400,-300[, [-300,-200[, [-200,-100[, [-100,0[, [0,100[,
+    // [100,200[, [200,300[.
+    assert_eq!(repartition(&dates, vue, 100), vec![2, 1, 1, 0, 0, 0, 1, 0]);
+    assert_eq!(repartition(&[], vue, 100).iter().sum::<u32>(), 0);
+}
+
+/// **FRISE-2 — chaque ère entière, dans son couloir** (fiche 115). La loi de la plus petite ère
+/// (REGION-1 appliquée au temps), rejouée ici, ne montrait la révolution industrielle **qu'à partir
+/// de 1800**, en deux morceaux (de 1800 à 1803, puis après l'Empire) : les Lumières, la Révolution et
+/// l'Empire, plus courts, la couvraient — une date fausse. Dans son couloir, elle va de 1760 à 1840,
+/// entière.
+#[test]
+fn frise_2_chaque_ere_entiere_dans_son_couloir() {
+    use glucose_core::timeline::eres_de_la_vue;
+    let vue = TemporalFilter {
+        start: 1700,
+        end: 2000,
+    };
+    let bande = eres_de_la_vue(vue, DEFAULT_ERAS);
+    let paru = |nom: &str| {
+        bande
+            .iter()
+            .find(|e| e.ere.name == nom)
+            .map(|e| (e.paru.start, e.paru.end))
+    };
+    assert_eq!(paru("Révolution industrielle"), Some((1760, 1839)));
+    assert_eq!(paru("Lumières"), Some((1715, 1788)));
+    assert_eq!(
+        paru("Holocène"),
+        Some((1700, 2000)),
+        "coupée aux bords de la vue"
+    );
+    assert_eq!(paru("Renaissance"), None, "hors de la vue");
+    // La preuve à l'envers : à chaque année, la plus petite ère qui la contient — la loi d'avant.
+    let plus_petite = |an: i64| {
+        DEFAULT_ERAS
+            .iter()
+            .filter(|e| e.start <= an && e.end >= an)
+            .min_by_key(|e| e.end - e.start)
+            .map(|e| e.name)
+    };
+    let premiere = (1700..=2000).find(|&an| plus_petite(an) == Some("Révolution industrielle"));
+    assert_eq!(
+        premiere,
+        Some(1800),
+        "l'ancienne loi la faisait naître après la Révolution"
+    );
+}
+
+/// **FRISE-2 — les couloirs** : deux ères qui se chevauchent n'ont jamais le même ; deux qui se
+/// touchent (les Lumières finissent en 1789, l'année où la Révolution commence) le partagent ; à
+/// début égal, la plus longue passe au-dessus (le Moyen Âge sur le Haut Moyen Âge) ; le rang dans un
+/// couloir suit le temps ; et **il y a autant de couloirs que d'ères qui se chevauchent au plus à un
+/// même instant** — cinq, de -509 à -146 (l'Holocène, l'Antiquité, l'Égypte, la Grèce et Rome).
+#[test]
+fn frise_2_les_couloirs_des_eres() {
+    use glucose_core::timeline::{couloirs, profondeur};
+    let places = couloirs(DEFAULT_ERAS);
+    let place = |nom: &str| {
+        let i = DEFAULT_ERAS.iter().position(|e| e.name == nom).expect(nom);
+        places[i]
+    };
+    for (i, a) in DEFAULT_ERAS.iter().enumerate() {
+        for (j, b) in DEFAULT_ERAS.iter().enumerate().skip(i + 1) {
+            if places[i].0 == places[j].0 {
+                assert!(
+                    a.end <= b.start || b.end <= a.start,
+                    "{} et {} partagent un couloir",
+                    a.name,
+                    b.name
+                );
+                let (avant, apres) = if a.start < b.start { (i, j) } else { (j, i) };
+                assert!(places[avant].1 < places[apres].1, "le rang suit le temps");
+            }
+        }
+    }
+    assert_eq!(place("Lumières").0, place("Révolution française").0);
+    assert!(place("Moyen Âge").0 < place("Haut Moyen Âge").0);
+    let au_plus = DEFAULT_ERAS
+        .iter()
+        .map(|t| {
+            DEFAULT_ERAS
+                .iter()
+                .filter(|e| e.start <= t.start && t.start < e.end)
+                .count()
+        })
+        .max();
+    assert_eq!(au_plus, Some(5));
+    assert_eq!(profondeur(DEFAULT_ERAS), 5);
+    assert_eq!(profondeur(&[]), 0);
+}
+
+/// **ESTOMPE-2 — une relation sans date suit ce qu'elle relie** : la frise garde la Grande Guerre ;
+/// une flèche sans date entre deux nœuds de la Révolution s'estompe, vers un nœud sans date aussi
+/// (le moins présent de ses bouts), entre deux nœuds de la Guerre non ; une flèche datée suit sa
+/// date, quels que soient ses bouts ; un bout libre ne retire rien. La preuve à l'envers : sa seule
+/// date (ESTOMPE-1) la disait pleine.
+#[test]
+fn estompe_2_une_relation_sans_date_suit_ce_qu_elle_relie() {
+    use glucose_core::timeline::{presence, presence_d_une_relation, ESTOMPE};
+    let guerre = Some(TemporalFilter {
+        start: 1914,
+        end: 1918,
+    });
+    let (revolution, grande_guerre) = (date(1789, 1799), date(1914, 1918));
+    let (r, g) = (Some(&revolution), Some(&grande_guerre));
+    assert_eq!(presence_d_une_relation(None, [r, r], guerre), ESTOMPE);
+    assert_eq!(
+        presence(None, guerre),
+        1.0,
+        "sa seule date la disait pleine"
+    );
+    assert_eq!(presence_d_une_relation(None, [r, None], guerre), ESTOMPE);
+    assert_eq!(presence_d_une_relation(None, [g, g], guerre), 1.0);
+    assert_eq!(presence_d_une_relation(None, [None, None], guerre), 1.0);
+    assert_eq!(
+        presence_d_une_relation(g, [r, r], guerre),
+        1.0,
+        "sa date d'abord"
+    );
+    assert_eq!(presence_d_une_relation(r, [g, g], guerre), ESTOMPE);
+    assert_eq!(
+        presence_d_une_relation(None, [r, r], None),
+        1.0,
+        "sans frise"
+    );
+}

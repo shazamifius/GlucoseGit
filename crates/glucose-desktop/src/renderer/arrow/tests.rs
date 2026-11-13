@@ -62,6 +62,7 @@ fn rendu(points: &[(f64, f64)], zoom: f64, selectionnee: bool, double_sens: bool
             selectionnee,
             en_lumiere: selectionnee,
             presence: 1.0,
+            estompe: 1.0,
             double_sens,
         },
     );

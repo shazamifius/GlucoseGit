@@ -25,6 +25,7 @@ fn coudee(ame_blanche: bool) -> Champ {
                 contour: [0.3, 0.5, 0.95],
             }),
         ],
+        opacite: 1.0,
     }
 }
 
@@ -147,4 +148,25 @@ fn test_fleche_2_decouper_rend_la_precision() {
         [-10.0, -10.0, 110.0, 110.0],
     );
     assert_eq!(loin, vec![[-10.0, 50.25, 110.0, 50.25]]);
+}
+
+/// **ESTOMPE-1 — une flèche estompée pose ce qu'elle posait, multiplié** : trait, halo et pointes
+/// ensemble, au prémultiplié près — une opacité de groupe ; sans estompe, rien ne change.
+#[test]
+fn estompe_1_le_champ_s_estompe_en_groupe() {
+    let pleine = coudee(false);
+    let estompee = Champ {
+        opacite: 0.12,
+        ..coudee(false)
+    };
+    for (x, y) in [(90.0, 95.0), (20.0, 150.0), (300.3, 170.0), (160.0, 41.0)] {
+        let (p, e) = (pleine.couleur(x, y), estompee.couleur(x, y));
+        assert!(p[3] > 0.0, "le point ({x}, {y}) est sur la flèche");
+        for k in 0..4 {
+            assert!(
+                (e[k] - p[k] * 0.12).abs() < 1e-6,
+                "({x}, {y}) : {e:?} contre {p:?}"
+            );
+        }
+    }
 }

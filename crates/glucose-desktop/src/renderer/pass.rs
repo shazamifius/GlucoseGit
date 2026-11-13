@@ -2,7 +2,7 @@
 //! tri qui envoie chaque nœud à son dessin — la carte, le pense-bête, la flèche.
 
 use super::arrow::{draw_arrow, Fleche};
-use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, TextCard};
+use super::card::{draw_card_ornements, draw_text_card, TextCard};
 use super::domain::{draw_domain_gauge, DomainTints};
 use super::math::MathRenderer;
 use super::note::draw_sticky;
@@ -141,7 +141,9 @@ pub(super) fn draw_annotations(
             if editing.is_none() {
                 let autour = (papier, survols.eclairages);
                 if let Some(carte) = carte_de(kit.sens, (ann, store), autour, None) {
-                    draw_card_contenu(&ctx, pixmap, carte);
+                    // ESTOMPE-1 : en groupe, comme la texture que la carte graphique pose.
+                    let presence = store.presence(ann.temporal_anchor());
+                    super::card::draw_card_contenu_a(&ctx, pixmap, carte, presence);
                 }
             }
         }
@@ -198,15 +200,26 @@ fn dessiner_ce_qui_passe_au_dessus(
                         draw_card_ornements(ctx, pixmap, carte);
                     }
                 }
-                draw_node_gauge(ctx, pixmap, (*x, *y), ann.domains());
+                draw_node_gauge(
+                    ctx,
+                    pixmap,
+                    ((*x, *y), store.presence(ann.temporal_anchor())),
+                    ann.domains(),
+                );
             }
             Annotation::Sticky { x, y, .. } => {
                 // Un pense-bete n'est pas encore un composant : il se dessine entier a chaque
                 // image, sur les deux voies. C'est le meme mecanisme que COMPOSANT-1 et il
                 // n'a jamais ete applique -- ce compteur dira ce qu'il coute ici.
                 entieres += 1.0;
-                draw_sticky(ctx, pixmap, ann, selected, editing);
-                draw_node_gauge(ctx, pixmap, (*x, *y), ann.domains());
+                let presence = store.presence(ann.temporal_anchor());
+                draw_sticky(ctx, pixmap, ann, selected, (editing, presence));
+                draw_node_gauge(
+                    ctx,
+                    pixmap,
+                    ((*x, *y), store.presence(ann.temporal_anchor())),
+                    ann.domains(),
+                );
             }
             Annotation::Arrow { .. } => {
                 let lumiere = super::arrow::en_lumiere(store, survols.survole, ann);
@@ -215,7 +228,15 @@ fn dessiner_ce_qui_passe_au_dessus(
                     pixmap,
                     sens,
                     (ann, board, pass),
-                    ((selected, lumiere), editing, !cartes_par_la_carte),
+                    (
+                        (
+                            selected,
+                            lumiere,
+                            super::estompe::de_la_fleche(store, (board, Some(pass.index)), ann),
+                        ),
+                        editing,
+                        !cartes_par_la_carte,
+                    ),
                     (survols.effacement(ann.id()), (survols.souris, liens)),
                 );
             }
@@ -255,7 +276,7 @@ fn carte_de<'a>(
 fn draw_node_gauge(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
-    origin: (f64, f64),
+    (origin, presence): ((f64, f64), f32),
     domains: &[DomainAssignment],
 ) {
     let (wx, wy) = world_to_screen(origin.0, origin.1, &ctx.vp);
@@ -264,7 +285,7 @@ fn draw_node_gauge(
         ctx.tints,
         pixmap,
         ctx.scale,
-        (wx as f32, wy as f32),
+        ((wx as f32, wy as f32), presence),
         domains,
     );
 }
@@ -281,7 +302,11 @@ fn draw_arrow_node(
     pixmap: &mut PixmapMut,
     sens: &super::sens::SensDesTextes,
     (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
-    ((selected, lumiere), editing, au_processeur): ((bool, bool), Option<&TextEditSession>, bool),
+    ((selected, lumiere, estompe), editing, au_processeur): (
+        (bool, bool, f32),
+        Option<&TextEditSession>,
+        bool,
+    ),
     (efface, (souris, liens)): (f32, (Option<(f64, f64)>, usize)),
 ) {
     let Annotation::Arrow { predicate, .. } = ann else {
@@ -301,7 +326,8 @@ fn draw_arrow_node(
     let surete = sens.surete_d_un_lien(ann);
     let presence =
         super::arrow::presence::presence_qui_compte(ann, noeuds, souris, (liens, lecture, surete));
-    let Some(fleche) = Fleche::de(sens, ann, (pass, noeuds), (selected, lumiere, presence)) else {
+    let quoi = (selected, lumiere, presence, estompe);
+    let Some(fleche) = Fleche::de(sens, ann, (pass, noeuds), quoi) else {
         return;
     };
     if au_processeur {
@@ -328,10 +354,11 @@ fn draw_arrow_node(
         (milieu, encre),
         ann,
         editing,
-        porte_les_deux,
+        (porte_les_deux, estompe),
     );
     if let Some(centre) = super::predicate::centre_du_badge(ann, milieu, etiquette) {
-        super::predicate::draw_arrow_predicate(ctx, pixmap, centre, ann, 1.0 - efface);
+        let opacite = (1.0 - efface) * estompe;
+        super::predicate::draw_arrow_predicate(ctx, pixmap, centre, ann, opacite);
     }
 }
 

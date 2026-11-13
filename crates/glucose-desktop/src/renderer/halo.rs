@@ -150,6 +150,13 @@ impl Eclat {
     }
 }
 
+/// **L'alpha d'une lueur montrée** : celui que son éclat et sa sûreté lui donnent, estompé avec son
+/// nœud quand la frise chronologique l'écarte (ESTOMPE-1) — une seule loi, que les deux voies
+/// appellent ([`draw_halos`], `voies::lueurs_a_poser`).
+pub(super) fn alpha_montre(eclat: Eclat, surete: f32, presence: f32) -> u8 {
+    (f32::from(eclat.alpha(surete)) * presence).round() as u8
+}
+
 /// Divise par 255 avec arrondi au plus proche, sans division entière.
 ///
 /// Exact pour tout produit de deux octets : c'est l'identité `(x + 128 + (x + 128) / 256) / 256`
@@ -539,7 +546,7 @@ pub fn draw_halos(
         };
         // Sa famille, ou la couleur qu'on lui a choisie (COULEUR-4) ; sa sûreté, l'opacité.
         let (rgb, surete) = kit.sens.lueur(ann);
-        let alpha = eclat.alpha(surete);
+        let alpha = alpha_montre(eclat, surete, store.presence(ann.temporal_anchor()));
         let Some(halo) = halo_geometry(boite, (vp, pass.echelle()), ecran, eclat) else {
             continue;
         };

@@ -245,8 +245,24 @@ impl Store {
         }
     }
 
-    pub fn set_temporal_filter(&mut self, filter: Option<TemporalAnchor>) {
+    pub fn set_temporal_filter(&mut self, filter: Option<crate::timeline::TemporalFilter>) {
         self.temporal_filter = filter;
+    }
+
+    /// **La présence de ce nœud à l'écran** (ESTOMPE-1) : entière, ou estompée si la frise
+    /// chronologique l'écarte. Une seule loi, que chaque voie du rendu appelle.
+    pub fn presence(&self, date: Option<&TemporalAnchor>) -> f32 {
+        crate::timeline::presence(date, self.temporal_filter)
+    }
+
+    /// **La présence d'une flèche à l'écran** (ESTOMPE-2) : sa date, ou celles de ses deux bouts
+    /// (`timeline::presence_d_une_relation`).
+    pub fn presence_d_une_relation(
+        &self,
+        propre: Option<&TemporalAnchor>,
+        bouts: [Option<&TemporalAnchor>; 2],
+    ) -> f32 {
+        crate::timeline::presence_d_une_relation(propre, bouts, self.temporal_filter)
     }
 
     /// La boîte englobante de tout ce qu'un tableau contient — images, annotations et dossiers

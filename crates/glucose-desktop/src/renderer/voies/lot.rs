@@ -107,6 +107,9 @@ struct Fige {
     part: (u64, u64),
     echelles: Intervalle,
     vue: (f64, f64, f64),
+    /// La période que la frise chronologique garde : l'opacité de chaque pose en dépend
+    /// (ESTOMPE-1).
+    filtre: Option<glucose_core::timeline::TemporalFilter>,
 }
 
 /// **Le lot que le rendu a proposé à la carte.**
@@ -139,6 +142,7 @@ impl Lot {
             && f.plafond == carte.plafond_des_textures
             && part_valable
             && f.echelles.contient(vp.scale)
+            && f.filtre == store.temporal_filter
             && f.rangs == rangs;
         permis.then(|| LotEnPlace {
             nombre: f.nombre,
@@ -173,6 +177,7 @@ impl Lot {
             part: carte.part_valable,
             echelles,
             vue: (vp.x, vp.y, vp.scale),
+            filtre: store.temporal_filter,
         });
         Some(self.dernier)
     }
@@ -253,6 +258,14 @@ mod tests {
             !refuse(&store, &vp, &rangs, 7, &carte),
             "le témoin : il se reprend"
         );
+
+        // La frise chronologique change l'opacité des poses (ESTOMPE-1).
+        let mut frise = store.clone();
+        frise.set_temporal_filter(Some(glucose_core::timeline::TemporalFilter {
+            start: 1914,
+            end: 1918,
+        }));
+        assert!(refuse(&frise, &vp, &rangs, 7, &carte), "la frise a changé");
 
         let mut autre = Store::new("lot");
         autre.project.active_board_id = store.project.active_board_id.clone();

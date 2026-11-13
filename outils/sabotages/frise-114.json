@@ -1,0 +1,786 @@
+[
+  {
+    "nom": "ESTOMPE-1 : rien ne s'estompe",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "    if node_matches_temporal_filter(anchor, filter) {\n        1.0",
+    "apres": "    if true || node_matches_temporal_filter(anchor, filter) {\n        1.0",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : l'étendue prend le plus récent début",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "                start: e.start.min(d.start),",
+    "apres": "                start: e.start.max(d.start),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la répartition ne compte rien",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "            comptes[(k - premier) as usize] += 1;",
+    "apres": "            comptes[(k - premier) as usize] += 0;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : deux ères qui se chevauchent partagent un couloir",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "        let c = match couloirs.iter().position(|&(fin, _)| fin <= ere.start) {",
+    "apres": "        let c = match couloirs.iter().position(|_| true) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite",
+      "--",
+      "frise_2"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : à début égal, la plus courte passe au-dessus",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "    ordre.sort_by_key(|&i| (eres[i].start, std::cmp::Reverse(eres[i].end)));",
+    "apres": "    ordre.sort_by_key(|&i| (eres[i].start, eres[i].end));",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite",
+      "--",
+      "frise_2"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : une ère paraît une année de trop",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "                end: (ere.end - 1).min(vue.end),",
+    "apres": "                end: ere.end.min(vue.end),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite",
+      "--",
+      "frise_2"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : la bande ignore les couloirs",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "        let rangee = rangee_d_ere(p, rangee_de(ere.couloir));",
+    "apres": "        let rangee = rangee_d_ere(p, rangee_de(0));",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_2"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : les rangées se superposent",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "    (x, y + rangee as f32 * (ERE + FILET) * p.s, l, ERE * p.s)",
+    "apres": "    (x, y, l, ERE * p.s)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_2"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : la frise ne fait de place qu'à une rangée",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "    let n = profondeur(DEFAULT_ERAS);",
+    "apres": "    let n = 1;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_2"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : le champ d'une flèche ne s'estompe pas (noyau)",
+    "fichier": "crates/glucose-core/src/arrow/champ.rs",
+    "avant": "        o.map(|v| v * self.opacite)",
+    "apres": "        o",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : l'export garde la frise",
+    "fichier": "crates/glucose-core/src/store/selection.rs",
+    "avant": "        let mut copie = Store::new(self.project.name.clone());",
+    "apres": "        let mut copie = Store::new(self.project.name.clone());\n        copie.temporal_filter = self.temporal_filter;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : le bas ne lui revient pas",
+    "fichier": "crates/glucose-desktop/src/ui.rs",
+    "avant": "        let frise = self.frise.is_some() && !self.sans_interface();",
+    "apres": "        let frise = false && self.frise.is_some() && !self.sans_interface();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : elle ne se dessine pas",
+    "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+    "avant": "    if let Some(r) = &ui.frise {",
+    "apres": "    if let Some(r) = ui.frise.as_ref().filter(|_| false) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : elle n'attend aucune décision",
+    "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+    "avant": "            || self.frise.is_some()\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la croix ne ferme rien",
+    "fichier": "crates/glucose-desktop/src/interactions/frise.rs",
+    "avant": "            Some(Endroit::Fermer) => self.basculer_la_frise(),",
+    "apres": "            Some(Endroit::Fermer) => {}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la poignée du début ne suit pas",
+    "fichier": "crates/glucose-desktop/src/interactions/frise.rs",
+    "avant": "                start: (f.start + d).clamp(YEAR_MIN, f.end),",
+    "apres": "                start: f.start,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la fenêtre glissée perd sa largeur",
+    "fichier": "crates/glucose-desktop/src/interactions/frise.rs",
+    "avant": "                    start: f.start + d,\n                    end: f.end + d,",
+    "apres": "                    start: f.start + d,\n                    end: f.end,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la molette dézoome",
+    "fichier": "crates/glucose-desktop/src/interactions/frise.rs",
+    "avant": "            super::pan_zoom::Geste::Zoom(o) => (o, 0.0),",
+    "apres": "            super::pan_zoom::Geste::Zoom(o) => (-o, 0.0),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la vue d'ouverture colle aux dates",
+    "fichier": "crates/glucose-desktop/src/interactions/frise.rs",
+    "avant": "    let marge = 5 * tick_step(e.end - e.start);",
+    "apres": "    let marge = 0 * tick_step(e.end - e.start);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : une poignée ne se prend qu'à l'exact",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "    if da.min(db) <= portee {",
+    "apres": "    if da.min(db) <= 0.0 {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : Maj+R ne fait rien",
+    "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+    "avant": "            Commande::Frise => self.basculer_la_frise(),",
+    "apres": "            Commande::Frise => {}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : Maj+R n'est plus un raccourci",
+    "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+    "avant": "Maj+R           frise-chronologique\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : l'appui descend au canevas",
+    "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+    "avant": "            || self.click_frise(pointer, screen)\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : le relâchement n'est pas entendu",
+    "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+    "avant": "                    || self.relacher_la_frise()\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la main tenue ne glisse rien",
+    "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+    "avant": "        if self.glisser_la_frise(position.x as f32) {",
+    "apres": "        if false && self.glisser_la_frise(position.x as f32) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la molette va au canevas",
+    "fichier": "crates/glucose-desktop/src/interactions/pan_zoom.rs",
+    "avant": "        if self.molette_vers_la_frise(delta) {",
+    "apres": "        if false && self.molette_vers_la_frise(delta) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la répartition ne se dessine pas",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "        if *n > 0 {",
+    "apres": "        if false && *n > 0 {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : la fenêtre n'est pas ambre",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "        remplir(pixmap, (a2, piste.1, b2 - a2, piste.3), theme.temps.voile);\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "FRISE-1 : un nom trop long ne se coupe pas",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "        .map(|n| format!(\"{}…\", lettres[..n].iter().collect::<String>().trim_end()))",
+    "apres": "        .map(|n| lettres[..n].iter().collect::<String>())",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_1"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les lueurs ne s'estompent pas",
+    "fichier": "crates/glucose-desktop/src/renderer/halo.rs",
+    "avant": "    (f32::from(eclat.alpha(surete)) * presence).round() as u8",
+    "apres": "    eclat.alpha(surete)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les membranes ne s'estompent pas",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+    "avant": "            [halos, Membrane::plein(fond, corps, self.presence)],",
+    "apres": "            [halos, Membrane::plein(fond, corps, 1.0)],",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : le nuanceur des flèches ne les estompe pas",
+    "fichier": "crates/glucose-desktop/src/present/fleches_gpu/fleches.wgsl",
+    "avant": "    return o * fleches[i].reglage.z;",
+    "apres": "    return o;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : la flèche vue oublie son estompe",
+    "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+    "avant": "            opacite: self.estompe,",
+    "apres": "            opacite: 1.0,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : la carte graphique pose les photos pleines",
+    "fichier": "crates/glucose-desktop/src/renderer/voies/recolte.rs",
+    "avant": "                    pose: estompee(tenue.pose),",
+    "apres": "                    pose: tenue.pose,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les cartes de texte pleines sur la carte graphique",
+    "fichier": "crates/glucose-desktop/src/renderer/voies/recolte.rs",
+    "avant": "        estomper(&mut pieces, store.presence(ann.temporal_anchor()));\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les photos en chemin pleines sur la carte graphique",
+    "fichier": "crates/glucose-desktop/src/renderer/voies/recolte.rs",
+    "avant": "                    estomper(&mut pieces, presence);\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les titres pleins sur la carte graphique",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+    "avant": "            titre.pose.opacite = m.presence;\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les titres pleins au processeur",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/membranes.rs",
+    "avant": "    let presence = if m.saisie.is_some() { 1.0 } else { m.presence };",
+    "apres": "    let presence = 1.0;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les cartes de texte pleines au processeur",
+    "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+    "avant": "                    super::card::draw_card_contenu_a(&ctx, pixmap, carte, presence);",
+    "apres": "                    super::card::draw_card_contenu_a(&ctx, pixmap, carte, 1.0);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les photos pleines au processeur",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/image.rs",
+    "avant": "    if img.rotation != 0.0 || presence < 1.0 {",
+    "apres": "    if img.rotation != 0.0 {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : une photo estompée cache encore",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/image/prevision.rs",
+    "avant": "    let opaque = presence >= 1.0\n        && img.rotation == 0.0",
+    "apres": "    let opaque = img.rotation == 0.0",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : les post-it ne s'estompent pas",
+    "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+    "avant": "                let presence = store.presence(ann.temporal_anchor());\n                draw_sticky(",
+    "apres": "                let presence = 1.0;\n                draw_sticky(",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : le lot oublie la frise",
+    "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+    "avant": "            && f.filtre == store.temporal_filter\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "lot::"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : la pastille de date ne s'estompe pas",
+    "fichier": "crates/glucose-desktop/src/renderer/date.rs",
+    "avant": "    let estomper = |c| super::estompe::estomper(c, presence);",
+    "apres": "    let estomper = |c| super::estompe::estomper(c, 1.0);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-2 : une relation sans date reste pleine",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "            .fold(1.0, f32::min),",
+    "apres": "            .fold(1.0, f32::max),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite",
+      "--",
+      "estompe_2"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-2 : la date d'une flèche ne compte plus",
+    "fichier": "crates/glucose-core/src/timeline.rs",
+    "avant": "        Some(_) => presence(propre, filter),",
+    "apres": "        Some(_) => 1.0,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "timeline_suite",
+      "--",
+      "estompe_2"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-2 : un bout de texte ne se date pas",
+    "fichier": "crates/glucose-desktop/src/renderer/estompe.rs",
+    "avant": "            Noeud::Annotation(a) => a.temporal_anchor(),",
+    "apres": "            Noeud::Annotation(_) => None,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe_2"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-2 : le champ d'une flèche oublie ses bouts",
+    "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
+    "avant": "            let estompe = super::estompe::de_la_fleche(store, (noeuds.board, noeuds.index), ann);",
+    "apres": "            let estompe = store.presence(ann.temporal_anchor());",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe_2"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-2 : la flèche du processeur oublie ses bouts",
+    "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
+    "avant": "                            super::estompe::de_la_fleche(store, (board, Some(pass.index)), ann),",
+    "apres": "                            store.presence(ann.temporal_anchor()),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe_2"
+    ]
+  },
+  {
+    "nom": "ESTOMPE-1 : une photo estompée remplace ce qu'elle couvre",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/image/ornement.rs",
+    "avant": "    if opaque && rotation == 0.0 && presence >= 1.0 {",
+    "apres": "    if opaque && rotation == 0.0 {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "estompe"
+    ]
+  },
+  {
+    "nom": "FRISE-2 : les rangées vides restent entre les ères et la piste",
+    "fichier": "crates/glucose-desktop/src/ui/frise.rs",
+    "avant": "    let vides = profondeur(DEFAULT_ERAS).saturating_sub(pris.len());",
+    "apres": "    let vides = 0;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "frise_2"
+    ]
+  }
+]

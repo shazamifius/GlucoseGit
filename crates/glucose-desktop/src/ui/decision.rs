@@ -1,5 +1,6 @@
-//! **Ce qui attend une décision** : la barre d'action, les options de flèche, le toast, le menu
-//! et la question — ce qui ne paraît que sur décision de l'utilisateur (DECISION-1, fiche 59).
+//! **Ce qui attend une décision** : la frise chronologique, la barre d'action, les options de
+//! flèche, le toast, le menu et la question — ce qui ne paraît que sur décision de l'utilisateur
+//! (DECISION-1, fiche 59).
 //!
 //! Extrait de [`super::render_ui`], qui le posait avec la chrome permanente : les panneaux se
 //! peignaient donc **par-dessus**, et la question du journal technique paraissait sous Ordonner
@@ -28,6 +29,7 @@ impl UiState {
     /// `rien_a_decider_ne_dessine_rien` le dit.
     pub fn attend_une_decision(&self, store: &Store) -> bool {
         store.compte_de_la_selection() > 0
+            || self.frise.is_some()
             || self.ancrage.is_some()
             || self.current_toast.is_some()
             || self.context_menu_at.is_some()
@@ -47,6 +49,13 @@ pub fn poser_les_barres(
         return;
     }
     let (w, h) = (pixmap.width() as f32, pixmap.height() as f32);
+    // La frise chronologique tient le bas ; les barres d'une sélection se posent au-dessus d'elle
+    // (FRISE-1).
+    if let Some(r) = &ui.frise {
+        let placee = super::frise::placer(ui.ecran_du_systeme((w, h)), ui.scale());
+        let fenetre = store.temporal_filter.unwrap_or(r.vue);
+        super::frise::dessiner(pixmap, store, (r, fenetre), (typo, theme), &placee);
+    }
     let visible = ui.ecran_visible((w, h));
     action_bar::draw_action_bar(
         pixmap,

@@ -28,11 +28,13 @@ use tiny_skia::{BlendMode, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transfor
 ///
 /// * l'image est opaque — sinon le fond devrait transparaître à travers elle ;
 /// * elle n'est pas tournée — sinon la zone couverte est un parallélogramme, et les coins du
-///   rectangle qui l'entoure seraient remplacés par du vide, laissant quatre trous.
+///   rectangle qui l'entoure seraient remplacés par du vide, laissant quatre trous ;
+/// * elle est pleine — estompée par la frise chronologique (ESTOMPE-1), elle laisse voir ce
+///   qu'elle couvre.
 ///
-/// Les deux se constatent, aucune ne s'estime.
-pub(super) fn mode_de_report(opaque: bool, rotation: f64) -> BlendMode {
-    if opaque && rotation == 0.0 {
+/// Les trois se constatent, aucune ne s'estime.
+pub(super) fn mode_de_report(opaque: bool, rotation: f64, presence: f32) -> BlendMode {
+    if opaque && rotation == 0.0 && presence >= 1.0 {
         BlendMode::Source
     } else {
         BlendMode::SourceOver
@@ -334,7 +336,7 @@ pub(in crate::renderer) fn draw_image_ornaments(
             kit.tints,
             pixmap,
             scale,
-            (*sx, *sy),
+            ((*sx, *sy), store.presence(img.temporal_anchor.as_ref())),
             &img.domains,
         );
     }

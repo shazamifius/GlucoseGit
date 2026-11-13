@@ -2159,3 +2159,361 @@ fn test_date_1_la_date_parait_sur_les_deux_voies_sans_rien_de_choisi() {
         "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux} : une date manque d'un côté"
     );
 }
+
+// ── L'estompe de la frise chronologique (ESTOMPE-1, fiche 114) ──────────────────────────────
+
+/// Un texte, un post-it, une flèche, une membrane et une photo en chemin, datés de la Révolution ;
+/// un texte sans date. `filtre` : la période que la frise garde, ou aucune.
+fn document_estompe(filtre: Option<(i64, i64)>) -> glucose_core::store::Store {
+    use glucose_core::types::{Annotation, BoardImage, TemporalAnchor};
+    let mut store = glucose_core::store::Store::new("Estompe");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
+    }
+    let mut membrane = Annotation::membrane("m", 60.0, 300.0, 340.0, 240.0);
+    if let Annotation::Membrane { text, .. } = &mut membrane {
+        *text = Some("La Révolution".to_string());
+    }
+    store.add_annotation(&board, membrane);
+    store.add_annotation(&board, Annotation::text("t", 100.0, 80.0, "La Révolution"));
+    store.add_annotation(&board, Annotation::sticky("p", 420.0, 80.0, "1789"));
+    store.add_annotation(&board, Annotation::arrow("f", 120.0, 220.0, 700.0, 260.0));
+    store.add_annotation(&board, Annotation::text("hors", 480.0, 420.0, "Sans date"));
+    store.add_image(&board, BoardImage::new("i", 660.0, 120.0, 140.0, 100.0));
+    let revolution = TemporalAnchor {
+        start: 1789,
+        end: 1799,
+        label: None,
+    };
+    let dates = ["m", "t", "p", "f", "i"].map(String::from);
+    store.ancrer_dans_le_temps(&board, &dates, Some(&revolution));
+    store.set_temporal_filter(
+        filtre.map(|(start, end)| glucose_core::timeline::TemporalFilter { start, end }),
+    );
+    store.clear_selection();
+    store
+}
+
+/// **Ce que l'image `a` montre de plus que `b`** dans cette boîte : la somme des écarts, canal par
+/// canal. Contre l'image du canevas vide, c'est exactement ce que les nœuds y posent — la grille
+/// de points, la même des deux côtés, ne compte pas.
+fn ecart_dans(a: &Pixmap, b: &Pixmap, (x0, y0, x1, y1): (u32, u32, u32, u32)) -> u64 {
+    let mut s = 0u64;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            let (p, q) = (pixel(a, x, y), pixel(b, x, y));
+            s += (0..3).map(|k| u64::from(p[k].abs_diff(q[k]))).sum::<u64>();
+        }
+    }
+    s
+}
+
+/// La même scène, sa membrane sans titre : ce qui la distingue de la scène est le titre seul.
+fn sans_titre(mut store: glucose_core::store::Store) -> glucose_core::store::Store {
+    use glucose_core::types::Annotation;
+    if let Some(b) = store.active_board_mut() {
+        for a in &mut b.annotations {
+            if let Annotation::Membrane { text, .. } = a {
+                *text = None;
+            }
+        }
+    }
+    store
+}
+
+/// **La boîte de ce qui diffère** entre deux images : `(x0, y0, x1, y1)`.
+fn boite_des_ecarts(a: &Pixmap, b: &Pixmap) -> (u32, u32, u32, u32) {
+    let (mut x0, mut y0, mut x1, mut y1) = (a.width(), a.height(), 0, 0);
+    for y in 0..a.height() {
+        for x in 0..a.width() {
+            if pixel(a, x, y) != pixel(b, x, y) {
+                (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x + 1), y1.max(y + 1));
+            }
+        }
+    }
+    (x0, y0, x1, y1)
+}
+
+/// Le même canevas, sans aucun nœud.
+fn document_vide() -> glucose_core::store::Store {
+    let mut store = document_estompe(None);
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+    }
+    store
+}
+
+/// **ESTOMPE-1 — ce que la frise écarte s'estompe, pareil sur les deux voies** (fiche 114).
+///
+/// La frise garde la Grande Guerre : tout ce qui date de la Révolution s'estompe — le texte, le
+/// post-it, la flèche, la membrane, la photo — **sur la carte graphique comme au processeur**, et
+/// les deux voies rendent la même image. Le texte sans date ne bouge pas : hors du temps, jamais
+/// écarté. La preuve à l'envers : la frise qui garde la Révolution ne change rien.
+#[test]
+fn test_estompe_1_ce_que_la_frise_ecarte_s_estompe_sur_les_deux_voies() {
+    let taille = (800u32, 600u32);
+    let Some(entiere) = par_la_carte(taille, &document_estompe(None)) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let guerre = document_estompe(Some((1914, 1918)));
+    let estompee = par_la_carte(taille, &guerre).expect("la même carte");
+    let vide = par_la_carte(taille, &document_vide()).expect("la carte");
+    // Ce que chaque nœud montre, plein puis estompé, sur la carte graphique.
+    for (nom, boite) in [
+        ("le texte", (110, 90, 300, 120)),
+        ("le post-it", (430, 90, 560, 180)),
+        ("la membrane", (80, 340, 380, 520)),
+        ("la photo", (600, 80, 720, 160)),
+        // Le milieu de la flèche, de (120, 220) à (700, 260) : loin de tout autre nœud.
+        ("la flèche", (280, 224, 340, 242)),
+    ] {
+        let plein = ecart_dans(&entiere, &vide, boite);
+        let pale = ecart_dans(&estompee, &vide, boite);
+        assert!(plein > 0, "{nom} se voit");
+        assert!(pale * 2 < plein, "{nom} s'estompe : {pale} contre {plein}");
+    }
+    // **Le titre de la membrane** : sa boîte, trouvée par l'image — là où il change des pixels ;
+    // plein puis estompé, contre la même scène sans titre.
+    let titre = boite_des_ecarts(
+        &par_le_processeur(taille, &document_estompe(None)),
+        &par_le_processeur(taille, &sans_titre(document_estompe(None))),
+    );
+    let sans = |f| par_la_carte(taille, &sans_titre(document_estompe(f))).expect("la carte");
+    let plein = ecart_dans(&entiere, &sans(None), titre);
+    let pale = ecart_dans(&estompee, &sans(Some((1914, 1918))), titre);
+    assert!(plein > 0, "le titre se voit ({titre:?})");
+    assert!(
+        pale * 2 < plein,
+        "le titre s'estompe : {pale} contre {plein}"
+    );
+    // **La lueur du texte**, juste sous son bloc.
+    let lueur = {
+        let b = guerre.active_board().expect("le tableau");
+        let r = glucose_core::arrow::emprise(b, "t").expect("le texte");
+        let bas = (r.top + r.height) as u32;
+        (
+            r.left as u32 + 10,
+            bas + 2,
+            (r.left + r.width) as u32 - 10,
+            bas + 8,
+        )
+    };
+    let plein = ecart_dans(&entiere, &vide, lueur);
+    let pale = ecart_dans(&estompee, &vide, lueur);
+    assert!(plein > 0, "la lueur se voit");
+    assert!(
+        pale * 2 < plein,
+        "la lueur s'estompe : {pale} contre {plein}"
+    );
+    let sans_date = (490, 430, 600, 460);
+    assert_eq!(
+        ecart_dans(&entiere, &estompee, sans_date),
+        0,
+        "le texte sans date ne bouge pas"
+    );
+    // Les deux voies, estompées.
+    let processeur = par_le_processeur(taille, &guerre);
+    let pire = banc_gpu::pire_ecart(&processeur, &estompee);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux (admis {ECART_ADMIS})"
+    );
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &estompee, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+    // La frise qui garde la Révolution n'estompe rien.
+    let gardee = par_la_carte(taille, &document_estompe(Some((1700, 1800)))).expect("la carte");
+    assert_eq!(
+        banc_gpu::pire_ecart(&entiere, &gardee),
+        0,
+        "rien d'écarté, rien de changé"
+    );
+}
+
+/// Deux textes de la Révolution côte à côte (« a », « b »), un texte sans date sous « a » (« c ») ;
+/// avec `fleches`, une flèche sans date de « a » à « b », une autre de « a » à « c ».
+fn document_relie(filtre: Option<(i64, i64)>, fleches: bool) -> glucose_core::store::Store {
+    use glucose_core::types::{Annotation, TemporalAnchor};
+    let mut store = document_vide();
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::text("a", 80.0, 80.0, "La Révolution"));
+    store.add_annotation(&board, Annotation::text("b", 520.0, 80.0, "L'Empire"));
+    store.add_annotation(&board, Annotation::text("c", 80.0, 420.0, "Sans date"));
+    if fleches {
+        for (id, vers) in [("ab", "b"), ("ac", "c")] {
+            let mut f = Annotation::arrow(id, 0.0, 0.0, 0.0, 0.0);
+            if let Annotation::Arrow {
+                source_id,
+                target_id,
+                ..
+            } = &mut f
+            {
+                *source_id = Some("a".into());
+                *target_id = Some(vers.into());
+            }
+            store.add_annotation(&board, f);
+        }
+    }
+    let revolution = TemporalAnchor {
+        start: 1789,
+        end: 1799,
+        label: None,
+    };
+    store.ancrer_dans_le_temps(&board, &["a".into(), "b".into()], Some(&revolution));
+    store.set_temporal_filter(
+        filtre.map(|(start, end)| glucose_core::timeline::TemporalFilter { start, end }),
+    );
+    store.clear_selection();
+    store
+}
+
+/// **ESTOMPE-2 — une flèche sans date suit ce qu'elle relie, pareil sur les deux voies** (fiche
+/// 115). La frise garde la Grande Guerre : la flèche sans date entre deux textes de la Révolution
+/// s'estompe, et celle qui va d'un texte de la Révolution à un texte sans date aussi (le moins
+/// présent de ses bouts) — sur la carte graphique comme au processeur. La frise qui garde la
+/// Révolution les laisse pleines. Chaque flèche se mesure contre la même scène sans flèches, sous
+/// la même frise : ce qui diffère est la flèche seule.
+#[test]
+fn test_estompe_2_une_fleche_sans_date_suit_ce_qu_elle_relie() {
+    let taille = (800u32, 600u32);
+    let (revolution, grande_guerre) = (Some((1700, 1800)), Some((1914, 1918)));
+    let Some(pleine) = par_la_carte(taille, &document_relie(revolution, true)) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    // Chaque scène contre elle-même sans flèches, sous la même frise : les textes estompés et
+    // leurs lueurs s'annulent, reste la flèche.
+    let sans = |f| par_la_carte(taille, &document_relie(f, false)).expect("la carte");
+    let guerre = document_relie(grande_guerre, true);
+    let estompee = par_la_carte(taille, &guerre).expect("la carte");
+    let (milieu_ab, milieu_ac) = {
+        let b = guerre.active_board().expect("le tableau");
+        let boite = |id| glucose_core::arrow::emprise(b, id).expect(id);
+        let (a, bb, c) = (boite("a"), boite("b"), boite("c"));
+        let y = a.top + a.height / 2.0;
+        let x = a.left + a.width / 2.0;
+        (
+            ((a.left + a.width + bb.left) / 2.0, y),
+            (x, (a.top + a.height + c.top) / 2.0),
+        )
+    };
+    let autour = |(x, y): (f64, f64), (dx, dy): (f64, f64)| {
+        (
+            (x - dx) as u32,
+            (y - dy) as u32,
+            (x + dx) as u32,
+            (y + dy) as u32,
+        )
+    };
+    for (nom, boite) in [
+        (
+            "entre deux textes de la Révolution",
+            autour(milieu_ab, (40.0, 8.0)),
+        ),
+        ("vers un texte sans date", autour(milieu_ac, (8.0, 40.0))),
+    ] {
+        let plein = ecart_dans(&pleine, &sans(revolution), boite);
+        let pale = ecart_dans(&estompee, &sans(grande_guerre), boite);
+        assert!(plein > 0, "la flèche {nom} se voit ({boite:?})");
+        assert!(
+            pale * 2 < plein,
+            "la flèche {nom} s'estompe : {pale} contre {plein}"
+        );
+    }
+    let processeur = par_le_processeur(taille, &guerre);
+    let pire = banc_gpu::pire_ecart(&processeur, &estompee);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux (admis {ECART_ADMIS})"
+    );
+}
+
+/// **ESTOMPE-1 — une photo décodée s'estompe, et ne cache plus ce qu'elle couvre** (fiche 114).
+///
+/// Deux photos au même endroit : dessous, une blanche sans date ; dessus, une noire de la
+/// Révolution. La frise garde la Grande Guerre : la noire s'estompe, la blanche se voit à travers
+/// elle — sur la carte graphique, qui pose la noire à son opacité, comme au processeur, qui la
+/// compose en groupe et cesse de la compter comme un cache (l'occlusion). Sans frise, la noire
+/// couvre tout : le pixel est noir des deux côtés.
+#[test]
+fn test_estompe_1_une_photo_decodee_s_estompe_et_ne_cache_plus() {
+    use glucose_core::types::{BoardImage, TemporalAnchor};
+    let taille = (800u32, 600u32);
+    let document = |filtre: Option<(i64, i64)>| {
+        let mut store = glucose_core::store::Store::new("Deux photos");
+        let board = store.project.active_board_id.clone();
+        if let Some(b) = store.active_board_mut() {
+            b.annotations.clear();
+            b.viewport = glucose_core::types::Viewport {
+                x: 0.0,
+                y: 0.0,
+                scale: 1.0,
+            };
+        }
+        for (id, gris) in [("blanche", 255u8), ("noire", 0u8)] {
+            let mut img = BoardImage::new(id, 400.0, 300.0, 200.0, 200.0);
+            let photo = photo_d_epreuve(id, (64, 64), move |_, _| gris);
+            img.src = Some(photo.to_string_lossy().into_owned());
+            store.add_image(&board, img);
+        }
+        let revolution = TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None,
+        };
+        store.ancrer_dans_le_temps(&board, &["noire".to_string()], Some(&revolution));
+        let filtre =
+            filtre.map(|(start, end)| glucose_core::timeline::TemporalFilter { start, end });
+        store.set_temporal_filter(filtre);
+        store.clear_selection();
+        store
+    };
+    let (x, y) = (400u32, 300u32);
+    let estompee = document(Some((1914, 1918)));
+    let processeur = par_le_processeur_decode(taille, &estompee);
+    let gris = pixel(&processeur, x, y)[0];
+    assert!(
+        gris > 180,
+        "processeur : la blanche à travers la noire estompée ({gris})"
+    );
+    let (renderer, dessous, dessus, confie) = les_deux_couches_decodees(taille, &estompee);
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.pixels(&renderer, cle),
+    )
+    .expect("la composition en cinq temps");
+    let gris_carte = pixel(&carte, x, y)[0];
+    assert!(
+        gris_carte > 180,
+        "carte : la blanche à travers la noire estompée ({gris_carte})"
+    );
+    assert!(
+        gris.abs_diff(gris_carte) <= ECART_COURANT,
+        "les deux voies : {gris} contre {gris_carte}"
+    );
+    // La preuve à l'envers : sans frise, la noire couvre la blanche.
+    let pleine = par_le_processeur_decode(taille, &document(None));
+    assert_eq!(
+        pixel(&pleine, x, y)[0],
+        0,
+        "sans frise, la noire couvre tout"
+    );
+}

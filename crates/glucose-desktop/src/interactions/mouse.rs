@@ -59,6 +59,10 @@ impl GlucoseApp {
         if self.glisser_la_roue((position.x as f32, position.y as f32)) {
             return;
         }
+        // Une poignée ou la fenêtre de la frise chronologique, tenue (FRISE-1).
+        if self.glisser_la_frise(position.x as f32) {
+            return;
+        }
 
         if self.dock_manager.drag.is_some() {
             self.dock_manager
@@ -153,7 +157,7 @@ impl GlucoseApp {
             position.x as f32,
             position.y as f32,
             (w, h),
-            (echelle, (self.ui.marges.droite, self.ui.marges.sous())),
+            (echelle, (self.ui.marges.droite, self.ui.sous())),
         ) else {
             // Sorti de la minimap en glissant : la derniere destination reste la bonne, et
             // le vol l'atteint. Relacher le bouton est ce qui termine le geste, pas le bord.
@@ -284,6 +288,7 @@ impl GlucoseApp {
             || self.click_barre_de_couleur(pointer, screen)
             || self.click_options_de_fleche(pointer, screen)
             || self.click_action_bar(pointer, screen)
+            || self.click_frise(pointer, screen)
             || self.click_chrome(pointer, screen)
             || self.click_dock(pointer, screen)
     }
@@ -312,6 +317,7 @@ impl GlucoseApp {
             MouseButton::Left => {
                 if self.relacher_la_question()
                     || self.relacher_la_roue()
+                    || self.relacher_la_frise()
                     || self.lacher_l_onglet()
                     || self.lacher_l_ancrage()
                     || self.lacher_le_champ()

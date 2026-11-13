@@ -394,10 +394,9 @@ fn test_workflow_domains_et_temporal() {
         .try_assign_domain_to_node("main", "T2", "D1", 0.5)
         .expect("T2 existe");
 
-    store.set_temporal_filter(Some(TemporalAnchor {
+    store.set_temporal_filter(Some(glucose_core::timeline::TemporalFilter {
         start: 1800,
         end: 2000,
-        label: None,
     }));
     assert!(store.temporal_filter.is_some());
 

@@ -71,7 +71,7 @@ pub use membranes::Emport;
 pub use navigation::build_folder_stack;
 pub use order::StackMove;
 
-use crate::types::{AssetStore, Project, TemporalAnchor};
+use crate::types::{AssetStore, Project};
 
 #[derive(Debug, Clone)]
 pub struct Store {
@@ -81,7 +81,9 @@ pub struct Store {
     pub selected_annotation_ids: choix::Choix,
     pub selected_folder_id: Option<String>,
     pub folder_stack: Vec<(String, String)>,
-    pub temporal_filter: Option<TemporalAnchor>,
+    /// **La plage que la frise chronologique garde** (ESTOMPE-1, fiche 114) : une lentille sur ce
+    /// qu'on regarde, jamais dans le document ni dans le journal — comme la caméra.
+    pub temporal_filter: Option<crate::timeline::TemporalFilter>,
     /// Les lieux d'où la caméra est partie, pour `Alt+Z` (RETOUR-1, fiche 99).
     pub histoire_de_la_vue: retour::HistoireDeLaVue,
     /// **La fenêtre des liens**, si elle est ouverte (LIEN-3, fiche 102) : un tableau de copies,

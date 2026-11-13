@@ -30,6 +30,7 @@ pub(crate) mod curseur;
 mod date;
 mod decision;
 pub mod domain;
+pub(crate) mod estompe;
 pub mod export;
 mod fenetre_d_ancrage;
 mod fils;

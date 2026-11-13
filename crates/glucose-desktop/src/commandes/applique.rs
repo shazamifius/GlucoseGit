@@ -88,6 +88,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::Exporter
         | C::ImporterDesImages
         | C::TimeMachine
+        | C::Frise
         | C::Coller
         | C::ToutChoisir
         | C::ToutCadrer

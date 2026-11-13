@@ -102,7 +102,14 @@ pub(in crate::renderer) fn draw_images(
         Visibles::nouvelles(pass.visibles, board).images().collect();
     let calques: Vec<Calque> = visibles
         .iter()
-        .map(|img| calque_de(img, &pass, magasin))
+        .map(|img| {
+            calque_de(
+                img,
+                &pass,
+                magasin,
+                store.presence(img.temporal_anchor.as_ref()),
+            )
+        })
         .collect();
     let mut caches = occlusion::Visibles::default();
     occlusion::ce_qui_se_voit(
@@ -159,14 +166,15 @@ pub(in crate::renderer) fn draw_images(
         // Le report rend LUI-MEME sa duree : entourer la pose entiere attribuait aux pixels
         // le cout fixe d'une photo -- recherche, forme, consultation des vignettes -- et le
         // modele surestimait alors d'un facteur deux, ce que son propre residu a revele.
+        // ESTOMPE-1 : la photo se pose à la présence que la frise chronologique lui laisse.
+        let presence = store.presence(img.temporal_anchor.as_ref());
         let pose = poser_ou_demander(
             magasin,
             pixmap,
             img,
             (sx, sy, sw, sh),
             parts,
-            filtre,
-            passe.en_tuile,
+            (filtre, passe.en_tuile, presence),
         );
         match pose {
             // REPORT-1 : ce qu'une photo coute est ce qu'elle ECRIT, et non la surface
@@ -184,15 +192,15 @@ pub(in crate::renderer) fn draw_images(
             }
             None => {
                 complet = false;
-                draw_missing_image(
-                    typography,
-                    theme,
-                    pixmap,
-                    (sx, sy),
-                    (sw, sh),
-                    &img.id,
-                    img.rotation,
-                );
+                // ESTOMPE-1 : en groupe, comme le composant que la carte graphique pose — dans la
+                // boîte que son cadre peut couvrir en tournant.
+                let r = sw.hypot(sh) / 2.0;
+                let (cx, cy) = (sx + sw / 2.0, sy + sh / 2.0);
+                let boite = (cx - r, cy - r, 2.0 * r, 2.0 * r);
+                crate::renderer::estompe::en_groupe(pixmap, presence, boite, |p, (ox, oy)| {
+                    let at = (sx - ox, sy - oy);
+                    draw_missing_image(typography, theme, p, at, (sw, sh), &img.id, img.rotation);
+                });
             }
         }
     }
@@ -251,8 +259,7 @@ fn poser_ou_demander(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
-    filtre: report::Filtre,
-    sans_vignette: bool,
+    regles: (report::Filtre, bool, f32),
 ) -> Option<(u64, Chemin, std::time::Duration)> {
     let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
@@ -268,8 +275,7 @@ fn poser_ou_demander(
         img,
         ecran,
         parts,
-        filtre,
-        sans_vignette,
+        regles,
     ))
 }
 
@@ -303,8 +309,7 @@ fn poser(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
-    filtre: report::Filtre,
-    sans_vignette: bool,
+    (filtre, sans_vignette, presence): (report::Filtre, bool, f32),
 ) -> (u64, Chemin, std::time::Duration) {
     let opaque = pyramide.opaque();
     // RECADRAGE-1 : la source ENTIERE se pose sur une boite plus grande, dont la fenetre
@@ -313,9 +318,12 @@ fn poser(
     let source = boite_source(img, ecran);
     let (vx, vy, vw, vh) = source;
 
-    if img.rotation != 0.0 {
+    // Une photo tournée, ou estompée (ESTOMPE-1), passe par le rastériseur général : il pose
+    // l'image entière à une opacité, en composant — une opacité de groupe, comme la texture que
+    // la carte graphique pose.
+    if img.rotation != 0.0 || presence < 1.0 {
         return (
-            poser_en_tournant(pyramide, pixmap, img, ecran, source),
+            poser_en_tournant(pyramide, pixmap, img, ecran, source, presence),
             Chemin::Tournee,
             std::time::Duration::ZERO,
         );
@@ -367,7 +375,7 @@ fn poser(
     (ecrits, Chemin::Echantillon, passees)
 }
 
-/// Pose une image **tournée**, par le rastériseur général.
+/// Pose une image **tournée**, ou **estompée** (ESTOMPE-1), par le rastériseur général.
 ///
 /// Sa boîte n'est plus ce qu'elle couvre : ses morceaux visibles ne sont pas des rectangles,
 /// donc le report ne saurait pas les clipper, et elle ne peut rien cacher non plus. Elle
@@ -379,7 +387,9 @@ fn poser_en_tournant(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     source: (f32, f32, f32, f32),
+    presence: f32,
 ) -> u64 {
+    let melange = mode_de_report(pyramide.opaque(), img.rotation, presence);
     let (sx, sy, sw, sh) = ecran;
     let (vx, vy, vw, vh) = source;
     let Some((facteur, loaded)) = pyramide.meilleur_pour(vw) else {
@@ -399,8 +409,8 @@ fn poser_en_tournant(
     if img.crop.est_entier() {
         let paint = PixmapPaint {
             quality: FilterQuality::Bilinear,
-            blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
-            ..Default::default()
+            blend_mode: melange,
+            opacity: presence,
         };
         pixmap.draw_pixmap(0, 0, loaded, &paint, pose_source, None);
         return (f64::from(sw) * f64::from(sh)) as u64;
@@ -427,13 +437,13 @@ fn poser_en_tournant(
         return 0;
     };
     let paint = tiny_skia::Paint {
-        blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
+        blend_mode: melange,
         anti_alias: true,
         shader: tiny_skia::Pattern::new(
             dedans.as_ref(),
             tiny_skia::SpreadMode::Pad,
             FilterQuality::Bilinear,
-            1.0,
+            presence,
             Transform::from_translate(g as f32, h as f32)
                 .post_scale(vw / loaded.width() as f32, vh / loaded.height() as f32)
                 .post_translate(vx, vy),

@@ -160,7 +160,7 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   outils/pilote/piloter.sh demarrer <maison> <sortie> [VAR=valeur…]` (le document : le dernier brouillon de
   `<maison>/state/glucose/brouillons`), puis `clic|double|droit|aller <x> <y>`, `presser|relacher`,
   `milieu-presser|milieu-relacher`, `glisser <x0> <y0> <x1> <y1> <ms> <hz>` (sans bouton : un simple
-  mouvement), `molette <crans> [<ms>]` (négatif : zoomer), `taper`, `touche|ctrl|alt|altmaj <t>`, `capture
+  mouvement), `molette <crans> [<ms>]` (négatif : zoomer), `taper`, `touche|ctrl|alt|maj|altmaj <t>`, `capture
   <f.png>`, `arreter`. **`glisser` et `molette` rendent la main tout de suite** : attendre leur durée.
   Attendre que Glucose soit prêt (une capture noire = trop tôt). `GLUCOSE_EXE=<binaire>` pour un autre
   programme ; `GLUCOSE_PERF=1` : une ligne par image dans `sortie.txt`.

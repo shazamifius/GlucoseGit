@@ -91,3 +91,16 @@ fn temps_1_les_dates_de_la_selection() {
         "sans an zéro, comme les historiens"
     );
 }
+
+/// **Un export ignore la frise chronologique** : sa copie du document naît sans période gardée —
+/// la frise est une façon de regarder, pas le document (ESTOMPE-1, fiche 114).
+#[test]
+fn estompe_1_la_copie_d_un_export_ignore_la_frise() {
+    let (mut store, _) = scene();
+    store.set_temporal_filter(Some(crate::timeline::TemporalFilter {
+        start: 1914,
+        end: 1918,
+    }));
+    assert_eq!(store.copie_a_exporter(false).temporal_filter, None);
+    assert_eq!(store.copie_a_exporter(true).temporal_filter, None);
+}

@@ -52,14 +52,22 @@ pub(super) fn dessiner_les_dates(
     };
     let visibles = Visibles::nouvelles(pass.visibles, board);
     let vue = (&pass.vp, pass.echelle(), ecran);
+    // La pastille s'estompe avec son nœud quand la frise chronologique l'écarte (ESTOMPE-1).
     for ann in visibles.annotations() {
         if let (Some(date), Some(boite)) = (ann.temporal_anchor(), emprise(board, ann.id())) {
-            dessiner_la_date(surface, theme, vue, boite, date);
+            dessiner_la_date(
+                surface,
+                theme,
+                vue,
+                boite,
+                (date, store.presence(Some(date))),
+            );
         }
     }
     for img in visibles.images() {
         if let Some(date) = &img.temporal_anchor {
-            dessiner_la_date(surface, theme, vue, img.rect(), date);
+            let presence = store.presence(Some(date));
+            dessiner_la_date(surface, theme, vue, img.rect(), (date, presence));
         }
     }
 }
@@ -85,7 +93,7 @@ fn dessiner_la_date(
     theme: &Theme,
     (vp, echelle, (l, h)): (&Viewport, WorldScale, (f32, f32)),
     boite: Rect,
-    date: &TemporalAnchor,
+    (date, presence): (&TemporalAnchor, f32),
 ) {
     let mot = format_anchor(date);
     let corps = echelle.world(CORPS);
@@ -108,15 +116,13 @@ fn dessiner_la_date(
     let Some(pilule) = pb.finish() else {
         return;
     };
-    surface.remplir(&pilule, theme.temps.fond);
-    surface.tracer(
-        &pilule,
-        theme.temps.filet,
-        Trait::plein(echelle.world(FILET)),
-    );
+    let estomper = |c| super::estompe::estomper(c, presence);
+    surface.remplir(&pilule, estomper(theme.temps.fond));
+    let filet = Trait::plein(echelle.world(FILET));
+    surface.tracer(&pilule, estomper(theme.temps.filet), filet);
     let style = TextStyle {
         size: corps,
-        color: theme.temps.encre,
+        color: estomper(theme.temps.encre),
         face: Face::Regular,
     };
     let at = (

@@ -210,7 +210,7 @@ fn aucune_propriete_visible_n_echappe_a_l_empreinte() {
         img.src = Some("a.png".into());
         img
     };
-    let reference = aspect_de(&base);
+    let reference = aspect_de(&base, 1.0);
 
     let mut fichier = base.clone();
     fichier.src = Some("b.png".into());
@@ -237,7 +237,7 @@ fn aucune_propriete_visible_n_echappe_a_l_empreinte() {
         ("le domaine", domaine),
     ] {
         assert_ne!(
-            aspect_de(&variante),
+            aspect_de(&variante, 1.0),
             reference,
             "{nom} ne compte pas dans l'aspect"
         );

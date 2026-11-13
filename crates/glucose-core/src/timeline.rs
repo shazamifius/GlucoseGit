@@ -340,6 +340,166 @@ pub fn node_matches_temporal_filter(
     a.start <= f.end && a.end >= f.start
 }
 
+/// **ESTOMPE-1 — la présence d'un nœud qu'un filtre écarte** (fiche 114) : il ne se cache pas,
+/// il s'estompe — VISION § 2, *rien ne se cache* ; Gephi Lite et Palantir font de même. À
+/// l'opacité de Glucose Tauri (`GlucoseCanvas.tsx`), un nombre de ressenti : assez pour qu'on
+/// voie qu'il est là, assez peu pour qu'on voie qu'il est ailleurs.
+pub const ESTOMPE: f32 = 0.12;
+
+/// **La présence de ce nœud sous ce filtre** : entière s'il croise la plage — ou s'il n'est pas
+/// daté : un nœud hors du temps n'est hors d'aucune période —, [`ESTOMPE`] sinon.
+pub fn presence(anchor: Option<&TemporalAnchor>, filter: Option<TemporalFilter>) -> f32 {
+    if node_matches_temporal_filter(anchor, filter) {
+        1.0
+    } else {
+        ESTOMPE
+    }
+}
+
+/// **ESTOMPE-2 — la présence d'une relation** (fiche 115) : une flèche datée suit sa date ; une
+/// flèche **sans date** appartient au temps de ce qu'elle relie, et prend la présence du moins
+/// présent de ses deux bouts. Pleine entre deux nœuds que la frise écarte, elle attirait l'œil vers
+/// ce que la frise écarte (VISION § 2, *tout a une signification*). Un bout sans date, ou libre, ne
+/// retire rien : hors du temps, il n'est hors d'aucune période.
+pub fn presence_d_une_relation(
+    propre: Option<&TemporalAnchor>,
+    bouts: [Option<&TemporalAnchor>; 2],
+    filter: Option<TemporalFilter>,
+) -> f32 {
+    match propre {
+        Some(_) => presence(propre, filter),
+        None => bouts
+            .into_iter()
+            .map(|b| presence(b, filter))
+            .fold(1.0, f32::min),
+    }
+}
+
+/// **Où sont ces dates** : du plus ancien début à la plus récente fin — ce que la frise chronologique montre
+/// d'abord, plutôt qu'une plage choisie d'avance.
+pub fn etendue<'a>(dates: impl IntoIterator<Item = &'a TemporalAnchor>) -> Option<TemporalFilter> {
+    dates.into_iter().fold(None, |e, d| {
+        Some(match e {
+            None => TemporalFilter {
+                start: d.start,
+                end: d.end,
+            },
+            Some(e) => TemporalFilter {
+                start: e.start.min(d.start),
+                end: e.end.max(d.end),
+            },
+        })
+    })
+}
+
+/// **Combien de ces dates croisent chaque graduation de la vue** — la répartition que la frise
+/// montre sous sa fenêtre (KeyLines, Kepler.gl : le compte de ce que chaque période porte). Les
+/// graduations sont celles des traits : `[k·pas, (k+1)·pas[` depuis le premier multiple de `pas`
+/// au plus tard au début de la vue ; une date qui en croise plusieurs compte dans chacune.
+pub fn repartition<'a>(
+    dates: impl IntoIterator<Item = &'a TemporalAnchor>,
+    vue: TemporalFilter,
+    pas: i64,
+) -> Vec<u32> {
+    let pas = pas.max(1);
+    let premier = vue.start.div_euclid(pas);
+    let dernier = vue.end.div_euclid(pas);
+    let mut comptes = vec![0u32; (dernier - premier + 1).max(0) as usize];
+    for d in dates {
+        let (a, b) = (d.start.max(vue.start), d.end.min(vue.end));
+        if a > b {
+            continue;
+        }
+        for k in a.div_euclid(pas)..=b.div_euclid(pas) {
+            comptes[(k - premier) as usize] += 1;
+        }
+    }
+    comptes
+}
+
+/// **Une ère dans la bande de la frise** : son couloir (sa rangée), son rang dans ce couloir (l'un
+/// sur deux d'un autre gris, pour qu'on voie où l'une finit et où la suivante commence), et ce qui
+/// en paraît dans la vue — `[début, fin]`, fin comprise, comme une date.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EreDansLaBande<'a> {
+    pub couloir: usize,
+    pub rang: usize,
+    pub paru: TemporalFilter,
+    pub ere: &'a NamedEra,
+}
+
+/// **FRISE-2 — les couloirs des ères** (fiche 115) : chaque ère reçoit une rangée où elle tient
+/// **entière**, à ses vraies dates. Les ères du catalogue se **chevauchent** sans s'emboîter (la
+/// révolution industrielle, de 1760 à 1840, chevauche les Lumières, la Révolution et l'Empire) : la
+/// loi des régions des membranes — la plus petite l'emporte —, essayée d'abord, la coupait en deux
+/// morceaux et la faisait commencer en 1800 ; une bande qui ment sur une date est pire qu'une bande
+/// muette (VISION § 2, *tout a une signification*).
+///
+/// La loi est celle du partage d'intervalles (la coloration d'un graphe d'intervalles, et les
+/// rangées empilées des frises : vis-timeline, les échelles géologiques) : prises par leur début, la
+/// plus longue d'abord à début égal — le Moyen Âge passe avant ses parties, donc au-dessus d'elles
+/// —, chacune va au premier couloir libre. **Le nombre de couloirs est le plus petit possible** :
+/// quand un couloir s'ouvre, tous les autres portent une ère qui contient ce début, donc autant
+/// d'ères se chevauchent à cet instant. Aucune constante.
+///
+/// Dans la bande, une ère va de la limite où elle commence à celle où elle finit : le catalogue
+/// écrit l'année du passage deux fois (476 finit l'Antiquité et commence le Moyen Âge) — une limite,
+/// pas une année partagée ; deux ères qui se touchent peuvent partager un couloir.
+pub fn couloirs(eres: &[NamedEra]) -> Vec<(usize, usize)> {
+    let mut ordre: Vec<usize> = (0..eres.len()).collect();
+    ordre.sort_by_key(|&i| (eres[i].start, std::cmp::Reverse(eres[i].end)));
+    // La fin de la dernière ère de chaque couloir, et combien il en porte.
+    let mut couloirs: Vec<(i64, usize)> = Vec::new();
+    let mut places = vec![(0, 0); eres.len()];
+    for i in ordre {
+        let ere = &eres[i];
+        let c = match couloirs.iter().position(|&(fin, _)| fin <= ere.start) {
+            Some(c) => c,
+            None => {
+                couloirs.push((ere.start, 0));
+                couloirs.len() - 1
+            }
+        };
+        let (fin, portees) = &mut couloirs[c];
+        *fin = ere.end;
+        places[i] = (c, *portees);
+        *portees += 1;
+    }
+    places
+}
+
+/// **Combien de couloirs ces ères demandent** : autant qu'il s'en chevauche au plus à un même
+/// instant ([`couloirs`]).
+pub fn profondeur(eres: &[NamedEra]) -> usize {
+    couloirs(eres)
+        .into_iter()
+        .map(|(c, _)| c + 1)
+        .max()
+        .unwrap_or(0)
+}
+
+/// **La bande des ères de cette vue** : chaque ère qui la croise, dans son couloir ([`couloirs`]),
+/// coupée aux bords de la vue. Les couloirs se calculent sur tout le catalogue, pas sur la vue :
+/// une ère ne change pas de rangée quand on zoome.
+pub fn eres_de_la_vue(vue: TemporalFilter, eres: &[NamedEra]) -> Vec<EreDansLaBande<'_>> {
+    couloirs(eres)
+        .into_iter()
+        .zip(eres)
+        .filter_map(|((couloir, rang), ere)| {
+            let paru = TemporalFilter {
+                start: ere.start.max(vue.start),
+                end: (ere.end - 1).min(vue.end),
+            };
+            (paru.start <= paru.end).then_some(EreDansLaBande {
+                couloir,
+                rang,
+                paru,
+                ere,
+            })
+        })
+        .collect()
+}
+
 pub fn tick_step(span_years: i64) -> i64 {
     if span_years > 50_000_000 {
         10_000_000

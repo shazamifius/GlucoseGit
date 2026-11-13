@@ -116,6 +116,8 @@ struct MembraneVue<'a> {
     /// L'échelle de la vue, telle que le régime des composants la lit.
     vue: f64,
     teinte: (u8, u8, u8),
+    /// **Sa présence** (ESTOMPE-1) : ce que la frise chronologique lui laisse, de 0 à 1.
+    presence: f32,
     selectionnee: bool,
     /// Choisie seule, ou avec d'autres en un groupe qui porte les poignées (fiche 53 § 10).
     poignees: bool,
@@ -204,6 +206,7 @@ fn membranes_visibles<'a>(
             monde,
             vue: pass.vp.scale,
             teinte: champs::teinte_de_membrane(color.as_deref()),
+            presence: store.presence(ann.temporal_anchor()),
             selectionnee: store.selected_annotation_ids.contains(id),
             poignees: !en_groupe,
             scale,
@@ -277,7 +280,7 @@ pub(in crate::renderer) fn titres_par_la_carte(
         .filter(|m| m.titre_par_la_carte(kit, fenetre))
         .filter_map(|m| {
             let (texte, mesures) = m.titre_du_monde(kit)?;
-            Some(regime.titre(
+            let mut titre = regime.titre(
                 kit,
                 &titre::TitreDuMonde {
                     membrane: m.id,
@@ -286,7 +289,10 @@ pub(in crate::renderer) fn titres_par_la_carte(
                     mesures,
                     teintes: (m.teinte, kit.theme.bg_canvas),
                 },
-            ))
+            );
+            // Le titre s'estompe avec sa membrane (ESTOMPE-1).
+            titre.pose.opacite = m.presence;
+            Some(titre)
         })
         .collect()
 }
@@ -464,8 +470,19 @@ fn poser_le_titre(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVue<'_>
         face: Face::Bold,
     };
     let (x, y) = titre.at;
-    kit.typography
-        .draw_text_with_outline(pixmap, label, x, y, style, kit.theme.bg_canvas);
+    // ESTOMPE-1 : il s'estompe avec sa membrane, en groupe — sa texture sur la carte graphique
+    // aussi —, sauf celui qu'on écrit. Sa boîte : l'encre du texte détouré, et un pixel pour
+    // l'anticrénelage.
+    let presence = if m.saisie.is_some() { 1.0 } else { m.presence };
+    let (g, h, d, b) = kit
+        .typography
+        .ligne_detouree(label, corps, Face::Bold)
+        .encre;
+    let boite = (x + g - 1.0, y + h - 1.0, d - g + 2.0, b - h + 2.0);
+    crate::renderer::estompe::en_groupe(pixmap, presence, boite, |p, (ox, oy)| {
+        kit.typography
+            .draw_text_with_outline(p, label, x - ox, y - oy, style, kit.theme.bg_canvas);
+    });
     if let Some(s) = m.saisie {
         saisie::poser_le_curseur(kit, pixmap, titre, (s, m.scale, couleur));
     }
@@ -497,7 +514,7 @@ fn poser_les_poignees(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVue
         kit.tints,
         pixmap,
         m.scale,
-        (gauge_x, sy),
+        ((gauge_x, sy), m.presence),
         m.domains,
     );
     encre

@@ -219,7 +219,7 @@ pub(super) fn draw_domain_gauge(
     tints: &DomainTints,
     pixmap: &mut PixmapMut,
     scale: WorldScale,
-    node_top_left: (f32, f32),
+    (node_top_left, presence): ((f32, f32), f32),
     assignments: &[DomainAssignment],
 ) {
     if assignments.is_empty() {
@@ -229,7 +229,12 @@ pub(super) fn draw_domain_gauge(
         pixmap,
         typographie: typography,
     };
-    reglette(&mut pixels, tints, scale, node_top_left, assignments);
+    // Elle s'estompe avec son nœud (ESTOMPE-1).
+    let mut estompee = super::estompe::Estompee {
+        dessous: &mut pixels,
+        presence,
+    };
+    reglette(&mut estompee, tints, scale, node_top_left, assignments);
 }
 
 /// **La réglette, sur n'importe quel peintre** — les pixels du canevas, ou le SVG d'un export

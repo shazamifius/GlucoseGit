@@ -33,6 +33,7 @@ impl GlucoseApp {
             Commande::Exporter => self.export_board(),
             Commande::ImporterDesImages => self.pick_and_import_images(),
             Commande::TimeMachine => self.basculer_la_machine(),
+            Commande::Frise => self.basculer_la_frise(),
             Commande::Annuler => self.annuler(),
             Commande::Retablir => self.retablir(),
             Commande::Copier => self.copy_selection(false),

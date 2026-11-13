@@ -21,7 +21,7 @@ struct Fleche {
     t2: vec4<f32>,
     // demi-largeur et opacite du halo, demi-largeur et opacite du trait
     trait_: vec4<f32>,
-    // trait blanc (1) ou non (0), portee d'un segment
+    // trait blanc (1) ou non (0), portee d'un segment, opacite de la fleche entiere (ESTOMPE-1)
     reglage: vec4<f32>,
     // premier segment, combien de segments
     plage: vec4<u32>,
@@ -160,7 +160,7 @@ fn couleur(i: u32, x: f32, y: f32, d: f32) -> vec4<f32> {
     o = poser(o, ame, tr.w * couverture_d_un_trait(d, tr.z));
     o = poser_le_disque(o, fleches[i].disques[0], x, y);
     o = poser_le_disque(o, fleches[i].disques[1], x, y);
-    return o;
+    return o * fleches[i].reglage.z;
 }
 
 @fragment

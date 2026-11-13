@@ -35,6 +35,7 @@ fn fleches() -> Vec<Champ> {
         ame: [1.0, 0.92],
         ame_blanche: false,
         disques: [None, None],
+        opacite: 1.0,
     };
     let mut coude = base(vec![
         [20.3, 200.0, 150.0, 30.5],

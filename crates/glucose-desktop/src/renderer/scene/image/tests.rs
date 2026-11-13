@@ -63,22 +63,22 @@ fn test_un_calque_dit_la_verite_sur_ce_qu_il_cache() {
     let opaque = magasin_avec("photo.png", true);
     let img = image("a", 0.0, 0.0, 200.0, 100.0, "photo.png");
     assert!(
-        calque_de(&img, &pass, &opaque).opaque,
+        calque_de(&img, &pass, &opaque, 1.0).opaque,
         "une image opaque, droite et decodee cache ce qu'il y a dessous"
     );
 
     // Tournee : sa boite n'est plus ce qu'elle couvre.
     let mut tournee = img.clone();
     tournee.rotation = 0.3;
-    assert!(!calque_de(&tournee, &pass, &opaque).opaque);
+    assert!(!calque_de(&tournee, &pass, &opaque, 1.0).opaque);
 
     // Translucide : le fond transparait a travers elle.
     let voile = magasin_avec("photo.png", false);
-    assert!(!calque_de(&img, &pass, &voile).opaque);
+    assert!(!calque_de(&img, &pass, &voile, 1.0).opaque);
 
     // Pas encore decodee : elle se dessine comme un cadre, a travers lequel on voit le fond.
     // C'est le cas normal pendant un import (DECODE-1).
-    assert!(!calque_de(&img, &pass, &Magasin::nouveau()).opaque);
+    assert!(!calque_de(&img, &pass, &Magasin::nouveau(), 1.0).opaque);
 }
 
 #[test]

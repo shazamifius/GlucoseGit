@@ -99,7 +99,7 @@ pub(super) fn draw_arrow_label(
     ((wx, wy), encre): ((f64, f64), tiny_skia::Color),
     arrow: &Annotation,
     editing: Option<&TextEditSession>,
-    lifted: bool,
+    (lifted, presence): (bool, f32),
 ) {
     let Some((text, caret)) = shown_text(arrow, editing) else {
         return;
@@ -127,7 +127,7 @@ pub(super) fn draw_arrow_label(
         pixmap,
         pastille,
         scale.world(LABEL_RADIUS),
-        theme.arrow_label_bg,
+        super::estompe::estomper(theme.arrow_label_bg, presence),
     );
 
     typography.draw_text(
@@ -137,7 +137,7 @@ pub(super) fn draw_arrow_label(
         cy - text_h / 2.0,
         TextStyle {
             size,
-            color: encre,
+            color: super::estompe::estomper(encre, presence),
             face: Face::Regular,
         },
     );

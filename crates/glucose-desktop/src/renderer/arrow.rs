@@ -52,6 +52,9 @@ pub(crate) struct Fleche {
     pub en_lumiere: bool,
     /// Ce que leur nombre à l'écran et la souris lui laissent (LIEN-4), de 0 à 1.
     pub presence: f32,
+    /// **Ce que la frise chronologique lui laisse** (ESTOMPE-1), de 0 à 1 : multiplié à la flèche
+    /// entière, après le plancher des liens — l'un dit leur densité, l'autre une lentille.
+    pub estompe: f32,
     pub double_sens: bool,
 }
 
@@ -62,7 +65,7 @@ impl Fleche {
         sens: &super::sens::SensDesTextes,
         ann: &Annotation,
         (pass, noeuds): (ViewPass<'_>, NoeudsDuRendu<'_>),
-        (selectionnee, en_lumiere, presence): (bool, bool, f32),
+        (selectionnee, en_lumiere, presence, estompe): (bool, bool, f32, f32),
     ) -> Option<Self> {
         let board = noeuds.board;
         let Annotation::Arrow {
@@ -87,6 +90,7 @@ impl Fleche {
             selectionnee,
             en_lumiere,
             presence,
+            estompe,
             double_sens: *arrow_bidirectional,
         })
     }
@@ -119,6 +123,7 @@ impl Fleche {
             ],
             ame_blanche: self.selectionnee,
             disques: self.disques((debut, fin), scale),
+            opacite: self.estompe,
         };
         // Un quart de pixel : la ligne brisée ne se distingue pas de la courbe à l'écran.
         let tolerance = 0.25 / vp.scale.max(1e-12);
@@ -305,8 +310,14 @@ pub(super) fn fleches_a_poser(
             let surete = sens.surete_d_un_lien(ann);
             let presence =
                 presence::presence_qui_compte(ann, noeuds, main.souris, (n, lecture, surete));
-            Fleche::de(sens, ann, (pass, noeuds), (selectionnee, lumiere, presence))?
-                .champ(&pass.vp, echelle, ecran)
+            let estompe = super::estompe::de_la_fleche(store, (noeuds.board, noeuds.index), ann);
+            Fleche::de(
+                sens,
+                ann,
+                (pass, noeuds),
+                (selectionnee, lumiere, presence, estompe),
+            )?
+            .champ(&pass.vp, echelle, ecran)
         })
         .collect()
 }

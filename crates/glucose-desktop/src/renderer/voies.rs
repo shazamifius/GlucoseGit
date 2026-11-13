@@ -277,7 +277,7 @@ pub(super) fn lueurs_a_poser(
             continue;
         };
         let (teinte, surete) = kit.sens.lueur(ann);
-        let alpha = eclat.alpha(surete);
+        let alpha = halo::alpha_montre(eclat, surete, store.presence(ann.temporal_anchor()));
         let Some(boite) = halo::halo_geometry(montree, (&pass.vp, pass.echelle()), cadre, eclat)
         else {
             continue;

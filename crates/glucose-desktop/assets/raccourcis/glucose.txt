@@ -16,6 +16,7 @@ Ctrl+Maj+S      enregistrer-sous
 Ctrl+E          exporter
 Ctrl+I          importer-des-images
 Ctrl+H          time-machine
+Maj+R           frise-chronologique
 
 # L'édition
 Ctrl+Z          annuler

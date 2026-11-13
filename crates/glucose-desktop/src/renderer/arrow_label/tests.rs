@@ -80,7 +80,7 @@ fn rendu_a(arrow: &Annotation, editing: Option<&TextEditSession>, zoom: f64) -> 
         (milieu, theme.arrow_label_text),
         arrow,
         editing,
-        false,
+        (false, 1.0),
     );
     pixmap
 }

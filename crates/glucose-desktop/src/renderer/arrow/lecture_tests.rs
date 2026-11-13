@@ -26,6 +26,7 @@ fn fleche(en_lumiere: bool) -> Fleche {
         selectionnee: false,
         en_lumiere,
         presence: 1.0,
+        estompe: 1.0,
         double_sens: false,
     }
 }

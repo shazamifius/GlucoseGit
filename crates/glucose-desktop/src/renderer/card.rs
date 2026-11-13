@@ -294,6 +294,54 @@ pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCa
     dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
 }
 
+/// **La marge d'une carte autour de sa boîte** — sa bordure ou l'anneau de sélection, et un pixel
+/// d'anticrénelage : celle de sa texture sur la carte graphique (`composants`), et celle de sa
+/// couche quand le processeur l'estompe. Une seule mesure pour les deux.
+pub(crate) fn marge_de_la_texture(bordure: f32, scale: WorldScale) -> f32 {
+    let anneau = scale.screen(super::pass::SELECTION_RING);
+    (bordure.max(anneau) / 2.0).ceil() + 1.0
+}
+
+/// **Le contenu d'une carte, à sa présence** (ESTOMPE-1) : estompée, il se dessine à part, dans
+/// la boîte de la texture que la carte graphique poserait, puis se compose à sa présence — la
+/// même opacité de groupe sur les deux voies.
+pub(super) fn draw_card_contenu_a(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    card: TextCard,
+    presence: f32,
+) {
+    if presence >= 1.0 {
+        return draw_card_contenu(ctx, pixmap, card);
+    }
+    let Some((text, layout, at)) = poser(ctx, &card) else {
+        return;
+    };
+    let marge = marge_de_la_texture(layout.border, ctx.scale);
+    let boite = (
+        at.0 - marge,
+        at.1 - marge,
+        layout.width + 2.0 * marge,
+        layout.height + 2.0 * marge,
+    );
+    super::estompe::en_groupe(pixmap, presence, boite, |p, (ox, oy)| {
+        let decale = Pass {
+            vp: glucose_core::types::Viewport {
+                x: ctx.vp.x - f64::from(ox),
+                y: ctx.vp.y - f64::from(oy),
+                scale: ctx.vp.scale,
+            },
+            clip: super::pass::Clip {
+                width: p.width() as f32,
+                height: p.height() as f32,
+                top: (ctx.clip.top - oy).max(0.0),
+            },
+            ..*ctx
+        };
+        dessiner_le_contenu(&decale, p, (at.0 - ox, at.1 - oy), &layout, &text, &card);
+    });
+}
+
 /// **Les ornements seuls** : les poignées d'une carte sélectionnée ; le curseur et la
 /// prévisualisation de formule d'une carte qu'on édite — quand la carte graphique porte son
 /// contenu.

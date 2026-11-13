@@ -131,3 +131,32 @@ fn test_date_1_l_export_svg_porte_la_date() {
         "sans date, rien"
     );
 }
+
+/// **La pastille s'estompe avec son nœud** quand la frise chronologique l'écarte (ESTOMPE-1) : son
+/// ambre pâlit, sans disparaître.
+#[test]
+fn test_estompe_1_la_pastille_s_estompe_avec_son_noeud() {
+    let datee = scene(true, 1.0);
+    let mut ecartee = datee.clone();
+    ecartee.set_temporal_filter(Some(glucose_core::timeline::TemporalFilter {
+        start: 1914,
+        end: 1918,
+    }));
+    let zone = autour(coin(&datee, "a"), (80, 14));
+    let rouge = |store: &Store| {
+        let mut renderer = Renderer::new();
+        let mut ui = UiState::new();
+        let image = render_frame(&mut renderer, &mut ui, store, ECRAN.0, ECRAN.1);
+        let mut s = 0u64;
+        for y in zone.1..zone.3 {
+            for x in zone.0..zone.2 {
+                let p = image.pixel(x, y).expect("dans l'image");
+                s += u64::from(p.red().saturating_sub(p.blue()));
+            }
+        }
+        s
+    };
+    let (plein, pale) = (rouge(&datee), rouge(&ecartee));
+    assert!(pale > 0, "encore là");
+    assert!(pale * 2 < plein, "pâlie : {pale} contre {plein}");
+}

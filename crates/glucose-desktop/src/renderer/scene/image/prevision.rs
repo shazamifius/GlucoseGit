@@ -107,9 +107,12 @@ pub(super) fn calque_de(
     img: &glucose_core::types::BoardImage,
     pass: &ViewPass<'_>,
     magasin: &Magasin,
+    presence: f32,
 ) -> Calque {
     let (sx, sy, sw, sh) = boite_ecran(img, pass);
-    let opaque = img.rotation == 0.0
+    // Une photo estompée (ESTOMPE-1) laisse voir ce qu'elle couvre : elle ne cache rien.
+    let opaque = presence >= 1.0
+        && img.rotation == 0.0
         && img
             .src
             .as_deref()

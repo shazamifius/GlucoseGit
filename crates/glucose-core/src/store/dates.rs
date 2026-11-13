@@ -66,6 +66,19 @@ impl Store {
         Ok(self.ancrer_dans_le_temps(board_id, ids, ancre))
     }
 
+    /// **Les dates du tableau actif** — celles de ses nœuds, puis de ses photos : ce que la frise
+    /// du temps répartit et cadre (fiche 114).
+    pub fn dates_du_tableau(&self) -> impl Iterator<Item = &TemporalAnchor> {
+        let board = self.active_board();
+        let notes = board
+            .into_iter()
+            .flat_map(|b| b.annotations.iter().filter_map(|a| a.temporal_anchor()));
+        let images = board
+            .into_iter()
+            .flat_map(|b| b.images.iter().filter_map(|i| i.temporal_anchor.as_ref()));
+        notes.chain(images)
+    }
+
     /// **Les dates de ce qui est choisi**, nœuds puis images, dans l'ordre du choix : ce que
     /// l'invite propose d'abord, et ce qui dit si « Retirer la date » a un objet.
     pub fn dates_choisies(&self) -> Vec<Option<&TemporalAnchor>> {

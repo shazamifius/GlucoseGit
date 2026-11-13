@@ -265,7 +265,7 @@ pub fn ce_que_porte(store: &Store, adresse: Adresse, rangs: &[u32]) -> Empreinte
                 boite.width * echelle,
                 boite.height * echelle,
             ),
-            aspect: aspect_de(img),
+            aspect: aspect_de(img, store.presence(img.temporal_anchor.as_ref())),
         });
     }
     empreinte
@@ -285,8 +285,10 @@ pub fn ce_que_porte(store: &Store, adresse: Adresse, rangs: &[u32]) -> Empreinte
 ///
 /// Toute propriété ajoutée plus tard à une photo devra passer par ici. C'est le prix d'un
 /// cache canonique, et il se paie une fois.
-fn aspect_de(img: &glucose_core::types::BoardImage) -> u64 {
+fn aspect_de(img: &glucose_core::types::BoardImage, presence: f32) -> u64 {
     let mut mots = vec![
+        // Sa présence (ESTOMPE-1) : la même photo, estompée, n'a pas les mêmes pixels.
+        u64::from(presence.to_bits()),
         mot_du_texte(img.src.as_deref().unwrap_or_default()),
         mot_du_texte(img.fit.as_deref().unwrap_or_default()),
         img.rotation.to_bits(),

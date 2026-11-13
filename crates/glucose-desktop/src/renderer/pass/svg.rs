@@ -70,7 +70,10 @@ pub(in crate::renderer) fn annotations_en_svg(
     let densite = crate::renderer::arrow::presence::densite(
         crate::renderer::arrow::presence::liens_a_l_ecran(pass.visibles, noeuds.board),
     );
+    // Un export montre le document, jamais la lentille de la frise chronologique (ESTOMPE-1) : il
+    // lit une copie neuve (`copie_a_exporter`), qui n'en a pas — ce qui suit la lit tout de même.
     for ann in visibles() {
+        let export = store.presence(ann.temporal_anchor());
         match ann {
             Annotation::Text { x, y, .. } => reglette(svg, (*x, *y), ann),
             Annotation::Sticky { x, y, .. } => {
@@ -78,9 +81,12 @@ pub(in crate::renderer) fn annotations_en_svg(
                 reglette(svg, (*x, *y), ann);
             }
             Annotation::Arrow { predicate, .. } => {
-                let Some(fleche) =
-                    Fleche::de(kit.sens, ann, (pass, noeuds), (false, false, densite))
-                else {
+                let Some(fleche) = Fleche::de(
+                    kit.sens,
+                    ann,
+                    (pass, noeuds),
+                    (false, false, densite, export),
+                ) else {
                     continue;
                 };
                 fleche_en_svg(&fleche, (&ctx.vp, ctx.scale), svg);

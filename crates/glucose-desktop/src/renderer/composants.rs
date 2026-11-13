@@ -81,7 +81,7 @@
 //! le temps de la peindre.
 
 use super::card::{draw_card_contenu, CardLayout};
-use super::pass::{Clip, Pass, SELECTION_RING};
+use super::pass::{Clip, Pass};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
 use super::scene::image::ornement::draw_missing_image;
@@ -412,8 +412,7 @@ impl Regime {
         let mesure = |echelle: f64| {
             let a_cette_echelle = WorldScale::new(echelle, self.densite);
             let rendu = CardLayout::text_card(w, h, lignes).scaled(a_cette_echelle);
-            let anneau = a_cette_echelle.screen(SELECTION_RING);
-            let marge = (rendu.border.max(anneau) / 2.0).ceil() + 1.0;
+            let marge = super::card::marge_de_la_texture(rendu.border, a_cette_echelle);
             (rendu.width, rendu.height, marge)
         };
         Some(

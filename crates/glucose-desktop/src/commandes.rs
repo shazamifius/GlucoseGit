@@ -64,6 +64,8 @@ pub enum Commande {
     Exporter,
     ImporterDesImages,
     TimeMachine,
+    /// **La frise chronologique** (`Maj+R`) : une période gardée, le reste daté s'estompe (FRISE-1).
+    Frise,
     // L'édition.
     Annuler,
     Retablir,
@@ -166,7 +168,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 52] = [
+const SIMPLES: [(Commande, &str, &str); 53] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -186,6 +188,11 @@ const SIMPLES: [(Commande, &str, &str); 52] = [
         "Ajouter des images…",
     ),
     (Commande::TimeMachine, "time-machine", "Time Machine"),
+    (
+        Commande::Frise,
+        "frise-chronologique",
+        "Frise chronologique",
+    ),
     (Commande::Annuler, "annuler", "Annuler"),
     (Commande::Retablir, "retablir", "Rétablir"),
     (Commande::Copier, "copier", "Copier"),

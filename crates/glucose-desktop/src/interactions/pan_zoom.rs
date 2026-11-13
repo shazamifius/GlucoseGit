@@ -217,39 +217,7 @@ pub fn source_continue(delta: MouseScrollDelta) -> bool {
 impl GlucoseApp {
     /// Gère les événements de molette et gestes tactiles.
     pub fn handle_mouse_wheel(&mut self, delta: MouseScrollDelta) {
-        // Le canevas, sous le voile d'une question, attend sa réponse (POPUP-1). Pendant une
-        // lecture, la molette passe : la lecture tient la caméra, et ce qu'on lui demande se
-        // perd (`oublier_ce_qu_on_demande_a_la_camera`, fiche 68).
-        if self.ui.question.is_some() {
-            // Sauf la palette, qui défile (fiche 72) : une rangée par cran de molette, ou par
-            // hauteur de rangée que le pavé parcourt.
-            let (_, dy, ligne) = deltas(delta);
-            let rangees = if ligne {
-                -dy
-            } else {
-                -dy / (f64::from(crate::theme::CIBLE_DU_DOIGT) * self.densite())
-            };
-            self.molette_sur_la_palette(rangees as f32);
-            return;
-        }
-        // La fenêtre de l'éditeur du texte lié prend la molette : elle fait défiler son texte,
-        // et le canevas, derrière le voile, ne bouge pas.
-        if self.ui.ancrage.is_some() {
-            let (_, dy, ligne) = deltas(delta);
-            let points = if ligne {
-                -dy * PAN_LIGNE_PX
-            } else {
-                -dy / self.densite()
-            };
-            self.defiler_l_ancrage(points as f32);
-            return;
-        }
-        // Ouverte, la roue de couleur garde la molette : la clarté (ROUE-1).
-        if self.molette_vers_la_roue(delta) {
-            return;
-        }
-        // Sur le panneau Domaines, la molette fait défiler ses rangées (fiche 88).
-        if self.molette_sur_les_domaines(deltas(delta).1) {
+        if self.molette_prise_avant_le_canevas(delta) {
             return;
         }
         // Le `Ctrl` d'un pincement est virtuel : il vit dans le message du systeme, pas dans
@@ -292,6 +260,52 @@ impl GlucoseApp {
             Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy, maintenant),
         }
         self.mark_dirty();
+    }
+
+    /// **Ce qui prend la molette avant le canevas** : la palette sous le voile d'une question,
+    /// l'éditeur du texte lié, la roue de couleur, la frise chronologique, le panneau Domaines —
+    /// dans cet ordre. Rend `true` si l'un d'eux l'a prise.
+    fn molette_prise_avant_le_canevas(&mut self, delta: MouseScrollDelta) -> bool {
+        // Le canevas, sous le voile d'une question, attend sa réponse (POPUP-1). Pendant une
+        // lecture, la molette passe : la lecture tient la caméra, et ce qu'on lui demande se
+        // perd (`oublier_ce_qu_on_demande_a_la_camera`, fiche 68).
+        if self.ui.question.is_some() {
+            // Sauf la palette, qui défile (fiche 72) : une rangée par cran de molette, ou par
+            // hauteur de rangée que le pavé parcourt.
+            let (_, dy, ligne) = deltas(delta);
+            let rangees = if ligne {
+                -dy
+            } else {
+                -dy / (f64::from(crate::theme::CIBLE_DU_DOIGT) * self.densite())
+            };
+            self.molette_sur_la_palette(rangees as f32);
+            return true;
+        }
+        // La fenêtre de l'éditeur du texte lié prend la molette : elle fait défiler son texte,
+        // et le canevas, derrière le voile, ne bouge pas.
+        if self.ui.ancrage.is_some() {
+            let (_, dy, ligne) = deltas(delta);
+            let points = if ligne {
+                -dy * PAN_LIGNE_PX
+            } else {
+                -dy / self.densite()
+            };
+            self.defiler_l_ancrage(points as f32);
+            return true;
+        }
+        // Ouverte, la roue de couleur garde la molette : la clarté (ROUE-1).
+        if self.molette_vers_la_roue(delta) {
+            return true;
+        }
+        // Sur la frise chronologique, la molette zoome son échelle (FRISE-1).
+        if self.molette_vers_la_frise(delta) {
+            return true;
+        }
+        // Sur le panneau Domaines, la molette fait défiler ses rangées (fiche 88).
+        if self.molette_sur_les_domaines(deltas(delta).1) {
+            return true;
+        }
+        false
     }
 
     /// Le point d'écran autour duquel le zoom tourne.
