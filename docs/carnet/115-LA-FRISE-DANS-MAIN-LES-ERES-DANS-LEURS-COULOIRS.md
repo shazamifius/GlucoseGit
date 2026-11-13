@@ -214,8 +214,8 @@ n'y était pas mise en plein écran**, malgré son commentaire.
 * **Prouvé** : par les vrais chemins (la touche, la souris, `Échap`, le menu, la palette) ; la
   bande partie, la couche des décisions peinte (la carte graphique pose donc l'indicateur) ; la place
   et la prise ; le dessin seulement dans sa prise. **Regardé dans le vrai Glucose** : `F11`, le
-  canevas seul et l'indicateur en haut à droite ; un clic dessus, tout revient. Douze sabotages
-  (`outils/sabotages/zen-115.json`).
+  canevas seul et l'indicateur en haut à droite ; un clic dessus, tout revient. **12 sabotages sur
+  12** (`outils/sabotages/zen-115.json`). La suite entière : **3 230 épreuves vertes**.
 
 ## 8. Ce qui reste contestable
 

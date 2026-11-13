@@ -128,7 +128,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 225, toutes vertes au 13/11 à 22 h 45 (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 230, toutes vertes au 13/11 à 23 h 25 (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -140,7 +140,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite), 4 sur 4 (QUEUE-1), 18 sur 18
   (PARU-1, fiche 112), 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
   désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114), 51 sur 51 (la frise et
-  l'estompe) et 16 sur 16 (le domaine regardé, fiche 115).
+  l'estompe), 16 sur 16 (le domaine regardé) et 12 sur 12 (le mode zen, fiche 115).
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
