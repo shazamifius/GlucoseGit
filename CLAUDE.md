@@ -32,7 +32,7 @@ Puis : prendre le premier chantier ouvert de SUITE § 2, **tout remettre en ques
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 115.**
+fiche. **La prochaine porte le numéro 116.**
 
 ## Avec lui
 

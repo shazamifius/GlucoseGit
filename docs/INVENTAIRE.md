@@ -1,6 +1,6 @@
 # Chaque fonction, et où la main la trouve
 
-> **Au 11/11/2026** (fiches 63 à 104). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
+> **Au 13/11/2026** (fiches 63 à 115). Sa demande : *« qu'il y ait bien un bouton pour absolument chaque
 > fonctionnalité, sur PC comme au téléphone »*, et *« la liste des fonctionnalités et des boutons
 > qui ne sont pas encore créés mais qu'on prépare »*. Ce document y répond, et se tient à jour :
 > une fonction neuve y entre avec son bouton, ou elle n'est pas finie (R1).
@@ -109,6 +109,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | **Insérer une case entre deux** — les suivantes glissent d'un cran avec leurs images (P2, fiche 66) | les deux « + » de la case choisie, au milieu de ses bords : avant, après | ✅ (les mêmes, au doigt) |
 | Domaines (créer, éditer, attribuer) | panneau Domaines | 🟡 le nom d'un domaine ne se tape pas (même cause) |
 | **Un domaine qui traverse les fichiers** (fiche 88) : les domaines des autres documents connus, les poser ici ; « Même sujet ? » quand un nom désigne deux sujets ; « où » : chaque place où il vit, et y aller | panneau Domaines : les rangées sous ceux du document, « Oui / Non », « où », la molette | ✅ (les mêmes ; le nom ne se tape pas) |
+| **Dater un nœud, la frise chronologique** (DATE-1, FRISE-1 et 2, ESTOMPE-1 et 2 ; fiches 113 à 115) : une année, une plage ou une ère, posée sur la sélection ; une pastille ambre au coin du nœud (sur les deux voies et dans l'export SVG) ; **la frise** : une bande du bas, les ères entières dans leurs couloirs, la répartition des dates du document, une fenêtre ambre dont ce qui sort pâlit — une flèche sans date avec ses bouts | `Maj+T` et `Maj+R`, la palette, le menu d'une sélection ; une poignée ou la fenêtre se glisse, la molette zoome l'échelle, la croix ferme ; un agent : `glucose_dater`, et `glucose_lire` rend les dates ; au terminal `glucose dater` | ✅ (glisser au doigt ; pincer la frise : pas éprouvé) |
 | Timer Pomodoro | panneau Timer | ✅ |
 
 ### Les agents (fiche 75)
@@ -145,7 +146,6 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Les presets d'interface** : un preset de Glucose jamais vu, un PureRef, un Figma, un Miro — la disposition, le comportement, les couleurs, les raccourcis, les fenêtres (sa parole du 15/10, `VISION.md`) | sa vision | à concevoir | la fondation d'abord (SUITE P4), sa liste PureRef à venir |
 | **Les choix à l'utilisateur** : planche claire ou sombre, champs sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux (fiche 71) | sa parole | la question d'export, le panneau Storyboard | à faire |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
-| **Temporalité** : ancrer un nœud dans le temps, la réglette de −10 000 à 2 100, le filtre | Tauri (`Maj+T`, `Maj+R`) | `Maj+T`, la palette, le menu d'une sélection ; la réglette en bas | **dater un nœud : fait** (DATE-1, fiches 113-114 : la question et ses ères, la pastille sur les deux voies et dans l'export SVG ; un agent date par `glucose_dater` et lit les dates par `glucose_lire`) ; **la frise chronologique (`Maj+R`) et l'estompe : en correctif** (fiche 114 § 6) |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it, palette, `Alt+0…4` ; une IA par `operateur=` | **faits** (fiche 98, OPERATEUR-1 et 2) — attendent son écran |

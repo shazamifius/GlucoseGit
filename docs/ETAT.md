@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 13/11/2026, 20 h 10** (fiches 108-114). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 13/11/2026, 22 h** (fiches 108-115). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -10,50 +10,46 @@
 
 ## 1. En bref
 
-* **En brouillon, prête à son clic** : la **2.0.4-beta.1** (CI verte sur `f9027fd`, dix tâches ;
-  flux « Publier » vert, onze fichiers ; fiche 111) — tout ce qui suit, « sur `main` », y est.
-* **Publié** : la **2.0.3-beta.10** (son clic, le 10/11 à 23 h 59 ; la CI verte sur `aebb3f7`, dix
-  tâches) — installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et `nix run
+* **Publiée** : la **2.0.4-beta.1** (son clic, le 13/11 à 18 h 23 ; la CI verte sur `f9027fd`, dix
+  tâches ; fiche 111) — installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et `nix run
   github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé passe de lui-même à Glucose Rust ; ses
-  documents s'ouvrent, ses données ne sont jamais touchées.
-* **Sur `main`, depuis la beta 10** : `Alt+Z` d'un geste (RETOUR-2), les liens près des blocs (LIEN-4),
-  les titres qui ne refont plus leurs lettres (LETTRES-1 : de loin, sur la carte de Wikipédia, 25,5 →
-  15,5 ms par image) ; **les membranes en carte** (REGION-1, fiche 105 : la plus petite région
-  l'emporte, le papier des textes toujours gris, une membrane sans couleur grise ; au fond de « Eau »,
-  7,8 ms par image au lieu de 17,6) ; la souris qui suit les nœuds par les rangs de l'index (SURVOL-1 et
-  2, fiche 106 : sur la carte, 8,2 → 4,9 ms) ; **le halo d'un texte dit sa parenté** (PARENTE, fiche
-  106 : une petite IA du sens embarquée, des familles, une sûreté ; la teinte de bruit de Tauri partie,
-  flèches comprises) ; **les membranes deux fois plus transparentes** (le voile d'une membrane seule de
-  Tauri, 11 % — *« vraiment vraiment parfait »*, fiche 107) ; **les titres des membranes posés par la
-  carte graphique** et deux mémoires pures (TITRE-3, fiche 108 : de loin, 17 → 7,5 ms par image) ;
-  **la Time Machine, socle de l'IA** (fiche 108) : chaque geste signé — l'humain, ou un agent sous son
-  nom —, un écrit qui s'attache à un geste, une IA qui relit toute l'histoire avec ses écrits ;
-  **l'IA ne juge que les flèches qu'un agent ou un script a posées**, jamais les siennes (PARENTE-4) ;
-  **le zoom qui réutilise le repos** (REPOS-4, fiche 109) ; **le journal des rectifications**
-  (RECTIF-1, fiche 110) : quand il fait autrement que l'IA — une couleur, une flèche retouchée,
-  retirée ou suivie —, l'IA de Glucose l'écrit dans l'histoire, avec ce qu'elle pensait et
-  **pourquoi** (les mots qui rapprochent deux textes, exacts) ; **la cascade qui compte la fin de
-  l'image** (QUEUE-1, fiche 110) ; **ce qui a paru à l'écran** (PARU-1, fiche 112) : sous Wayland, le
-compositeur dit pour chaque image si elle a paru, à quel battement, ou si elle a été jetée — la
-chronique en tire les battements sautés et le temps de l'envoi à l'écran ; **une seule loi dit si
-une commande s'applique** (APPLIQUE-1, fiche 113) : la palette, le menu du clic droit et
-l'exécution la lisent — plus de « Couleur » proposée sur une flèche ; le menu rangé par sens ;
-**la date des nœuds** (DATE-1, fiches 113-114) : `Maj+T`, la palette ou le menu d'une sélection
-datent un nœud (une année, une plage, une ère) ; une pastille ambre le dit à son coin, sur les deux
-voies et dans l'export SVG ; une IA date par `glucose_dater` et lit les dates par `glucose_lire` ;
-**le bleu des liens** éclairci jusqu'au contraste d'un texte courant (`#a8cfff`).
-**Son Glucose installé** (profil Nix `GlucoseGit`) : `4f0c167` (DATE-1 et APPLIQUE-1 compris).
+  documents s'ouvrent, ses données ne sont jamais touchées. Elle porte, depuis la beta 10 : `Alt+Z`
+  d'un geste (RETOUR-2), les liens près des blocs (LIEN-4), les titres qui ne refont plus leurs
+  lettres (LETTRES-1 : de loin, sur la carte de Wikipédia, 25,5 → 15,5 ms par image) ; **les
+  membranes en carte** (REGION-1, fiche 105 : la plus petite région l'emporte, le papier des textes
+  toujours gris, une membrane sans couleur grise ; au fond de « Eau », 7,8 ms par image au lieu de
+  17,6) ; la souris qui suit les nœuds par les rangs de l'index (SURVOL-1 et 2, fiche 106 : sur la
+  carte, 8,2 → 4,9 ms) ; **le halo d'un texte dit sa parenté** (PARENTE, fiche 106 : une petite IA du
+  sens embarquée, des familles, une sûreté ; la teinte de bruit de Tauri partie, flèches comprises) ;
+  **les membranes deux fois plus transparentes** (11 % — *« vraiment vraiment parfait »*, fiche 107) ;
+  **les titres des membranes posés par la carte graphique** et deux mémoires pures (TITRE-3, fiche
+  108 : de loin, 17 → 7,5 ms par image) ; **la Time Machine, socle de l'IA** (fiche 108) : chaque
+  geste signé — l'humain, ou un agent sous son nom —, un écrit qui s'attache à un geste, une IA qui
+  relit toute l'histoire avec ses écrits ; **l'IA ne juge que les flèches qu'un agent ou un script a
+  posées** (PARENTE-4) ; **le zoom qui réutilise le repos** (REPOS-4, fiche 109) ; **le journal des
+  rectifications** (RECTIF-1, fiche 110) : quand il fait autrement que l'IA, l'IA de Glucose l'écrit
+  dans l'histoire, avec ce qu'elle pensait et **pourquoi** ; **la cascade qui compte la fin de
+  l'image** (QUEUE-1, fiche 110).
+* **Sur `main`, depuis la 2.0.4-beta.1** : **ce qui a paru à l'écran** (PARU-1, fiche 112 : sous
+  Wayland, le compositeur dit pour chaque image si elle a paru, à quel battement, ou si elle a été
+  jetée) ; **une seule loi dit si une commande s'applique** (APPLIQUE-1, fiche 113 : la palette, le
+  menu du clic droit et l'exécution la lisent — plus de « Couleur » proposée sur une flèche ; le menu
+  rangé par sens) ; **la date des nœuds** (DATE-1, fiches 113-114 : `Maj+T`, la palette ou le menu
+  d'une sélection datent un nœud — une année, une plage, une ère ; une pastille ambre à son coin, sur
+  les deux voies et dans l'export SVG ; une IA date par `glucose_dater` et lit les dates par
+  `glucose_lire`) ; **le bleu des liens** éclairci (`#a8cfff`) ; **la frise chronologique et
+  l'estompe** (FRISE-1 et 2, ESTOMPE-1 et 2, fiches 114-115 : `Maj+R`, une bande du bas qui pousse
+  la minimap comme le clavier, les ères entières dans leurs couloirs, la répartition des dates, une
+  fenêtre ambre — ce qui en sort pâlit à 12 %, sur les deux voies ; une flèche sans date pâlit avec
+  ce qu'elle relie ; regardée dans le vrai Glucose, au PC et à la taille du téléphone).
+  **Son Glucose installé** (profil Nix `GlucoseGit`) : `4f0c167` (DATE-1 et APPLIQUE-1 compris) ;
+  la frise est en route (`outils/mettre_a_jour.sh`).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Ce qui attend sa parole** : **la page du co-working** (https://claude.ai/artifact/SLp5cJzTb7FvsKp7iEtUpS,
   fiche 113 : partager un canevas, c'est partager sa Time Machine — une salle sur son relais
   numérote les gestes chiffrés sans les lire) et **la porte publique** (fiche 111).
-* **En correctif, pas dans `main`** (`~/.cache/glucose-bancs/frise-114/frise-estompe.patch`) :
-  **la frise chronologique** (`Maj+R` : une bande du bas, les ères, la répartition des dates, une
-  fenêtre ambre) et **l'estompe** (ce qu'elle écarte pâlit à 12 %, sur les deux voies) — écrites,
-  éprouvées sur les deux voies et regardées ; restent la suite entière, clippy, 39 sabotages et
-  l'essai dans le vrai Glucose (fiche 114 § 6).
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
@@ -111,14 +107,13 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 **Connus, mesurés, pas réglés** :
 
-* **les versions publiées (jusqu'à la beta 10) refusent un document qui porte une entrée neuve** (un geste d'agent signé, un
-  écrit — PERSIST-5, fiche 108) : message net, rien de perdu, mais son téléphone (beta 4) et le PC de
-  l'école (beta 9) ne l'ouvriront qu'une fois à jour. **Depuis RECTIF-1, un document ordinaire en
+* **les versions d'avant la 2.0.4-beta.1 refusent un document qui porte une entrée neuve** (un geste
+  d'agent signé, un écrit — PERSIST-5, fiche 108) : message net, rien de perdu, mais son téléphone
+  (beta 8) et le PC de l'école (beta 9) ne l'ouvriront qu'une fois passés à la 2.0.4-beta.1. **Depuis RECTIF-1, un document ordinaire en
   porte dès qu'il colore un texte que l'IA rangeait dans une famille** ;
 * **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
   110) — toute commande lourde passe désormais par `outils/borne.sh`, et `earlyoom` veille sur toute
   la machine (arrêter le plus gros programme avant l'étouffement) ;
-* **la frise chronologique** (`Maj+R`) et l'estompe : en correctif (fiche 114 § 6) ;
 * l'étiquette d'une photo en chemin ne suit pas le zoom (fiche 114 § 5) ;
 * choisir 8 000 images coûte 28 ms par image (fiche 87 § 7 bis) ;
 * le fondu d'un message redessine toute la carte (REPOS-3, fiche 98 § 7) ;
@@ -130,7 +125,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 193, toutes vertes au 13/11 à 18 h 12 (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 219, toutes vertes au 13/11 à 21 h 41 (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -141,7 +136,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   provenance — trois épreuves aveugles trouvées et écrites), 15 sur 15 (le zoom, fiche 109), 22 sur
   22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite), 4 sur 4 (QUEUE-1), 18 sur 18
   (PARU-1, fiche 112), 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
-  désigné une garde redondante, retirée) et 21 sur 21 (DATE-1, fiche 114).
+  désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114) et 51 sur 51 (la frise et
+  l'estompe, fiche 115).
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
@@ -152,14 +148,16 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 ## 5. Ses utilisateurs, et ce qu'on en sait
 
 * **La télémétrie** (avec l'accord de chacun ; un serveur Cloudflare de son compte,
-  [TELEMETRIE](TELEMETRIE.md)) au 12/11 au soir : **166 sessions, 9 installations, 33 fins anormales**.
+  [TELEMETRIE](TELEMETRIE.md)) au 13/11 au soir : **170 sessions, 10 installations, 34 fins anormales**.
   * son VivoBook (Intel UHD 620, la version `dev` de son profil Nix) : 9 sessions du 7 au 12/11 ;
   * une GTX 1660 SUPER sous Windows, 48 sessions jusqu'au 12/11, encore en beta 9 — **très probablement
     lui, au PC de l'école** ;
   * un Linux à RTX 4070 SUPER, en beta 10 (10 sessions, la dernière le 11/11) ; un Windows à AMD Radeon
     660M, passé en beta 10 (4 sessions, aucune fin anormale) ;
-  * **son téléphone** (moto g54, PowerVR) : 22 sessions, **17 fins anormales**, encore en **beta 4**,
-    dernière session le 6/11 ; 16,4 ms l'image typique ;
+  * **son téléphone** (moto g54, PowerVR) : 24 sessions, **18 fins anormales** ; passé de la beta 4 à
+    la **beta 8** le 6/11, rouvert le 13/11 à 18 h 23, toujours en beta 8 ; 16,4 ms l'image typique ;
+  * un Windows neuf (carte inconnue), deux sessions le 12/11 en **2.0.2-beta.2** — sa mise à jour
+    automatique lui proposera la dernière ;
   * un Windows à pilote Intel tué par `igvk64.dll` (le 29/10, en beta 6) : MOTEUR-1 l'a réparé depuis,
     sans preuve sur ce pilote.
 * **Ses utilisateurs connus** : 5 de Glucose Tauri (Windows, Linux) ; une vingtaine de testeurs qui

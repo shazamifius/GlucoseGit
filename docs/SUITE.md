@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 13/11/2026, 20 h 10** (fiches 108-114). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 13/11/2026, 22 h** (fiches 108-115). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -33,7 +33,7 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 
 | | chantier | fini quand |
 |---|---|---|
-| [~] | **Publier la 2.0.4-beta.1** : **le brouillon est prêt** (CI dix sur dix sur `f9027fd`, « Publier » vert, onze fichiers ; fiche 111). Reste **son clic** « Publish release » (laisser « Set as the latest release » coché, ne pas cocher « pre-release »), puis l'installer **au téléphone par-dessus** (jamais désinstaller) et au PC de l'école | publiée par son clic, installée chez lui et au téléphone |
+| [~] | **La 2.0.4-beta.1 est publiée** (son clic, le 13/11 à 18 h 23). Reste à l'installer **au téléphone, par-dessus** (jamais désinstaller ; il est en beta 8) et au PC de l'école (beta 9) — son geste ; puis lire ses vraies sessions (PARU-1 dans sa chronique) | installée chez lui et au téléphone, une vraie session lue |
 | [~] | **Son lag, à son écran** (fiche 112) : le rythme n'était pas la cause (le « 32 % » était le compteur du tempo) ; **PARU-1** dit désormais ce que l'écran montre, et `outils/pilote/essai_ecran.sh` mesure ses vrais gestes (pavé virtuel). **Ensuite** : (1) **le calage sur le battement** — envoyer chaque image « au prochain battement moins une avance » efface la gigue d'un battement (prototype : `~/.cache/glucose-bancs/rythme-112/calage-et-sonde-prototype.patch`) ; l'avance n'est pas la bonne grandeur : l'image suivante de Glucose occupe la carte graphique pendant que niri compose — le levier est de **dessiner juste à temps** (fiche 112 § 5), puis mesurer en paires à son écran ; (2) la latence de deux battements de l'envoi à l'écran, sur une carte graphique partagée avec niri ; (3) ses journaux après la beta (PARU-1 dans sa chronique, une fois son Glucose à jour) | à son écran, PARU-1 : la gigue nulle, aucun battement sauté de plus qu'aujourd'hui, la latence mesurée |
 | [~] | **Les connexions MCP avec des IA publiques** (« la porte publique ») : la recherche est faite et **la page attend sa parole** — https://claude.ai/artifact/36hpNTPEH2mCEENhKjyvzF (fiche 111 § 3) : un relais Cloudflare à lui, l'accord donné dans Glucose (un code), ses quatre questions | une IA publique lit et écrit son canevas, chaque geste signé et annulable |
 | [~] | **Le co-working sur un canevas** (Collaborer, obligatoire) : **la page attend sa parole** — https://claude.ai/artifact/SLp5cJzTb7FvsKp7iEtUpS (fiche 113 § 2 ; source `~/.cache/glucose-bancs/coworking-113/`) : partager un canevas, c'est partager sa Time Machine ; **le greffier aveugle** proposé (une salle sur son relais numérote les gestes et les garde chiffrés sans les lire ; chacun rejoue le même ordre ; le dernier gagne, l'avant que le journal garde détecte le conflit, montré dans la Time Machine) ; les photos d'un participant à l'autre ; deux codes ; ses cinq questions. Dès sa parole, sans attendre le relais : les numéros des nœuds par participant (`store/ids.rs` est un compteur) et les gestes par nom | à sa parole sur la page, puis écrit |
@@ -42,7 +42,7 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 | [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4 dans `main`** (fiche 108) — l'IA juge les flèches qu'un agent ou un script a posées, la souris ne rapproche que celles de sens ; jamais les siennes. Sa carte signée (`~/Documents/Glucose-essai-wikipedia-signee.glucose`, fiche 110) le montre : la souris près d'un texte n'éclaire qu'une poignée de flèches. **Ensuite** : une couleur qui dit quelque chose (le gris n'est que temporaire), partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | à son écran, sur la carte signée |
 | [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; 11 % (*« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
 | [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte. Reste **son écran** ; sa couleur et ce que l'IA en apprend passent par le cercle de l'IA, plus haut | son écran |
-| [~] | **Finir la frise chronologique et l'estompe** (FRISE-1, ESTOMPE-1 ; fiche 114 § 6) : **écrites et éprouvées sur les deux voies, en correctif** (`~/.cache/glucose-bancs/frise-114/frise-estompe.patch`). Reste : la suite entière, clippy, **les 39 sabotages** (`outils/sabotages/frise-114.json`, dans le correctif), l'essai dans le vrai Glucose au pilote (`Maj+R`, une poignée glissée, une capture regardée), `main`, son Glucose mis à jour ; puis **filtrer par domaine** sur la même loi d'estompe | dans `main`, sabotée ; regardée dans le vrai Glucose |
+| [ ] | **Filtrer par domaine** (Tauri), sur la loi de l'estompe : `Store::presence` deviendra le produit des lentilles (la frise, le domaine) ; puis les autres boutons manquants (INVENTAIRE § 3 : les miroirs, l'export HTML, le mode zen `F11`, les vidéos…) | chacun dans `main`, saboté, regardé dans le vrai Glucose |
 
 ## 3. Ce qui attend son écran
 
@@ -92,12 +92,16 @@ posée par la version neuve — l'ancienne, `…-liens.glucose`, ne connaît pas
   plus « Couleur »**, et le clic droit montre un menu rangé par sens (APPLIQUE-1, fiche 113) ;
 * **dater** : choisir un texte et une photo, `Maj+T`, taper « renais » puis choisir la Renaissance ;
   la pastille ambre à leur coin ; dézoomer ; `Ctrl+Z` ; un lien dans un texte, plus clair
-  qu'avant (DATE-1, fiche 114) — dans son Glucose installé depuis le 13/11 ;
+  qu'avant (DATE-1, fiche 114) ;
+* **la frise chronologique** : dater trois ou quatre textes à des époques différentes, relier deux
+  d'entre eux par une flèche, `Maj+R` ; glisser une poignée de la fenêtre ambre — ce qui sort de la
+  période pâlit, la flèche avec ; la molette sur la frise ; la croix (FRISE-1 et 2, ESTOMPE-1 et 2,
+  fiches 114-115) ;
 * un agent dans Glucose (`glucose --mcp`) : « Autoriser », une demande ; puis la Time Machine
   (`Ctrl+H`) : sous chaque geste de l'agent, son nom et ses écrits (MAIN-1, NOTE-1, fiche 108) ;
 * le Storyboard, Mood board, Ordonner, l'export SVG et PNG, le mode référence.
 
-**Au téléphone** (le sien est encore en **beta 4**, 17 fins anormales sur 22 sessions) : **l'ouvrir et le
+**Au téléphone** (le sien est en **beta 8**, 18 fins anormales sur 24 sessions) : **l'ouvrir et le
 mettre à jour par-dessus** — jamais désinstaller, un brouillon perdu y est peut-être encore ; une longue
 session ; le texte de près ; les doigts (deux touchers annulent, trois rétablissent) ; le Storyboard au
 doigt ; la pile des barres du bas (BAS-1 : gêne-t-elle ?).
@@ -115,11 +119,6 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 * **La porte publique** (fiche 111, https://claude.ai/artifact/36hpNTPEH2mCEENhKjyvzF) : le relais sur
   son compte Cloudflare (A2) ; l'accord gardé jusqu'à ce qu'il le retire (B1) ; le document ouvert
   seulement (C1) ; quelle IA d'abord et avec quel compte ; la porte avant le co-working.
-
-* **Publier la 2.0.4-beta.1** (son geste, le brouillon est prêt, fiche 111) : depuis la fiche 108, un document qu'un agent a touché, ou
-  qui porte un écrit, ne s'ouvre plus dans les versions publiées (message net, rien de perdu) — son
-  téléphone en beta 4 et le PC de l'école en beta 9 en ont besoin pour lire ces documents. **Plus
-  pressante depuis RECTIF-1** : colorer un texte que l'IA rangeait dans une famille suffit.
 
 * **Le cap** : l'iPad par le web dans la partie 1 ? (défaut : oui, en dernier) ; les presets Figma et Miro
   (défaut : partie 2) ; « avec des utilisateurs » = des gens qui s'en servent sans rien perdre (des comptes
@@ -151,8 +150,7 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 **Tout ce qui manque** (la parité avec Tauri, et ses demandes)
 * [ ] P6 — relire chaque panneau contre Tauri, champ par champ : Pomodoro, Domaines, Time Machine, la
   bande, Ordonner, Mood board.
-* [ ] Les miroirs (`Ctrl+Maj+M`) ; la temporalité (dater un nœud : fait, fiche 114 ; la réglette
-  et le filtre : SUITE § 2) ; filtrer par domaine (la même loi d'estompe) ; les GIF animés et
+* [ ] Les miroirs (`Ctrl+Maj+M`) ; filtrer par domaine (SUITE § 2) ; les GIF animés et
   les vidéos ; l'export HTML ; le mode zen (`F11`) ; la provenance des images (SauceNAO).
 * [ ] Les choix à l'utilisateur : la planche claire ou sombre, l'export PNG à 100 % ou aux originaux, les
   photos du SVG, la numérotation « 2.3 », la place du numéro.
