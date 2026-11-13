@@ -1,6 +1,7 @@
-# 115 — La frise chronologique dans `main` ; les ères dans leurs couloirs ; une flèche suit ce qu'elle relie ; regarder un domaine ; le mode zen
+# 115 — La frise chronologique dans `main` ; les ères dans leurs couloirs ; une flèche suit ce qu'elle relie ; regarder un domaine ; le mode zen ; la page web
 
-> Session du 13/11/2026, à partir de 20 h 41. La passation (fiche 114) donnait l'ordre : lui
+> Session du 13/11/2026, de 20 h 41 à 23 h 58, arrêtée à sa demande (*« la session commence
+> malheureusement à être trop longue »*). La passation (fiche 114) donnait l'ordre : lui
 > rappeler son clic de publication et lire ses vraies sessions ; **finir la frise et l'estompe**
 > (le correctif de la fiche 114 § 6 : la suite entière, clippy, les sabotages, l'essai dans le
 > vrai Glucose, `main`, son Glucose) ; puis filtrer par domaine ; le co-working et la porte
@@ -217,6 +218,51 @@ n'y était pas mise en plein écran**, malgré son commentaire.
   canevas seul et l'indicateur en haut à droite ; un clic dessus, tout revient. **12 sabotages sur
   12** (`outils/sabotages/zen-115.json`). La suite entière : **3 230 épreuves vertes**.
 
+## 7 ter. EXPORT-HTML-1 — la page web
+
+Le bouton manquant suivant. **Ce que Tauri faisait** (`utils/export/toHtml.ts`) : l'image
+vectorielle de l'export dans une page autonome — une barre (le titre, « Recadrer », l'aide), glisser
+pour déplacer, la molette pour zoomer, un clic sur une flèche ouvre un panneau (sa relation, son
+étiquette, sa description en Markdown réduit).
+
+* **Pourquoi elle compte** : c'est aujourd'hui la seule façon de montrer un canevas à la personne
+  qui a un iPad (ÉTAT § 5) — une page s'ouvre dans Safari sans rien installer.
+* **Remis en question — le doigt** : le lecteur de Tauri ne savait que la souris ; sur un iPad, le
+  pincement zoomait la page entière, barre comprise. Celui-ci suit les pointeurs : un doigt
+  déplace, **deux doigts pincent** autour de leur milieu (et déplacent ensemble), `touch-action:
+  none` ; la molette suit **la loi du canevas** (un tiers d'octave par cran) au lieu d'un facteur à
+  part ; le doigt qui reste d'un pincement ne fait pas un clic en se levant.
+* **La page** (`persist/export/html.rs`, son gabarit `html/page.html`) : le SVG de l'export tel
+  qu'il est, les couleurs de la chrome de Glucose (monochromes), aucune dépendance — le lecteur est
+  écrit dans la page. **Ce que disent les flèches** part dans un `<script>`, chaque `<` devenu
+  `\u003c` : une description qui contient `</script>` ne referme rien. Le titre est échappé, et
+  **les morceaux se cousent dans l'ordre des marques** sans relire ce qui est posé : un document
+  nommé « {{SVG}} » reste un nom.
+* **Chaque flèche du SVG d'export est désormais un groupe nommé** (`<g class="fleche" data-id=…>`,
+  son tracé, son étiquette, sa pastille) : la page la trouve sous le doigt. La superposition de
+  l'export SVG avec `resvg` (P5) passe toujours.
+* **Regardé dans un vrai navigateur** — Brave sans fenêtre, un profil jetable, piloté par son
+  protocole de débogage (`outils/navigateur/essai_page.sh`, gardé) : la vitrine s'ouvre cadrée ;
+  **le toucher d'une flèche n'ouvrait rien**, alors que la flèche était bien sous le point — la vue
+  capture le pointeur pour le glisser, et au relâchement le navigateur désigne la vue, plus la
+  flèche (le lecteur de Tauri avait la même faute). Ce qui est sous le doigt se demande désormais
+  au document (`elementFromPoint`) : le panneau s'ouvre (« ILLUSTRE — borne ») ; deux doigts qui
+  s'écartent zooment de 0,30 à 0,91 sans rien ouvrir. Ni l'iPad ni Safari n'ont été essayés : le
+  moteur de Safari (WebKit) n'est pas sur cette machine.
+* **Prouvé** : la page et ce qu'elle porte (le SVG une fois, le titre échappé deux fois, un seul
+  `</script>`, aucune marque oubliée) ; une marque dans un titre ; ce que disent les flèches (les
+  muettes absentes, les blancs retirés) ; **par le vrai chemin** (la vitrine exportée sous
+  `carte.html` : la page, la flèche nommée, sa relation et son étiquette, le message « Page web ») ;
+  la feuille de partage du téléphone propose le format. 61 épreuves ciblées vertes (l'export, le
+  partage, le SVG et sa superposition), clippy à zéro. Huit sabotages écrits
+  (`outils/sabotages/export-html-115.json`), **pas encore joués**.
+* **En correctif, pas dans `main`** — la session s'est arrêtée à sa demande pendant la suite entière
+  (23 h 56) : `~/.cache/glucose-bancs/export-html-115/export-html.patch` (`git apply` depuis `main`,
+  vérifié ; le code, le gabarit, les épreuves, l'outil `outils/navigateur/`, les sabotages) ; à côté,
+  la page de la vitrine (`carte.html`), les trois captures et `documents-ecrits-comme-faits.patch`
+  (les lignes d'INVENTAIRE, d'ÉTAT, de SUITE et de MÉTHODE à poser une fois dans `main`). **Reste** :
+  la suite entière, les 8 sabotages, `main`, son Glucose — puis l'essai sur un iPad.
+
 ## 8. Ce qui reste contestable
 
 * **Les cinq rangées** : une frise plus haute que celle de Tauri (88 points) ; au XXᵉ siècle, deux
@@ -226,6 +272,8 @@ n'y était pas mise en plein écran**, malgré son commentaire.
   époque ». Le hisser dans l'en-tête comme un fil d'Ariane (ChronoZoom) libérerait une rangée.
 * **Une flèche datée suit sa date seule**, même entre deux nœuds écartés : la date que l'humain lui
   a donnée l'emporte. De même pour une flèche qui porte le domaine regardé.
+* **La page web n'a pas été ouverte sur un iPad** : seulement dans Brave (Chromium). Safari est le
+  premier essai à faire chez la personne qui en a un.
 * **Le mode zen ne met pas la fenêtre en plein écran** (RTX HDR) : si un jour il le veut, ce sera
   une option, et sous Linux seulement d'abord.
 * **La présence graduée en ligne droite** (de 0,12 à 1 selon le poids) : une courbe ferait peut-être
@@ -267,5 +315,8 @@ n'y était pas mise en plein écran**, malgré son commentaire.
   le minimum de la logique floue.
 * **Une fonction « de Tauri » se vérifie dans Tauri** : « filtrer par domaine » n'y existait pas ;
   le croire aurait fait recopier un fantôme au lieu de concevoir.
+* **Une page web s'essaie dans un navigateur, pas dans une épreuve** : les épreuves de Rust
+  prouvaient la page, aucune ne voyait que le toucher d'une flèche n'ouvrait rien (la capture du
+  pointeur). Deux minutes de Brave sans fenêtre l'ont montré.
 * **Une porte se nomme exprès dans un essai** : la commande du terminal joint par défaut la porte de
   la session — celle de son Glucose à lui, s'il est ouvert.

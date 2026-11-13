@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 13/11/2026, 22 h** (fiches 108-115). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 13/11/2026, 23 h 58** (fiches 108-115). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -45,8 +45,13 @@
   un domaine** (DOMAINE-1 et LENTILLE-1, fiche 115 : « voir » dans le panneau Domaines — ce qui
   n'appartient pas au domaine pâlit selon son poids, de 12 % à plein ; avec la frise, le minimum
   des deux lentilles).
-  **Son Glucose installé** (profil Nix `GlucoseGit`) : `f87d344` (la frise comprise ; regarder un
-  domaine n'y est pas encore).
+  **Son Glucose installé** (profil Nix `GlucoseGit`) : `547d9d9` — la frise, regarder un domaine et
+  le mode zen compris.
+* **En correctif, pas dans `main`** (`~/.cache/glucose-bancs/export-html-115/export-html.patch`) :
+  **l'export en page web** (EXPORT-HTML-1, fiche 115 § 7 ter) — écrit, 61 épreuves ciblées vertes,
+  clippy à zéro, **essayé dans un vrai navigateur** (Brave sans fenêtre : la flèche touchée ouvre
+  son panneau, deux doigts zooment) ; restent la suite entière (arrêtée à sa demande à 23 h 56),
+  les 8 sabotages, `main`, son Glucose.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
@@ -78,7 +83,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; **sa lueur dit sa parenté** : une IA du sens embarquée (15 Mo, multilingue, sans réseau) range les textes en familles — même couleur, d'autant plus forte et vive qu'elle est sûre ; un texte sans parent garde le contour gris de son bloc ; la couleur choisie va à sa lueur (PARENTE, fiche 106) |
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris — **la souris ne rapproche que les flèches de sens** parmi celles qu'un agent ou un script a posées (PARENTE-4) ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
 | **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) ; **dater** un nœud (`Maj+T`), **la frise chronologique** (`Maj+R`) et **regarder un domaine** (« voir ») : deux lentilles qui estompent ce qu'elles écartent, jamais ne cachent |
-| **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) |
+| **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) — la page web : en correctif |
 | **L'interface** | 109 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence ; **le mode zen** (`F11`) |
 | **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |

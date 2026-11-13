@@ -148,13 +148,13 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Les presets d'interface** : un preset de Glucose jamais vu, un PureRef, un Figma, un Miro — la disposition, le comportement, les couleurs, les raccourcis, les fenêtres (sa parole du 15/10, `VISION.md`) | sa vision | à concevoir | la fondation d'abord (SUITE P4), sa liste PureRef à venir |
 | **Les choix à l'utilisateur** : planche claire ou sombre, champs sous les cases, « 2.3 », le numéro dans la bande ou le coin, l'export PNG à 100 % ou aux originaux (fiche 71) | sa parole | la question d'export, le panneau Storyboard | à faire |
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
+| **Export HTML** : une page web autonome — glisser, molette, **deux doigts**, une flèche se lit (de quoi montrer un canevas sur un iPad) | Tauri | Exporter, le format « Page web » | **écrit, en correctif** (fiche 115 § 7 ter : `~/.cache/glucose-bancs/export-html-115/export-html.patch`) |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it, palette, `Alt+0…4` ; une IA par `operateur=` | **faits** (fiche 98, OPERATEUR-1 et 2) — attendent son écran |
 | **Couleur d'un post-it**, sélecteur de couleur | Tauri | la barre de couleur, au-dessus de la barre d'action ; la palette | **le nuancier est fait** (fiche 98, COULEUR-1 : textes, post-it, membranes, dossiers) ; **la roue est faite** (fiche 99, ROUE-1, dans Oklch), avec le code qu'on tape et la pipette |
 | **Couleur des domaines sur le canevas** | Tauri, fiche 03 § 11 | panneau Domaines | — (la visualisation des domaines : l'ergonomie, sa parole du 22/10) |
 | **Membranes étirées et minimisées** (l'idée de Mary) | Tauri | options de la membrane | noyau écrit ; **à sa parole** |
-| **Export HTML** (pan, zoom, descriptions, un fichier) | Tauri | Exporter | — |
 | **Vidéos** | Tauri | comme les images | — |
 | **Provenance des images** (SauceNAO) | sa demande | menu d'une image | **sa clé SauceNAO** |
 | **Collaborer** | Tauri, obligatoire | bande | **la page attend sa parole** (fiche 113) |
