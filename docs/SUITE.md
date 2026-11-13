@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 13/11/2026, 18 h 30** (fiches 108-114). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 13/11/2026, 20 h 10** (fiches 108-114). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -42,7 +42,7 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 | [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4 dans `main`** (fiche 108) — l'IA juge les flèches qu'un agent ou un script a posées, la souris ne rapproche que celles de sens ; jamais les siennes. Sa carte signée (`~/Documents/Glucose-essai-wikipedia-signee.glucose`, fiche 110) le montre : la souris près d'un texte n'éclaire qu'une poignée de flèches. **Ensuite** : une couleur qui dit quelque chose (le gris n'est que temporaire), partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | à son écran, sur la carte signée |
 | [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; 11 % (*« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
 | [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte. Reste **son écran** ; sa couleur et ce que l'IA en apprend passent par le cercle de l'IA, plus haut | son écran |
-| [~] | **La réglette du temps** (`Maj+R`) et **le filtre qui estompe** (ESTOMPE-1) : DATE-1 est dans `main` (fiche 114 : la pastille sur les deux voies et dans l'export, `glucose_dater`, `glucose_lire`) ; la réglette est **conçue** (fiche 114 § 6 : estomper plutôt que cacher, l'histogramme des dates du document, la vue tirée de ses dates, une bande du bas qui pousse la minimap comme le clavier, la molette par la loi du canevas) et **commencée** dans le noyau (`timeline::presence`). Reste : la bande, ses gestes (poignées, fenêtre, molette, au doigt), l'opacité de chaque sorte de nœud sur les deux voies (`Pose::opacite`, l'alpha des flèches, des régions, des lueurs ; au processeur, une vraie opacité de groupe ; l'occlusion des photos estompées), `voies_suite`, les sabotages ; puis **filtrer par domaine** sur la même loi | dans `main`, sabotée ; l'estompe regardée sur les deux voies |
+| [~] | **Finir la frise chronologique et l'estompe** (FRISE-1, ESTOMPE-1 ; fiche 114 § 6) : **écrites et éprouvées sur les deux voies, en correctif** (`~/.cache/glucose-bancs/frise-114/frise-estompe.patch`). Reste : la suite entière, clippy, **les 39 sabotages** (`outils/sabotages/frise-114.json`, dans le correctif), l'essai dans le vrai Glucose au pilote (`Maj+R`, une poignée glissée, une capture regardée), `main`, son Glucose mis à jour ; puis **filtrer par domaine** sur la même loi d'estompe | dans `main`, sabotée ; regardée dans le vrai Glucose |
 
 ## 3. Ce qui attend son écran
 
@@ -92,7 +92,7 @@ posée par la version neuve — l'ancienne, `…-liens.glucose`, ne connaît pas
   plus « Couleur »**, et le clic droit montre un menu rangé par sens (APPLIQUE-1, fiche 113) ;
 * **dater** : choisir un texte et une photo, `Maj+T`, taper « renais » puis choisir la Renaissance ;
   la pastille ambre à leur coin ; dézoomer ; `Ctrl+Z` ; un lien dans un texte, plus clair
-  qu'avant (DATE-1, fiche 114) ;
+  qu'avant (DATE-1, fiche 114) — dans son Glucose installé depuis le 13/11 ;
 * un agent dans Glucose (`glucose --mcp`) : « Autoriser », une demande ; puis la Time Machine
   (`Ctrl+H`) : sous chaque geste de l'agent, son nom et ses écrits (MAIN-1, NOTE-1, fiche 108) ;
 * le Storyboard, Mood board, Ordonner, l'export SVG et PNG, le mode référence.

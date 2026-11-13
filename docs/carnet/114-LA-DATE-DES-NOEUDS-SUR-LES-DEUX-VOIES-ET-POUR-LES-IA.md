@@ -1,6 +1,9 @@
-# 114 — La date des nœuds, sur les deux voies, dans l'export et pour les IA
+# 114 — La date des nœuds, sur les deux voies et pour les IA ; la frise chronologique et l'estompe
 
-> Session du 13/11/2026, à partir de 17 h 10. La passation (fiche 113) donnait l'ordre : lui
+> Session du 13/11/2026, de 17 h 10 à 20 h 10, arrêtée à sa demande (*« la session commence
+> malheureusement à être trop longue »*). **Envoyé** : DATE-1 (`ade07ee`), les documents. **En
+> correctif, pas dans `main`** : la frise chronologique et l'estompe (§ 6), écrites, éprouvées sur
+> les deux voies, pas encore sabotées. La passation (fiche 113) donnait l'ordre : lui
 > rappeler son clic de publication et lire ses vraies sessions ; **finir le correctif** de la
 > fiche 113 (le bleu des liens, DATE-1) ; puis la réglette du temps ; le co-working et la porte
 > publique dès sa parole.
@@ -111,33 +114,86 @@ minutes). La suite entière : **3 193 épreuves vertes**, clippy et la mise en f
 * **Deux types pour un seul filtre du temps** : `Store::temporal_filter` (une `TemporalAnchor`) et
   `timeline::TemporalFilter` — une seule source à garder quand viendra la réglette.
 
-## 6. La réglette du temps — conçue
+## 6. La frise chronologique et l'estompe — écrites, en correctif
 
-La conception (`~/.cache/glucose-bancs/date-113/reglette-conception.md`), à remettre en question
-avant d'écrire :
+`~/.cache/glucose-bancs/frise-114/frise-estompe.patch` (`git apply` depuis `main`, vérifié ; 56
+fichiers, 39 sabotages compris ; les images regardées à côté). La conception d'abord écrite :
+`reglette-conception.md`, au même endroit.
 
-* **Tauri** (`TemporalRuler.tsx`, `screens/12_temporal_ruler.png`) : `Maj+R`, une barre en bas, une
-  bande des ères, des graduations, une fenêtre ambre entre deux poignées, la molette qui zoome
-  autour du curseur ; ce qui sort de la fenêtre s'estompe à 0,12, un nœud sans date reste visible.
-  Sur sa capture, la minimap recouvre le bout droit de la réglette.
-* **Gardé** : estomper plutôt que cacher (Palantir Vertex, le « Fade Mode » de Gephi Lite, et
-  VISION § 2 : rien ne se cache) ; l'échelle linéaire et le zoom profond (ChronoZoom).
-* **Changé, avec ses raisons** : les ères en gris neutres alternés plutôt qu'une teinte tirée d'un
-  hachage de leur nom — *« tout a une signification »* ; l'ambre seul dit le temps. **Ajouté** :
-  la répartition des nœuds datés du document le long de l'échelle (l'histogramme de KeyLines et de
-  Kepler.gl) — sans elle, sur une échelle de -100 Ma à 3000, on ne retrouve pas ses trois dates.
-  La vue initiale tirée des dates du document plutôt que -1000..2050. **La place** : une barre du
-  bas (`ui/bas.rs`) — *la minimap ne bouge jamais* : la réglette s'arrête avant elle.
-* **Les deux voies** : la carte graphique pose déjà une texture avec une opacité (`Pose::opacite`) ;
-  les flèches, les lueurs et les membranes ont chacune leur alpha. Le filtre **multiplie** ce qui
-  existe, par une seule loi que chaque voie appelle.
+* **Le nom : la frise chronologique**, pas « la réglette du temps » — la Time Machine a déjà sa
+  réglette (`interactions/temps.rs`, `TempsIntent::Reglette`) : le passé du **document**, geste par
+  geste. La frise montre les **dates** des nœuds. `Maj+R`, la palette (« Frise chronologique »),
+  toujours offerte ; FRISE-1 et ESTOMPE-1.
+* **Ce que Tauri faisait** (`TemporalRuler.tsx`, `screens/12_temporal_ruler.png`) : une barre en
+  bas, une bande des ères **teintées d'un hachage de leur nom**, des graduations, une fenêtre ambre
+  entre deux poignées, la molette ; ce qui sort de la fenêtre s'estompe à 0,12 ; sur sa capture, la
+  minimap recouvre le bout de la barre.
+* **Ce qui est écrit** :
+  * **le noyau** (`timeline.rs`) : `presence` et `ESTOMPE` (0,12, le nombre de ressenti de Tauri) ;
+    `etendue` des dates d'un document ; `repartition` (le compte des dates par graduation) ;
+    `eres_de_la_vue` — **à chaque année, la plus petite ère qui la contient**, la loi des régions
+    des membranes (REGION-1) appliquée au temps : les ères du catalogue s'emboîtent, Tauri les
+    empilait ; `Store::temporal_filter` devient un `TemporalFilter` (une seule source),
+    `Store::presence`, `Store::dates_du_tableau` ; le champ d'une flèche porte son opacité
+    (`Champ::opacite` : la couleur prémultipliée multipliée — exactement une opacité de groupe) ;
+  * **la frise** (`ui/frise.rs`, `interactions/frise.rs`) : une **bande du bas, comme le clavier
+    d'Android** — l'écran visible s'en raccourcit (`UiState::sous`, la seule source de ce que le bas
+    cache), donc la minimap, les barres d'une sélection et le message se posent au-dessus d'elle
+    par leurs propres lois ; l'en-tête et ses bornes en ambre, la croix ; la bande des ères en gris
+    neutres (*« tout a une signification »* : le hachage de Tauri ne disait rien), un nom coupé
+    garde son début et « … » ; les graduations, une majeure sur cinq nommée, jamais au-delà de la
+    piste ; **la répartition des dates du document** en barres grises (KeyLines, Kepler.gl) ; la
+    fenêtre ambre et ses poignées, prises à 24 points (la moitié d'une cible de doigt) ; la molette
+    et le pavé **par la loi du canevas** (`pan_zoom::geste` : un tiers d'octave par cran, autour de
+    la main) ; la vue d'ouverture tirée des dates du document (une graduation majeure de part et
+    d'autre), celle de Tauri sans date ; dans « ce qui attend une décision » (DECISION-1), sur les
+    deux voies ;
+  * **l'estompe** (`renderer/estompe.rs`) sur chaque chemin : ce qui est **d'une seule couleur**
+    multiplie son alpha (les régions des membranes et leur frontière — sauf l'anneau d'une membrane
+    choisie —, les lueurs par `halo::alpha_montre` que les deux voies appellent, le champ d'une
+    flèche dans le noyau et dans son nuanceur — une place libre de son réglage, sans changer le
+    tampon —, la pastille d'une date, l'étiquette et la pastille de relation d'une flèche) ; ce qui
+    est **composé** prend une opacité de groupe : sur la carte graphique `Pose::opacite` (photos,
+    leur repli, photos en chemin, cartes de texte, titres) et les formes d'une carte plus grande que
+    l'écran à leur couleur prémultipliée ; au processeur `estompe::en_groupe` (dessiner à part, dans
+    la boîte de la texture — `card::marge_de_la_texture`, une seule mesure pour les deux voies —,
+    puis composer) pour les cartes de texte, les titres (la boîte d'encre du texte détouré) et les
+    photos en chemin ; une photo décodée estompée passe par la pose générale (`draw_pixmap` à son
+    opacité, en composant), **ne compte plus comme un cache** dans l'occlusion, et sa tuile la nomme
+    avec sa présence ; **le lot des photos** (LOT-1) retient la frise ; la couche du dessus (les
+    post-it, leur ombre et leur pilule ; les réglettes des domaines par **une surface qui estompe**,
+    `Estompee`, un adaptateur de `Surface`) ;
+  * deux exceptions, tranchées : **ce qu'on écrit se voit entier** (la carte, le post-it, le titre
+    qu'on édite) ; **l'anneau et les poignées d'un nœud choisi restent entiers**, pour le prendre ;
+  * **un export ignore la frise** : sa copie du document (`copie_a_exporter`) naît sans période —
+    la frise est une façon de regarder, pas le document.
+* **Prouvé** (dans le correctif) : le noyau (la présence, l'étendue, la répartition, la plus petite
+  ère, le champ estompé en groupe) ; les gestes par les vrais chemins (`Maj+R`, l'appui, le glisser
+  d'une poignée puis de la fenêtre, le relâchement, la molette par `handle_mouse_wheel`, la croix,
+  l'appui qui ne descend pas au canevas) ; la mise en page (la minimap et une barre au-dessus) ; la
+  piste (la barre de 1969, l'ambre dans la fenêtre seulement) ; **sur les deux voies, la carte
+  graphique exigée** : le texte, le post-it, la membrane, son titre, la photo, la flèche et la
+  lueur s'estompent, le processeur rend la même image, le texte sans date ne bouge pas, une frise
+  qui garde la Révolution ne change rien ; **une photo décodée estompée laisse voir la photo
+  qu'elle couvre** des deux côtés (l'occlusion), et la couvre sans frise ; le lot défait par la
+  frise ; la pastille pâlie ; la coupe des noms ; l'export. **Regardé** : `frise-toute.png` et
+  `frise-1780-1820.png` (la Grande Guerre et la Lune pâles, le reste plein) — deux défauts vus et
+  réglés (les ères sans nom, le libellé « 2000 » qui débordait).
+* **Pas encore** : la suite entière sur la dernière version (la précédente n'a pas compilé : une
+  épreuve du noyau posait le filtre avec l'ancien type, corrigé ; clippy a refusé deux signatures,
+  allégées), clippy, **les 39 sabotages** (`outils/sabotages/frise-114.json`, chaque « avant »
+  vérifié), **l'essai dans le vrai Glucose** (le pilote : `Maj+R`, glisser une poignée, une
+  capture), puis `main`. Au doigt : la frise passe par les mêmes gestes ; pincer la frise pour la
+  zoomer n'est pas éprouvé.
 
 ## 7. Où le travail en est
 
-* **Dans `main`** : DATE-1 et le bleu des liens (`ade07ee`), puis ce document.
-* **Ensuite** : la réglette et le filtre (§ 6), commencés dans le noyau — la loi de présence
-  (`timeline::presence`, `ESTOMPE`), l'étendue et la répartition des dates, le filtre en
-  `TemporalFilter` (une seule source).
+* **Dans `main`, envoyé** : DATE-1 et le bleu des liens (`ade07ee`), les documents (`4f0c167`, puis
+  celui-ci). **Son Glucose installé : `4f0c167`** (mis à jour à 18 h 42, 21 minutes, le chien de
+  garde jamais déclenché).
+* **Le correctif** `~/.cache/glucose-bancs/frise-114/frise-estompe.patch` : la frise et l'estompe
+  (§ 6).
+* La 2.0.4-beta.1 attend toujours son clic.
 
 ## 8. La recherche (consultée le 13/11/2026)
 
@@ -166,3 +222,11 @@ avant d'écrire :
   déménager : la macro des champs communs.
 * **`commande | tail` rend le code de `tail`** : le premier « clippy 0 » de la session mentait ;
   écrire la sortie dans un fichier et lire `$?` de la commande elle-même.
+* **Chercher un nom avant de le poser** : `glisser_la_reglette` existait (la Time Machine) ; le
+  conflit du compilateur a révélé deux « réglettes du temps » — d'où la frise.
+* **Écrire les sabotages révèle les épreuves aveugles** : neuf gardes de l'estompe n'avaient aucune
+  épreuve (la photo décodée, le titre, la lueur, le lot, la pastille, la molette par son vrai
+  chemin…) ; une loi partagée par les deux voies échappe à leur comparaison — il faut mesurer le
+  nœud lui-même.
+* **Une boîte se trouve par l'image** quand on ne la connaît pas (le titre d'une membrane : là où il
+  change des pixels), plutôt qu'écrite en dur.

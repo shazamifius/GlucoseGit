@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 13/11/2026, 18 h 30** (fiches 108-114). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 13/11/2026, 20 h 10** (fiches 108-114). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -42,16 +42,18 @@ l'exécution la lisent — plus de « Couleur » proposée sur une flèche ; le 
 datent un nœud (une année, une plage, une ère) ; une pastille ambre le dit à son coin, sur les deux
 voies et dans l'export SVG ; une IA date par `glucose_dater` et lit les dates par `glucose_lire` ;
 **le bleu des liens** éclairci jusqu'au contraste d'un texte courant (`#a8cfff`).
-**Son Glucose installé** (profil Nix `GlucoseGit`) : `b44113c` (PARU-1 compris, pas encore
-APPLIQUE-1).
+**Son Glucose installé** (profil Nix `GlucoseGit`) : `4f0c167` (DATE-1 et APPLIQUE-1 compris).
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Ce qui attend sa parole** : **la page du co-working** (https://claude.ai/artifact/SLp5cJzTb7FvsKp7iEtUpS,
   fiche 113 : partager un canevas, c'est partager sa Time Machine — une salle sur son relais
   numérote les gestes chiffrés sans les lire) et **la porte publique** (fiche 111).
-* **En cours** : **la réglette du temps** (`Maj+R`) et le filtre qui estompe ce qu'il écarte —
-  conçus (fiche 114 § 6), la loi de présence écrite dans le noyau.
+* **En correctif, pas dans `main`** (`~/.cache/glucose-bancs/frise-114/frise-estompe.patch`) :
+  **la frise chronologique** (`Maj+R` : une bande du bas, les ères, la répartition des dates, une
+  fenêtre ambre) et **l'estompe** (ce qu'elle écarte pâlit à 12 %, sur les deux voies) — écrites,
+  éprouvées sur les deux voies et regardées ; restent la suite entière, clippy, 39 sabotages et
+  l'essai dans le vrai Glucose (fiche 114 § 6).
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
@@ -116,7 +118,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 * **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
   110) — toute commande lourde passe désormais par `outils/borne.sh`, et `earlyoom` veille sur toute
   la machine (arrêter le plus gros programme avant l'étouffement) ;
-* **la réglette du temps** (`Maj+R`) et son filtre : à faire (DATE-1 date et montre, fiche 114) ;
+* **la frise chronologique** (`Maj+R`) et l'estompe : en correctif (fiche 114 § 6) ;
 * l'étiquette d'une photo en chemin ne suit pas le zoom (fiche 114 § 5) ;
 * choisir 8 000 images coûte 28 ms par image (fiche 87 § 7 bis) ;
 * le fondu d'un message redessine toute la carte (REPOS-3, fiche 98 § 7) ;
