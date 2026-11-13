@@ -237,7 +237,9 @@ impl Store {
     }
 
     /// INVARIANT NAV-1 — après un pas d'annulation, la navigation ne pointe jamais dans le
-    /// vide : le board actif existe, et la pile de dossiers décrit le chemin qui y mène.
+    /// vide : le board actif existe, la pile de dossiers décrit le chemin qui y mène, et le
+    /// domaine regardé est au catalogue (DOMAINE-1 : une lentille sur un domaine disparu
+    /// estomperait tout le document).
     ///
     /// Un snapshot restaurait le document entier, caméra et board actif compris, et tenait
     /// donc cet invariant sans avoir à le nommer. Une entrée journalisée ne touche que les
@@ -245,7 +247,7 @@ impl Store {
     /// entre-temps descendu supprime le sous-board sans rien dire à la navigation. C'est ce
     /// que ce rétablissement couvre — et c'est un invariant du store, pas une réparation
     /// propre au journal.
-    fn settle_navigation(&mut self) {
+    pub(super) fn settle_navigation(&mut self) {
         let active_exists = self
             .project
             .boards
@@ -257,5 +259,9 @@ impl Store {
             }
         }
         self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
+        let regarde = |d: &str| self.project.domains.iter().any(|x| x.id == d);
+        if !self.domaine_regarde.as_deref().is_some_and(regarde) {
+            self.domaine_regarde = None;
+        }
     }
 }

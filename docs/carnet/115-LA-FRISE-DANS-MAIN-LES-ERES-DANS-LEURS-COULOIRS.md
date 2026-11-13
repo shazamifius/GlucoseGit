@@ -1,4 +1,4 @@
-# 115 — La frise chronologique dans `main` ; les ères dans leurs couloirs ; une flèche suit ce qu'elle relie
+# 115 — La frise chronologique dans `main` ; les ères dans leurs couloirs ; une flèche suit ce qu'elle relie ; regarder un domaine
 
 > Session du 13/11/2026, à partir de 20 h 41. La passation (fiche 114) donnait l'ordre : lui
 > rappeler son clic de publication et lire ses vraies sessions ; **finir la frise et l'estompe**
@@ -132,7 +132,56 @@ sabotage ne compilait pas d'abord (`let n = 1;` laissait le compilateur sans typ
 `saturating_sub`) : écrit `1_usize`, rejoué seul, il tombe. La suite entière, sur la version
 envoyée : **3 219 épreuves vertes**, clippy et la mise en forme à zéro.
 
-## 7. Ce qui reste contestable
+## 7. DOMAINE-1 et LENTILLE-1 — regarder un domaine
+
+Le chantier suivant de la passation : « filtrer par domaine (Tauri) ». **Tauri ne le faisait
+pas** — la parité le marque « — » côté Tauri (fiche 03 § 11.7), son panneau Domaines n'a aucun
+filtre. Une fonction à concevoir, pas à recopier.
+
+* **La recherche** : la « vitrine » de Kumu (*Showcase*) fait ce qu'il faut — ce qui n'est pas
+  choisi pâlit au lieu de disparaître (à 0,1), les liens entre éléments choisis restent ; son
+  *Filter* cache, son *Focus* cache le reste : Glucose ne cache rien (VISION § 2). Obsidian colore
+  par groupes sans estomper.
+* **La loi** (`glucose-core/src/lentille.rs`, une seule, dans le noyau) :
+  * **graduée par l'appartenance** : un nœud porte chaque domaine avec un poids de 0 à 1 ; sous le
+    domaine regardé, sa présence va de 0,12 (il ne le porte pas) à 1 (pleinement), en ligne droite.
+    C'est sa parole du 9/11 sur les membranes — *l'opacité dit l'appartenance*. Aucun seuil (Tauri
+    ne comptait un domaine qu'au-delà de 0,1) ;
+  * **deux lentilles se combinent par le minimum**, le « et » de la logique floue — **contre la
+    passation**, qui proposait leur produit : un nœud écarté par la frise et par le domaine serait
+    tombé à 0,12 × 0,12 = 1,4 %, en pratique caché ; par le minimum, jamais sous 12 % ;
+  * **une flèche** suit ce qui lui appartient en propre (sa date ; le domaine regardé si elle le
+    porte), sinon le moins présent de ses deux bouts — ESTOMPE-2 étendue aux deux lentilles ;
+  * le domaine regardé vit dans le document ouvert, **hors du journal** (une lentille, comme la
+    période de la frise) ; NAV-1 le retire s'il n'est plus au catalogue (supprimé, ou défait par
+    `Ctrl+Z`) — sinon tout le document pâlirait ; un export l'ignore (sa copie naît sans lentille).
+* **Chaque appel de la présence** passe désormais ce que le nœud montre (`Annotation::regard`,
+  `BoardImage::regard` : sa date et ses domaines) ; la pastille d'une flèche suit sa relation ; le
+  lot des photos (LOT-1) et le cache des panneaux (une raison nommée, « domaine regarde ») se
+  refont quand le domaine regardé change.
+* **Le bouton** : « voir », sur chaque domaine du document dans le panneau Domaines — le bouton du
+  dock, allumé (fond, contour, gras) quand on le regarde ; un second clic rend tout. **Aucun
+  message** : j'en avais écrit un (« Tu regardes… ») ; le cliquet des messages (46 sites, pas un de
+  plus) l'a refusé, et il avait raison — le bouton allumé et le canevas qui pâlit le disent. La palette offre **« Ne plus regarder le domaine »** tant qu'une lentille est posée
+  (APPLIQUE-1). Un domaine d'un autre fichier ne se regarde pas d'ici : aucun nœud de ce document
+  ne le porte.
+* **Tranché seul** : le bouton « Domaines » de la bande **ne s'allume pas** quand un domaine est
+  regardé — il faudrait faire passer l'état du document par la bande, le rail et leurs caches ; la
+  rangée allumée du panneau suffit pour l'instant. À reprendre si, panneau fermé,
+  on oublie pourquoi le canevas pâlit.
+* **Prouvé** : trois épreuves du noyau (la présence suit le poids, sans seuil ; le minimum, et le
+  produit qui aurait caché ; la relation) ; le vrai clic dans le panneau sur le vrai Glucose (voir,
+  revoir, la palette, la suppression du domaine regardé, `Ctrl+Z`) ; « voir » s'allume en pixels
+  sur sa rangée seule ; le cache du panneau nomme la raison ; le lot ; **sur les deux voies, la
+  carte graphique exigée** : le texte pleinement de l'eau ne bouge pas d'un pixel, celui à moitié
+  pâlit moins que celui du feu, la flèche sans domaine vers le feu pâlit, les deux voies rendent la
+  même image. **Regardé dans le vrai Glucose** (le document posé par le terminal, les domaines par
+  `poser-texte domaines=…`) : « voir » sur l'eau — « L'eau est H₂O » (100 %) pleine, « La pluie »
+  (60 %) un peu pâle, « La vapeur » (20 %) davantage, le volcan et « Sans domaine » presque effacés,
+  leurs réglettes de domaine avec eux.
+* **Les sabotages** : `outils/sabotages/domaine-115.json`, seize gardes — le résultat au § 6.
+
+## 8. Ce qui reste contestable
 
 * **Les cinq rangées** : une frise plus haute que celle de Tauri (88 points) ; au XXᵉ siècle, deux
   rangées vides sous l'en-tête. Une hauteur qui suit la vue serait plus compacte, au prix d'une
@@ -140,11 +189,13 @@ envoyée : **3 219 épreuves vertes**, clippy et la mise en forme à zéro.
 * **L'Holocène en haut de la bande moderne** : vrai, mais il ne dit rien de plus que « notre
   époque ». Le hisser dans l'en-tête comme un fil d'Ariane (ChronoZoom) libérerait une rangée.
 * **Une flèche datée suit sa date seule**, même entre deux nœuds écartés : la date que l'humain lui
-  a donnée l'emporte.
+  a donnée l'emporte. De même pour une flèche qui porte le domaine regardé.
+* **La présence graduée en ligne droite** (de 0,12 à 1 selon le poids) : une courbe ferait peut-être
+  mieux voir la différence entre 0,8 et 1 ; à juger sur son écran.
 * Et celles que la fiche 114 laissait : les ères en gris, 0,12, ce qu'on écrit et les poignées
   jamais estompés, l'export qui ignore la frise, la pastille qui suit le zoom.
 
-## 8. La recherche (consultée le 13/11/2026)
+## 9. La recherche (consultée le 13/11/2026)
 
 * Le partage d'intervalles : [Algorithm::TimelinePacking](https://mirrors.edge.kernel.org/CPAN/authors/id/D/DM/DMOR/Algorithm-TimelinePacking-0.01.readme)
   (« solves the interval graph coloring problem ») ; [la visualisation des journaux
@@ -156,10 +207,15 @@ envoyée : **3 219 épreuves vertes**, clippy et la mise en forme à zéro.
   row stack into sub-lanes and the row grows to fit ») ; [les événements disjoints et
   parallèles](https://diglib.eg.org:443/bitstream/handle/10.2312/eurovisshort20181074/031-035.pdf)
   (EuroVis 2018).
+* Estomper ce qu'on ne regarde pas : [Kumu, la vitrine](https://docs.kumu.io/guides/showcase)
+  (ce qui n'est pas choisi s'estompe, à 0,1 ; les connexions entre éléments choisis restent),
+  [son filtre](https://docs.kumu.io/guides/filter) et [son focus](https://docs.kumu.io/guides/focus)
+  (qui cachent) ; [Obsidian, les groupes de la vue en graphe](https://obsidian.md/help/Plugins/Graph%2Bview)
+  (colorer, sans estomper).
 * Les échelles géologiques, une rangée par niveau : [le National Park Service](https://www.nps.gov/subjects/geology/time-scale.htm) ;
   [Wikipédia, le modèle de l'échelle géologique](https://cavac.at/cavacopedia/Template%3ATimeline%20geological%20timescale).
 
-## 9. Les leçons
+## 10. Les leçons
 
 * **Une loi juste dans l'espace peut mentir dans le temps** : « la plus petite région l'emporte »
   suppose des régions emboîtées ; des intervalles qui se chevauchent en sortent coupés. Rejouer
@@ -168,5 +224,10 @@ envoyée : **3 219 épreuves vertes**, clippy et la mise en forme à zéro.
   sur l'image du vrai Glucose ; vu avant les sabotages, il n'en a refait aucun.
 * **Une épreuve d'une flèche estompée se mesure sous la même frise** : contre une scène sans frise,
   les lueurs des textes estompés comptaient avec la flèche.
+* **Deux lentilles se combinent par le minimum, pas par le produit** : chacune a son plancher
+  (« rien ne se cache ») ; leur produit le franchit (1,4 %). Le « et » d'appartenances graduées est
+  le minimum de la logique floue.
+* **Une fonction « de Tauri » se vérifie dans Tauri** : « filtrer par domaine » n'y existait pas ;
+  le croire aurait fait recopier un fantôme au lieu de concevoir.
 * **Une porte se nomme exprès dans un essai** : la commande du terminal joint par défaut la porte de
   la session — celle de son Glucose à lui, s'il est ouvert.

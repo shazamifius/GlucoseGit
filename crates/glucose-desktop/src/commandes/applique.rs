@@ -80,7 +80,8 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::SortirDeLaMembrane
         | C::ModeReference
         | C::JournalTechnique
-        | C::VoirCeQuiPart => selon_le_document(store, commande),
+        | C::VoirCeQuiPart
+        | C::NePlusRegarder => selon_le_document(store, commande),
         C::NouveauDocument
         | C::OuvrirUnDocument
         | C::Enregistrer
@@ -181,6 +182,7 @@ fn selon_le_document(store: &Store, commande: Commande) -> bool {
         // d'explorateur où ouvrir le dossier (fiche 56).
         C::JournalTechnique => crate::telemetrie::serveur().is_some(),
         C::VoirCeQuiPart => crate::telemetrie::serveur().is_some() && !cfg!(target_os = "android"),
+        C::NePlusRegarder => store.domaine_regarde.is_some(),
         // Le focus d'une membrane n'est pas au document : seul [`GlucoseApp::s_applique`] le
         // voit. Les autres sont rangées ailleurs par [`s_applique`].
         _ => false,

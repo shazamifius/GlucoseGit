@@ -84,6 +84,9 @@ pub struct Store {
     /// **La plage que la frise chronologique garde** (ESTOMPE-1, fiche 114) : une lentille sur ce
     /// qu'on regarde, jamais dans le document ni dans le journal — comme la caméra.
     pub temporal_filter: Option<crate::timeline::TemporalFilter>,
+    /// **Le domaine regardé** (DOMAINE-1, fiche 115) : l'autre lentille — ce qui ne lui appartient
+    /// pas pâlit, selon son poids (`lentille`). Hors du document et du journal, comme la frise.
+    pub domaine_regarde: Option<crate::types::Id>,
     /// Les lieux d'où la caméra est partie, pour `Alt+Z` (RETOUR-1, fiche 99).
     pub histoire_de_la_vue: retour::HistoireDeLaVue,
     /// **La fenêtre des liens**, si elle est ouverte (LIEN-3, fiche 102) : un tableau de copies,
@@ -132,6 +135,7 @@ impl Store {
             selected_folder_id: None,
             folder_stack: Vec::new(),
             temporal_filter: None,
+            domaine_regarde: None,
             journal: journal::Journal::new(UNDO_DEPTH),
             next_id: 1,
             version: 1,

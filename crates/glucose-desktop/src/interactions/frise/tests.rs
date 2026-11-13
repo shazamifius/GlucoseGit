@@ -140,7 +140,7 @@ fn frise_1_glisser_une_poignee_puis_la_fenetre() {
     let presence = |app: &GlucoseApp, id: &str| {
         let b = app.store.project.active_board_id.clone();
         let a = app.store.project.annotation(&b, id).expect("le nœud");
-        app.store.presence(a.temporal_anchor())
+        app.store.presence(a.regard())
     };
     assert!(
         presence(&app, "rev") < 1.0,

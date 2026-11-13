@@ -73,7 +73,7 @@ pub(in crate::renderer) fn annotations_en_svg(
     // Un export montre le document, jamais la lentille de la frise chronologique (ESTOMPE-1) : il
     // lit une copie neuve (`copie_a_exporter`), qui n'en a pas — ce qui suit la lit tout de même.
     for ann in visibles() {
-        let export = store.presence(ann.temporal_anchor());
+        let export = store.presence(ann.regard());
         match ann {
             Annotation::Text { x, y, .. } => reglette(svg, (*x, *y), ann),
             Annotation::Sticky { x, y, .. } => {

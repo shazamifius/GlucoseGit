@@ -206,7 +206,7 @@ fn membranes_visibles<'a>(
             monde,
             vue: pass.vp.scale,
             teinte: champs::teinte_de_membrane(color.as_deref()),
-            presence: store.presence(ann.temporal_anchor()),
+            presence: store.presence(ann.regard()),
             selectionnee: store.selected_annotation_ids.contains(id),
             poignees: !en_groupe,
             scale,

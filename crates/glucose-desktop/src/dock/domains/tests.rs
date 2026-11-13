@@ -184,6 +184,7 @@ fn test_dom_ui_2_every_widget_answers_at_the_place_it_is_drawn() {
         (row.sigil, DomainIntent::CycleSigil(id.clone())),
         (row.name, DomainIntent::StartRename(id.clone())),
         (row.delete, DomainIntent::AskDelete(id.clone())),
+        (row.voir, DomainIntent::Regarder(id.clone())),
         (row.unassign, DomainIntent::Unassign(id.clone())),
         (layout.add_button, DomainIntent::Create),
     ];
@@ -223,7 +224,15 @@ fn test_no_two_widgets_of_a_row_overlap() {
     let dock = dock_with_domains();
     let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
     for row in &layout.rows {
-        let mut rects = vec![row.swatch, row.sigil, row.name, row.delete, row.unassign];
+        let mut rects = vec![
+            row.swatch,
+            row.sigil,
+            row.name,
+            row.voir,
+            row.ou,
+            row.delete,
+            row.unassign,
+        ];
         rects.extend(row.steps.iter().copied());
         for (i, a) in rects.iter().enumerate() {
             for b in rects.iter().skip(i + 1) {
@@ -423,6 +432,41 @@ fn test_a_click_inside_the_panel_never_falls_through_to_the_canvas() {
 }
 
 // ── Rendu ───────────────────────────────────────────────────────────────────
+
+/// **DOMAINE-1 — « voir » s'allume sur le domaine regardé**, et sur lui seul : le bouton d'une
+/// rangée change quand on regarde son domaine, celui de la rangée voisine non.
+#[test]
+fn domaine_1_voir_s_allume_sur_le_domaine_regarde() {
+    let mut store = populated();
+    let dock = dock_with_domains();
+    let typo = Typography::new();
+    let theme = Theme::dark();
+    let frame = domains_frame(&dock);
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let rendre = |store: &Store| {
+        let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
+        pixmap.fill(theme.bg_canvas);
+        let brush = Brush::nouveau((&typo, &theme), 1.0, dehors, (0.0, 0.0));
+        render_domains_panel(&mut pixmap.as_mut(), store, &dock.domains, &brush, frame);
+        pixmap
+    };
+    let eteint = rendre(&store);
+    store.set_domaine_regarde(Some("d-1".into()));
+    let allume = rendre(&store);
+    let layout = layout_domains_panel(frame, &store, &dock.domains);
+    let differe = |r: WidgetRect| {
+        (r.y as u32..(r.y + r.h) as u32)
+            .flat_map(|y| (r.x as u32..(r.x + r.w) as u32).map(move |x| (x, y)))
+            .filter(|&(x, y)| eteint.pixel(x, y) != allume.pixel(x, y))
+            .count()
+    };
+    assert!(differe(layout.rows[0].voir) > 0, "« voir » s'allume");
+    assert_eq!(
+        differe(layout.rows[1].voir),
+        0,
+        "la rangée voisine ne bouge pas"
+    );
+}
 
 /// Le panneau se dessine dans tous ses états sans sortir de son cadre ni du pixmap.
 #[test]

@@ -42,7 +42,7 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 | [~] | **Les flèches de Wikipédia** (VISION § 6) : **PARENTE-4 dans `main`** (fiche 108) — l'IA juge les flèches qu'un agent ou un script a posées, la souris ne rapproche que celles de sens ; jamais les siennes. Sa carte signée (`~/Documents/Glucose-essai-wikipedia-signee.glucose`, fiche 110) le montre : la souris près d'un texte n'éclaire qu'une poignée de flèches. **Ensuite** : une couleur qui dit quelque chose (le gris n'est que temporaire), partir des **mots** qui citent (les ancres de texte existent), des liens partiels, un tracé à logique de câblage. La recherche : `~/.cache/glucose-bancs/halo-106b/recherche-fleches.md` | à son écran, sur la carte signée |
 | [~] | **Les membranes en carte** (fiches 105 et 107) : écrites, éprouvées, sabotées, regardées ; 11 % (*« vraiment vraiment parfait »*). Reste **l'allure de la frontière**, à sa parole (https://claude.ai/artifact/7L4zAY5U4mnebV2qvHgSK4) | sa parole sur la frontière, puis son écran |
 | [~] | **Le halo d'un texte dit sa parenté** (fiche 106) : écrit, éprouvé, regardé sur la carte. Reste **son écran** ; sa couleur et ce que l'IA en apprend passent par le cercle de l'IA, plus haut | son écran |
-| [ ] | **Filtrer par domaine** (Tauri), sur la loi de l'estompe : `Store::presence` deviendra le produit des lentilles (la frise, le domaine) ; puis les autres boutons manquants (INVENTAIRE § 3 : les miroirs, l'export HTML, le mode zen `F11`, les vidéos…) | chacun dans `main`, saboté, regardé dans le vrai Glucose |
+| [ ] | **Les boutons qui manquent** (INVENTAIRE § 3), un par un, chacun conçu après une recherche (une fonction « de Tauri » se vérifie d'abord dans Tauri — « filtrer par domaine » n'y existait pas, fiche 115 § 7) : les miroirs (`Ctrl+Maj+M`), l'export HTML, le mode zen (`F11`), les GIF animés et les vidéos, la provenance des images… | chacun dans `main`, saboté, regardé dans le vrai Glucose |
 
 ## 3. Ce qui attend son écran
 
@@ -97,6 +97,9 @@ posée par la version neuve — l'ancienne, `…-liens.glucose`, ne connaît pas
   d'entre eux par une flèche, `Maj+R` ; glisser une poignée de la fenêtre ambre — ce qui sort de la
   période pâlit, la flèche avec ; la molette sur la frise ; la croix (FRISE-1 et 2, ESTOMPE-1 et 2,
   fiches 114-115) ;
+* **regarder un domaine** : donner l'eau à trois textes à des poids différents (le panneau Domaines,
+  ses paliers), puis « voir » sur l'eau — ce qui n'en est pas pâlit, d'autant moins qu'il en est ;
+  « voir » encore (DOMAINE-1, fiche 115) ;
 * un agent dans Glucose (`glucose --mcp`) : « Autoriser », une demande ; puis la Time Machine
   (`Ctrl+H`) : sous chaque geste de l'agent, son nom et ses écrits (MAIN-1, NOTE-1, fiche 108) ;
 * le Storyboard, Mood board, Ordonner, l'export SVG et PNG, le mode référence.
@@ -150,7 +153,7 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 **Tout ce qui manque** (la parité avec Tauri, et ses demandes)
 * [ ] P6 — relire chaque panneau contre Tauri, champ par champ : Pomodoro, Domaines, Time Machine, la
   bande, Ordonner, Mood board.
-* [ ] Les miroirs (`Ctrl+Maj+M`) ; filtrer par domaine (SUITE § 2) ; les GIF animés et
+* [ ] Les miroirs (`Ctrl+Maj+M`) ; les GIF animés et
   les vidéos ; l'export HTML ; le mode zen (`F11`) ; la provenance des images (SauceNAO).
 * [ ] Les choix à l'utilisateur : la planche claire ou sombre, l'export PNG à 100 % ou aux originaux, les
   photos du SVG, la numérotation « 2.3 », la place du numéro.

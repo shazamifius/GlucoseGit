@@ -21,7 +21,7 @@ const SCREEN: ScreenFrame = ScreenFrame {
 };
 
 /// Une application dont l'onglet DOMAINES est ouvert, avec un nœud texte et une image.
-fn app_with_panel() -> GlucoseApp {
+pub(super) fn app_with_panel() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     app.dock_manager.top_tabs = vec![TabId::Domains];
     let board = app.store.project.active_board_id.clone();
@@ -60,7 +60,7 @@ fn app_with_panel() -> GlucoseApp {
 }
 
 /// Crée un domaine par le chemin de l'application et rend son identifiant.
-fn create_domain(app: &mut GlucoseApp) -> String {
+pub(super) fn create_domain(app: &mut GlucoseApp) -> String {
     app.apply_domain_intent(DomainIntent::Create);
     // La création ouvre la saisie du nom : la valider referme le geste.
     app.commit_domain_rename();

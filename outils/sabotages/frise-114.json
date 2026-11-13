@@ -517,7 +517,7 @@
   {
     "nom": "ESTOMPE-1 : les cartes de texte pleines sur la carte graphique",
     "fichier": "crates/glucose-desktop/src/renderer/voies/recolte.rs",
-    "avant": "        estomper(&mut pieces, store.presence(ann.temporal_anchor()));\n",
+    "avant": "        estomper(&mut pieces, store.presence(ann.regard()));\n",
     "apres": "",
     "cmd": [
       "cargo",
@@ -629,7 +629,7 @@
   {
     "nom": "ESTOMPE-1 : les post-it ne s'estompent pas",
     "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
-    "avant": "                let presence = store.presence(ann.temporal_anchor());\n                draw_sticky(",
+    "avant": "                let presence = store.presence(ann.regard());\n                draw_sticky(",
     "apres": "                let presence = 1.0;\n                draw_sticky(",
     "cmd": [
       "cargo",
@@ -707,7 +707,7 @@
   {
     "nom": "ESTOMPE-2 : un bout de texte ne se date pas",
     "fichier": "crates/glucose-desktop/src/renderer/estompe.rs",
-    "avant": "            Noeud::Annotation(a) => a.temporal_anchor(),",
+    "avant": "            Noeud::Annotation(a) => Some(a.regard()),",
     "apres": "            Noeud::Annotation(_) => None,",
     "cmd": [
       "cargo",
@@ -724,7 +724,7 @@
     "nom": "ESTOMPE-2 : le champ d'une flèche oublie ses bouts",
     "fichier": "crates/glucose-desktop/src/renderer/arrow.rs",
     "avant": "            let estompe = super::estompe::de_la_fleche(store, (noeuds.board, noeuds.index), ann);",
-    "apres": "            let estompe = store.presence(ann.temporal_anchor());",
+    "apres": "            let estompe = store.presence(ann.regard());",
     "cmd": [
       "cargo",
       "test",
@@ -740,7 +740,7 @@
     "nom": "ESTOMPE-2 : la flèche du processeur oublie ses bouts",
     "fichier": "crates/glucose-desktop/src/renderer/pass.rs",
     "avant": "                            super::estompe::de_la_fleche(store, (board, Some(pass.index)), ann),",
-    "apres": "                            store.presence(ann.temporal_anchor()),",
+    "apres": "                            store.presence(ann.regard()),",
     "cmd": [
       "cargo",
       "test",

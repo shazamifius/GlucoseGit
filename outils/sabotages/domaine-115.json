@@ -1,0 +1,244 @@
+[
+  {
+    "nom": "DOMAINE-1 : le domaine regardé n'estompe rien",
+    "fichier": "crates/glucose-core/src/lentille.rs",
+    "avant": "    ESTOMPE + (1.0 - ESTOMPE) * poids\n",
+    "apres": "    1.0\n",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lentille"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : un nœud compte pleinement sans le porter",
+    "fichier": "crates/glucose-core/src/lentille.rs",
+    "avant": "        .fold(0.0, f64::max)",
+    "apres": "        .fold(1.0, f64::max)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lentille"
+    ]
+  },
+  {
+    "nom": "LENTILLE-1 : deux lentilles se multiplient",
+    "fichier": "crates/glucose-core/src/lentille.rs",
+    "avant": "        timeline::presence(n.date, self.periode).min(dans_un_domaine(n.domaines, self.domaine))",
+    "apres": "        timeline::presence(n.date, self.periode) * dans_un_domaine(n.domaines, self.domaine)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lentille"
+    ]
+  },
+  {
+    "nom": "LENTILLE-1 : une relation se croit toujours du domaine",
+    "fichier": "crates/glucose-core/src/lentille.rs",
+    "avant": "            Some(d) if propre.domaines.iter().any(|a| a.domain_id == d) => {",
+    "apres": "            Some(d) if !d.is_empty() => {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lentille"
+    ]
+  },
+  {
+    "nom": "LENTILLE-1 : une relation prend le plus présent de ses bouts",
+    "fichier": "crates/glucose-core/src/lentille.rs",
+    "avant": "                .fold(1.0, f32::min),",
+    "apres": "                .fold(0.0, f32::max),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lentille"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : le document oublie le domaine regardé",
+    "fichier": "crates/glucose-core/src/store/navigation.rs",
+    "avant": "            domaine: self.domaine_regarde.as_deref(),",
+    "apres": "            domaine: None,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "domaine"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : NAV-1 garde un domaine regardé disparu",
+    "fichier": "crates/glucose-core/src/store/undo.rs",
+    "avant": "        if !self.domaine_regarde.as_deref().is_some_and(regarde) {",
+    "apres": "        if false && !self.domaine_regarde.as_deref().is_some_and(regarde) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine_1"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : supprimer le domaine regardé le laisse regardé",
+    "fichier": "crates/glucose-core/src/store/domains.rs",
+    "avant": "        self.settle_navigation();\n        Ok(detached)",
+    "apres": "        Ok(detached)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine_1"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : la flèche du rendu ignore le domaine",
+    "fichier": "crates/glucose-desktop/src/renderer/estompe.rs",
+    "avant": "    if store.lentilles() == Lentilles::default() {",
+    "apres": "    if store.temporal_filter.is_none() {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "domaine"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : le lot des photos oublie le domaine",
+    "fichier": "crates/glucose-desktop/src/renderer/voies/lot.rs",
+    "avant": "            && f.domaine == store.domaine_regarde\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "lot::"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : le panneau ne se refait pas quand on regarde",
+    "fichier": "crates/glucose-desktop/src/dock/cache.rs",
+    "avant": "        lentille: store.domaine_regarde.clone(),",
+    "apres": "        lentille: None,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "why_a_panel"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : « voir » ne répond pas",
+    "fichier": "crates/glucose-desktop/src/dock/domains/clic.rs",
+    "avant": "            if row.voir.contains(mx, my) {",
+    "apres": "            if false && row.voir.contains(mx, my) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : « voir » ne s'allume jamais",
+    "fichier": "crates/glucose-desktop/src/dock/domains/paint.rs",
+    "avant": "        active: regarde,",
+    "apres": "        active: false,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine_1"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : un second « voir » ne rend rien",
+    "fichier": "crates/glucose-desktop/src/interactions/domains.rs",
+    "avant": "            .set_domaine_regarde((!deja).then(|| id.to_string()));",
+    "apres": "            .set_domaine_regarde(Some(id.to_string()));",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine_1"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : la palette n'offre jamais « Ne plus regarder »",
+    "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+    "avant": "        C::NePlusRegarder => store.domaine_regarde.is_some(),",
+    "apres": "        C::NePlusRegarder => false,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine_1"
+    ]
+  },
+  {
+    "nom": "DOMAINE-1 : « Ne plus regarder » ne retire rien",
+    "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+    "avant": "            Commande::NePlusRegarder => self.store.set_domaine_regarde(None),",
+    "apres": "            Commande::NePlusRegarder => {}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "domaine_1"
+    ]
+  }
+]

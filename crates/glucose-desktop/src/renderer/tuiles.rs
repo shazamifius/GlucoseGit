@@ -265,7 +265,7 @@ pub fn ce_que_porte(store: &Store, adresse: Adresse, rangs: &[u32]) -> Empreinte
                 boite.width * echelle,
                 boite.height * echelle,
             ),
-            aspect: aspect_de(img, store.presence(img.temporal_anchor.as_ref())),
+            aspect: aspect_de(img, store.presence(img.regard())),
         });
     }
     empreinte

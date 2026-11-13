@@ -546,7 +546,7 @@ pub fn draw_halos(
         };
         // Sa famille, ou la couleur qu'on lui a choisie (COULEUR-4) ; sa sûreté, l'opacité.
         let (rgb, surete) = kit.sens.lueur(ann);
-        let alpha = alpha_montre(eclat, surete, store.presence(ann.temporal_anchor()));
+        let alpha = alpha_montre(eclat, surete, store.presence(ann.regard()));
         let Some(halo) = halo_geometry(boite, (vp, pass.echelle()), ecran, eclat) else {
             continue;
         };

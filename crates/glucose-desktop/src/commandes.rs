@@ -66,6 +66,8 @@ pub enum Commande {
     TimeMachine,
     /// **La frise chronologique** (`Maj+R`) : une période gardée, le reste daté s'estompe (FRISE-1).
     Frise,
+    /// **Ne plus regarder le domaine** : retirer la lentille du panneau Domaines (DOMAINE-1).
+    NePlusRegarder,
     // L'édition.
     Annuler,
     Retablir,
@@ -168,7 +170,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 53] = [
+const SIMPLES: [(Commande, &str, &str); 54] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -192,6 +194,11 @@ const SIMPLES: [(Commande, &str, &str); 53] = [
         Commande::Frise,
         "frise-chronologique",
         "Frise chronologique",
+    ),
+    (
+        Commande::NePlusRegarder,
+        "ne-plus-regarder-le-domaine",
+        "Ne plus regarder le domaine",
     ),
     (Commande::Annuler, "annuler", "Annuler"),
     (Commande::Retablir, "retablir", "Rétablir"),

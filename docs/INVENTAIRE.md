@@ -110,6 +110,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Domaines (créer, éditer, attribuer) | panneau Domaines | 🟡 le nom d'un domaine ne se tape pas (même cause) |
 | **Un domaine qui traverse les fichiers** (fiche 88) : les domaines des autres documents connus, les poser ici ; « Même sujet ? » quand un nom désigne deux sujets ; « où » : chaque place où il vit, et y aller | panneau Domaines : les rangées sous ceux du document, « Oui / Non », « où », la molette | ✅ (les mêmes ; le nom ne se tape pas) |
 | **Dater un nœud, la frise chronologique** (DATE-1, FRISE-1 et 2, ESTOMPE-1 et 2 ; fiches 113 à 115) : une année, une plage ou une ère, posée sur la sélection ; une pastille ambre au coin du nœud (sur les deux voies et dans l'export SVG) ; **la frise** : une bande du bas, les ères entières dans leurs couloirs, la répartition des dates du document, une fenêtre ambre dont ce qui sort pâlit — une flèche sans date avec ses bouts | `Maj+T` et `Maj+R`, la palette, le menu d'une sélection ; une poignée ou la fenêtre se glisse, la molette zoome l'échelle, la croix ferme ; un agent : `glucose_dater`, et `glucose_lire` rend les dates ; au terminal `glucose dater` | ✅ (glisser au doigt ; pincer la frise : pas éprouvé) |
+| **Regarder un domaine** (DOMAINE-1, LENTILLE-1 ; fiche 115) : ce qui n'appartient pas au domaine pâlit, selon son poids (de 12 % à plein) — une lentille, hors du journal ; avec la frise, le minimum des deux ; une flèche sans domaine suit ses bouts | panneau Domaines : **« voir »** sur la rangée (allumé quand on le regarde ; un second clic rend tout) ; la palette : « Ne plus regarder le domaine » | ✅ « voir » |
 | Timer Pomodoro | panneau Timer | ✅ |
 
 ### Les agents (fiche 75)
@@ -150,7 +151,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it, palette, `Alt+0…4` ; une IA par `operateur=` | **faits** (fiche 98, OPERATEUR-1 et 2) — attendent son écran |
 | **Couleur d'un post-it**, sélecteur de couleur | Tauri | la barre de couleur, au-dessus de la barre d'action ; la palette | **le nuancier est fait** (fiche 98, COULEUR-1 : textes, post-it, membranes, dossiers) ; **la roue est faite** (fiche 99, ROUE-1, dans Oklch), avec le code qu'on tape et la pipette |
-| **Couleur des domaines sur le canevas**, filtrer par domaine | Tauri, fiche 03 § 11 | panneau Domaines | — |
+| **Couleur des domaines sur le canevas** | Tauri, fiche 03 § 11 | panneau Domaines | — (la visualisation des domaines : l'ergonomie, sa parole du 22/10) |
 | **Membranes étirées et minimisées** (l'idée de Mary) | Tauri | options de la membrane | noyau écrit ; **à sa parole** |
 | **Export HTML** (pan, zoom, descriptions, un fichier) | Tauri | Exporter | — |
 | **Mode zen** (`F11`) | Tauri | menu | le mode référence en fait une partie |

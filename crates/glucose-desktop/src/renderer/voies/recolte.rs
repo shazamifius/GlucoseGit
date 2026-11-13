@@ -143,7 +143,7 @@ pub(in crate::renderer) fn poses_des_photos(
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
         // ESTOMPE-1 : la photo se pose à la présence que la frise chronologique lui laisse.
-        let presence = store.presence(img.temporal_anchor.as_ref());
+        let presence = store.presence(img.regard());
         let estompee = |pose: Pose| Pose {
             opacite: presence,
             ..pose
@@ -237,7 +237,7 @@ pub(in crate::renderer) fn composants_de_texte(
         ) else {
             continue;
         };
-        estomper(&mut pieces, store.presence(ann.temporal_anchor()));
+        estomper(&mut pieces, store.presence(ann.regard()));
         if saisie.is_some() {
             en_saisie = Some(pieces);
         } else {

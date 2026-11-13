@@ -786,6 +786,11 @@ fn test_the_cache_names_why_a_panel_was_redrawn() {
     rendu_dock_sur(&dock, &store, Some(&cache), dehors);
     assert_eq!(cache.prendre_les_raisons(), R::Selection.bit());
 
+    // DOMAINE-1 : le domaine regardé, que la version ne voit pas non plus.
+    store.set_domaine_regarde(Some("eau".into()));
+    rendu_dock_sur(&dock, &store, Some(&cache), dehors);
+    assert_eq!(cache.prendre_les_raisons(), R::Lentille.bit());
+
     // SURVOL-2 : le pointeur ne compte que par ce que le dessin lui demande. Sur la poignée
     // du premier panneau, une réponse change — il se refait pour elle.
     let panneau =

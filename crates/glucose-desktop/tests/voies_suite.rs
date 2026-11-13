@@ -2439,6 +2439,120 @@ fn test_estompe_2_une_fleche_sans_date_suit_ce_qu_elle_relie() {
     );
 }
 
+// ── Le domaine regardé (DOMAINE-1, fiche 115) ─────────────────────────────────────────────────
+
+/// Trois textes : « plein » porte l'eau entièrement, « moitie » à moitié, « feu » un autre domaine ;
+/// avec `fleche`, une flèche sans domaine de « plein » à « feu ». `regarde` : la lentille posée
+/// sur l'eau, ou aucune.
+fn document_domaine(regarde: bool, fleche: bool) -> glucose_core::store::Store {
+    use glucose_core::types::{Annotation, Domain, DomainAssignment};
+    let mut store = document_vide();
+    let board = store.project.active_board_id.clone();
+    for (id, nom) in [("eau", "Eau"), ("feu", "Feu")] {
+        store
+            .try_add_domain(Domain {
+                id: id.into(),
+                name: nom.into(),
+                color: "#38bdf8".into(),
+                icon: "E".into(),
+                defini_a: 0,
+            })
+            .expect("deux domaines");
+    }
+    for (id, x, y, domaine, poids) in [
+        ("plein", 80.0, 80.0, "eau", 1.0),
+        ("moitie", 460.0, 80.0, "eau", 0.5),
+        ("feu", 80.0, 380.0, "feu", 1.0),
+    ] {
+        let mut texte = Annotation::text(id, x, y, "L'eau, ça mouille.");
+        texte.domains_mut().push(DomainAssignment {
+            domain_id: domaine.into(),
+            weight: poids,
+        });
+        store.add_annotation(&board, texte);
+    }
+    if fleche {
+        let mut f = Annotation::arrow("f", 0.0, 0.0, 0.0, 0.0);
+        if let Annotation::Arrow {
+            source_id,
+            target_id,
+            ..
+        } = &mut f
+        {
+            *source_id = Some("plein".into());
+            *target_id = Some("feu".into());
+        }
+        store.add_annotation(&board, f);
+    }
+    store.set_domaine_regarde(regarde.then(|| "eau".to_string()));
+    store.clear_selection();
+    store
+}
+
+/// **DOMAINE-1 — le domaine regardé estompe selon l'appartenance, pareil sur les deux voies**
+/// (fiche 115). Sous la lentille de l'eau : le texte qui la porte entièrement ne change pas d'un
+/// pixel ; celui qui la porte à moitié pâlit, moins que celui d'un autre domaine — l'opacité dit
+/// l'appartenance, sans seuil ; **la flèche sans domaine** de « plein » vers « feu » pâlit avec son
+/// bout le moins présent (ESTOMPE-2) ; la carte graphique et le processeur rendent la même image.
+#[test]
+fn test_domaine_1_le_domaine_regarde_estompe_selon_l_appartenance() {
+    let taille = (800u32, 600u32);
+    let Some(sans) = par_la_carte(taille, &document_domaine(false, true)) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let regarde = document_domaine(true, true);
+    let avec = par_la_carte(taille, &regarde).expect("la carte");
+    let vide = par_la_carte(taille, &document_vide()).expect("la carte");
+    let dedans = |id: &str| {
+        let b = regarde.active_board().expect("le tableau");
+        let r = glucose_core::arrow::emprise(b, id).expect(id);
+        (
+            r.left as u32 + 8,
+            r.top as u32 + 8,
+            (r.left + r.width) as u32 - 8,
+            (r.top + r.height) as u32 - 8,
+        )
+    };
+    assert_eq!(
+        ecart_dans(&avec, &sans, dedans("plein")),
+        0,
+        "pleinement de l'eau : rien ne change"
+    );
+    let plein = |id: &str| ecart_dans(&sans, &vide, dedans(id));
+    let regarde_ = |id: &str| ecart_dans(&avec, &vide, dedans(id));
+    let (moitie, feu) = (regarde_("moitie"), regarde_("feu"));
+    assert!(moitie < plein("moitie"), "à moitié : il pâlit ({moitie})");
+    assert!(
+        feu < moitie,
+        "un autre domaine pâlit plus ({feu} contre {moitie})"
+    );
+    assert!(feu * 2 < plein("feu"), "hors de l'eau : estompé");
+    // La flèche, contre la même scène sans elle, sous la même lentille.
+    let milieu = {
+        let b = regarde.active_board().expect("le tableau");
+        let boite = |id| glucose_core::arrow::emprise(b, id).expect(id);
+        let (haut, bas) = (boite("plein"), boite("feu"));
+        let x = (haut.left + haut.width / 2.0) as u32;
+        let y = ((haut.top + haut.height + bas.top) / 2.0) as u32;
+        (x - 8, y - 40, x + 8, y + 40)
+    };
+    let sans_fleche = |r| par_la_carte(taille, &document_domaine(r, false)).expect("la carte");
+    let pleine = ecart_dans(&sans, &sans_fleche(false), milieu);
+    let pale = ecart_dans(&avec, &sans_fleche(true), milieu);
+    assert!(pleine > 0, "la flèche se voit ({milieu:?})");
+    assert!(
+        pale * 2 < pleine,
+        "la flèche pâlit : {pale} contre {pleine}"
+    );
+    let processeur = par_le_processeur(taille, &regarde);
+    let pire = banc_gpu::pire_ecart(&processeur, &avec);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux (admis {ECART_ADMIS})"
+    );
+}
+
 /// **ESTOMPE-1 — une photo décodée s'estompe, et ne cache plus ce qu'elle couvre** (fiche 114).
 ///
 /// Deux photos au même endroit : dessous, une blanche sans date ; dessus, une noire de la

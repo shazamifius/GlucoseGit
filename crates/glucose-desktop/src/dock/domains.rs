@@ -68,6 +68,7 @@ struct Metrics {
     segment_gap: f32,
     unassign_width: f32,
     ou_width: f32,
+    voir_width: f32,
     add_height: f32,
     hint_height: f32,
     title_size: f32,
@@ -94,6 +95,7 @@ impl Metrics {
             segment_gap: 4.0,
             unassign_width: 26.0,
             ou_width: 22.0,
+            voir_width: 26.0,
             add_height: 26.0,
             hint_height: 16.0,
             title_size: 13.0,
@@ -122,6 +124,7 @@ impl Metrics {
             segment_gap: l.segment_gap * s,
             unassign_width: l.unassign_width * s,
             ou_width: l.ou_width * s,
+            voir_width: l.voir_width * s,
             add_height: l.add_height * s,
             hint_height: l.hint_height * s,
             title_size: l.title_size * s,
@@ -235,6 +238,8 @@ pub enum DomainIntent {
     FermerOu,
     /// Aller à la place de ce rang dans la liste « où ? ».
     Aller(usize),
+    /// **Regarder ce domaine**, ou ne plus le regarder s'il l'est déjà (DOMAINE-1).
+    Regarder(String),
 }
 
 // ── Mise en page ────────────────────────────────────────────────────────────
@@ -260,6 +265,8 @@ pub struct DomainRowLayout {
     pub name: WidgetRect,
     /// « où ? » : les places où il vit.
     pub ou: WidgetRect,
+    /// « voir » : le regarder — ce qui ne lui appartient pas pâlit (DOMAINE-1).
+    pub voir: WidgetRect,
     pub delete: WidgetRect,
     /// Les cinq paliers, du plus faible au plus fort.
     pub steps: Vec<WidgetRect>,
@@ -396,13 +403,19 @@ fn layout_row(index: usize, at: (f32, f32, f32), m: &Metrics, pending: bool) -> 
         m.ou_width,
         m.icon_button,
     );
+    let voir = WidgetRect::new(
+        ou.x - m.pad / 2.0 - m.voir_width,
+        top,
+        m.voir_width,
+        m.icon_button,
+    );
     // Le nom part de la fin du sigle plutôt que d'une abscisse recopiée : deux constantes de
     // mise en page qui doivent s'accorder finissent toujours par diverger (§ 5.2).
     let name_left = sigil.x + sigil.w + m.pad / 3.0;
     let name = WidgetRect::new(
         name_left,
         top,
-        (ou.x - name_left - m.pad / 2.0).max(0.0),
+        (voir.x - name_left - m.pad / 2.0).max(0.0),
         m.swatch,
     );
 
@@ -436,6 +449,7 @@ fn layout_row(index: usize, at: (f32, f32, f32), m: &Metrics, pending: bool) -> 
         sigil,
         name,
         ou,
+        voir,
         delete,
         steps,
         unassign,

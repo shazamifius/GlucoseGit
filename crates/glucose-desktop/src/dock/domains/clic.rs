@@ -32,6 +32,13 @@ pub fn hit_domains_panel(
         if row.ou.contains(mx, my) {
             return Some(DomainIntent::Ou(row.lignee.clone()));
         }
+        // Un domaine d'un autre fichier ne se regarde pas d'ici : aucun nœud de ce document ne
+        // le porte.
+        if let Cible::Ici(id) = &row.cible {
+            if row.voir.contains(mx, my) {
+                return Some(DomainIntent::Regarder(id.clone()));
+            }
+        }
         let intent = match &row.cible {
             Cible::Ailleurs(lignee) => hit_ailleurs(row, lignee, pointer, has_selection),
             Cible::Ici(id) => hit_ici(row, id, pointer, has_selection),

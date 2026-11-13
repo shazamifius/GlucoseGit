@@ -142,7 +142,7 @@ pub(super) fn draw_annotations(
                 let autour = (papier, survols.eclairages);
                 if let Some(carte) = carte_de(kit.sens, (ann, store), autour, None) {
                     // ESTOMPE-1 : en groupe, comme la texture que la carte graphique pose.
-                    let presence = store.presence(ann.temporal_anchor());
+                    let presence = store.presence(ann.regard());
                     super::card::draw_card_contenu_a(&ctx, pixmap, carte, presence);
                 }
             }
@@ -203,7 +203,7 @@ fn dessiner_ce_qui_passe_au_dessus(
                 draw_node_gauge(
                     ctx,
                     pixmap,
-                    ((*x, *y), store.presence(ann.temporal_anchor())),
+                    ((*x, *y), store.presence(ann.regard())),
                     ann.domains(),
                 );
             }
@@ -212,12 +212,12 @@ fn dessiner_ce_qui_passe_au_dessus(
                 // image, sur les deux voies. C'est le meme mecanisme que COMPOSANT-1 et il
                 // n'a jamais ete applique -- ce compteur dira ce qu'il coute ici.
                 entieres += 1.0;
-                let presence = store.presence(ann.temporal_anchor());
+                let presence = store.presence(ann.regard());
                 draw_sticky(ctx, pixmap, ann, selected, (editing, presence));
                 draw_node_gauge(
                     ctx,
                     pixmap,
-                    ((*x, *y), store.presence(ann.temporal_anchor())),
+                    ((*x, *y), store.presence(ann.regard())),
                     ann.domains(),
                 );
             }

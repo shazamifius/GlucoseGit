@@ -123,6 +123,9 @@ struct ClePanneau {
     etat: EtatPanneau,
     document: u64,
     selection: (usize, usize),
+    /// **Le domaine regardé** (DOMAINE-1) : une lentille, que la version ne voit pas non plus —
+    /// « Domaines » allume la rangée qu'on regarde.
+    lentille: Option<String>,
 }
 
 impl ClePanneau {
@@ -147,6 +150,7 @@ impl ClePanneau {
             (a.etat != neuve.etat, Raison::Etat),
             (a.document != neuve.document, Raison::Document),
             (a.selection != neuve.selection, Raison::Selection),
+            (a.lentille != neuve.lentille, Raison::Lentille),
         ]
         .into_iter()
         .filter(|(differe, _)| *differe)
@@ -164,11 +168,12 @@ pub enum Raison {
     Etat,
     Document,
     Selection,
+    Lentille,
 }
 
 impl Raison {
     /// Dans l'ordre des bits du masque.
-    pub const TOUTES: [Self; 7] = [
+    pub const TOUTES: [Self; 8] = [
         Self::PremiereFois,
         Self::Place,
         Self::Echelle,
@@ -176,6 +181,7 @@ impl Raison {
         Self::Etat,
         Self::Document,
         Self::Selection,
+        Self::Lentille,
     ];
 
     /// Ce que le rapport en dit, sans jargon.
@@ -188,6 +194,7 @@ impl Raison {
             Self::Etat => "reglage du panneau",
             Self::Document => "document modifie",
             Self::Selection => "selection",
+            Self::Lentille => "domaine regarde",
         }
     }
 
@@ -362,6 +369,7 @@ pub(super) fn tenir_a_jour(
             store.selected_image_ids.len(),
             store.selected_annotation_ids.len(),
         ),
+        lentille: store.domaine_regarde.clone(),
     };
 
     let mut panneaux = cache.panneaux.borrow_mut();

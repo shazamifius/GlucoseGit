@@ -55,8 +55,19 @@ impl GlucoseApp {
                 self.dock_manager.domains.decalage = 0;
             }
             DomainIntent::Aller(rang) => self.aller_a_la_place(rang),
+            DomainIntent::Regarder(id) => self.regarder_le_domaine(&id),
         }
         self.mark_dirty();
+    }
+
+    /// **Regarde ce domaine, ou ne le regarde plus** (DOMAINE-1) : une lentille, comme la frise —
+    /// ni le document ni le journal ne changent ; ce qui ne lui appartient pas pâlit, selon son
+    /// poids. Aucun message : le bouton « voir » allumé et le canevas qui pâlit le disent (le
+    /// cliquet des messages).
+    pub(crate) fn regarder_le_domaine(&mut self, id: &str) {
+        let deja = self.store.domaine_regarde.as_deref() == Some(id);
+        self.store
+            .set_domaine_regarde((!deja).then(|| id.to_string()));
     }
 
     /// **Crée un domaine sous le premier nom libre**, « Domaine N », et ouvre aussitôt son nom en
@@ -330,3 +341,5 @@ impl GlucoseApp {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_lentille;

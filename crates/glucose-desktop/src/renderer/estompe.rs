@@ -10,6 +10,7 @@
 //!   étiquettes et les pastilles des flèches, les réglettes des domaines, les dates), multiplie
 //!   les alphas qu'elle emploie : les deux voies y restent identiques par construction.
 
+use glucose_core::lentille::Lentilles;
 use glucose_core::quadtree::{noeud_au_rang, noeud_par_id, Noeud, SpatialHash};
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Board};
@@ -23,16 +24,17 @@ pub(crate) fn estomper(c: Color, presence: f32) -> Color {
     Color::from_rgba(c.red(), c.green(), c.blue(), c.alpha() * presence.max(0.0)).unwrap_or(c)
 }
 
-/// **ESTOMPE-2 — ce que la frise laisse à une flèche** (fiche 115) : sa date, ou celles de ses deux
-/// bouts (`Store::presence_d_une_relation`), retrouvés par l'index en temps constant — sans index,
-/// dans le tableau. Sans frise, rien à chercher. Les deux chemins qui dessinent une flèche (son
-/// champ, et la couche du dessus : son étiquette, sa pastille) l'appellent.
+/// **ESTOMPE-2 — ce que les lentilles laissent à une flèche** (fiche 115) : ce qui lui appartient
+/// en propre, sinon ce que ses deux bouts montrent (`Store::presence_d_une_relation`), retrouvés
+/// par l'index en temps constant — sans index, dans le tableau. Sans lentille, rien à chercher. Les
+/// deux chemins qui dessinent une flèche (son champ, et la couche du dessus : son étiquette, sa
+/// pastille, sa date) l'appellent.
 pub(crate) fn de_la_fleche(
     store: &Store,
     (board, index): (&Board, Option<&SpatialHash>),
     ann: &Annotation,
 ) -> f32 {
-    if store.temporal_filter.is_none() {
+    if store.lentilles() == Lentilles::default() {
         return 1.0;
     }
     let Annotation::Arrow {
@@ -41,21 +43,34 @@ pub(crate) fn de_la_fleche(
         ..
     } = ann
     else {
-        return store.presence(ann.temporal_anchor());
+        return store.presence(ann.regard());
     };
-    let date = |id: &Option<String>| {
+    let bout = |id: &Option<String>| {
         let id = id.as_deref()?;
         let noeud = index
             .and_then(|i| noeud_au_rang(board, i.rang_de(id)?))
             .filter(|n| n.id() == id)
             .or_else(|| noeud_par_id(board, id))?;
         match noeud {
-            Noeud::Annotation(a) => a.temporal_anchor(),
-            Noeud::Image(i) => i.temporal_anchor.as_ref(),
+            Noeud::Annotation(a) => Some(a.regard()),
+            Noeud::Image(i) => Some(i.regard()),
             Noeud::Dossier(_) => None,
         }
     };
-    store.presence_d_une_relation(ann.temporal_anchor(), [date(source_id), date(target_id)])
+    store.presence_d_une_relation(ann.regard(), [bout(source_id), bout(target_id)])
+}
+
+/// **Ce que les lentilles laissent à ce nœud** : une flèche suit ce qu'elle relie
+/// ([`de_la_fleche`]), tout autre nœud ce qu'il montre lui-même.
+pub(crate) fn de_l_annotation(
+    store: &Store,
+    noeuds: (&Board, Option<&SpatialHash>),
+    ann: &Annotation,
+) -> f32 {
+    match ann {
+        Annotation::Arrow { .. } => de_la_fleche(store, noeuds, ann),
+        _ => store.presence(ann.regard()),
+    }
 }
 
 /// **Une surface qui estompe** : ce qu'on lui demande de remplir, de tracer ou d'écrire part sur

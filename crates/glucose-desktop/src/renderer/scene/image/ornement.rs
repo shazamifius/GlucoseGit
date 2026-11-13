@@ -336,7 +336,7 @@ pub(in crate::renderer) fn draw_image_ornaments(
             kit.tints,
             pixmap,
             scale,
-            ((*sx, *sy), store.presence(img.temporal_anchor.as_ref())),
+            ((*sx, *sy), store.presence(img.regard())),
             &img.domains,
         );
     }

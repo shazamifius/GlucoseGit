@@ -13,7 +13,7 @@ use glucose_core::store::Store;
 use glucose_core::types::Domain;
 use tiny_skia::{Color, PixmapMut};
 
-use crate::dock::paint::Brush;
+use crate::dock::paint::{Brush, ButtonLook};
 use crate::dock::WidgetRect;
 
 mod pied;
@@ -61,7 +61,8 @@ pub fn render_domains_panel(
             Some(d) => d,
             None => &ui.connus.ailleurs[row.index - domaines].definition,
         };
-        draw_row(&p, pixmap, row, domain, ui, selected > 0);
+        let regarde = store.domaine_regarde.as_deref() == Some(domain.id.as_str());
+        draw_row(&p, pixmap, row, domain, ui, (selected > 0, regarde));
     }
     draw_footer(&p, pixmap, frame, (&layout, ui), selected);
 }
@@ -131,7 +132,7 @@ fn draw_row(
     row: &DomainRowLayout,
     domain: &Domain,
     ui: &DomainsUi,
-    enabled: bool,
+    (enabled, regarde): (bool, bool),
 ) {
     let m = &p.m;
     let (r, g, b) = crate::renderer::parse_hex_color(
@@ -149,6 +150,7 @@ fn draw_row(
         draw_steps(p, pixmap, row, tint, enabled);
         return;
     }
+    draw_voir_button(p, pixmap, row, regarde);
 
     // Croix de suppression.
     let delete_hot = p.brush.hovered(row.delete) || row.confirm.is_some();
@@ -199,6 +201,18 @@ fn draw_ou_button(p: &Painter, pixmap: &mut PixmapMut, row: &DomainRowLayout) {
             face: Face::Regular,
         },
     );
+}
+
+/// **Le bouton « voir »** d'une rangée (DOMAINE-1) : le bouton du dock, allumé quand on regarde ce
+/// domaine — le fond, le contour et le gras d'un bouton actif.
+fn draw_voir_button(p: &Painter, pixmap: &mut PixmapMut, row: &DomainRowLayout, regarde: bool) {
+    let look = ButtonLook {
+        active: regarde,
+        quiet: true,
+        ..ButtonLook::default()
+    };
+    p.brush
+        .button(pixmap, row.voir, "voir", p.m.step_size, look);
 }
 
 /// La marque d'un domaine : sa pastille de couleur et son sigle.

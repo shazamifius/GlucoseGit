@@ -28,6 +28,7 @@ pub mod groupe;
 pub mod hash;
 pub mod hit_priority;
 pub mod layout;
+pub mod lentille;
 pub mod membrane_focus;
 pub mod membrane_forme;
 pub mod membrane_space;

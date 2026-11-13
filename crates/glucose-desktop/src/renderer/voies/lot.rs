@@ -110,6 +110,8 @@ struct Fige {
     /// La période que la frise chronologique garde : l'opacité de chaque pose en dépend
     /// (ESTOMPE-1).
     filtre: Option<glucose_core::timeline::TemporalFilter>,
+    /// Le domaine regardé, l'autre lentille (DOMAINE-1).
+    domaine: Option<String>,
 }
 
 /// **Le lot que le rendu a proposé à la carte.**
@@ -143,6 +145,7 @@ impl Lot {
             && part_valable
             && f.echelles.contient(vp.scale)
             && f.filtre == store.temporal_filter
+            && f.domaine == store.domaine_regarde
             && f.rangs == rangs;
         permis.then(|| LotEnPlace {
             nombre: f.nombre,
@@ -178,6 +181,7 @@ impl Lot {
             echelles,
             vue: (vp.x, vp.y, vp.scale),
             filtre: store.temporal_filter,
+            domaine: store.domaine_regarde.clone(),
         });
         Some(self.dernier)
     }
@@ -266,6 +270,13 @@ mod tests {
             end: 1918,
         }));
         assert!(refuse(&frise, &vp, &rangs, 7, &carte), "la frise a changé");
+        // Le domaine regardé aussi (DOMAINE-1).
+        let mut domaine = store.clone();
+        domaine.set_domaine_regarde(Some("eau".into()));
+        assert!(
+            refuse(&domaine, &vp, &rangs, 7, &carte),
+            "le domaine regardé a changé"
+        );
 
         let mut autre = Store::new("lot");
         autre.project.active_board_id = store.project.active_board_id.clone();

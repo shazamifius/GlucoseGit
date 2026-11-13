@@ -52,7 +52,7 @@ pub(super) fn dessiner_les_dates(
     };
     let visibles = Visibles::nouvelles(pass.visibles, board);
     let vue = (&pass.vp, pass.echelle(), ecran);
-    // La pastille s'estompe avec son nœud quand la frise chronologique l'écarte (ESTOMPE-1).
+    // La pastille s'estompe avec son nœud quand une lentille l'écarte (ESTOMPE-1, LENTILLE-1).
     for ann in visibles.annotations() {
         if let (Some(date), Some(boite)) = (ann.temporal_anchor(), emprise(board, ann.id())) {
             dessiner_la_date(
@@ -60,13 +60,16 @@ pub(super) fn dessiner_les_dates(
                 theme,
                 vue,
                 boite,
-                (date, store.presence(Some(date))),
+                (
+                    date,
+                    super::estompe::de_l_annotation(store, (board, Some(pass.index)), ann),
+                ),
             );
         }
     }
     for img in visibles.images() {
         if let Some(date) = &img.temporal_anchor {
-            let presence = store.presence(Some(date));
+            let presence = store.presence(img.regard());
             dessiner_la_date(surface, theme, vue, img.rect(), (date, presence));
         }
     }

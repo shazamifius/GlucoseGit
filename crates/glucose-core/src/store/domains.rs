@@ -283,6 +283,8 @@ impl Store {
         edits.extend(portes);
 
         self.record_as_one_gesture(edits);
+        // Regardé, il ne l'est plus (NAV-1) : une lentille sur un domaine disparu estomperait tout.
+        self.settle_navigation();
         Ok(detached)
     }
 

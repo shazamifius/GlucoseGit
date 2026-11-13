@@ -34,6 +34,7 @@ impl GlucoseApp {
             Commande::ImporterDesImages => self.pick_and_import_images(),
             Commande::TimeMachine => self.basculer_la_machine(),
             Commande::Frise => self.basculer_la_frise(),
+            Commande::NePlusRegarder => self.store.set_domaine_regarde(None),
             Commande::Annuler => self.annuler(),
             Commande::Retablir => self.retablir(),
             Commande::Copier => self.copy_selection(false),

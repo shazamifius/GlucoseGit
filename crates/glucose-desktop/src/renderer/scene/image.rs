@@ -102,14 +102,7 @@ pub(in crate::renderer) fn draw_images(
         Visibles::nouvelles(pass.visibles, board).images().collect();
     let calques: Vec<Calque> = visibles
         .iter()
-        .map(|img| {
-            calque_de(
-                img,
-                &pass,
-                magasin,
-                store.presence(img.temporal_anchor.as_ref()),
-            )
-        })
+        .map(|img| calque_de(img, &pass, magasin, store.presence(img.regard())))
         .collect();
     let mut caches = occlusion::Visibles::default();
     occlusion::ce_qui_se_voit(
@@ -167,7 +160,7 @@ pub(in crate::renderer) fn draw_images(
         // le cout fixe d'une photo -- recherche, forme, consultation des vignettes -- et le
         // modele surestimait alors d'un facteur deux, ce que son propre residu a revele.
         // ESTOMPE-1 : la photo se pose à la présence que la frise chronologique lui laisse.
-        let presence = store.presence(img.temporal_anchor.as_ref());
+        let presence = store.presence(img.regard());
         let pose = poser_ou_demander(
             magasin,
             pixmap,

@@ -5,7 +5,7 @@
 
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, Board, FolderTreeNode, TemporalAnchor, Viewport};
+use crate::types::{Annotation, Board, FolderTreeNode, Viewport};
 
 /// Reconstruit la pile de dossiers UI menant au board actif.
 pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(String, String)> {
@@ -249,20 +249,33 @@ impl Store {
         self.temporal_filter = filter;
     }
 
-    /// **La présence de ce nœud à l'écran** (ESTOMPE-1) : entière, ou estompée si la frise
-    /// chronologique l'écarte. Une seule loi, que chaque voie du rendu appelle.
-    pub fn presence(&self, date: Option<&TemporalAnchor>) -> f32 {
-        crate::timeline::presence(date, self.temporal_filter)
+    /// **Regarde ce domaine, ou plus aucun** (DOMAINE-1) : une lentille, pas un geste.
+    pub fn set_domaine_regarde(&mut self, domaine: Option<crate::types::Id>) {
+        self.domaine_regarde = domaine;
     }
 
-    /// **La présence d'une flèche à l'écran** (ESTOMPE-2) : sa date, ou celles de ses deux bouts
-    /// (`timeline::presence_d_une_relation`).
+    /// **Les lentilles posées** : la période que la frise garde, le domaine regardé (LENTILLE-1).
+    pub fn lentilles(&self) -> crate::lentille::Lentilles<'_> {
+        crate::lentille::Lentilles {
+            periode: self.temporal_filter,
+            domaine: self.domaine_regarde.as_deref(),
+        }
+    }
+
+    /// **La présence de ce nœud à l'écran** (ESTOMPE-1, LENTILLE-1) : entière, ou estompée si une
+    /// lentille l'écarte. Une seule loi, que chaque voie du rendu appelle.
+    pub fn presence(&self, noeud: crate::lentille::Regard<'_>) -> f32 {
+        self.lentilles().presence(noeud)
+    }
+
+    /// **La présence d'une flèche à l'écran** (ESTOMPE-2) : ce qui lui appartient en propre, ou
+    /// ce qu'elle relie (`Lentilles::presence_d_une_relation`).
     pub fn presence_d_une_relation(
         &self,
-        propre: Option<&TemporalAnchor>,
-        bouts: [Option<&TemporalAnchor>; 2],
+        propre: crate::lentille::Regard<'_>,
+        bouts: [Option<crate::lentille::Regard<'_>>; 2],
     ) -> f32 {
-        crate::timeline::presence_d_une_relation(propre, bouts, self.temporal_filter)
+        self.lentilles().presence_d_une_relation(propre, bouts)
     }
 
     /// La boîte englobante de tout ce qu'un tableau contient — images, annotations et dossiers
