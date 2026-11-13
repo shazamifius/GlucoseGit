@@ -1,4 +1,4 @@
-# 115 — La frise chronologique dans `main` ; les ères dans leurs couloirs ; une flèche suit ce qu'elle relie ; regarder un domaine
+# 115 — La frise chronologique dans `main` ; les ères dans leurs couloirs ; une flèche suit ce qu'elle relie ; regarder un domaine ; le mode zen
 
 > Session du 13/11/2026, à partir de 20 h 41. La passation (fiche 114) donnait l'ordre : lui
 > rappeler son clic de publication et lire ses vraies sessions ; **finir la frise et l'estompe**
@@ -187,6 +187,36 @@ filtre. Une fonction à concevoir, pas à recopier.
   leurs réglettes de domaine avec eux.
 * **Les sabotages** : `outils/sabotages/domaine-115.json`, seize gardes — le résultat au § 6.
 
+## 7 bis. ZEN-1 — le mode zen (`F11`)
+
+Le bouton manquant suivant de l'inventaire, le plus simple. **Ce que Tauri faisait** (relu dans
+`App.tsx`) : `F11` bascule, la bande et les onglets disparaissent, un « ZEN · F » presque invisible
+(`#2a2a2a`, 10 px, à 8 du haut et 12 de la droite) le referme d'un clic, `Échap` aussi. **La fenêtre
+n'y était pas mise en plein écran**, malgré son commentaire.
+
+* **Remis en question — le plein écran** : `F11` est le plein écran du système, et c'était tentant.
+  Écarté : `interactions/reference.rs` garde la leçon de son essai du 7/10 — agrandie et sans cadre,
+  une fenêtre ressemble à un jeu, et l'application NVIDIA lui a appliqué RTX HDR et la vibrance,
+  toutes ses couleurs changées. Le mode zen cache l'interface et laisse la fenêtre telle qu'elle est.
+* **Ce qu'il cache** : tout ce que le mode référence cache (`UiState::sans_interface`) — la bande,
+  les onglets, la minimap, les panneaux, les barres. **Ce qui reste** : le menu du clic droit et les
+  messages, comme en mode référence — au doigt, sans `F11` ni `Échap`, ce sont les sorties.
+* **L'indicateur** (`ui/zen.rs`) : « ZEN · F11 », les mesures de Tauri, en `text_muted` plutôt que
+  presque invisible (une sortie cachée n'en est pas une), plus clair sous la main ; **sa prise est une
+  cible de doigt** (48 points), bornée à ce que le système laisse voir — d'abord écrite centrée sur le
+  libellé, elle dépassait de 10 points au-dessus de l'écran : l'épreuve l'a vu.
+* **Les gestes** : `F11`, la palette (« Mode zen », toujours offerte), le menu du vide, l'indicateur ;
+  `Échap` le referme après ce qui attend plus près (un menu ouvert se ferme d'abord). Pas retenu d'une
+  session à l'autre (Tauri non plus).
+* **Le menu du vide** : « Mode référence » et « Mode zen » forment désormais **leur propre groupe**
+  — des façons de voir, pas des gestes sur le document. L'épreuve du menu trop haut l'a demandé : le
+  groupe des documents, allongé d'une entrée, ne tenait plus dans une colonne d'un écran bas.
+* **Prouvé** : par les vrais chemins (la touche, la souris, `Échap`, le menu, la palette) ; la
+  bande partie, la couche des décisions peinte (la carte graphique pose donc l'indicateur) ; la place
+  et la prise ; le dessin seulement dans sa prise. **Regardé dans le vrai Glucose** : `F11`, le
+  canevas seul et l'indicateur en haut à droite ; un clic dessus, tout revient. Douze sabotages
+  (`outils/sabotages/zen-115.json`).
+
 ## 8. Ce qui reste contestable
 
 * **Les cinq rangées** : une frise plus haute que celle de Tauri (88 points) ; au XXᵉ siècle, deux
@@ -196,6 +226,8 @@ filtre. Une fonction à concevoir, pas à recopier.
   époque ». Le hisser dans l'en-tête comme un fil d'Ariane (ChronoZoom) libérerait une rangée.
 * **Une flèche datée suit sa date seule**, même entre deux nœuds écartés : la date que l'humain lui
   a donnée l'emporte. De même pour une flèche qui porte le domaine regardé.
+* **Le mode zen ne met pas la fenêtre en plein écran** (RTX HDR) : si un jour il le veut, ce sera
+  une option, et sous Linux seulement d'abord.
 * **La présence graduée en ligne droite** (de 0,12 à 1 selon le poids) : une courbe ferait peut-être
   mieux voir la différence entre 0,8 et 1 ; à juger sur son écran.
 * Et celles que la fiche 114 laissait : les ères en gris, 0,12, ce qu'on écrit et les poignées

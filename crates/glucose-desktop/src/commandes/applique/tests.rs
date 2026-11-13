@@ -239,6 +239,7 @@ fn toujours(c: Commande) -> bool {
             | C::ChangerUnRaccourci
             | C::RetablirLesRaccourcis
             | C::OublierLesAgents
+            | C::ModeZen
     )
 }
 

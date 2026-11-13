@@ -68,6 +68,7 @@ impl MenuAction {
             MenuAction::NouveauDocument => Commande::NouveauDocument,
             MenuAction::OuvrirUnDocument => Commande::OuvrirUnDocument,
             MenuAction::ModeReference => Commande::ModeReference,
+            MenuAction::ModeZen => Commande::ModeZen,
             MenuAction::Couper => Commande::Couper,
             MenuAction::Duplicate => Commande::Dupliquer,
             MenuAction::EnregistrerLImage => Commande::EnregistrerLImage,
@@ -148,6 +149,8 @@ pub enum MenuAction {
     OuvrirUnDocument,
     /// Entrer dans le mode référence, ou en sortir (fiche 51 § 5).
     ModeReference,
+    /// Entrer dans le mode zen, ou en sortir (ZEN-1, fiche 115).
+    ModeZen,
     /// La même, puis retirée une fois copiée.
     Couper,
     Duplicate,

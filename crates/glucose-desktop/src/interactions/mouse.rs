@@ -267,6 +267,8 @@ impl GlucoseApp {
             || self.redimensionner_par_le_bord()
             || self.deplacer_la_fenetre_avec_alt()
             || self.cliquer_le_cadre(pointer)
+            // « ZEN · F11 », la seule interface du mode zen (ZEN-1).
+            || self.click_zen(pointer, screen)
             || !self.ui.sans_interface() && self.click_l_interface(pointer, screen)
             // Un gabarit qui suit le curseur se pose au premier clic sur le canevas
             // (PRESET-1) ; la grille du storyboard, une membrane, un dossier commencent un

@@ -54,6 +54,7 @@ Espace          naviguer
 Echap           echap
 Ctrl+Maj+A      mode-reference
 Alt+T           mode-reference
+F11             mode-zen
 
 # Les outils
 V               outil.selection

@@ -200,6 +200,11 @@ impl GlucoseApp {
         if self.sortir_de_la_membrane() {
             return;
         }
+        // Puis le mode zen, où l'on est entré par F11 — comme dans Glucose Tauri (ZEN-1).
+        if self.ui.zen {
+            self.basculer_le_mode_zen();
+            return;
+        }
         // Échap rend toujours l'outil Sélection, comme dans Glucose Tauri : c'est la
         // sortie du mode Pan où la barre d'espace fait entrer, et le seul geste qui ramène
         // à un état connu quel que soit l'outil courant.

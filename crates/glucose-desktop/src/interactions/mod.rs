@@ -56,4 +56,5 @@ pub mod tools;
 pub mod toucher;
 pub mod trace;
 pub mod vol;
+pub mod zen;
 pub mod zone;

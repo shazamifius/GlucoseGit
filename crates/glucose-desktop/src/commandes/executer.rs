@@ -62,6 +62,7 @@ impl GlucoseApp {
                 self.sortir_de_la_membrane();
             }
             Commande::ModeReference => self.basculer_le_mode_reference(),
+            Commande::ModeZen => self.basculer_le_mode_zen(),
             Commande::Naviguer => self.enter_pan_mode(),
             Commande::Echap => self.escape_gesture(),
             Commande::PoserLeSignet(n) => self.geste_du_signet(n, true),

@@ -227,8 +227,11 @@ fn entrees_du_vide() -> Vec<Def> {
         Some((MenuAction::Enregistrer, "Enregistrer", "")),
         Some((MenuAction::EnregistrerSous, "Enregistrer sous…", "")),
         Some((MenuAction::Exporter, "Exporter…", "")),
-        // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
+        // Les façons de voir, qui ne touchent pas au document (ZEN-1, fiche 115). Une fenêtre sans
+        // cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
+        None,
         Some((MenuAction::ModeReference, "Mode référence", "")),
+        Some((MenuAction::ModeZen, "Mode zen", "F11")),
         // Sans serveur, ces entrées n'ont pas d'objet ; le téléphone n'a pas d'explorateur.
         None,
         Some((MenuAction::JournalTechnique, "Journal technique…", "")),

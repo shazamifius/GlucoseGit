@@ -30,6 +30,7 @@ impl UiState {
     pub fn attend_une_decision(&self, store: &Store) -> bool {
         store.compte_de_la_selection() > 0
             || self.frise.is_some()
+            || self.zen
             || self.ancrage.is_some()
             || self.current_toast.is_some()
             || self.context_menu_at.is_some()
@@ -108,6 +109,10 @@ pub fn poser_les_reponses_attendues(
     let visible = ui.ecran_visible((w, h));
     if let Some(ref t) = ui.current_toast {
         toast::render_toast(pixmap, t, typo, theme, w, visible.1, ui.scale_factor);
+    }
+    if ui.zen {
+        let main = (pointer.x, pointer.y);
+        super::zen::dessiner(pixmap, ui, (typo, theme), ((w, h), main));
     }
     dessiner_le_menu(pixmap, (ui, store), (typo, theme), (w, h), pointer);
     if let Some((q, _)) = &ui.question {

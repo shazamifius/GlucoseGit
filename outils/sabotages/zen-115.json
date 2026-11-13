@@ -1,0 +1,182 @@
+[
+  {
+    "nom": "ZEN-1 : le mode zen garde l'interface",
+    "fichier": "crates/glucose-desktop/src/ui.rs",
+    "avant": "        self.reference || self.zen || self.lecture.is_some()",
+    "apres": "        self.reference || self.lecture.is_some()",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : F11 n'est plus un raccourci",
+    "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+    "avant": "F11             mode-zen\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : la commande ne bascule rien",
+    "fichier": "crates/glucose-desktop/src/commandes/executer.rs",
+    "avant": "            Commande::ModeZen => self.basculer_le_mode_zen(),",
+    "apres": "            Commande::ModeZen => {}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : le mode ne se referme jamais",
+    "fichier": "crates/glucose-desktop/src/interactions/zen.rs",
+    "avant": "        self.ui.zen = !self.ui.zen;",
+    "apres": "        self.ui.zen = true;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : l'indicateur ne se clique pas",
+    "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+    "avant": "            || self.click_zen(pointer, screen)\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : l'indicateur prend tout clic",
+    "fichier": "crates/glucose-desktop/src/interactions/zen.rs",
+    "avant": "        if !crate::ui::zen::sous_la_main(&indicateur, (pointer.x, pointer.y)) {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : Échap ne le referme pas",
+    "fichier": "crates/glucose-desktop/src/interactions/shortcuts.rs",
+    "avant": "        if self.ui.zen {\n            self.basculer_le_mode_zen();\n            return;\n        }\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : l'indicateur ne se dessine pas",
+    "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+    "avant": "    if ui.zen {\n        let main",
+    "apres": "    if false {\n        let main",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : la carte graphique ne peint pas l'indicateur",
+    "fichier": "crates/glucose-desktop/src/ui/decision.rs",
+    "avant": "            || self.zen\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : la prise sort de l'écran",
+    "fichier": "crates/glucose-desktop/src/ui/zen.rs",
+    "avant": "    let haut = (centre.1 - ph / 2.0).max(ui.marges.haut);",
+    "apres": "    let haut = centre.1 - ph / 2.0;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : la prise n'est plus une cible de doigt",
+    "fichier": "crates/glucose-desktop/src/ui/zen.rs",
+    "avant": "    let (pl, ph) = ((CIBLE_DU_DOIGT * s).max(l), (CIBLE_DU_DOIGT * s).max(h));",
+    "apres": "    let (pl, ph) = (l, h);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 : le menu du vide n'offre pas le mode zen",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+    "avant": "        Some((MenuAction::ModeZen, \"Mode zen\", \"F11\")),\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "context_menu"
+    ]
+  }
+]

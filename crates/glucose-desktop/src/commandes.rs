@@ -104,6 +104,8 @@ pub enum Commande {
     EntrerDansLaMembrane,
     SortirDeLaMembrane,
     ModeReference,
+    /// **Le mode zen** (`F11`) : plus aucune interface, la fenêtre telle qu'elle est (ZEN-1).
+    ModeZen,
     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
     Naviguer,
     Echap,
@@ -170,7 +172,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 54] = [
+const SIMPLES: [(Commande, &str, &str); 55] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -257,6 +259,7 @@ const SIMPLES: [(Commande, &str, &str); 54] = [
         "Sortir de la membrane",
     ),
     (Commande::ModeReference, "mode-reference", "Mode référence"),
+    (Commande::ModeZen, "mode-zen", "Mode zen"),
     (
         Commande::Naviguer,
         "naviguer",

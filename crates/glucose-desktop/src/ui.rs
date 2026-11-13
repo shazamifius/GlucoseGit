@@ -27,6 +27,7 @@ pub mod question;
 pub mod rail;
 pub mod roue;
 pub mod toast;
+pub mod zen;
 
 pub use boutons::{
     draw_action_button, draw_tool_button, layout_topbar, TopbarButtonDef, TopbarLayout,
@@ -204,6 +205,9 @@ pub struct UiState {
     /// **Le mode référence** (fiche 51 § 5) : plus aucune interface, le canevas partout. Le menu
     /// contextuel et les messages restent — sans eux, on ne saurait plus en sortir.
     pub reference: bool,
+    /// **Le mode zen** (`F11`, ZEN-1, fiche 115) : plus aucune interface, la fenêtre telle qu'elle
+    /// est ; « ZEN · F11 » en haut à droite le referme.
+    pub zen: bool,
     /// La barre sur le côté, quand elle ne tient plus en haut (fiche 55), et son dessin gardé.
     pub rail: rail::Rail,
     pub rail_cache: Option<rail::RailCache>,
@@ -281,6 +285,7 @@ impl UiState {
             ariane_cache: None,
             onglets: onglets::EtatDesOnglets::default(),
             reference: false,
+            zen: false,
             rail: rail::Rail::default(),
             rail_cache: None,
             marges: Default::default(),
@@ -346,12 +351,13 @@ impl UiState {
         self.topbar_height() + self.tabs_height()
     }
 
-    /// **L'interface est-elle cachée ?** En mode référence (fiche 51 § 5), et pendant une
-    /// lecture (fiche 67) : ni bande, ni panneaux, ni barre d'action — le canevas seul. Un seul
+    /// **L'interface est-elle cachée ?** En mode référence (fiche 51 § 5), en mode zen (ZEN-1,
+    /// fiche 115), et pendant une lecture (fiche 67) : ni bande, ni panneaux, ni barre d'action —
+    /// le canevas seul. Un seul
     /// prédicat, que la bande, les panneaux, les clics et le dessin lisent.
     #[inline]
     pub fn sans_interface(&self) -> bool {
-        self.reference || self.lecture.is_some()
+        self.reference || self.zen || self.lecture.is_some()
     }
 
     /// La bande existe-t-elle ? Zéro sans interface : tout ce qui se mesure sur elle — le
