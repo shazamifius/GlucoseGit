@@ -1,0 +1,152 @@
+[
+  {
+    "nom": "CHIFFRE-1 — ChaCha20 : une rotation fausse",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "    s[d] = (s[d] ^ s[a]).rotate_left(16);",
+    "apres": "    s[d] = (s[d] ^ s[a]).rotate_left(15);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — ChaCha20 : une constante fausse",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "0x6170_7865",
+    "apres": "0x6170_7866",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — ChaCha20 : le compteur n'avance pas d'un bloc à l'autre",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "        let b = bloc(cle, compteur.wrapping_add(k as u32), nonce);",
+    "apres": "        let b = bloc(cle, compteur, nonce);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — Poly1305 : r mal bridé",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "        (mot(&cle[3..]) >> 2) & 0x03ff_ff03,",
+    "apres": "        (mot(&cle[3..]) >> 2) & 0x03ff_ffff,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — Poly1305 : le bit 2¹²⁸ d'un bloc entier oublié",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "        h[4] += (mot(&b[12..]) >> 8) | (u32::from(b[16]) << 24);",
+    "apres": "        h[4] += mot(&b[12..]) >> 8;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — Poly1305 : la retenue du dernier membre perd son facteur 5",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "    h[0] += (retenue as u32) * 5;",
+    "apres": "    h[0] += retenue as u32;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — Poly1305 : la réduction finale ne retranche jamais p",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "    let garder_g = (g[4] >> 31).wrapping_sub(1);",
+    "apres": "    let garder_g = 0u32;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — AEAD : le sceau n'est plus vérifié",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "    if ecart != 0 {",
+    "apres": "    if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — AEAD : les données associées hors du sceau",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "    m.extend_from_slice(associees);\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  },
+  {
+    "nom": "CHIFFRE-1 — AEAD : le flux commence au compteur 0",
+    "fichier": "crates/glucose-core/src/chiffre.rs",
+    "avant": "    flux(cle, 1, nonce, &mut sortie);",
+    "apres": "    flux(cle, 0, nonce, &mut sortie);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "chiffre"
+    ]
+  }
+]

@@ -13,6 +13,7 @@ pub mod arrow;
 pub mod arrow_anchor;
 pub mod bordures;
 pub mod chemin;
+pub mod chiffre;
 pub mod couleur;
 pub mod courbes;
 pub mod cout;
