@@ -211,6 +211,13 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   avec `[skip ci]` ; le message de commit dans un fichier du scratchpad, puis `git commit -F`. **Suivre la
   CI** : `GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>`. Avant d'envoyer un
   fichier de `.github/workflows/` : `nix shell nixpkgs#actionlint -c actionlint`.
+* **Le relais de la porte publique** (`outils/porte`, fiche 116) : `npx wrangler deploy` depuis son dossier
+  (le compte de la télémétrie) ; ses épreuves, `node --test outils/porte/test/aiguillage.test.js` ; en
+  local, `npx wrangler dev --ip 127.0.0.1 --port 8787` (son état dans `outils/porte/.wrangler`, ignoré).
+  **L'essai réel** : `bash outils/porte/essai/essai_pilote.sh <dossier> <relais>` — le vrai Glucose au
+  pilote, un faux claude.ai (`essai/faux_claude.mjs`) qui fait tout le chemin, chaque étape capturée ;
+  `essai/faux_glucose.mjs <relais>` éprouve le relais seul. Il ne lit rien du protocole : une version
+  de Glucose ne l'attend jamais.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>`, en début de session. Une erreur 7403 :
   `npx wrangler whoami` rafraîchit le jeton ; la connexion, dans `CLAUDE.md`. **Le serveur avant le
   client** : une ligne neuve se déploie (`npx wrangler deploy`), se prouve en ligne une minute plus tard,

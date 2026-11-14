@@ -122,6 +122,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Brancher un agent sur Glucose | `glucose --mcp` dans sa configuration MCP (Glucose s'ouvre s'il ne l'est pas) | — |
 | **Un agent lit et pose les domaines** (fiche 88) : ceux de chaque nœud, la table de tout ce que Glucose connaît, les nœuds d'un domaine dans tous les fichiers ; il ne crée jamais un nom pris, il le précise ; **un domaine posé sur une membrane vaut pour ce qu'elle contient** (DOM-6, fiche 94 : `herite_de`) | `glucose_lire`, `glucose_poser_domaine`, `glucose_domaines` | — |
 | **Un agent cherche comme `Ctrl+F`** (fiche 90, AGENT-7) : les mêmes résultats, dans le même ordre, la même page de dix | `glucose_chercher` | — |
+| **Une IA du nuage dans le document ouvert** (PUBLIQUE-1, fiche 116) : Claude.ai (web, bureau, téléphone), toute IA qui parle MCP sur le web — après ton accord dans Glucose, devant le même code que sa page ; *Lire et écrire* ou *Lire seulement* ; ses gestes signés de son nom vérifié (« Claude (claude.ai) »), annulables ; elle ne voit ni tes autres fichiers ni leurs chemins | **Collaborer** (la bande), la palette « Collaborer — la porte aux IA publiques… » : ouvrir la porte, copier l'adresse, voir et retirer les IA, fermer la porte | — (pas encore au téléphone) |
 | **Chaque outil, au terminal** (fiche 90, TERMINAL-1 et 2) : `glucose lire`, `glucose chercher eau`, `glucose domaines`, `glucose poser-texte "…"`, `cat notes.md \| glucose poser-texte -` ; la même porte et le même accord que les agents | **`glucose aide`** les dit toutes ; sous Windows, la sortie ne se lit que redirigée | — |
 
 ---
@@ -131,7 +132,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | où | quoi | ce qu'il faut | quand |
 |---|---|---|---|
 | Plugins | « Télécharger » le modèle d'IA | l'IA locale | plus tard |
-| bande | **Collaborer** : dit « pas encore disponible » | la collaboration — obligatoire | plus tard, à sa parole |
+| bande | **Collaborer** : ouvre **la porte aux IA publiques** (fiche 116) ; le co-working entre humains passera par elle | le co-working — obligatoire | le journal par nom d'abord (fiche 116 § 8) |
 | bande | **Trans-domaines** : dit « bientôt — en recherche » (fiche 71) | une vue en perspective 3D de tous les domaines — de la R&D (sa parole du 22/10) | la partie 2, à sa parole |
 | Mood board | « + Créer un mood board », grisé — et **un preset est désormais l'interface entière** (disposition, comportement, couleurs, raccourcis, fenêtres : Glucose, PureRef, Figma, Miro — `VISION.md`), pas des zones | la fondation : l'interface devenue donnée | SUITE P4 |
 | le téléphone | les champs de nombre du dock, le nom d'un jalon, celui d'un domaine : on ne peut pas taper | le miroir du clavier (CLAVIER-1) étendu au dock | avec l'UX du téléphone, refaite en dernier |
@@ -157,7 +158,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Membranes étirées et minimisées** (l'idée de Mary) | Tauri | options de la membrane | noyau écrit ; **à sa parole** |
 | **Vidéos** | Tauri | comme les images | — |
 | **Provenance des images** (SauceNAO) | sa demande | menu d'une image | **sa clé SauceNAO** |
-| **Collaborer** | Tauri, obligatoire | bande | **la page attend sa parole** (fiche 113) |
+| **Collaborer** — le co-working entre humains | Tauri, obligatoire | bande | **la porte publique est faite** (fiche 116) ; le co-working : les gestes par nom, les numéros par participant, le chiffrement, puis la salle (fiche 116 § 8) |
 | **Plugins, IA locale** | Tauri, PLUGINS.md | panneau Plugins | plus tard — **le MCP est fait** : la porte des agents (fiche 75) |
 | **Trans-domaines** | Tauri | bande | sa définition, à sa parole |
 | **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire |

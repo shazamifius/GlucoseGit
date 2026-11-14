@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 13/11/2026, 23 h 58** (fiches 108-115). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 14/11/2026, 3 h 41** (fiches 108-116). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -44,7 +44,11 @@
   ce qu'elle relie ; regardée dans le vrai Glucose, au PC et à la taille du téléphone) ; **regarder
   un domaine** (DOMAINE-1 et LENTILLE-1, fiche 115 : « voir » dans le panneau Domaines — ce qui
   n'appartient pas au domaine pâlit selon son poids, de 12 % à plein ; avec la frise, le minimum
-  des deux lentilles).
+  des deux lentilles) ; **la porte aux IA publiques** (PUBLIQUE-1, fiche 116 : **Collaborer** l'ouvre ;
+  une IA du nuage — Claude.ai — entre par son clic dans Glucose, devant le même code que sa page, ne
+  voit que le document ouvert et signe ses gestes de son nom vérifié ; **le relais est en ligne**,
+  `https://glucose-porte.ferme-nilslamber.workers.dev`, sur son compte Cloudflare ; essayée de bout
+  en bout par le vrai Glucose et un faux claude.ai — **pas encore avec son compte**).
   **Son Glucose installé** (profil Nix `GlucoseGit`) : `547d9d9` — la frise, regarder un domaine et
   le mode zen compris.
 * **En correctif, pas dans `main`** (`~/.cache/glucose-bancs/export-html-115/export-html.patch`) :
@@ -55,16 +59,18 @@
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Ce qui attend sa parole** : **la page du co-working** (https://claude.ai/artifact/SLp5cJzTb7FvsKp7iEtUpS,
-  fiche 113 : partager un canevas, c'est partager sa Time Machine — une salle sur son relais
-  numérote les gestes chiffrés sans les lire) et **la porte publique** (fiche 111).
+* **Le co-working** (sa parole du 14/11, ses deux pages prises pour accordées) : la porte publique
+  est faite ; le co-working entre humains demande d'abord **des gestes qui désignent un nœud par son
+  nom** (aujourd'hui par son rang dans une liste), des numéros de nœuds par participant et le
+  chiffrement des gestes (fiche 116 § 8).
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
   des battements). Ce qui reste : **deux battements (33 à 42 ms) entre l'envoi d'une image et
   l'écran**, avec une gigue d'un battement — un calage sur le battement l'efface (prototype, à
-  écrire) — et le travail quand il zoome. **La porte publique** (les IA publiques dans son canevas) attend sa
-  parole sur sa page. Et la carte de Wikipédia — ses cinq défauts (VISION § 7) —, et le cercle de
+  écrire) — et le travail quand il zoome. **Sa première vraie session lue par PARU-1** (14/11, 1 h 45, fiche 116 § 1) : 19 % des
+  battements sautés alors qu'une image était due, 46 ms de l'envoi à l'écran en médiane, 93 au p90.
+  Et la carte de Wikipédia — ses cinq défauts (VISION § 7) —, et le cercle de
   l'IA bâti sur la Time Machine (VISION § 8 bis : elle propose, il corrige, Glucose note, elle
   apprend — les trois premiers temps sont écrits). L'allure des frontières des membranes attend sa
   parole. **Sa carte de Wikipédia signée** : `~/Documents/Glucose-essai-wikipedia-signee.glucose`,
@@ -85,7 +91,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) ; **dater** un nœud (`Maj+T`), **la frise chronologique** (`Maj+R`) et **regarder un domaine** (« voir ») : deux lentilles qui estompent ce qu'elles écartent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) — la page web : en correctif |
 | **L'interface** | 109 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence ; **le mode zen** (`F11`) |
-| **Les agents** | `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
+| **Les agents** | **une IA du nuage par Collaborer** (Claude.ai : la porte publique, son accord devant un code, le document ouvert seulement, *Lire seulement* au choix, son nom vérifié qui signe — fiche 116) ; `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
 
 ## 3. Ce qui ne va pas
@@ -133,7 +139,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 230, toutes vertes au 13/11 à 23 h 25 (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 258, toutes vertes au 14/11 à 3 h 41 (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -145,7 +151,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   22 (RECTIF-1 et le pourquoi, fiche 110 — une épreuve aveugle écrite), 4 sur 4 (QUEUE-1), 18 sur 18
   (PARU-1, fiche 112), 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
   désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114), 51 sur 51 (la frise et
-  l'estompe), 16 sur 16 (le domaine regardé) et 12 sur 12 (le mode zen, fiche 115).
+  l'estompe), 16 sur 16 (le domaine regardé) et 12 sur 12 (le mode zen, fiche 115) ; 32 sur 32 (la porte
+  publique, fiche 116 — dont une épreuve aveugle trouvée et écrite, en deux passes).
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
@@ -156,7 +163,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 ## 5. Ses utilisateurs, et ce qu'on en sait
 
 * **La télémétrie** (avec l'accord de chacun ; un serveur Cloudflare de son compte,
-  [TELEMETRIE](TELEMETRIE.md)) au 13/11 au soir : **170 sessions, 10 installations, 34 fins anormales**.
+  [TELEMETRIE](TELEMETRIE.md)) au 14/11 : **176 sessions, 10 installations, 36 fins anormales**.
   * son VivoBook (Intel UHD 620, la version `dev` de son profil Nix) : 9 sessions du 7 au 12/11 ;
   * une GTX 1660 SUPER sous Windows, 48 sessions jusqu'au 12/11, encore en beta 9 — **très probablement
     lui, au PC de l'école** ;

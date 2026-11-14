@@ -138,6 +138,9 @@ Chaque décision, chaque ligne de code se juge contre elles.
   moi de mon côté je pourrai énormément tester en condition réelle, ça nous permettra d'avoir plein de
   logs ; et là on pourrait se focaliser sur les boutons manquants, comme principalement le co-working
   sur un canva Glucose, les connexions MCP avec des IA publiques, et autres »*.
+  **Sa parole du 14/11** (vers 1 h 46) : *« j'aimerais vraiment travailler sur les protocoles MCP de
+  liaison de IA ainsi que le système de collaboration »* — la porte publique et le co-working, ses
+  deux pages (fiches 111 et 113) prises pour accordées.
 * **L'ergonomie se fait à la fin** (15/10), une grosse session quand toutes les fonctions seront là ;
   avant, chaque fonction a son bouton, au PC et au téléphone. **Nuancé le 10/11** : *« actuellement le
   Wikipédia est illisible et horrible à travailler dessus »* — il veut travailler l'ergonomie de la carte

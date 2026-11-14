@@ -32,7 +32,7 @@ Puis : prendre le premier chantier ouvert de SUITE § 2, **tout remettre en ques
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 116.**
+fiche. **La prochaine porte le numéro 117.**
 
 ## Avec lui
 
@@ -63,6 +63,9 @@ bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
 bash outils/mettre_a_jour.sh  # son Glucose installé, après un envoi qui change le programme (sous chien de garde)
 ```
+
+Le relais de la porte publique (`outils/porte`) vit sur le même compte : `npx wrangler deploy`, son essai
+réel par `outils/porte/essai/` (MÉTHODE § 5).
 
 Cloudflare, si `tableau.mjs` dit qu'on n'est pas connecté — demander son clic, et lui donner le lien :
 `cd outils/telemetrie && npx wrangler login --device --browser=false --scopes account:read user:read d1:write`

@@ -452,6 +452,23 @@ la ligne de commande avant toute fenêtre ; un document demandé (`glucose docum
 double-clic du type `application/x-glucose`, `outils/paquets/`) passe devant la reprise (OUVRIR-1,
 `persist/reprise.rs`).
 
+**La porte publique, la troisième** (fiche 116, `agents/publique/`, `app/porte_publique.rs`) : une IA
+du nuage (Claude.ai, ChatGPT) n'a qu'une adresse `https://` ; Glucose se relie **lui-même** au relais
+(`outils/porte` : un Worker et un Durable Object par Glucose, sur Cloudflare) par un WebSocket sortant
+(`plateforme/websocket` : WinHTTP sous Windows, `rustls` et des trames écrites ici ailleurs,
+`decisions/16`). **Le relais ne lit rien, ne garde rien** ; il ne sert qu'une page à lui (« va dans
+Glucose », un code) et ne passe que du JSON. **Chaque Glucose est son propre serveur d'autorisation**
+(`publique/oauth.rs`, pur : CIMD, DCR sans rien garder, PKCE S256, un code à usage unique, une clé
+gardée par son empreinte jusqu'à ce qu'il la retire — `publique/accords.rs`, `porte-publique.json`) ;
+`publique/http.rs` répond à chaque requête (la découverte RFC 9728 et 8414, l'échange, la porte MCP en
+« Streamable HTTP » du 28/07/2026, les en-têtes contre le corps) ; `publique/lien.rs` tient la
+connexion (ping, reprise, seize requêtes au plus). **La portée** (`outils::Portee`) : une IA du nuage
+n'a que le document ouvert — ni `glucose_domaines`, ni les autres fichiers recensés, ni la capture
+d'un fichier local, ni le chemin du document ; « Lire seulement » ne donne que les outils qui lisent ;
+les deux listes permettent, elles n'interdisent pas. Son nom vérifié signe (`Connexion::publique`).
+**Collaborer** ouvre la porte et s'allume avec elle ; la question d'accord montre le code de la page ;
+un témoin dit qu'une IA du nuage travaille (PUBLIQUE-1).
+
 ## 9. Distribuer et se mettre à jour
 
 * **`mise_a_jour/`** : lit le `latest.json` **au format de Tauri**, vérifie la signature minisign
