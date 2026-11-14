@@ -1,0 +1,79 @@
+[
+  {
+    "nom": "SALLE-1 — le relais croit l'empreinte du client",
+    "fichier": "outils/porte/src/index.js",
+    "avant": "  entetes.delete(\"x-glucose-ecrire\");\n",
+    "apres": "",
+    "cmd": [
+      "bash",
+      "-c",
+      "sleep 5; timeout 60 node outils/porte/essai/salle_essai.mjs"
+    ]
+  },
+  {
+    "nom": "SALLE-1 — un lecteur écrit",
+    "fichier": "outils/porte/src/salle.js",
+    "avant": "    if (!ws.deserializeAttachment()?.ecrivain)",
+    "apres": "    if (false)",
+    "cmd": [
+      "bash",
+      "-c",
+      "sleep 5; timeout 60 node outils/porte/essai/salle_essai.mjs"
+    ]
+  },
+  {
+    "nom": "SALLE-1 — un faux secret écrit",
+    "fichier": "outils/porte/src/salle.js",
+    "avant": "      } else if (connue === empreinte) {",
+    "apres": "      } else if (true) {",
+    "cmd": [
+      "bash",
+      "-c",
+      "sleep 5; timeout 60 node outils/porte/essai/salle_essai.mjs"
+    ]
+  },
+  {
+    "nom": "SALLE-1 — le curseur revient à son auteur",
+    "fichier": "outils/porte/src/salle.js",
+    "avant": "if (autre !== ws) autre.send(passe);",
+    "apres": "autre.send(passe);",
+    "cmd": [
+      "bash",
+      "-c",
+      "sleep 5; timeout 60 node outils/porte/essai/salle_essai.mjs"
+    ]
+  },
+  {
+    "nom": "SALLE-1 — le rattrapage repart de trop tôt",
+    "fichier": "outils/porte/src/salle.js",
+    "avant": "\"SELECT n, l, o FROM gestes WHERE n > ? ORDER BY n LIMIT ?\"",
+    "apres": "\"SELECT n, l, o FROM gestes WHERE n >= ? ORDER BY n LIMIT ?\"",
+    "cmd": [
+      "bash",
+      "-c",
+      "sleep 5; timeout 60 node outils/porte/essai/salle_essai.mjs"
+    ]
+  },
+  {
+    "nom": "SALLE-1 — un geste qui n'est pas du base64 passe",
+    "fichier": "outils/porte/src/messages.js",
+    "avant": "m.o.length <= GESTE_MAX && BASE64.test(m.o)",
+    "apres": "m.o.length <= GESTE_MAX",
+    "cmd": [
+      "node",
+      "--test",
+      "outils/porte/test/salle.test.js"
+    ]
+  },
+  {
+    "nom": "SALLE-1 — une salle s'adresse n'importe comment",
+    "fichier": "outils/porte/src/aiguillage.js",
+    "avant": "reste.length === 2 && reste[1] === \"salle\"",
+    "apres": "reste.length >= 1",
+    "cmd": [
+      "node",
+      "--test",
+      "outils/porte/test/salle.test.js"
+    ]
+  }
+]

@@ -12,7 +12,15 @@
 // Les épreuves : `node --test outils/porte/test`.
 
 import { DurableObject } from "cloudflare:workers";
-import { aiguiller, entetesPourGlucose, erreur, identifiantDuSecret, reponseDeGlucose } from "./aiguillage.js";
+import {
+  aiguiller,
+  empreinteDuSecret,
+  entetesPourGlucose,
+  erreur,
+  identifiantDuSecret,
+  reponseDeGlucose,
+} from "./aiguillage.js";
+export { Salle } from "./salle.js";
 import { PAGE, SCRIPT } from "./page.js";
 
 /** Le plus gros corps qu'une demande porte jusqu'à Glucose. */
@@ -43,6 +51,7 @@ export default {
         headers: { "content-type": "text/javascript; charset=utf-8", "x-content-type-options": "nosniff" },
       });
     }
+    if (ou.sorte === "salle") return entrerDansLaSalle(requete, env, ou.id);
     if (ou.sorte === "page") {
       if (requete.method !== "GET") return erreur(405, "methode", "La page d'accord se lit, elle ne reçoit rien.");
       return new Response(PAGE, { headers: SECURITE_DE_LA_PAGE });
@@ -71,6 +80,26 @@ export default {
     });
   },
 };
+
+/**
+ * **Entrer dans une salle** (fiche 116) : par WebSocket. Le secret d'écriture, s'il est présenté,
+ * devient son empreinte — calculée ici, jamais crue du client.
+ */
+async function entrerDansLaSalle(requete, env, id) {
+  if (requete.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+    return erreur(426, "websocket", "Une salle s'ouvre par WebSocket.");
+  }
+  const entetes = new Headers(requete.headers);
+  entetes.delete("x-glucose-ecrire");
+  const secret = (requete.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (secret) {
+    const empreinte = await empreinteDuSecret(secret);
+    if (!empreinte) return erreur(403, "secret", "Ce secret n'est pas un secret d'écriture.");
+    entetes.set("x-glucose-ecrire", empreinte);
+  }
+  const salle = env.SALLES.get(env.SALLES.idFromName(id));
+  return salle.fetch(new Request(requete, { headers: entetes }));
+}
 
 /** **La porte d'un Glucose** : sa connexion, et les demandes qui l'attendent. */
 export class Porte extends DurableObject {

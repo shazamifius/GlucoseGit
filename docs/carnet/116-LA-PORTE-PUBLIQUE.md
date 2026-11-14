@@ -198,11 +198,16 @@ trop tard :
    geste — Figma, Google Slides ; si l'élément a disparu entre-temps, rien (fiche 113). La pile LIFO du
    journal ne le sait pas : en partage, c'est une pile par main.
 3. Les numéros des nœuds par participant (au moment où la salle les donne : `txt-<participant>-43`).
-4. **La salle** (un Durable Object de plus sur le relais) : elle numérote, garde scellé, passe ; la
-   base (le document au moment du partage, scellé) est le numéro 0, **en morceaux** (une valeur d'objet
-   tient 2 Mo ; sa carte de Wikipédia en pèse 2,1) ; la salle ne voit qu'un numéro et des octets.
-   Deux codes : le code « écrire » porte un secret dont la salle garde l'empreinte, le code « lire »
-   n'a que la clé du chiffre.
+4. **La salle** — **écrite, éprouvée en local, pas déployée** (SALLE-1, `outils/porte/src/salle.js`,
+   `messages.js`) : un Durable Object par canevas partagé (`/s/<id>/salle`), qui numérote, garde (SQLite)
+   et passe des gestes scellés sans les lire ; la base est le premier geste, **en morceaux** (une valeur
+   tient 2 Mo ; sa carte de Wikipédia en pèse 2,1) ; un retardataire rattrape `depuis n` ; les curseurs
+   passent sans être gardés. **Écrire se prouve** : le code « écrire » porte un secret dont la salle ne
+   garde que l'empreinte, fixée par le premier écrivain, **recalculée par le relais, jamais crue du
+   client** ; le code « lire » n'a que la clé du chiffre. `essai/salle_essai.mjs` : neuf verdicts (un
+   écrivain, un lecteur qui ne peut pas écrire, deux retardataires, un faux secret, une empreinte
+   usurpée) ; **7 sabotages sur 7** (`outils/sabotages/salle-116.json`). Elle se déploiera **avant** la
+   version de Glucose qui s'en servira.
 5. « Partager ce canevas / Rejoindre » dans la question de Collaborer, son nom et sa couleur, les
    curseurs (hors de l'histoire), les photos d'un participant à l'autre (B1).
 

@@ -23,6 +23,14 @@ function octetsDuBase64(texte) {
   }
 }
 
+/** **L'empreinte d'un secret d'écriture** (une salle, fiche 116) : SHA-256 en hexadécimal, ou `null`. */
+export async function empreinteDuSecret(secret) {
+  const octets = octetsDuBase64(secret ?? "");
+  if (!octets || octets.length < 16 || octets.length > 64) return null;
+  const e = new Uint8Array(await crypto.subtle.digest("SHA-256", octets));
+  return Array.from(e, (o) => o.toString(16).padStart(2, "0")).join("");
+}
+
 /** **L'identifiant d'un secret** : ce que Glucose prouve en le présentant. */
 export async function identifiantDuSecret(secret) {
   const octets = octetsDuBase64(secret ?? "");
@@ -37,6 +45,7 @@ export async function identifiantDuSecret(secret) {
  * - `{ sorte: "page", id }` — la page d'accord ;
  * - `{ sorte: "porte", id, chemin }` — ce qui passe à Glucose, `chemin` relatif à son adresse ;
  * - `{ sorte: "script" }` — le script de la page ;
+ * - `{ sorte: "salle", id }` — la salle d'un canevas partagé ;
  * - `null` — rien ici.
  */
 export function aiguiller(pathname) {
@@ -52,6 +61,10 @@ export function aiguiller(pathname) {
     };
     if (g !== "g" || !IDENTIFIANT.test(id ?? "") || !sujets[document]) return null;
     return { sorte: "porte", id, chemin: sujets[document] };
+  }
+  // Une salle de canevas partagé (fiche 116) : son identifiant vient du code d'invitation.
+  if (tete === "s" && IDENTIFIANT.test(reste[0] ?? "") && reste.length === 2 && reste[1] === "salle") {
+    return { sorte: "salle", id: reste[0] };
   }
   if (tete !== "g" || !IDENTIFIANT.test(reste[0] ?? "")) return null;
   const [id, ...suite] = reste;

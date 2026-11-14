@@ -1,13 +1,20 @@
 // Le relais de la porte publique (fiche 116). Déployé depuis ce dossier : `npx wrangler deploy`.
 // Un Durable Object par Glucose (SQLite, l'offre gratuite) ; aucun stockage n'y est écrit.
+// Une salle par canevas partagé (fiche 116) : elle garde les gestes scellés, sans les lire.
 {
   "name": "glucose-porte",
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "durable_objects": {
-    "bindings": [{ "name": "PORTES", "class_name": "Porte" }]
+    "bindings": [
+      { "name": "PORTES", "class_name": "Porte" },
+      { "name": "SALLES", "class_name": "Salle" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Porte"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Porte"] },
+    { "tag": "v2", "new_sqlite_classes": ["Salle"] }
+  ],
   // Aucun journal des requêtes : ils porteraient l'adresse IP et les en-têtes de chaque IA.
   "observability": { "enabled": false }
 }

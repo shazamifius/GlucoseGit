@@ -216,7 +216,9 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   local, `npx wrangler dev --ip 127.0.0.1 --port 8787` (son état dans `outils/porte/.wrangler`, ignoré).
   **L'essai réel** : `bash outils/porte/essai/essai_pilote.sh <dossier> <relais>` — le vrai Glucose au
   pilote, un faux claude.ai (`essai/faux_claude.mjs`) qui fait tout le chemin, chaque étape capturée ;
-  `essai/faux_glucose.mjs <relais>` éprouve le relais seul. Il ne lit rien du protocole : une version
+  `essai/faux_glucose.mjs <relais>` éprouve le relais seul ; `essai/salle_essai.mjs <relais>`, la salle
+  d'un canevas partagé (ses sabotages tournent contre `wrangler dev`, qui se recharge : une pause avant
+  chaque essai, `outils/sabotages/salle-116.json`). Il ne lit rien du protocole : une version
   de Glucose ne l'attend jamais.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>`, en début de session. Une erreur 7403 :
   `npx wrangler whoami` rafraîchit le jeton ; la connexion, dans `CLAUDE.md`. **Le serveur avant le
