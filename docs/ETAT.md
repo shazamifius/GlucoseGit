@@ -161,7 +161,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
-  sur `f9027fd`** (la 2.0.4-beta.1). La CI se lance avant une publication, pas à chaque envoi.
+  sur `2e63713`** (14/11, la porte publique comprise : le WebSocket par WinHTTP éprouvé sous Windows).
+  GitHub compile avec **Rust 1.100**, Nix ici avec 1.99 : un clippy plus récent peut trouver ce
+  que celui d'ici ne voit pas (fiche 116 § 7). La CI se lance avant une publication, pas à chaque envoi.
 
 ## 5. Ses utilisateurs, et ce qu'on en sait
 

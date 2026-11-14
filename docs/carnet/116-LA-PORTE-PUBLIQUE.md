@@ -81,7 +81,8 @@ SHA-1 pour l'acceptation et le base64 dans les deux sens (le noyau ; le décodeu
 déménagé : une seule loi), le hasard du système (`/dev/urandom`, `BCryptGenRandom`). **Hors de
 Windows**, `rustls` et `webpki-roots`, déjà là par `ureq` (le verrou ne gagne que deux liens) ;
 **sous Windows**, WinHTTP, qui prend le proxy et les certificats du système (le PC de l'école) —
-relu contre les signatures exactes de la caisse `windows`, compilé seulement par la CI.
+relu contre les signatures exactes de la caisse `windows`, puis **éprouvé sur la CI de Windows** :
+l'épreuve de la vraie connexion contre un relais local y passe par WinHTTP.
 
 ## 5. Le relais, en ligne
 
@@ -123,6 +124,10 @@ témoin à l'écran, Collaborer allumé.
   (`agent_poser_page` : la garde est allée dans `lire_une_capture`, une règle à la sortie) ;
   l'épreuve des polices (un émoji dans mon épreuve, qu'Inter n'a pas) ; mon épreuve du bouton (le
   mot d'accueil).
+* **La vérification de GitHub** (dix tâches) : la première est tombée sur **clippy de Rust 1.100**
+  (Nix, ici, a 1.99) — une boucle indexée d'une **ancienne** épreuve des familles (fiche 106), où il
+  s'arrêtait avant `glucose-desktop` : la voie WinHTTP n'avait pas été vérifiée. Corrigée, la
+  seconde est **verte sur les dix** (`2e63713`), Windows x64 compris.
 * **Les sabotages** (`outils/sabotages/porte-publique-116.json`) : **32 sur 32**, après deux
   passes. La première a trouvé une épreuve aveugle — le contrôle « le document d'identité dit sa
   propre adresse » était couvert par celui du domaine de retour ; le cas de l'imposteur (un
@@ -227,7 +232,6 @@ trop tard :
   le montre. Un vol vers lui serait-il bienvenu, ou volerait-il sa vue ?
 * **La page d'accord n'a pas été vue dans un navigateur** : son script ne l'a été que par le faux
   Claude, qui en refait les appels. L'essai avec son compte Claude.ai la montrera.
-* **WinHTTP** : relu, pas compilé ici ; la CI le dira avant la prochaine publication.
 * **La question de la porte ne se met pas à jour** pendant qu'elle est ouverte (« elle se relie… »
   reste jusqu'à la suivante).
 
@@ -254,6 +258,9 @@ trop tard :
   SHA-1 : RFC 3174 ; base64 : RFC 4648.
 
 ## 11. Les leçons
+
+* **Un clippy plus récent ailleurs** : la CI prend la dernière version de Rust, Nix la sienne. Une
+  vérification qui tombe au noyau ne dit rien du reste — elle s'est arrêtée avant.
 
 * **L'essai réel trouve ce que l'épreuve ne cherche pas** : seize épreuves de la porte, et le chemin
   du document est parti au nuage dans le premier essai réel. Une épreuve vérifie ce qu'on a pensé
