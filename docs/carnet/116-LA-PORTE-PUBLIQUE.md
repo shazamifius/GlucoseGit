@@ -1,6 +1,8 @@
 # 116 — La porte publique : Claude.ai dans le document ouvert, par Collaborer ; le relais en ligne ; ce que le co-working demande au journal
 
-> Session du 14/11/2026, de 1 h 46 à 3 h 45 pour la porte (elle continue). Sa parole d'ouverture : *« j'aimerais vraiment
+> Session du 14/11/2026, de 1 h 46 à 4 h 33, arrêtée à sa demande (*« la session commence
+> malheureusement à être trop longue »*) : la porte publique jusqu'à 3 h 45, puis les fondations du
+> co-working. Sa parole d'ouverture : *« j'aimerais vraiment
 > travailler sur les protocoles MCP de liaison de IA ainsi que le système de collaboration »* —
 > la porte publique (fiche 111) et le co-working (fiche 113), dont les pages attendaient sa parole
 > sans commentaire. Ses mots valent feu vert sur mes avis des deux pages (le relais sur son
