@@ -26,6 +26,8 @@ fn chercher(adresse: &str) -> Result<String, String> {
         CLAUDE => Ok(DOCUMENT_DE_CLAUDE.into()),
         "https://claude.ai/oauth/claude-code-client-metadata" => Ok(DOCUMENT_DE_CLAUDE_CODE.into()),
         "https://faussaire.exemple/id" => Ok(DOCUMENT_DE_CLAUDE.into()),
+        // Il renvoie bien chez lui, mais prétend être le document de claude.ai.
+        "https://imposteur.exemple/id" => Ok(r#"{"client_id":"https://claude.ai/oauth/mcp-oauth-client-metadata","client_name":"Claude","redirect_uris":["https://imposteur.exemple/retour"]}"#.into()),
         // Il se dit bien lui-même, mais renvoie ailleurs que chez lui.
         "https://etrange.exemple/id" => Ok(r#"{"client_id":"https://etrange.exemple/id","client_name":"Étrange","redirect_uris":["https://ailleurs.exemple/retour"]}"#.into()),
         _ => Err("introuvable".into()),
@@ -362,6 +364,10 @@ fn une_identite_fausse_ou_un_retour_etranger_sont_refuses_avant_toute_question()
     let b = Banc::nouveau("identite");
     for (client, retour) in [
         ("https://faussaire.exemple/id", RETOUR),
+        (
+            "https://imposteur.exemple/id",
+            "https://imposteur.exemple/retour",
+        ),
         (CLAUDE, "https://claude.ai/ailleurs"),
         (CLAUDE, "https://pirate.exemple/api/mcp/auth_callback"),
         ("https://introuvable.exemple/id", RETOUR),

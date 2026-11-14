@@ -120,7 +120,7 @@ impl GlucoseApp {
 
     /// Le chemin de ce document tel que l'appel le lit : pour une IA du nuage, aucun — un chemin
     /// dit le nom de l'utilisateur et l'ordre de ses dossiers.
-    fn fichier_vu(&self) -> String {
+    pub(super) fn fichier_vu(&self) -> String {
         if self.lancement.agents.portee.machine {
             self.fichier_de_ce_document()
         } else {

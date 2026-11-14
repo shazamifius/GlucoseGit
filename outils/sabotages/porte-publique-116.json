@@ -332,8 +332,8 @@
   {
     "nom": "PUBLIQUE-1 — Capture : une IA du nuage lit un fichier de la machine",
     "fichier": "crates/glucose-desktop/src/agents/executer.rs",
-    "avant": "            Some(_) if !self.lancement.agents.portee.machine => {",
-    "apres": "            Some(_) if false => {",
+    "avant": "        // Une IA du nuage ne lit pas les fichiers de cet ordinateur (C1, fiche 116).\n        if !self.lancement.agents.portee.machine {",
+    "apres": "        // Une IA du nuage ne lit pas les fichiers de cet ordinateur (C1, fiche 116).\n        if false {",
     "cmd": [
       "cargo",
       "test",
@@ -450,6 +450,21 @@
       "node",
       "--test",
       "outils/porte/test/aiguillage.test.js"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Lire : le chemin du document part au nuage",
+    "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+    "avant": "            (\"fichier\", Json::from(self.fichier_vu())),",
+    "apres": "            (\"fichier\", Json::from(self.fichier_de_ce_document())),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
     ]
   }
 ]

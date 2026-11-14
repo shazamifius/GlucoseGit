@@ -360,6 +360,18 @@ fn publique_1_une_ia_du_nuage_entre_par_le_clic_de_l_utilisateur_signe_puis_sort
     let (_, r) = relais.passer(&mut app, ("POST", "/mcp"), Some(&cle), &lire);
     let dit = r.ecrire();
     assert!(dit.contains("absent"), "{dit}");
+    // Et lire le document ne dit pas où il vit sur le disque.
+    let (_, r) = relais.passer(
+        &mut app,
+        ("POST", "/mcp"),
+        Some(&cle),
+        &mcp_ancien(6, "glucose_lire", "{}"),
+    );
+    assert!(
+        r.ecrire().contains(r#"\"fichier\":\"le document ouvert\""#),
+        "{}",
+        r.ecrire()
+    );
     assert!(
         !dit.contains("secret-du-voisin") && !dit.contains("quelqu-un"),
         "{dit}"
