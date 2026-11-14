@@ -27,6 +27,7 @@ use super::super::document::{
 use super::super::image::{read_image, write_image};
 use super::super::tags::unknown;
 use crate::error::CoreResult;
+use crate::store::journal::partage::{Deplacement, EditionPartagee, GestePartage};
 use crate::store::journal::{Bouts, Edit, Slot, Transaction, Whole};
 use crate::types::Storyboard;
 
@@ -297,4 +298,70 @@ fn ecrire_l_ordre(w: &mut Writer, whole: &Whole<Vec<String>>) {
 
 fn lire_textes(r: &mut Reader<'_>) -> CoreResult<Whole<String>> {
     Ok(Whole::new(r.text()?, r.text()?))
+}
+
+// ── Le geste partagé (fiche 116 § 8) ────────────────────────────────────────
+
+/// Une édition qui part telle quelle, ou un déplacement nommé.
+const PARTAGE_TELLE: u8 = 0;
+const PARTAGE_DEPLACEMENT: u8 = 1;
+
+/// **Écrit un geste partagé** — ce qu'on scelle avant de l'envoyer à la salle : ses éditions dans
+/// la forme même de l'histoire, un déplacement par les noms de ce qu'il emporte.
+pub fn ecrire_partage(w: &mut Writer, geste: &GestePartage) {
+    w.seq(&geste.editions, |ww, e| match e {
+        EditionPartagee::Telle(edit) => {
+            ww.u8(PARTAGE_TELLE);
+            ecrire_edition(ww, edit);
+        }
+        EditionPartagee::Deplacement(d) => {
+            ww.u8(PARTAGE_DEPLACEMENT);
+            ww.text(&d.board);
+            ww.f64(d.delta.0);
+            ww.f64(d.delta.1);
+            for noms in [&d.images, &d.annotations, &d.folders] {
+                ww.seq(noms, |w3, n| w3.text(n));
+            }
+            ww.seq(&d.bouts, |w3, (n, b)| {
+                w3.text(n);
+                w3.u8(u8::from(b.origine) | (u8::from(b.cible) << 1));
+            });
+        }
+    });
+}
+
+/// **Relit un geste partagé** écrit au schéma de document `version` — celui de l'émetteur.
+pub fn lire_partage(r: &mut Reader<'_>, version: u16) -> CoreResult<GestePartage> {
+    let editions = r.seq(|rr| {
+        Ok(match rr.u8()? {
+            PARTAGE_TELLE => EditionPartagee::Telle(lire_edition(rr, version)?),
+            PARTAGE_DEPLACEMENT => {
+                let board = rr.text()?;
+                let delta = (rr.f64()?, rr.f64()?);
+                let mut noms = || rr.seq(|r3| r3.text());
+                let (images, annotations, folders) = (noms()?, noms()?, noms()?);
+                let bouts = rr.seq(|r3| {
+                    let n = r3.text()?;
+                    let q = r3.u8()?;
+                    Ok((
+                        n,
+                        Bouts {
+                            origine: q & 1 != 0,
+                            cible: q & 2 != 0,
+                        },
+                    ))
+                })?;
+                EditionPartagee::Deplacement(Deplacement {
+                    board,
+                    delta,
+                    images,
+                    annotations,
+                    bouts,
+                    folders,
+                })
+            }
+            autre => return Err(unknown("édition partagée", autre)),
+        })
+    })?;
+    Ok(GestePartage { editions })
 }

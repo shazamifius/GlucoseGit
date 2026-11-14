@@ -163,5 +163,35 @@
       "--",
       "partage_1"
     ]
+  },
+  {
+    "nom": "PARTAGE-1 — un bout de flèche relu à l'envers",
+    "fichier": "crates/glucose-core/src/persist/histoire/geste.rs",
+    "avant": "origine: q & 1 != 0,",
+    "apres": "origine: q & 2 != 0,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — un déplacement s'écrit sans ses folders",
+    "fichier": "crates/glucose-core/src/persist/histoire/geste.rs",
+    "avant": "            for noms in [&d.images, &d.annotations, &d.folders] {",
+    "apres": "            for noms in [&d.images, &d.annotations, &d.images] {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
   }
 ]

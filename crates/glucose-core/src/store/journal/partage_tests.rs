@@ -293,3 +293,48 @@ fn partage_1_la_transaction_realisee_se_rejoue_et_se_defait_par_les_rangs() {
         "défaite, elle rend le b d'Alice, pas celui d'avant Alice"
     );
 }
+
+/// **Le geste partagé s'écrit en octets et se relit à l'identique** — ce qu'on scelle avant de
+/// l'envoyer : des éditions de toute sorte, et un déplacement nommé.
+#[test]
+fn partage_1_un_geste_partage_s_ecrit_et_se_relit() {
+    use crate::persist::bytes::{Reader, Writer};
+    use crate::persist::histoire::geste::{ecrire_partage, lire_partage};
+    let fleche = Annotation::arrow("f", 0.0, 0.0, 9.0, 9.0);
+    let mut p = depart();
+    p.boards[0].annotations = vec![Annotation::text("t", 0.0, 0.0, "x"), fleche];
+    let g = geste(vec![
+        img(Slot::changed(1, image("b", 1.0), image("b", 50.0))),
+        Edit::Annotation {
+            board: "main".into(),
+            slot: Slot::inserted(2, Annotation::text("neuf", 3.0, 4.0, "é ü — ∑")),
+        },
+        Edit::BoardName {
+            board: "main".into(),
+            whole: Whole::new("Canvas Principal".into(), "Alice".into()),
+        },
+        Edit::Translation {
+            board: "main".into(),
+            delta: (10.0, -5.5),
+            images: vec![2],
+            annotations: vec![0],
+            folders: vec![],
+            bouts: vec![(
+                1,
+                Bouts {
+                    origine: false,
+                    cible: true,
+                },
+            )],
+        },
+    ]);
+    let partage = g.a_partager(&p);
+    let mut w = Writer::new();
+    ecrire_partage(&mut w, &partage);
+    let octets = w.into_bytes();
+    let mut r = Reader::new(&octets);
+    let relu = lire_partage(&mut r, crate::persist::DOCUMENT_VERSION).expect("se relit");
+    r.finish().expect("rien de plus");
+    assert_eq!(relu, partage);
+    assert_eq!(relu.editions.len(), 4);
+}
