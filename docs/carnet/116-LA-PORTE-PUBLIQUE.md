@@ -186,11 +186,13 @@ finale, le report de `s`, les membres pleins — là où se trompent les implém
 **Reste**, dans l'ordre — avec deux décisions que la lecture du journal impose, à ne pas découvrir
 trop tard :
 
-1. **Un geste reçu entre au journal avec ses rangs réels.** `appliquer` sait où il a trouvé chaque
-   élément : qu'il rende la transaction **réalisée** (les rangs de l'instant), que le journal reçoit
-   comme les autres, signée de son auteur (MAIN-1). JRN-2 reste vrai — le journal voit chaque
-   changement —, et l'histoire du disque (JRN-5) se rejoue toujours dans l'ordre : la Time Machine
-   montre les gestes de chacun sans rien changer à son format.
+1. **Un geste reçu entre au journal avec ses rangs réels** — **écrit** : `appliquer` rend la
+   transaction **réalisée** (les rangs de l'instant, l'avant de ce qui était vraiment là), que le
+   journal recevra comme les autres, signée de son auteur (MAIN-1). Éprouvé : rejouée par les rangs
+   sur l'état d'avant, elle redonne le même canevas ; défaite, elle rend l'état d'avant — la valeur
+   d'un autre comprise en cas de conflit. JRN-2 reste vrai, l'histoire du disque (JRN-5) se rejoue
+   dans l'ordre. **11 sabotages sur 11** (une épreuve aveugle trouvée : un rang d'insertion qui ne
+   changeait jamais dans mes cas).
 2. **`Ctrl+Z` à plusieurs défait *mon* dernier geste**, pas le dernier de la pile (qui peut être celui
    d'un autre) : par son inverse **par le nom** (`GestePartage::inverse`), qui part à son tour comme un
    geste — Figma, Google Slides ; si l'élément a disparu entre-temps, rien (fiche 113). La pile LIFO du
