@@ -480,6 +480,14 @@ impl GlucoseApp {
     /// **Les octets d'une capture, confiés au document** : ils s'y scellent comme ceux d'une
     /// image qu'une page livre (DEPOT-4) — le fichier de l'agent peut disparaître ensuite.
     fn lire_une_capture(&mut self, chemin: &str) -> Result<(String, (f64, f64)), String> {
+        // Une IA du nuage ne lit pas les fichiers de cet ordinateur (C1, fiche 116).
+        if !self.lancement.agents.portee.machine {
+            return Err(
+                "« capture » lit un fichier de cet ordinateur : une IA du nuage ne le \
+                        peut pas — pose la page sans capture"
+                    .into(),
+            );
+        }
         let octets = std::fs::read(chemin)
             .map_err(|e| format!("la capture « {chemin} » ne se lit pas : {e}"))?;
         let recu = crate::plateforme::moisson::Recu::nouveau("capture.png", octets)

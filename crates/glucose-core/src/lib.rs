@@ -18,6 +18,7 @@ pub mod courbes;
 pub mod cout;
 pub mod curtain_model;
 pub mod curtain_panel;
+pub mod encodage;
 pub mod error;
 pub mod export;
 pub mod file_kind;

@@ -19,13 +19,23 @@ use std::collections::{HashMap, VecDeque};
 /// Ce que la boucle sait des agents.
 #[derive(Default)]
 pub struct Agents {
-    boite: Option<Boite>,
+    pub(crate) boite: Option<Boite>,
     /// Tenue pour que la prise Unix vive autant que Glucose ; sous Windows, le tuyau vit avec
     /// son fil.
     _porte: Option<Porte>,
     /// L'accord de l'utilisateur, par agent, jusqu'à la fermeture de Glucose.
     accords: HashMap<String, bool>,
     attente: VecDeque<Demande>,
+    /// **La porte aux IA publiques**, quand elle est ouverte (fiche 116).
+    pub(crate) publique: Option<crate::agents::publique::lien::Lien>,
+    /// **La portée de l'appel en cours** : ce que l'outil peut atteindre — toute la machine, ou
+    /// le document ouvert pour une IA du nuage (C1, fiche 116).
+    pub(crate) portee: crate::agents::outils::Portee,
+    /// Le dernier geste d'une IA du nuage : son témoin ne se répète pas à chaque geste.
+    pub(crate) dernier_geste_public: Option<std::time::Instant>,
+    /// **Le relais** de la porte publique : celui de Glucose, ou un autre — un relais local, dans
+    /// les épreuves.
+    pub(crate) relais: Option<String>,
 }
 
 impl Agents {
@@ -91,11 +101,17 @@ impl GlucoseApp {
             ),
             _ => {}
         }
+        let tenue = porte.is_some();
         self.lancement.agents = Agents {
             boite: Some(boite),
             _porte: porte,
             ..Agents::default()
         };
+        // La porte publique ne se rouvre que chez le Glucose qui tient la porte locale : un
+        // second, ouvert en même temps, prendrait l'adresse au premier (fiche 116).
+        if tenue {
+            self.rouvrir_la_porte_publique();
+        }
     }
 
     /// **Ce que les agents demandent**, dans l'ordre où ils l'ont demandé.
@@ -104,24 +120,30 @@ impl GlucoseApp {
         if let Some(boite) = &agents.boite {
             agents.attente.extend(boite.relever());
         }
-        while let Some(client) = self
+        while let Some((client, portee)) = self
             .lancement
             .agents
             .attente
             .front()
-            .map(|d| d.appel.client.clone())
+            .map(|d| (d.appel.client.clone(), d.appel.portee))
         {
-            match self.lancement.agents.accords.get(&client) {
+            // Une IA du nuage a déjà son accord : la clé que Glucose lui a donnée après son clic
+            // (PUBLIQUE-1, fiche 116).
+            let accord = if portee.machine {
+                self.lancement.agents.accords.get(&client).copied()
+            } else {
+                Some(true)
+            };
+            match accord {
                 Some(true) if self.store.in_live_edit() => return,
                 Some(true) => {
                     let Some(d) = self.lancement.agents.attente.pop_front() else {
                         return;
                     };
-                    // MAIN-1 : ce que l'agent écrit porte son nom dans l'histoire.
-                    let main = glucose_core::store::journal::Main::Agent(client);
-                    let avant = std::mem::replace(&mut self.store.journal.main, main);
-                    let issue = self.executer_pour_un_agent(&d.appel.nom, &d.appel.arguments);
-                    self.store.journal.main = avant;
+                    if !portee.machine {
+                        self.temoigner(&client);
+                    }
+                    let issue = self.executer_dans_sa_portee(&d.appel);
                     repondre(d, issue);
                 }
                 Some(false) => {
@@ -135,6 +157,18 @@ impl GlucoseApp {
                 }
             }
         }
+    }
+
+    /// **Exécute un appel** sous le nom de son agent (MAIN-1 : ce qu'il écrit porte son nom dans
+    /// l'histoire) et dans sa portée.
+    fn executer_dans_sa_portee(&mut self, appel: &protocole::Appel) -> Result<Json, String> {
+        let main = glucose_core::store::journal::Main::Agent(appel.client.clone());
+        let avant = std::mem::replace(&mut self.store.journal.main, main);
+        let portee = std::mem::replace(&mut self.lancement.agents.portee, appel.portee);
+        let issue = self.executer_pour_un_agent(&appel.nom, &appel.arguments);
+        self.lancement.agents.portee = portee;
+        self.store.journal.main = avant;
+        issue
     }
 
     /// **Sa réponse** : oui ou non vaut jusqu'à la fermeture ; « Plus tard » refuse ce seul

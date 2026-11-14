@@ -109,7 +109,8 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::Palette
         | C::ChangerUnRaccourci
         | C::RetablirLesRaccourcis
-        | C::OublierLesAgents => true,
+        | C::OublierLesAgents
+        | C::Collaborer => true,
     }
 }
 

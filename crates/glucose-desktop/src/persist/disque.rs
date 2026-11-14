@@ -57,6 +57,9 @@ pub struct Disque {
     /// **Pourquoi ce fichier ne doit pas se réécrire**, s'il ne doit pas : il ne s'est pas lu,
     /// ou porte des lignes fausses — écrites à la main, qu'on n'efface pas en silence.
     pub raccourcis_proteges: Option<String>,
+    /// **La porte aux IA publiques** (fiche 116) : son secret, si elle est ouverte, qui l'a.
+    /// Le vrai lancement seul y met le dossier de l'utilisateur.
+    pub porte_publique: PathBuf,
     /// Ce que les autres fichiers disent de leurs domaines, lu sans y écrire (fiche 88).
     pub recenseur: crate::recensement::Recenseur,
 }
@@ -75,6 +78,8 @@ impl Disque {
             raccourcis: crate::app::accueil::dossier_hors_lancement()
                 .join(crate::commandes::utilisateur::FICHIER),
             raccourcis_proteges: None,
+            porte_publique: crate::app::accueil::dossier_hors_lancement()
+                .join(crate::agents::publique::accords::FICHIER),
             recenseur: crate::recensement::Recenseur::default(),
         }
     }

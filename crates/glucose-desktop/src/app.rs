@@ -12,6 +12,7 @@ pub mod lancement;
 mod memoire;
 mod mouvement;
 mod peinture;
+mod porte_publique;
 mod presentation;
 mod rangement;
 pub mod reveil;

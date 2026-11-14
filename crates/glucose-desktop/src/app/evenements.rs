@@ -236,8 +236,9 @@ impl GlucoseApp {
         self.suivre_la_mise_a_jour();
         // Ce que les sélecteurs de fichiers ont rendu (DIAL-2).
         self.suivre_les_fichiers_choisis();
-        // Ce que les agents demandent (AGENTS-1, fiche 75).
+        // Ce que les agents demandent (AGENTS-1, fiche 75), et les IA du nuage (fiche 116).
         self.suivre_les_agents();
+        self.suivre_la_porte_publique();
 
         self.chronique
             .entracte

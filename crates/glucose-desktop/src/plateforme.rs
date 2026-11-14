@@ -34,6 +34,7 @@ pub mod ecran;
 pub mod empreinte;
 pub mod fin;
 pub mod graphique;
+pub mod hasard;
 pub mod heure;
 pub mod identite;
 pub mod installation;
@@ -50,6 +51,7 @@ pub mod rapatrier;
 pub mod sortie;
 pub mod sources;
 pub mod telechargements;
+pub mod websocket;
 
 #[cfg(windows)]
 mod depot_windows;

@@ -148,6 +148,8 @@ pub enum Commande {
     RetablirLesRaccourcis,
     /// Retirer l'accord donné aux agents : leur prochaine demande sera reposée (fiche 75).
     OublierLesAgents,
+    /// **Collaborer** : la porte aux IA publiques, puis le co-working (fiche 116).
+    Collaborer,
 }
 
 /// Les outils que le clavier choisit, et le nom de chacun.
@@ -172,7 +174,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 55] = [
+const SIMPLES: [(Commande, &str, &str); 56] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -335,6 +337,11 @@ const SIMPLES: [(Commande, &str, &str); 55] = [
         Commande::OublierLesAgents,
         "agents.oublier",
         "Retirer l'accord des agents…",
+    ),
+    (
+        Commande::Collaborer,
+        "collaborer",
+        "Collaborer — la porte aux IA publiques…",
     ),
 ];
 

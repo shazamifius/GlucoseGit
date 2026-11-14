@@ -143,6 +143,7 @@ fn le_resultat_se_lit_de_la_reponse() {
         arguments: Json::objet([]),
         client: CLIENT.into(),
         moderne: true,
+        portee: Default::default(),
     };
     let ok = protocole::reponse_d_outil(&appel, Ok(Json::objet([("total", Json::from(2.0))])));
     assert_eq!(resultat_de(&ok), Json::lire(r#"{"total":2}"#));

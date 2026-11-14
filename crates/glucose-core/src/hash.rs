@@ -1,4 +1,5 @@
-//! SHA-256 (FIPS 180-4), sans dépendance et **sans copie du message**.
+//! SHA-256 (FIPS 180-4), sans dépendance et **sans copie du message** — et SHA-1, pour la seule
+//! poignée de main des WebSockets (fiche 116).
 //!
 //! L'empreinte d'un contenu est son adresse : elle nomme chaque actif du conteneur `.glucose`
 //! et vérifie chaque section à la relecture (fiche 09 § 3.1 et § 4.2). Elle est donc calculée
@@ -103,6 +104,74 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
     out
 }
 
+/// **SHA-1** (FIPS 180-4 § 6.1) — **pour la seule poignée de main d'un WebSocket** (RFC 6455
+/// § 4.2.2), qui l'exige pour prouver que le serveur a lu la demande. Cassé pour tout ce qui doit
+/// résister à un faussaire (SHAttered, 2017) : rien d'autre ne s'en sert.
+pub fn sha1(data: &[u8]) -> [u8; 20] {
+    let mut state: [u32; 5] = [
+        0x6745_2301,
+        0xefcd_ab89,
+        0x98ba_dcfe,
+        0x1032_5476,
+        0xc3d2_e1f0,
+    ];
+    let (blocks, tail) = data.as_chunks::<64>();
+    for block in blocks {
+        compress_sha1(&mut state, block);
+    }
+    // Le même remplissage que SHA-256 : un bit à 1, des zéros, la longueur sur 64 bits.
+    let mut last = [0u8; 128];
+    last[..tail.len()].copy_from_slice(tail);
+    last[tail.len()] = 0x80;
+    let padded_len = if tail.len() < 56 { 64 } else { 128 };
+    let bit_len = (data.len() as u64) * 8;
+    last[padded_len - 8..padded_len].copy_from_slice(&bit_len.to_be_bytes());
+    let (last_blocks, _) = last[..padded_len].as_chunks::<64>();
+    for block in last_blocks {
+        compress_sha1(&mut state, block);
+    }
+    let mut out = [0u8; 20];
+    let (chunks, _) = out.as_chunks_mut::<4>();
+    for (chunk, word) in chunks.iter_mut().zip(state) {
+        *chunk = word.to_be_bytes();
+    }
+    out
+}
+
+fn compress_sha1(state: &mut [u32; 5], block: &[u8; 64]) {
+    let mut w = [0u32; 80];
+    let (words, _) = block.as_chunks::<4>();
+    for (slot, word) in w.iter_mut().zip(words) {
+        *slot = u32::from_be_bytes(*word);
+    }
+    for i in 16..80 {
+        w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
+    }
+    let [mut a, mut b, mut c, mut d, mut e] = *state;
+    for (i, wi) in w.iter().enumerate() {
+        let (f, k) = match i / 20 {
+            0 => ((b & c) | (!b & d), 0x5a82_7999),
+            1 => (b ^ c ^ d, 0x6ed9_eba1),
+            2 => ((b & c) | (b & d) | (c & d), 0x8f1b_bcdc),
+            _ => (b ^ c ^ d, 0xca62_c1d6),
+        };
+        let temp = a
+            .rotate_left(5)
+            .wrapping_add(f)
+            .wrapping_add(e)
+            .wrapping_add(k)
+            .wrapping_add(*wi);
+        e = d;
+        d = c;
+        c = b.rotate_left(30);
+        b = a;
+        a = temp;
+    }
+    for (slot, value) in state.iter_mut().zip([a, b, c, d, e]) {
+        *slot = slot.wrapping_add(value);
+    }
+}
+
 /// Écriture hexadécimale minuscule d'une empreinte — le nom sous lequel un actif est rangé.
 ///
 /// Table de chiffres plutôt que `write!` : formater dans une `String` ne peut pas échouer, mais
@@ -188,6 +257,33 @@ mod tests {
             let data: Vec<u8> = (0..len).map(|i| (i * 7 + 3) as u8).collect();
             assert_eq!(sha256(&data), reference(&data), "longueur {len}");
         }
+    }
+
+    /// Les vecteurs de SHA-1 (RFC 3174, FIPS 180-4) — 56 octets compris, qui force le second
+    /// bloc de remplissage —, et l'exemple de la RFC 6455 § 1.3 : la clé du client, suivie du
+    /// GUID du protocole, donne l'acceptation que le serveur rend.
+    #[test]
+    fn test_sha1_vectors() {
+        let h = |d: &[u8]| {
+            sha1(d)
+                .iter()
+                .map(|o| format!("{o:02x}"))
+                .collect::<String>()
+        };
+        assert_eq!(h(b""), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+        assert_eq!(h(b"abc"), "a9993e364706816aba3e25717850c26c9cd0d89d");
+        assert_eq!(
+            h(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
+            "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
+        );
+        assert_eq!(
+            h(&vec![b'a'; 1_000_000]),
+            "34aa973cd4c4daa4f61eeb2bdbad27316534016f"
+        );
+        let acceptation = crate::encodage::base64_ecrire(&sha1(
+            b"dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+        ));
+        assert_eq!(acceptation, "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
     }
 
     #[test]

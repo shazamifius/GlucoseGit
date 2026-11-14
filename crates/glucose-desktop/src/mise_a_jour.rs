@@ -15,8 +15,8 @@ pub mod cycle;
 pub mod installation;
 pub mod version;
 
+use glucose_core::encodage::base64;
 use glucose_core::persist::tauri::json;
-use glucose_core::persist::tauri::provenance::base64;
 use std::fmt;
 use version::Version;
 

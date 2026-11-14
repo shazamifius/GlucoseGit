@@ -13,7 +13,7 @@
 //! seule touche au document ([`super::Demande`]).
 
 use super::json::Json;
-use super::outils;
+use super::outils::{self, Portee};
 
 pub const VERSION_MODERNE: &str = "2026-07-28";
 /// Les versions anciennes que Glucose accepte de négocier, de la plus récente à la plus vieille.
@@ -30,6 +30,8 @@ const ERREUR_DE_LECTURE: f64 = -32700.0;
 const METHODE_INCONNUE: f64 = -32601.0;
 const ARGUMENTS_INVALIDES: f64 = -32602.0;
 const VERSION_INCONNUE: f64 = -32022.0;
+/// Les en-têtes d'une requête HTTP ne disent pas ce que dit son corps (« HeaderMismatch »).
+const ENTETES_CONTRAIRES: f64 = -32020.0;
 
 /// Ce qu'une ligne demande.
 #[derive(Debug, Clone, PartialEq)]
@@ -52,6 +54,9 @@ pub struct Appel {
     /// l'utilisateur, pas à décider à sa place.
     pub client: String,
     pub moderne: bool,
+    /// **Ce que l'appel peut atteindre** (fiche 116) : toute la machine pour un agent d'ici, le
+    /// document ouvert pour une IA du nuage.
+    pub portee: Portee,
 }
 
 /// **Une connexion** : ce qu'il faut retenir d'une ligne à l'autre — rien pour un client
@@ -59,9 +64,23 @@ pub struct Appel {
 #[derive(Debug, Default)]
 pub struct Connexion {
     ancien_client: Option<String>,
+    /// Le nom vient d'une clé que Glucose a donnée, pas de ce que le client déclare : il ne se
+    /// remplace pas (la porte publique, fiche 116).
+    verifie: bool,
+    portee: Portee,
 }
 
 impl Connexion {
+    /// **Une connexion de la porte publique** : son nom, vérifié par sa clé, vaut pour toutes ses
+    /// requêtes — une poignée de main ancienne comprise —, et sa portée borne ses outils.
+    pub fn publique(nom: &str, portee: Portee) -> Self {
+        Self {
+            ancien_client: Some(nom.to_string()),
+            verifie: true,
+            portee,
+        }
+    }
+
     /// **Ce qu'une ligne demande.**
     pub fn traiter(&mut self, ligne: &str) -> Suite {
         let message = match Json::lire(ligne) {
@@ -90,7 +109,7 @@ impl Connexion {
             );
             return Suite::Repondre(erreur(id, ARGUMENTS_INVALIDES, &message, None));
         };
-        methode_commune(id, methode, &params, client, false)
+        self.methode_commune(id, methode, &params, client, false)
     }
 
     fn moderne(&mut self, id: &Json, methode: &str, params: &Json, version: &str) -> Suite {
@@ -109,17 +128,21 @@ impl Connexion {
             );
             return Suite::Repondre(ligne);
         }
-        let client = params
+        let declare = params
             .get("_meta")
             .and_then(|m| m.get(CLE_CLIENT))
             .and_then(|c| c.get("name"))
             .and_then(Json::as_str)
             .unwrap_or("un agent sans nom")
             .to_string();
+        let client = match (&self.ancien_client, self.verifie) {
+            (Some(verifie), true) => verifie.clone(),
+            _ => declare,
+        };
         if methode == "server/discover" {
             return Suite::Repondre(resultat(id, decouverte(), true));
         }
-        methode_commune(id, methode, params, client, true)
+        self.methode_commune(id, methode, params, client, true)
     }
 
     fn poignee_de_main(&mut self, id: &Json, params: &Json) -> String {
@@ -133,7 +156,9 @@ impl Connexion {
             .and_then(|c| c.get("name"))
             .and_then(Json::as_str)
             .unwrap_or("un agent sans nom");
-        self.ancien_client = Some(client.to_string());
+        if !self.verifie {
+            self.ancien_client = Some(client.to_string());
+        }
         let r = Json::objet([
             ("protocolVersion", Json::from(*version)),
             ("capabilities", capacites()),
@@ -144,38 +169,71 @@ impl Connexion {
     }
 }
 
-fn methode_commune(
-    id: &Json,
-    methode: &str,
-    params: &Json,
-    client: String,
-    moderne: bool,
-) -> Suite {
-    match methode {
-        "ping" => Suite::Repondre(resultat(id, Json::objet([]), moderne)),
-        "tools/list" => Suite::Repondre(resultat(id, outils::liste(), moderne)),
-        "tools/call" => {
-            let nom = params
-                .get("name")
-                .and_then(Json::as_str)
-                .unwrap_or_default();
-            if !outils::noms().any(|n| n == nom) {
-                let message = format!("Glucose n'a pas d'outil « {nom} »");
-                return Suite::Repondre(erreur(id, ARGUMENTS_INVALIDES, &message, None));
+impl Connexion {
+    fn methode_commune(
+        &self,
+        id: &Json,
+        methode: &str,
+        params: &Json,
+        client: String,
+        moderne: bool,
+    ) -> Suite {
+        let portee = self.portee;
+        match methode {
+            "ping" => Suite::Repondre(resultat(id, Json::objet([]), moderne)),
+            "tools/list" => Suite::Repondre(resultat(id, outils::liste_pour(portee), moderne)),
+            "tools/call" => {
+                let nom = params
+                    .get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or_default();
+                if !outils::noms().any(|n| n == nom) {
+                    let message = format!("Glucose n'a pas d'outil « {nom} »");
+                    return Suite::Repondre(erreur(id, ARGUMENTS_INVALIDES, &message, None));
+                }
+                if !outils::permis(nom, portee) {
+                    let message = format!(
+                        "« {nom} » n'est pas ouvert à cette porte : {}",
+                        portee.dit()
+                    );
+                    return Suite::Repondre(erreur(id, ARGUMENTS_INVALIDES, &message, None));
+                }
+                Suite::Executer(Appel {
+                    id: id.clone(),
+                    nom: nom.to_string(),
+                    arguments: params.get("arguments").cloned().unwrap_or(Json::objet([])),
+                    client,
+                    moderne,
+                    portee,
+                })
             }
-            Suite::Executer(Appel {
-                id: id.clone(),
-                nom: nom.to_string(),
-                arguments: params.get("arguments").cloned().unwrap_or(Json::objet([])),
-                client,
-                moderne,
-            })
-        }
-        _ => {
-            let message = format!("méthode inconnue : {methode}");
-            Suite::Repondre(erreur(id, METHODE_INCONNUE, &message, None))
+            _ => {
+                let message = format!("méthode inconnue : {methode}");
+                Suite::Repondre(erreur(id, METHODE_INCONNUE, &message, None))
+            }
         }
     }
+}
+
+/// **Le statut HTTP d'une réponse** (Streamable HTTP, 28/07/2026) : `400` pour une version
+/// inconnue, des en-têtes contraires ou une ligne illisible, `404` pour une méthode inconnue ;
+/// `200` pour tout le reste — une erreur d'outil comprise, que le modèle lit.
+pub fn statut_http(ligne: &str) -> u16 {
+    let code = Json::lire(ligne)
+        .ok()
+        .and_then(|m| m.get("error")?.get("code")?.as_f64());
+    match code {
+        Some(c) if c == VERSION_INCONNUE || c == ENTETES_CONTRAIRES || c == ERREUR_DE_LECTURE => {
+            400
+        }
+        Some(c) if c == METHODE_INCONNUE => 404,
+        _ => 200,
+    }
+}
+
+/// La réponse à une requête dont les en-têtes contredisent le corps.
+pub fn erreur_d_entetes(id: Option<&Json>, ecart: &str) -> String {
+    erreur(id.unwrap_or(&Json::Nul), ENTETES_CONTRAIRES, ecart, None)
 }
 
 /// **La réponse à un appel d'outil** : son résultat en texte JSON, ou ce qui l'a empêché — une

@@ -9,6 +9,7 @@
 //! Ce module dit **où** chercher ; le bureau va chercher, et vérifie ce qu'il trouve.
 
 use super::projet::Provenance;
+use crate::encodage::base64;
 
 /// Ce qu'un `src` ou un `href` de Tauri désigne.
 pub fn provenance_de(s: &str) -> Provenance {
@@ -56,32 +57,6 @@ pub fn provenance_de(s: &str) -> Provenance {
 /// document forgé qui porterait `asset:../../secret` ne ferait lire rien d'autre.
 fn nom_sur(nom: &str) -> bool {
     !nom.is_empty() && !nom.starts_with('.') && !nom.contains(['/', '\\', ':'])
-}
-
-/// Décode le base64 standard (RFC 4648), blancs ignorés. `None` pour un texte qui n'en est pas.
-pub fn base64(texte: &str) -> Option<Vec<u8>> {
-    let mut out = Vec::with_capacity(texte.len() * 3 / 4);
-    let mut acc = 0u32;
-    let mut bits = 0u32;
-    for c in texte.bytes() {
-        let v = match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' | b'-' => 62,
-            b'/' | b'_' => 63,
-            b'=' => break,
-            c if c.is_ascii_whitespace() => continue,
-            _ => return None,
-        };
-        acc = (acc << 6) | u32::from(v);
-        bits += 6;
-        if bits >= 8 {
-            bits -= 8;
-            out.push((acc >> bits) as u8);
-        }
-    }
-    Some(out)
 }
 
 /// Décode les `%XX` d'une URL. Une séquence invalide reste telle quelle.

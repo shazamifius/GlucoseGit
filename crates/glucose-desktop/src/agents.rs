@@ -43,6 +43,7 @@ pub mod lecture;
 pub mod outils;
 pub mod porte;
 pub mod protocole;
+pub mod publique;
 #[cfg(not(target_os = "android"))]
 pub mod relais;
 #[cfg(not(target_os = "android"))]
@@ -80,6 +81,12 @@ impl Boite {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push_back(demande);
+        (self.reveil)();
+    }
+
+    /// Réveille la boucle sans rien déposer : quelque chose a changé qu'elle doit regarder (une
+    /// IA demande la porte publique, fiche 116).
+    pub fn reveiller(&self) {
         (self.reveil)();
     }
 

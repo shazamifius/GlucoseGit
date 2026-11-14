@@ -10,7 +10,9 @@ use super::{decrit_en_json, Args};
 use crate::agents::json::Json;
 use crate::agents::lecture::{passage, premiere_phrase, Rendu};
 use crate::app::GlucoseApp;
-use glucose_core::recensement::{homonymes, recenser, DocumentRecense, DomaineConnu, NoeudTrouve};
+use glucose_core::recensement::{
+    homonymes, recenser, DocumentRecense, DomaineConnu, NoeudTrouve, Recensement,
+};
 use glucose_core::store::agents::{DomaineDecrit, Naissance, Refus, Voulu};
 use glucose_core::store::{lignee_de, DomainPatch, Store};
 use glucose_core::types::Domain;
@@ -99,16 +101,36 @@ fn noms_connus(vue: &[DomaineConnu]) -> String {
 impl GlucoseApp {
     /// Ce document tel qu'il est, et tout ce qu'on connaît avec lui.
     fn vue_des_domaines(&self) -> (DocumentRecense, Vec<DomaineConnu>) {
-        let courant = recenser(&self.fichier_de_ce_document(), &self.store.project);
-        let vue = self.disque.recenseur.etat.vue(Some(&courant));
+        let courant = recenser(&self.fichier_vu(), &self.store.project);
+        let vue = self.recensement().vue(Some(&courant));
         (courant, vue)
+    }
+
+    /// **Ce que l'appel voit des autres fichiers** (C1, fiche 116) : tout, pour un agent de cette
+    /// machine ; rien, pour une IA du nuage — ni leurs domaines, ni leurs textes.
+    fn recensement(&self) -> &Recensement {
+        static AUCUN: std::sync::LazyLock<Recensement> =
+            std::sync::LazyLock::new(Recensement::default);
+        if self.lancement.agents.portee.machine {
+            &self.disque.recenseur.etat
+        } else {
+            &AUCUN
+        }
+    }
+
+    /// Le chemin de ce document tel que l'appel le lit : pour une IA du nuage, aucun — un chemin
+    /// dit le nom de l'utilisateur et l'ordre de ses dossiers.
+    fn fichier_vu(&self) -> String {
+        if self.lancement.agents.portee.machine {
+            self.fichier_de_ce_document()
+        } else {
+            "le document ouvert".into()
+        }
     }
 
     /// Un exemple de ce qu'un domaine désigne : la première phrase de son nœud le plus lourd.
     fn exemple_de(&self, courant: &DocumentRecense, connu: &DomaineConnu) -> String {
-        self.disque
-            .recenseur
-            .etat
+        self.recensement()
             .noeuds_du_domaine(Some(courant), &connu.lignee, false)
             .iter()
             .find_map(|t| t.decrit.texte.as_deref().and_then(premiere_phrase))
@@ -409,11 +431,9 @@ impl GlucoseApp {
         };
         let mut noeuds = Vec::new();
         for connu in &h {
-            for t in
-                self.disque
-                    .recenseur
-                    .etat
-                    .noeuds_du_domaine(Some(&courant), &connu.lignee, true)
+            for t in self
+                .recensement()
+                .noeuds_du_domaine(Some(&courant), &connu.lignee, true)
             {
                 if let Some(r) = rendu(&t) {
                     noeuds.push(trouve_en_json(&t, &r));

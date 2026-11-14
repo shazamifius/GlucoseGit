@@ -468,6 +468,13 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 /// au même endroit. Et les domaines en perdent **quatre**, par la même règle : créé ou refusé,
 /// supprimé (avec ou sans nœuds) ou refusé, assigné ou refusé, chacun disait le même évènement
 /// en deux ou trois sites.
+///
+/// # 46, et la dette de Collaborer payée (fiche 116)
+///
+/// `NOT_YET_COLLAB` est parti : Collaborer ouvre la porte aux IA publiques. Son site est repris
+/// par un seul message qui dit ce qui vient d'avoir lieu — une IA du nuage s'est mise à travailler
+/// dans le canevas (le témoin, une fois par reprise). Rien de plus : ouvrir, fermer, copier,
+/// retirer se voient dans la question elle-même.
 const PLAFOND_TOASTS: usize = 46;
 
 fn compte_toasts() -> usize {

@@ -208,6 +208,8 @@ pub struct UiState {
     /// **Le mode zen** (`F11`, ZEN-1, fiche 115) : plus aucune interface, la fenêtre telle qu'elle
     /// est ; « ZEN · F11 » en haut à droite le referme.
     pub zen: bool,
+    /// **La porte aux IA publiques est ouverte** (fiche 116) : « Collaborer » s'allume.
+    pub porte_ouverte: bool,
     /// La barre sur le côté, quand elle ne tient plus en haut (fiche 55), et son dessin gardé.
     pub rail: rail::Rail,
     pub rail_cache: Option<rail::RailCache>,
@@ -286,6 +288,7 @@ impl UiState {
             onglets: onglets::EtatDesOnglets::default(),
             reference: false,
             zen: false,
+            porte_ouverte: false,
             rail: rail::Rail::default(),
             rail_cache: None,
             marges: Default::default(),
@@ -386,9 +389,6 @@ impl UiState {
         self.current_toast.as_ref().map(|t| t.message.as_str())
     }
 }
-
-/// Ce que dit le bouton Collab tant que la collaboration (fiche 09 § 9) n'existe pas.
-pub const NOT_YET_COLLAB: &str = "Collaboration : pas encore disponible";
 
 /// Ce que dit Trans-domaines tant que sa fonction est en recherche (sa parole du 15/10 :
 /// « j'ai une intention, mais je n'ai pas fini mon raisonnement sur ce que j'entends par

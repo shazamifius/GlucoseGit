@@ -92,6 +92,12 @@ pub enum Suite {
     Agent(String),
     /// Retirer l'accord de tous les agents (fiche 75).
     OublierLesAgents,
+    /// **« Collaborer »** : la porte aux IA publiques, ouverte ou fermée (fiche 116).
+    PortePublique,
+    /// Retirer l'une des IA qui ont la porte, dans l'ordre de la liste.
+    RetirerUneIa,
+    /// **Une IA du nuage demande la porte** : sa demande, au guichet.
+    AccordPublic(String),
     /// « Signets… » : voler vers l'un, ou en poser un ici (ACCES-1).
     Signets,
     /// Les neuf signets pris : celui qui prend la vue d'ici.

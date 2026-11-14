@@ -203,10 +203,93 @@ pub fn schema(nom: &str) -> Option<Json> {
         .and_then(|(_, _, s)| Json::lire(s).ok())
 }
 
-/// Ce que `tools/list` rend.
+/// **Ce qu'un appel peut atteindre** (fiche 116).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Portee {
+    /// Au-delà du document ouvert : les autres fichiers de Glucose, les fichiers de cet ordinateur.
+    pub machine: bool,
+    /// Écrire, et pas seulement lire.
+    pub ecrire: bool,
+}
+
+impl Default for Portee {
+    /// Un agent de cette machine : il voit déjà le disque, il voit tout.
+    fn default() -> Self {
+        Portee::MACHINE
+    }
+}
+
+impl Portee {
+    pub const MACHINE: Portee = Portee {
+        machine: true,
+        ecrire: true,
+    };
+
+    /// **Une IA du nuage** : le document ouvert seulement (C1), et l'écriture si l'utilisateur
+    /// l'a donnée.
+    pub fn publique(ecrire: bool) -> Portee {
+        Portee {
+            machine: false,
+            ecrire,
+        }
+    }
+
+    /// Ce qu'elle ferme, en mots.
+    pub fn dit(self) -> &'static str {
+        match (self.machine, self.ecrire) {
+            (_, false) => "l'utilisateur ne t'a donné que la lecture",
+            (false, true) => "une IA du nuage ne voit que le document ouvert",
+            (true, true) => "rien",
+        }
+    }
+}
+
+/// **Les outils qui ne font que lire** : « Lire seulement » ne donne qu'eux. Une liste qui
+/// permet, jamais une qui interdit : un outil neuf écrit, jusqu'à preuve du contraire.
+const LECTEURS: [&str; 4] = [
+    "glucose_lire",
+    "glucose_domaines",
+    "glucose_chercher",
+    "glucose_histoire",
+];
+
+/// **Les outils ouverts à une IA du nuage** : ceux qui ne regardent que le document ouvert.
+/// `glucose_domaines` lit les autres fichiers et dit leurs chemins : il reste à cette machine.
+/// Un outil neuf n'est ouvert au nuage que quand on l'ajoute ici, exprès.
+const DU_DOCUMENT: [&str; 16] = [
+    "glucose_lire",
+    "glucose_poser_texte",
+    "glucose_poser_membrane",
+    "glucose_ecrire",
+    "glucose_relier",
+    "glucose_poser_page",
+    "glucose_deplacer",
+    "glucose_ouvrir_tableau",
+    "glucose_poser_domaine",
+    "glucose_chercher",
+    "glucose_grouper",
+    "glucose_disposer",
+    "glucose_retirer",
+    "glucose_dater",
+    "glucose_histoire",
+    "glucose_noter",
+];
+
+/// **Cet outil est-il ouvert à cette portée ?**
+pub fn permis(nom: &str, portee: Portee) -> bool {
+    (portee.machine || DU_DOCUMENT.contains(&nom)) && (portee.ecrire || LECTEURS.contains(&nom))
+}
+
+/// Ce que `tools/list` rend à un agent de cette machine.
 pub fn liste() -> Json {
+    liste_pour(Portee::MACHINE)
+}
+
+/// **Ce que `tools/list` rend à cette portée** : les seuls outils qu'elle ouvre.
+pub fn liste_pour(portee: Portee) -> Json {
     let outils = OUTILS
         .iter()
+        .filter(|(nom, _, _)| permis(nom, portee))
         .map(|(nom, description, _)| {
             Json::objet([
                 ("name", Json::from(*nom)),

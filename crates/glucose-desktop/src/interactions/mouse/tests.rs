@@ -35,19 +35,21 @@ fn click_topbar(app: &mut GlucoseApp, action: UiAction) {
     app.handle_mouse_up(MouseButton::Left);
 }
 
+/// **Collaborer ouvre la porte aux IA publiques** (fiche 116) — par la souris, sur le vrai
+/// bouton. Avant, il disait « pas encore disponible » : le message qui simulait est parti.
 #[test]
-fn test_the_collab_button_does_not_claim_to_be_connected() {
+fn test_the_collab_button_opens_the_public_door() {
     let mut app = GlucoseApp::new();
     click_topbar(&mut app, UiAction::ToggleCollab);
-    assert_eq!(app.ui.toast_message(), Some(crate::ui::NOT_YET_COLLAB));
-    // Le bouton n'a plus d'état à allumer : il n'y a rien à connecter. Un second clic dit
-    // la même chose.
-    click_topbar(&mut app, UiAction::ToggleCollab);
-    assert_eq!(app.ui.toast_message(), Some(crate::ui::NOT_YET_COLLAB));
+    let Some((question, crate::ui::question::Suite::PortePublique)) = &app.ui.question else {
+        panic!("la question de la porte");
+    };
+    assert_eq!(question.titre, "La porte aux IA publiques");
+    assert!(question.texte.starts_with("Fermée."));
 }
 
 /// Trans-domaines n'a pas encore de fonction — de la recherche, à sa parole du 15/10 : le clic
-/// ne l'allume pas, et **il dit qu'il viendra**, comme Collaborer (fiche 71 ; avant, il se
+/// ne l'allume pas, et **il dit qu'il viendra** (fiche 71 ; avant, il se
 /// taisait, fiche 29 § 3.1 — le seul bouton qui ne disait pas qu'il ne faisait rien). Le test
 /// passe par la souris, pas par l'état : c'est l'état posé à la main qui a caché, une session
 /// entière, que le bouton ne basculait pas.

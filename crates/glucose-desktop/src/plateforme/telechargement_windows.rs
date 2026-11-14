@@ -29,7 +29,7 @@ use super::{DELAI, NAVIGATEUR};
 const DELAI_MS: i32 = DELAI.as_millis() as i32;
 
 /// Une poignée WinHTTP, fermée quoi qu'il arrive.
-struct Poignee(*mut core::ffi::c_void);
+pub(super) struct Poignee(pub(super) *mut core::ffi::c_void);
 
 impl Drop for Poignee {
     fn drop(&mut self) {
@@ -41,7 +41,7 @@ impl Drop for Poignee {
 
 impl Poignee {
     /// La poignée, ou l'étape qui a échoué.
-    fn ou(self, etape: &str) -> Result<Self, String> {
+    pub(super) fn ou(self, etape: &str) -> Result<Self, String> {
         if self.0.is_null() {
             Err(format!("{etape} : {}", windows::core::Error::from_thread()))
         } else {
@@ -101,7 +101,7 @@ pub(super) fn envoyer(adresse: &Adresse, verbe: &str, corps: &[u8]) -> Result<u1
 ///
 /// Le 07/10, six épingles sont devenues six liens à seize secondes d'intervalle : le délai de
 /// chaque étape, épuisé, et rien ne l'avait dit.
-fn raison(etape: &str, e: &windows::core::Error) -> String {
+pub(super) fn raison(etape: &str, e: &windows::core::Error) -> String {
     // Les erreurs de WinHTTP arrivent en `HRESULT_FROM_WIN32` : le code est dans les seize bits
     // bas, sous la facilité 7.
     let code = e.code().0 as u32;
@@ -209,7 +209,7 @@ fn ouvrir(adresse: &Adresse, verbe: &str) -> Result<Requete, String> {
 }
 
 /// Le code de statut de la réponse.
-fn statut(requete: &Poignee) -> Result<u32, String> {
+pub(super) fn statut(requete: &Poignee) -> Result<u32, String> {
     let mut code = 0u32;
     let mut taille = core::mem::size_of::<u32>() as u32;
     unsafe {

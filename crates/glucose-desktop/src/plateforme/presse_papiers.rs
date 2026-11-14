@@ -430,7 +430,7 @@ pub(crate) mod html {
     pub fn deballer(attribut: &str, html: &str) -> Option<Vec<u8>> {
         let debut = html.find(&format!("{attribut}=\""))? + attribut.len() + 2;
         let fin = debut + html[debut..].find('"')?;
-        glucose_core::persist::tauri::provenance::base64(&html[debut..fin])
+        glucose_core::encodage::base64(&html[debut..fin])
     }
 
     /// Le base64 standard (RFC 4648), que le noyau sait relire.

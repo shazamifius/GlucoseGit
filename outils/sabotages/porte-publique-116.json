@@ -1,0 +1,455 @@
+[
+  {
+    "nom": "PUBLIQUE-1 — SHA-1 : une rotation fausse",
+    "fichier": "crates/glucose-core/src/hash.rs",
+    "avant": "        c = b.rotate_left(30);",
+    "apres": "        c = b.rotate_left(29);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "hash::"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Base64 : l'alphabet des adresses rendu standard",
+    "fichier": "crates/glucose-core/src/encodage.rs",
+    "avant": "const ADRESSE: &[u8; 64] = b\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_\";",
+    "apres": "const ADRESSE: &[u8; 64] = b\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\";",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "encodage"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — WebSocket : le masque n'est plus vérifié",
+    "fichier": "crates/glucose-desktop/src/plateforme/websocket/trames.rs",
+    "avant": "        if (b1 & 0x80 != 0) != self.masquees {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "plateforme::websocket"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — WebSocket : 126 octets dans la forme courte",
+    "fichier": "crates/glucose-desktop/src/plateforme/websocket/trames.rs",
+    "avant": "        n @ 0..=125 => out.push(bit_du_masque | n as u8),",
+    "apres": "        n @ 0..=126 => out.push(bit_du_masque | n as u8),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "plateforme::websocket"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — WebSocket : l'acceptation n'est plus vérifiée",
+    "fichier": "crates/glucose-desktop/src/plateforme/websocket/trames.rs",
+    "avant": "    if entete(\"sec-websocket-accept\").as_deref() != Some(acceptation(cle).as_str()) {",
+    "apres": "    if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "plateforme::websocket"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — WebSocket : le ping reste sans pong",
+    "fichier": "crates/glucose-desktop/src/plateforme/websocket/flux.rs",
+    "avant": "                        self.ecrire(&trames::ecrire(&Trame::Pong(charge), Some(masque)))?;",
+    "apres": "                        let _ = (charge, masque);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "plateforme::websocket"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — PKCE : la preuve n'est plus vérifiée",
+    "fichier": "crates/glucose-desktop/src/agents/publique/oauth.rs",
+    "avant": "        && preuve.as_deref() == Some(c.defi.as_str())\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — CIMD : le document ne dit plus son propre nom",
+    "fichier": "crates/glucose-desktop/src/agents/publique/oauth.rs",
+    "avant": "        if d.get(\"client_id\").and_then(Json::as_str) != Some(id) {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — CIMD : un retour hors du domaine du client",
+    "fichier": "crates/glucose-desktop/src/agents/publique/oauth.rs",
+    "avant": "    if id.starts_with(\"https://\")\n        && !boucle_locale(retour)",
+    "apres": "    if false\n        && !boucle_locale(retour)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Boucle locale : le port compte",
+    "fichier": "crates/glucose-desktop/src/agents/publique/oauth.rs",
+    "avant": "    declare == demande\n        || (boucle_locale(declare)",
+    "apres": "    declare == demande\n        || (false && boucle_locale(declare)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Ressource : une autre que ce Glucose passe",
+    "fichier": "crates/glucose-desktop/src/agents/publique/oauth.rs",
+    "avant": "    if texte(\"resource\").is_some_and(|r| r != adresses.mcp()) {",
+    "apres": "    if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Inscription : un retour en clair hors de cette machine",
+    "fichier": "crates/glucose-desktop/src/agents/publique/oauth.rs",
+    "avant": "        .all(|r| (r.starts_with(\"https://\") && hote_de(r).is_some()) || boucle_locale(r));",
+    "apres": "        .all(|_| true);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Accord : une IA revenue s'ajoute au lieu de reprendre sa place",
+    "fichier": "crates/glucose-desktop/src/agents/publique/accords.rs",
+    "avant": "        self.accords.retain(|a| a.client_id != accord.client_id);\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Clé : n'importe quelle clé ouvre la porte d'une IA",
+    "fichier": "crates/glucose-desktop/src/agents/publique/http.rs",
+    "avant": "        g.etat.accord_de(k).cloned()",
+    "apres": "        g.etat.accords.first().cloned()",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — En-têtes : plus de vérification contre le corps",
+    "fichier": "crates/glucose-desktop/src/agents/publique/http.rs",
+    "avant": "    if let Some(ecart) = ecart_d_entetes(r, &message) {",
+    "apres": "    if let Some(ecart) = None::<String> {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Accord : la clé donnée ne s'enregistre pas",
+    "fichier": "crates/glucose-desktop/src/agents/publique/http.rs",
+    "avant": "    accords::enregistrer(c.fichier, &g.etat).map_err(|e| Refus {",
+    "apres": "    Ok::<(), std::io::Error>(()).map_err(|e| Refus {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Portée : « Lire seulement » écrit",
+    "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+    "avant": "(portee.ecrire || LECTEURS.contains(&nom))",
+    "apres": "(true || LECTEURS.contains(&nom))",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Portée : le nuage voit les outils de la machine",
+    "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+    "avant": "(portee.machine || DU_DOCUMENT.contains(&nom))",
+    "apres": "(true || DU_DOCUMENT.contains(&nom))",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Nom : celui qu'une requête moderne déclare",
+    "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+    "avant": "            (Some(verifie), true) => verifie.clone(),",
+    "apres": "            (Some(_), true) => declare.clone(),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Nom : la poignée de main ancienne le remplace",
+    "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+    "avant": "        if !self.verifie {",
+    "apres": "        if true {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "agents::publique"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Boucle : une IA du nuage doit encore être autorisée à chaque lancement",
+    "fichier": "crates/glucose-desktop/src/app/agents.rs",
+    "avant": "            } else {\n                Some(true)\n            };",
+    "apres": "            } else {\n                self.lancement.agents.accords.get(&client).copied()\n            };",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Boucle : l'appel s'exécute avec la portée de la machine",
+    "fichier": "crates/glucose-desktop/src/app/agents.rs",
+    "avant": "        let portee = std::mem::replace(&mut self.lancement.agents.portee, appel.portee);",
+    "apres": "        let portee = self.lancement.agents.portee;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Capture : une IA du nuage lit un fichier de la machine",
+    "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+    "avant": "            Some(_) if !self.lancement.agents.portee.machine => {",
+    "apres": "            Some(_) if false => {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Domaines : le nuage voit ceux des autres fichiers",
+    "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+    "avant": "        if self.lancement.agents.portee.machine {\n            &self.disque.recenseur.etat",
+    "apres": "        if true {\n            &self.disque.recenseur.etat",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Témoin : une IA du nuage travaille en silence",
+    "fichier": "crates/glucose-desktop/src/app/porte_publique.rs",
+    "avant": "        if reprise {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Retirer : l'IA garde sa clé",
+    "fichier": "crates/glucose-desktop/src/app/porte_publique.rs",
+    "avant": "            g.etat.accords.remove(i);",
+    "apres": "            let _ = i;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Collaborer : le bouton ne s'allume pas",
+    "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+    "avant": "        collab,\n        porte_ouverte,\n        5.0,",
+    "apres": "        collab,\n        false && porte_ouverte,\n        5.0,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "publique_1"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Collaborer : le bouton n'ouvre rien",
+    "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+    "avant": "            UiAction::ToggleCollab => self.montrer_la_porte_publique(),",
+    "apres": "            UiAction::ToggleCollab => {}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "collab_button"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Relais : une page HTML de Glucose passe",
+    "fichier": "outils/porte/src/aiguillage.js",
+    "avant": "const TYPES_PERMIS = /^(application\\/json|text\\/event-stream)\\s*(;|$)/i;",
+    "apres": "const TYPES_PERMIS = /./;",
+    "cmd": [
+      "node",
+      "--test",
+      "outils/porte/test/aiguillage.test.js"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Relais : le cookie du navigateur passe à Glucose",
+    "fichier": "outils/porte/src/aiguillage.js",
+    "avant": "    if (ENTETES_DEMANDE.includes(n) || n.startsWith(\"mcp-param-\")) choisis[n] = valeur;",
+    "apres": "    choisis[n] = valeur;",
+    "cmd": [
+      "node",
+      "--test",
+      "outils/porte/test/aiguillage.test.js"
+    ]
+  },
+  {
+    "nom": "PUBLIQUE-1 — Relais : un faux secret ouvre la porte",
+    "fichier": "outils/porte/src/aiguillage.js",
+    "avant": "  if (!octets || octets.length !== 32) return null;",
+    "apres": "  if (!octets) return null;",
+    "cmd": [
+      "node",
+      "--test",
+      "outils/porte/test/aiguillage.test.js"
+    ]
+  }
+]

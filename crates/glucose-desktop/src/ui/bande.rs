@@ -46,6 +46,8 @@ pub struct BandeKey {
     echelle: u32,
     outil: ActiveTool,
     smart_align: bool,
+    /// La porte aux IA publiques : Collaborer allumé (fiche 116).
+    porte: bool,
     images: usize,
     /// Les onglets — identifiant, nom, lequel est actif — et ce qu'on leur fait — le nom
     /// qu'on tape, celui qui glisse —, réduits à une empreinte.
@@ -196,6 +198,7 @@ pub(super) fn tenir_la_bande(
         echelle: ui.scale_factor.to_bits(),
         outil: ui.active_tool,
         smart_align: ui.smart_align,
+        porte: ui.porte_ouverte,
         images,
         tableaux: super::onglets::empreinte(&onglets, &ui.onglets),
         survol: survol_ici(&barre, &onglets, ui, largeur, pointer),

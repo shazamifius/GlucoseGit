@@ -105,6 +105,7 @@ impl super::GlucoseApp {
         self.souvenir_de_la_carte = dossier.join(crate::present::souvenir::FICHIER);
         // Ses raccourcis, posés sur ceux de Glucose (P4, fiche 74).
         self.disque.raccourcis = dossier.join(crate::commandes::utilisateur::FICHIER);
+        self.disque.porte_publique = dossier.join(crate::agents::publique::accords::FICHIER);
         self.charger_les_raccourcis();
     }
 }

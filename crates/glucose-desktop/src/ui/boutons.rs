@@ -242,7 +242,7 @@ pub(crate) fn les_boutons(ui: &UiState, typo: &Typography) -> Vec<TopbarButtonDe
 }
 
 /// **Ce qu'un bouton de la barre fait lui-même**, avant que l'application n'en reçoive
-/// l'action : l'aimant bascule et le dit, la collaboration dit qu'elle n'existe pas encore.
+/// l'action : l'aimant bascule et le dit, Trans-domaines dit qu'il n'existe pas encore.
 /// Une seule fois, pour la barre et pour le rail.
 pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
     match action {
@@ -253,11 +253,6 @@ pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
             } else {
                 "Aimant désactivé"
             });
-        }
-        UiAction::ToggleCollab => {
-            // Fiche 09 § 9 : aucun réseau n'existe. Le bouton ne « connecte » rien, et ne
-            // doit pas le prétendre.
-            ui.show_toast(super::NOT_YET_COLLAB);
         }
         UiAction::TransDomain => ui.show_toast(super::NOT_YET_TRANS_DOMAINES),
         _ => {}
@@ -277,7 +272,7 @@ fn poser_la_barre(
     groupe_des_outils(&mut regle, ui);
     groupe_des_images(&mut regle);
     groupe_des_panneaux(&mut regle, ui);
-    let (img_badge, tient) = groupe_de_droite(&mut regle, width, board_img_count);
+    let (img_badge, tient) = groupe_de_droite(&mut regle, width, board_img_count, ui.porte_ouverte);
     let barre = TopbarLayout {
         buttons: regle.boutons,
         separators: regle.separateurs,
@@ -363,6 +358,7 @@ fn groupe_de_droite(
     regle: &mut Regle<'_>,
     width: f32,
     board_img_count: usize,
+    porte_ouverte: bool,
 ) -> (Option<(f32, String)>, bool) {
     let fin_de_gauche = regle.x;
     let s = regle.s;
@@ -400,7 +396,14 @@ fn groupe_de_droite(
     let tient = depart >= fin_de_gauche + 16.0 * s;
     regle.x = depart.max(fin_de_gauche + 16.0 * s);
 
-    regle.poser(UiAction::ToggleCollab, IconType::Collab, collab, false, 5.0);
+    // Collaborer s'allume quand la porte aux IA publiques est ouverte (fiche 116).
+    regle.poser(
+        UiAction::ToggleCollab,
+        IconType::Collab,
+        collab,
+        porte_ouverte,
+        5.0,
+    );
     regle.separateur(1.0, 7.0);
     regle.poser(UiAction::ExportMenu, IconType::Export, export, false, 5.0);
     regle.separateur(1.0, 7.0);

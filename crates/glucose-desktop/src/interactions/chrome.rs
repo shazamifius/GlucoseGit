@@ -228,9 +228,11 @@ impl GlucoseApp {
             UiAction::TogglePlugins => self.dock_manager.toggle_tab(TabId::Plugins),
             UiAction::TogglePreset => self.dock_manager.toggle_tab(TabId::Preset),
             UiAction::ToggleDomains => self.dock_manager.toggle_tab(TabId::Domains),
-            // L'aimant, la collaboration et Trans-domaines ont déjà dit ou basculé ce qu'ils
-            // avaient à dire dans `handle_ui_click`.
-            UiAction::ToggleMagnet | UiAction::ToggleCollab | UiAction::TransDomain => {}
+            // L'aimant et Trans-domaines ont déjà dit ou basculé ce qu'ils avaient à dire dans
+            // `handle_ui_click`.
+            UiAction::ToggleMagnet | UiAction::TransDomain => {}
+            // La porte aux IA publiques, et plus tard le co-working (fiche 116).
+            UiAction::ToggleCollab => self.montrer_la_porte_publique(),
             UiAction::ExportMenu => self.export_board(),
             UiAction::SelectBoard(id) => self.cliquer_un_onglet(id),
             UiAction::CloseBoard(id) => self.fermer_l_onglet(&id),

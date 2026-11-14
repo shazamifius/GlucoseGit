@@ -1,0 +1,13 @@
+// Le relais de la porte publique (fiche 116). Déployé depuis ce dossier : `npx wrangler deploy`.
+// Un Durable Object par Glucose (SQLite, l'offre gratuite) ; aucun stockage n'y est écrit.
+{
+  "name": "glucose-porte",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [{ "name": "PORTES", "class_name": "Porte" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Porte"] }],
+  // Aucun journal des requêtes : ils porteraient l'adresse IP et les en-têtes de chaque IA.
+  "observability": { "enabled": false }
+}
