@@ -1,0 +1,47 @@
+[
+  {
+    "nom": "ID-2 — la marque n'entre pas dans le nom",
+    "fichier": "crates/glucose-core/src/store/ids.rs",
+    "avant": "            Some(p) => format!(\"{prefix}-{p}-{}\", self.next_id),",
+    "apres": "            Some(_) => format!(\"{prefix}-{}\", self.next_id),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "id_2"
+    ]
+  },
+  {
+    "nom": "ID-2 — une marque toute en chiffres passe",
+    "fichier": "crates/glucose-core/src/store/ids.rs",
+    "avant": "            && marque.bytes().any(|o| o.is_ascii_lowercase());",
+    "apres": "            && true;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "id_2"
+    ]
+  },
+  {
+    "nom": "ID-2 — une marque à tiret passe",
+    "fichier": "crates/glucose-core/src/store/ids.rs",
+    "avant": "            && marque.bytes().all(|o| o.is_ascii_lowercase() || o.is_ascii_digit())",
+    "apres": "            && marque.bytes().all(|o| o != 0)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "id_2"
+    ]
+  }
+]

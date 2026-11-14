@@ -102,6 +102,10 @@ pub struct Store {
     /// collision (R-22). Le seul point où l'invariant peut être rompu est l'injection d'un
     /// projet venu du disque : [`Store::load_project`] le rétablit par un unique scan.
     pub next_id: u64,
+    /// **Le participant d'un canevas partagé** (ID-2, fiche 116 § 8) : sa marque entre dans chaque
+    /// identifiant qu'il crée (`txt-k3f9-44`). Deux participants qui créent au même instant ne donnent
+    /// jamais le même nom — que l'application par le nom (PARTAGE-1) confondrait. Seul, aucune.
+    pub participant: Option<String>,
     pub version: u64,
     /// **L'identité du document chargé** (fiche 80) : un agent range sous elle ce qu'il en a vu.
     /// L'instant du chargement par défaut — deux documents ne la partagent jamais ; l'application
@@ -138,6 +142,7 @@ impl Store {
             domaine_regarde: None,
             journal: journal::Journal::new(UNDO_DEPTH),
             next_id: 1,
+            participant: None,
             version: 1,
             identite: ids::identite_d_instant(),
             bornes: std::cell::RefCell::default(),

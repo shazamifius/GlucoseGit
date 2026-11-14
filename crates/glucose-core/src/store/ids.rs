@@ -94,7 +94,24 @@ impl Store {
     /// présents. Il est rétabli par [`Store::resync_next_id`] à chaque injection de projet.
     pub fn generate_id(&mut self, prefix: &str) -> String {
         self.next_id += 1;
-        format!("{}-{}", prefix, self.next_id)
+        match &self.participant {
+            Some(p) => format!("{prefix}-{p}-{}", self.next_id),
+            None => format!("{prefix}-{}", self.next_id),
+        }
+    }
+
+    /// **Partager sous cette marque** (ID-2) : quelques lettres et chiffres, au moins une lettre — le
+    /// dernier morceau d'un identifiant reste son numéro, et ID-1 le relit après un chargement.
+    pub fn participer(&mut self, marque: &str) -> bool {
+        let valable = (1..=8).contains(&marque.len())
+            && marque
+                .bytes()
+                .all(|o| o.is_ascii_lowercase() || o.is_ascii_digit())
+            && marque.bytes().any(|o| o.is_ascii_lowercase());
+        if valable {
+            self.participant = Some(marque.to_string());
+        }
+        valable
     }
 
     /// Rétablit l'INVARIANT ID-1 après une injection directe de `project`.
@@ -157,6 +174,29 @@ mod tests {
 
     /// Fiche 80 : chaque document nomme son premier tableau `main` ; l'identité du document, elle,
     /// change à chaque chargement — un agent ne prend jamais un document pour un autre.
+    /// **ID-2** : deux participants au même compteur ne se donnent jamais le même nom ; le numéro reste
+    /// le dernier morceau, et un chargement le relit (ID-1).
+    #[test]
+    fn id_2_deux_participants_ne_se_donnent_jamais_le_meme_nom() {
+        let (mut alice, mut bob) = (Store::new("P"), Store::new("P"));
+        assert!(alice.participer("a7") && bob.participer("k3f9"));
+        let (a, b) = (alice.generate_id("txt"), bob.generate_id("txt"));
+        assert_eq!(alice.next_id, bob.next_id);
+        assert_ne!(a, b);
+        assert_eq!((a.as_str(), b.as_str()), ("txt-a7-2", "txt-k3f9-2"));
+        assert_eq!(numeric_suffix(&a), Some(2));
+        for refusee in ["", "a-b", "A7", "1234", "abcdefghi"] {
+            assert!(!alice.participer(refusee), "{refusee}");
+        }
+        assert_eq!(
+            alice.participant.as_deref(),
+            Some("a7"),
+            "une marque refusée ne remplace rien"
+        );
+        let mut seul = Store::new("P");
+        assert_eq!(seul.generate_id("txt"), "txt-2", "seul, aucune marque");
+    }
+
     #[test]
     fn chaque_chargement_a_son_identite() {
         let mut store = Store::new("P");
