@@ -207,6 +207,7 @@ pub mod edit;
 mod en_mots;
 mod fondre;
 mod mains;
+pub mod partage;
 
 pub use edit::{Bouts, Edit};
 pub use mains::{suivre_les_mains, Ecrit, Main};

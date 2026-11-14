@@ -1,0 +1,137 @@
+[
+  {
+    "nom": "PARTAGE-1 — une insertion se pose au bout",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "                    liste.insert(self.index.min(liste.len()), (**v).clone());",
+    "apres": "                    liste.insert(liste.len(), (**v).clone());",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — le conflit ne se dit plus",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "                let conflit = liste[i] != **avant;",
+    "apres": "                let conflit = false;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — un bloc remplacé ne dit pas son conflit",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "    let conflit = *cible != whole.before;",
+    "apres": "    let conflit = false;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — l'onglet regardé part aux autres",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "            .filter(|e| !matches!(e, Edit::ActiveBoard { .. }))",
+    "apres": "            .filter(|_| true)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — le déplacement part avec ses rangs",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "        return EditionPartagee::Telle(edit.clone());\n    };\n    let tableau",
+    "apres": "        return EditionPartagee::Telle(edit.clone());\n    };\n    if true {\n        return EditionPartagee::Telle(edit.clone());\n    }\n    let tableau",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — l'inverse d'un déplacement ne l'inverse pas",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "                    delta: (-d.delta.0, -d.delta.1),",
+    "apres": "                    delta: d.delta,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — l'ordre des onglets ne range rien",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "            ordonner(&mut projet.boards, &whole.after);",
+    "apres": "            let _ = &whole.after;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — un onglet ajouté par un autre passe devant",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "            .unwrap_or(usize::MAX)",
+    "apres": "            .unwrap_or(0)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — une modification ressuscite un retiré (sur le premier venu)",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "                let Some(i) = trouver(liste, avant.nom(), self.index) else {",
+    "apres": "                let Some(i) = trouver(liste, avant.nom(), self.index).or(Some(0)) else {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  }
+]
