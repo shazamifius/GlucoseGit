@@ -153,21 +153,36 @@ fn noms_de<T: Nomme>(liste: Option<&[T]>, rangs: &[u32]) -> Vec<String> {
         .collect()
 }
 
+/// **Ce qu'un geste partagé a fait chez celui qui le reçoit.**
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Application {
+    /// **La transaction réalisée**, avec les rangs de l'instant : le journal la reçoit comme les
+    /// autres (JRN-2 reste vrai, l'histoire du disque se rejoue dans l'ordre), et la défaire rend
+    /// exactement l'état d'avant — la valeur d'un autre comprise, en cas de conflit.
+    pub realisee: Transaction,
+    pub rencontres: Vec<Rencontre>,
+}
+
 impl GestePartage {
-    /// **Applique le geste par le nom** de ce qu'il touche ; rend ce qu'il a rencontré.
-    pub fn appliquer(&self, projet: &mut Project) -> Vec<Rencontre> {
-        let mut rencontres = Vec::new();
+    /// **Applique le geste par le nom** de ce qu'il touche.
+    pub fn appliquer(&self, projet: &mut Project) -> Application {
+        let mut a = Application::default();
         for edition in &self.editions {
-            match edition {
-                EditionPartagee::Telle(e) => appliquer_par_nom(e, projet, &mut rencontres),
+            let realisee = match edition {
+                EditionPartagee::Telle(e) => appliquer_par_nom(e, projet, &mut a.rencontres),
                 EditionPartagee::Deplacement(d) => {
-                    if let Some(t) = projet.boards.iter_mut().find(|b| b.id == d.board) {
-                        d.appliquer(t);
-                    }
+                    let realise = projet
+                        .boards
+                        .iter_mut()
+                        .find(|b| b.id == d.board)
+                        .map(|t| d.realiser(t));
+                    // Une seule façon de déplacer : la loi du journal, aux rangs de l'instant.
+                    realise.filter(|e| e.apply(projet))
                 }
-            }
+            };
+            a.realisee.edits.extend(realisee);
         }
-        rencontres
+        a
     }
 
     /// **L'inverse** : défaire ce geste, par le nom — chez celui qui l'a fait, avant de rejouer
@@ -203,87 +218,139 @@ fn trouver<T: Nomme>(liste: &[T], nom: &str, indice: usize) -> Option<usize> {
     liste.iter().position(|e| e.nom() == nom)
 }
 
+/// Une case réalisée, et ce qu'elle a rencontré.
+type Realisee<T> = (Option<Slot<T>>, Option<Rencontre>);
+
 impl<T: Nomme + Clone + PartialEq> Slot<T> {
-    /// **Applique cette case par le nom** (PARTAGE-1).
-    fn appliquer_par_nom(&self, liste: &mut Vec<T>) -> Option<Rencontre> {
+    /// **Applique cette case par le nom** (PARTAGE-1) ; rend la case réalisée, à son vrai rang.
+    fn appliquer_par_nom(&self, liste: &mut Vec<T>) -> Realisee<T> {
         match (&self.before, &self.after) {
             (None, Some(v)) => match trouver(liste, v.nom(), self.index) {
                 // Déjà là : un autre l'a posé sous le même nom ; le dernier gagne.
                 Some(i) => {
-                    let conflit = liste[i] != **v;
-                    liste[i] = (**v).clone();
-                    conflit.then(|| Rencontre::Conflit(v.nom().to_string()))
+                    let ancien = std::mem::replace(&mut liste[i], (**v).clone());
+                    let conflit = ancien != **v;
+                    let r = conflit.then(|| Rencontre::Conflit(v.nom().to_string()));
+                    (conflit.then(|| Slot::changed(i, ancien, (**v).clone())), r)
                 }
                 None => {
-                    liste.insert(self.index.min(liste.len()), (**v).clone());
-                    None
+                    let i = self.index.min(liste.len());
+                    liste.insert(i, (**v).clone());
+                    (Some(Slot::inserted(i, (**v).clone())), None)
                 }
             },
             (Some(avant), apres) => {
                 let Some(i) = trouver(liste, avant.nom(), self.index) else {
-                    return Some(Rencontre::Absent(avant.nom().to_string()));
+                    return (None, Some(Rencontre::Absent(avant.nom().to_string())));
                 };
                 let conflit = liste[i] != **avant;
-                match apres {
-                    Some(v) => liste[i] = (**v).clone(),
-                    None => {
-                        liste.remove(i);
-                    }
-                }
-                conflit.then(|| Rencontre::Conflit(avant.nom().to_string()))
+                let r = conflit.then(|| Rencontre::Conflit(avant.nom().to_string()));
+                let realisee = match apres {
+                    Some(v) => Slot::changed(
+                        i,
+                        std::mem::replace(&mut liste[i], (**v).clone()),
+                        (**v).clone(),
+                    ),
+                    None => Slot::removed(i, liste.remove(i)),
+                };
+                (Some(realisee), r)
             }
-            (None, None) => None,
+            (None, None) => (None, None),
         }
     }
 }
 
-/// Un bloc remplacé : l'avant comparé à ce qui est là.
+/// Un bloc remplacé : l'avant comparé à ce qui est là ; le bloc réalisé part de ce qui était là.
 fn remplacer<T: Clone + PartialEq>(
     cible: &mut T,
     whole: &Whole<T>,
     nom: &str,
-) -> Option<Rencontre> {
-    let conflit = *cible != whole.before;
-    *cible = whole.after.clone();
-    conflit.then(|| Rencontre::Conflit(nom.to_string()))
+    rencontres: &mut Vec<Rencontre>,
+) -> Whole<T> {
+    if *cible != whole.before {
+        rencontres.push(Rencontre::Conflit(nom.to_string()));
+    }
+    Whole::new(
+        std::mem::replace(cible, whole.after.clone()),
+        whole.after.clone(),
+    )
 }
 
-fn appliquer_par_nom(edit: &Edit, projet: &mut Project, rencontres: &mut Vec<Rencontre>) {
-    let r = match edit {
-        Edit::Board { slot } => slot.appliquer_par_nom(&mut projet.boards),
-        Edit::Domain { slot } => slot.appliquer_par_nom(&mut projet.domains),
-        Edit::Preset { slot } => slot.appliquer_par_nom(&mut projet.presets),
-        Edit::ProjectName { whole } => remplacer(&mut projet.name, whole, "le nom du document"),
+/// Garde ce qu'une case a rencontré ; rend la case réalisée.
+fn garder<T>(
+    rencontres: &mut Vec<Rencontre>,
+    (realisee, rencontre): Realisee<T>,
+) -> Option<Slot<T>> {
+    rencontres.extend(rencontre);
+    realisee
+}
+
+/// **Une édition appliquée par le nom** ; rend l'édition réalisée, s'il en est une.
+fn appliquer_par_nom(
+    edit: &Edit,
+    projet: &mut Project,
+    rencontres: &mut Vec<Rencontre>,
+) -> Option<Edit> {
+    match edit {
+        Edit::Board { slot } => garder(rencontres, slot.appliquer_par_nom(&mut projet.boards))
+            .map(|slot| Edit::Board { slot }),
+        Edit::Domain { slot } => garder(rencontres, slot.appliquer_par_nom(&mut projet.domains))
+            .map(|slot| Edit::Domain { slot }),
+        Edit::Preset { slot } => garder(rencontres, slot.appliquer_par_nom(&mut projet.presets))
+            .map(|slot| Edit::Preset { slot }),
+        Edit::ProjectName { whole } => Some(Edit::ProjectName {
+            whole: remplacer(&mut projet.name, whole, "le nom du document", rencontres),
+        }),
         Edit::BoardOrder { whole } => {
+            let ids = |p: &Project| p.boards.iter().map(|b| b.id.clone()).collect::<Vec<_>>();
+            let avant = ids(projet);
             ordonner(&mut projet.boards, &whole.after);
-            None
+            Some(Edit::BoardOrder {
+                whole: Whole::new(avant, ids(projet)),
+            })
         }
         // L'onglet regardé ne part pas ; un déplacement part nommé.
         Edit::ActiveBoard { .. } | Edit::Translation { .. } => None,
         _ => {
-            let Some(tableau) = edit
-                .board_id()
-                .and_then(|id| projet.boards.iter_mut().find(|b| b.id == id))
-            else {
-                let id = edit.board_id().unwrap_or_default().to_string();
+            let id = edit.board_id().unwrap_or_default().to_string();
+            let Some(tableau) = projet.boards.iter_mut().find(|b| b.id == id) else {
                 rencontres.push(Rencontre::Absent(id));
-                return;
+                return None;
             };
-            appliquer_au_tableau(edit, tableau)
+            appliquer_au_tableau(edit, tableau, rencontres)
         }
-    };
-    rencontres.extend(r);
+    }
 }
 
-fn appliquer_au_tableau(edit: &Edit, t: &mut Board) -> Option<Rencontre> {
+fn appliquer_au_tableau(
+    edit: &Edit,
+    t: &mut Board,
+    rencontres: &mut Vec<Rencontre>,
+) -> Option<Edit> {
+    let board = t.id.clone();
     match edit {
-        Edit::Image { slot, .. } => slot.appliquer_par_nom(&mut t.images),
-        Edit::Annotation { slot, .. } => slot.appliquer_par_nom(&mut t.annotations),
-        Edit::Folder { slot, .. } => slot.appliquer_par_nom(&mut t.folders),
-        Edit::Panel { slot, .. } => slot.appliquer_par_nom(&mut t.panels),
-        Edit::Storyboard { slot, .. } => slot.appliquer_par_nom(&mut t.storyboards),
-        Edit::Zones { whole, .. } => remplacer(&mut t.zones, whole, &t.id.clone()),
-        Edit::BoardName { whole, .. } => remplacer(&mut t.name, whole, &t.id.clone()),
+        Edit::Image { slot, .. } => garder(rencontres, slot.appliquer_par_nom(&mut t.images))
+            .map(|slot| Edit::Image { board, slot }),
+        Edit::Annotation { slot, .. } => {
+            garder(rencontres, slot.appliquer_par_nom(&mut t.annotations))
+                .map(|slot| Edit::Annotation { board, slot })
+        }
+        Edit::Folder { slot, .. } => garder(rencontres, slot.appliquer_par_nom(&mut t.folders))
+            .map(|slot| Edit::Folder { board, slot }),
+        Edit::Panel { slot, .. } => garder(rencontres, slot.appliquer_par_nom(&mut t.panels))
+            .map(|slot| Edit::Panel { board, slot }),
+        Edit::Storyboard { slot, .. } => {
+            garder(rencontres, slot.appliquer_par_nom(&mut t.storyboards))
+                .map(|slot| Edit::Storyboard { board, slot })
+        }
+        Edit::Zones { whole, .. } => {
+            let whole = remplacer(&mut t.zones, whole, &board, rencontres);
+            Some(Edit::Zones { board, whole })
+        }
+        Edit::BoardName { whole, .. } => {
+            let whole = remplacer(&mut t.name, whole, &board, rencontres);
+            Some(Edit::BoardName { board, whole })
+        }
         _ => None,
     }
 }
@@ -301,36 +368,37 @@ fn ordonner(tableaux: &mut [Board], ordre: &[String]) {
 }
 
 impl Deplacement {
-    /// Chaque élément retrouvé par son nom ; un absent est passé.
-    fn appliquer(&self, t: &mut Board) {
-        let (dx, dy) = self.delta;
-        for img in t.images.iter_mut().filter(|i| self.images.contains(&i.id)) {
-            img.x += dx;
-            img.y += dy;
-        }
-        for a in &mut t.annotations {
-            if self.annotations.iter().any(|n| n == a.id()) {
-                a.translate(dx, dy);
-            } else if let Some((_, q)) = self.bouts.iter().find(|(n, _)| n == a.id()) {
-                if let Annotation::Arrow { x, y, x2, y2, .. } = a {
-                    if q.origine {
-                        *x += dx;
-                        *y += dy;
-                    }
-                    if q.cible {
-                        *x2 += dx;
-                        *y2 += dy;
-                    }
-                }
-            }
-        }
-        for f in t
-            .folders
-            .iter_mut()
-            .filter(|f| self.folders.contains(&f.id))
-        {
-            f.x += dx;
-            f.y += dy;
+    /// Le déplacement réalisé : chaque élément retrouvé par son nom, à son rang de l'instant ; un
+    /// absent est passé.
+    fn realiser(&self, t: &Board) -> Edit {
+        let rangs = |noms: &[String], ids: &mut dyn Iterator<Item = &str>| -> Vec<u32> {
+            ids.enumerate()
+                .filter(|(_, id)| noms.iter().any(|n| n == id))
+                .map(|(i, _)| i as u32)
+                .collect()
+        };
+        let images = rangs(&self.images, &mut t.images.iter().map(|i| i.id.as_str()));
+        let annotations = rangs(
+            &self.annotations,
+            &mut t.annotations.iter().map(Annotation::id),
+        );
+        let folders = rangs(&self.folders, &mut t.folders.iter().map(|f| f.id.as_str()));
+        let bouts: Vec<(u32, Bouts)> = t
+            .annotations
+            .iter()
+            .enumerate()
+            .filter_map(|(i, a)| {
+                let (_, q) = self.bouts.iter().find(|(n, _)| n == a.id())?;
+                Some((i as u32, *q))
+            })
+            .collect();
+        Edit::Translation {
+            board: t.id.clone(),
+            delta: self.delta,
+            images,
+            annotations,
+            folders,
+            bouts,
         }
     }
 }

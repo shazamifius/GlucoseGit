@@ -41,8 +41,8 @@ fn faire(p: &mut Project, g: &Transaction) -> GestePartage {
 /// puis refait le sien — tout par le nom.
 fn rebaser(p: &mut Project, le_mien: &GestePartage, l_autre: &GestePartage) -> Vec<Rencontre> {
     le_mien.inverse().appliquer(p);
-    let mut r = l_autre.appliquer(p);
-    r.extend(le_mien.appliquer(p));
+    let mut r = l_autre.appliquer(p).rencontres;
+    r.extend(le_mien.appliquer(p).rencontres);
     r
 }
 
@@ -74,9 +74,15 @@ fn partage_1_deux_participants_convergent_quand_ils_touchent_des_noeuds_differen
         let pb = faire(&mut bob, &gb);
         let (ra, rb) = if alice_d_abord {
             // La salle : Alice, puis Bob. Bob rebase ; Alice applique.
-            (pb.appliquer(&mut alice), rebaser(&mut bob, &pb, &pa))
+            (
+                pb.appliquer(&mut alice).rencontres,
+                rebaser(&mut bob, &pb, &pa),
+            )
         } else {
-            (rebaser(&mut alice, &pa, &pb), pa.appliquer(&mut bob))
+            (
+                rebaser(&mut alice, &pa, &pb),
+                pa.appliquer(&mut bob).rencontres,
+            )
         };
         assert_eq!(alice, bob, "ordre {alice_d_abord}");
         assert_eq!(
@@ -114,7 +120,7 @@ fn partage_1_le_dernier_gagne_et_le_conflit_se_dit() {
     let pa = faire(&mut alice, &ga);
     let pb = faire(&mut bob, &gb);
     // La salle : Alice, puis Bob.
-    let chez_alice = pb.appliquer(&mut alice);
+    let chez_alice = pb.appliquer(&mut alice).rencontres;
     let chez_bob = rebaser(&mut bob, &pb, &pa);
     assert_eq!(alice, bob);
     assert_eq!(xs(&alice)[1], ("b".into(), 70.0));
@@ -134,7 +140,7 @@ fn partage_1_une_modification_ne_ressuscite_pas_un_retire() {
     let (mut alice, mut bob) = (depart(), depart());
     let pa = faire(&mut alice, &ga);
     let pb = faire(&mut bob, &gb);
-    let chez_alice = pb.appliquer(&mut alice);
+    let chez_alice = pb.appliquer(&mut alice).rencontres;
     rebaser(&mut bob, &pb, &pa);
     assert_eq!(alice, bob);
     assert_eq!(xs(&alice), [("a".into(), 0.0), ("c".into(), 2.0)]);
@@ -241,11 +247,49 @@ fn partage_1_l_ordre_des_onglets_garde_ceux_qu_un_autre_a_ajoutes() {
     let pb = faire(&mut bob, &gb);
     // La salle : Bob, puis Alice.
     let chez_alice = rebaser(&mut alice, &pa, &pb);
-    let chez_bob = pa.appliquer(&mut bob);
+    let chez_bob = pa.appliquer(&mut bob).rencontres;
     assert_eq!(alice, bob);
     let ordre: Vec<&str> = bob.boards.iter().map(|b| b.id.as_str()).collect();
     assert_eq!(ordre, ["deux", "main", "trois"]);
     assert_eq!(bob.boards[1].name, "Alice");
     assert_eq!(chez_alice, [Rencontre::Conflit("main".into())]);
     assert_eq!(chez_bob, [Rencontre::Conflit("main".into())]);
+}
+
+/// **La transaction réalisée** : celle que le journal recevra. Rejouée par les rangs sur l'état
+/// d'avant, elle redonne le même canevas ; défaite, elle rend exactement l'état d'avant — la
+/// valeur de l'autre comprise quand il y a eu conflit (JRN-2 tient).
+#[test]
+fn partage_1_la_transaction_realisee_se_rejoue_et_se_defait_par_les_rangs() {
+    let ga = geste(vec![img(Slot::changed(
+        1,
+        image("b", 1.0),
+        image("b", 50.0),
+    ))]);
+    let gb = geste(vec![
+        img(Slot::removed(0, image("a", 0.0))),
+        img(Slot::inserted(2, image("d", 3.0))),
+        img(Slot::changed(1, image("b", 1.0), image("b", 70.0))),
+    ]);
+    let (mut alice, mut bob) = (depart(), depart());
+    faire(&mut alice, &ga);
+    let pb = faire(&mut bob, &gb);
+    let avant = alice.clone();
+    let application = pb.appliquer(&mut alice);
+    assert_eq!(application.rencontres, [Rencontre::Conflit("b".into())]);
+    let mut rejoue = avant.clone();
+    for e in &application.realisee.edits {
+        assert!(e.apply(&mut rejoue), "les rangs réalisés sont justes");
+    }
+    assert_eq!(rejoue, alice);
+    let mut defait = application.realisee.clone();
+    defait.edits.reverse();
+    for e in &mut defait.edits {
+        e.flip();
+        assert!(e.apply(&mut rejoue));
+    }
+    assert_eq!(
+        rejoue, avant,
+        "défaite, elle rend le b d'Alice, pas celui d'avant Alice"
+    );
 }

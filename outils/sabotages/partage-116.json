@@ -2,8 +2,8 @@
   {
     "nom": "PARTAGE-1 — une insertion se pose au bout",
     "fichier": "crates/glucose-core/src/store/journal/partage.rs",
-    "avant": "                    liste.insert(self.index.min(liste.len()), (**v).clone());",
-    "apres": "                    liste.insert(liste.len(), (**v).clone());",
+    "avant": "                    let i = self.index.min(liste.len());",
+    "apres": "                    let i = liste.len();",
     "cmd": [
       "cargo",
       "test",
@@ -32,8 +32,8 @@
   {
     "nom": "PARTAGE-1 — un bloc remplacé ne dit pas son conflit",
     "fichier": "crates/glucose-core/src/store/journal/partage.rs",
-    "avant": "    let conflit = *cible != whole.before;",
-    "apres": "    let conflit = false;",
+    "avant": "    if *cible != whole.before {",
+    "apres": "    if false {",
     "cmd": [
       "cargo",
       "test",
@@ -124,6 +124,36 @@
     "fichier": "crates/glucose-core/src/store/journal/partage.rs",
     "avant": "                let Some(i) = trouver(liste, avant.nom(), self.index) else {",
     "apres": "                let Some(i) = trouver(liste, avant.nom(), self.index).or(Some(0)) else {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — la transaction réalisée garde le rang du geste",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "                    (Some(Slot::inserted(i, (**v).clone())), None)",
+    "apres": "                    (Some(Slot::inserted(self.index, (**v).clone())), None)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "partage_1"
+    ]
+  },
+  {
+    "nom": "PARTAGE-1 — la transaction réalisée oublie la valeur de l'autre",
+    "fichier": "crates/glucose-core/src/store/journal/partage.rs",
+    "avant": "                        std::mem::replace(&mut liste[i], (**v).clone()),",
+    "apres": "                        {\n                            liste[i] = (**v).clone();\n                            (**avant).clone()\n                        },",
     "cmd": [
       "cargo",
       "test",
