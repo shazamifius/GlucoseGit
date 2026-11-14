@@ -150,8 +150,30 @@ ligne) : ses rangs sont alors faux. Avant toute salle, donc :
 4. puis la salle (un Durable Object de plus sur le même relais), la question de la porte qui
    devient « Partager ce canevas / Rejoindre », les curseurs.
 
-Le premier est une refonte du journal (553 lignes, ses éditions, la fusion des gestes, leur forme
-sur le disque) : à mener posément, en tête de la prochaine session de co-working.
+**Ce que la lecture de `journal/edit.rs` a appris ensuite, et qui allège le premier point** : chaque
+`Slot` porte **l'élément entier** avant et après — et chaque élément (photo, texte, dossier, case,
+storyboard, tableau, domaine, preset) porte son identifiant ; les éditions en bloc (`Whole`) visent
+leur tableau par son identifiant. **Le geste connaît donc déjà le nom de ce qu'il touche** :
+« désigner par le nom » n'est pas un nouveau format de journal ni de disque, mais **une seconde
+façon d'appliquer le même geste** — trouver l'élément par son nom, le rang n'étant qu'un indice pour
+une insertion ; l'avant gardé, comparé à ce qui est là, dit le conflit. Deux exceptions seulement :
+
+* **`Translation`** ne garde que des rangs (`Vec<u32>`, pour déplacer 750 000 nœuds en quelques
+  millisecondes, JRN-4) : nommée au moment où le geste part, pas dans le journal ;
+* **`ActiveBoard`** (l'onglet regardé) est un geste du journal ; en co-working, chacun regarde le sien :
+  il ne part pas aux autres.
+
+**Écrit dans la foulée — PARTAGE-1** (`core/store/journal/partage.rs`) : `Transaction::a_partager`
+(le geste tel qu'il part : le déplacement nommé dans l'état qui le suit, l'onglet regardé laissé à
+soi), `GestePartage::appliquer` (par le nom ; l'insertion au rang d'origine s'il tient ; l'avant
+comparé à ce qui est là : **le conflit**, et le dernier gagne ; un élément retiré est **absent**, sa
+modification ne le ressuscite pas ; l'ordre des onglets range ceux qu'il nomme, puis ceux qu'un autre
+a ajoutés) et `GestePartage::inverse` (pour défaire son geste en attente). **Six épreuves** où Alice
+et Bob font chacun leur geste chez eux puis rejouent l'ordre de la salle (le rebase) : ils
+convergent dans les deux ordres — et la preuve à l'envers, l'ancienne loi par les rangs qui écrit le
+geste d'Alice sur le c de Bob. **9 sabotages sur 9** (`outils/sabotages/partage-116.json`). Rien du
+journal ni du disque n'a changé. **Reste**, dans l'ordre : les numéros des nœuds par participant, le
+chiffrement, la salle et l'interface.
 
 ## 9. Ce qui reste contestable
 

@@ -60,9 +60,9 @@
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Le co-working** (sa parole du 14/11, ses deux pages prises pour accordées) : la porte publique
-  est faite ; le co-working entre humains demande d'abord **des gestes qui désignent un nœud par son
-  nom** (aujourd'hui par son rang dans une liste), des numéros de nœuds par participant et le
-  chiffrement des gestes (fiche 116 § 8).
+  est faite ; **un geste s'applique chez les autres par le nom de ce qu'il touche** (PARTAGE-1, fiche
+  116 § 8 : deux participants convergent dans tous les ordres, le conflit se dit) ; restent les
+  numéros des nœuds par participant, le chiffrement des gestes, la salle et l'interface.
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
