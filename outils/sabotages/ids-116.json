@@ -32,8 +32,8 @@
   {
     "nom": "ID-2 — une marque à tiret passe",
     "fichier": "crates/glucose-core/src/store/ids.rs",
-    "avant": "            && marque.bytes().all(|o| o.is_ascii_lowercase() || o.is_ascii_digit())",
-    "apres": "            && marque.bytes().all(|o| o != 0)",
+    "avant": "                .all(|o| o.is_ascii_lowercase() || o.is_ascii_digit())",
+    "apres": "                .all(|o| o != 0)",
     "cmd": [
       "cargo",
       "test",
