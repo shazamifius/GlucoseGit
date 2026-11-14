@@ -91,9 +91,9 @@ fn parente_1_les_familles_plantees_se_retrouvent() {
     }
     assert!(plantees[0] != plantees[1] && plantees[1] != plantees[2]);
     // B3 (fiche 110) : le plus proche parent d'un membre est un autre membre de son groupe.
-    for i in 0..15 {
+    for (i, parent) in p.parent.iter().copied().enumerate().take(15) {
         let groupe = i / 5 * 5..i / 5 * 5 + 5;
-        let parent = p.parent[i].expect("un parent");
+        let parent = parent.expect("un parent");
         assert!(parent != i && groupe.contains(&parent), "{i} : {parent}");
     }
     assert!(
