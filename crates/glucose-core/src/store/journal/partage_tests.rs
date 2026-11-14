@@ -261,11 +261,11 @@ fn partage_1_l_ordre_des_onglets_garde_ceux_qu_un_autre_a_ajoutes() {
 /// valeur de l'autre comprise quand il y a eu conflit (JRN-2 tient).
 #[test]
 fn partage_1_la_transaction_realisee_se_rejoue_et_se_defait_par_les_rangs() {
-    let ga = geste(vec![img(Slot::changed(
-        1,
-        image("b", 1.0),
-        image("b", 50.0),
-    ))]);
+    // Alice déplace b et retire c : chez elle, la liste est plus courte que chez Bob.
+    let ga = geste(vec![
+        img(Slot::changed(1, image("b", 1.0), image("b", 50.0))),
+        img(Slot::removed(2, image("c", 2.0))),
+    ]);
     let gb = geste(vec![
         img(Slot::removed(0, image("a", 0.0))),
         img(Slot::inserted(2, image("d", 3.0))),
