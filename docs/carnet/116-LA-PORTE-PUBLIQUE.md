@@ -197,7 +197,11 @@ trop tard :
    d'un autre) : par son inverse **par le nom** (`GestePartage::inverse`), qui part à son tour comme un
    geste — Figma, Google Slides ; si l'élément a disparu entre-temps, rien (fiche 113). La pile LIFO du
    journal ne le sait pas : en partage, c'est une pile par main.
-3. Les numéros des nœuds par participant (au moment où la salle les donne : `txt-<participant>-43`).
+3. **Les numéros des nœuds par participant** — **écrit** (ID-2, `store/ids.rs`) : sa marque entre
+   dans chaque nom qu'il crée (`txt-a7-44`, `txt-k3f9-44`) ; le numéro reste le dernier morceau,
+   qu'ID-1 relit au chargement ; seul, aucune marque. **3 sabotages sur 3**. Et le geste partagé
+   **s'écrit en octets** (`persist/histoire/geste.rs` : `ecrire_partage`, `lire_partage` — la forme
+   des gestes de la Time Machine, un déplacement par ses noms), relu à l'identique (2 sabotages).
 4. **La salle** — **écrite, éprouvée en local, pas déployée** (SALLE-1, `outils/porte/src/salle.js`,
    `messages.js`) : un Durable Object par canevas partagé (`/s/<id>/salle`), qui numérote, garde (SQLite)
    et passe des gestes scellés sans les lire ; la base est le premier geste, **en morceaux** (une valeur
