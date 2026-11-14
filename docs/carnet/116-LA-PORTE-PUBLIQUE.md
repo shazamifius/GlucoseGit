@@ -172,8 +172,37 @@ a ajoutés) et `GestePartage::inverse` (pour défaire son geste en attente). **S
 et Bob font chacun leur geste chez eux puis rejouent l'ordre de la salle (le rebase) : ils
 convergent dans les deux ordres — et la preuve à l'envers, l'ancienne loi par les rangs qui écrit le
 geste d'Alice sur le c de Bob. **9 sabotages sur 9** (`outils/sabotages/partage-116.json`). Rien du
-journal ni du disque n'a changé. **Reste**, dans l'ordre : les numéros des nœuds par participant, le
-chiffrement, la salle et l'interface.
+journal ni du disque n'a changé.
+
+**Puis CHIFFRE-1** (`core/chiffre.rs`) : ChaCha20-Poly1305 (RFC 8439) — le chiffre de TLS 1.3 et de
+WireGuard, rapide et sans fuite par le temps sans aucune instruction du processeur : la même voie
+partout. `sceller` et `ouvrir`, le sceau comparé en entier. **Éprouvé sur les vecteurs de la norme,
+recopiés du texte de la RFC par un script** (rien de mémoire) : l'exemple § 2.8.2 scellé au bit près,
+l'annexe A.5 ouverte (265 octets), **les sept cas limites de Poly1305** (A.3, 5 à 11 : la réduction
+finale, le report de `s`, les membres pleins — là où se trompent les implémentations faites à la main)
+— tous passés du premier coup ; un seul bit changé n'ouvre rien. **10 sabotages sur 10**
+(`outils/sabotages/chiffre-116.json`).
+
+**Reste**, dans l'ordre — avec deux décisions que la lecture du journal impose, à ne pas découvrir
+trop tard :
+
+1. **Un geste reçu entre au journal avec ses rangs réels.** `appliquer` sait où il a trouvé chaque
+   élément : qu'il rende la transaction **réalisée** (les rangs de l'instant), que le journal reçoit
+   comme les autres, signée de son auteur (MAIN-1). JRN-2 reste vrai — le journal voit chaque
+   changement —, et l'histoire du disque (JRN-5) se rejoue toujours dans l'ordre : la Time Machine
+   montre les gestes de chacun sans rien changer à son format.
+2. **`Ctrl+Z` à plusieurs défait *mon* dernier geste**, pas le dernier de la pile (qui peut être celui
+   d'un autre) : par son inverse **par le nom** (`GestePartage::inverse`), qui part à son tour comme un
+   geste — Figma, Google Slides ; si l'élément a disparu entre-temps, rien (fiche 113). La pile LIFO du
+   journal ne le sait pas : en partage, c'est une pile par main.
+3. Les numéros des nœuds par participant (au moment où la salle les donne : `txt-<participant>-43`).
+4. **La salle** (un Durable Object de plus sur le relais) : elle numérote, garde scellé, passe ; la
+   base (le document au moment du partage, scellé) est le numéro 0, **en morceaux** (une valeur d'objet
+   tient 2 Mo ; sa carte de Wikipédia en pèse 2,1) ; la salle ne voit qu'un numéro et des octets.
+   Deux codes : le code « écrire » porte un secret dont la salle garde l'empreinte, le code « lire »
+   n'a que la clé du chiffre.
+5. « Partager ce canevas / Rejoindre » dans la question de Collaborer, son nom et sa couleur, les
+   curseurs (hors de l'histoire), les photos d'un participant à l'autre (B1).
 
 ## 9. Ce qui reste contestable
 

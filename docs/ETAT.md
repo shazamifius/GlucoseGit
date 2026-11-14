@@ -61,8 +61,9 @@
   CI**, alors que la plupart de ses utilisateurs y sont.
 * **Le co-working** (sa parole du 14/11, ses deux pages prises pour accordées) : la porte publique
   est faite ; **un geste s'applique chez les autres par le nom de ce qu'il touche** (PARTAGE-1, fiche
-  116 § 8 : deux participants convergent dans tous les ordres, le conflit se dit) ; restent les
-  numéros des nœuds par participant, le chiffrement des gestes, la salle et l'interface.
+  116 § 8 : deux participants convergent dans tous les ordres, le conflit se dit) ; **le chiffre des
+  gestes** est écrit (CHIFFRE-1 : ChaCha20-Poly1305 dans le noyau, sur les vecteurs de la norme) ;
+  restent les numéros des nœuds par participant, la salle et l'interface.
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
