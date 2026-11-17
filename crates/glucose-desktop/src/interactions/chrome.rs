@@ -50,6 +50,7 @@ impl GlucoseApp {
             return;
         }
         self.choisir_dans_la_fenetre();
+        self.ui.coude_vise = self.coude_sous_la_souris();
         let (x, y) = (self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
         // Sur un onglet, le menu est celui de l'onglet (BOARDS-1).
         let onglets = crate::ui::layout_tabs(&self.store, &self.ui, &self.renderer.typography);
@@ -118,6 +119,7 @@ impl GlucoseApp {
         match (action, onglet) {
             (MenuAction::RenommerOnglet, Some(id)) => self.commencer_le_renommage(id),
             (MenuAction::SupprimerOnglet, Some(id)) => self.fermer_l_onglet(id),
+            (MenuAction::RetirerLeCoude, _) => self.retirer_le_coude_vise(),
             _ => {}
         }
         self.mark_dirty();

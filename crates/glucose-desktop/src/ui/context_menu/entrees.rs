@@ -49,6 +49,15 @@ pub(super) fn entrees(store: &Store, ui: &UiState, onglet: Option<&str>) -> Opti
     } else {
         let mut defs = entrees_de_l_historique();
         if store.compte_de_la_selection() > 0 {
+            // Le coude sous le clic droit passe avant tout (COUDE-1).
+            if ui.coude_vise.is_some() {
+                defs.push(Some((
+                    MenuAction::RetirerLeCoude,
+                    "Retirer ce coude",
+                    "Double-clic",
+                )));
+                defs.push(None);
+            }
             defs.extend(entrees_de_selection(store)?);
         } else {
             defs.extend(entrees_du_vide());

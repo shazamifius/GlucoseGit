@@ -484,5 +484,35 @@
       "--",
       "miroir_1"
     ]
+  },
+  {
+    "nom": "COUDE-1 — le clic droit ne retient pas le coude visé",
+    "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+    "avant": "        self.ui.coude_vise = self.coude_sous_la_souris();",
+    "apres": "        self.ui.coude_vise = None;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "coude_1"
+    ]
+  },
+  {
+    "nom": "COUDE-1 — l'entrée ne retire rien",
+    "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+    "avant": "            (MenuAction::RetirerLeCoude, _) => self.retirer_le_coude_vise(),",
+    "apres": "            (MenuAction::RetirerLeCoude, _) => {}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "coude_1"
+    ]
   }
 ]

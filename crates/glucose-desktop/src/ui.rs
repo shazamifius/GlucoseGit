@@ -100,6 +100,17 @@ impl ActiveTool {
     }
 }
 
+/// **COUDE-1 — le coude qu'un clic droit vise** : la flèche, son rang, et l'itinéraire à figer en
+/// coudes si elle contournait sans coude (FLECHE-5). Sa capture du 17/11 : *« aucun système
+/// permettant de supprimer des points orange d'une flèche »* — le double-clic le faisait, sans
+/// que rien ne le dise ; le menu le dit.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CoudeVise {
+    pub fleche: String,
+    pub rang: usize,
+    pub a_figer: Vec<(f64, f64)>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiAction {
     SelectTool(ActiveTool),
@@ -202,6 +213,8 @@ pub struct UiState {
     pub ariane_cache: Option<breadcrumb::ArianeCache>,
     /// Ce qu'on est en train de faire aux onglets : les renommer, les glisser (BOARDS-1).
     pub onglets: onglets::EtatDesOnglets,
+    /// **Le coude sous le clic droit**, que le menu propose de retirer (COUDE-1).
+    pub coude_vise: Option<CoudeVise>,
     /// **Le mode référence** (fiche 51 § 5) : plus aucune interface, le canevas partout. Le menu
     /// contextuel et les messages restent — sans eux, on ne saurait plus en sortir.
     pub reference: bool,
@@ -286,6 +299,7 @@ impl UiState {
             bande_cache: None,
             ariane_cache: None,
             onglets: onglets::EtatDesOnglets::default(),
+            coude_vise: None,
             reference: false,
             zen: false,
             porte_ouverte: false,

@@ -211,6 +211,38 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
+    /// **Le coude sous la souris**, sur une flèche choisie : celui qu'un clic droit vise
+    /// (COUDE-1).
+    pub(crate) fn coude_sous_la_souris(&self) -> Option<crate::ui::CoudeVise> {
+        let vp = self.store.viewport();
+        let (wx, wy) = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+        let (fleche, poignee, a_figer) = self.arrow_handle_at(wx, wy)?;
+        let HandleKind::Bend(rang) = poignee.kind else {
+            return None;
+        };
+        Some(crate::ui::CoudeVise {
+            fleche,
+            rang,
+            a_figer,
+        })
+    }
+
+    /// **Retire le coude que le clic droit visait**, d'un seul geste annulable — celui du
+    /// double-clic, que le menu nomme.
+    pub(crate) fn retirer_le_coude_vise(&mut self) {
+        let Some(coude) = self.ui.coude_vise.take() else {
+            return;
+        };
+        let board = self.store.project.active_board_id.clone();
+        self.store.begin_live_edit();
+        self.store
+            .figer_arrow_route(&board, &coude.fleche, &coude.a_figer);
+        self.store
+            .remove_arrow_bend(&board, &coude.fleche, coude.rang);
+        self.store.end_live_edit();
+        self.mark_dirty();
+    }
+
     /// **Redresse les flèches choisies**, d'un seul geste annulable : tous leurs coudes partent.
     pub(crate) fn redresser_les_fleches_choisies(&mut self) {
         let board = self.store.project.active_board_id.clone();

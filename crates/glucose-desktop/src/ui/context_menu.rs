@@ -110,7 +110,9 @@ impl MenuAction {
             MenuAction::Exporter => Commande::Exporter,
             MenuAction::Palette => Commande::Palette,
             MenuAction::Chercher => Commande::Chercher,
-            MenuAction::RenommerOnglet | MenuAction::SupprimerOnglet => return None,
+            MenuAction::RenommerOnglet
+            | MenuAction::SupprimerOnglet
+            | MenuAction::RetirerLeCoude => return None,
         })
     }
 }
@@ -182,6 +184,8 @@ pub enum MenuAction {
     SelectAll,
     /// Sur un onglet : l'ouvrir au renommage (BOARDS-1).
     RenommerOnglet,
+    /// Retirer le coude sous le clic droit (COUDE-1) : un geste de la flèche, pas de la table.
+    RetirerLeCoude,
     /// Sur un onglet : le supprimer, avec ses dossiers.
     SupprimerOnglet,
     /// Sur un onglet : un board de plus.

@@ -474,3 +474,55 @@ fn test_redresser_la_fleche_retire_tous_ses_coudes_d_un_geste() {
     app.store.undo();
     assert_eq!(coudes(&app).len(), 2, "un seul Ctrl+Z les rend");
 }
+
+/// **COUDE-1 — le clic droit sur un point orange propose « Retirer ce coude »**, et le clic sur
+/// l'entrée le retire, d'un seul `Ctrl+Z`. Ailleurs qu'un coude, le menu ne le propose pas.
+#[test]
+fn test_coude_1_le_clic_droit_sur_un_coude_le_propose_et_le_retire() {
+    use crate::ui::context_menu::{layout_context_menu, MenuAction, MenuRow};
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    let mut app = app_avec_fleche();
+    let board = app.store.project.active_board_id.clone();
+    app.store.insert_arrow_bend(&board, "a", 0, (200.0, 80.0));
+    app.store.journal.clear();
+    let ecran = (1440.0_f32, 900.0_f32);
+    let vp = app.store.viewport();
+    let menu_sous = |app: &mut GlucoseApp, monde: (f64, f64)| {
+        let (sx, sy) = crate::canvas::world_to_screen(monde.0, monde.1, &vp);
+        app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+        app.handle_mouse_down(MouseButton::Right, ecran.0, ecran.1);
+        app.handle_mouse_up(MouseButton::Right);
+        let at = app.ui.context_menu_at.expect("le menu s'ouvre");
+        let typo = &app.renderer.typography;
+        layout_context_menu(&app.store, (typo, &app.ui), (at, None), ecran, 1.0, false)
+            .expect("un menu")
+    };
+    let entree = |menu: &crate::ui::context_menu::ContextMenu| {
+        menu.rows.iter().find_map(|r| match r {
+            MenuRow::Item { action, rect, .. } if *action == MenuAction::RetirerLeCoude => {
+                Some(*rect)
+            }
+            _ => None,
+        })
+    };
+
+    let ailleurs = menu_sous(&mut app, (100.0, 0.0));
+    assert!(
+        entree(&ailleurs).is_none(),
+        "loin d'un coude, rien à retirer"
+    );
+    app.ui.context_menu_at = None;
+
+    let menu = menu_sous(&mut app, (200.0, 80.0));
+    let (x, y, l, h) = entree(&menu).expect("« Retirer ce coude » est proposé");
+    app.handle_cursor_moved(PhysicalPosition::new(
+        f64::from(x + l / 2.0),
+        f64::from(y + h / 2.0),
+    ));
+    app.handle_mouse_down(MouseButton::Left, ecran.0, ecran.1);
+    app.handle_mouse_up(MouseButton::Left);
+    assert!(coudes(&app).is_empty(), "le coude est retiré");
+    app.store.undo();
+    assert_eq!(coudes(&app), vec![(200.0, 80.0)], "un seul Ctrl+Z le rend");
+}
