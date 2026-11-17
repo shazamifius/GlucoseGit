@@ -10,9 +10,9 @@
 
 ## 1. En bref
 
-* **En brouillon, à son clic** : la **2.0.4-beta.2** (17/11 à 20 h 59, le flux « Publier » vert sur
-  `4427733`, onze fichiers) — la correction de Windows, le co-working, la porte publique, la frise, le
-  miroir ; laisser « Set as the latest release » coché, **ne pas** cocher « pre-release ».
+* **En brouillon, à son clic** : la **2.0.4-beta.2** (refait le 17/11 à 23 h 12 pour porter les photos
+  du co-working : la CI verte sur `c8d7585`, dix tâches, puis le flux « Publier », onze fichiers) — la
+  correction de Windows, le co-working et ses photos, la porte publique, la frise, le miroir ; laisser « Set as the latest release » coché, **ne pas** cocher « pre-release ».
 * **Publiée** : la **2.0.4-beta.1** (son clic, le 13/11 à 18 h 23 ; la CI verte sur `f9027fd`, dix
   tâches ; fiche 111) — installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et `nix run
   github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé passe de lui-même à Glucose Rust ; ses
@@ -66,15 +66,15 @@
   « Redresser la flèche » et « Retirer ce coude » au clic droit (COUDE-1), **retourner une image**
   (MIROIR-1 : `Alt+Maj+H`, `Alt+Maj+V` ; le document passe au schéma 6, qu'une 2.0.4-beta.1 refuse par
   son message) ; **les photos du co-working** (B1, fiche 119 : celles qu'on pose partent avec le geste,
-  celles qui manquent se demandent en entrant ; prouvées par deux vrais Glucose contre un relais local
-  — **le relais en ligne reste à redéployer** avant la version qui s'en sert).
-  **Son Glucose installé** (profil Nix `GlucoseGit`) : `4dfba2a` (17/11 au soir) — la porte
-  publique, le co-working, la page web et toute sa capture compris.
+  celles qui manquent se demandent en entrant ; prouvées par deux vrais Glucose à travers le relais en
+  ligne, redéployé — **pas encore à son écran**).
+  **Son Glucose installé** (profil Nix `GlucoseGit`) : `aeea3ef` (17/11, 22 h 49) — la porte
+  publique, le co-working et ses photos, la page web et toute sa capture compris.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Le co-working** (sa parole du 14/11) : **fait jusqu'au bout**, photos comprises depuis la fiche 119
-  (le relais en ligne à redéployer avant la version qui s'en sert), sauf **le partage qui survit à un
+* **Le co-working** (sa parole du 14/11) : **fait jusqu'au bout**, photos comprises depuis la fiche 119,
+  sauf **le partage qui survit à un
   relancement** (on rejoint de nouveau par le code). Le reste attend : son nom changé dans l'interface, le conflit par
   propriété, le téléphone (fiche 117 § 7).
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images

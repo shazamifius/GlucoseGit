@@ -161,7 +161,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Membranes étirées et minimisées** (l'idée de Mary) | Tauri | options de la membrane | noyau écrit ; **à sa parole** |
 | **Vidéos** | Tauri | comme les images | — |
 | **Provenance des images** (SauceNAO) | sa demande | menu d'une image | **sa clé SauceNAO** |
-| **Collaborer** — le co-working entre humains | Tauri, obligatoire | bande | **fait** (fiche 117 : deux Glucose dans le même canevas, le conflit montré, `Ctrl+Z` par main, les curseurs) ; les photos passent (B1, fiche 119 — le relais en ligne à redéployer avant la version qui s'en sert) ; restent le partage qui survit à un relancement, son nom changé dans l'interface, le téléphone |
+| **Collaborer** — le co-working entre humains | Tauri, obligatoire | bande | **fait** (fiche 117 : deux Glucose dans le même canevas, le conflit montré, `Ctrl+Z` par main, les curseurs) ; les photos passent (B1, fiche 119) ; restent le partage qui survit à un relancement, son nom changé dans l'interface, le téléphone |
 | **Plugins, IA locale** | Tauri, PLUGINS.md | panneau Plugins | plus tard — **le MCP est fait** : la porte des agents (fiche 75) |
 | **Trans-domaines** | Tauri | bande | sa définition, à sa parole |
 | **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire |

@@ -4,7 +4,8 @@
 > chantier ouvert de SUITE § 2 : le co-working **sauf les photos** — une photo posée par un participant
 > arrivait chez les autres en cadre gris, sans ses octets (B1, fiches 113 et 117 § 7 bis). Commencé en
 > correctif le 17/11 au matin, repris ici, **fini et prouvé dans le vrai programme** contre un relais
-> local ; le relais en ligne reste à redéployer avant la version qui s'en sert (§ 6).
+> local, puis **à travers le relais en ligne, redéployé** (§ 5) ; le brouillon de la 2.0.4-beta.2 refait
+> pour les porter.
 
 ## 1. Ce qui marche
 
@@ -80,10 +81,13 @@ chance : sa réponse arrivait avant le premier décodage.
 
 ## 5. Ce qui reste, et ses limites assumées
 
-* **Redéployer le relais** (`cd outils/porte && npx wrangler deploy`) **avant toute version qui
-  s'en sert**, puis l'essai en ligne (`salle_essai.mjs <racine en ligne>` et l'essai des photos avec la
-  racine en ligne). Un Glucose plus ancien ignore `photo` et `demande` (son fil ignore un `t` inconnu) :
-  le déployer d'abord ne casse rien.
+* **Le relais est redéployé** (17/11, 22 h 45, version `982d2c3a`) : `salle_essai.mjs` contre lui,
+  **12 OUI** ; l'essai des photos à travers lui, deux vrais Glucose : **Bob voit le damier et les
+  bandes**. Un Glucose plus ancien ignore `photo` et `demande` (son fil ignore un `t` inconnu) : le
+  déployer d'abord ne cassait rien.
+* **Le brouillon de la 2.0.4-beta.2 refait** sur `c8d7585` (les notes disent les photos), après la
+  vérification complète de GitHub (dix tâches vertes), à 23 h 12 — onze fichiers, l'ancien retiré ; le premier, construit avant B1, aurait montré des cadres gris à son
+  premier essai du co-working.
 * **Son essai à son écran** : deux Glucose dans le même canevas, une photo collée chez l'un.
 * Une photo dont l'auteur est parti avant de l'envoyer attend qu'il revienne (son bonjour fera
   redemander) ; tant qu'elle manque, elle reste un cadre gris — rien ne dit encore « en route ».
