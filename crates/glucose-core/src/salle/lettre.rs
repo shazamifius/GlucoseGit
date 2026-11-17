@@ -17,6 +17,8 @@ use crate::types::Project;
 const BASE: u8 = 1;
 const GESTE: u8 = 2;
 const CURSEUR: u8 = 3;
+const OBJET: u8 = 4;
+const DEMANDE: u8 = 5;
 
 /// **Ce que dit la lettre.**
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +31,18 @@ pub enum Corps {
         tableau: String,
         x: f64,
         y: f64,
+    },
+    /// **Les octets d'une photo** (B1) : ce qu'un geste pose et que les autres n'ont pas — passés par
+    /// la salle sans y être gardés.
+    Objet {
+        cle: String,
+        octets: Vec<u8>,
+    },
+    /// **Les photos qui manquent ici**, par leur clé : qui les a les renvoie. `bonjour` : celui qui
+    /// demande vient d'entrer — il a peut-être ce qui manque aux autres, qui redemandent.
+    Demande {
+        cles: Vec<String>,
+        bonjour: bool,
     },
 }
 
@@ -78,6 +92,16 @@ impl Lettre {
                 w.f64(*x);
                 w.f64(*y);
             }
+            Corps::Objet { cle, octets } => {
+                w.u8(OBJET);
+                w.text(cle);
+                w.blob(octets);
+            }
+            Corps::Demande { cles, bonjour } => {
+                w.u8(DEMANDE);
+                w.flag(*bonjour);
+                w.seq(cles, |w, c| w.text(c));
+            }
         }
         w.into_bytes()
     }
@@ -115,6 +139,17 @@ impl Lettre {
                 x: r.f64()?,
                 y: r.f64()?,
             },
+            OBJET => Corps::Objet {
+                cle: r.text()?,
+                octets: r.blob()?,
+            },
+            DEMANDE => {
+                let bonjour = r.flag()?;
+                Corps::Demande {
+                    bonjour,
+                    cles: r.seq(|r| r.text())?,
+                }
+            }
             s => {
                 return Err(CoreError::DeserializationError(format!(
                     "une lettre inconnue ({s})"

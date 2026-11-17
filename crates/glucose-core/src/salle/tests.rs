@@ -97,6 +97,28 @@ fn lettre_une_lettre_se_relit_et_signe_chez_l_autre() {
                 y: 1e6,
             },
         ),
+        // Les octets d'une photo, et une demande (B1) : ce qui passe sans être gardé.
+        (
+            Main::Humain,
+            Corps::Objet {
+                cle: "depot:1-0-chat.png".into(),
+                octets: vec![0x89, b'P', b'N', b'G', 0, 255],
+            },
+        ),
+        (
+            Main::Humain,
+            Corps::Demande {
+                cles: vec!["depot:1-0-chat.png".into(), "C:/photos/x.jpg".into()],
+                bonjour: true,
+            },
+        ),
+        (
+            Main::Humain,
+            Corps::Demande {
+                cles: Vec::new(),
+                bonjour: false,
+            },
+        ),
     ] {
         let l = Lettre {
             marque: "a7".into(),

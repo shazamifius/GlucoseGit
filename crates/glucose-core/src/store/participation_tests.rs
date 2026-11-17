@@ -432,3 +432,35 @@ fn client_1_un_participant_ne_rectifie_pas_l_ia_d_ici() {
     let ecrits = bob.journal.prendre_les_ecrits_signes();
     assert!(!ecrits.is_empty() && ecrits.iter().all(|e| e.repris.is_empty()));
 }
+
+/// **B1 — un geste qui pose une photo la nomme** : ses octets partiront avec lui. Un déplacement
+/// la touche aussi (son « après » l'écrit) ; une flèche n'en pose aucune.
+#[test]
+fn b1_un_geste_qui_pose_une_photo_la_nomme() {
+    let (mut salle, mut alice, _) = depart();
+    let mut neuve = img("neuve", 5.0);
+    neuve.src = Some("depot:1-0-chat.png".into());
+    alice.add_image(T, neuve);
+    alice.add_annotation(T, Annotation::arrow("f", 0.0, 0.0, 10.0, 0.0));
+    alice.partager_les_gestes();
+    let sortants = alice.prendre_les_sortants();
+    let posees: Vec<Vec<String>> = sortants
+        .iter()
+        .map(|s| match &s.envoi {
+            Envoi::Geste(g) => g.images_posees().iter().map(|i| i.id.clone()).collect(),
+            Envoi::Base(_) => Vec::new(),
+        })
+        .collect();
+    assert!(
+        posees.iter().any(|p| p == &["neuve".to_string()]),
+        "le geste de la photo la nomme : {posees:?}"
+    );
+    assert!(
+        posees.iter().any(Vec::is_empty),
+        "celui de la flèche n'en pose aucune : {posees:?}"
+    );
+    for s in sortants {
+        let n = salle.lettres.len() as u64 + 1;
+        salle.lettres.push((n, s));
+    }
+}

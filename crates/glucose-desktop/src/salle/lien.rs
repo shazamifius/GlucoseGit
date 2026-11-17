@@ -34,6 +34,20 @@ pub enum Ordre {
     Curseur(Vec<u8>),
 }
 
+/// **Ce qui passe** (B1, fiche 117) : les octets d'une photo (`photo`), ou une demande — scellés en
+/// morceaux comme une lettre, mais ni numérotés ni gardés ; perdus si la salle n'est pas à jour,
+/// ils se redemandent au « bonjour » suivant. La salle ne lit pas ce qu'ils portent : la sorte se
+/// dit en clair, pour qu'elle refuse les octets d'un lecteur.
+///
+/// Ils ont **leur propre file, d'une place**, et le fil n'en fait partir qu'un par tour, après
+/// les lettres et le curseur : un geste ne fait jamais la queue derrière un lot de photos, et celui
+/// qui les envoie attend que la précédente soit partie — la mémoire n'en tient que trois.
+pub struct Passe {
+    pub id: String,
+    pub clair: Vec<u8>,
+    pub photo: bool,
+}
+
 /// **Ce que le fil apporte à la boucle.**
 pub enum Nouvelle {
     /// Une lettre entière, lue, à son numéro dans l'ordre de la salle.
@@ -43,6 +57,8 @@ pub enum Nouvelle {
         lettre: Box<Lettre>,
     },
     Curseur(Box<Lettre>),
+    /// Une lettre qui passe — une photo, une demande —, réassemblée, lue.
+    Passe(Box<Lettre>),
     /// Tout ce que la salle gardait est arrivé ; ce qui suit vient en direct.
     AJour(u64),
     /// La salle a refusé (un code qui ne fait que lire, un message trop gros).
@@ -55,6 +71,7 @@ pub enum Nouvelle {
 pub struct Lien {
     arret: Arc<AtomicBool>,
     ordres: mpsc::Sender<Ordre>,
+    passes: mpsc::SyncSender<Passe>,
     nouvelles: mpsc::Receiver<Nouvelle>,
     etat: Arc<Mutex<EtatDuLien>>,
 }
@@ -68,6 +85,11 @@ impl Drop for Lien {
 impl Lien {
     pub fn envoyer(&self, ordre: Ordre) {
         let _ = self.ordres.send(ordre);
+    }
+
+    /// La file de ce qui passe, pour le fil qui attend les octets d'une photo.
+    pub fn expediteur(&self) -> mpsc::SyncSender<Passe> {
+        self.passes.clone()
     }
 
     /// Ce qui est arrivé depuis la dernière relève, dans l'ordre.
@@ -92,44 +114,57 @@ struct Fil {
     /// Le numéro du dernier morceau reçu : tous ceux d'avant sont arrivés, dans l'ordre.
     dernier: u64,
     reassemblage: Reassemblage,
+    /// Ce qui passe se réassemble à part : ses morceaux ne sont pas numérotés.
+    passes: Reassemblage,
     /// Le numéro depuis lequel on a redemandé après un trou : une fois par position, pas à chaque
     /// morceau qui suit le trou.
     redemande: Option<u64>,
     /// Mes lettres scellées, pas encore revenues numérotées.
     envoyes: VecDeque<(String, Vec<(String, String)>)>,
     ordres: mpsc::Receiver<Ordre>,
+    a_passer: mpsc::Receiver<Passe>,
     nouvelles: mpsc::Sender<Nouvelle>,
     boite: Boite,
 }
 
 /// **Relie ce Glucose à la salle de ce code**, depuis le numéro `depuis` (zéro : depuis la base).
 pub fn lancer(racine: &str, code: Code, depuis: u64, boite: Boite) -> Lien {
+    let (lien, mut fil) = relier(racine, code, depuis, boite);
+    let (arret, etat) = (Arc::clone(&lien.arret), Arc::clone(&lien.etat));
+    let _ = std::thread::Builder::new()
+        .name("glucose-salle".into())
+        .spawn(move || fil.tourner(&arret, &etat));
+    lien
+}
+
+/// Le lien que garde la boucle, et le fil qui tournera de l'autre côté de ses files.
+fn relier(racine: &str, code: Code, depuis: u64, boite: Boite) -> (Lien, Fil) {
     let (ordres, entree) = mpsc::channel();
+    let (passes, a_passer) = mpsc::sync_channel(1);
     let (sortie, nouvelles) = mpsc::channel();
     let lien = Lien {
         arret: Arc::new(AtomicBool::new(false)),
         ordres,
+        passes,
         nouvelles,
         etat: Arc::new(Mutex::new(EtatDuLien::EnRoute)),
     };
-    let mut fil = Fil {
+    let fil = Fil {
         adresse: super::adresse(racine, &code.salle()),
         salle: code.salle(),
         cle: code.cle(),
         code,
         dernier: depuis,
         reassemblage: Reassemblage::default(),
+        passes: Reassemblage::default(),
         redemande: None,
         envoyes: VecDeque::new(),
         ordres: entree,
+        a_passer,
         nouvelles: sortie,
         boite,
     };
-    let (arret, etat) = (Arc::clone(&lien.arret), Arc::clone(&lien.etat));
-    let _ = std::thread::Builder::new()
-        .name("glucose-salle".into())
-        .spawn(move || fil.tourner(&arret, &etat));
-    lien
+    (lien, fil)
 }
 
 fn message(paires: Vec<(&str, Json)>) -> String {
@@ -202,7 +237,7 @@ impl Fil {
             if arret.load(Ordering::Relaxed) {
                 return "quitté".into();
             }
-            if let Err(e) = self.faire_partir(canal.as_mut(), a_jour) {
+            if let Err(e) = self.un_tour(canal.as_mut(), a_jour) {
                 return e;
             }
             if pong_attendu.is_some_and(|t| t.elapsed() > PONG_MAX) {
@@ -263,6 +298,32 @@ impl Fil {
         Ok(())
     }
 
+    /// **Ce qui part à chaque tour** : les lettres et le curseur d'abord, puis une seule chose qui
+    /// passe.
+    fn un_tour(&mut self, canal: &mut dyn Canal, a_jour: bool) -> Result<(), String> {
+        self.faire_partir(canal, a_jour)?;
+        self.faire_passer(canal, a_jour)
+    }
+
+    /// **Ce qui passe, un par tour** — perdu si la salle n'est pas à jour.
+    fn faire_passer(&mut self, canal: &mut dyn Canal, a_jour: bool) -> Result<(), String> {
+        let Ok(Passe { id, clair, photo }) = self.a_passer.try_recv() else {
+            return Ok(());
+        };
+        if !a_jour {
+            return Ok(());
+        }
+        let sorte = if photo { "photo" } else { "demande" };
+        for (l, o) in self.sceller(&id, &clair)? {
+            canal.envoyer(&message(vec![
+                ("t", Json::texte(sorte)),
+                ("l", Json::texte(l)),
+                ("o", Json::texte(o)),
+            ]))?;
+        }
+        Ok(())
+    }
+
     /// Une lettre en morceaux scellés, chacun sous un nonce neuf du hasard du système.
     fn sceller(&self, id: &str, clair: &[u8]) -> Result<Vec<(String, String)>, String> {
         let k = clair.len().div_ceil(MORCEAU).max(1);
@@ -318,6 +379,19 @@ impl Fil {
                 }
                 Ok(())
             }
+            Some("photo" | "demande") => {
+                if let (Some(l), Some(o)) = (champ("l"), champ("o")) {
+                    match self.passes.recevoir(&self.cle, &self.salle, l, o) {
+                        Ok(Some((_, clair))) => match Lettre::lire(&clair) {
+                            Ok(lettre) => self.dire(Nouvelle::Passe(Box::new(lettre))),
+                            Err(e) => self.dire(Nouvelle::Illisible(e.to_string())),
+                        },
+                        Ok(None) => {}
+                        Err(e) => self.dire(Nouvelle::Illisible(e)),
+                    }
+                }
+                Ok(())
+            }
             Some("refus") => {
                 let pourquoi = champ("pourquoi").unwrap_or("refusé").to_string();
                 self.dire(Nouvelle::Refus(pourquoi));
@@ -367,3 +441,6 @@ impl Fil {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

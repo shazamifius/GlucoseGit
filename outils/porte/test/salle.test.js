@@ -21,11 +21,18 @@ test("l'empreinte d'un secret d'écriture est son SHA-256, et un secret trop cou
   assert.equal(await empreinteDuSecret(""), null);
 });
 
-test("la salle lit les trois messages, et refuse le reste", () => {
+test("la salle lit ses cinq messages, et refuse le reste", () => {
   assert.deepEqual(lireUnMessage('{"t":"depuis","n":3}'), { t: "depuis", n: 3 });
   assert.deepEqual(lireUnMessage('{"t":"geste","l":"a1","o":"QUJD"}'), { t: "geste", l: "a1", o: "QUJD" });
   assert.deepEqual(lireUnMessage('{"t":"curseur","o":"QUJD"}'), { t: "curseur", o: "QUJD" });
+  // Ce qui passe sans être gardé — les octets d'une photo, une demande (fiche 117, B1).
+  assert.deepEqual(lireUnMessage('{"t":"photo","l":"b0b-p1_0","o":"QUJD"}'), { t: "photo", l: "b0b-p1_0", o: "QUJD" });
+  assert.deepEqual(lireUnMessage('{"t":"demande","l":"b0b-p2_0","o":"QUJD"}'), { t: "demande", l: "b0b-p2_0", o: "QUJD" });
   for (const non of [
+    '{"t":"passe","l":"b0b-p1_0","o":"QUJD"}',
+    '{"t":"photo","o":"QUJD"}',
+    '{"t":"demande","l":"a b","o":"QUJD"}',
+    `{"t":"photo","l":"a","o":"${"A".repeat(GESTE_MAX + 4)}"}`,
     "pas du json",
     '{"t":"depuis","n":-1}',
     '{"t":"geste","o":"QUJD"}',

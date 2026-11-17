@@ -185,6 +185,26 @@ impl GestePartage {
         a
     }
 
+    /// **Les photos que ce geste pose** — celles dont il écrit l'« après » : leurs octets partent
+    /// avec lui (B1, fiche 117), comme ils vont au disque (`Transaction::images_posees`).
+    pub fn images_posees(&self) -> Vec<&BoardImage> {
+        let mut out = Vec::new();
+        for e in &self.editions {
+            match e {
+                EditionPartagee::Telle(Edit::Image { slot, .. }) => {
+                    out.extend(slot.after.as_deref());
+                }
+                EditionPartagee::Telle(Edit::Board { slot }) => {
+                    if let Some(b) = slot.after.as_deref() {
+                        out.extend(b.images.iter());
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
     /// **L'inverse** : défaire ce geste, par le nom — chez celui qui l'a fait, avant de rejouer
     /// ceux que la salle a numérotés avant lui.
     pub fn inverse(&self) -> GestePartage {

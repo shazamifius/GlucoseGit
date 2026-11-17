@@ -1,0 +1,212 @@
+[
+  {
+    "nom": "B1 — le facteur lit un fichier qu'une clé nommerait (~/.ssh/…)",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "                if objets.source(&cle).is_none() {\n                    continue;\n                }\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — le facteur n'attend pas les octets promis (la photo collée ne part jamais)",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "objets.lire_en_attendant(&cle)",
+    "apres": "objets.lire(&cle)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — l'« à jour » de la salle ne dit plus bonjour",
+    "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+    "avant": "        cp.photos.dire_bonjour();\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — toute demande reçue fait relancer (deux participants se relancent sans fin)",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "                if bonjour {",
+    "apres": "                if true {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — un lecteur répond aux demandes (la salle refuserait ses octets)",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "                if cp.code.peut_ecrire() {",
+    "apres": "                if true {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — le bonjour part avant la base",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "if cp.photos.a_demander == Demander::Rien || cp.entree == Entree::AttendLaBase {",
+    "apres": "if cp.photos.a_demander == Demander::Rien {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — celui qui a ouvert le partage ne dit jamais bonjour (au retour du réseau, il ne demande rien)",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "cp.entree == Entree::AttendLaBase {",
+    "apres": "cp.entree != Entree::Dedans {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — un bonjour sans manque ne se dit pas (les autres ne savent pas qu'on arrive)",
+    "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+    "avant": "if bonjour || !cles.is_empty() {",
+    "apres": "if !cles.is_empty() {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — ma photo ne part pas avec mon geste",
+    "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+    "avant": "                        cp.photos.porter(cle);",
+    "apres": "                        let _ = cle;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — un échec d'avant les octets condamne la photo (grise pour toujours)",
+    "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+    "avant": "                    if !self.arrives.remove(&src) {\n                        self.echecs.insert(src);\n                    }",
+    "apres": "                    self.echecs.insert(src);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — ce qui passe part avant les lettres (un geste attend derrière un lot)",
+    "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+    "avant": "        self.faire_partir(canal, a_jour)?;\n        self.faire_passer(canal, a_jour)\n",
+    "apres": "        self.faire_passer(canal, a_jour)?;\n        self.faire_partir(canal, a_jour)\n",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — ce qui passe part avant l'« à jour »",
+    "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+    "avant": "        if !a_jour {\n            return Ok(());\n        }\n        let sorte",
+    "apres": "        let sorte",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — une demande se dit « photo » (la salle refuserait celle d'un lecteur)",
+    "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+    "avant": "let sorte = if photo { \"photo\" } else { \"demande\" };",
+    "apres": "let sorte = \"photo\";",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "b1_"
+    ]
+  },
+  {
+    "nom": "B1 — le bonjour ne s'écrit pas dans la lettre",
+    "fichier": "crates/glucose-core/src/salle/lettre.rs",
+    "avant": "                w.flag(*bonjour);\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lettre"
+    ]
+  }
+]

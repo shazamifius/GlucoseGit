@@ -235,6 +235,38 @@ fn test_lot_1_une_eviction_se_dit() {
     assert!(magasin.changements() > avant, "le lot doit le savoir");
 }
 
+/// **B1 — un échec d'avant ses octets ne compte pas** : le geste d'un autre participant arrive
+/// avant les octets de sa photo, l'atelier la cherche sans eux. Arrivés pendant ce décodage, ils
+/// ne laissent pas la photo grise pour toujours : la réclamation suivante la trouve.
+#[test]
+fn test_b1_un_echec_d_avant_ses_octets_ne_compte_pas() {
+    let nom = format!("b1-arrivee-{}.png", std::process::id());
+    let src = std::env::temp_dir()
+        .join("glucose-magasin-tests")
+        .join(&nom)
+        .to_string_lossy()
+        .into_owned();
+    let _ = std::fs::remove_file(&src);
+    let mut magasin = Magasin::nouveau();
+    assert!(
+        magasin.pyramide(&src).is_none(),
+        "le décodage part sans eux"
+    );
+    magasin.octets_arrives(&src);
+    magasin.attendre_le_chantier();
+    assert!(
+        !magasin.echecs.contains(&src),
+        "l'échec d'avant ne compte pas"
+    );
+    // Les octets sont là, maintenant : la réclamation suivante les trouve.
+    photo_temoin(&nom);
+    assert!(
+        attendre(&mut magasin, &src),
+        "la photo finit par se montrer"
+    );
+    let _ = std::fs::remove_file(&src);
+}
+
 /// **Un fichier qui ne donnera rien se dit aussi** (LOT-1) : sa photo change de forme à l'écran.
 #[test]
 fn test_lot_1_un_echec_se_dit() {

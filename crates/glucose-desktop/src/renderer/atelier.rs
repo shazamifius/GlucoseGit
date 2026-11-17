@@ -441,6 +441,11 @@ impl Atelier {
         self.en_cours.len() + self.reprises
     }
 
+    /// Si cette image est en chantier : un décodage parti, pas encore récolté.
+    pub fn en_cours(&self, src: &str) -> bool {
+        self.en_cours.contains(src)
+    }
+
     /// Tout ce qui est parti et pas revenu, offres et écritures comprises.
     pub fn en_route(&self) -> usize {
         self.en_travail()

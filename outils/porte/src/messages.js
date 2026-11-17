@@ -19,6 +19,10 @@ export function lireUnMessage(texte) {
   const scelle = typeof m?.o === "string" && m.o.length <= GESTE_MAX && BASE64.test(m.o);
   if (m?.t === "geste" && scelle && LOCAL.test(m.l ?? "")) return { t: "geste", l: m.l, o: m.o };
   if (m?.t === "curseur" && scelle && m.o.length <= 4096) return { t: "curseur", o: m.o };
+  // Les octets d'une photo, une demande (fiche 117, B1) : passés aux autres, jamais gardés.
+  if ((m?.t === "photo" || m?.t === "demande") && scelle && LOCAL.test(m.l ?? "")) {
+    return { t: m.t, l: m.l, o: m.o };
+  }
   return { refus: "message inconnu ou trop gros" };
 }
 

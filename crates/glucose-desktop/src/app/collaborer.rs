@@ -7,6 +7,7 @@
 //! dire : qui est là, ce qu'un code permet, quand deux gestes se sont croisés.
 
 pub mod identite;
+pub mod photos;
 
 use crate::app::GlucoseApp;
 use crate::salle::lien::{self, Lien, Nouvelle, Ordre};
@@ -63,9 +64,35 @@ pub struct CanevasPartage {
     /// Les autres, par leur marque.
     pub pairs: BTreeMap<String, Pair>,
     curseur_parti: Option<(Instant, String, f64, f64)>,
+    /// Le facteur des photos, et ce qu'il faut demander au prochain tour (B1).
+    pub photos: photos::Photos,
 }
 
 impl CanevasPartage {
+    /// **Un partage qui commence** : le fil, le code, qui l'on est, où l'on en est — et le facteur
+    /// des photos, qui lit le registre et confie ses lettres au fil.
+    fn neuf(
+        lien: Lien,
+        code: Code,
+        qui: photos::Qui,
+        entree: Entree,
+        objets: std::sync::Arc<crate::persist::objets::Objets>,
+    ) -> Self {
+        let photos = photos::Photos::lancer(objets, lien.expediteur(), qui.clone());
+        let (marque, nom, couleur) = qui;
+        Self {
+            lien,
+            code,
+            marque,
+            nom,
+            couleur,
+            entree,
+            pairs: BTreeMap::new(),
+            curseur_parti: None,
+            photos,
+        }
+    }
+
     /// Les autres qu'on a vus récemment, par leur nom.
     pub fn presents(&self) -> Vec<&Pair> {
         self.pairs
@@ -251,17 +278,15 @@ impl GlucoseApp {
         self.consigner();
         self.store.partager_ce_canevas(&marque);
         let moi = identite::Identite::la_sienne(&self.disque.identite);
-        let (nom, couleur) = (moi.nom, moi.couleur as u8);
-        self.lancement.agents.partage = Some(CanevasPartage {
+        let qui = (marque, moi.nom, moi.couleur as u8);
+        let objets = std::sync::Arc::clone(&self.disque.objets);
+        self.lancement.agents.partage = Some(CanevasPartage::neuf(
             lien,
-            code: code.clone(),
-            marque,
-            nom,
-            couleur,
-            entree: Entree::Partage,
-            pairs: BTreeMap::new(),
-            curseur_parti: None,
-        });
+            code.clone(),
+            qui,
+            Entree::Partage,
+            objets,
+        ));
         self.ui.porte_ouverte = true;
         let note = code.texte_ecrire().map(|t| self.copier_un_code(t));
         self.montrer_collaborer_avec(note);
@@ -293,17 +318,15 @@ impl GlucoseApp {
         self.quitter_le_canevas_partage();
         self.adopter_un_document_vierge();
         let moi = identite::Identite::la_sienne(&self.disque.identite);
-        let (nom, couleur) = (moi.nom, moi.couleur as u8);
-        self.lancement.agents.partage = Some(CanevasPartage {
+        let qui = (marque, moi.nom, moi.couleur as u8);
+        let objets = std::sync::Arc::clone(&self.disque.objets);
+        self.lancement.agents.partage = Some(CanevasPartage::neuf(
             lien,
             code,
-            marque,
-            nom,
-            couleur,
-            entree: Entree::AttendLaBase,
-            pairs: BTreeMap::new(),
-            curseur_parti: None,
-        });
+            qui,
+            Entree::AttendLaBase,
+            objets,
+        ));
         self.ui.porte_ouverte = true;
         self.montrer_collaborer();
     }
@@ -343,6 +366,7 @@ impl GlucoseApp {
         let version = self.store.version;
         let croises = !self.store.appliquer_les_arrivees().is_empty();
         let defaits = self.faire_partir();
+        self.demander_ce_qui_manque();
         if let Some(phrase) = ce_qui_n_a_pas_tenu(croises, defaits) {
             self.dire_ce_qui_arrive_au_canevas(phrase);
         }
@@ -356,6 +380,7 @@ impl GlucoseApp {
         match nouvelle {
             Nouvelle::Lettre { n, id, lettre } => self.une_lettre(n, id, *lettre),
             Nouvelle::Curseur(lettre) => self.un_curseur(*lettre),
+            Nouvelle::Passe(lettre) => self.une_lettre_qui_passe(*lettre),
             Nouvelle::AJour(n) => self.salle_a_jour(n),
             // Un lecteur ne fait rien partir, et une lettre se découpe : un refus dit un défaut.
             Nouvelle::Refus(pourquoi) => {
@@ -365,17 +390,17 @@ impl GlucoseApp {
         }
     }
 
-    /// **La salle a tout donné.** Si l'on attend sa base et qu'elle était vide, ce code ne mène encore
+    /// **La salle a tout donné** — j'entre, ou le réseau revient : mon bonjour partira, avec ce qui me
+    /// manque (B1). Si l'on attend sa base et qu'elle était vide, ce code ne mène encore
     /// à aucun canevas — un code coupé, ou un partage pas encore fini. On le dit là où l'on a agi ; on
     /// continue d'attendre, la base peut encore venir.
     fn salle_a_jour(&mut self, n: u64) {
         self.mark_dirty();
-        let attend = self
-            .lancement
-            .agents
-            .partage
-            .as_ref()
-            .is_some_and(|cp| cp.entree == Entree::AttendLaBase);
+        let Some(cp) = self.lancement.agents.partage.as_mut() else {
+            return;
+        };
+        cp.photos.dire_bonjour();
+        let attend = cp.entree == Entree::AttendLaBase;
         // Jamais par-dessus une autre question (une IA qui demande la porte, un travail à garder).
         let libre = matches!(self.ui.question, None | Some((_, Suite::Collaborer)));
         if attend && n == 0 && libre {
@@ -419,7 +444,8 @@ impl GlucoseApp {
                 main,
                 geste: GestePartage::default(),
             }),
-            (_, Corps::Curseur { .. }) => {}
+            // Un curseur, une photo, une demande ne viennent jamais numérotés.
+            (_, Corps::Curseur { .. } | Corps::Objet { .. } | Corps::Demande { .. }) => {}
         }
     }
 
@@ -467,7 +493,18 @@ impl GlucoseApp {
         for s in sortants {
             let corps = match s.envoi {
                 Envoi::Base(p) => Corps::Base(p),
-                Envoi::Geste(g) => Corps::Geste(g),
+                Envoi::Geste(g) => {
+                    // Les photos que mes gestes posent partent juste après eux (B1).
+                    let photos: Vec<String> = g
+                        .images_posees()
+                        .iter()
+                        .filter_map(|i| i.src.clone())
+                        .collect();
+                    for cle in photos {
+                        cp.photos.porter(cle);
+                    }
+                    Corps::Geste(g)
+                }
             };
             let lettre = Lettre {
                 marque: cp.marque.clone(),

@@ -53,16 +53,15 @@ fn un_code_qui_mene_a_une_salle_vide_se_dit() {
         0,
         crate::agents::Boite::nouvelle(std::sync::Arc::new(|| {})),
     );
-    app.lancement.agents.partage = Some(CanevasPartage {
+    let qui = ("b0b".into(), "Bob".into(), 0);
+    let objets = std::sync::Arc::clone(&app.disque.objets);
+    app.lancement.agents.partage = Some(CanevasPartage::neuf(
         lien,
         code,
-        marque: "b0b".into(),
-        nom: "Bob".into(),
-        couleur: 0,
-        entree: Entree::AttendLaBase,
-        pairs: BTreeMap::new(),
-        curseur_parti: None,
-    });
+        qui,
+        Entree::AttendLaBase,
+        objets,
+    ));
     app.salle_a_jour(0);
     let Some((q, Suite::Collaborer)) = &app.ui.question else {
         panic!("la question de Collaborer");

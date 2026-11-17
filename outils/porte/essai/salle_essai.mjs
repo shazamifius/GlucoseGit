@@ -31,6 +31,17 @@ dire("Bob ne peut pas écrire", bob.recus.at(-1)?.t === "refus");
 alice.send(JSON.stringify({ t: "curseur", o: scelle("x=3") }));
 await attendre(200);
 dire("le curseur d'Alice passe à Bob, pas à elle", bob.recus.at(-1)?.t === "curseur" && alice.recus.at(-1)?.t !== "curseur");
+// Les photos (fiche 117, B1) : une demande vient de n'importe qui ; des octets, d'un écrivain seulement.
+alice.send(JSON.stringify({ t: "photo", l: "a-p0_0", o: scelle("les octets du chat") }));
+bob.send(JSON.stringify({ t: "demande", l: "b-p0_0", o: scelle("chat.png") }));
+await attendre(300);
+dire(
+  "la photo d'Alice passe à Bob, la demande de Bob à Alice — ni gardées ni numérotées",
+  bob.recus.at(-1)?.t === "photo" && alice.recus.at(-1)?.t === "demande" && bob.recus.at(-1).n === undefined,
+);
+bob.send(JSON.stringify({ t: "photo", l: "b-p1_0", o: scelle("une autre image") }));
+await attendre(300);
+dire("Bob, lecteur, ne fait pas passer d'octets", bob.recus.at(-1)?.t === "refus" && alice.recus.at(-1)?.t === "demande");
 const carol = await ouvrir();
 carol.send(JSON.stringify({ t: "depuis", n: 0 }));
 await attendre(300);

@@ -113,6 +113,9 @@ pub struct Magasin {
     /// Les fichiers dont on sait qu'ils ne donneront rien : absents, corrompus, trop grands.
     /// Cache négatif (R-29) — on ne les redemande jamais.
     pub echecs: HashSet<String>,
+    /// Les images dont les octets sont arrivés pendant leur décodage (B1) : l'échec qu'il rendra
+    /// est d'avant eux, il ne compte pas.
+    arrives: HashSet<String>,
     /// Les fils qui décodent, reprennent et offrent pendant que la scène se dessine.
     pub atelier: Atelier,
     /// L'image du rendu en cours — celle par rapport à laquelle « vue » se comprend.
@@ -342,6 +345,15 @@ impl Magasin {
         Some(tenu)
     }
 
+    /// **Les octets de cette image viennent d'arriver** — d'un autre participant (B1) : elle n'est
+    /// plus un échec ; et si l'atelier la cherche encore, il la cherche sans eux.
+    pub fn octets_arrives(&mut self, src: &str) {
+        self.echecs.remove(src);
+        if self.atelier.en_cours(src) {
+            self.arrives.insert(src.to_string());
+        }
+    }
+
     /// Verse dans les caches tout ce que l'atelier a fini : les images décodées, et les
     /// niveaux revenus de chez le système.
     ///
@@ -352,12 +364,17 @@ impl Magasin {
             match fait {
                 // La pyramide arrive **faite** : il ne reste ici qu'un déplacement de
                 // pointeurs. La construire ici coûtait 73 ms en pleine image (DECODE-1).
-                Fait::Decodee((src, Some(pyramide), cout)) => self.accueillir(src, pyramide, cout),
+                Fait::Decodee((src, Some(pyramide), cout)) => {
+                    self.arrives.remove(&src);
+                    self.accueillir(src, pyramide, cout);
+                }
                 // Absent, illisible, ou trop grand pour tenir en mémoire : les trois se
                 // constatent de la même façon, et aucun ne se redemande.
                 Fait::Decodee((src, None, _)) => {
                     self.changements += 1;
-                    self.echecs.insert(src);
+                    if !self.arrives.remove(&src) {
+                        self.echecs.insert(src);
+                    }
                 }
                 Fait::Deplace(d) => self.rentrer(d),
             }

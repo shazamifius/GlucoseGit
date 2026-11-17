@@ -8,12 +8,18 @@
 // * **Un retardataire rattrape** : `depuis n` rend chaque geste gardé après n, dans l'ordre, puis
 //   `a_jour`. Le premier geste d'une salle est la base (le document au moment du partage), en
 //   morceaux si elle est grosse : une valeur de la salle tient 2 Mo.
-// * **Les curseurs passent**, sans être gardés ni numérotés.
+// * **Les curseurs passent**, sans être gardés ni numérotés — et **les photos** (fiche 117, B1) : un
+//   participant envoie les octets de ce qu'il pose, ou demande ce qui lui manque ; la salle les passe
+//   aux autres sans les garder (5 Go pour tous les canevas de l'offre gratuite). Une demande vient de
+//   n'importe qui ; des octets, seulement d'un écrivain — sans quoi un lecteur glisserait une autre
+//   image à la place d'une photo qui manque.
 //
 // Messages (JSON, texte) :
 //   → {"t":"depuis","n":k}                 ← {"t":"geste","n":i,"l":…,"o":"<scellé base64>"}…, {"t":"a_jour","n":dernier}
 //   → {"t":"geste","l":"<id local>","o":…}  ← à tous : {"t":"geste","n":dernier+1,"l":…,"o":…}
 //   → {"t":"curseur","o":…}                 ← aux autres : {"t":"curseur","o":…}
+//   → {"t":"demande","l":…,"o":…}           ← aux autres, tel quel
+//   → {"t":"photo","l":…,"o":…}             ← aux autres, tel quel (un lecteur : refus)
 //   → ping                                  ← pong (sans réveiller la salle)
 //                                           ← {"t":"refus","pourquoi":…} (lecteur qui écrit, message trop gros)
 
@@ -67,12 +73,14 @@ export class Salle extends DurableObject {
       for (const g of lignes) dire({ t: "geste", n: g.n, l: g.l, o: g.o });
       return dire({ t: "a_jour", n: this.dernier(), complet: lignes.length < RATTRAPAGE_MAX });
     }
-    if (m.t === "curseur") {
-      const passe = JSON.stringify({ t: "curseur", o: m.o });
+    const ecrivain = ws.deserializeAttachment()?.ecrivain;
+    // Ce qui passe sans être gardé — un curseur, une demande, une photo — va aux autres.
+    if (m.t === "curseur" || m.t === "demande" || (m.t === "photo" && ecrivain)) {
+      const passe = JSON.stringify(m);
       for (const autre of this.ctx.getWebSockets()) if (autre !== ws) autre.send(passe);
       return;
     }
-    if (!ws.deserializeAttachment()?.ecrivain) return dire({ t: "refus", pourquoi: "ce code ne fait que lire" });
+    if (!ecrivain) return dire({ t: "refus", pourquoi: "ce code ne fait que lire" });
     const n = this.dernier() + 1;
     this.sql.exec("INSERT INTO gestes (n, l, o) VALUES (?, ?, ?)", n, m.l, m.o);
     const numerote = JSON.stringify({ t: "geste", n, l: m.l, o: m.o });
