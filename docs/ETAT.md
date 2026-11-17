@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 17/11/2026 au soir** (fiches 108-118). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 17/11/2026 au soir** (fiches 108-119). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -65,15 +65,17 @@
   montrent et ne se chevauchent plus** (TIROIR-1 à 3), **les bouts d'une flèche se prennent** (BOUT-1),
   « Redresser la flèche » et « Retirer ce coude » au clic droit (COUDE-1), **retourner une image**
   (MIROIR-1 : `Alt+Maj+H`, `Alt+Maj+V` ; le document passe au schéma 6, qu'une 2.0.4-beta.1 refuse par
-  son message).
+  son message) ; **les photos du co-working** (B1, fiche 119 : celles qu'on pose partent avec le geste,
+  celles qui manquent se demandent en entrant ; prouvées par deux vrais Glucose contre un relais local
+  — **le relais en ligne reste à redéployer** avant la version qui s'en sert).
   **Son Glucose installé** (profil Nix `GlucoseGit`) : `4dfba2a` (17/11 au soir) — la porte
   publique, le co-working, la page web et toute sa capture compris.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Le co-working** (sa parole du 14/11) : **fait jusqu'au bout**, sauf **les photos d'un participant à
-  l'autre** (B1 : une photo arrive sans ses octets) et **le partage qui survit à un relancement** (on
-  rejoint de nouveau par le code). Le reste attend : son nom changé dans l'interface, le conflit par
+* **Le co-working** (sa parole du 14/11) : **fait jusqu'au bout**, photos comprises depuis la fiche 119
+  (le relais en ligne à redéployer avant la version qui s'en sert), sauf **le partage qui survit à un
+  relancement** (on rejoint de nouveau par le code). Le reste attend : son nom changé dans l'interface, le conflit par
   propriété, le téléphone (fiche 117 § 7).
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
