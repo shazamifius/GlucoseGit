@@ -21,8 +21,6 @@ use crate::hash::sha256;
 
 const ECRIRE: &str = "glucose-ecrire-";
 const LIRE: &str = "glucose-lire-";
-/// Trente-deux octets en base64 sans `=` : quarante-trois signes.
-const SIGNES: usize = 43;
 
 /// **Un code d'invitation** : ce qu'on copie pour qu'un autre rejoigne le canevas.
 #[derive(Clone, PartialEq, Eq)]
@@ -68,10 +66,10 @@ impl Code {
             Some(r) => (true, r),
             None => (false, t.strip_prefix(LIRE)?),
         };
-        let propre = reste.len() == SIGNES
-            && reste
-                .bytes()
-                .all(|o| o.is_ascii_alphanumeric() || o == b'-' || o == b'_');
+        // L'alphabet seul : trente-deux octets exactement font la longueur (quarante-trois signes).
+        let propre = reste
+            .bytes()
+            .all(|o| o.is_ascii_alphanumeric() || o == b'-' || o == b'_');
         if !propre {
             return None;
         }

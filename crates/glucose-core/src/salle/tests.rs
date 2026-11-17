@@ -26,6 +26,11 @@ fn code_1_le_code_ecrire_donne_tout_le_code_lire_seulement_de_regarder() {
     assert!(lire.secret_d_ecriture().is_none(), "lire n'a pas le secret");
     assert_eq!((lire.salle(), lire.cle()), (ecrire.salle(), ecrire.cle()));
     assert_eq!(lire.texte_lire(), ecrire.texte_lire());
+    assert_ne!(
+        &ecrire.texte_lire()[13..],
+        &texte[15..],
+        "le code lire ne redonne jamais le code écrire"
+    );
     let salle = ecrire.salle();
     assert!(salle.len() == 32 && salle.bytes().all(|o| o.is_ascii_hexdigit()));
     let secret = ecrire.secret_d_ecriture().expect("le secret");

@@ -368,3 +368,67 @@ fn selection_1_ce_qu_un_geste_retire_sort_de_la_selection() {
     assert!(seul.undo());
     assert!(!seul.selected_image_ids.contains("e"));
 }
+
+/// **Appliquer ce qui arrive commence par faire partir ce qui part** : Bob change b chez lui, et le
+/// geste d'Alice sur b — numéroté avant le sien — arrive avant qu'il ait fait partir le sien. Sans
+/// cette règle, Bob appliquerait celui d'Alice par-dessus le sien, puis le sien partirait après :
+/// 50 chez lui, 70 chez elle.
+#[test]
+fn client_1_un_geste_pas_encore_parti_est_rejoue_par_dessus() {
+    let (mut salle, mut alice, mut bob) = depart();
+    alice.update_image(T, "b", |i| i.x = 50.0);
+    salle.poster(&mut alice);
+    bob.update_image(T, "b", |i| i.x = 70.0);
+    salle.livrer(&mut bob);
+    salle.poster(&mut bob);
+    tous(&salle, [&mut alice, &mut bob]);
+    assert_eq!(
+        (x_de(&alice, "b"), x_de(&bob, "b")),
+        (Some(70.0), Some(70.0))
+    );
+}
+
+/// **`Ctrl+Z` juste après un geste, dans la même image**, défait ce geste-là — pas celui d'avant ;
+/// et **rien ne quitte la file du disque sans être parti**.
+#[test]
+fn client_1_ctrl_z_et_le_disque_voient_le_geste_qui_vient_d_etre_fait() {
+    let (mut salle, mut alice, _bob) = depart();
+    alice.update_image(T, "a", |i| i.x = 5.0);
+    salle.poster(&mut alice);
+    alice.update_image(T, "b", |i| i.x = 6.0);
+    assert!(alice.undo());
+    assert_eq!(
+        (x_de(&alice, "a"), x_de(&alice, "b")),
+        (Some(5.0), Some(1.0))
+    );
+    alice.prendre_les_sortants();
+    alice.update_image(T, "c", |i| i.x = 7.0);
+    let ecrits = alice.ecrits_a_consigner();
+    assert!(!ecrits.is_empty());
+    assert_eq!(
+        alice.prendre_les_sortants().len(),
+        1,
+        "le geste est parti avant le disque"
+    );
+}
+
+/// **Un participant ne rectifie pas l'IA d'ici** (RECTIF-1) : quand Alice retire la flèche que son
+/// agent avait posée, Bob la retire aussi des nœuds d'agents — mais aucune rectification ne s'écrit
+/// chez lui : c'est l'IA d'Alice qu'elle corrige.
+#[test]
+fn client_1_un_participant_ne_rectifie_pas_l_ia_d_ici() {
+    let (mut salle, mut alice, mut bob) = depart();
+    alice.journal.main = Main::Agent("claude".into());
+    alice.add_annotation(T, Annotation::arrow("fl-a7-9", 0.0, 0.0, 5.0, 5.0));
+    alice.journal.main = Main::Humain;
+    salle.poster(&mut alice);
+    salle.livrer(&mut bob);
+    assert!(bob.journal.des_agents.contains("fl-a7-9"));
+    bob.journal.prendre_les_ecrits_signes();
+    alice.remove_annotations(T, &["fl-a7-9"]);
+    salle.poster(&mut alice);
+    salle.livrer(&mut bob);
+    assert!(!bob.journal.des_agents.contains("fl-a7-9"));
+    let ecrits = bob.journal.prendre_les_ecrits_signes();
+    assert!(!ecrits.is_empty() && ecrits.iter().all(|e| e.repris.is_empty()));
+}

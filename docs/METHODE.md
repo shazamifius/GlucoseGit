@@ -220,6 +220,12 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   d'un canevas partagé (ses sabotages tournent contre `wrangler dev`, qui se recharge : une pause avant
   chaque essai, `outils/sabotages/salle-116.json`). Il ne lit rien du protocole : une version
   de Glucose ne l'attend jamais.
+* **L'essai réel du canevas partagé** (fiche 117) : `bash outils/porte/essai/essai_salle_pilote.sh
+  <dossier> [relais]` — deux vrais Glucose au pilote (`PILOTE_ETAT=<dossier>` : un état par
+  Glucose ; `piloter.sh presse-lire | presse-ecrire` : le presse-papiers de son compositeur), Bob
+  derrière **un réseau lent** (`essai/reseau_lent.py` : ce qui descend vers lui arrive 3 s plus tard
+  — c'est ainsi qu'un vrai conflit se provoque ; geler un Glucose perd ses frappes). Regarder chaque
+  image : un conflit scripté peut ne pas en être un.
 * **La télémétrie** : `node outils/telemetrie/tableau.mjs <dossier>`, en début de session. Une erreur 7403 :
   `npx wrangler whoami` rafraîchit le jeton ; la connexion, dans `CLAUDE.md`. **Le serveur avant le
   client** : une ligne neuve se déploie (`npx wrangler deploy`), se prouve en ligne une minute plus tard,

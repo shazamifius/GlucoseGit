@@ -1,0 +1,407 @@
+[
+  {
+    "nom": "CLIENT-1 — un geste reçu ne rejoue pas l'ordre de la salle",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "            let (tx, r) = rebaser(project, &p.en_attente, &a.geste);",
+    "apres": "            let a2 = a.geste.appliquer(project);\n            let (tx, r) = (a2.realisee, a2.rencontres);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — mon geste revenu n'est pas reconnu",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "            if p.en_attente.front().is_some_and(|(id, _)| *id == a.id) {",
+    "apres": "            if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — une répétition de la salle se rejoue",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "            if a.n <= p.confirme {",
+    "apres": "            if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — un geste reçu s'applique pendant un geste ouvert",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "        if journal.is_open() {\n            return Vec::new();\n        }",
+    "apres": "        if false {\n            return Vec::new();\n        }",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — appliquer ne fait pas partir d'abord",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "    pub fn appliquer_les_arrivees(&mut self) -> Vec<Rencontre> {\n        self.partager_les_gestes();",
+    "apres": "    pub fn appliquer_les_arrivees(&mut self) -> Vec<Rencontre> {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — défaire ne fait pas partir d'abord",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "        // Le geste qui vient d'être fait doit être sur la pile avant qu'on la lise.\n        self.partager_les_gestes();",
+    "apres": "        // Le geste qui vient d'être fait doit être sur la pile avant qu'on la lise.",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — le disque lit la file avant qu'elle parte",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "    pub fn ecrits_a_consigner(&mut self) -> Vec<Ecrit> {\n        self.partager_les_gestes();",
+    "apres": "    pub fn ecrits_a_consigner(&mut self) -> Vec<Ecrit> {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — défaire un nœud retiré fait quand même un geste",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "        if realisee.is_empty() {\n            return false;\n        }",
+    "apres": "        if false {\n            return false;\n        }",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — rétablir rend mon geste, pas ce que l'annulation a remplacé",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "        let retour = fait.inverse();",
+    "apres": "        let retour = geste.inverse();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — un lecteur écrit",
+    "fichier": "crates/glucose-core/src/store/participation.rs",
+    "avant": "            if !p.ecrivain {",
+    "apres": "            if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — un geste partagé ne part pas",
+    "fichier": "crates/glucose-core/src/store/journal.rs",
+    "avant": "            self.publier(tx, self.main.clone(), true);",
+    "apres": "            self.publier(tx, self.main.clone(), false);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "CLIENT-1 — un participant rectifie l'IA d'ici",
+    "fichier": "crates/glucose-core/src/store/journal.rs",
+    "avant": "        let repris = if main == Main::Humain {",
+    "apres": "        let repris = if main != Main::Agent(String::new()) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "MAIN-1 — un participant passe pour un agent",
+    "fichier": "crates/glucose-core/src/store/journal/mains.rs",
+    "avant": "        matches!(self, Self::Agent(_))",
+    "apres": "        !matches!(self, Self::Humain)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "client_1"
+    ]
+  },
+  {
+    "nom": "NOMMER-1 — un déplacement se nomme dans l'état d'après",
+    "fichier": "crates/glucose-core/src/store/journal/partir.rs",
+    "avant": "            if plus_ancien.is_some_and(|k| j > k) {",
+    "apres": "            if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "nommer_1"
+    ]
+  },
+  {
+    "nom": "SELECTION-1 — un nœud remis par le rebase sort de la sélection",
+    "fichier": "crates/glucose-core/src/store/undo.rs",
+    "avant": "                retires.remove(id);",
+    "apres": "                retires.insert(id);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "selection_1"
+    ]
+  },
+  {
+    "nom": "SELECTION-1 — Ctrl+Z laisse choisi ce qu'il retire",
+    "fichier": "crates/glucose-core/src/store/undo.rs",
+    "avant": "            oublier_les_retires(self, &geste);",
+    "apres": "            let _ = &geste;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "selection_1"
+    ]
+  },
+  {
+    "nom": "CODE-1 — le code lire est le code écrire",
+    "fichier": "crates/glucose-core/src/salle/code.rs",
+    "avant": "            lire: deriver(\"glucose/salle/lire\", &hasard),",
+    "apres": "            lire: hasard,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "code_1"
+    ]
+  },
+  {
+    "nom": "CODE-1 — le code lire a le secret d'écriture",
+    "fichier": "crates/glucose-core/src/salle/code.rs",
+    "avant": "        self.ecrire\n            .map(|e| base64_adresse(&deriver(\"glucose/salle/ecrire\", &e)))",
+    "apres": "        Some(base64_adresse(&deriver(\"glucose/salle/ecrire\", &self.lire)))",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "code_1"
+    ]
+  },
+  {
+    "nom": "La lettre d'une version plus neuve se lit quand même",
+    "fichier": "crates/glucose-core/src/salle/lettre.rs",
+    "avant": "        if schema > DOCUMENT_VERSION {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lettre_"
+    ]
+  },
+  {
+    "nom": "Un humain d'ailleurs signe comme l'humain d'ici",
+    "fichier": "crates/glucose-core/src/salle/lettre.rs",
+    "avant": "            Main::Humain | Main::Participant { .. } => Main::Participant {\n                marque: self.marque.clone(),\n                nom: self.nom.clone(),\n            },",
+    "apres": "            Main::Humain | Main::Participant { .. } => Main::Humain,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "lettre_"
+    ]
+  },
+  {
+    "nom": "SCELLE-1 — le sceau ne couvre pas la salle",
+    "fichier": "crates/glucose-core/src/salle/morceaux.rs",
+    "avant": "    a.extend_from_slice(salle.as_bytes());",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "scelle_1"
+    ]
+  },
+  {
+    "nom": "SCELLE-1 — le sceau ne couvre pas le nom local",
+    "fichier": "crates/glucose-core/src/salle/morceaux.rs",
+    "avant": "    a.extend_from_slice(local.as_bytes());",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "scelle_1"
+    ]
+  },
+  {
+    "nom": "SCELLE-1 — un morceau peut mentir sur son rang",
+    "fichier": "crates/glucose-core/src/salle/morceaux.rs",
+    "avant": "        if suffixe != rang.to_string() || rang >= total || total > MORCEAUX_MAX {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "scelle_1"
+    ]
+  },
+  {
+    "nom": "SCELLE-1 — une lettre se rend avant tous ses morceaux",
+    "fichier": "crates/glucose-core/src/salle/morceaux.rs",
+    "avant": "        if partiel.iter().any(Option::is_none) {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "scelle_1"
+    ]
+  },
+  {
+    "nom": "Les curseurs — la flèche ne se peint pas",
+    "fichier": "crates/glucose-desktop/src/renderer/curseurs.rs",
+    "avant": "        if let Some(fleche) = fleche(x, y, s) {",
+    "apres": "        if let Some(fleche) = fleche(x, y, s).filter(|_| false) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "curseur"
+    ]
+  },
+  {
+    "nom": "Les curseurs — ceux d'un autre tableau se montrent",
+    "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+    "avant": "            (t == tableau).then(|| crate::params::CurseurDuPair {",
+    "apres": "            true.then(|| crate::params::CurseurDuPair {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "curseurs"
+    ]
+  },
+  {
+    "nom": "Ce qui n'a pas tenu — le conflit se tait",
+    "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+    "avant": "        (true, _) => Some(\"Deux gestes ont touché le même nœud : le plus récent l'emporte\".into()),",
+    "apres": "        (true, _) => None,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "n_a_pas_tenu"
+    ]
+  }
+]

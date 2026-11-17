@@ -87,6 +87,21 @@ fn ce_qui_n_a_pas_tenu(croises: bool, defaits: usize) -> Option<String> {
     }
 }
 
+/// **Les curseurs qui se montrent** : ceux des autres qui regardent ce tableau-ci, de leur couleur.
+fn curseurs_sur(pairs: &[&Pair], tableau: &str) -> Vec<crate::params::CurseurDuPair> {
+    pairs
+        .iter()
+        .filter_map(|p| {
+            let (t, x, y) = p.curseur.as_ref()?;
+            (t == tableau).then(|| crate::params::CurseurDuPair {
+                monde: (*x, *y),
+                couleur: identite::COULEURS[usize::from(p.couleur) % identite::COULEURS.len()],
+                nom: p.nom.clone(),
+            })
+        })
+        .collect()
+}
+
 /// **Une marque neuve** (ID-2) : une lettre, puis trois lettres ou chiffres, du hasard du système.
 fn nouvelle_marque() -> Result<String, String> {
     const SIGNES: &[u8; 36] = b"abcdefghijklmnopqrstuvwxyz0123456789";
@@ -466,21 +481,12 @@ impl GlucoseApp {
 
     /// **Les curseurs des autres**, sur le tableau qu'on regarde, de ceux qu'on a vus récemment.
     pub(crate) fn curseurs_des_pairs(&self) -> Vec<crate::params::CurseurDuPair> {
-        let Some(cp) = self.lancement.agents.partage.as_ref() else {
-            return Vec::new();
-        };
-        let tableau = &self.store.project.active_board_id;
-        cp.presents()
-            .into_iter()
-            .filter_map(|p| {
-                let (t, x, y) = p.curseur.as_ref()?;
-                (t == tableau).then(|| crate::params::CurseurDuPair {
-                    monde: (*x, *y),
-                    couleur: identite::COULEURS[usize::from(p.couleur) % identite::COULEURS.len()],
-                    nom: p.nom.clone(),
-                })
-            })
-            .collect()
+        self.lancement
+            .agents
+            .partage
+            .as_ref()
+            .map(|cp| curseurs_sur(&cp.presents(), &self.store.project.active_board_id))
+            .unwrap_or_default()
     }
 
     /// Sa souris dans le monde, si elle a bougé depuis le dernier curseur parti et qu'il est temps.
@@ -499,3 +505,6 @@ impl GlucoseApp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

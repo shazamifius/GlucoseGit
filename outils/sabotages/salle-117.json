@@ -1,0 +1,13 @@
+[
+  {
+    "nom": "SALLE-1 — la salle ne répond pas au ping",
+    "fichier": "outils/porte/src/salle.js",
+    "avant": "    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(\"ping\", \"pong\"));\n",
+    "apres": "",
+    "cmd": [
+      "bash",
+      "-c",
+      "sleep 5; timeout 60 node outils/porte/essai/salle_essai.mjs"
+    ]
+  }
+]

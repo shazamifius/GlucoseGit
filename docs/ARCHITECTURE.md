@@ -469,6 +469,20 @@ les deux listes permettent, elles n'interdisent pas. Son nom vérifié signe (`C
 **Collaborer** ouvre la porte et s'allume avec elle ; la question d'accord montre le code de la page ;
 un témoin dit qu'une IA du nuage travaille (PUBLIQUE-1).
 
+**Le canevas partagé, la quatrième** (fiches 113, 116 et 117) : **le greffier aveugle** — une salle par
+canevas sur le même relais (`outils/porte/src/salle.js`, un Durable Object) numérote et garde les
+gestes **scellés**, sans pouvoir les lire ; chaque Glucose rejoue le même ordre. **Le noyau tient toute
+la loi, pur** : `core/salle/` — le code d'invitation d'où tout se dérive (CODE-1 : « écrire » donne
+« lire », qui donne la salle et la clé), la lettre (qui parle, puis la base, un geste ou un curseur),
+les morceaux scellés (SCELLE-1, ChaCha20-Poly1305 de `core/chiffre.rs`) ; `core/store/participation.rs`
+(CLIENT-1) — la salle plus mes gestes en attente, le rebase par le nom (PARTAGE-1,
+`journal/partage.rs`), une pile d'annulation par main, la règle de Figma ; `journal/partir.rs`
+(NOMMER-1) ; `Main::Participant` signe un autre humain. **L'application ne fait que relier** :
+`salle/lien.rs` (le fil : ping, reprise, lettres gardées jusqu'à leur numéro, trous redemandés),
+`app/collaborer.rs` (la question de Collaborer, le tour de boucle, l'identité, les curseurs qui
+partent), `renderer/curseurs.rs`. La règle d'ordre : appliquer ce qui arrive, défaire et écrire au
+disque **commencent par faire partir ce qui part**. Les photos d'un participant à l'autre (B1) : à faire.
+
 ## 9. Distribuer et se mettre à jour
 
 * **`mise_a_jour/`** : lit le `latest.json` **au format de Tauri**, vérifie la signature minisign
