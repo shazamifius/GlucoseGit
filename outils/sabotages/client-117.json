@@ -403,5 +403,35 @@
       "--",
       "n_a_pas_tenu"
     ]
+  },
+  {
+    "nom": "La salle vide — on attend en silence",
+    "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+    "avant": "        if attend && n == 0 && libre {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "salle_vide"
+    ]
+  },
+  {
+    "nom": "La salle vide — le message chasse une autre question",
+    "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+    "avant": "        let libre = matches!(self.ui.question, None | Some((_, Suite::Collaborer)));",
+    "apres": "        let libre = true;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "salle_vide"
+    ]
   }
 ]

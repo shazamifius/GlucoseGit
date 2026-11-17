@@ -76,6 +76,8 @@ impl CanevasPartage {
 }
 
 const PAS_DE_RESEAU: &str = "Ce Glucose n'a pas de réseau ici.";
+const SALLE_VIDE: &str = "Ce code ne mène encore à aucun canevas : vérifie qu'il est entier, ou \
+                          demande-en un autre. Glucose attend qu'il arrive.";
 
 /// **Ce qui n'a pas tenu**, en une phrase : deux gestes croisés sur un même nœud, ou les gestes d'un
 /// lecteur, défaits.
@@ -354,12 +356,30 @@ impl GlucoseApp {
         match nouvelle {
             Nouvelle::Lettre { n, id, lettre } => self.une_lettre(n, id, *lettre),
             Nouvelle::Curseur(lettre) => self.un_curseur(*lettre),
-            Nouvelle::AJour(_) => self.mark_dirty(),
+            Nouvelle::AJour(n) => self.salle_a_jour(n),
             // Un lecteur ne fait rien partir, et une lettre se découpe : un refus dit un défaut.
             Nouvelle::Refus(pourquoi) => {
                 crate::dire_erreur!("[Glucose] la salle refuse : {pourquoi}")
             }
             Nouvelle::Illisible(e) => crate::dire_erreur!("[Glucose] canevas partagé : {e}"),
+        }
+    }
+
+    /// **La salle a tout donné.** Si l'on attend sa base et qu'elle était vide, ce code ne mène encore
+    /// à aucun canevas — un code coupé, ou un partage pas encore fini. On le dit là où l'on a agi ; on
+    /// continue d'attendre, la base peut encore venir.
+    fn salle_a_jour(&mut self, n: u64) {
+        self.mark_dirty();
+        let attend = self
+            .lancement
+            .agents
+            .partage
+            .as_ref()
+            .is_some_and(|cp| cp.entree == Entree::AttendLaBase);
+        // Jamais par-dessus une autre question (une IA qui demande la porte, un travail à garder).
+        let libre = matches!(self.ui.question, None | Some((_, Suite::Collaborer)));
+        if attend && n == 0 && libre {
+            self.montrer_collaborer_avec(Some(SALLE_VIDE.into()));
         }
     }
 

@@ -28,8 +28,11 @@ A() { PILOTE_ETAT=/tmp/glucose-pilote-alice bash "$P" "$@"; }
 B() { PILOTE_ETAT=/tmp/glucose-pilote-bob bash "$P" "$@"; }
 py() { nix shell --impure --expr "(import (builtins.getFlake \"nixpkgs\") {}).python3.withPackages (p: [p.$1])" -c python3 -I "${@:2}"; }
 
+# Un réseau lent resté d'un essai d'avant (relié à un autre relais) tromperait celui-ci : on refuse.
+if ps -eo args | grep -q "[r]eseau_lent.py .* $LENT "; then
+  echo "un réseau lent tient déjà le port $LENT : l'arrêter d'abord" >&2; exit 1
+fi
 py websockets "$ICI/reseau_lent.py" "$(echo "$RELAIS" | sed 's/^http/ws/')" $LENT 3 > "$D/reseau-lent.txt" 2>&1 &
-RESEAU=$!
 A demarrer "$D/alice" "$D/alice-sortie" GLUCOSE_RELAIS="$RELAIS"
 B demarrer "$D/bob" "$D/bob-sortie" GLUCOSE_RELAIS="http://127.0.0.1:$LENT"
 sleep 18
@@ -71,5 +74,6 @@ A ctrl z; sleep 0.5; A ctrl z; sleep 5
 A capture "$D/6-alice.png"; B capture "$D/6-bob.png"
 
 A arreter; B arreter
-kill $RESEAU 2>/dev/null
+# `nix shell` laisse vivre son enfant : arrêter Python lui-même, par son numéro.
+for p in $(ps -eo pid,args | grep "[r]eseau_lent.py .* $LENT " | awk '{print $1}'); do kill "$p"; done
 echo "fini : regarder chaque image de $D"
