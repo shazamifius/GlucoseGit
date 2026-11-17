@@ -71,6 +71,7 @@ fn test_la_version_depasse_tout_ce_qui_est_publie() {
         "2.0.3-beta.1",
         "2.0.3-beta.10",
         "2.0.4-beta.1",
+        "2.0.4-beta.2",
     ] {
         assert!(
             Version::courante() > v(publiee),
