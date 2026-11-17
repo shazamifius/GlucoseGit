@@ -55,8 +55,8 @@
   défait **ses** gestes ; les curseurs des autres ; essayé en ligne avec deux vrais Glucose, l'un
   derrière un réseau lent — **pas encore à son écran**) ; **l'export en page web** (EXPORT-HTML-1,
   fiche 115 § 7 ter : une page autonome, deux doigts, une flèche se lit — Safari jamais essayé).
-  **Son Glucose installé** (profil Nix `GlucoseGit`) : `547d9d9` — la frise, regarder un domaine et
-  le mode zen compris.
+  **Son Glucose installé** (profil Nix `GlucoseGit`) : `21acb0c` (17/11) — la porte publique, le
+  co-working et la page web compris.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.

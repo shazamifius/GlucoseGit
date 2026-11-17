@@ -110,6 +110,12 @@ compositeur), Bob derrière **un réseau lent** (`essai/reseau_lent.py` : ce qui
 * Rejoindre depuis un brouillon rouvert pose la question du travail non enregistré (BROUILLON-1) :
   c'est juste.
 
+**Son essai, seul, sur son VivoBook** : `outils/porte/essai/un_second_glucose.sh` lance un second
+Glucose (« Bob ») dans un dossier jetable (ses fichiers temporaires à part : sa chronique reste
+intacte), sans télémétrie ni mise à jour ; la porte des agents reste au sien. Essayé hors écran avec
+**son Glucose installé** (`21acb0c`, mis à jour à 11 h 37) : partager dans l'un, rejoindre dans l'autre
+par le même presse-papiers, un texte et les curseurs des deux côtés, par le relais en ligne.
+
 **En ligne** — la salle déployée le 17/11 à 11 h 19 (`npx wrangler deploy`, son compte ; ses dix
 verdicts de l'extérieur, la porte publique vérifiée de nouveau par `faux_glucose.mjs`), puis l'essai
 entier contre le relais public : **tout passe**, le conflit dit des deux côtés, les curseurs, `Ctrl+Z`.

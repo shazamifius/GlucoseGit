@@ -112,8 +112,14 @@ Glucose, le même code, « Lire et écrire » ; puis demander à Claude de lire 
 un texte — il apparaît, signé « Claude (claude.ai) » dans la Time Machine ; Collaborer → « Les IA qui
 ont ta porte… » pour la retirer.
 
-**Au téléphone** (le sien est en **beta 8**, 18 fins anormales sur 24 sessions) : **l'ouvrir et le
-mettre à jour par-dessus** — jamais désinstaller, un brouillon perdu y est peut-être encore ; une longue
+**Le canevas partagé** (fiche 117), **sur son VivoBook seul** : dans son Glucose, Collaborer → « Partager
+ce canevas » (le code est copié) ; puis, dans un terminal, `bash ~/Projets/GlucoseGit/outils/porte/essai/un_second_glucose.sh`
+— une seconde fenêtre, « Bob », dans un dossier jetable ; dans celle-ci, Collaborer → « Rejoindre (le code
+copié) ». Poser un texte dans l'un, le voir dans l'autre ; bouger la souris : son curseur, nommé, dans
+l'autre ; colorer le même texte des deux côtés presque en même temps ; `Ctrl+Z` dans l'un ne défait que
+ses gestes. **Entre son PC et son téléphone** : il faut une version publiée (la 2.0.4-beta.2, son geste).
+
+**Au téléphone** (le sien est en **2.0.4-beta.1** depuis le 16/11 — mis à jour par-dessus) : une longue
 session ; le texte de près ; les doigts (deux touchers annulent, trois rétablissent) ; le Storyboard au
 doigt ; la pile des barres du bas (BAS-1 : gêne-t-elle ?).
 
