@@ -147,6 +147,8 @@ retardataire, son nom) et l'ordre après B1. Il y répondra demain ; **ses répo
 
 1. **Ses réponses** à la fiche de questions — puis les mettre en œuvre (structure des tiroirs, modes de
    fenêtre, barre de Windows, échelle de l'interface et dessin des lettres).
-2. **La 2.0.4-beta.2** (son geste) : elle porterait la correction de Windows, à essayer à l'école.
+2. **La 2.0.4-beta.2, en brouillon** (le flux « Publier » vert à 20 h 59, onze fichiers, sur `4427733` ;
+   la CI verte sur dix tâches sur `4dfba2a`) : son clic « Publish release », puis l'essai à l'école sous
+   Windows. Son Glucose installé est à `4dfba2a`.
 3. **B1, les photos du co-working** (`~/.cache/glucose-bancs/photos-117/photos-b1.patch`, fiche 117 § 7 bis).
 4. Le reste de SUITE § 2 (son lag, la porte avec son compte, les boutons manquants).

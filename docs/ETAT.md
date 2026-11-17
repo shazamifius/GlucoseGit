@@ -10,6 +10,9 @@
 
 ## 1. En bref
 
+* **En brouillon, à son clic** : la **2.0.4-beta.2** (17/11 à 20 h 59, le flux « Publier » vert sur
+  `4427733`, onze fichiers) — la correction de Windows, le co-working, la porte publique, la frise, le
+  miroir ; laisser « Set as the latest release » coché, **ne pas** cocher « pre-release ».
 * **Publiée** : la **2.0.4-beta.1** (son clic, le 13/11 à 18 h 23 ; la CI verte sur `f9027fd`, dix
   tâches ; fiche 111) — installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, et `nix run
   github:shazamifius/GlucoseGit`. Chaque Glucose Tauri installé passe de lui-même à Glucose Rust ; ses
@@ -63,8 +66,8 @@
   « Redresser la flèche » et « Retirer ce coude » au clic droit (COUDE-1), **retourner une image**
   (MIROIR-1 : `Alt+Maj+H`, `Alt+Maj+V` ; le document passe au schéma 6, qu'une 2.0.4-beta.1 refuse par
   son message).
-  **Son Glucose installé** (profil Nix `GlucoseGit`) : `21acb0c` (17/11) — la porte publique, le
-  co-working et la page web compris.
+  **Son Glucose installé** (profil Nix `GlucoseGit`) : `4dfba2a` (17/11 au soir) — la porte
+  publique, le co-working, la page web et toute sa capture compris.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
@@ -172,7 +175,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
-  sur `1ccd2bee`** (17/11, le co-working et sa capture compris : le cadre de Windows éprouvé sous un vrai Windows).
+  sur `4dfba2a`** (17/11 au soir, le co-working, sa capture et le miroir compris : le cadre de Windows
+  éprouvé sous un vrai Windows).
   GitHub compile avec **Rust 1.100**, Nix ici avec 1.99 : un clippy plus récent peut trouver ce
   que celui d'ici ne voit pas (fiche 116 § 7). La CI se lance avant une publication, pas à chaque envoi.
 
