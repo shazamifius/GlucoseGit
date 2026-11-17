@@ -237,3 +237,24 @@ fn test_ariane_1_les_lettres_du_fil_tiennent_dans_sa_bande() {
         );
     }
 }
+
+/// **ARIANE-1, la loi exacte** : la boîte de la ligne — de la montante à la descente de la police
+/// — a autant de place au-dessus qu'en dessous, dans toute bande. Les lettres qui tiennent dans
+/// leur bande ne le prouvent pas : oublier la descente ne les décale que d'un pixel et demi.
+#[test]
+fn test_ariane_1_la_boite_de_la_ligne_se_centre_dans_la_bande() {
+    let typo = typo();
+    for (size, haut, hauteur) in [(12.0, 40.0, 26.0), (18.0, 0.0, 39.0), (9.0, 100.5, 13.0)] {
+        let m = typo
+            .font(Face::Regular)
+            .horizontal_line_metrics(size)
+            .expect("les mesures d'Inter");
+        let base = typo.haut_d_une_ligne_centree(size, Face::Regular, (haut, hauteur)) + size;
+        let dessus = base - m.ascent - haut;
+        let dessous = haut + hauteur - (base - m.descent);
+        assert!(
+            (dessus - dessous).abs() < 1e-3,
+            "{size} px dans {hauteur} : {dessus} au-dessus, {dessous} en dessous"
+        );
+    }
+}
