@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="generator" content="Glucose">
+<title>{{TITRE}}</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0d0d; color: #e6e6e6;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #barre { position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 2; display: flex;
+    align-items: center; gap: 12px; padding: 0 16px; background: #111111;
+    border-bottom: 1px solid #2a2a2a; }
+  #barre b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  #barre button { background: #1a1a1a; color: #cccccc; border: 1px solid #2a2a2a;
+    border-radius: 4px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  #barre button:hover { background: #1e1e1e; color: #e6e6e6; }
+  #barre .aide { margin-left: auto; font-size: 12px; color: #888888; white-space: nowrap; }
+  #vue { position: fixed; top: 44px; left: 0; right: 0; bottom: 0; overflow: hidden;
+    cursor: grab; touch-action: none; }
+  #vue.tenue { cursor: grabbing; }
+  #scene { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  #scene svg { display: block; }
+  .fleche { cursor: pointer; }
+  #panneau { position: fixed; right: 16px; bottom: 16px; width: min(380px, calc(100vw - 32px));
+    max-height: 50vh; overflow: auto; z-index: 3; display: none; background: #111111;
+    border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px 16px; }
+  #panneau h4 { margin: 0 24px 8px 0; font-size: 12px; font-weight: 600; color: #888888;
+    letter-spacing: .4px; text-transform: uppercase; }
+  #panneau .corps { font-size: 14px; line-height: 1.55; color: #cccccc; }
+  #panneau .corps h3 { font-size: 15px; margin: 10px 0 4px; color: #e6e6e6; }
+  #panneau .corps strong { color: #e6e6e6; }
+  #fermer { position: absolute; top: 8px; right: 12px; cursor: pointer; color: #888888;
+    font-size: 18px; line-height: 1; background: none; border: 0; }
+  @media (max-width: 560px) { #barre .aide { display: none; } }
+</style>
+</head>
+<body>
+<div id="barre">
+  <b>{{TITRE}}</b>
+  <button id="recadrer" type="button">Recadrer</button>
+  <span class="aide">Glisser : déplacer · molette ou deux doigts : zoomer · une flèche : ce qu'elle dit</span>
+</div>
+<div id="vue"><div id="scene">{{SVG}}</div></div>
+<div id="panneau"><button id="fermer" type="button" aria-label="Fermer">×</button><h4 id="titre"></h4><div class="corps" id="corps"></div></div>
+<script>
+(function () {
+  "use strict";
+  var FLECHES = {{FLECHES}};
+  var dit = {};
+  FLECHES.forEach(function (f) { dit[f.id] = f; });
+  var vue = document.getElementById("vue");
+  var scene = document.getElementById("scene");
+  var svg = scene.querySelector("svg");
+  var L = svg ? parseFloat(svg.getAttribute("width")) || 1000 : 1000;
+  var H = svg ? parseFloat(svg.getAttribute("height")) || 800 : 800;
+  var etat = { x: 0, y: 0, k: 1 };
+  var K_MIN = 0.02, K_MAX = 64;
+
+  function poser() {
+    scene.style.transform = "translate(" + etat.x + "px," + etat.y + "px) scale(" + etat.k + ")";
+  }
+  function borner(k) { return Math.max(K_MIN, Math.min(K_MAX, k)); }
+  // Zoomer de `facteur` autour du point (mx, my) de la vue : ce point ne bouge pas.
+  function zoomer(facteur, mx, my) {
+    var k = borner(etat.k * facteur), r = k / etat.k;
+    etat.x = mx - (mx - etat.x) * r;
+    etat.y = my - (my - etat.y) * r;
+    etat.k = k;
+    poser();
+  }
+  function recadrer() {
+    var b = vue.getBoundingClientRect();
+    etat.k = borner(Math.min(b.width / L, b.height / H) * 0.94);
+    etat.x = (b.width - L * etat.k) / 2;
+    etat.y = (b.height - H * etat.k) / 2;
+    poser();
+  }
+  function dans_la_vue(e) {
+    var b = vue.getBoundingClientRect();
+    return { x: e.clientX - b.left, y: e.clientY - b.top };
+  }
+
+  // La molette : un tiers d'octave par cran, la loi du canevas de Glucose.
+  vue.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var d = e.deltaY * (e.deltaMode === 1 ? 100 / 3 : e.deltaMode === 2 ? 800 : 1);
+    var p = dans_la_vue(e);
+    zoomer(Math.pow(2, -d / 300), p.x, p.y);
+  }, { passive: false });
+
+  // La main : un doigt (ou la souris) déplace ; deux doigts pincent et déplacent ensemble.
+  var mains = new Map(), prise = null;
+  function prendre() {
+    var p = Array.from(mains.values());
+    if (p.length === 1) {
+      // Le doigt qui reste d'un pincement ne fera pas un clic en se levant.
+      var pince = !!prise && (prise.bouge || !prise.un);
+      prise = { un: true, depart: p[0], x: etat.x, y: etat.y, bouge: pince };
+    } else if (p.length === 2) {
+      var m = { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+      prise = { un: false, d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, m: m,
+        x: etat.x, y: etat.y, k: etat.k, bouge: true };
+    } else {
+      prise = null;
+    }
+  }
+  vue.addEventListener("pointerdown", function (e) {
+    mains.set(e.pointerId, dans_la_vue(e));
+    vue.setPointerCapture(e.pointerId);
+    vue.classList.add("tenue");
+    prendre();
+  });
+  vue.addEventListener("pointermove", function (e) {
+    if (!mains.has(e.pointerId) || !prise) return;
+    mains.set(e.pointerId, dans_la_vue(e));
+    var p = Array.from(mains.values());
+    if (prise.un) {
+      var dx = p[0].x - prise.depart.x, dy = p[0].y - prise.depart.y;
+      if (Math.abs(dx) + Math.abs(dy) > 3) prise.bouge = true;
+      etat.x = prise.x + dx; etat.y = prise.y + dy;
+      poser();
+    } else if (p.length === 2) {
+      var d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      var m = { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+      var k = borner(prise.k * d / prise.d), r = k / prise.k;
+      // Le point du dessin sous le milieu de départ suit le milieu des doigts.
+      etat.x = m.x - (prise.m.x - prise.x) * r;
+      etat.y = m.y - (prise.m.y - prise.y) * r;
+      etat.k = k;
+      poser();
+    }
+  });
+  function lacher(e) {
+    if (!mains.has(e.pointerId)) return;
+    var clic = prise && prise.un && !prise.bouge;
+    mains.delete(e.pointerId);
+    if (mains.size === 0) vue.classList.remove("tenue");
+    prendre();
+    if (clic && e.type === "pointerup") {
+      // La vue a capturé le pointeur pour le glisser : `e.target` est elle. Ce qui est sous le
+      // doigt se demande au document.
+      var sous = document.elementFromPoint(e.clientX, e.clientY);
+      var g = sous && sous.closest ? sous.closest(".fleche") : null;
+      if (g) montrer(g.getAttribute("data-id")); else cacher();
+    }
+  }
+  vue.addEventListener("pointerup", lacher);
+  vue.addEventListener("pointercancel", lacher);
+
+  // Le panneau d'une flèche : sa relation, son étiquette, sa description (un Markdown réduit).
+  function echapper(t) {
+    return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function enligne(t) {
+    return t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+            .replace(/`([^`]+)`/g, "<code>$1</code>");
+  }
+  function markdown(source) {
+    var lignes = echapper(source).split("\n"), sortie = [], liste = false;
+    lignes.forEach(function (brute) {
+      var l = brute.trim(), titre = /^#{1,3}\s+(.*)$/.exec(l), puce = /^[-*]\s+(.*)$/.exec(l);
+      if (!puce && liste) { sortie.push("</ul>"); liste = false; }
+      if (!l) return;
+      if (titre) sortie.push("<h3>" + enligne(titre[1]) + "</h3>");
+      else if (puce) { if (!liste) { sortie.push("<ul>"); liste = true; } sortie.push("<li>" + enligne(puce[1]) + "</li>"); }
+      else sortie.push("<p>" + enligne(l) + "</p>");
+    });
+    if (liste) sortie.push("</ul>");
+    return sortie.join("");
+  }
+  var panneau = document.getElementById("panneau");
+  function montrer(id) {
+    var f = dit[id];
+    if (!f) { cacher(); return; }
+    document.getElementById("titre").textContent = f.relation || f.etiquette || "Lien";
+    var corps = (f.relation && f.etiquette ? "**" + f.etiquette + "**\n\n" : "") + f.longue;
+    document.getElementById("corps").innerHTML = corps ? markdown(corps) : "";
+    panneau.style.display = "block";
+  }
+  function cacher() { panneau.style.display = "none"; }
+  document.getElementById("fermer").addEventListener("click", cacher);
+  document.getElementById("recadrer").addEventListener("click", recadrer);
+  window.addEventListener("keydown", function (e) { if (e.key === "Escape") cacher(); });
+  window.addEventListener("resize", recadrer);
+  recadrer();
+})();
+</script>
+</body>
+</html>

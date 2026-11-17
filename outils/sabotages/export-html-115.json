@@ -1,0 +1,122 @@
+[
+  {
+    "nom": "EXPORT-HTML-1 : « .html » n'est pas lu comme une page",
+    "fichier": "crates/glucose-desktop/src/persist/export.rs",
+    "avant": "            Self::Html => \"html\",",
+    "apres": "            Self::Html => \"htm\",",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : la page n'est que le SVG",
+    "fichier": "crates/glucose-desktop/src/persist/export.rs",
+    "avant": "            Format::Html => self.rendre_la_page(),",
+    "apres": "            Format::Html => self.rendre_le_svg(),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : une flèche du SVG ne porte pas son nom",
+    "fichier": "crates/glucose-desktop/src/renderer/pass/svg.rs",
+    "avant": "                svg.poser(&format!(r#\"<g class=\"fleche\" data-id=\"{id}\">\"#));",
+    "apres": "                svg.poser(&format!(\"<g>{id}\"));",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : une description referme le lecteur",
+    "fichier": "crates/glucose-desktop/src/persist/export/html.rs",
+    "avant": "    let donnees = fleches.ecrire().replace('<', \"\\\\u003c\");",
+    "apres": "    let donnees = fleches.ecrire();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : le titre n'est pas échappé",
+    "fichier": "crates/glucose-desktop/src/persist/export/html.rs",
+    "avant": "    let titre = echapper(titre);",
+    "apres": "    let titre = titre.to_string();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : la fin du gabarit se perd",
+    "fichier": "crates/glucose-desktop/src/persist/export/html.rs",
+    "avant": "    sortie.push_str(reste);\n    sortie",
+    "apres": "    sortie",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : une flèche muette entre au panneau",
+    "fichier": "crates/glucose-desktop/src/persist/export/html.rs",
+    "avant": "        if etiquette.is_empty() && longue.is_empty() && relation.is_empty() {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  },
+  {
+    "nom": "EXPORT-HTML-1 : les blancs d'une description restent",
+    "fichier": "crates/glucose-desktop/src/persist/export/html.rs",
+    "avant": "        let texte = |t: &Option<String>| t.as_deref().unwrap_or(\"\").trim().to_string();",
+    "apres": "        let texte = |t: &Option<String>| t.as_deref().unwrap_or(\"\").to_string();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "export_html_1"
+    ]
+  }
+]

@@ -41,6 +41,8 @@ pub enum Format {
     Png,
     Markdown,
     Svg,
+    /// L'image vectorielle dans une page qu'on parcourt au navigateur (EXPORT-HTML-1, [`html`]).
+    Html,
 }
 
 impl Format {
@@ -49,13 +51,14 @@ impl Format {
     ///
     /// L'image d'abord : c'est ce qu'on exporte le plus souvent, et le repli d'un nom sans
     /// extension.
-    pub const TOUS: [Self; 3] = [Self::Png, Self::Markdown, Self::Svg];
+    pub const TOUS: [Self; 4] = [Self::Png, Self::Markdown, Self::Svg, Self::Html];
 
     pub fn extension(self) -> &'static str {
         match self {
             Self::Png => "png",
             Self::Markdown => "md",
             Self::Svg => "svg",
+            Self::Html => "html",
         }
     }
 
@@ -64,6 +67,7 @@ impl Format {
             Self::Png => "Image",
             Self::Markdown => "Markdown",
             Self::Svg => "Image vectorielle",
+            Self::Html => "Page web",
         }
     }
 
@@ -83,8 +87,8 @@ impl Format {
         match self {
             Self::Png => None,
             Self::Markdown => Some(glucose_core::export::to_markdown(tableau)),
-            // Le SVG se peint, par les sœurs vectorielles du rendu (fiche 69).
-            Self::Svg => None,
+            // Le SVG se peint, par les sœurs vectorielles du rendu (fiche 69) ; la page le porte.
+            Self::Svg | Self::Html => None,
         }
     }
 }
@@ -161,6 +165,7 @@ impl GlucoseApp {
             })?;
         let texte = match format {
             Format::Svg => self.rendre_le_svg(),
+            Format::Html => self.rendre_la_page(),
             _ => format.rendre(tableau),
         }
         .ok_or_else(|| DesktopError::SaveFailed {
@@ -180,6 +185,7 @@ fn nom_du_fichier(chemin: &Path) -> String {
         .to_string()
 }
 
+pub mod html;
 pub mod pdf;
 pub mod planches;
 pub mod png;

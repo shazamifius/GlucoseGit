@@ -102,6 +102,14 @@ pub struct Board {
 }
 
 impl Board {
+    /// **Les flèches du tableau** : ce qu'un lecteur parcourt — l'export en page web, ce que
+    /// disent ses flèches (fiche 115) — sans ouvrir la liste du modèle (le cliquet du couplage).
+    pub fn fleches(&self) -> impl Iterator<Item = &Annotation> {
+        self.annotations
+            .iter()
+            .filter(|a| matches!(a, Annotation::Arrow { .. }))
+    }
+
     pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
             id: id.into(),

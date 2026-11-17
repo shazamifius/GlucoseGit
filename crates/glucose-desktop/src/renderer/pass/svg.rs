@@ -89,8 +89,13 @@ pub(in crate::renderer) fn annotations_en_svg(
                 ) else {
                     continue;
                 };
+                // Un groupe par flèche, qui porte son nom : la page web d'un export la retrouve
+                // sous le doigt (EXPORT-HTML-1).
+                let id = crate::renderer::svg::echapper(ann.id());
+                svg.poser(&format!(r#"<g class="fleche" data-id="{id}">"#));
                 fleche_en_svg(&fleche, (&ctx.vp, ctx.scale), svg);
                 let Some(milieu) = arrow::milieu_du_trace(&fleche.morceaux) else {
+                    svg.poser("</g>");
                     continue;
                 };
                 let etiquette = crate::renderer::arrow_label::montre_une_etiquette(ann, None);
@@ -109,6 +114,7 @@ pub(in crate::renderer) fn annotations_en_svg(
                 {
                     crate::renderer::predicate::predicat_en_svg(&ctx, svg, centre, ann);
                 }
+                svg.poser("</g>");
             }
             _ => {}
         }
