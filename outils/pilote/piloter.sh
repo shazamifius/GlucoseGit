@@ -15,6 +15,10 @@
 #   lâche au milieu du geste).
 #   bash outils/pilote/piloter.sh taper <texte> | touche <nom> | ctrl <t> | alt <t> | maj <t> | altmaj <t> | ctrlmaj <t>
 #   bash outils/pilote/piloter.sh capture <f.png> | arreter
+#   bash outils/pilote/piloter.sh presse-lire | presse-ecrire <texte>   (le presse-papiers de son compositeur)
+#
+# `PILOTE_ETAT=<dossier>` (par défaut /tmp/glucose-pilote) : l'état d'un pilote — deux dossiers, deux
+# Glucose à la fois, chacun dans son compositeur (le canevas partagé, fiche 117).
 #
 # `PILOTE_COMPOSITEUR=niri … demarrer` (fiche 100 § 10) : Glucose dans un vrai niri — le compositeur de son
 # VivoBook —, imbriqué dans ce sway sans écran (`niri.kdl`, mêmes coordonnées que sway seul).
@@ -32,7 +36,7 @@
 set -u
 racine=$(cd "$(dirname "$0")/../.." && pwd)
 ici=$(cd "$(dirname "$0")" && pwd)
-etat=/tmp/glucose-pilote
+etat=${PILOTE_ETAT:-/tmp/glucose-pilote}
 
 outil() { nix build --inputs-from "$racine" "nixpkgs#$1" --print-out-paths --no-link 2>/dev/null | head -1; }
 python_wl() {
@@ -116,6 +120,8 @@ maj) wtype_ -s 300 -M shift -k "$2" -m shift ;;
 altmaj) wtype_ -s 300 -M alt -M shift -k "$2" -m shift -m alt ;;
 ctrlmaj) wtype_ -s 300 -M ctrl -M shift -k "$2" -m shift -m ctrl ;;
 capture) wl grim "$2" ;;
+presse-lire) wl timeout 5 "$(outil wl-clipboard)/bin/wl-paste" --no-newline ;;
+presse-ecrire) printf '%s' "$2" | wl "$(outil wl-clipboard)/bin/wl-copy" ;;
 arreter)
   c=$(compo)
   ordre 'fin\n' 2>/dev/null

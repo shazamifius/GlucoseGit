@@ -370,6 +370,11 @@ impl Journal {
             .collect()
     }
 
+    /// Le dernier geste appliqué, s'il n'a pas encore été lu (SELECTION-1).
+    pub(crate) fn dernier_publie(&self) -> Option<&Transaction> {
+        self.ecrits.last().map(|e| &e.transaction)
+    }
+
     /// **La même file, chaque geste avec sa main** (MAIN-1) : ce que l'histoire écrit.
     pub fn prendre_les_ecrits_signes(&mut self) -> Vec<Ecrit> {
         std::mem::take(&mut self.ecrits)

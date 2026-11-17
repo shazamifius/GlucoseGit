@@ -260,6 +260,7 @@ impl Store {
         }
         let mut rencontres = Vec::new();
         let mut change = false;
+        let mut retires = Transaction::default();
         while let Some(a) = p.arrivees.pop_front() {
             if a.n <= p.confirme {
                 continue; // Déjà appliqué : la salle le répète, on ne le rejoue pas.
@@ -271,9 +272,11 @@ impl Store {
             }
             let (tx, r) = rebaser(project, &p.en_attente, &a.geste);
             rencontres.extend(r);
+            retires.edits.extend(tx.edits.iter().cloned());
             journal.publier_tel(tx, a.main);
             change = true;
         }
+        super::undo::oublier_les_retires(self, &retires);
         if change {
             self.settle_navigation();
             self.bump_version();
@@ -317,8 +320,9 @@ impl Store {
         } else {
             p.defaire.push(retour);
         }
-        journal.publier_tel(realisee, Main::Humain);
+        journal.publier_tel(realisee.clone(), Main::Humain);
         p.envoyer(Main::Humain, fait);
+        super::undo::oublier_les_retires(self, &realisee);
         self.settle_navigation();
         self.bump_version();
         true

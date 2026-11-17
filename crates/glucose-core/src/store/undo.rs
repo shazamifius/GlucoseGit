@@ -17,7 +17,69 @@
 //!
 //! Celui-là, en revanche, demande un geste : voir [`Store::settle_navigation`].
 
+use super::journal::{Edit, Transaction};
 use super::{build_folder_stack, Store};
+
+/// **SELECTION-1 — ce qu'un geste appliqué retire sort de la sélection** (fiche 117). Un pas
+/// d'annulation, ou le geste d'un autre participant, peut retirer le nœud qu'on avait choisi : la
+/// sélection ne pointe jamais dans le vide (la règle de NAV-1, pour le choix). Au coût du geste
+/// (JRN-1) : on ne regarde que ce qu'il retire, jamais le document.
+pub(super) fn oublier_les_retires(store: &mut Store, geste: &Transaction) {
+    // Le résultat net : un nœud retiré puis remis (le rebase défait et refait les gestes en
+    // attente) reste choisi.
+    let mut retires: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for e in &geste.edits {
+        let (id, present) = match e {
+            Edit::Image { slot, .. } => (
+                slot.after
+                    .as_deref()
+                    .or(slot.before.as_deref())
+                    .map(|i| i.id.as_str()),
+                slot.after.is_some(),
+            ),
+            Edit::Annotation { slot, .. } => (
+                slot.after
+                    .as_deref()
+                    .or(slot.before.as_deref())
+                    .map(|a| a.id()),
+                slot.after.is_some(),
+            ),
+            Edit::Folder { slot, .. } => (
+                slot.after
+                    .as_deref()
+                    .or(slot.before.as_deref())
+                    .map(|f| f.id.as_str()),
+                slot.after.is_some(),
+            ),
+            _ => continue,
+        };
+        match (id, present) {
+            (Some(id), true) => {
+                retires.remove(id);
+            }
+            (Some(id), false) => {
+                retires.insert(id);
+            }
+            (None, _) => {}
+        }
+    }
+    if retires.is_empty() {
+        return;
+    }
+    store
+        .selected_image_ids
+        .retain(|id| !retires.contains(id.as_str()));
+    store
+        .selected_annotation_ids
+        .retain(|id| !retires.contains(id.as_str()));
+    if store
+        .selected_folder_id
+        .as_deref()
+        .is_some_and(|f| retires.contains(f))
+    {
+        store.selected_folder_id = None;
+    }
+}
 
 impl Store {
     /// Profondeur de la pile d'annulation, en nombre de gestes.
@@ -236,6 +298,9 @@ impl Store {
         };
         if !moved {
             return false;
+        }
+        if let Some(geste) = self.journal.dernier_publie().cloned() {
+            oublier_les_retires(self, &geste);
         }
         self.settle_navigation();
         self.bump_version();

@@ -343,3 +343,28 @@ fn client_1_un_autre_document_quitte_le_partage() {
         "le journal reprend"
     );
 }
+
+/// **SELECTION-1** : la photo qu'Alice avait choisie, Bob la retire — elle sort de sa sélection ;
+/// celle qu'Alice vient de poser et de choisir, encore en attente, est retirée puis remise par le
+/// rebase — elle reste choisie (le résultat net du geste). Et seul, `Ctrl+Z` d'une pose retire ce
+/// qu'on avait choisi.
+#[test]
+fn selection_1_ce_qu_un_geste_retire_sort_de_la_selection() {
+    let (mut salle, mut alice, mut bob) = depart();
+    alice.select_image("a".into(), false);
+    bob.remove_images(T, &["a"]);
+    salle.poster(&mut bob);
+    alice.add_image(T, img("d", 3.0));
+    alice.select_image("d".into(), true);
+    salle.livrer(&mut alice);
+    assert!(!alice.selected_image_ids.contains("a"), "retirée par Bob");
+    assert!(
+        alice.selected_image_ids.contains("d"),
+        "retirée puis remise : choisie"
+    );
+    let mut seul = Store::new("seul");
+    seul.add_image(T, img("e", 0.0));
+    seul.select_image("e".into(), false);
+    assert!(seul.undo());
+    assert!(!seul.selected_image_ids.contains("e"));
+}

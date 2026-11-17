@@ -60,6 +60,12 @@ const malin = await new Promise((ok, ko) => {
 malin.send(JSON.stringify({ t: "geste", l: "m1", o: scelle("je me fais passer pour Alice") }));
 await attendre(300);
 dire("une empreinte envoyée par le client ne fait pas un écrivain", malin.recus.at(-1)?.t === "refus");
+// Le ping de Glucose reçoit son pong de la salle elle-même, sans passer par ses messages (fiche 117).
+const avant = alice.recus.length;
+alice.onmessage = (e) => alice.recus.push(e.data === "pong" ? "pong" : JSON.parse(e.data));
+alice.send("ping");
+await attendre(300);
+dire("un ping reçoit son pong, et rien d'autre", alice.recus.length === avant + 1 && alice.recus.at(-1) === "pong");
 for (const ws of [alice, bob, carol, malin]) ws.close();
 console.log(verdicts.join("\n"));
 process.exit(verdicts.every((v) => v.startsWith("OUI")) ? 0 : 1);
