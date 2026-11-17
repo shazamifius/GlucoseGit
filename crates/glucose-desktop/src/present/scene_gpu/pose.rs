@@ -62,6 +62,18 @@ impl Pose {
         ]
     }
 
+    /// **La fenêtre d'une image retournée** (MIROIR-1) : la même, lue de droite à gauche — son
+    /// bord droit pour origine, une largeur négative. Le nuanceur lit `fenetre.xy + c ×
+    /// fenetre.zw` : il n'a rien à savoir du miroir, et les bornes ne changent pas.
+    pub fn retournee(fenetre: [f32; 4], miroir: bool) -> [f32; 4] {
+        let [u, v, l, h] = fenetre;
+        if miroir {
+            [u + l, v, -l, h]
+        } else {
+            fenetre
+        }
+    }
+
     /// La fenêtre qu'un recadrage du modèle donne à ce quad.
     pub fn fenetre_de(crop: glucose_core::types::Recadrage) -> [f32; 4] {
         let (g, h, _, _) = crop.marges();

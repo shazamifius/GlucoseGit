@@ -73,7 +73,9 @@ pub(super) fn prevoir_la_scene(
     let (mut repris, mut lisses) = (0u64, 0u64);
     for (rang, img) in visibles.iter().enumerate() {
         let parts = caches.parts(rang);
-        if parts.is_empty() || img.rotation != 0.0 {
+        // Une image tournée ou retournée passe par le rastériseur général, que ces deux
+        // travaux ne comptent pas (MIROIR-1).
+        if parts.is_empty() || img.rotation != 0.0 || img.miroir {
             continue;
         }
         let surface: f64 = parts

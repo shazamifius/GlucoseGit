@@ -141,6 +141,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     }
     defs.extend([
         Some((MenuAction::TrimBorders, "Retirer les bordures", "")),
+        Some((MenuAction::RetournerH, "Retourner horizontalement", "")),
+        Some((MenuAction::RetournerV, "Retourner verticalement", "")),
         // Une case par image choisie (P2, proposition 2, fiche 66).
         Some((
             MenuAction::StoryboardDeLaSelection,

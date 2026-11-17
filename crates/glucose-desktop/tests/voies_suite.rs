@@ -688,6 +688,74 @@ fn test_les_deux_voies_cadrent_pareil_et_la_bande_a_disparu() {
     );
 }
 
+// ── MIROIR-1 : les deux voies retournent pareil ─────────────────────────────────────────────
+
+/// La photo à bande, cadrée comme demandé, et retournée de gauche à droite.
+fn document_retourne(crop: glucose_core::types::Recadrage) -> glucose_core::store::Store {
+    let mut store = document_cadre(crop);
+    if let Some(b) = store.active_board_mut() {
+        b.images[0].miroir = true;
+    }
+    store
+}
+
+/// **Une photo retournée se rend pareil des deux côtés** (MIROIR-1, fiche 118) : sa bande noire,
+/// à gauche de la photo, passe à droite à l'écran. La carte lit sa fenêtre de droite à gauche ;
+/// le processeur pose la photo par un miroir autour du centre — deux mécanismes, un résultat.
+/// Recadrée du quart de la bande puis retournée, la photo n'en montre plus rien, nulle part :
+/// le recadrage se dit dans la photo, le miroir à l'écran.
+#[test]
+fn test_miroir_1_les_deux_voies_retournent_pareil() {
+    let taille = (800u32, 600u32);
+    // La boîte va de x = 300 à 500, y = 200 à 400 : un point à gauche, un point à droite.
+    let ((gauche, droite), y) = ((324u32, 476u32), 300u32);
+    for (crop, noir_a_droite) in [
+        (glucose_core::types::Recadrage::ENTIER, true),
+        (
+            glucose_core::types::Recadrage::depuis_les_marges(0.25, 0.0, 0.0, 0.0),
+            false,
+        ),
+    ] {
+        let store = document_retourne(crop);
+        let (renderer, dessous, dessus, confie) = les_deux_couches_decodees(taille, &store);
+        let Some((peripherique, file)) = banc_gpu::carte() else {
+            eprintln!("aucune carte utilisable : epreuve sautee");
+            return;
+        };
+        let carte = banc_gpu::composer_les_cinq_temps(
+            (&peripherique, &file),
+            taille,
+            &confie,
+            (&dessous, &dessus),
+            &|cle| confie.pixels(&renderer, cle),
+        )
+        .expect("la composition en cinq temps");
+        let processeur = par_le_processeur_decode(taille, &store);
+        let attendu_a_droite = if noir_a_droite {
+            [0, 0, 0, 255]
+        } else {
+            [255, 255, 255, 255]
+        };
+        for (voie, image) in [("processeur", &processeur), ("carte", &carte)] {
+            assert_eq!(
+                pixel(image, gauche, y),
+                [255, 255, 255, 255],
+                "{voie} : à gauche, plus de bande ({crop:?})"
+            );
+            assert_eq!(
+                pixel(image, droite, y),
+                attendu_a_droite,
+                "{voie} : à droite ({crop:?})"
+            );
+        }
+        let pire = banc_gpu::pire_ecart(&processeur, &carte);
+        assert!(
+            pire <= ECART_ADMIS,
+            "les deux voies divergent de {pire} niveaux sur une photo retournée"
+        );
+    }
+}
+
 // ── De près : une carte plus grande que l'écran ───────────────────────────────────────────
 
 /// Un document d'une seule carte de texte, vue à `echelle` avec son coin haut-gauche posé en

@@ -332,3 +332,37 @@ fn test_p4_la_palette_defile_au_doigt() {
         "au bas de la liste, la fenêtre reste pleine"
     );
 }
+
+/// **MIROIR-1, par la vraie touche** : `Alt+Maj+H` retourne chaque image choisie de gauche à
+/// droite, `Alt+Maj+V` de haut en bas — un demi-tour et un miroir —, et les deux ensemble
+/// rendent un demi-tour sans miroir. Sans image choisie, la commande ne s'offre pas.
+#[test]
+fn test_miroir_1_les_raccourcis_de_pureref_retournent_les_images_choisies() {
+    let mut app = avec_deux_images();
+    let alt_maj = ModifiersState::ALT | ModifiersState::SHIFT;
+    let image = |app: &GlucoseApp, id: &str| {
+        let board = app.store.project.active_board_id.clone();
+        let i = app.store.image(&board, id).expect("l'image");
+        (i.miroir, i.rotation)
+    };
+    touche(&mut app, "H", alt_maj);
+    assert_eq!(image(&app, "i0"), (true, 0.0), "de gauche à droite");
+    assert_eq!(image(&app, "i1"), (true, 0.0), "chaque image choisie");
+    touche(&mut app, "V", alt_maj);
+    let (miroir, rotation) = image(&app, "i0");
+    assert!(!miroir, "deux retournements, plus de miroir");
+    assert!(
+        (rotation.abs() - std::f64::consts::PI).abs() < 1e-12,
+        "un demi-tour : {rotation}"
+    );
+    app.store.undo();
+    assert_eq!(
+        image(&app, "i0"),
+        (true, 0.0),
+        "un Ctrl+Z défait un retournement"
+    );
+
+    app.store.set_selected_image_ids(Vec::new());
+    assert!(!app.s_applique(Commande::RetournerHorizontalement));
+    assert!(!app.s_applique(Commande::RetournerVerticalement));
+}

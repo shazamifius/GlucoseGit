@@ -177,6 +177,8 @@ impl GlucoseApp {
         // le décalage par la rotation de l'image : une image penchée dont on retire la bande
         // du haut voit sa boîte reculer le long de son propre axe, pas de l'axe de l'écran.
         let (dx, dy) = (x + w / 2.0 - avant.x, y + h / 2.0 - avant.y);
+        // Une photo retournée a sa gauche à droite : le décalage se retourne avec elle (MIROIR-1).
+        let dx = if avant.miroir { -dx } else { dx };
         let (cos, sin) = (avant.rotation.cos(), avant.rotation.sin());
         let (cx, cy) = (avant.x + dx * cos - dy * sin, avant.y + dx * sin + dy * cos);
         self.store.update_image(board, id, |img| {
@@ -224,3 +226,16 @@ fn compte_rendu(changees: usize, deja_nettes: usize, sans_pixels: usize) -> Stri
 
 #[cfg(test)]
 mod tests;
+
+impl GlucoseApp {
+    /// **Retourne les images choisies, chacune sur elle-même** (MIROIR-1), d'un seul geste
+    /// annulable. Sa capture du 17/11 : *« crée une option de flip pour les images »*.
+    pub(crate) fn retourner(&mut self, sens: glucose_core::types::Retournement) {
+        let board = self.store.project.active_board_id.clone();
+        let images = self.store.selected_image_ids.to_vec();
+        self.store.begin_live_edit();
+        self.store.retourner_les_images(&board, &images, sens);
+        self.store.end_live_edit();
+        self.mark_dirty();
+    }
+}

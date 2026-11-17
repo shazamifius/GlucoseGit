@@ -72,7 +72,7 @@ pub use annotation::{
 };
 pub use board::{Board, FolderTreeNode, Viewport};
 pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode, COULEUR_DE_NAISSANCE};
-pub use image::{AssetRef, BoardImage};
+pub use image::{AssetRef, BoardImage, Retournement};
 pub use operateur::{StickyOperator, DEFAULT_OPERATOR_HEIGHT};
 pub use project::{AssetStore, BoardZone, Preset, PresetSlot, Project};
 pub use recadrage::Recadrage;

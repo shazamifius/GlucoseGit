@@ -224,6 +224,33 @@ impl Recadrage {
         }
     }
 
+    /// **Le recadrage et la boîte qu'on obtient en tirant un bord VU de la boîte** : ceux de
+    /// [`Self::en_tirant_le_bord`] et [`Self::boite_apres`], pour une image retournée ou non
+    /// (MIROIR-1). Le recadrage se dit dans la photo, où une image retournée a sa gauche à droite :
+    /// le bord tiré et le déplacement s'y retournent, et la boîte qui en sort se retourne avec
+    /// elle, autour du centre de `boite`.
+    pub fn en_tirant_le_bord_vu(
+        self,
+        bord: crate::resize::Handle,
+        (dx, dy): (f64, f64),
+        boite: (f64, f64, f64, f64),
+        miroir: bool,
+    ) -> (Self, (f64, f64, f64, f64)) {
+        let (bord, dx) = if miroir {
+            (bord.en_miroir(), -dx)
+        } else {
+            (bord, dx)
+        };
+        let nouveau = self.en_tirant_le_bord(bord, (dx, dy), boite);
+        let (x, y, l, h) = self.boite_apres(nouveau, boite);
+        let x = if miroir {
+            2.0 * boite.0 + boite.2 - x - l
+        } else {
+            x
+        };
+        (nouveau, (x, y, l, h))
+    }
+
     /// **Le rapport largeur sur hauteur que ce cadrage donne** à une image d'origine `(l, h)`.
     ///
     /// C'est ce qui permet de garder la forme de ce qu'on montre quand on cadre : couper les

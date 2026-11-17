@@ -66,7 +66,8 @@ pub(super) fn pose_tenue(
         angle: img.rotation as f32,
         // Le recadrage du modele, lu et jamais calcule : la carte montre la fenetre de la
         // photo que le document dit (RECADRAGE-1).
-        fenetre: Pose::fenetre_de(img.crop),
+        // Retournée, elle se lit de droite à gauche (MIROIR-1).
+        fenetre: Pose::retournee(Pose::fenetre_de(img.crop), img.miroir),
         // Ce que le filtre a le droit de lire se decide sur ce niveau-la (BORDURES-4).
         bornes: Pose::bornes_de(
             img.crop,

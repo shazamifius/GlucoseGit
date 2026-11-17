@@ -76,6 +76,8 @@ impl MenuAction {
             MenuAction::Dater => Commande::Dater,
             MenuAction::ToggleLock => Commande::Verrouiller,
             MenuAction::TrimBorders => Commande::RetirerLesBordures,
+            MenuAction::RetournerH => Commande::RetournerHorizontalement,
+            MenuAction::RetournerV => Commande::RetournerVerticalement,
             MenuAction::StoryboardDeLaSelection => Commande::StoryboardDeLaSelection,
             MenuAction::LireLeStoryboard => Commande::LireLeStoryboard,
             MenuAction::ExporterLesPlanches => Commande::ExporterLesPlanches,
@@ -164,6 +166,9 @@ pub enum MenuAction {
     ToggleLock,
     /// Retirer les bandes unies des images sélectionnées (BORDURES-1).
     TrimBorders,
+    /// Retourner les images choisies, chacune sur elle-même (MIROIR-1).
+    RetournerH,
+    RetournerV,
     /// Une case par image choisie, dans l'ordre de lecture (P2, proposition 2, fiche 66).
     StoryboardDeLaSelection,
     /// Lire le storyboard en plein écran, depuis la case choisie (fiche 67).

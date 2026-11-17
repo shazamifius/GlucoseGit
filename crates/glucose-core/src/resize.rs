@@ -34,6 +34,20 @@ pub enum Handle {
 }
 
 impl Handle {
+    /// **La poignée d'en face, de gauche à droite** : le bord d'une photo retournée qu'un bord vu
+    /// à l'écran désigne (MIROIR-1) — la gauche à droite, le haut et le bas tels quels.
+    pub fn en_miroir(self) -> Self {
+        match self {
+            Handle::TopLeft => Handle::TopRight,
+            Handle::TopRight => Handle::TopLeft,
+            Handle::Left => Handle::Right,
+            Handle::Right => Handle::Left,
+            Handle::BottomLeft => Handle::BottomRight,
+            Handle::BottomRight => Handle::BottomLeft,
+            autre => autre,
+        }
+    }
+
     /// Les huit poignées, dans l'ordre du cadran.
     pub const ALL: [Handle; 8] = [
         Handle::TopLeft,

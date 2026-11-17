@@ -39,7 +39,9 @@ fn test_un_document_v1_se_lit_encore_et_ses_images_sont_entieres() {
 
     // La fixture d'aujourd'hui, ramenée à ce qu'elle était en v1 : sans recadrage, sans
     // grille de storyboard (schéma 3), et des cases sans durée, plan ni champs (schéma 4).
-    let mut attendu = sans_grille(sans_la_lecture(d_avant_les_sequences(rich_project())));
+    let mut attendu = sans_grille(sans_la_lecture(d_avant_les_sequences(d_avant_le_miroir(
+        rich_project(),
+    ))));
     for board in &mut attendu.boards {
         for img in &mut board.images {
             img.crop = glucose_core::types::Recadrage::ENTIER;
@@ -73,7 +75,9 @@ fn test_un_document_v2_se_lit_encore_sans_grille_de_storyboard() {
         "le témoin est bien un v2"
     );
 
-    let attendu = sans_grille(sans_la_lecture(d_avant_les_sequences(rich_project())));
+    let attendu = sans_grille(sans_la_lecture(d_avant_les_sequences(d_avant_le_miroir(
+        rich_project(),
+    ))));
     assert_eq!(
         relu.project, attendu,
         "tout ce qui existait en v2 revient à l'identique, sans grille"
@@ -83,6 +87,17 @@ fn test_un_document_v2_se_lit_encore_sans_grille_de_storyboard() {
     let remonte = persist::decode(&reecrit).expect("le document migré se relit");
     assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
     assert_eq!(remonte.project, relu.project);
+}
+
+/// **La fixture ramenée à ce qu'un schéma d'avant le 6 pouvait dire** (MIROIR-1, fiche 118) :
+/// aucune image retournée.
+fn d_avant_le_miroir(mut p: Project) -> Project {
+    for board in &mut p.boards {
+        for img in &mut board.images {
+            img.miroir = false;
+        }
+    }
+    p
 }
 
 /// **La fixture ramenée à ce qu'un schéma d'avant le 4 pouvait dire** : ses cases sans durée,
@@ -139,7 +154,7 @@ fn test_un_document_v3_se_lit_encore_aux_reglages_de_naissance() {
         "le témoin est bien un v3"
     );
 
-    let mut attendu = sans_la_lecture(d_avant_les_sequences(rich_project()));
+    let mut attendu = sans_la_lecture(d_avant_les_sequences(d_avant_le_miroir(rich_project())));
     for board in &mut attendu.boards {
         for s in &mut board.storyboards {
             *s = Storyboard::neuf(STORYBOARD_D_AVANT, s.grille);
@@ -185,12 +200,40 @@ fn test_un_document_v4_se_lit_encore_sous_le_storyboard_d_avant() {
     );
     assert_eq!(
         relu.project,
-        d_avant_les_sequences(rich_project()),
+        d_avant_les_sequences(d_avant_le_miroir(rich_project())),
         "tout ce qui existait en v4 revient à l'identique"
     );
     assert!(
         rich_project().boards[0].storyboards.len() > 1,
         "la fixture d'aujourd'hui porte deux storyboards : sans eux, l'épreuve ne verrait rien"
+    );
+
+    let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
+    let remonte = persist::decode(&reecrit).expect("le document migré se relit");
+    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(remonte.project, relu.project);
+}
+
+/// **Un document au schéma v5 se lit encore, ses images non retournées** (MIROIR-1, fiche 118).
+///
+/// Le témoin a été écrit par la build de `c44ca9a`, la dernière à produire du v5, depuis la même
+/// fixture — avant qu'une image ne s'y retourne.
+#[test]
+fn test_un_document_v5_se_lit_encore_ses_images_non_retournees() {
+    let temoin = include_bytes!("persist_fixture/riche-v5.glucose");
+    let relu = persist::decode(temoin).expect("un document v5 doit se lire");
+    assert_eq!(
+        relu.manifest.document_version, 5,
+        "le témoin est bien un v5"
+    );
+    assert_eq!(
+        relu.project,
+        d_avant_le_miroir(rich_project()),
+        "tout ce qui existait en v5 revient à l'identique"
+    );
+    assert!(
+        rich_project().boards[0].images.iter().any(|i| i.miroir),
+        "la fixture d'aujourd'hui porte une image retournée : sans elle, l'épreuve ne verrait rien"
     );
 
     let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);

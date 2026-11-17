@@ -67,6 +67,8 @@ fn images() -> Vec<BoardImage> {
     linked.tags = vec![];
     // Un recadrage non neutre (RECADRAGE-1, schema v2) : l'aller-retour doit le rendre au bit.
     linked.crop = Recadrage::depuis_les_marges(0.125, 0.0, 0.0625, 0.25);
+    // Retournée (MIROIR-1, schéma v6) : recadrée ET retournée, l'aller-retour rend les deux.
+    linked.miroir = true;
 
     vec![embedded, linked]
 }

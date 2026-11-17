@@ -292,5 +292,197 @@
       "--",
       "tiroir_2"
     ]
+  },
+  {
+    "nom": "MIROIR-1 — de gauche à droite, la rotation ne se reflète pas",
+    "fichier": "crates/glucose-core/src/types/image.rs",
+    "avant": "            Retournement::Horizontal => -self.rotation,",
+    "apres": "            Retournement::Horizontal => self.rotation,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "miroir_suite"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — de haut en bas, le demi-tour s'ajoute au lieu de refléter",
+    "fichier": "crates/glucose-core/src/types/image.rs",
+    "avant": "            Retournement::Vertical => std::f64::consts::PI - self.rotation,",
+    "apres": "            Retournement::Vertical => std::f64::consts::PI + self.rotation,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "miroir_suite"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — le verrou n'épargne plus",
+    "fichier": "crates/glucose-core/src/store/images.rs",
+    "avant": "            if self.image(board_id, id).is_some_and(|i| !i.locked) {",
+    "apres": "            if self.image(board_id, id).is_some() {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "miroir_suite"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — le miroir ne s'écrit pas sur le disque",
+    "fichier": "crates/glucose-core/src/persist/image.rs",
+    "avant": "    w.flag(*miroir);\n",
+    "apres": "    let _ = miroir;\n",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "persist_suite"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — un document v5 se lit comme un v6",
+    "fichier": "crates/glucose-core/src/persist/image.rs",
+    "avant": "    image.miroir = version >= crate::persist::MIROIR_DEPUIS && r.flag()?;",
+    "apres": "    image.miroir = r.flag()?;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "persist_suite"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — l'arène oublie le miroir",
+    "fichier": "crates/glucose-core/src/arena/bridge/import.rs",
+    "avant": "            self.doc.miroir.set(id, ());",
+    "apres": "            let _ = id;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "bridge"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — le processeur pose la photo à l'endroit",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/image.rs",
+    "avant": "    let miroir = if img.miroir { -1.0 } else { 1.0 };",
+    "apres": "    let miroir = 1.0;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "miroir"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — une photo retournée prend le chemin direct du processeur",
+    "fichier": "crates/glucose-desktop/src/renderer/scene/image.rs",
+    "avant": "    if img.rotation != 0.0 || img.miroir || presence < 1.0 {",
+    "apres": "    if img.rotation != 0.0 || presence < 1.0 {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "miroir"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — la carte lit la fenêtre à l'endroit",
+    "fichier": "crates/glucose-desktop/src/renderer/voies/tenue.rs",
+    "avant": "        fenetre: Pose::retournee(Pose::fenetre_de(img.crop), img.miroir),",
+    "apres": "        fenetre: Pose::fenetre_de(img.crop),",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "voies_suite",
+      "--",
+      "miroir"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — le miroir ne compte pas dans l'empreinte des tuiles",
+    "fichier": "crates/glucose-desktop/src/renderer/tuiles.rs",
+    "avant": "        u64::from(img.miroir),\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "empreinte"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — le recadrage d'une image retournée tire le bord vu",
+    "fichier": "crates/glucose-desktop/src/interactions/resize.rs",
+    "avant": "                        miroir: img.miroir,",
+    "apres": "                        miroir: false,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "miroir_1"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — la boîte d'un bord vu ne se retourne pas",
+    "fichier": "crates/glucose-core/src/types/recadrage.rs",
+    "avant": "            2.0 * boite.0 + boite.2 - x - l",
+    "apres": "            x",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--test",
+      "miroir_suite"
+    ]
+  },
+  {
+    "nom": "MIROIR-1 — la commande s'offre sans image choisie",
+    "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+    "avant": "        | C::RetournerVerticalement\n        | C::Verrouiller\n        | C::StoryboardDeLaSelection => images,",
+    "apres": "        | C::Verrouiller\n        | C::StoryboardDeLaSelection => images,\n        C::RetournerVerticalement => true,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "miroir_1"
+    ]
   }
 ]

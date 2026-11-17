@@ -2,9 +2,11 @@
 //! table nomme, les modules de gestes font (§ 1.7). Un seul `match`, sans joker : une commande
 //! ajoutée sans son geste ne compile pas.
 
+use super::palette::But;
 use super::Commande;
 use crate::app::GlucoseApp;
 use glucose_core::store::StackMove;
+use glucose_core::types::Retournement;
 
 impl GlucoseApp {
     /// **Exécute cette commande** ; rend `false` si elle ne s'applique pas (APPLIQUE-1, la loi
@@ -47,6 +49,8 @@ impl GlucoseApp {
             Commande::PremierPlan => self.restack(StackMove::Front),
             Commande::ArrierePlan => self.restack(StackMove::Back),
             Commande::RetirerLesBordures => self.retirer_les_bordures_de_la_selection(),
+            Commande::RetournerHorizontalement => self.retourner(Retournement::Horizontal),
+            Commande::RetournerVerticalement => self.retourner(Retournement::Vertical),
             Commande::Verrouiller => self.toggle_lock(),
             Commande::Pousser(sens, dix) => self.nudge(sens.pas(), dix),
             Commande::ToutCadrer => self.cadrer(false),
@@ -90,13 +94,11 @@ impl GlucoseApp {
             Commande::Operateur(voulu) => return self.poser_l_operateur(voulu),
             Commande::Couleur(rang) => return self.colorer_la_selection(rang),
             Commande::RoueDeCouleur => return self.ouvrir_la_roue(),
-            Commande::Chercher => self.ouvrir_la_palette(super::palette::But::Chercher),
+            Commande::Chercher => self.ouvrir_la_palette(But::Chercher),
             Commande::ResultatSuivant => self.resultat_voisin(1),
             Commande::ResultatPrecedent => self.resultat_voisin(-1),
-            Commande::Palette => self.ouvrir_la_palette(super::palette::But::Lancer),
-            Commande::ChangerUnRaccourci => {
-                self.ouvrir_la_palette(super::palette::But::ChangerLeRaccourci);
-            }
+            Commande::Palette => self.ouvrir_la_palette(But::Lancer),
+            Commande::ChangerUnRaccourci => self.ouvrir_la_palette(But::ChangerLeRaccourci),
             Commande::RetablirLesRaccourcis => self.demander_a_retablir_les_raccourcis(),
             Commande::OublierLesAgents => self.demander_a_oublier_les_agents(),
             Commande::Collaborer => self.montrer_collaborer(),

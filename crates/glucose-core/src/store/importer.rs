@@ -232,6 +232,7 @@ fn suivre_dans_l_image(r: &Renommage, i: &mut BoardImage) {
         width: _,
         height: _,
         rotation: _,
+        miroir: _,
         locked: _,
         tags: _,
         slot_id: _,

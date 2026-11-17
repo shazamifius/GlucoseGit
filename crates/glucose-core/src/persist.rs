@@ -70,7 +70,11 @@ use manifest::{AssetEntry, Manifest};
 /// **Passée à 5 le 14/10/2026** : un tableau porte plusieurs storyboards, et chaque case nomme
 /// le sien (fiche 68). Le schéma 4 n'a vécu qu'une après-midi, mais une build l'a écrit chez
 /// lui : il se relit, et son témoin est écrit par cette build-là.
-pub const DOCUMENT_VERSION: u16 = 5;
+///
+/// **Passée à 6 le 17/11/2026** : une image porte son miroir (MIROIR-1, fiche 118). Un document
+/// v5 se relit, ses images non retournées ; une version d'avant refuse un document v6 par son
+/// message (« mets Glucose à jour »), jamais en silence.
+pub const DOCUMENT_VERSION: u16 = 6;
 
 /// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
 ///
@@ -84,6 +88,8 @@ pub const STORYBOARD_DEPUIS: u16 = 3;
 pub const ANIMATIQUE_DEPUIS: u16 = 4;
 /// Le schéma depuis lequel un tableau porte plusieurs storyboards (fiche 68).
 pub const SEQUENCES_DEPUIS: u16 = 5;
+/// Le schéma depuis lequel une image porte son miroir (MIROIR-1, fiche 118).
+pub const MIROIR_DEPUIS: u16 = 6;
 /// Plus ancien schéma de document que cette build sait lire.
 pub const MIN_READABLE_DOCUMENT_VERSION: u16 = 1;
 /// Extension de fichier, sans le point.

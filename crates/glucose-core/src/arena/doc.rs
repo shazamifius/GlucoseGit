@@ -171,6 +171,9 @@ pub struct Doc {
     /// Éparse, et c'est ce qui la rend gratuite : la quasi-totalité des images sont entières,
     /// et une image entière n'a pas de ligne ici.
     pub crop: Sparse<crate::types::Recadrage>,
+    /// **Une image retournée** (MIROIR-1) : éparse comme le recadrage — une image qui ne l'est
+    /// pas n'a pas de ligne ici. Les huit drapeaux d'un nœud sont pris.
+    pub miroir: Sparse<()>,
     /// Le tableau enfant d'un dossier, et son nom.
     pub folder: Sparse<(Box<str>, Box<str>)>,
     /// Le rang d'un panneau de storyboard.
@@ -285,7 +288,7 @@ impl Doc {
     /// vérification (DOC-1) lisent tous deux. `Doc` y est déstructuré champ par champ : une
     /// table ajoutée et oubliée ici ne compile pas. Écrite deux fois à la main, la liste avait
     /// perdu `crop` des deux côtés (RECADRAGE-1), et personne ne l'avait vu.
-    pub fn tables(&self) -> [(&'static str, &dyn super::sparse::Eparse); 23] {
+    pub fn tables(&self) -> [(&'static str, &dyn super::sparse::Eparse); 24] {
         let Doc {
             nodes: _,
             text: _,
@@ -306,6 +309,7 @@ impl Doc {
             image,
             original,
             crop,
+            miroir,
             folder,
             order,
             asset,
@@ -331,6 +335,7 @@ impl Doc {
             ("image", image),
             ("original", original),
             ("crop", crop),
+            ("miroir", miroir),
             ("folder", folder),
             ("order", order),
             ("asset", asset),

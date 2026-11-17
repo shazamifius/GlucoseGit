@@ -6,7 +6,7 @@
 #
 # Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran ;
 # depuis, les opérateurs des post-it et le groupe dans une membrane (fiche 98), les retours de
-# la vue (fiche 99).
+# la vue (fiche 99), les retournements des images, ceux de PureRef (fiche 118).
 
 # Le document
 Ctrl+N          nouveau-document
@@ -34,6 +34,8 @@ Effacer         supprimer
 Ctrl+]          premier-plan
 Ctrl+[          arriere-plan
 Ctrl+B          retirer-les-bordures
+Alt+Maj+H       image.retourner-h
+Alt+Maj+V       image.retourner-v
 L               verrouiller
 Gauche          pousser.gauche
 Droite          pousser.droite

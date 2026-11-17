@@ -81,6 +81,9 @@ pub enum Commande {
     PremierPlan,
     ArrierePlan,
     RetirerLesBordures,
+    /// Retourner les images choisies, chacune sur elle-même (MIROIR-1, fiche 118).
+    RetournerHorizontalement,
+    RetournerVerticalement,
     Verrouiller,
     /// Pousser la sélection d'un cran, ou de dix.
     Pousser(Sens, bool),
@@ -177,7 +180,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 57] = [
+const SIMPLES: [(Commande, &str, &str); 59] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -222,6 +225,16 @@ const SIMPLES: [(Commande, &str, &str); 57] = [
         Commande::RetirerLesBordures,
         "retirer-les-bordures",
         "Retirer les bordures",
+    ),
+    (
+        Commande::RetournerHorizontalement,
+        "image.retourner-h",
+        "Retourner horizontalement",
+    ),
+    (
+        Commande::RetournerVerticalement,
+        "image.retourner-v",
+        "Retourner verticalement",
     ),
     (
         Commande::Verrouiller,

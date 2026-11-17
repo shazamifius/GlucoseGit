@@ -311,10 +311,10 @@ fn poser(
     let source = boite_source(img, ecran);
     let (vx, vy, vw, vh) = source;
 
-    // Une photo tournée, ou estompée (ESTOMPE-1), passe par le rastériseur général : il pose
-    // l'image entière à une opacité, en composant — une opacité de groupe, comme la texture que
-    // la carte graphique pose.
-    if img.rotation != 0.0 || presence < 1.0 {
+    // Une photo tournée, retournée (MIROIR-1) ou estompée (ESTOMPE-1), passe par le rastériseur
+    // général : il pose l'image entière à une opacité, en composant — une opacité de groupe,
+    // comme la texture que la carte graphique pose.
+    if img.rotation != 0.0 || img.miroir || presence < 1.0 {
         return (
             poser_en_tournant(pyramide, pixmap, img, ecran, source, presence),
             Chemin::Tournee,
@@ -368,7 +368,22 @@ fn poser(
     (ecrits, Chemin::Echantillon, passees)
 }
 
-/// Pose une image **tournée**, ou **estompée** (ESTOMPE-1), par le rastériseur général.
+/// **Ce que l'image fait à l'écran autour du centre `(cx, cy)` de sa boîte** : son miroir
+/// d'abord, puis sa rotation — l'ordre du modèle (MIROIR-1, `BoardImage::retourner`).
+fn pose_a_l_ecran(img: &glucose_core::types::BoardImage, (cx, cy): (f32, f32)) -> Transform {
+    let miroir = if img.miroir { -1.0 } else { 1.0 };
+    Transform::from_translate(-cx, -cy)
+        .post_scale(miroir, 1.0)
+        .post_translate(cx, cy)
+        .post_concat(Transform::from_rotate_at(
+            img.rotation.to_degrees() as f32,
+            cx,
+            cy,
+        ))
+}
+
+/// Pose une image **tournée**, **retournée** ou **estompée** (ESTOMPE-1), par le rastériseur
+/// général.
 ///
 /// Sa boîte n'est plus ce qu'elle couvre : ses morceaux visibles ne sont pas des rectangles,
 /// donc le report ne saurait pas les clipper, et elle ne peut rien cacher non plus. Elle
@@ -388,11 +403,7 @@ fn poser_en_tournant(
     let Some((facteur, loaded)) = pyramide.meilleur_pour(vw) else {
         return 0;
     };
-    let rotation = Transform::from_rotate_at(
-        img.rotation.to_degrees() as f32,
-        sx + sw / 2.0,
-        sy + sh / 2.0,
-    );
+    let rotation = pose_a_l_ecran(img, (sx + sw / 2.0, sy + sh / 2.0));
     // La source se pose a SA boite -- plus grande que celle du noeud si l'image est cadree --
     // et tourne autour du centre du noeud, comme le modele le definit.
     let pose_source =

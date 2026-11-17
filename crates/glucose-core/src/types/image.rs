@@ -41,6 +41,11 @@ pub struct BoardImage {
     pub width: f64,
     pub height: f64,
     pub rotation: f64,
+    /// **MIROIR-1 — l'image retournée de gauche à droite**, autour de son centre, avant sa
+    /// rotation. Un seul interrupteur suffit à tous les retournements : retourner de haut en bas,
+    /// c'est retourner de gauche à droite puis faire un demi-tour ([`Self::retourner`]). Sa
+    /// capture du 17/11 : *« crée une option de flip pour les images »*.
+    pub miroir: bool,
     pub locked: bool,
     pub tags: Vec<String>,
     pub slot_id: Option<String>,
@@ -73,6 +78,7 @@ impl BoardImage {
             width,
             height,
             rotation: 0.0,
+            miroir: false,
             locked: false,
             tags: Vec::new(),
             slot_id: None,
@@ -114,4 +120,24 @@ impl BoardImage {
         );
         Rect::new(self.x - hx, self.y - hy, 2.0 * hx, 2.0 * hy)
     }
+
+    /// **Retourne l'image à l'écran, sur elle-même** (MIROIR-1) : son miroir s'inverse, et sa
+    /// rotation se reflète. Écrite `R(θ)·M^m` — le miroir d'abord, la rotation ensuite —,
+    /// l'image retournée de gauche à droite est `M·R(θ)·M^m = R(−θ)·M^(m+1)` ; de haut en bas,
+    /// c'est la même suivie d'un demi-tour, `R(π − θ)·M^(m+1)`. Deux fois le même sens rendent
+    /// l'image telle qu'elle était, une image penchée comprise.
+    pub fn retourner(&mut self, sens: Retournement) {
+        self.miroir = !self.miroir;
+        self.rotation = crate::rotate::normalize(match sens {
+            Retournement::Horizontal => -self.rotation,
+            Retournement::Vertical => std::f64::consts::PI - self.rotation,
+        });
+    }
+}
+
+/// Le sens d'un retournement, **vu à l'écran** : de gauche à droite, ou de haut en bas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Retournement {
+    Horizontal,
+    Vertical,
 }

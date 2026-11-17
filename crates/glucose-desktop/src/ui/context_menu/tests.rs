@@ -91,6 +91,9 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
             MenuAction::Grouper,
             MenuAction::ToggleLock,
             MenuAction::TrimBorders,
+            // Les images choisies se retournent (MIROIR-1, fiche 118).
+            MenuAction::RetournerH,
+            MenuAction::RetournerV,
             MenuAction::StoryboardDeLaSelection,
             MenuAction::ToFront,
             MenuAction::ToBack,

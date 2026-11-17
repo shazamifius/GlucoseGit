@@ -1194,3 +1194,33 @@ fn test_draw_1_the_whole_stroke_is_one_undo_entry() {
         .unwrap_or(9);
     assert_eq!(reste, 0, "une seule annulation efface toute la flèche");
 }
+
+/// **MIROIR-1 — `Alt` sur le côté droit d'une image retournée** rogne le bord GAUCHE de la photo,
+/// qu'on voit à droite : la boîte perd soixante par la droite, comme une image à l'endroit, et
+/// c'est l'autre côté de la photo qui part.
+#[test]
+fn test_miroir_1_alt_sur_le_cote_d_une_image_retournee_rogne_l_autre_cote_de_la_photo() {
+    let (mut app, rect) = app_avec_image();
+    let board = app.store.project.active_board_id.clone();
+    app.store.update_image(&board, "img", |i| i.miroir = true);
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::Right);
+    drag_by(&mut app, -60.0, 0.0, 3);
+    release(&mut app);
+
+    let (g, h, d, b) = crop(&app).marges();
+    assert!(
+        (g - 0.3).abs() < 1e-9,
+        "trois dixiemes retires a gauche de la photo : {g}"
+    );
+    assert_eq!((h, d, b), (0.0, 0.0, 0.0));
+    let apres = image_box(&app, "img");
+    assert!(
+        approx(apres.left, rect.left),
+        "le bord gauche n'a pas bouge"
+    );
+    assert!(
+        approx(apres.width, rect.width - 60.0),
+        "la boite a perdu soixante"
+    );
+}

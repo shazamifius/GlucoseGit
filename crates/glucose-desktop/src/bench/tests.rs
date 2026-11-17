@@ -495,7 +495,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// pixels, tous dans le menu et sur ce mot (261-888 × 424-645) ; regardé avant/après, agrandi.
 /// **Puis, le 17/11** (fiche 118) : « Redresser la flèche » dans le groupe de l'édition — la
 /// flèche témoin a un coude —, et les poignées de ses bouts (BOUT-1) ; regardé, agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "be90514ff2c0950c";
+/// **Puis** (MIROIR-1, fiche 118) : « Retourner horizontalement — Alt+Maj+H » et « Retourner
+/// verticalement — Alt+Maj+V » dans le groupe des images ; le menu s'élargit et gagne deux
+/// rangées. 25 280 pixels, tous dans le menu (639-897 × 319-717) ; regardé, agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "405989fe46116d3a";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

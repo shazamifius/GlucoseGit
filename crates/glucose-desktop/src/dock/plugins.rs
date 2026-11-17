@@ -69,7 +69,9 @@ pub fn layout_plugins_panel(frame: ScaledRect) -> PluginsPanelLayout {
 
     let row =
         |y: f32, i: usize| WidgetRect::new(px + pad_x, y + i as f32 * 16.0 * s, inner_w, 16.0 * s);
-    let dens_y = py + 244.0 * s;
+    // Sous la légende « RÉGLAGES » (posée 16 sous la carte) et le titre de la rangée : la
+    // rangée commençait à 244, et le titre « Densité » passait sur la légende.
+    let dens_y = card_rect.y + card_rect.h + 52.0 * s;
     let density_options = (0..DENSITIES.len()).map(|i| row(dens_y, i)).collect();
     let disp_y = dens_y + DENSITIES.len() as f32 * 16.0 * s + 20.0 * s;
     let disposition_options = (0..DISPOSITIONS.len()).map(|i| row(disp_y, i)).collect();

@@ -107,6 +107,9 @@ impl Bridge {
         if img.rotation != 0.0 {
             self.doc.rotation.set(id, img.rotation as f32);
         }
+        if img.miroir {
+            self.doc.miroir.set(id, ());
+        }
         let propre = ImageTrait {
             src: img.src.as_deref().map(Into::into),
             source_url: img.source_url.as_deref().map(Into::into),

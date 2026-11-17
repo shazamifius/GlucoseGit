@@ -43,6 +43,8 @@ pub enum ResizeTarget {
     Image {
         id: String,
         rotation: f64,
+        /// Retournée (MIROIR-1) : son bord gauche à l'écran est le bord droit de la photo.
+        miroir: bool,
     },
     TextCard {
         id: String,
@@ -181,6 +183,7 @@ impl GlucoseApp {
                     ResizeTarget::Image {
                         id,
                         rotation: img.rotation,
+                        miroir: img.miroir,
                     },
                     img.rect(),
                 ))
@@ -283,7 +286,12 @@ impl GlucoseApp {
     /// dans le repère de l'image, et la boîte recule de ce qu'on retire pour que le contenu
     /// ne bouge pas : c'est le noyau qui la calcule, comme pour les bordures.
     fn write_crop(&mut self, session: &ResizeSession, delta: (f64, f64)) {
-        let ResizeTarget::Image { id, rotation } = &session.target else {
+        let ResizeTarget::Image {
+            id,
+            rotation,
+            miroir,
+        } = &session.target
+        else {
             return;
         };
         let local = rotate(delta, -rotation);
@@ -293,10 +301,11 @@ impl GlucoseApp {
             session.start.width,
             session.start.height,
         );
-        let nouveau = session
-            .crop_start
-            .en_tirant_le_bord(session.handle, local, depart);
-        let (x, y, w, h) = session.crop_start.boite_apres(nouveau, depart);
+        // Retournée, sa gauche à l'écran est la droite de la photo (MIROIR-1).
+        let (nouveau, (x, y, w, h)) =
+            session
+                .crop_start
+                .en_tirant_le_bord_vu(session.handle, local, depart, *miroir);
         let rect = recenter_rotated(
             session.start,
             AlignRect {
@@ -323,7 +332,7 @@ impl GlucoseApp {
     /// même endroit donnent le même résultat, quel que soit le nombre d'événements reçus
     /// entre les deux (ROT-1). `Maj` verrouille sur les huit directions des poignées.
     fn write_rotation(&mut self, session: &ResizeSession, pointer: (f64, f64)) {
-        let ResizeTarget::Image { id, rotation } = &session.target else {
+        let ResizeTarget::Image { id, rotation, .. } = &session.target else {
             return;
         };
         let centre = (

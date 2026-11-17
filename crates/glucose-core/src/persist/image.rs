@@ -21,6 +21,7 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
         width,
         height,
         rotation,
+        miroir,
         locked,
         tags,
         slot_id,
@@ -61,6 +62,8 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
     w.seq(domains, write_domain_assignment);
     w.opt_text(mirror_of.as_ref());
     w.opt(temporal_anchor.as_ref(), write_temporal_anchor);
+    // MIROIR-1, schéma v6 : à la fin, pour qu'un lecteur v5 n'ait rien d'autre à sauter.
+    w.flag(*miroir);
 }
 
 /// **Lit une image du schema `version`.**
@@ -70,6 +73,13 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
 /// v1. Le lecteur ne DEVINE rien -- un champ optionnel deduit de ce qui reste d'octets serait
 /// un format qui se relit a l'envers.
 pub fn read_image(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
+    let mut image = read_image_v5(r, version)?;
+    image.miroir = version >= crate::persist::MIROIR_DEPUIS && r.flag()?;
+    Ok(image)
+}
+
+/// Les champs d'une image jusqu'au schéma v5, dans l'ordre où ils s'écrivent.
+fn read_image_v5(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
     Ok(BoardImage {
         id: r.text()?,
         membrane_id: r.opt_text()?,
@@ -80,6 +90,8 @@ pub fn read_image(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
         width: r.f64()?,
         height: r.f64()?,
         rotation: r.f64()?,
+        // Lu à la fin de la notice (schéma v6), posé ici après coup.
+        miroir: false,
         locked: r.flag()?,
         tags: r.seq(|rr| rr.text())?,
         slot_id: r.opt_text()?,

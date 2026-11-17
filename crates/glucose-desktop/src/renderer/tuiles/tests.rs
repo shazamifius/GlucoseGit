@@ -216,6 +216,8 @@ fn aucune_propriete_visible_n_echappe_a_l_empreinte() {
     fichier.src = Some("b.png".into());
     let mut tourne = base.clone();
     tourne.rotation = 0.1;
+    let mut retourne = base.clone();
+    retourne.miroir = true;
     let mut video = base.clone();
     video.is_video = true;
     let mut cadre = base.clone();
@@ -231,6 +233,7 @@ fn aucune_propriete_visible_n_echappe_a_l_empreinte() {
     for (nom, variante) in [
         ("le fichier", fichier),
         ("la rotation", tourne),
+        ("le miroir", retourne),
         ("la nature video", video),
         ("le cadrage", cadre),
         ("le verrou", verrouille),

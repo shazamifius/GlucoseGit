@@ -292,6 +292,7 @@ fn aspect_de(img: &glucose_core::types::BoardImage, presence: f32) -> u64 {
         mot_du_texte(img.src.as_deref().unwrap_or_default()),
         mot_du_texte(img.fit.as_deref().unwrap_or_default()),
         img.rotation.to_bits(),
+        u64::from(img.miroir),
         u64::from(img.is_video),
         u64::from(img.locked),
         img.original_width.to_bits(),

@@ -123,6 +123,22 @@ impl Store {
         });
     }
 
+    /// **Retourne les images nommées, chacune sur elle-même** (MIROIR-1) : de gauche à droite,
+    /// ou de haut en bas, vu à l'écran. Une image verrouillée ne se retourne pas — le verrou
+    /// la garde telle qu'elle est.
+    pub fn retourner_les_images(
+        &mut self,
+        board_id: &str,
+        ids: &[String],
+        sens: crate::types::Retournement,
+    ) {
+        for id in ids {
+            if self.image(board_id, id).is_some_and(|i| !i.locked) {
+                self.update_image(board_id, id, |img| img.retourner(sens));
+            }
+        }
+    }
+
     /// Ferme l'ensemble des identifiants à supprimer par la cascade des miroirs :
     /// supprimer une image supprime toutes celles qui la reflètent, transitivement.
     fn close_image_mirror_cascade(&self, to_remove: &mut HashSet<String>) {

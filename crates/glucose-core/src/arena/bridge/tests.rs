@@ -62,6 +62,8 @@ fn tableau_complet() -> Board {
         width: 640.0,
         height: 480.0,
         rotation: 45.0,
+        // Retournée (MIROIR-1) : l'aller-retour par l'arène doit la rendre telle.
+        miroir: true,
         locked: true,
         tags: vec!["une".into(), "deux".into()],
         slot_id: Some("slot-a".into()),

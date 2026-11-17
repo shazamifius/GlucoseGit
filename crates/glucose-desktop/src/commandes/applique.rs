@@ -53,6 +53,8 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::Pousser(..)
         | C::Grouper
         | C::RetirerLesBordures
+        | C::RetournerHorizontalement
+        | C::RetournerVerticalement
         | C::Verrouiller
         | C::StoryboardDeLaSelection
         | C::EnregistrerLImage
@@ -131,7 +133,11 @@ fn selon_le_choix(store: &Store, ui: &UiState, commande: Commande) -> bool {
         }
         C::Pousser(..) => store.compte_de_la_selection() > 0,
         C::Grouper => store.peut_grouper_la_selection(),
-        C::RetirerLesBordures | C::Verrouiller | C::StoryboardDeLaSelection => images,
+        C::RetirerLesBordures
+        | C::RetournerHorizontalement
+        | C::RetournerVerticalement
+        | C::Verrouiller
+        | C::StoryboardDeLaSelection => images,
         C::EnregistrerLImage => {
             store.selected_image_ids.len() == 1 && store.selected_annotation_ids.is_empty()
         }

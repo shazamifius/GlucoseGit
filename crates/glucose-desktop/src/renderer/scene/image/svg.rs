@@ -31,6 +31,31 @@ pub fn type_d_image(octets: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// **La rotation et le miroir d'une image**, autour du centre `(cx, cy)` de sa boîte à l'écran —
+/// l'attribut `transform`, ou rien. SVG applique la liste de droite à gauche : le miroir d'abord,
+/// puis la rotation, l'ordre du modèle (MIROIR-1).
+fn pose_en_svg(img: &BoardImage, (cx, cy): (f32, f32)) -> String {
+    let mut pose = Vec::new();
+    if img.rotation != 0.0 {
+        let angle = n(img.rotation.to_degrees() as f32);
+        pose.push(format!("rotate({angle} {} {})", n(cx), n(cy)));
+    }
+    if img.miroir {
+        pose.push(format!(
+            "translate({} {}) scale(-1 1) translate({} {})",
+            n(cx),
+            n(cy),
+            n(-cx),
+            n(-cy)
+        ));
+    }
+    if pose.is_empty() {
+        String::new()
+    } else {
+        format!(r#" transform="{}""#, pose.join(" "))
+    }
+}
+
 /// **Écrit chaque image visible** ; `octets` rend ceux d'une image, s'ils se lisent.
 pub(in crate::renderer) fn images_en_svg(
     store: &Store,
@@ -44,16 +69,7 @@ pub(in crate::renderer) fn images_en_svg(
     for img in Visibles::nouvelles(pass.visibles, board).images() {
         let ecran = boite_ecran(img, &pass);
         let (x, y, l, h) = ecran;
-        let tourne = if img.rotation == 0.0 {
-            String::new()
-        } else {
-            format!(
-                r#" transform="rotate({} {} {})""#,
-                n(img.rotation.to_degrees() as f32),
-                n(x + l / 2.0),
-                n(y + h / 2.0)
-            )
-        };
+        let tourne = pose_en_svg(img, (x + l / 2.0, y + h / 2.0));
         let lu = octets(img).and_then(|o| type_d_image(&o).map(|t| (t, o)));
         let Some((genre, octets)) = lu else {
             svg.poser(&format!(
