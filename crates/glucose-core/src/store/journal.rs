@@ -61,6 +61,10 @@
 //!   ainsi chaque geste, et une IA qui la relit sait qui a fait quoi (sa parole du 12/11/2026 :
 //!   tout le système d'IA repose sur la Time Machine). Défaire le geste d'un agent est un geste
 //!   de l'humain.
+//! - **CLIENT-1** (fiche 117) — sur un canevas partagé, la pile d'annulation n'est plus celle-ci :
+//!   les gestes des autres s'intercalent, et ses rangs ne vaudraient plus rien (JRN-2). Chacun défait
+//!   **ses** gestes, par le nom (`store::participation`) ; le journal n'y tient que la file de sortie,
+//!   où chaque geste de ce Glucose est marqué pour partir ([`Ecrit::part`]).
 
 use crate::types::Project;
 use std::collections::HashSet;
@@ -208,6 +212,7 @@ mod en_mots;
 mod fondre;
 mod mains;
 pub mod partage;
+mod partir;
 
 pub use edit::{Bouts, Edit};
 pub use mains::{suivre_les_mains, Ecrit, Main};
@@ -309,6 +314,8 @@ pub struct Journal {
     /// qu'un geste écrit (GESTE-1) sait ainsi qu'un autre l'a remplacé, même s'il ne l'a pas
     /// vu se fermer.
     ouverts: u64,
+    /// **Un canevas partagé** (CLIENT-1) : les gestes partent, la pile reste vide.
+    partage: bool,
 }
 
 impl Journal {
@@ -322,6 +329,7 @@ impl Journal {
             des_agents: HashSet::new(),
             max_depth,
             ouverts: 0,
+            partage: false,
         }
     }
 
@@ -367,15 +375,37 @@ impl Journal {
         std::mem::take(&mut self.ecrits)
     }
 
-    /// La file d'un geste appliqué : la transaction, et la main qui agit.
-    fn publier(&mut self, transaction: Transaction) {
-        let agent = self.main != Main::Humain;
-        let repris = suivre_les_mains(&mut self.des_agents, &transaction, agent);
+    /// La file d'un geste appliqué : la transaction, la main qui l'a fait, et s'il part.
+    fn publier(&mut self, transaction: Transaction, main: Main, part: bool) {
+        let repris = suivre_les_mains(&mut self.des_agents, &transaction, main.est_un_agent());
+        // Seul l'humain de ce Glucose rectifie son IA (RECTIF-1) : un participant corrige la sienne.
+        let repris = if main == Main::Humain {
+            repris
+        } else {
+            Vec::new()
+        };
         self.ecrits.push(Ecrit {
             transaction,
-            main: self.main.clone(),
+            main,
             repris,
+            part,
         });
+    }
+
+    /// **Publie un geste appliqué hors de la pile** (CLIENT-1) : reçu d'un autre participant, ou un
+    /// pas d'annulation partagé. Il s'écrit sur le disque sous sa main ; il ne part pas.
+    pub(crate) fn publier_tel(&mut self, transaction: Transaction, main: Main) {
+        if !transaction.is_empty() {
+            self.publier(transaction, main, false);
+        }
+    }
+
+    /// **Entre dans un canevas partagé, ou en sort** (CLIENT-1) : la pile se vide — ses rangs
+    /// décrivaient un document que personne d'autre ne touchait.
+    pub(crate) fn partager(&mut self, oui: bool) {
+        self.partage = oui;
+        self.done.clear();
+        self.undone.clear();
     }
 
     /// Vide tout. Appelé quand une édition a contourné le journal (chargement d'un projet,
@@ -498,7 +528,12 @@ impl Journal {
     }
 
     fn commit(&mut self, tx: Transaction) {
-        self.publier(tx.clone());
+        if self.partage {
+            // Partagé : le geste part, nommé par la participation ; la pile est la sienne.
+            self.publier(tx, self.main.clone(), true);
+            return;
+        }
+        self.publier(tx.clone(), self.main.clone(), false);
         self.done.push(tx);
         if self.done.len() > self.max_depth {
             self.done.remove(0);
@@ -545,7 +580,7 @@ impl Journal {
             return false;
         }
         to.push(tx.clone());
-        self.publier(tx);
+        self.publier(tx, self.main.clone(), false);
         true
     }
 }

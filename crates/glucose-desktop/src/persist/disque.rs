@@ -60,6 +60,8 @@ pub struct Disque {
     /// **La porte aux IA publiques** (fiche 116) : son secret, si elle est ouverte, qui l'a.
     /// Le vrai lancement seul y met le dossier de l'utilisateur.
     pub porte_publique: PathBuf,
+    /// **Son nom et sa couleur** dans un canevas partagé (fiche 117).
+    pub identite: PathBuf,
     /// Ce que les autres fichiers disent de leurs domaines, lu sans y écrire (fiche 88).
     pub recenseur: crate::recensement::Recenseur,
 }
@@ -80,6 +82,8 @@ impl Disque {
             raccourcis_proteges: None,
             porte_publique: crate::app::accueil::dossier_hors_lancement()
                 .join(crate::agents::publique::accords::FICHIER),
+            identite: crate::app::accueil::dossier_hors_lancement()
+                .join(crate::app::collaborer::identite::FICHIER),
             recenseur: crate::recensement::Recenseur::default(),
         }
     }
@@ -88,7 +92,8 @@ impl Disque {
 impl GlucoseApp {
     /// **Écrit ce que le journal a appliqué au document** depuis la dernière image.
     pub fn consigner(&mut self) {
-        let transactions = self.store.journal.prendre_les_ecrits_signes();
+        // Ce qui part à un canevas partagé part d'abord (CLIENT-1) : rien ne quitte la file sans.
+        let transactions = self.store.ecrits_a_consigner();
         if self.disque.voyage.is_some() {
             // On regarde le passé : ce qui s'y fait n'est pas de l'histoire (HISTOIRE-3).
             return;

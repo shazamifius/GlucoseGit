@@ -239,6 +239,8 @@ impl GlucoseApp {
         // Ce que les agents demandent (AGENTS-1, fiche 75), et les IA du nuage (fiche 116).
         self.suivre_les_agents();
         self.suivre_la_porte_publique();
+        // Le canevas partagé : ce qui arrive entre, ce qui part s'en va (fiche 117).
+        self.suivre_le_canevas_partage();
 
         self.chronique
             .entracte

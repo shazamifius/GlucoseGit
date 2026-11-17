@@ -22,12 +22,14 @@ use super::{build_folder_stack, Store};
 impl Store {
     /// Profondeur de la pile d'annulation, en nombre de gestes.
     pub fn undo_depth(&self) -> usize {
-        self.journal.depth()
+        self.profondeurs_partagees()
+            .map_or_else(|| self.journal.depth(), |(d, _)| d)
     }
 
     /// Nombre de gestes rétablissables.
     pub fn redo_depth(&self) -> usize {
-        self.journal.redo_depth()
+        self.profondeurs_partagees()
+            .map_or_else(|| self.journal.redo_depth(), |(_, r)| r)
     }
 
     /// Vrai pendant un geste continu (glisser, frappe de texte).
@@ -206,11 +208,11 @@ impl Store {
     }
 
     pub fn can_undo(&self) -> bool {
-        self.journal.can_undo()
+        self.undo_depth() > 0
     }
 
     pub fn can_redo(&self) -> bool {
-        self.journal.can_redo()
+        self.redo_depth() > 0
     }
 
     pub fn undo(&mut self) -> bool {
@@ -223,6 +225,10 @@ impl Store {
 
     /// Un pas d'annulation, dans un sens ou dans l'autre.
     fn step(&mut self, backward: bool) -> bool {
+        // Sur un canevas partagé, chacun défait les siens, par le nom (CLIENT-1, fiche 117).
+        if self.partage.is_some() {
+            return self.pas_partage(backward);
+        }
         let moved = if backward {
             self.journal.undo(&mut self.project)
         } else {

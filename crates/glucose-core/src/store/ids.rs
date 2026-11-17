@@ -133,6 +133,8 @@ impl Store {
     /// que pour un fichier antérieur, dont les références vers des domaines disparus seraient
     /// sinon réécrites au prochain `Ctrl+S`.
     pub fn load_project(&mut self, project: Project) -> usize {
+        // Un autre document : le canevas partagé était celui d'avant (CLIENT-1).
+        self.quitter_le_partage();
         self.project = project;
         // Un autre document : la fenêtre des liens montrait ceux de l'ancien (LIEN-3).
         self.fenetre_des_liens = None;

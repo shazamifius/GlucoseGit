@@ -232,7 +232,7 @@ impl GlucoseApp {
             // `handle_ui_click`.
             UiAction::ToggleMagnet | UiAction::TransDomain => {}
             // La porte aux IA publiques, et plus tard le co-working (fiche 116).
-            UiAction::ToggleCollab => self.montrer_la_porte_publique(),
+            UiAction::ToggleCollab => self.montrer_collaborer(),
             UiAction::ExportMenu => self.export_board(),
             UiAction::SelectBoard(id) => self.cliquer_un_onglet(id),
             UiAction::CloseBoard(id) => self.fermer_l_onglet(&id),

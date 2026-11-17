@@ -54,6 +54,7 @@ mod lot;
 mod membranes;
 mod navigation;
 mod order;
+pub mod participation;
 mod resize;
 pub mod retour;
 mod selection;
@@ -70,6 +71,7 @@ pub use lot::{inventaire, Inventaire, Provenance};
 pub use membranes::Emport;
 pub use navigation::build_folder_stack;
 pub use order::StackMove;
+pub use participation::{Arrivee, Envoi, Participation, Sortant};
 
 use crate::types::{AssetStore, Project};
 
@@ -106,6 +108,9 @@ pub struct Store {
     /// identifiant qu'il crée (`txt-k3f9-44`). Deux participants qui créent au même instant ne donnent
     /// jamais le même nom — que l'application par le nom (PARTAGE-1) confondrait. Seul, aucune.
     pub participant: Option<String>,
+    /// **Le canevas partagé auquel on participe** (CLIENT-1, fiche 117) : ses gestes en attente, sa
+    /// pile par le nom, ce qui part et ce qui arrive. Seul, rien.
+    pub partage: Option<participation::Participation>,
     pub version: u64,
     /// **L'identité du document chargé** (fiche 80) : un agent range sous elle ce qu'il en a vu.
     /// L'instant du chargement par défaut — deux documents ne la partagent jamais ; l'application
@@ -143,6 +148,7 @@ impl Store {
             journal: journal::Journal::new(UNDO_DEPTH),
             next_id: 1,
             participant: None,
+            partage: None,
             version: 1,
             identite: ids::identite_d_instant(),
             bornes: std::cell::RefCell::default(),

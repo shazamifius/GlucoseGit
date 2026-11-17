@@ -74,6 +74,7 @@ pub mod recensement;
 pub mod renderer;
 pub mod resolution;
 pub mod salissure;
+pub mod salle;
 pub mod tauri;
 pub mod telemetrie;
 pub mod tempo;

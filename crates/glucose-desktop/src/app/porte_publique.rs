@@ -74,7 +74,7 @@ impl GlucoseApp {
                         personnalisé) ou à une autre IA qui parle MCP. Une IA n'y entre qu'après \
                         ton accord, ici, devant le même code que sur sa page ; elle ne voit que le \
                         document ouvert, et chacun de ses gestes est signé de son nom et s'annule \
-                        par Ctrl+Z.\n\nLe co-working entre humains passera par la même porte."
+                        par Ctrl+Z."
                     .into(),
                 choix: vec![
                     ("Ouvrir la porte".into(), Reponse::Oui),
@@ -174,7 +174,8 @@ impl GlucoseApp {
         if let Err(e) = accords::enregistrer(&self.disque.porte_publique, &etat) {
             crate::dire_erreur!("[Glucose] porte publique : {e}");
         }
-        self.ui.porte_ouverte = false;
+        // Collaborer reste allumé tant qu'un canevas est partagé (fiche 117).
+        self.ui.porte_ouverte = self.lancement.agents.partage.is_some();
     }
 
     /// **Les IA qui ont ta porte**, chacune à retirer d'un clic.
@@ -280,9 +281,15 @@ impl GlucoseApp {
             .is_none_or(|t| maintenant.duration_since(t) > SILENCE);
         self.lancement.agents.dernier_geste_public = Some(maintenant);
         if reprise {
-            self.ui
-                .show_toast(format!("{signature} travaille dans ton canevas"));
+            self.dire_ce_qui_arrive_au_canevas(format!("{signature} travaille dans ton canevas"));
         }
+    }
+
+    /// **Ce qu'un autre vient de faire dans ton canevas** — une IA du nuage qui s'y met (le
+    /// témoin), un geste croisé dans un canevas partagé, un geste de lecteur défait (fiche 117) :
+    /// une seule sorte d'évènement, dite à un seul endroit.
+    pub(crate) fn dire_ce_qui_arrive_au_canevas(&mut self, phrase: String) {
+        self.ui.show_toast(phrase);
     }
 }
 

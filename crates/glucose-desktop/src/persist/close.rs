@@ -72,6 +72,9 @@ pub enum Ensuite {
     Ouvrir(PathBuf),
     /// Un document vierge (`Ctrl+N`).
     Vierge,
+    /// **Rejoindre un canevas partagé** par ce code (CLIENT-1, fiche 117) : la base de la salle
+    /// prendra la place du document.
+    Rejoindre(glucose_core::salle::code::Code),
 }
 
 /// **La question du travail non enregistré** : « Enregistrer » d'abord, la réponse qui ne
@@ -214,6 +217,7 @@ impl GlucoseApp {
         match ensuite {
             Ensuite::Ouvrir(chemin) => self.open_from(chemin),
             Ensuite::Vierge => self.adopter_un_document_vierge(),
+            Ensuite::Rejoindre(code) => self.commencer_a_rejoindre(code),
         }
     }
 

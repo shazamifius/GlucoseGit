@@ -243,12 +243,12 @@ impl Ecriture {
     }
 
     /// **L'identifiant dont cette main signe** (MAIN-1) : celui du lancement pour l'humain ; pour
-    /// un agent, celui de son nom, déclaré une fois par fichier, avant son premier geste.
+    /// un agent ou un participant (CLIENT-1), le sien, déclaré une fois par fichier, avant son
+    /// premier geste.
     fn signer(&mut self, main: &Main) -> u64 {
-        let Main::Agent(nom) = main else {
+        let Some(auteur) = Auteur::d_une_main(main) else {
             return self.auteur;
         };
-        let auteur = Auteur::d_un_agent(nom);
         if self.declares.insert(auteur.id) {
             self.envoyer(nature::AUTEUR, histoire::contenu_auteur(&auteur));
         }
@@ -257,10 +257,7 @@ impl Ecriture {
 
     /// L'identifiant de cette main, sans rien écrire.
     fn identifiant(&self, main: &Main) -> u64 {
-        match main {
-            Main::Humain => self.auteur,
-            Main::Agent(nom) => Auteur::d_un_agent(nom).id,
-        }
+        Auteur::d_une_main(main).map_or(self.auteur, |a| a.id)
     }
 
     /// **Attache un écrit à un geste** (NOTE-1) : celui de rang `geste`, ou le dernier que cette

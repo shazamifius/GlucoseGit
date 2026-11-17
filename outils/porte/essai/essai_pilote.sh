@@ -13,11 +13,13 @@ pil() { bash "$P" "$@"; }
 pil demarrer "$D/maison" "$D/sortie" GLUCOSE_RELAIS="$RELAIS"
 sleep 15
 pil capture "$D/0-lance.png"
-# Collaborer, par la palette : la question de la porte fermée, puis « Ouvrir la porte ».
+# Collaborer, par la palette, puis « La porte aux IA publiques… » (le troisième choix, fiche 117) :
+# la question de la porte fermée, puis « Ouvrir la porte ».
 pil ctrlmaj p; sleep 1
 pil taper collaborer; sleep 1
 pil capture "$D/1-palette.png"
 pil touche Return; sleep 1.5
+pil touche Tab; pil touche Tab; pil touche Return; sleep 1.5
 pil capture "$D/2-porte-fermee.png"
 pil touche Return; sleep 3
 pil capture "$D/3-porte-ouverte.png"
@@ -37,6 +39,7 @@ pil capture "$D/5-claude-a-ecrit.png"
 pil alt f; sleep 2
 pil capture "$D/6-tout-cadre.png"
 pil ctrlmaj p; sleep 1; pil taper collaborer; sleep 1; pil touche Return; sleep 1.5
+pil touche Tab; pil touche Tab; pil touche Return; sleep 1.5
 pil capture "$D/7-porte-avec-claude.png"
 pil touche Escape; sleep 1
 pil ctrl h; sleep 2

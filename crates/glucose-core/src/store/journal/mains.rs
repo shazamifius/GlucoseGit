@@ -13,6 +13,21 @@ pub enum Main {
     #[default]
     Humain,
     Agent(String),
+    /// **Un autre humain d'un canevas partagé** (CLIENT-1, fiche 117) : sa marque (ID-2) et le nom
+    /// qu'il se donne. Ce n'est pas « l'humain » de ce Glucose — son geste ne se défait pas par
+    /// `Ctrl+Z` ici, et ne rectifie pas l'IA à sa place — ni un agent : l'IA de Glucose ne juge pas
+    /// ses flèches (sa parole du 12/11/2026, qui vaut pour tout humain).
+    Participant {
+        marque: String,
+        nom: String,
+    },
+}
+
+impl Main {
+    /// Une IA, sous le nom que son client se donne.
+    pub fn est_un_agent(&self) -> bool {
+        matches!(self, Self::Agent(_))
+    }
 }
 
 /// **Ce qu'un geste change à la provenance des nœuds** (MAIN-1) : une annotation qu'un agent pose
@@ -56,6 +71,10 @@ pub fn suivre_les_mains(
 pub struct Ecrit {
     pub transaction: Transaction,
     pub main: Main,
+    /// **Ce geste part aux autres** (CLIENT-1, fiche 117) : fait dans ce Glucose, sur un canevas
+    /// partagé, pas encore nommé pour la salle. Un geste reçu, ou un pas d'annulation partagé (qui
+    /// part de lui-même), ne repart jamais.
+    pub part: bool,
     /// **Ce que ce geste de l'humain a repris aux agents** ([`suivre_les_mains`]) : là où le
     /// journal des rectifications regarde ce que l'IA en pensait (RECTIF-1).
     pub repris: Vec<String>,

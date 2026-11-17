@@ -47,6 +47,7 @@ pub mod recherche;
 pub mod report;
 pub mod resize;
 pub mod rotate;
+pub mod salle;
 pub mod sens;
 pub mod smart_align;
 pub mod store;

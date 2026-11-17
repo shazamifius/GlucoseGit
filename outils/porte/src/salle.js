@@ -14,6 +14,7 @@
 //   → {"t":"depuis","n":k}                 ← {"t":"geste","n":i,"l":…,"o":"<scellé base64>"}…, {"t":"a_jour","n":dernier}
 //   → {"t":"geste","l":"<id local>","o":…}  ← à tous : {"t":"geste","n":dernier+1,"l":…,"o":…}
 //   → {"t":"curseur","o":…}                 ← aux autres : {"t":"curseur","o":…}
+//   → ping                                  ← pong (sans réveiller la salle)
 //                                           ← {"t":"refus","pourquoi":…} (lecteur qui écrit, message trop gros)
 
 import { DurableObject } from "cloudflare:workers";
@@ -25,6 +26,9 @@ export class Salle extends DurableObject {
     this.sql = ctx.storage.sql;
     this.sql.exec("CREATE TABLE IF NOT EXISTS gestes (n INTEGER PRIMARY KEY, l TEXT NOT NULL, o TEXT NOT NULL)");
     this.sql.exec("CREATE TABLE IF NOT EXISTS reglages (cle TEXT PRIMARY KEY, valeur TEXT NOT NULL)");
+    // Le ping de Glucose (toutes les 20 s) reçoit son pong sans réveiller la salle : une connexion
+    // morte se voit, et un canevas ouvert toute la journée ne coûte rien (fiche 117).
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
   }
 
   dernier() {

@@ -199,6 +199,28 @@ impl Auteur {
         }
     }
 
+    /// **Un autre humain d'un canevas partagé** (CLIENT-1, fiche 117) : son identifiant se tire de
+    /// sa marque — deux participants du même nom restent deux —, il n'est pas un agent, et il porte
+    /// le nom qu'il se donne. Une version d'avant le lit comme l'humain.
+    pub fn d_un_participant(marque: &str, nom: &str) -> Self {
+        Self {
+            id: identifiant(&format!("glucose/participant/{marque}")),
+            agent: false,
+            nom: nom.to_string(),
+        }
+    }
+
+    /// **L'auteur que cette main déclare** : un agent, un participant — rien pour l'humain de ce
+    /// lancement, que le fichier n'a pas à déclarer. Une seule loi, pour le scribe et ses lecteurs.
+    pub fn d_une_main(main: &crate::store::journal::Main) -> Option<Self> {
+        use crate::store::journal::Main;
+        match main {
+            Main::Humain => None,
+            Main::Agent(nom) => Some(Self::d_un_agent(nom)),
+            Main::Participant { marque, nom } => Some(Self::d_un_participant(marque, nom)),
+        }
+    }
+
     /// **L'IA de Glucose elle-même** (RECTIF-1, fiche 110) : celle qui écrit le journal des
     /// rectifications. Son identifiant ne se tire pas d'un nom d'agent : un agent qui se nommerait
     /// comme elle garde le sien, et se montre « agent » — un nom est déclaré, jamais vérifié.
@@ -210,12 +232,12 @@ impl Auteur {
         }
     }
 
-    /// **Qui est cet auteur, en mots** : « l'IA de Glucose », ou « agent » et son nom — rien pour
-    /// l'humain, que chaque lecteur nomme à sa façon (« toi » dans la Time Machine, « humain » pour
-    /// un agent).
+    /// **Qui est cet auteur, en mots** : « l'IA de Glucose », « agent » et son nom, ou le nom d'un
+    /// participant — rien pour l'humain, que chaque lecteur nomme à sa façon (« toi » dans la Time
+    /// Machine, « humain » pour un agent).
     pub fn en_mots(&self) -> Option<String> {
         if !self.agent {
-            None
+            (!self.nom.is_empty()).then(|| self.nom.clone())
         } else if self.id == Self::de_glucose().id {
             Some(L_IA_DE_GLUCOSE.to_string())
         } else {

@@ -28,6 +28,9 @@ pub struct Agents {
     attente: VecDeque<Demande>,
     /// **La porte aux IA publiques**, quand elle est ouverte (fiche 116).
     pub(crate) publique: Option<crate::agents::publique::lien::Lien>,
+    /// **Le canevas partagé**, s'il l'est (fiche 117) : le fil vers sa salle, son code, les autres
+    /// — Collaborer reçoit les humains comme les IA du nuage, par le même relais.
+    pub(crate) partage: Option<crate::app::collaborer::CanevasPartage>,
     /// **La portée de l'appel en cours** : ce que l'outil peut atteindre — toute la machine, ou
     /// le document ouvert pour une IA du nuage (C1, fiche 116).
     pub(crate) portee: crate::agents::outils::Portee,

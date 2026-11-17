@@ -98,7 +98,7 @@ impl GlucoseApp {
             }
             Commande::RetablirLesRaccourcis => self.demander_a_retablir_les_raccourcis(),
             Commande::OublierLesAgents => self.demander_a_oublier_les_agents(),
-            Commande::Collaborer => self.montrer_la_porte_publique(),
+            Commande::Collaborer => self.montrer_collaborer(),
         }
         self.mark_dirty();
         true

@@ -32,6 +32,9 @@ pub struct Voyage {
     pub ouvert: Ouvert,
     present: Project,
     journal: Journal,
+    /// **Le canevas partagé**, mis de côté avec le présent (CLIENT-1) : le passé ne part pas, et ce
+    /// qui arrive pendant le voyage attend le retour dans le fil.
+    partage: Option<glucose_core::store::Participation>,
 }
 
 impl GlucoseApp {
@@ -158,6 +161,7 @@ impl GlucoseApp {
                 ouvert,
                 present: self.store.project.clone(),
                 journal: self.store.journal.clone(),
+                partage: self.store.partage.take(),
             });
         }
         let Some(passe) = self.etat_au(k) else {
@@ -194,6 +198,9 @@ impl GlucoseApp {
         Vue::de(&self.store.project).poser(&mut present);
         self.store.load_project(present);
         self.store.journal = voyage.journal;
+        if let Some(p) = voyage.partage {
+            self.store.reprendre_le_partage(p);
+        }
         // Ce qui s'est fait dans le passé n'est pas de l'histoire.
         self.store.journal.prendre_les_ecrits();
         self.store.bump_version();

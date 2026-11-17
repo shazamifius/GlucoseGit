@@ -92,7 +92,9 @@ pub enum Suite {
     Agent(String),
     /// Retirer l'accord de tous les agents (fiche 75).
     OublierLesAgents,
-    /// **« Collaborer »** : la porte aux IA publiques, ouverte ou fermée (fiche 116).
+    /// **« Collaborer »** : partager ce canevas, le rejoindre, ses codes (fiche 117).
+    Collaborer,
+    /// La porte aux IA publiques, ouverte ou fermée (fiche 116).
     PortePublique,
     /// Retirer l'une des IA qui ont la porte, dans l'ordre de la liste.
     RetirerUneIa,

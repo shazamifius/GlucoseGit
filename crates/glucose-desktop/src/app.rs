@@ -3,6 +3,7 @@
 pub(crate) mod accueil;
 pub mod agents;
 mod attentes;
+pub mod collaborer;
 mod decision;
 mod evenements;
 mod fenetre;

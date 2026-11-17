@@ -66,6 +66,13 @@ impl GlucoseApp {
     /// Fait d'un document vierge le document courant. Séparée de la question pour se
     /// vérifier sans dialogue.
     pub(crate) fn adopter_un_document_vierge(&mut self) {
+        let vierge = glucose_core::types::Project::new(crate::app::accueil::NOM_D_UN_DOCUMENT_NEUF);
+        self.adopter_ce_projet(vierge);
+    }
+
+    /// **Fait de ce projet le document courant**, sans fichier tant qu'on n'y a rien fait : un
+    /// document vierge, ou la base d'un canevas partagé qu'on rejoint (CLIENT-1, fiche 117).
+    pub(crate) fn adopter_ce_projet(&mut self, projet: glucose_core::types::Project) {
         // Le document qu'on quitte s'écrit une dernière fois. S'il n'a pas pu, son écriture
         // s'abandonne ici — le toast l'a dit —, comme à l'ouverture d'un autre.
         if !self.fermer_le_document() {
@@ -76,10 +83,9 @@ impl GlucoseApp {
         self.historique_du_texte.oublier();
         self.selection_box = None;
         self.dock_manager.domains.reset();
-        let vierge = glucose_core::types::Project::new(crate::app::accueil::NOM_D_UN_DOCUMENT_NEUF);
         // Le chargement vide l'annulation (JRN-2) ; ce qu'il a mis dans la file de sortie
         // n'appartient à personne — rien n'est encore écrit pour ce document.
-        self.store.load_project(vierge);
+        self.store.load_project(projet);
         self.store.journal.prendre_les_ecrits();
         self.store.bump_version();
         self.disque.depart = Some(self.store.project.clone());

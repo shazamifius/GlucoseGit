@@ -35,17 +35,34 @@ fn click_topbar(app: &mut GlucoseApp, action: UiAction) {
     app.handle_mouse_up(MouseButton::Left);
 }
 
-/// **Collaborer ouvre la porte aux IA publiques** (fiche 116) — par la souris, sur le vrai
-/// bouton. Avant, il disait « pas encore disponible » : le message qui simulait est parti.
+/// **Collaborer ouvre la collaboration** (fiches 116 et 117) — par la souris, sur le vrai bouton :
+/// partager ce canevas, le rejoindre, et la porte aux IA publiques, qui s'ouvre de là. Avant la
+/// fiche 116, il disait « pas encore disponible » : le message qui simulait est parti.
 #[test]
-fn test_the_collab_button_opens_the_public_door() {
+fn test_the_collab_button_opens_collaboration_and_the_public_door() {
+    use crate::ui::question::Suite;
     let mut app = GlucoseApp::new();
     click_topbar(&mut app, UiAction::ToggleCollab);
-    let Some((question, crate::ui::question::Suite::PortePublique)) = &app.ui.question else {
+    let Some((question, Suite::Collaborer)) = app.ui.question.take() else {
+        panic!("la question de Collaborer");
+    };
+    assert_eq!(question.titre, "Collaborer");
+    let reponse = |debut: &str| {
+        question
+            .choix
+            .iter()
+            .find(|(l, _)| l.starts_with(debut))
+            .map(|(_, r)| *r)
+            .unwrap_or_else(|| panic!("« {debut} » parmi les choix"))
+    };
+    reponse("Partager ce canevas");
+    reponse("Rejoindre");
+    app.repondre_a_collaborer(reponse("La porte aux IA"));
+    let Some((porte, Suite::PortePublique)) = &app.ui.question else {
         panic!("la question de la porte");
     };
-    assert_eq!(question.titre, "La porte aux IA publiques");
-    assert!(question.texte.starts_with("Fermée."));
+    assert_eq!(porte.titre, "La porte aux IA publiques");
+    assert!(porte.texte.starts_with("Fermée."));
 }
 
 /// Trans-domaines n'a pas encore de fonction — de la recherche, à sa parole du 15/10 : le clic
