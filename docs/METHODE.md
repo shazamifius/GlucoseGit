@@ -154,6 +154,11 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   cible, copiée de celle du dépôt pour aller vite (`cp -a target/<profil> <cible>/`).
 * `undefined reference` après une coupure : `cargo clean -p glucose-desktop` ; `target/` grossit vite
   (`cargo clean` ne coûte qu'une recompilation).
+* **Le disque de 233 Go s'est rempli le 17/11** (fiche 118) : la cible du dépôt (82 Go) et celle des
+  sabotages (45 Go, une suite entière y a ajouté les profils `dev` à côté du `opt-level=0`). La suite
+  est morte « No space left on device ». **Regarder `df -h /` avant une suite ou des sabotages** ; la
+  cible des sabotages se supprime entière après usage (`rm -rf ~/.cache/glucose-bancs/sabotage-cible`),
+  et une suite entière se lance dans le dépôt, jamais dans l'arbre des sabotages.
 
 **Le vrai Glucose, hors écran**
 * **Le pilote** (fiche 99) : `cargo build --release -p glucose-desktop --bin glucose-desktop`, puis `bash

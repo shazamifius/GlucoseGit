@@ -137,6 +137,9 @@ retardataire, son nom) et l'ordre après B1. Il y répondra demain ; **ses répo
 * **Une épreuve qui clique sous la bande clique là où l'utilisateur ne peut pas** : trois épreuves
   vivaient d'un défaut (VIDE-1). Une scène d'épreuve se pose sous l'interface.
 * **Chercher un nom avant de le donner** : LIGNE-1, BANDE-1 et `Bout` existaient déjà.
+* **Le disque s'est rempli** (233 Go, 930 Mo libres) pendant une suite lancée dans l'arbre des
+  sabotages : sa cible avait gagné 45 Go, celle du dépôt en pesait 82. Supprimée (un cache), 45 Go
+  rendus ; son Glucose n'était pas ouvert. La suite se lance désormais dans le dépôt (MÉTHODE § 5).
 * **`git -C <arbre> checkout HEAD` désigne le HEAD de cet arbre**, pas celui du dépôt : un sabotage
   rejoué sur l'ancien commit a « passé » une seconde fois. Nommer l'empreinte.
 
