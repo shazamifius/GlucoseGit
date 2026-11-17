@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 14/11/2026, 3 h 41** (fiches 108-116). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 17/11/2026, 11 h 30** (fiches 108-117). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -48,24 +48,22 @@
   une IA du nuage — Claude.ai — entre par son clic dans Glucose, devant le même code que sa page, ne
   voit que le document ouvert et signe ses gestes de son nom vérifié ; **le relais est en ligne**,
   `https://glucose-porte.ferme-nilslamber.workers.dev`, sur son compte Cloudflare ; essayée de bout
-  en bout par le vrai Glucose et un faux claude.ai — **pas encore avec son compte**).
+  en bout par le vrai Glucose et un faux claude.ai — **pas encore avec son compte**) ; **le co-working**
+  (CLIENT-1, fiche 117 : Collaborer → « Partager ce canevas », le code copié ; « Rejoindre » par le code
+  collé ; chaque geste vu chez les autres, chiffré de bout en bout, la salle sur le même relais **en
+  ligne** ; deux gestes sur le même nœud — le plus récent l'emporte, et le message le dit ; `Ctrl+Z`
+  défait **ses** gestes ; les curseurs des autres ; essayé en ligne avec deux vrais Glucose, l'un
+  derrière un réseau lent — **pas encore à son écran**) ; **l'export en page web** (EXPORT-HTML-1,
+  fiche 115 § 7 ter : une page autonome, deux doigts, une flèche se lit — Safari jamais essayé).
   **Son Glucose installé** (profil Nix `GlucoseGit`) : `547d9d9` — la frise, regarder un domaine et
   le mode zen compris.
-* **En correctif, pas dans `main`** (`~/.cache/glucose-bancs/export-html-115/export-html.patch`) :
-  **l'export en page web** (EXPORT-HTML-1, fiche 115 § 7 ter) — écrit, 61 épreuves ciblées vertes,
-  clippy à zéro, **essayé dans un vrai navigateur** (Brave sans fenêtre : la flèche touchée ouvre
-  son panneau, deux doigts zooment) ; restent la suite entière (arrêtée à sa demande à 23 h 56),
-  les 8 sabotages, `main`, son Glucose.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
   Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows ne s'essaie plus qu'à travers la
   CI**, alors que la plupart de ses utilisateurs y sont.
-* **Le co-working** (sa parole du 14/11, ses deux pages prises pour accordées) : la porte publique
-  est faite ; **un geste s'applique chez les autres par le nom de ce qu'il touche** (PARTAGE-1, fiche
-  116 § 8 : deux participants convergent dans tous les ordres, le conflit se dit) ; **le chiffre des
-  gestes** est écrit (CHIFFRE-1 : ChaCha20-Poly1305 dans le noyau, sur les vecteurs de la norme), les
-  numéros des nœuds par participant (ID-2), le geste en octets, et **la salle** sur le relais
-  (SALLE-1, éprouvée en local, pas déployée) ; restent le client (rejoindre une salle, sceller,
-  rejouer), `Ctrl+Z` par main, et l'interface.
+* **Le co-working** (sa parole du 14/11) : **fait jusqu'au bout**, sauf **les photos d'un participant à
+  l'autre** (B1 : une photo arrive sans ses octets) et **le partage qui survit à un relancement** (on
+  rejoint de nouveau par le code). Le reste attend : son nom changé dans l'interface, le conflit par
+  propriété, le téléphone (fiche 117 § 7).
 * **Le chantier du lag** : **son lag, mesuré à son écran** (fiche 112) — le « 32 % d'images
   ratées » de la fiche 111 était le compteur du tempo, pas l'écran : niri montre une image neuve à
   93-99 % des battements ; le prototype où niri donne le rythme est écarté (il saute jusqu'à 16 %
@@ -92,8 +90,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; **sa lueur dit sa parenté** : une IA du sens embarquée (15 Mo, multilingue, sans réseau) range les textes en familles — même couleur, d'autant plus forte et vive qu'elle est sûre ; un texte sans parent garde le contour gris de son bloc ; la couleur choisie va à sa lueur (PARENTE, fiche 106) |
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris — **la souris ne rapproche que les flèches de sens** parmi celles qu'un agent ou un script a posées (PARENTE-4) ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
 | **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) ; **dater** un nœud (`Maj+T`), **la frise chronologique** (`Maj+R`) et **regarder un domaine** (« voir ») : deux lentilles qui estompent ce qu'elles écartent, jamais ne cachent |
-| **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF) — la page web : en correctif |
+| **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), **la page web** (deux doigts, une flèche se lit) |
 | **L'interface** | 109 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence ; **le mode zen** (`F11`) |
+| **Collaborer** | **le co-working** (fiche 117) : partager ce canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré ; le conflit dit ; `Ctrl+Z` par main ; les curseurs ; un code pour regarder seulement |
 | **Les agents** | **une IA du nuage par Collaborer** (Claude.ai : la porte publique, son accord devant un code, le document ouvert seulement, *Lire seulement* au choix, son nom vérifié qui signe — fiche 116) ; `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
 
@@ -116,7 +115,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   la fiche 105) ; remesuré le 12/11 sur sa carte (fiche 108) : **de loin 7,5 ms** (17 avant), au fond de
   « Eau » 2,8 ms ; **au zoom** : une image du mouvement 4-5 ms au lieu de 19-21 (fiche 109), et les
   images qui ratent un battement de l'écran 8-10 → 3 par série de crans, p90 24 → 17 ms (fiche 110) ;
-  reste une image sur six autour de 18-22 ms ; pas encore à son écran ;
+  reste une image sur six autour de 18-22 ms ; pas encore à son écran. **Sa session du 14/11 à 4 h 37, sur
+  sa carte et sur batterie** (fiche 117 § 1) : 46,5 % de battements sautés, « ornements » jusqu'à 33 ms ;
 * **le halo d'un texte** dit sa parenté depuis la fiche 106 — pas encore à son écran ; beaucoup de
   flèches de la carte sont grises (leurs bouts n'ont pas de famille sûre) : acceptées *« seulement si
   c'est temporaire »* ; sous une quinzaine de textes, l'IA hésite ; la clarté (l'accessibilité) n'est
@@ -125,9 +125,10 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 **Connus, mesurés, pas réglés** :
 
 * **les versions d'avant la 2.0.4-beta.1 refusent un document qui porte une entrée neuve** (un geste
-  d'agent signé, un écrit — PERSIST-5, fiche 108) : message net, rien de perdu, mais son téléphone
-  (beta 8) et le PC de l'école (beta 9) ne l'ouvriront qu'une fois passés à la 2.0.4-beta.1. **Depuis RECTIF-1, un document ordinaire en
-  porte dès qu'il colore un texte que l'IA rangeait dans une famille** ;
+  d'agent signé, un écrit — PERSIST-5, fiche 108) : message net, rien de perdu ; son téléphone et le PC
+  de l'école sont passés à la 2.0.4-beta.1 (le 16/11), les autres utilisateurs le feront par la mise à
+  jour. **Depuis RECTIF-1, un document ordinaire en porte dès qu'il colore un texte que l'IA rangeait
+  dans une famille** ;
 * **sa machine** : une suite d'épreuves sans borne l'a figée deux heures et demie le 12/11 (fiche
   110) — toute commande lourde passe désormais par `outils/borne.sh`, et `earlyoom` veille sur toute
   la machine (arrêter le plus gros programme avant l'étouffement) ;
@@ -142,7 +143,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 258, toutes vertes au 14/11 à 3 h 41 (`bash outils/borne.sh nix develop -c cargo
+* **Les épreuves** : 3 301, toutes vertes au 17/11 à 11 h 11 (`bash outils/borne.sh nix develop -c cargo
   test --workspace`) ; clippy strict et
   `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
   fichier, le couplage au modèle…) ne se relèvent jamais.
@@ -155,7 +156,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   (PARU-1, fiche 112), 13 sur 13 (APPLIQUE-1, fiche 113 — deux sabotages qui passaient ont
   désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114), 51 sur 51 (la frise et
   l'estompe), 16 sur 16 (le domaine regardé) et 12 sur 12 (le mode zen, fiche 115) ; 32 sur 32 (la porte
-  publique, fiche 116 — dont une épreuve aveugle trouvée et écrite, en deux passes).
+  publique, fiche 116 — dont une épreuve aveugle trouvée et écrite, en deux passes) ; 8 sur 8 (la page
+  web) et **29 sur 29 (le client du co-working, fiche 117 — six gardes sans épreuve trouvées en
+  écrivant le fichier, une garde redondante retirée)**, plus 1 du relais.
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
@@ -168,14 +171,15 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 ## 5. Ses utilisateurs, et ce qu'on en sait
 
 * **La télémétrie** (avec l'accord de chacun ; un serveur Cloudflare de son compte,
-  [TELEMETRIE](TELEMETRIE.md)) au 14/11 : **176 sessions, 10 installations, 36 fins anormales**.
+  [TELEMETRIE](TELEMETRIE.md)) au 17/11 : **190 sessions, 10 installations, 40 fins anormales**.
   * son VivoBook (Intel UHD 620, la version `dev` de son profil Nix) : 9 sessions du 7 au 12/11 ;
-  * une GTX 1660 SUPER sous Windows, 48 sessions jusqu'au 12/11, encore en beta 9 — **très probablement
-    lui, au PC de l'école** ;
-  * un Linux à RTX 4070 SUPER, en beta 10 (10 sessions, la dernière le 11/11) ; un Windows à AMD Radeon
+  * une GTX 1660 SUPER sous Windows, 51 sessions jusqu'au 16/11, **en 2.0.4-beta.1** — **très
+    probablement lui, au PC de l'école** ;
+  * un Linux à RTX 4070 SUPER, en 2.0.4-beta.1 (21 sessions, la dernière le 17/11) — ses fins anormales :
+    l'appareil redémarré des heures après, un PC éteint Glucose ouvert ; un Windows à AMD Radeon
     660M, passé en beta 10 (4 sessions, aucune fin anormale) ;
-  * **son téléphone** (moto g54, PowerVR) : 24 sessions, **18 fins anormales** ; passé de la beta 4 à
-    la **beta 8** le 6/11, rouvert le 13/11 à 18 h 23, toujours en beta 8 ; 16,4 ms l'image typique ;
+  * **son téléphone** (moto g54, PowerVR) : 26 sessions, **19 fins anormales** ; **en 2.0.4-beta.1 depuis
+    le 16/11**, sa première session dans cette version finie proprement ; 16,4 ms l'image typique ;
   * un Windows neuf (carte inconnue), deux sessions le 12/11 en **2.0.2-beta.2** — sa mise à jour
     automatique lui proposera la dernière ;
   * un Windows à pilote Intel tué par `igvk64.dll` (le 29/10, en beta 6) : MOTEUR-1 l'a réparé depuis,

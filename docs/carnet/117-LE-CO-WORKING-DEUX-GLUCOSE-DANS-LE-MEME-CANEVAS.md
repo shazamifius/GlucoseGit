@@ -110,6 +110,15 @@ compositeur), Bob derrière **un réseau lent** (`essai/reseau_lent.py` : ce qui
 * Rejoindre depuis un brouillon rouvert pose la question du travail non enregistré (BROUILLON-1) :
   c'est juste.
 
+**En ligne** — la salle déployée le 17/11 à 11 h 19 (`npx wrangler deploy`, son compte ; ses dix
+verdicts de l'extérieur, la porte publique vérifiée de nouveau par `faux_glucose.mjs`), puis l'essai
+entier contre le relais public : **tout passe**, le conflit dit des deux côtés, les curseurs, `Ctrl+Z`.
+Le premier essai en ligne avait échoué **par l'outil** : le réseau lent d'un essai d'avant vivait
+encore (`kill` n'arrêtait que l'enveloppe `nix shell`), relié à la salle locale — Bob y attendait une
+base qui n'existait pas. Il a montré **un défaut de Glucose** : un code qui mène à une salle vide
+laissait attendre pour toujours, sans rien dire. La question de Collaborer le dit désormais (« Ce code ne
+mène encore à aucun canevas… »), jamais par-dessus une autre question.
+
 ## 6. Les épreuves et les sabotages
 
 * **Le noyau** : 6 épreuves des codes, de la lettre et des morceaux ; 15 de la participation (deux
@@ -123,7 +132,11 @@ compositeur), Bob derrière **un réseau lent** (`essai/reseau_lent.py` : ce qui
   d'appliquer, avant de défaire, avant le disque ; le participant qui rectifierait ; les curseurs d'un
   autre tableau ; la phrase) — écrites — et **une garde redondante** : la longueur d'un code, que les
   32 octets et l'alphabet imposent déjà — retirée.
-* Les sabotages : `outils/sabotages/client-117.json` (27), `salle-117.json` (1, contre `wrangler dev`).
+* **La suite entière** : 3 301 épreuves vertes (bornée, le 17/11 à 11 h 11) ; clippy à zéro ; les 16
+  cliquets — le 2 (les toasts) et le 4a (80 lignes) ont protesté en route, à raison : un seul site dit
+  ce qu'un autre a fait dans le canevas, et l'état du partage vit avec la porte.
+* **Les sabotages** : **29 sur 29** (`outils/sabotages/client-117.json`), **1 sur 1** contre
+  `wrangler dev` (`salle-117.json`) ; et les **8 sur 8** de la page web (`export-html-115.json`).
 
 ## 7. Ce qui reste, et ce qui reste contestable
 
@@ -179,3 +192,7 @@ compositeur), Bob derrière **un réseau lent** (`essai/reseau_lent.py` : ce qui
   aussi changé `self.partager_ce_canevas()`. Et `cargo fmt` remet en page : relever les motifs après.
 * **Un essai scripté peut ne pas faire ce qu'il prétend** : le premier « conflit » n'en était pas un.
   Regarder chaque image, pas seulement le code de retour.
+* **`nix shell -c` laisse vivre son enfant** : tuer le numéro de `nix` laisse tourner le programme. Un
+  outil de fond se retrouve par `ps`, et un essai refuse de démarrer si son port est déjà pris.
+* **Un essai qui échoue par l'outil peut quand même trouver un défaut** : la salle vide qui ne disait
+  rien.
