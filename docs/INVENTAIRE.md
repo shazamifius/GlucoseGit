@@ -69,7 +69,10 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Supprimer | barre d'action, menu, `Suppr` | ✅ |
 | Transformer la sélection (origine commune ou individuelles) | poignées, barre d'action, `Alt` + coin | ✅ |
 | Recadrer une image | double-clic | ✅ |
+| **Retourner une image** (MIROIR-1, fiche 118) : de gauche à droite ou de haut en bas, chaque image sur elle-même ; une verrouillée ne se retourne pas | **menu d'une image**, la palette, `Alt+Maj+H`, `Alt+Maj+V` (ceux de PureRef) | ✅ menu |
 | Flèche : droite ou courbe, double sens, épaisseur, relation, ancres de texte | la barre de la flèche, `1…6` | ✅ |
+| **Flèche : ses deux bouts** (BOUT-1, fiche 118) — glissés sur un autre nœud, ou dans le vide | la poignée de chaque bout d'une flèche choisie | ✅ (le doigt glisse) |
+| **Flèche : retirer un coude, ou tous** (COUDE-1, fiche 118) | double-clic sur le coude ; **clic droit sur le coude** « Retirer ce coude » ; « Redresser la flèche » au menu et à la palette | ✅ menu (« Redresser ») |
 | Déplacer d'un pas | les flèches du clavier | — (le doigt glisse) |
 | Aimant | bouton Aimant | ✅ |
 | **Ouvrir une page web** — la capture qu'un agent a posée (fiche 75) | **double-clic** sur la photo, ou `Ctrl`+clic | ❌ (aucun agent n'y écrit ; le navigateur d'Android n'est pas appelé) |

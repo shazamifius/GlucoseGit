@@ -141,6 +141,16 @@ Chaque décision, chaque ligne de code se juge contre elles.
   **Sa parole du 14/11** (vers 1 h 46) : *« j'aimerais vraiment travailler sur les protocoles MCP de
   liaison de IA ainsi que le système de collaboration »* — la porte publique et le co-working, ses
   deux pages (fiches 111 et 113) prises pour accordées.
+* **Sa capture d'écran du 17/11** (fiche 118 § 1, ses mots entiers) : les tiroirs — *« des bulles
+  partout, non cohérentes avec l'écran, qui s'entrechoquent, souvent trop grosses […] et vraiment
+  aucune structure particulière qui permettrait d'identifier pourquoi ces tiroirs s'ouvrent comme
+  ça »* ; les modes de la fenêtre, qu'il propose — *« un mode fenêtre classique, qui est l'état actuel
+  de Glucose sur Linux ; un mode qui force le plein écran ; et un mode qui force le fait d'être au-dessus
+  de toutes les applications, exactement comme Windows »* ; le texte de l'interface *« très très
+  pixelisé, alors que je possède souvent des écrans bien plus performants »* ; *« crée une option de
+  flip pour les images »*. Sur Windows : *« oui, après vérification, c'est exactement ça ! les boutons
+  fonctionnent, ils sont juste décalés »*. **Ses choix** (structure des tiroirs, modes, barre de
+  Windows) : dans la fiche de questions (fiche 118 § 5), à sa parole.
 * **L'ergonomie se fait à la fin** (15/10), une grosse session quand toutes les fonctions seront là ;
   avant, chaque fonction a son bouton, au PC et au téléphone. **Nuancé le 10/11** : *« actuellement le
   Wikipédia est illisible et horrible à travailler dessus »* — il veut travailler l'ergonomie de la carte

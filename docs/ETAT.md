@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 17/11/2026, 11 h 30** (fiches 108-117). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 17/11/2026 au soir** (fiches 108-118). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -54,7 +54,15 @@
   ligne** ; deux gestes sur le même nœud — le plus récent l'emporte, et le message le dit ; `Ctrl+Z`
   défait **ses** gestes ; les curseurs des autres ; essayé en ligne avec deux vrais Glucose, l'un
   derrière un réseau lent — **pas encore à son écran**) ; **l'export en page web** (EXPORT-HTML-1,
-  fiche 115 § 7 ter : une page autonome, deux doigts, une flèche se lit — Safari jamais essayé).
+  fiche 115 § 7 ter : une page autonome, deux doigts, une flèche se lit — Safari jamais essayé) ;
+  **sa capture d'écran du 17/11** (fiche 118) : **sous Windows, les boutons de la bande répondent où
+  ils sont dessinés** (BARRE-2 — le clic les cherchait 138 px plus loin ; la CI le prouve sous un vrai
+  Windows, lui l'avait constaté), un clic dans le vide de la bande ne sélectionne plus rien (VIDE-1),
+  le fil d'Ariane d'un dossier se lit en entier (ARIANE-1), **les tiroirs ont la hauteur de ce qu'ils
+  montrent et ne se chevauchent plus** (TIROIR-1 à 3), **les bouts d'une flèche se prennent** (BOUT-1),
+  « Redresser la flèche » et « Retirer ce coude » au clic droit (COUDE-1), **retourner une image**
+  (MIROIR-1 : `Alt+Maj+H`, `Alt+Maj+V` ; le document passe au schéma 6, qu'une 2.0.4-beta.1 refuse par
+  son message).
   **Son Glucose installé** (profil Nix `GlucoseGit`) : `21acb0c` (17/11) — la porte publique, le
   co-working et la page web compris.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
@@ -143,10 +151,10 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 301, toutes vertes au 17/11 à 11 h 11 (`bash outils/borne.sh nix develop -c cargo
-  test --workspace`) ; clippy strict et
-  `cargo fmt` à zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par
-  fichier, le couplage au modèle…) ne se relèvent jamais.
+* **Les épreuves** : 3 318 vertes au 17/11 à 16 h 14 sur `1ccd2bee` (`bash outils/borne.sh nix develop -c
+  cargo test --workspace`), et celles du miroir et de COUDE-1 depuis ; clippy strict et `cargo fmt` à
+  zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par fichier, le
+  couplage au modèle…) ne se relèvent jamais.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
   (`outils/sabotages/`, un fichier par chantier) ; les derniers : 66 sur 66 (fiches 102-103), 17 sur 17
   (REGION-1, fiche 105), 36 sur 36 (le sens et la parenté, fiche 106), 3 sur 3 (le voile des membranes,
@@ -157,14 +165,14 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   désigné une garde redondante, retirée), 21 sur 21 (DATE-1, fiche 114), 51 sur 51 (la frise et
   l'estompe), 16 sur 16 (le domaine regardé) et 12 sur 12 (le mode zen, fiche 115) ; 32 sur 32 (la porte
   publique, fiche 116 — dont une épreuve aveugle trouvée et écrite, en deux passes) ; 8 sur 8 (la page
-  web) et **29 sur 29 (le client du co-working, fiche 117 — six gardes sans épreuve trouvées en
-  écrivant le fichier, une garde redondante retirée)**, plus 1 du relais.
+  web), 29 sur 29 (le client du co-working, fiche 117), plus 1 du relais ; **34 sur 34 (sa capture et le
+  miroir, fiche 118 — un sabotage aveugle trouvé et son épreuve écrite)**.
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) : **verte
-  sur `2e63713`** (14/11, la porte publique comprise : le WebSocket par WinHTTP éprouvé sous Windows).
+  sur `1ccd2bee`** (17/11, le co-working et sa capture compris : le cadre de Windows éprouvé sous un vrai Windows).
   GitHub compile avec **Rust 1.100**, Nix ici avec 1.99 : un clippy plus récent peut trouver ce
   que celui d'ici ne voit pas (fiche 116 § 7). La CI se lance avant une publication, pas à chaque envoi.
 
