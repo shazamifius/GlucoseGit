@@ -82,6 +82,27 @@ pub fn layout_plugins_panel(frame: ScaledRect) -> PluginsPanelLayout {
     }
 }
 
+/// **La hauteur du panneau** (TIROIR-2), sans sa poignée : le bas de sa dernière option, plus
+/// la marge de ses côtés. Elle était fixée à 460, dont 84 vides.
+pub fn hauteur_naturelle(largeur: f32, s: f32) -> f32 {
+    let cadre = ScaledRect {
+        x: 0.0,
+        y: 0.0,
+        w: largeur,
+        h: 0.0,
+        scale: s,
+    };
+    let layout = layout_plugins_panel(cadre);
+    let derniere = layout
+        .disposition_options
+        .iter()
+        .chain(&layout.density_options)
+        .chain([&layout.card_rect, &layout.download_button])
+        .map(|r| r.y + r.h)
+        .fold(0.0, f32::max);
+    derniere + 14.0 * crate::theme::clamp_ui_scale(s)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PluginsClick {
     Handled,

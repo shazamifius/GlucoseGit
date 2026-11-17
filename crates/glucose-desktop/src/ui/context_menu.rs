@@ -94,6 +94,7 @@ impl MenuAction {
             MenuAction::VuePrecedente => Commande::VuePrecedente,
             MenuAction::CadrerLaSelection => Commande::CadrerLaSelection,
             MenuAction::SuivreLeLien => Commande::SuivreLeLien,
+            MenuAction::RedresserLaFleche => Commande::RedresserLaFleche,
             MenuAction::MontrerLesLiens => Commande::MontrerLesLiens,
             MenuAction::AllerAuNoeud => Commande::AllerAuNoeud,
             MenuAction::FermerLaFenetre => Commande::Echap,
@@ -196,6 +197,8 @@ pub enum MenuAction {
     CadrerLaSelection,
     /// Suivre la flèche choisie jusqu'à son autre bout (LIEN-2, fiche 102).
     SuivreLeLien,
+    /// Retirer tous les coudes des flèches choisies.
+    RedresserLaFleche,
     /// La fenêtre des liens : l'ouvrir, aller au nœud choisi, la fermer (LIEN-3, fiche 102).
     MontrerLesLiens,
     AllerAuNoeud,

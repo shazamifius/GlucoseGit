@@ -117,7 +117,8 @@ pub fn draw_breadcrumb(
         pixmap.fill_rect(r, &bg, Transform::identity(), None);
     }
 
-    let base = top + hauteur * 0.7;
+    // Les quatre Inter partagent montantes et descentes : une ligne pour le gras et le maigre.
+    let base = typography.haut_d_une_ligne_centree(font, Face::Regular, (top, hauteur));
     for seg in &segments {
         // Le segment courant est celui où l'on est : plus clair et gras, les autres en retrait
         // — ce sont eux qu'on clique, et la hiérarchie doit se lire sans réfléchir.

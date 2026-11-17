@@ -106,6 +106,7 @@ fn test_storyboard_1_activer_puis_poser_la_grille() {
     let s = crate::theme::clamp_ui_scale(app.ui.scale());
     let frame = compute_panel_layouts(
         &app.dock_manager,
+        &app.store,
         SCREEN.0,
         SCREEN.1,
         app.ui.header_height(),
@@ -188,6 +189,7 @@ fn test_the_download_model_button_does_not_pretend_to_download() {
     let s = crate::theme::clamp_ui_scale(app.ui.scale());
     let frame = compute_panel_layouts(
         &app.dock_manager,
+        &app.store,
         SCREEN.0,
         SCREEN.1,
         app.ui.header_height(),
@@ -328,7 +330,8 @@ fn test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box()
         .add_image(&board, BoardImage::new("I1", 300.0, 0.0, 100.0, 100.0));
     app.store.clear_selection();
     render(&mut app);
-    let (ex, ey) = screen_of(&app, -400.0, -250.0); // du vide, loin de l'image
+    // Du vide, loin de l'image — et sous la bande du haut, qui prend tout clic (VIDE-1).
+    let (ex, ey) = screen_of(&app, -400.0, -200.0);
 
     // 4 px tout juste : pas une sélection.
     app.handle_cursor_moved(PhysicalPosition::new(ex, ey));
@@ -585,13 +588,7 @@ fn test_a_click_during_the_dive_cuts_it_short() {
 
 /// Le cadre d'un panneau ouvert, tel que son module de mise en page l'attend.
 fn cadre_de(panel: &crate::dock::PanelLayoutBox, scale: f32) -> ScaledRect {
-    ScaledRect {
-        x: panel.x,
-        y: panel.y,
-        w: panel.width,
-        h: panel.height,
-        scale,
-    }
+    panel.contenu(scale)
 }
 
 /// **Survoler la barre ne redessine que quand le survol change** (fiche 29 § 4.4).
@@ -706,4 +703,122 @@ fn test_titre_1_le_rectangle_qui_touche_le_titre_prend_la_membrane() {
         app.store.selected_annotation_ids.to_vec(),
         vec!["M".to_string()]
     );
+}
+
+/// Un écran de PC courant, plus large que [`SCREEN`] : la barre y tient avec ses libellés.
+const ECRAN_LARGE: (f32, f32) = (1920.0, 1080.0);
+
+/// **BARRE-2 — avec les boutons de la fenêtre, ce que l'œil voit est ce que le clic actionne.**
+/// Sa capture du 17/11 : *« AUCUN bouton n'est accessible sur Windows »*. Le dessin retirait
+/// la place de réduire, agrandir et fermer ; le clic ne la retirait pas. Chaque bouton
+/// **dessiné** doit répondre à un clic en son centre, à toutes les échelles et largeurs où la
+/// barre tient.
+#[test]
+fn test_barre_2_avec_les_boutons_de_la_fenetre_chaque_bouton_dessine_repond_a_son_clic() {
+    let mut essayes = 0;
+    for echelle in [1.0_f32, 1.25, 1.5, 2.0] {
+        for largeur in [1280.0_f32, 1440.0, 1920.0, 2560.0, 3840.0] {
+            let mut app = GlucoseApp::new();
+            app.ui.cadre_maison = true;
+            app.ui.scale_factor = echelle;
+            let typo = &app.renderer.typography;
+            crate::ui::rail::decider(&mut app.ui, typo, &app.store, largeur);
+            let barre = crate::ui::bande::la_barre(largeur, &app.ui, typo, 0);
+            for b in &barre.buttons {
+                let centre = (b.x + b.w / 2.0, b.y + b.h / 2.0);
+                let clic = crate::ui::handle_ui_click(
+                    centre.0,
+                    centre.1,
+                    largeur,
+                    1080.0,
+                    &app.store,
+                    &mut app.ui,
+                    typo,
+                );
+                assert_eq!(
+                    clic,
+                    Some(b.action.clone()),
+                    "{:?} dessiné en {centre:?}, à {echelle} et {largeur} px",
+                    b.action
+                );
+                essayes += 1;
+            }
+        }
+    }
+    assert!(
+        essayes > 100,
+        "{essayes} boutons seulement : la barre a-t-elle disparu ?"
+    );
+}
+
+/// **BARRE-2, par la vraie souris** : les tiroirs de droite — ceux que le décalage rendait
+/// inaccessibles — s'ouvrent au clic sur leur dessin, la fenêtre à 125 % avec ses trois boutons,
+/// et aucun clic ne commence de sélection sur le canevas.
+#[test]
+fn test_barre_2_par_la_souris_les_tiroirs_de_droite_s_ouvrent_avec_les_boutons_de_la_fenetre() {
+    let mut app = GlucoseApp::new();
+    app.ui.cadre_maison = true;
+    app.ui.scale_factor = 1.25;
+    for (action, tiroir) in [
+        (UiAction::ToggleDomains, TabId::Domains),
+        (UiAction::TogglePreset, TabId::Preset),
+        (UiAction::TogglePlugins, TabId::Plugins),
+    ] {
+        let barre = crate::ui::bande::la_barre(ECRAN_LARGE.0, &app.ui, &app.renderer.typography, 0);
+        let b = barre
+            .buttons
+            .iter()
+            .find(|b| b.action == action)
+            .unwrap_or_else(|| panic!("{action:?} est dessiné"));
+        let centre = (f64::from(b.x + b.w / 2.0), f64::from(b.y + b.h / 2.0));
+        app.handle_cursor_moved(PhysicalPosition::new(centre.0, centre.1));
+        app.handle_mouse_down(MouseButton::Left, ECRAN_LARGE.0, ECRAN_LARGE.1);
+        app.handle_mouse_up(MouseButton::Left);
+        assert!(
+            app.dock_manager.is_open(tiroir),
+            "{action:?} ouvre {tiroir:?}"
+        );
+        assert!(
+            app.selection_box.is_none(),
+            "aucune sélection sur le canevas"
+        );
+    }
+}
+
+/// **VIDE-1 — un appui dans le vide de la bande ne touche pas au canevas** : ni sélection
+/// élastique, ni vue déplacée, même quand la main remonte au bord de la fenêtre. Avant, le vide
+/// entre deux boutons, ou à côté des onglets, commençait une sélection que le défilement au bord
+/// emportait vers le haut.
+#[test]
+fn test_vide_1_un_appui_dans_le_vide_de_la_bande_ne_commence_rien_sur_le_canevas() {
+    let mut app = GlucoseApp::new();
+    let barre = crate::ui::bande::la_barre(ECRAN_LARGE.0, &app.ui, &app.renderer.typography, 0);
+    let mut bords: Vec<(f32, f32)> = barre.buttons.iter().map(|b| (b.x, b.x + b.w)).collect();
+    bords.sort_by(|a, b| a.0.total_cmp(&b.0));
+    // Le plus grand vide de la barre : entre le groupe de gauche et celui de droite.
+    let (fin, debut) = bords
+        .windows(2)
+        .map(|p| (p[0].1, p[1].0))
+        .max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)))
+        .expect("des boutons");
+    assert!(debut - fin > 50.0, "un vide entre les deux groupes");
+    let (haut_barre, haut_onglets) = (app.ui.topbar_height(), app.ui.tabs_height());
+    let vides = [
+        ((fin + debut) / 2.0, haut_barre / 2.0),
+        (ECRAN_LARGE.0 - 40.0, haut_barre + haut_onglets / 2.0),
+    ];
+    let vue = app.store.viewport();
+    for (x, y) in vides {
+        app.handle_cursor_moved(PhysicalPosition::new(f64::from(x), f64::from(y)));
+        app.handle_mouse_down(MouseButton::Left, ECRAN_LARGE.0, ECRAN_LARGE.1);
+        assert!(
+            app.selection_box.is_none(),
+            "un appui en ({x}, {y}) commence une sélection"
+        );
+        app.handle_cursor_moved(PhysicalPosition::new(f64::from(x), 1.0));
+        app.handle_mouse_up(MouseButton::Left);
+        assert!(app.selection_box.is_none());
+        assert!(!app.is_panning);
+    }
+    assert_eq!(app.store.viewport(), vue, "la vue n'a pas bougé");
 }

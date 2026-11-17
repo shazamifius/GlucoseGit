@@ -1,0 +1,296 @@
+[
+  {
+    "nom": "BARRE-2 — le clic ne retire plus la place des boutons de la fenêtre (le dessin, si)",
+    "remplacements": [
+      {
+        "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+        "avant": "    let width = width - super::cadre::largeur_reservee(ui);\n",
+        "apres": ""
+      },
+      {
+        "fichier": "crates/glucose-desktop/src/ui/bande.rs",
+        "avant": "        layout_topbar(largeur, ui, typo, images)",
+        "apres": "        layout_topbar(largeur - super::cadre::largeur_reservee(ui), ui, typo, images)"
+      }
+    ],
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "barre_2"
+    ]
+  },
+  {
+    "nom": "VIDE-1 — un appui dans le vide de la bande descend au canevas",
+    "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+    "avant": "            return pointer.y < self.ui.header_height();",
+    "apres": "            return false;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "vide_1"
+    ]
+  },
+  {
+    "nom": "ARIANE-1 — le fil pose son texte comme une ligne de base, à 70 % de sa bande",
+    "fichier": "crates/glucose-desktop/src/ui/breadcrumb.rs",
+    "avant": "    let base = typography.haut_d_une_ligne_centree(font, Face::Regular, (top, hauteur));",
+    "apres": "    let base = top + hauteur * 0.7;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "ariane_1"
+    ]
+  },
+  {
+    "nom": "ARIANE-1 — la ligne centrée oublie la descente de la police",
+    "fichier": "crates/glucose-desktop/src/typography.rs",
+    "avant": "        haut + (hauteur + montante + descente) / 2.0 - size",
+    "apres": "        haut + (hauteur + montante) / 2.0 - size",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "ariane_1"
+    ]
+  },
+  {
+    "nom": "TIROIR-1 — le contenu d'un panneau du haut passe sur sa poignée",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "        let poignee_en_bas = self.grip_y > self.y;",
+    "apres": "        let poignee_en_bas = false;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_1"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — le Storyboard reprend toute la hauteur",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "        TabId::Storyboard => storyboard::hauteur_naturelle(&dock.storyboard, largeur, s),",
+    "apres": "        TabId::Storyboard => f32::MAX,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_2"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — la Time Machine reprend toute la hauteur",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "        TabId::Temps => temps::hauteur_naturelle(&dock.temps, largeur, s),",
+    "apres": "        TabId::Temps => f32::MAX,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_2"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — Domaines reprend sa hauteur fixe",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "        TabId::Domains => domains::hauteur_naturelle(store, &dock.domains, largeur, s) + poignee,",
+    "apres": "        TabId::Domains => 430.0 * s,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — Domaines oublie ce que dit sa liste vide",
+    "fichier": "crates/glucose-desktop/src/dock/domains.rs",
+    "avant": "    let employe = if total == 0 {\n        m.hauteur_du_vide()\n    } else {",
+    "apres": "    let employe = if total == 0 {\n        0.0\n    } else {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_2"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — le Pomodoro reprend ses 210 pixels",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "        TabId::Pomodoro => 184.0 * s,",
+    "apres": "        TabId::Pomodoro => 210.0 * s,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_2"
+    ]
+  },
+  {
+    "nom": "TIROIR-3 — un panneau se pose sur un autre",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "            if anchor != DockAnchor::Right {\n                x = hors_des_autres(&layouts, (x, y, width, height), DOCK_GAP * s);\n            }",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_3"
+    ]
+  },
+  {
+    "nom": "BOUT-1 — les bouts n'ont plus de poignée",
+    "fichier": "crates/glucose-core/src/arrow.rs",
+    "avant": "    milieux.chain(coudes).chain(bouts).collect()",
+    "apres": "    let _ = bouts;\n    milieux.chain(coudes).collect()",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "bout_1"
+    ]
+  },
+  {
+    "nom": "BOUT-1 — le bout tenu ne suit pas la main",
+    "fichier": "crates/glucose-desktop/src/interactions/arrow_edit.rs",
+    "avant": "        if let Some(bout) = session.bout {\n            self.suivre_le_bout(&session.arrow_id, bout, (wx, wy));\n            return;\n        }",
+    "apres": "        if session.bout.is_some() {\n            return;\n        }",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "bout_1"
+    ]
+  },
+  {
+    "nom": "BOUT-1 — un bout peut rejoindre le nœud de l'autre",
+    "fichier": "crates/glucose-desktop/src/interactions/arrow_edit.rs",
+    "avant": "        exclure.extend(autre.as_deref());",
+    "apres": "        let _ = autre;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "bout_1"
+    ]
+  },
+  {
+    "nom": "BOUT-1 — le passage de l'ancien nœud reste",
+    "fichier": "crates/glucose-core/src/store/bouts.rs",
+    "avant": "            if id.as_deref() != noeud {",
+    "apres": "            if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "bout_1"
+    ]
+  },
+  {
+    "nom": "Redresser — proposé à une flèche sans coude",
+    "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+    "avant": "matches!(a, glucose_core::types::Annotation::Arrow { waypoints, .. } if !waypoints.is_empty())",
+    "apres": "matches!(a, glucose_core::types::Annotation::Arrow { .. })",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "redresser"
+    ]
+  },
+  {
+    "nom": "Redresser — les coudes restent",
+    "fichier": "crates/glucose-core/src/store/annotations.rs",
+    "avant": "                    waypoints.clear();",
+    "apres": "                    let _ = waypoints;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "redresser"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — le Mood board garde la place d'un gabarit suivi",
+    "fichier": "crates/glucose-desktop/src/dock.rs",
+    "avant": "        TabId::Preset => preset::hauteur_de(store) * s + poignee,",
+    "apres": "        TabId::Preset => 610.0 * s + poignee,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_2"
+    ]
+  },
+  {
+    "nom": "TIROIR-2 — le Mood board se mesure sur ce qu'il peut montrer de plus grand",
+    "fichier": "crates/glucose-desktop/src/dock/preset.rs",
+    "avant": "    layout_presets_panel(unite, &Contenu::du(store)).bas\n}",
+    "apres": "    let _ = (store, unite);\n    hauteur_naturelle()\n}",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "tiroir_2"
+    ]
+  }
+]

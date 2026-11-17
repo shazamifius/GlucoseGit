@@ -43,6 +43,7 @@ pub fn render_docks(
     let s = crate::theme::clamp_ui_scale(pass.screen.scale);
     let layouts = compute_panel_layouts(
         dock,
+        store,
         pass.screen.width,
         pass.screen.height,
         pass.screen.header_h,
@@ -80,6 +81,7 @@ pub fn confier_les_docks(
     let s = crate::theme::clamp_ui_scale(pass.screen.scale);
     let layouts = compute_panel_layouts(
         dock,
+        store,
         pass.screen.width,
         pass.screen.height,
         pass.screen.header_h,
@@ -206,16 +208,9 @@ pub(super) fn draw_panel(
     panel: &PanelLayoutBox,
     s: f32,
 ) {
-    let seen = panel.seen();
-    draw_frame(pixmap, brush, panel, seen);
-    let frame = ScaledRect {
-        x: seen.x,
-        y: seen.y,
-        w: seen.w,
-        h: seen.h,
-        scale: s,
-    };
-    draw_content(pixmap, brush, dock, store, panel.tab, frame);
+    draw_frame(pixmap, brush, panel, panel.seen());
+    // Le contenu ne passe jamais sur la poignée (TIROIR-1).
+    draw_content(pixmap, brush, dock, store, panel.tab, panel.contenu(s));
 }
 
 /// L'ombre, le fond, la bordure et la poignée — ce que tout panneau a en commun.

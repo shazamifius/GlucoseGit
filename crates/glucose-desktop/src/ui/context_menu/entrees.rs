@@ -111,6 +111,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         // Une flèche seule se suit jusqu'à son autre bout : au doigt, c'est le seul chemin
         // (LIEN-2).
         Some((MenuAction::SuivreLeLien, "Suivre le lien", "")),
+        // Ses coudes partent tous d'un geste ; un double-clic sur l'un le retire seul.
+        Some((MenuAction::RedresserLaFleche, "Redresser la flèche", "")),
         None,
         Some((
             MenuAction::EnregistrerLImage,

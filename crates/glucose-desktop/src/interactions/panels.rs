@@ -18,6 +18,7 @@ impl GlucoseApp {
     fn click_dock_grip(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         let layouts = compute_panel_layouts(
             &self.dock_manager,
+            &self.store,
             screen.width,
             screen.height,
             screen.header_h,

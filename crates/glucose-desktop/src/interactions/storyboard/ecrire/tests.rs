@@ -37,7 +37,8 @@ fn peindre(app: &mut GlucoseApp) {
 
 fn champ(app: &GlucoseApp, c: Champ) -> (f64, f64) {
     let ecran = app.screen_frame(ECRAN.0, ECRAN.1);
-    let cadre = cadre_du_panneau(&app.dock_manager, ecran, TabId::Storyboard).expect("ouvert");
+    let cadre =
+        cadre_du_panneau(&app.dock_manager, &app.store, ecran, TabId::Storyboard).expect("ouvert");
     let r = c.rect(cadre, &app.renderer.typography, &app.dock_manager);
     assert!(r.w > 0.0, "{c:?} est dans le panneau");
     centre(r)
@@ -155,7 +156,8 @@ fn test_rendre_la_duree_par_le_vrai_clic() {
     app.store.regler_la_duree(&board, &ids[0], Some(900));
     peindre(&mut app);
     let ecran = app.screen_frame(ECRAN.0, ECRAN.1);
-    let cadre = cadre_du_panneau(&app.dock_manager, ecran, TabId::Storyboard).expect("ouvert");
+    let cadre =
+        cadre_du_panneau(&app.dock_manager, &app.store, ecran, TabId::Storyboard).expect("ouvert");
     let s = &app.dock_manager.storyboard;
     let layout = crate::dock::storyboard::layout_storyboard_panel(cadre, s, &s.contenu);
     let rendre = layout
@@ -236,7 +238,8 @@ fn test_renommer_retirer_et_ajouter_un_champ() {
 fn test_lire_par_le_vrai_clic() {
     let (mut app, _, ids) = app();
     let ecran = app.screen_frame(ECRAN.0, ECRAN.1);
-    let cadre = cadre_du_panneau(&app.dock_manager, ecran, TabId::Storyboard).expect("ouvert");
+    let cadre =
+        cadre_du_panneau(&app.dock_manager, &app.store, ecran, TabId::Storyboard).expect("ouvert");
     let s = &app.dock_manager.storyboard;
     let layout = crate::dock::storyboard::layout_storyboard_panel(cadre, s, &s.contenu);
     let p = centre(layout.lecture.expect("la lecture").lire);

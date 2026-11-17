@@ -201,6 +201,11 @@ impl GlucoseApp {
     }
 
     /// La barre d'outils, les onglets et la minimap.
+    ///
+    /// **VIDE-1 — la bande prend tout clic qui tombe sur elle**, bouton ou non. Le vide entre
+    /// deux boutons, ou à côté des onglets, n'est pas le canevas : un appui y commençait une
+    /// sélection élastique sous la bande, que le défilement au bord emportait vers le haut (sa
+    /// capture du 17/11, sous Windows, où chaque clic décalé tombait ainsi dans le vide).
     pub fn click_chrome(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         let Some(action) = handle_ui_click(
             pointer.x,
@@ -211,7 +216,7 @@ impl GlucoseApp {
             &mut self.ui,
             &self.renderer.typography,
         ) else {
-            return false;
+            return pointer.y < self.ui.header_height();
         };
         self.apply_ui_action(action, screen);
         true

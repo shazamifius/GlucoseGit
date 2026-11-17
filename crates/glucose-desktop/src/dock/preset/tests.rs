@@ -109,3 +109,25 @@ fn test_preset_1_un_nom_qui_ne_tient_pas_se_tait() {
     assert!(ecrit(150.0), "il tient : il s'écrit");
     assert!(!ecrit(12.0), "il ne tient pas : rien");
 }
+
+/// **TIROIR-2 — sans gabarit suivi, le panneau ne garde pas sa place** : il finit sous « + Créer
+/// un mood board », plus bas que rien ; un gabarit suivi l'allonge.
+#[test]
+fn test_tiroir_2_le_mood_board_a_la_hauteur_de_ce_qu_il_montre() {
+    let mut store = Store::new("p");
+    let vide = hauteur_de(&store);
+    let cadre = ScaledRect { h: vide, ..cadre() };
+    let layout = layout_presets_panel(cadre, &Contenu::du(&store));
+    let bas = layout.create_button.y + layout.create_button.h;
+    assert!(bas <= cadre.y + cadre.h + 0.01, "« + Créer » tient dedans");
+    assert!(
+        cadre.y + cadre.h - bas < 20.0,
+        "et rien de plus : {} vides",
+        cadre.y + cadre.h - bas
+    );
+    let board = store.project.active_board_id.clone();
+    let gabarit = glucose_core::gabarits::integre("charadesign").expect("charadesign");
+    let cats: Vec<&str> = gabarit.categories.iter().map(|c| c.id).collect();
+    store.poser_un_gabarit(&board, (gabarit.id, &cats), (0.0, 0.0));
+    assert!(hauteur_de(&store) > vide, "un gabarit suivi l'allonge");
+}

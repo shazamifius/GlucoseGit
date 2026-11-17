@@ -260,7 +260,16 @@ pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
     action
 }
 
-/// La barre à cette densité, et si elle tient dans la fenêtre.
+/// La barre à cette densité, et si elle tient dans une fenêtre large de `width`.
+///
+/// **BARRE-2 — la place des boutons de la fenêtre se retire ici, et seulement ici.** Sous
+/// Windows, réduire, agrandir et fermer occupent le bout de la bande (BARRE-1). Le dessin, le
+/// survol et les zones données à Windows retiraient leur place ; le clic ne la retirait pas : il
+/// cherchait chaque bouton de droite 138 pixels plus loin (207 à 150 %), et la densité choisie
+/// pouvait même différer — toute la barre décalée. Un clic sur « Domaines » ouvrait
+/// « Collaborer », ou tombait dans le vide (sa capture du 17/11 : « AUCUN bouton n'est
+/// accessible sur Windows »). Retirée dans la seule fonction qui pose la barre, aucun appelant ne
+/// peut plus l'oublier.
 fn poser_la_barre(
     width: f32,
     ui: &UiState,
@@ -268,6 +277,7 @@ fn poser_la_barre(
     board_img_count: usize,
     densite: Densite,
 ) -> (TopbarLayout, bool) {
+    let width = width - super::cadre::largeur_reservee(ui);
     let mut regle = Regle::nouvelle(ui, typo, densite);
     groupe_des_outils(&mut regle, ui);
     groupe_des_images(&mut regle);

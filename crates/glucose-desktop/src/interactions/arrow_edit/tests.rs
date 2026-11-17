@@ -28,7 +28,8 @@ fn coudes(app: &GlucoseApp) -> Vec<(f64, f64)> {
         .unwrap_or_default()
 }
 
-/// Une flèche droite n'a qu'une poignée : le milieu de son unique tronçon.
+/// Une flèche droite n'a aucun coude : le milieu de son unique tronçon, et ses deux bouts
+/// (BOUT-1).
 #[test]
 fn test_arrow_3_a_straight_arrow_offers_one_midpoint_and_no_bend() {
     let app = app_avec_fleche();
@@ -36,9 +37,13 @@ fn test_arrow_3_a_straight_arrow_offers_one_midpoint_and_no_bend() {
     let fleche = &board.annotations[0];
     let poignees = arrow::handles(fleche, |id: &str| arrow::node_rect(board, id));
 
-    assert_eq!(poignees.len(), 1);
+    assert_eq!(poignees.len(), 3);
     assert_eq!(poignees[0].kind, HandleKind::Midpoint(0));
     assert_eq!(poignees[0].at, (200.0, 0.0), "le milieu du tronçon");
+    assert_eq!(poignees[1].kind, HandleKind::Extremite(Extremite::Depart));
+    assert_eq!(poignees[1].at, (0.0, 0.0), "son départ");
+    assert_eq!(poignees[2].kind, HandleKind::Extremite(Extremite::Arrivee));
+    assert_eq!(poignees[2].at, (400.0, 0.0), "son arrivée");
 }
 
 /// Appuyer sur un milieu y pose un coude **et** ouvre le glisser dessus.
@@ -329,4 +334,143 @@ fn test_fleche_un_clic_sur_un_losange_n_est_pas_un_reclic() {
         vec!["a"],
         "la fleche doit rester prise"
     );
+}
+
+/// Un bout de flèche : son nœud, s'il en a un, et son point.
+type UnBout = (Option<String>, (f64, f64));
+
+/// Les deux bouts de la flèche « a ».
+fn bouts(app: &GlucoseApp) -> (UnBout, UnBout) {
+    match app
+        .store
+        .active_board()
+        .and_then(|b| b.annotations.iter().find(|a| a.id() == "a").cloned())
+    {
+        Some(Annotation::Arrow {
+            x,
+            y,
+            x2,
+            y2,
+            source_id,
+            target_id,
+            ..
+        }) => ((source_id, (x, y)), (target_id, (x2, y2))),
+        _ => panic!("la flèche « a »"),
+    }
+}
+
+/// Un texte de 200 × 100 dont le coin haut gauche est en `(x, y)`.
+fn texte(app: &mut GlucoseApp, id: &str, (x, y): (f64, f64)) {
+    let board = app.store.project.active_board_id.clone();
+    let mut t = Annotation::text(id, x, y, "nœud");
+    if let Annotation::Text { width, height, .. } = &mut t {
+        (*width, *height) = (Some(200.0), Some(100.0));
+    }
+    app.store.add_annotation(&board, t);
+    app.store.journal.clear();
+    // Poser un nœud le choisit : la flèche, seule, reste celle qu'on tient.
+    app.store.set_selected_annotation_ids(vec!["a".into()]);
+    // L'index du rendu, où les poignées et l'accroche cherchent les nœuds.
+    app.renderer.sync_spatial_index(&app.store);
+}
+
+/// **BOUT-1 — un bout glissé sur un nœud s'y branche**, et tout le geste se défait d'un seul
+/// `Ctrl+Z`. Sa capture du 17/11 : *« aucun système permettant de bouger indépendamment les
+/// points A et B d'une flèche »*.
+#[test]
+fn test_bout_1_un_bout_glisse_sur_un_noeud_s_y_branche() {
+    let mut app = app_avec_fleche();
+    texte(&mut app, "t", (600.0, -50.0));
+    assert!(app.begin_arrow_bend(400.0, 0.0), "l'arrivée se prend");
+    app.update_bend(500.0, 0.0);
+    app.update_bend(700.0, 0.0);
+    app.finish_bend();
+    assert_eq!(
+        bouts(&app).1 .0.as_deref(),
+        Some("t"),
+        "l'arrivée a rejoint le texte"
+    );
+    assert_eq!(bouts(&app).0 .0, None, "le départ n'a pas bougé");
+    assert_eq!(bouts(&app).0 .1, (0.0, 0.0));
+    app.store.undo();
+    assert_eq!(bouts(&app).1, (None, (400.0, 0.0)), "un seul Ctrl+Z");
+}
+
+/// **BOUT-1 — lâché dans le vide, un bout se détache et reste où on l'a lâché** ; l'autre bout
+/// garde son nœud.
+#[test]
+fn test_bout_1_lache_dans_le_vide_un_bout_reste_libre() {
+    let mut app = app_avec_fleche();
+    texte(&mut app, "s", (-300.0, -50.0));
+    texte(&mut app, "c", (500.0, -50.0));
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .rebrancher_la_fleche(&board, "a", Extremite::Depart, (Some("s"), (0.0, 0.0)));
+    app.store
+        .rebrancher_la_fleche(&board, "a", Extremite::Arrivee, (Some("c"), (400.0, 0.0)));
+    app.store.journal.clear();
+    // Le départ touche le bord droit du nœud « s » : c'est là qu'est sa poignée.
+    let depart = {
+        let board = app.store.active_board().expect("un tableau");
+        let fleche = board.annotations.iter().find(|a| a.id() == "a").expect("a");
+        arrow::path_in(fleche, board).expect("un tracé")[0]
+    };
+    assert!(
+        app.begin_arrow_bend(depart.0, depart.1),
+        "le départ se prend"
+    );
+    app.update_bend(150.0, 400.0);
+    app.finish_bend();
+    assert_eq!(
+        bouts(&app).0,
+        (None, (150.0, 400.0)),
+        "libre, là où il est lâché"
+    );
+    assert_eq!(
+        bouts(&app).1 .0.as_deref(),
+        Some("c"),
+        "l'arrivée garde son nœud"
+    );
+}
+
+/// **BOUT-1 — un bout ne rejoint jamais le nœud de l'autre bout** : la flèche ne se referme
+/// pas sur elle-même, comme celle qu'on trace (ARROW-2).
+#[test]
+fn test_bout_1_un_bout_ne_rejoint_pas_le_noeud_de_l_autre() {
+    let mut app = app_avec_fleche();
+    texte(&mut app, "s", (-300.0, -50.0));
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .rebrancher_la_fleche(&board, "a", Extremite::Depart, (Some("s"), (0.0, 0.0)));
+    app.store.journal.clear();
+    assert!(app.begin_arrow_bend(400.0, 0.0));
+    app.update_bend(-200.0, 0.0);
+    app.finish_bend();
+    assert_eq!(
+        bouts(&app).1 .0,
+        None,
+        "l'arrivée reste libre au-dessus de sa source"
+    );
+}
+
+/// **Redresser la flèche** retire tous ses coudes d'un geste, qu'un `Ctrl+Z` rend ; une flèche
+/// sans coude ne se le voit pas proposer (APPLIQUE-1).
+#[test]
+fn test_redresser_la_fleche_retire_tous_ses_coudes_d_un_geste() {
+    use crate::commandes::Commande;
+    let mut app = app_avec_fleche();
+    assert!(
+        !app.s_applique(Commande::RedresserLaFleche),
+        "rien à redresser"
+    );
+    let board = app.store.project.active_board_id.clone();
+    app.store.insert_arrow_bend(&board, "a", 0, (100.0, 80.0));
+    app.store.insert_arrow_bend(&board, "a", 1, (300.0, -80.0));
+    app.store.journal.clear();
+    assert_eq!(coudes(&app).len(), 2);
+    assert!(app.s_applique(Commande::RedresserLaFleche));
+    app.executer(Commande::RedresserLaFleche);
+    assert!(coudes(&app).is_empty(), "tous ses coudes partent");
+    app.store.undo();
+    assert_eq!(coudes(&app).len(), 2, "un seul Ctrl+Z les rend");
 }

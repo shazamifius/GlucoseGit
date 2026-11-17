@@ -140,6 +140,13 @@ pub(super) fn draw_arrow_handles(
                 b.push_circle(cx, cy, rayon);
                 (b.finish(), theme.arrow_bend)
             }
+            // Un bout : un disque clair, là où le trait touche son nœud — on le prend pour le
+            // rebrancher (BOUT-1) ; l'orange reste aux coudes.
+            HandleKind::Extremite(_) => {
+                let mut b = PathBuilder::new();
+                b.push_circle(cx, cy, rayon);
+                (b.finish(), theme.handle_fill)
+            }
             // Un milieu : un losange, plus discret — il n'existe pas encore, il s'offre.
             HandleKind::Midpoint(_) => {
                 let mut b = PathBuilder::new();

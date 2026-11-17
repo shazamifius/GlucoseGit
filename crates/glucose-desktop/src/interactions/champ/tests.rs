@@ -30,7 +30,8 @@ fn a_l_ecran(
     quoi: impl Fn(&organize::OrganizePanelLayout) -> WidgetRect,
 ) -> WidgetRect {
     let ecran = app.screen_frame(ECRAN.0, ECRAN.1);
-    let cadre = cadre_du_panneau(&app.dock_manager, ecran, TabId::Organize).expect("ouvert");
+    let cadre =
+        cadre_du_panneau(&app.dock_manager, &app.store, ecran, TabId::Organize).expect("ouvert");
     quoi(&organize::layout_organize_panel(
         cadre,
         &app.renderer.typography,
@@ -39,7 +40,8 @@ fn a_l_ecran(
 
 fn champ(app: &GlucoseApp, c: Champ) -> WidgetRect {
     let ecran = app.screen_frame(ECRAN.0, ECRAN.1);
-    let cadre = cadre_du_panneau(&app.dock_manager, ecran, c.panneau()).expect("ouvert");
+    let cadre =
+        cadre_du_panneau(&app.dock_manager, &app.store, ecran, c.panneau()).expect("ouvert");
     c.rect(cadre, &app.renderer.typography, &app.dock_manager)
 }
 

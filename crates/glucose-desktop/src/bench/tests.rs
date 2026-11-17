@@ -391,7 +391,9 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// contraste d'un texte courant (`#a8cfff`, Lc 75) — 247 pixels, le seul mot « lien »
 /// (261-285 × 472-486), au plus 67 niveaux ; regardé avant/après, agrandi : plus clair, toujours
 /// bleu et souligné.
-const EMPREINTE_TEMOIN_SELECTION: &str = "ee9461be728cd885";
+/// **Puis, le 17/11** (BOUT-1, fiche 118) : la flèche choisie porte une poignée à chacun de ses
+/// deux bouts, deux disques clairs ; regardée.
+const EMPREINTE_TEMOIN_SELECTION: &str = "ace1245ccd1cb108";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -491,7 +493,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 13/11** (DATE-1 et LIEN-BLEU-1, fiches 113 et 114) : « Dater… Maj+T » dans le
 /// groupe de l'édition, le menu plus haut d'une entrée, et le mot « lien » éclairci — 17 620
 /// pixels, tous dans le menu et sur ce mot (261-888 × 424-645) ; regardé avant/après, agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "573b67e679830281";
+/// **Puis, le 17/11** (fiche 118) : « Redresser la flèche » dans le groupe de l'édition — la
+/// flèche témoin a un coude —, et les poignées de ses bouts (BOUT-1) ; regardé, agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "be90514ff2c0950c";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

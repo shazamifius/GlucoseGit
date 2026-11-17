@@ -287,8 +287,14 @@ pub(super) fn morceau(ui: &UiState) -> Option<super::chrome::Morceau<'_>> {
 }
 
 /// **La barre du haut, ou rien** quand elle est sur le côté ([`super::rail`]) : la bande n'a
-/// alors que les onglets, et ni dessin ni survol de boutons.
-fn la_barre(largeur: f32, ui: &UiState, typo: &Typography, images: usize) -> TopbarLayout {
+/// alors que les onglets, et ni dessin ni survol de boutons. C'est celle que le dessin, le survol
+/// et les zones données à Windows lisent : les épreuves y cherchent ce que l'œil voit.
+pub(crate) fn la_barre(
+    largeur: f32,
+    ui: &UiState,
+    typo: &Typography,
+    images: usize,
+) -> TopbarLayout {
     if ui.rail.actif {
         TopbarLayout {
             buttons: Vec::new(),
@@ -296,13 +302,9 @@ fn la_barre(largeur: f32, ui: &UiState, typo: &Typography, images: usize) -> Top
             img_badge: None,
         }
     } else {
-        // Les boutons de la fenêtre gardent leur place au bout (BARRE-1).
-        layout_topbar(
-            largeur - super::cadre::largeur_reservee(ui),
-            ui,
-            typo,
-            images,
-        )
+        // Les boutons de la fenêtre gardent leur place au bout : `layout_topbar` la retire
+        // (BARRE-2).
+        layout_topbar(largeur, ui, typo, images)
     }
 }
 

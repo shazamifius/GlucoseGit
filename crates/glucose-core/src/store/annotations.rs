@@ -125,6 +125,20 @@ impl Store {
         });
     }
 
+    /// **Redresse les flèches nommées** : tous leurs coudes partent, et chacune reprend le
+    /// chemin que Glucose lui trace (FLECHE-5). Le geste qui retire d'un coup ce que des
+    /// double-clics retiraient un à un — sa capture du 17/11 : *« aucun système permettant de
+    /// supprimer des points orange d'une flèche »*.
+    pub fn redresser_les_fleches(&mut self, board_id: &str, fleches: &[String]) {
+        for id in fleches {
+            self.update_annotation(board_id, id, |ann| {
+                if let Annotation::Arrow { waypoints, .. } = ann {
+                    waypoints.clear();
+                }
+            });
+        }
+    }
+
     /// Retire un coude de flèche. Un index inconnu ne fait rien.
     pub fn remove_arrow_bend(&mut self, board_id: &str, arrow_id: &str, bend: usize) {
         self.update_annotation(board_id, arrow_id, |ann| {

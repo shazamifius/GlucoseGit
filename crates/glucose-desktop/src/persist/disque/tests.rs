@@ -552,7 +552,8 @@ fn test_la_reglette_tenue_suit_le_curseur() {
     let (mut app, _, etats) = trois_gestes("reglette-glissee");
     let (w, h) = app.taille_de_la_fenetre();
     let ecran = app.screen_frame(w, h);
-    let r = crate::dock::reglette_a_l_ecran(&app.dock_manager, ecran).expect("le panneau");
+    let r =
+        crate::dock::reglette_a_l_ecran(&app.dock_manager, &app.store, ecran).expect("le panneau");
     let y = f64::from(r.y + r.h / 2.0);
     let au_point = |k: f32| f64::from(r.x + r.w * k / 3.0);
 

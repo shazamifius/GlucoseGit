@@ -93,6 +93,9 @@ pub enum Commande {
     /// Suivre la flèche choisie jusqu'à son autre bout (LIEN-2, fiche 102) — `Ctrl`+clic à la
     /// souris.
     SuivreLeLien,
+    /// Retirer tous les coudes des flèches choisies : chacune reprend le chemin que Glucose lui
+    /// trace (sa capture du 17/11).
+    RedresserLaFleche,
     /// La fenêtre des liens du nœud choisi (LIEN-3, fiche 102), et aller au nœud qu'on y a
     /// choisi.
     MontrerLesLiens,
@@ -174,7 +177,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 56] = [
+const SIMPLES: [(Commande, &str, &str); 57] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -239,6 +242,11 @@ const SIMPLES: [(Commande, &str, &str); 56] = [
         "Cadrer la sélection",
     ),
     (Commande::SuivreLeLien, "lien.suivre", "Suivre le lien"),
+    (
+        Commande::RedresserLaFleche,
+        "fleche.redresser",
+        "Redresser la flèche",
+    ),
     (
         Commande::MontrerLesLiens,
         "liens.montrer",

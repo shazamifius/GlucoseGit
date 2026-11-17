@@ -4,7 +4,7 @@
 use crate::app::GlucoseApp;
 use crate::dock::preset::{layout_presets_panel, Contenu};
 use crate::dock::{compute_panel_layouts, TabId};
-use crate::params::{ScaledRect, ScreenFrame};
+use crate::params::ScreenFrame;
 use winit::event::MouseButton;
 
 const ECRAN: (f32, f32) = (1440.0, 900.0);
@@ -32,17 +32,18 @@ fn cliquer_le_gabarit(app: &mut GlucoseApp, rang: usize) {
         scale: app.ui.scale_factor,
     };
     let s = crate::theme::clamp_ui_scale(ecran.scale);
-    let panneau = compute_panel_layouts(&app.dock_manager, ECRAN.0, ECRAN.1, ecran.header_h, s)
-        .into_iter()
-        .find(|p| p.tab == TabId::Preset)
-        .expect("le panneau est ouvert");
-    let cadre = ScaledRect {
-        x: panneau.x,
-        y: panneau.y,
-        w: panneau.width,
-        h: panneau.height,
-        scale: s,
-    };
+    let panneau = compute_panel_layouts(
+        &app.dock_manager,
+        &app.store,
+        ECRAN.0,
+        ECRAN.1,
+        ecran.header_h,
+        s,
+    )
+    .into_iter()
+    .find(|p| p.tab == TabId::Preset)
+    .expect("le panneau est ouvert");
+    let cadre = panneau.contenu(s);
     let rect = layout_presets_panel(cadre, &Contenu::du(&app.store)).rows[rang].rect;
     app.mouse_pos = (
         f64::from(rect.x + rect.w / 2.0),

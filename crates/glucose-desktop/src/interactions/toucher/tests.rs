@@ -315,9 +315,10 @@ fn test_appui_1_dans_le_texte_le_mot_se_selectionne() {
     use glucose_core::types::{Annotation, Viewport};
     let mut app = GlucoseApp::new();
     let board = app.store.project.active_board_id.clone();
+    // Le texte sous la bande du haut, qui prend tout appui (VIDE-1).
     let vue = Viewport {
         x: 0.0,
-        y: 0.0,
+        y: 200.0,
         scale: 1.0,
     };
     app.store.set_viewport(&board, vue);
@@ -328,7 +329,7 @@ fn test_appui_1_dans_le_texte_le_mot_se_selectionne() {
     }
     app.store.add_annotation(&board, carte);
     app.start_text_edit("c".into(), "bonjour le monde".into());
-    doigt(&mut app, 1, TouchPhase::Started, (30.0, 20.0));
+    doigt(&mut app, 1, TouchPhase::Started, (30.0, 220.0));
     echeance_atteinte(&mut app);
     app.attente_de_l_appui();
     let session = app.editing_session.as_ref().expect("la saisie continue");

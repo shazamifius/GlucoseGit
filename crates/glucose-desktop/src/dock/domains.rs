@@ -106,6 +106,16 @@ impl Metrics {
         }
     }
 
+    /// Le pas entre deux lignes de ce que dit un panneau vide ([`VIDE`]).
+    fn pas_du_vide(&self) -> f32 {
+        self.line_gap * 0.8
+    }
+
+    /// Ce que [`VIDE`] occupe sous le haut des rangées : sa place dans la hauteur du panneau.
+    fn hauteur_du_vide(&self) -> f32 {
+        self.row_gap + VIDE.len() as f32 * self.pas_du_vide()
+    }
+
     /// L'unique conversion logique → physique du panneau (§ 5.3).
     fn scaled(s: f32) -> Self {
         let l = Self::logical();
@@ -288,6 +298,32 @@ pub struct DomainsPanelLayout {
     pub hidden: usize,
     /// Les rangées de la liste « où ? », quand elle est ouverte : `.0` est le rang de la première.
     pub ou: Option<(usize, Vec<WidgetRect>)>,
+    /// La hauteur que la liste n'emploie pas, toutes ses rangées posées (ou ce qu'elle dit quand
+    /// elle est vide) : ce que le panneau rend à l'écran (TIROIR-2).
+    pub reste: f32,
+}
+
+/// **Ce que le panneau dit quand le document n'a aucun domaine**, une ligne par entrée.
+pub(super) const VIDE: [&str; 3] = [
+    "Aucun domaine.",
+    "Crée-en un, puis assigne-le a ta selection :",
+    "sa reglette apparait au-dessus du noeud.",
+];
+
+/// **La hauteur du panneau quand toutes ses rangées s'y lisent** (TIROIR-2), sans sa poignée.
+/// Elle était fixée à la main : vide sous deux domaines, et son contenu passait sur sa poignée
+/// (sa capture du 17/11 : « le tiroir de domaine a littéralement l'UX sur le bouton pour
+/// refermer le tiroir »).
+pub fn hauteur_naturelle(store: &Store, ui: &DomainsUi, largeur: f32, s: f32) -> f32 {
+    let haut = super::HAUTEUR_DE_MESURE * s;
+    let cadre = ScaledRect {
+        x: 0.0,
+        y: 0.0,
+        w: largeur,
+        h: haut,
+        scale: s,
+    };
+    haut - layout_domains_panel(cadre, store, ui).reste
 }
 
 /// Produit l'unique liste de rectangles du panneau (DOM-UI-2).
@@ -307,28 +343,25 @@ pub fn layout_domains_panel(
         m.add_height,
     );
     let rows_bottom = add_button.y - m.hint_height - m.row_gap;
+    // La hauteur des rangées : entre leur haut et l'aide, au-dessus de « + Nouveau domaine ».
+    let libre = rows_bottom - (py + m.rows_top);
     if let Some(ou) = &ui.ou {
-        let pitch = m.swatch + m.row_gap;
-        let room = ((rows_bottom - (py + m.rows_top)) / pitch).floor().max(0.0) as usize;
-        let premier = ui.decalage.min(ou.lignes.len().saturating_sub(room));
-        let montres = (ou.lignes.len() - premier).min(room);
-        let lignes = (0..montres)
-            .map(|k| {
-                let top = py + m.rows_top + k as f32 * pitch;
-                WidgetRect::new(px + m.pad, top, pw - 2.0 * m.pad, m.swatch)
-            })
-            .collect();
-        return DomainsPanelLayout {
-            rows: Vec::new(),
-            add_button,
-            hidden: ou.lignes.len() - montres,
-            ou: Some((premier, lignes)),
-        };
+        return la_liste_ou(
+            frame,
+            &m,
+            (ou.lignes.len(), ui.decalage),
+            (add_button, libre),
+        );
     }
     let pitch = m.row_height + m.row_gap;
-    let room = ((rows_bottom - (py + m.rows_top)) / pitch).floor().max(0.0) as usize;
+    let room = (libre / pitch).floor().max(0.0) as usize;
     let domaines = store.project.domains.len();
     let total = domaines + ui.connus.ailleurs.len();
+    let employe = if total == 0 {
+        m.hauteur_du_vide()
+    } else {
+        total as f32 * pitch
+    };
     let premier = ui.decalage.min(total.saturating_sub(room));
     let shown = (total - premier).min(room);
 
@@ -365,6 +398,35 @@ pub fn layout_domains_panel(
         add_button,
         hidden: total - shown,
         ou: None,
+        reste: libre - employe,
+    }
+}
+
+/// **La liste « où ? »** d'un domaine : une rangée par lieu où il vit, sous le titre, autant que
+/// la hauteur en laisse ; la molette amène les autres.
+fn la_liste_ou(
+    frame: ScaledRect,
+    m: &Metrics,
+    (n, decalage): (usize, usize),
+    (add_button, libre): (WidgetRect, f32),
+) -> DomainsPanelLayout {
+    let (px, py, pw) = (frame.x, frame.y, frame.w);
+    let pitch = m.swatch + m.row_gap;
+    let room = (libre / pitch).floor().max(0.0) as usize;
+    let premier = decalage.min(n.saturating_sub(room));
+    let montres = (n - premier).min(room);
+    let lignes = (0..montres)
+        .map(|k| {
+            let top = py + m.rows_top + k as f32 * pitch;
+            WidgetRect::new(px + m.pad, top, pw - 2.0 * m.pad, m.swatch)
+        })
+        .collect();
+    DomainsPanelLayout {
+        rows: Vec::new(),
+        add_button,
+        hidden: n - montres,
+        ou: Some((premier, lignes)),
+        reste: libre - n as f32 * pitch,
     }
 }
 

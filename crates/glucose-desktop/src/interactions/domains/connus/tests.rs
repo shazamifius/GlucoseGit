@@ -531,23 +531,25 @@ fn la_molette_fait_defiler_les_rangees() {
         !app.molette_sur_les_domaines(-1.0),
         "le pointeur n'y est pas"
     );
+    // Plus de rangées que l'écran n'en laisse montrer : le panneau a la hauteur de ce qu'il
+    // montre (TIROIR-2), jusqu'au bas de l'écran.
+    const RANGEES: usize = 40;
+    for k in 0..RANGEES as i64 {
+        let (_, s) = un_autre_document(&format!("D{k}"), k, "x");
+        recense(&mut app, &format!("/{k}"), &s);
+    }
     let (l, h) = app.taille_de_la_fenetre();
     let ecran = app.screen_frame(l, h);
-    let (_, cadre) = crate::dock::cadres_ouverts(&app.dock_manager, ecran)
+    let (_, cadre) = crate::dock::cadres_ouverts(&app.dock_manager, &app.store, ecran)
         .into_iter()
         .find(|(t, _)| *t == TabId::Domains)
         .expect("ouvert");
     app.mouse_pos = (f64::from(cadre.x + 5.0), f64::from(cadre.y + 5.0));
-    // Plus de rangées que le panneau n'en montre.
-    for k in 0..12 {
-        let (_, s) = un_autre_document(&format!("D{k}"), k, "x");
-        recense(&mut app, &format!("/{k}"), &s);
-    }
     let montrees = layout_domains_panel(cadre, &app.store, &app.dock_manager.domains)
         .rows
         .len();
-    assert!(montrees < 12, "il faut défiler : {montrees} montrées");
-    let caches = 12 - montrees;
+    assert!(montrees < RANGEES, "il faut défiler : {montrees} montrées");
+    let caches = RANGEES - montrees;
     for _ in 0..30 {
         assert!(app.molette_sur_les_domaines(-1.0));
     }
@@ -558,7 +560,7 @@ fn la_molette_fait_defiler_les_rangees() {
     let layout = layout_domains_panel(cadre, &app.store, &app.dock_manager.domains);
     assert_eq!(
         layout.rows.last().map(|r| r.index),
-        Some(11),
+        Some(RANGEES - 1),
         "la dernière se voit"
     );
     app.molette_sur_les_domaines(1.0);

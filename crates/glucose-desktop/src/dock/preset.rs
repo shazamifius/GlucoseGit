@@ -17,8 +17,8 @@
 //! # Une seule géométrie (loi L4)
 //!
 //! [`layout_presets_panel`] produit la liste des rectangles ; le dessin la lit, le clic la lit.
-//! Le panneau a la hauteur de ce qu'il peut montrer de plus grand ([`hauteur_naturelle`]),
-//! mesurée sur la même mise en page — aucune hauteur écrite à la main.
+//! Le panneau a la hauteur de ce qu'il montre ([`hauteur_de`]), mesurée sur la même mise en
+//! page — aucune hauteur écrite à la main (TIROIR-2).
 
 use super::WidgetRect;
 use crate::params::ScaledRect;
@@ -200,8 +200,23 @@ fn section_suivie(
     )
 }
 
-/// **La hauteur naturelle du panneau** : celle de ce qu'il peut montrer de plus grand — les six
-/// gabarits, et le plus long suivi —, mesurée sur sa propre mise en page.
+/// **La hauteur du panneau pour ce document** (TIROIR-2) : les six gabarits, et celui que le
+/// tableau suit s'il en suit un. Il gardait la place d'un gabarit suivi même quand aucun ne
+/// l'était — deux cents pixels vides sous « + Créer un mood board ».
+pub fn hauteur_de(store: &Store) -> f32 {
+    let unite = ScaledRect {
+        x: 0.0,
+        y: 0.0,
+        w: super::TabId::Preset.default_width(),
+        h: 0.0,
+        scale: 1.0,
+    };
+    layout_presets_panel(unite, &Contenu::du(store)).bas
+}
+
+/// **La plus grande hauteur du panneau** : les six gabarits, et le plus long suivi — le cadre où
+/// les épreuves posent tout ce qu'il peut montrer.
+#[cfg(test)]
 pub fn hauteur_naturelle() -> f32 {
     let projet = glucose_core::types::Project::new("mesure");
     let choix = a_choisir(&projet);

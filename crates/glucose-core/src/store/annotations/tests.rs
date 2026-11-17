@@ -225,3 +225,64 @@ fn roue_1_la_couleur_que_porte_un_noeud() {
     assert_eq!(store.couleur_du_noeud("c"), Some("#34d399"));
     assert_eq!(store.couleur_du_noeud("inconnu"), None);
 }
+
+/// **BOUT-1 — rebrancher un bout** : il prend son nouveau nœud, ou sa place libre ; le passage de
+/// texte qu'il désignait part quand il change de nœud, et reste quand il y revient.
+#[test]
+fn test_bout_1_rebrancher_un_bout_oublie_le_passage_de_l_ancien_noeud() {
+    use crate::arrow::Extremite;
+    use crate::types::{TextAnchor, TextSelection};
+    let (mut store, board, _) = tableau();
+    let passage = TextSelection::Anchors(vec![TextAnchor {
+        start: 0,
+        end: 3,
+        quote: "une".into(),
+        prefix: None,
+        suffix: None,
+    }]);
+    store.update_annotation(&board, "f1", |a| {
+        if let Annotation::Arrow {
+            target_id,
+            target_text_sel,
+            ..
+        } = a
+        {
+            *target_id = Some("c".into());
+            *target_text_sel = Some(passage.clone());
+        }
+    });
+    let cible = |s: &Store| match fleche(s, "f1") {
+        Annotation::Arrow {
+            target_id,
+            target_text_sel,
+            x2,
+            y2,
+            ..
+        } => (target_id.clone(), target_text_sel.is_some(), (*x2, *y2)),
+        _ => unreachable!(),
+    };
+    store.rebrancher_la_fleche(&board, "f1", Extremite::Arrivee, (Some("c"), (210.0, 5.0)));
+    assert_eq!(
+        cible(&store),
+        (Some("c".into()), true, (210.0, 5.0)),
+        "même nœud : le passage reste"
+    );
+    store.rebrancher_la_fleche(&board, "f1", Extremite::Arrivee, (None, (500.0, 70.0)));
+    assert_eq!(
+        cible(&store),
+        (None, false, (500.0, 70.0)),
+        "libre : le passage part"
+    );
+    match fleche(&store, "f1") {
+        Annotation::Arrow {
+            source_id, x, y, ..
+        } => {
+            assert_eq!(
+                (source_id.clone(), *x, *y),
+                (None, 0.0, 0.0),
+                "l'autre bout n'a pas bougé"
+            );
+        }
+        _ => unreachable!(),
+    }
+}

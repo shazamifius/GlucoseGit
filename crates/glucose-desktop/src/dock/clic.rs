@@ -37,7 +37,7 @@ pub fn handle_dock_click(
     screen: ScreenFrame,
     pointer: Pointer,
 ) -> Option<PanelClickResult> {
-    let (tab, frame) = panneau_sous(dock, screen, pointer)?;
+    let (tab, frame) = panneau_sous(dock, store, screen, pointer)?;
     Some(click_panel(dock, store, typo, tab, frame, pointer))
 }
 

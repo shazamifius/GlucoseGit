@@ -38,6 +38,8 @@ fn vide() -> GlucoseApp {
         b.annotations.clear();
         b.images.clear();
         b.folders.clear();
+        // L'origine du monde sous la bande du haut, qui prend tout clic (VIDE-1).
+        b.viewport.y = 200.0;
     }
     app
 }

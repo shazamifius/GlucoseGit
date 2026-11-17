@@ -102,13 +102,8 @@ fn draw_header(
 
 fn draw_empty_state(p: &Painter, pixmap: &mut PixmapMut, frame: ScaledRect) {
     let m = &p.m;
-    let lines = [
-        "Aucun domaine.",
-        "Crée-en un, puis assigne-le a ta selection :",
-        "sa reglette apparait au-dessus du noeud.",
-    ];
     let mut y = frame.y + m.rows_top + m.row_gap;
-    for (index, line) in lines.iter().enumerate() {
+    for (index, line) in super::VIDE.iter().enumerate() {
         let size = if index == 0 { m.name_size } else { m.hint_size };
         let (width, _) = p.brush.typo.measure_text(line, size, Face::Regular);
         p.brush.text_styled(
@@ -122,7 +117,7 @@ fn draw_empty_state(p: &Painter, pixmap: &mut PixmapMut, frame: ScaledRect) {
                 face: Face::Regular,
             },
         );
-        y += m.line_gap * 0.8;
+        y += m.pas_du_vide();
     }
 }
 

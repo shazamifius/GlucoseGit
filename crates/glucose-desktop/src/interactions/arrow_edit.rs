@@ -54,7 +54,7 @@ pub fn rang_du_clic(
         1
     }
 }
-use glucose_core::arrow::{self, ArrowHandle, HandleKind};
+use glucose_core::arrow::{self, ArrowHandle, Extremite, HandleKind};
 use glucose_core::hit_priority::pick_consts;
 
 /// Le coude qu'on tient sous la main.
@@ -67,6 +67,8 @@ pub struct BendSession {
     /// L'itinéraire à figer en coudes au premier mouvement, si la flèche contournait sans
     /// coude (FLECHE-5) — vide sinon.
     pub a_figer: Vec<(f64, f64)>,
+    /// Le bout qu'on tient, quand ce n'est pas un coude (BOUT-1).
+    pub bout: Option<Extremite>,
 }
 
 /// Une poignée de flèche trouvée sous la main, et les étapes du détour qu'elle porte si la
@@ -137,6 +139,7 @@ impl GlucoseApp {
         let cle = match handle.kind {
             HandleKind::Bend(index) => format!("bend:{arrow_id}:{index}"),
             HandleKind::Midpoint(segment) => format!("mid:{arrow_id}:{segment}"),
+            HandleKind::Extremite(bout) => format!("bout:{arrow_id}:{bout:?}"),
         };
         let rang = self.click_count_at(&cle);
         self.remember_click(cle, rang);
@@ -144,7 +147,7 @@ impl GlucoseApp {
         // Tout le geste — le figement éventuel, l'insertion ou le retrait, le glisser qui suit
         // — tient dans une seule entrée d'annulation.
         self.store.begin_live_edit();
-        let (bend, a_figer) = match handle.kind {
+        let (bend, a_figer, bout) = match handle.kind {
             // Un double-clic sur un coude le retire : une flèche qu'on a trop pliée se déplie
             // du même geste qui l'a pliée, et au même endroit.
             HandleKind::Bend(index) if rang > 1 => {
@@ -155,18 +158,21 @@ impl GlucoseApp {
                 return true;
             }
             // Une étape de détour ne se fige qu'au premier mouvement.
-            HandleKind::Bend(index) => (index, detour),
+            HandleKind::Bend(index) => (index, detour, None),
             HandleKind::Midpoint(segment) => {
                 self.store.figer_arrow_route(&board, &arrow_id, &detour);
                 self.store
                     .insert_arrow_bend(&board, &arrow_id, segment, handle.at);
-                (segment, Vec::new())
+                (segment, Vec::new(), None)
             }
+            // Un bout ne change rien tant qu'il ne bouge pas : un clic le laisse où il est.
+            HandleKind::Extremite(bout) => (0, Vec::new(), Some(bout)),
         };
         self.bend_session = Some(BendSession {
             arrow_id,
             bend,
             a_figer,
+            bout,
         });
         self.mark_dirty();
         true
@@ -180,10 +186,43 @@ impl GlucoseApp {
         let a_figer = std::mem::take(&mut session.a_figer);
         let session = session.clone();
         let board = self.store.project.active_board_id.clone();
+        if let Some(bout) = session.bout {
+            self.suivre_le_bout(&session.arrow_id, bout, (wx, wy));
+            return;
+        }
         self.store
             .figer_arrow_route(&board, &session.arrow_id, &a_figer);
         self.store
             .move_arrow_bend(&board, &session.arrow_id, session.bend, (wx, wy));
+        self.mark_dirty();
+    }
+
+    /// **Le bout tenu suit la main** et s'accroche à ce qu'il approche, par la loi même qui
+    /// accroche la pointe d'une flèche qu'on trace (ARROW-2, SNAP-3) — jamais à la flèche
+    /// elle-même, ni au nœud de son autre bout (BOUT-1).
+    fn suivre_le_bout(&mut self, fleche: &str, bout: Extremite, (wx, wy): (f64, f64)) {
+        let board = self.store.project.active_board_id.clone();
+        let autre = self.store.noeud_de_l_autre_bout(fleche, bout);
+        let mut exclure = vec![fleche];
+        exclure.extend(autre.as_deref());
+        let cible = self.snap_for_arrow((wx, wy), &exclure);
+        self.store
+            .rebrancher_la_fleche(&board, fleche, bout, (cible.node.as_deref(), cible.point));
+        self.mark_dirty();
+    }
+
+    /// **Redresse les flèches choisies**, d'un seul geste annulable : tous leurs coudes partent.
+    pub(crate) fn redresser_les_fleches_choisies(&mut self) {
+        let board = self.store.project.active_board_id.clone();
+        let fleches: Vec<String> = self
+            .store
+            .selected_arrows()
+            .iter()
+            .map(|a| a.id().to_string())
+            .collect();
+        self.store.begin_live_edit();
+        self.store.redresser_les_fleches(&board, &fleches);
+        self.store.end_live_edit();
         self.mark_dirty();
     }
 

@@ -9,18 +9,12 @@ use crate::params::{Pointer, ScaledRect};
 
 /// Le cadre du panneau Domaines ouvert, à l'écran de 1 440 × 900.
 fn cadre(app: &GlucoseApp) -> ScaledRect {
-    let boites = compute_panel_layouts(&app.dock_manager, 1440.0, 900.0, 78.0, 1.0);
+    let boites = compute_panel_layouts(&app.dock_manager, &app.store, 1440.0, 900.0, 78.0, 1.0);
     let b = boites
         .iter()
         .find(|b| b.tab == TabId::Domains)
         .expect("onglet ouvert");
-    ScaledRect {
-        x: b.x,
-        y: b.y,
-        w: b.width,
-        h: b.height,
-        scale: 1.0,
-    }
+    b.contenu(1.0)
 }
 
 /// Le clic au milieu du bouton « voir » de la première rangée, traduit par le panneau lui-même.

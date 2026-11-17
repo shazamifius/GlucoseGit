@@ -200,3 +200,40 @@ fn test_les_metriques_de_la_bande() {
     assert_eq!(SEGMENT_MAX_CHARS, 24);
     assert_eq!(SEPARATOR, "  ›  ");
 }
+
+/// **ARIANE-1 — les lettres du fil tiennent dans sa bande** (sa capture du 17/11 : « l'UX de
+/// dossier est carrément coupée en deux »). Le fil se dessine dans un tampon de la hauteur de sa
+/// bande ; une lettre qui en déborde est coupée. Dessiné ici dans une image plus haute, rien ne
+/// doit s'écrire hors de la bande — et les lettres doivent bien être là.
+#[test]
+fn test_ariane_1_les_lettres_du_fil_tiennent_dans_sa_bande() {
+    let store = descendu(2);
+    let theme = crate::theme::Theme::dark();
+    for echelle in [1.0_f32, 1.25, 1.5, 2.0] {
+        let (haut, hauteur) = (40.0 * echelle, HEIGHT * echelle);
+        let mut image = tiny_skia::Pixmap::new(900, (120.0 * echelle) as u32).expect("une image");
+        let pose = draw_breadcrumb(&mut image.as_mut(), &store, &typo(), &theme, haut, echelle);
+        assert_eq!(pose, hauteur);
+        let fond = theme.bg_header.to_color_u8();
+        let largeur = image.width() as usize;
+        let (mut dehors, mut lettres) = (0, 0);
+        for (i, p) in image.pixels().iter().enumerate() {
+            let y = (i / largeur) as f32;
+            let dans_la_bande = y >= haut.floor() && y < (haut + hauteur).ceil();
+            if !dans_la_bande && p.alpha() != 0 {
+                dehors += 1;
+            }
+            let c = p.demultiply();
+            if dans_la_bande
+                && (c.red(), c.green(), c.blue()) != (fond.red(), fond.green(), fond.blue())
+            {
+                lettres += 1;
+            }
+        }
+        assert_eq!(dehors, 0, "à {echelle} : {dehors} pixels hors de la bande");
+        assert!(
+            lettres > 100,
+            "à {echelle} : les lettres sont dans la bande ({lettres} pixels)"
+        );
+    }
+}

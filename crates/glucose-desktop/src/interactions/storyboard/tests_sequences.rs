@@ -61,7 +61,8 @@ fn peindre(app: &mut GlucoseApp) {
 /// La mise en page du panneau, telle qu'il est peint.
 fn panneau(app: &GlucoseApp) -> StoryboardPanelLayout {
     let ecran = app.screen_frame(ECRAN.0, ECRAN.1);
-    let cadre = cadre_du_panneau(&app.dock_manager, ecran, TabId::Storyboard).expect("ouvert");
+    let cadre =
+        cadre_du_panneau(&app.dock_manager, &app.store, ecran, TabId::Storyboard).expect("ouvert");
     let s = &app.dock_manager.storyboard;
     layout_storyboard_panel(cadre, s, &s.contenu)
 }

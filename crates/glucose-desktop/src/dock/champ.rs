@@ -285,12 +285,12 @@ impl Saisie {
 
 /// **Le champ sous ce point**, s'il y en a un : dans le panneau qui prend le clic.
 pub fn champ_sous(
-    dock: &DockManager,
+    (dock, store): (&DockManager, &glucose_core::store::Store),
     typo: &Typography,
     screen: ScreenFrame,
     p: Pointer,
 ) -> Option<(Champ, ScaledRect)> {
-    let (tab, frame) = panneau_sous(dock, screen, p)?;
+    let (tab, frame) = panneau_sous(dock, store, screen, p)?;
     Champ::TOUS
         .into_iter()
         .filter(|c| c.panneau() == tab && c.present(dock))

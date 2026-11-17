@@ -220,6 +220,8 @@ pub struct StoryboardPanelLayout {
     /// ‹ et ›, quand les cases ne tiennent pas sur une page ; la page montrée, et combien.
     pub pages: Option<(WidgetRect, WidgetRect, usize, usize)>,
     pub renumeroter: Option<WidgetRect>,
+    /// Le bas de ce que le panneau montre, sa marge comprise : sa hauteur naturelle (TIROIR-2).
+    pub bas: f32,
 }
 
 /// Les cellules de l'aperçu : la grille réglée, au format réglé, dans `zone` — celles qui
@@ -318,6 +320,7 @@ pub fn layout_storyboard_panel(
         lignes: Vec::new(),
         pages: None,
         renumeroter: None,
+        bas: 0.0,
     };
     let mut haut = aide.1 + 12.0 * s + 14.0 * s;
     if let Some(l) = &contenu.lecture {
@@ -325,10 +328,28 @@ pub fn layout_storyboard_panel(
         layout.lecture = Some(lecture);
         haut = bas + 24.0 * s;
     }
+    layout.bas = haut;
     if n > 0 {
         poser_la_liste(&mut layout, (frame, haut), state, n);
+        if let Some(r) = layout.renumeroter {
+            layout.bas = r.y + r.h + pad_x;
+        }
     }
     layout
+}
+
+/// **La hauteur du panneau quand toutes ses cases s'y lisent** (TIROIR-2) : le bas de sa mise
+/// en page. Il prenait toute la hauteur de l'écran pour deux rangées de réglages (sa capture du
+/// 17/11 : « pourquoi le storyboard est aussi long à sa création ? »).
+pub fn hauteur_naturelle(state: &StoryboardState, largeur: f32, s: f32) -> f32 {
+    let cadre = ScaledRect {
+        x: 0.0,
+        y: 0.0,
+        w: largeur,
+        h: super::HAUTEUR_DE_MESURE * s,
+        scale: s,
+    };
+    layout_storyboard_panel(cadre, state, &state.contenu).bas
 }
 
 /// La liste des cases, page par page, entre son titre et « Re-numéroter les panels ».

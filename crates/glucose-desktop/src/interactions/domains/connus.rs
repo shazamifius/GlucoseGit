@@ -292,9 +292,12 @@ impl GlucoseApp {
         let (largeur, hauteur) = self.taille_de_la_fenetre();
         let ecran = self.screen_frame(largeur, hauteur);
         let (x, y) = (self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
-        let Some((TabId::Domains, cadre)) =
-            crate::dock::panneau_sous(&self.dock_manager, ecran, crate::params::Pointer { x, y })
-        else {
+        let Some((TabId::Domains, cadre)) = crate::dock::panneau_sous(
+            &self.dock_manager,
+            &self.store,
+            ecran,
+            crate::params::Pointer { x, y },
+        ) else {
             return false;
         };
         let ui = &self.dock_manager.domains;

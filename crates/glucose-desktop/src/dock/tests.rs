@@ -25,17 +25,20 @@ fn screen_at(scale: f32) -> ScreenFrame {
 /// Le cadre d'un panneau ouvert seul dans son dock, à une échelle donnée.
 fn frame_of(dock: &DockManager, tab: TabId, screen: ScreenFrame) -> ScaledRect {
     let s = crate::theme::clamp_ui_scale(screen.scale);
-    let panel = compute_panel_layouts(dock, screen.width, screen.height, screen.header_h, s)
-        .into_iter()
-        .find(|b| b.tab == tab)
-        .expect("le panneau est ouvert");
-    ScaledRect {
-        x: panel.x,
-        y: panel.y,
-        w: panel.width,
-        h: panel.height,
-        scale: s,
-    }
+    let store = Store::new("essai");
+    let panel = compute_panel_layouts(
+        dock,
+        &store,
+        screen.width,
+        screen.height,
+        screen.header_h,
+        s,
+    )
+    .into_iter()
+    .find(|b| b.tab == tab)
+    .expect("le panneau est ouvert");
+    // Le cadre de son contenu, sans la poignée (TIROIR-1) : celui que l'application lit.
+    panel.contenu(s)
 }
 
 fn center(rect: WidgetRect) -> Pointer {
@@ -82,7 +85,7 @@ fn test_the_grip_is_on_the_side_a_panel_leaves_by() {
     dock.top_tabs = vec![TabId::Domains];
     dock.bottom_tabs = vec![TabId::Organize];
     dock.right_tabs = vec![TabId::Temps];
-    for panel in compute_panel_layouts(&dock, 1440.0, 900.0, 78.0, 1.0) {
+    for panel in compute_panel_layouts(&dock, &Store::new("essai"), 1440.0, 900.0, 78.0, 1.0) {
         let expected = match panel.tab.anchor() {
             DockAnchor::TopLeft => panel.y + panel.height - panel.grip_height,
             DockAnchor::BottomLeft | DockAnchor::Right => panel.y,
@@ -431,7 +434,7 @@ fn test_render_docks_absurd_scale_is_clamped_and_bounded() {
         "rendu des docks à échelle aberrante : {elapsed} ms (budget {DOCK_RENDER_BUDGET_MS} ms)"
     );
 
-    for b in compute_panel_layouts(&dock, 1440.0, 900.0, 78.0, 170.0) {
+    for b in compute_panel_layouts(&dock, &Store::new("essai"), 1440.0, 900.0, 78.0, 170.0) {
         assert!(
             b.width <= 1440.0,
             "panneau {:?} plus large que l'écran",
@@ -793,8 +796,14 @@ fn test_the_cache_names_why_a_panel_was_redrawn() {
 
     // SURVOL-2 : le pointeur ne compte que par ce que le dessin lui demande. Sur la poignée
     // du premier panneau, une réponse change — il se refait pour elle.
-    let panneau =
-        &compute_panel_layouts(&dock, SCREEN.width, SCREEN.height, SCREEN.header_h, 1.0)[0];
+    let panneau = &compute_panel_layouts(
+        &dock,
+        &Store::new("essai"),
+        SCREEN.width,
+        SCREEN.height,
+        SCREEN.header_h,
+        1.0,
+    )[0];
     let poignee = panneau.grip_rect();
     let sur = |dx: f32| Pointer {
         x: poignee.x + poignee.w / 2.0 + dx,
@@ -828,6 +837,7 @@ fn test_the_reserved_box_contains_the_shadow() {
     for scale in [1.0f32, 1.25, 2.0] {
         for panel in compute_panel_layouts(
             &dock_complet(),
+            &Store::new("essai"),
             SCREEN.width,
             SCREEN.height,
             SCREEN.header_h,
@@ -844,6 +854,208 @@ fn test_the_reserved_box_contains_the_shadow() {
                         && r.y + r.h <= extent.y + extent.h,
                     "{nom} de {:?} sort de la boîte réservée à l'échelle {scale}",
                     panel.tab
+                );
+            }
+        }
+    }
+}
+
+/// Les sept panneaux ouverts, la Time Machine comprise.
+fn les_sept() -> DockManager {
+    let mut dock = dock_complet();
+    dock.right_tabs = vec![TabId::Temps];
+    dock
+}
+
+/// Un document à `n` domaines.
+fn avec_des_domaines(n: usize) -> Store {
+    let mut store = Store::new("essai");
+    for i in 0..n {
+        let domaine = glucose_core::types::Domain {
+            id: format!("d-{i}"),
+            name: format!("domaine {i}"),
+            color: "#888888".into(),
+            icon: "◆".into(),
+            defini_a: 0,
+        };
+        store.try_add_domain(domaine).expect("des noms distincts");
+    }
+    store
+}
+
+/// **TIROIR-1 — le contenu ne couvre jamais la poignée.** Sa capture du 17/11 : *« le tiroir de
+/// domaine lui a littéralement UX SUR le bouton pour refermer le tiroir »*. « + Nouveau
+/// domaine », le bas d'un panneau du haut, tombait sur sa poignée.
+#[test]
+fn test_tiroir_1_le_contenu_ne_couvre_jamais_la_poignee() {
+    for n in [0, 2, 40] {
+        let store = avec_des_domaines(n);
+        for scale in [1.0, 1.5] {
+            let screen = screen_at(scale);
+            let boites = compute_panel_layouts(
+                &les_sept(),
+                &store,
+                screen.width,
+                screen.height,
+                screen.header_h,
+                scale,
+            );
+            for b in &boites {
+                let contenu = b.contenu(scale);
+                let poignee = b.grip_rect();
+                let dessous = contenu.y + contenu.h <= poignee.y + 0.01;
+                let dessus = poignee.y + poignee.h <= contenu.y + 18.0 * scale;
+                assert!(
+                    dessous || dessus,
+                    "{:?} à {scale} : le contenu couvre la poignée",
+                    b.tab
+                );
+            }
+            let domaines = boites
+                .iter()
+                .find(|b| b.tab == TabId::Domains)
+                .expect("ouvert");
+            let ajouter = domains::layout_domains_panel(
+                domaines.contenu(scale),
+                &store,
+                &domains::DomainsUi::default(),
+            )
+            .add_button;
+            assert!(
+                ajouter.y + ajouter.h <= domaines.grip_rect().y,
+                "{n} domaines, à {scale} : « + Nouveau domaine » est sur la poignée"
+            );
+        }
+    }
+}
+
+/// **TIROIR-2 — un panneau a la hauteur de ce qu'il montre.** Le Storyboard et la Time Machine
+/// prenaient toute la hauteur de l'écran pour quelques lignes ; Domaines 430 pixels pour deux
+/// domaines (sa capture : *« pourquoi le storyboard est aussi long à sa création ? »*).
+#[test]
+fn test_tiroir_2_un_panneau_a_la_hauteur_de_ce_qu_il_montre() {
+    let haut_de = |dock: &DockManager, store: &Store, tab: TabId| {
+        compute_panel_layouts(dock, store, 1440.0, 900.0, 78.0, 1.0)
+            .into_iter()
+            .find(|b| b.tab == tab)
+            .expect("ouvert")
+    };
+    let vide = Store::new("essai");
+    // Le Storyboard sans storyboard : ses réglages et « Activer », rien de plus.
+    let sb = haut_de(&dock_with(TabId::Storyboard), &vide, TabId::Storyboard);
+    assert!(sb.height < 400.0, "le Storyboard fait {} pixels", sb.height);
+    let bas = storyboard::layout_storyboard_panel(
+        sb.contenu(1.0),
+        &StoryboardState::default(),
+        &storyboard::Contenu::default(),
+    )
+    .bas;
+    assert!(bas <= sb.y + sb.height + 0.01, "son contenu tient dedans");
+    // Le Mood board sans gabarit suivi : ses six gabarits, pas la place d'un septième.
+    let mb = haut_de(&dock_with(TabId::Preset), &vide, TabId::Preset);
+    let plein = preset::hauteur_naturelle() + GRIP_HEIGHT;
+    assert!(
+        mb.height < plein - 50.0,
+        "le Mood board fait {} pixels",
+        mb.height
+    );
+    // La Time Machine sans jalon.
+    let mut temps = dock_with(TabId::Temps);
+    temps.right_tabs = vec![TabId::Temps];
+    let tm = haut_de(&temps, &vide, TabId::Temps);
+    assert!(
+        tm.height < 400.0,
+        "la Time Machine fait {} pixels",
+        tm.height
+    );
+    // Domaines grandit avec ses domaines, et les montre tous tant que l'écran le permet.
+    let dock = dock_with(TabId::Domains);
+    let (deux, six) = (avec_des_domaines(2), avec_des_domaines(6));
+    let (h2, h6) = (
+        haut_de(&dock, &deux, TabId::Domains),
+        haut_de(&dock, &six, TabId::Domains),
+    );
+    assert!(h2.height < h6.height, "{} puis {}", h2.height, h6.height);
+    for (store, b) in [(&deux, &h2), (&six, &h6)] {
+        let l =
+            domains::layout_domains_panel(b.contenu(1.0), store, &domains::DomainsUi::default());
+        assert_eq!(l.hidden, 0, "toutes les rangées se montrent");
+        assert!(
+            l.reste.abs() < 1.0,
+            "et rien de plus ({} pixels vides)",
+            l.reste
+        );
+    }
+}
+
+/// **Ordonner et Pomodoro ont la hauteur de leur contenu** (TIROIR-2) : la leur est écrite une
+/// fois, et cette épreuve tombe le jour où leur mise en page change sans elle.
+#[test]
+fn test_tiroir_2_ordonner_et_pomodoro_sont_pleins() {
+    let typo = Typography::new();
+    let vide = Store::new("essai");
+    for scale in [1.0, 1.5] {
+        let cadre = |tab: TabId| {
+            compute_panel_layouts(&dock_with(tab), &vide, 1440.0, 2000.0, 78.0, scale)
+                .into_iter()
+                .find(|b| b.tab == tab)
+                .expect("ouvert")
+                .contenu(scale)
+        };
+        let o = cadre(TabId::Organize);
+        let l = organize::layout_organize_panel(o, &typo);
+        let champs = l.size_rect.y + l.size_rect.h;
+        assert!(
+            champs <= l.apply_rect.y,
+            "les champs passent sous « Appliquer »"
+        );
+        assert!(
+            l.apply_rect.y - champs <= 14.0 * scale,
+            "un trou sous les champs"
+        );
+        let p = cadre(TabId::Pomodoro);
+        let l = pomodoro::layout_pomodoro_panel(p, &typo);
+        let bas = l
+            .presets
+            .iter()
+            .map(|b| b.rect.y + b.rect.h)
+            .fold(0.0, f32::max);
+        assert!(
+            (p.y + p.h - bas - 14.0 * scale).abs() < 0.01,
+            "le Pomodoro finit à sa marge sous ses durées"
+        );
+    }
+}
+
+/// **TIROIR-3 — deux panneaux ne se posent jamais l'un sur l'autre.** Domaines s'ouvrait caché
+/// sous le Storyboard (sa capture du 17/11). Tous ouverts, aux écrans courants, aucun panneau de
+/// gauche n'en croise un autre — ni la Time Machine là où la place suffit.
+#[test]
+fn test_tiroir_3_deux_panneaux_ne_se_posent_jamais_l_un_sur_l_autre() {
+    let store = avec_des_domaines(8);
+    for (w, h, scale, avec_le_temps) in [
+        (1440.0, 900.0, 1.0, false),
+        (1366.0, 768.0, 1.0, false),
+        (1280.0, 720.0, 1.0, false),
+        (1920.0, 1080.0, 1.0, true),
+        (2560.0, 1440.0, 1.25, true),
+    ] {
+        let dock = if avec_le_temps {
+            les_sept()
+        } else {
+            dock_complet()
+        };
+        let boites = compute_panel_layouts(&dock, &store, w, h, 78.0 * scale, scale);
+        for (i, a) in boites.iter().enumerate() {
+            for b in &boites[i + 1..] {
+                let croise = a.x < b.x + b.width
+                    && b.x < a.x + a.width
+                    && a.y < b.y + b.height
+                    && b.y < a.y + a.height;
+                assert!(
+                    !croise,
+                    "{:?} et {:?} se croisent à {w} × {h}",
+                    a.tab, b.tab
                 );
             }
         }

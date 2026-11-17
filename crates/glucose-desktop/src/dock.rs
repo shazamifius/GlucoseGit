@@ -41,6 +41,7 @@ pub mod storyboard;
 pub mod temps;
 
 use crate::params::{Pointer, ScaledRect, ScreenFrame};
+use glucose_core::store::Store;
 
 pub use cache::{DockCache, Raison as RaisonDuPanneau};
 pub use clic::{handle_dock_click, PanelClickResult};
@@ -96,22 +97,32 @@ impl TabId {
             Self::Temps => 324.0,
         }
     }
+}
 
-    pub fn default_height(&self) -> f32 {
-        match self {
-            Self::Organize => 410.0,
-            Self::Pomodoro => 210.0,
-            // Toute la hauteur disponible : ses cases s'y listent (STORYBOARD-1).
-            Self::Storyboard => f32::MAX,
-            Self::Plugins => 460.0,
-            // Celle de ce qu'il peut montrer de plus grand, mesurée sur sa mise en page.
-            Self::Preset => preset::hauteur_naturelle(),
-            Self::Domains => 430.0,
-            // Toute la hauteur disponible : `place` la borne à l'écran.
-            Self::Temps => f32::MAX,
-        }
+/// **TIROIR-2 — un panneau a la hauteur de ce qu'il montre**, en pixels d'écran, poignée
+/// comprise ; [`place`] la borne à l'écran. Sa capture du 17/11 : le Storyboard et la Time
+/// Machine prenaient toute la hauteur pour quelques lignes, Domaines 430 pixels pour deux
+/// domaines — *« des bulles souvent trop grosses »*. Chacun la mesure sur sa propre mise en page.
+/// Ordonner et Pomodoro n'ont ni liste ni texte qui varie : leur hauteur est celle de leur
+/// contenu, une fois pour toutes (`test_tiroir_2_ordonner_et_pomodoro_sont_pleins`).
+fn hauteur_naturelle(dock: &DockManager, store: &Store, tab: TabId, s: f32) -> f32 {
+    let largeur = tab.default_width() * s;
+    // Un panneau du haut a sa poignée sous son contenu (TIROIR-1) : elle s'ajoute.
+    let poignee = GRIP_HEIGHT * s;
+    match tab {
+        TabId::Organize => 410.0 * s,
+        TabId::Pomodoro => 184.0 * s,
+        TabId::Storyboard => storyboard::hauteur_naturelle(&dock.storyboard, largeur, s),
+        TabId::Temps => temps::hauteur_naturelle(&dock.temps, largeur, s),
+        TabId::Plugins => plugins::hauteur_naturelle(largeur, s) + poignee,
+        TabId::Preset => preset::hauteur_de(store) * s + poignee,
+        TabId::Domains => domains::hauteur_naturelle(store, &dock.domains, largeur, s) + poignee,
     }
 }
+
+/// Une hauteur sans borne, où un panneau pose tout ce qu'il a pour se mesurer (TIROIR-2) : bien
+/// plus que tout écran, en pixels logiques.
+pub(crate) const HAUTEUR_DE_MESURE: f32 = 1.0e6;
 
 /// Glissement d'un panneau vers sa sortie au-delà duquel il se ferme (fiche 10 § 4 : 80 px).
 pub const DISMISS_DRAG_PX: f32 = 80.0;
@@ -345,6 +356,26 @@ impl PanelLayoutBox {
         self.grip_rect().contains(px, py)
     }
 
+    /// **TIROIR-1 — le cadre de son contenu** : le panneau sans la bande de sa poignée quand
+    /// elle est en bas. Un panneau du haut posait son contenu sur toute sa hauteur, poignée
+    /// comprise : « + Nouveau domaine » couvrait la poignée qui referme le panneau (sa capture du
+    /// 17/11). En haut, la poignée surmonte déjà tout contenu.
+    pub fn contenu(&self, s: f32) -> ScaledRect {
+        let vu = self.seen();
+        let poignee_en_bas = self.grip_y > self.y;
+        ScaledRect {
+            x: vu.x,
+            y: vu.y,
+            w: vu.w,
+            h: if poignee_en_bas {
+                vu.h - self.grip_height
+            } else {
+                vu.h
+            },
+            scale: s,
+        }
+    }
+
     /// Le rectangle de la poignée, là où l'œil la voit.
     pub fn grip_rect(&self) -> WidgetRect {
         let seen = self.seen();
@@ -394,13 +425,14 @@ impl PanelLayoutBox {
 /// La place de chaque panneau ouvert, dans les deux docks.
 pub fn compute_panel_layouts(
     dock: &DockManager,
+    store: &Store,
     screen_w: f32,
     screen_h: f32,
     header_h: f32,
     scale: f32,
 ) -> Vec<PanelLayoutBox> {
     let s = crate::theme::clamp_ui_scale(scale);
-    let mut layouts = Vec::new();
+    let mut layouts: Vec<PanelLayoutBox> = Vec::new();
     for anchor in [
         DockAnchor::TopLeft,
         DockAnchor::BottomLeft,
@@ -412,7 +444,11 @@ pub fn compute_panel_layouts(
             if anchor == DockAnchor::Right {
                 x = screen_w - DOCK_MARGIN * s - width;
             }
-            let (y, height) = place(anchor, tab, screen_h, header_h, s);
+            let naturelle = hauteur_naturelle(dock, store, tab, s);
+            let (y, height) = place(anchor, naturelle, screen_h, header_h, s);
+            if anchor != DockAnchor::Right {
+                x = hors_des_autres(&layouts, (x, y, width, height), DOCK_GAP * s);
+            }
             let grip_height = GRIP_HEIGHT * s;
             // La poignée est du côté de la sortie : en bas pour le dock du haut, en haut
             // pour celui du bas (fiche 10 § 4) — et en haut à droite, où l'on tire vers le
@@ -441,77 +477,125 @@ pub fn compute_panel_layouts(
 }
 
 /// L'ordonnée et la hauteur d'un panneau, selon son ancrage — jamais plus haut que l'écran.
-fn place(anchor: DockAnchor, tab: TabId, screen_h: f32, header_h: f32, s: f32) -> (f32, f32) {
+fn place(anchor: DockAnchor, naturelle: f32, screen_h: f32, header_h: f32, s: f32) -> (f32, f32) {
     let margin = DOCK_MARGIN * s;
     match anchor {
         DockAnchor::TopLeft => {
             let y = header_h + 8.0 * s;
-            let height = (tab.default_height() * s).min(screen_h - y - 2.0 * margin);
+            let height = naturelle.min(screen_h - y - 2.0 * margin);
             (y, height)
         }
         DockAnchor::BottomLeft => {
-            let height = (tab.default_height() * s).min(screen_h - header_h - 2.0 * margin);
+            let height = naturelle.min(screen_h - header_h - 2.0 * margin);
             (screen_h - height - margin, height)
         }
         DockAnchor::Right => {
             let y = header_h + 8.0 * s;
-            (y, (tab.default_height() * s).min(screen_h - y - margin))
+            (y, naturelle.min(screen_h - y - margin))
         }
     }
 }
 
-// ── Le rendu ────────────────────────────────────────────────────────────────
-
-/// **Le cadre d'un panneau à l'écran**, tel que son dessin et son clic le lisent — `None` s'il
-/// est fermé. Le panneau sous un point est celui que [`panneau_sous`] désigne.
-pub fn cadre_du_panneau(dock: &DockManager, screen: ScreenFrame, tab: TabId) -> Option<ScaledRect> {
-    cadres(dock, screen)
-        .find(|(t, _)| *t == tab)
-        .map(|(_, f)| f)
+/// **TIROIR-3 — deux panneaux ne se posent jamais l'un sur l'autre.** Les deux rangées partent
+/// du bord gauche, l'une d'en haut, l'autre d'en bas : un panneau haut de l'une recouvrait ceux
+/// de l'autre (sa capture du 17/11 : Domaines s'ouvrait caché sous Storyboard). Un panneau qui en
+/// croiserait un autre déjà posé glisse à sa droite, de l'écart des panneaux.
+fn hors_des_autres(
+    poses: &[PanelLayoutBox],
+    (x0, y, w, h): (f32, f32, f32, f32),
+    ecart: f32,
+) -> f32 {
+    let mut x = x0;
+    // Chaque déplacement va à droite d'un panneau posé : au plus un par panneau.
+    for _ in 0..=poses.len() {
+        let croise = poses
+            .iter()
+            .filter(|p| x < p.x + p.width && p.x < x + w && y < p.y + p.height && p.y < y + h)
+            .map(|p| p.x + p.width + ecart)
+            .reduce(f32::max);
+        match croise {
+            Some(droite) => x = droite,
+            None => break,
+        }
+    }
+    x
 }
 
-/// **Le panneau sous ce point**, et son cadre : le clic va à lui, et à personne d'autre.
+// ── Le rendu ────────────────────────────────────────────────────────────────
+
+/// **Le cadre du contenu d'un panneau à l'écran**, tel que son dessin et son clic le lisent
+/// (TIROIR-1) — `None` s'il est fermé. Le panneau sous un point est celui que [`panneau_sous`]
+/// désigne.
+pub fn cadre_du_panneau(
+    dock: &DockManager,
+    store: &Store,
+    screen: ScreenFrame,
+    tab: TabId,
+) -> Option<ScaledRect> {
+    cadres(dock, store, screen)
+        .find(|(t, _, _)| *t == tab)
+        .map(|(_, _, contenu)| contenu)
+}
+
+/// **Le panneau sous ce point**, et le cadre de son contenu : le clic va à lui, et à personne
+/// d'autre. Le panneau entier le prend, poignée comprise.
 pub fn panneau_sous(
     dock: &DockManager,
+    store: &Store,
     screen: ScreenFrame,
     p: Pointer,
 ) -> Option<(TabId, ScaledRect)> {
-    cadres(dock, screen).find(|(_, f)| WidgetRect::new(f.x, f.y, f.w, f.h).contains(p.x, p.y))
+    cadres(dock, store, screen)
+        .find(|(_, vu, _)| vu.contains(p.x, p.y))
+        .map(|(tab, _, contenu)| (tab, contenu))
 }
 
-/// Les panneaux ouverts et leurs cadres : ce que le dessin et le clic lisent.
+/// Les panneaux ouverts et les cadres de leurs contenus : ce que le dessin et le clic lisent.
 #[cfg(test)]
-pub fn cadres_ouverts(dock: &DockManager, screen: ScreenFrame) -> Vec<(TabId, ScaledRect)> {
-    cadres(dock, screen).collect()
+pub fn cadres_ouverts(
+    dock: &DockManager,
+    store: &Store,
+    screen: ScreenFrame,
+) -> Vec<(TabId, ScaledRect)> {
+    cadres(dock, store, screen)
+        .map(|(tab, _, contenu)| (tab, contenu))
+        .collect()
 }
 
-/// Les panneaux ouverts et leurs cadres, à l'échelle bornée.
-fn cadres(dock: &DockManager, screen: ScreenFrame) -> impl Iterator<Item = (TabId, ScaledRect)> {
+/// Les panneaux ouverts : ce qu'ils couvrent à l'écran, et le cadre de leur contenu, à
+/// l'échelle bornée.
+fn cadres(
+    dock: &DockManager,
+    store: &Store,
+    screen: ScreenFrame,
+) -> impl Iterator<Item = (TabId, WidgetRect, ScaledRect)> {
     let s = crate::theme::clamp_ui_scale(screen.scale);
-    let boites = compute_panel_layouts(dock, screen.width, screen.height, screen.header_h, s);
-    boites.into_iter().map(move |b| {
-        let vu = b.seen();
-        let cadre = ScaledRect {
-            x: vu.x,
-            y: vu.y,
-            w: vu.w,
-            h: vu.h,
-            scale: s,
-        };
-        (b.tab, cadre)
-    })
+    let boites =
+        compute_panel_layouts(dock, store, screen.width, screen.height, screen.header_h, s);
+    boites
+        .into_iter()
+        .map(move |b| (b.tab, b.seen(), b.contenu(s)))
 }
 
 /// **La réglette de la Time Machine, là où elle est à l'écran** — la même géométrie que le
 /// dessin et le clic. `None` si le panneau est fermé.
-pub fn reglette_a_l_ecran(dock: &DockManager, screen: ScreenFrame) -> Option<WidgetRect> {
-    let cadre = cadre_du_panneau(dock, screen, TabId::Temps)?;
+pub fn reglette_a_l_ecran(
+    dock: &DockManager,
+    store: &Store,
+    screen: ScreenFrame,
+) -> Option<WidgetRect> {
+    let cadre = cadre_du_panneau(dock, store, screen, TabId::Temps)?;
     Some(temps::layout_temps_panel(cadre, &dock.temps).reglette)
 }
 
 /// Le point de la réglette sous l'abscisse `x` — ce que le glisser lit à chaque mouvement.
-pub fn point_de_la_reglette(dock: &DockManager, screen: ScreenFrame, x: f32) -> Option<usize> {
-    let reglette = reglette_a_l_ecran(dock, screen)?;
+pub fn point_de_la_reglette(
+    dock: &DockManager,
+    store: &Store,
+    screen: ScreenFrame,
+    x: f32,
+) -> Option<usize> {
+    let reglette = reglette_a_l_ecran(dock, store, screen)?;
     Some(temps::point_sous(reglette, dock.temps.gestes.len(), x))
 }
 

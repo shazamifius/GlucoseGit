@@ -36,6 +36,7 @@
 pub mod agents;
 mod annotations;
 mod boards;
+mod bouts;
 mod catalog;
 pub mod choix;
 mod colonnes;

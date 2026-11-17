@@ -177,8 +177,8 @@ fn une_image_et_son_dessus(app: &mut GlucoseApp) -> (Pixmap, Confie) {
 }
 
 /// **PANNEAUX-1 — un panneau part sur la carte, et la couche du dessus ne le porte pas** : la
-/// Time Machine, de toute la hauteur, laisse le dessus exactement tel qu'il est sans elle — il
-/// ne repart donc plus entier à chaque image —, et la carte reçoit le panneau à poser.
+/// Time Machine laisse le dessus exactement tel qu'il est sans elle — il ne repart donc plus
+/// entier à chaque image —, et la carte reçoit le panneau à poser, à sa hauteur (TIROIR-2).
 #[test]
 fn test_panneaux_1_le_panneau_part_sur_la_carte_et_le_dessus_ne_le_porte_pas() {
     let mut app = application();
@@ -191,9 +191,21 @@ fn test_panneaux_1_le_panneau_part_sur_la_carte_et_le_dessus_ne_le_porte_pas() {
     let (avec, confie) = une_image_et_son_dessus(&mut app);
     assert_eq!(confie.panneaux.len(), 1, "la carte pose le panneau");
     let pose = confie.panneaux[0].pose;
+    let tm = crate::dock::compute_panel_layouts(
+        &app.dock_manager,
+        &app.store,
+        TAILLE.0 as f32,
+        TAILLE.1 as f32,
+        app.ui.header_height(),
+        1.0,
+    )
+    .into_iter()
+    .find(|b| b.tab == crate::dock::TabId::Temps)
+    .expect("ouverte");
     assert!(
-        pose.hauteur > TAILLE.1 as f32 / 2.0,
-        "de toute la hauteur : {pose:?}"
+        pose.hauteur >= tm.height && pose.hauteur < tm.height + 16.0,
+        "le panneau et son ombre : {pose:?} pour {} pixels",
+        tm.height
     );
     assert!(
         avec.data() == sans.data(),

@@ -96,7 +96,8 @@ impl GlucoseApp {
     pub fn glisser_la_reglette(&mut self, x: f32) {
         let (largeur, hauteur) = self.taille_de_la_fenetre();
         let ecran = self.screen_frame(largeur, hauteur);
-        let Some(k) = crate::dock::point_de_la_reglette(&self.dock_manager, ecran, x) else {
+        let Some(k) = crate::dock::point_de_la_reglette(&self.dock_manager, &self.store, ecran, x)
+        else {
             return;
         };
         self.aller_au_point(k);

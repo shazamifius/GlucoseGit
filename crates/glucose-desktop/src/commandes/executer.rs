@@ -54,6 +54,7 @@ impl GlucoseApp {
             Commande::VueSuivante => return self.revenir(false),
             Commande::CadrerLaSelection => self.cadrer(true),
             Commande::SuivreLeLien => return self.suivre_le_lien_choisi(),
+            Commande::RedresserLaFleche => self.redresser_les_fleches_choisies(),
             Commande::MontrerLesLiens => return self.montrer_les_liens(),
             Commande::AllerAuNoeud => return self.aller_au_noeud_montre(),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),

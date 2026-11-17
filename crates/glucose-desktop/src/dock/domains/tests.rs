@@ -73,9 +73,10 @@ fn populated() -> Store {
 }
 
 /// Le cadre du panneau DOMAINES tel que le dock le place réellement.
-fn domains_frame(dock: &DockManager) -> ScaledRect {
+fn domains_frame(dock: &DockManager, store: &Store) -> ScaledRect {
     let boxes = compute_panel_layouts(
         dock,
+        store,
         SCREEN.width,
         SCREEN.height,
         SCREEN.header_h,
@@ -85,13 +86,8 @@ fn domains_frame(dock: &DockManager) -> ScaledRect {
         .iter()
         .find(|b| b.tab == TabId::Domains)
         .expect("l'onglet DOMAINES doit être ouvert");
-    ScaledRect {
-        x: b.x,
-        y: b.y,
-        w: b.width,
-        h: b.height,
-        scale: SCREEN.scale,
-    }
+    // Le cadre de son contenu, sans la poignée (TIROIR-1) : celui que l'application lit.
+    b.contenu(SCREEN.scale)
 }
 
 fn dock_with_domains() -> DockManager {
@@ -116,11 +112,13 @@ fn center(rect: WidgetRect) -> Pointer {
 fn test_dom_ui_1_the_panel_shows_the_document_and_only_the_document() {
     let mut store = Store::new("Vue");
     let dock = dock_with_domains();
-    let frame = domains_frame(&dock);
+    let frame = domains_frame(&dock, &store);
 
     assert!(layout_domains_panel(frame, &store, &dock.domains)
         .rows
         .is_empty());
+    // Le panneau grandit avec le document (TIROIR-2) : son cadre se relit après chaque geste,
+    // comme l'application le relit à chaque image.
 
     store
         .try_add_domain(domain("d-1", "Science"))
@@ -129,7 +127,7 @@ fn test_dom_ui_1_the_panel_shows_the_document_and_only_the_document() {
         .try_add_domain(domain("d-2", "Art"))
         .expect("identifiant neuf");
     assert_eq!(
-        layout_domains_panel(frame, &store, &dock.domains)
+        layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains)
             .rows
             .len(),
         2
@@ -138,7 +136,7 @@ fn test_dom_ui_1_the_panel_shows_the_document_and_only_the_document() {
     store
         .try_remove_domain("d-1")
         .expect("d-1 est au catalogue");
-    let rows = layout_domains_panel(frame, &store, &dock.domains).rows;
+    let rows = layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains).rows;
     assert_eq!(rows.len(), 1);
     assert_eq!(store.project.domains[rows[0].index].id, "d-2");
 }
@@ -174,7 +172,7 @@ fn test_dom_ui_1_the_interface_state_holds_gestures_not_data() {
 fn test_dom_ui_2_every_widget_answers_at_the_place_it_is_drawn() {
     let store = populated();
     let dock = dock_with_domains();
-    let frame = domains_frame(&dock);
+    let frame = domains_frame(&dock, &store);
     let layout = layout_domains_panel(frame, &store, &dock.domains);
     let row = &layout.rows[1];
     let id = store.project.domains[row.index].id.clone();
@@ -201,7 +199,7 @@ fn test_dom_ui_2_every_widget_answers_at_the_place_it_is_drawn() {
 fn test_each_weight_step_assigns_its_own_weight() {
     let store = populated();
     let dock = dock_with_domains();
-    let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
+    let layout = layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains);
     let row = &layout.rows[0];
     let id = store.project.domains[row.index].id.clone();
 
@@ -222,7 +220,7 @@ fn test_each_weight_step_assigns_its_own_weight() {
 fn test_no_two_widgets_of_a_row_overlap() {
     let store = populated();
     let dock = dock_with_domains();
-    let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
+    let layout = layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains);
     for row in &layout.rows {
         let mut rects = vec![
             row.swatch,
@@ -249,7 +247,7 @@ fn test_no_two_widgets_of_a_row_overlap() {
 fn test_without_a_selection_the_weight_buttons_do_nothing() {
     let store = populated();
     let dock = dock_with_domains();
-    let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
+    let layout = layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains);
     let row = &layout.rows[0];
 
     assert_eq!(
@@ -270,7 +268,7 @@ fn test_without_a_selection_the_weight_buttons_do_nothing() {
 fn test_a_deletion_asks_before_it_acts() {
     let store = populated();
     let mut dock = dock_with_domains();
-    let frame = domains_frame(&dock);
+    let frame = domains_frame(&dock, &store);
 
     let plain = layout_domains_panel(frame, &store, &dock.domains);
     assert!(plain.rows.iter().all(|r| r.confirm.is_none()));
@@ -311,7 +309,7 @@ fn test_a_panel_too_short_shows_what_fits_and_says_how_many_are_missing() {
             .expect("identifiants distincts");
     }
     let dock = dock_with_domains();
-    let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
+    let layout = layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains);
 
     assert!(
         !layout.rows.is_empty(),
@@ -384,7 +382,7 @@ fn test_a_click_on_the_panel_reaches_the_intent_through_the_dock() {
     let store = populated();
     let mut dock = dock_with_domains();
     let typo = Typography::new();
-    let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
+    let layout = layout_domains_panel(domains_frame(&dock, &store), &store, &dock.domains);
 
     let clicked = handle_dock_click(&mut dock, &store, &typo, SCREEN, center(layout.add_button));
     assert_eq!(
@@ -419,7 +417,7 @@ fn test_a_click_inside_the_panel_never_falls_through_to_the_canvas() {
     let store = populated();
     let mut dock = dock_with_domains();
     let typo = Typography::new();
-    let frame = domains_frame(&dock);
+    let frame = domains_frame(&dock, &store);
     let empty_spot = Pointer {
         x: frame.x + frame.w / 2.0,
         y: frame.y + 2.0,
@@ -441,7 +439,7 @@ fn domaine_1_voir_s_allume_sur_le_domaine_regarde() {
     let dock = dock_with_domains();
     let typo = Typography::new();
     let theme = Theme::dark();
-    let frame = domains_frame(&dock);
+    let frame = domains_frame(&dock, &store);
     let dehors = Pointer { x: -1.0, y: -1.0 };
     let rendre = |store: &Store| {
         let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
@@ -495,7 +493,7 @@ fn test_the_panel_draws_in_every_state_within_its_own_frame() {
     ];
     for (index, ui) in states.into_iter().enumerate() {
         dock.domains = ui;
-        let frame = domains_frame(&dock);
+        let frame = domains_frame(&dock, &store);
         let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
         pixmap.fill(theme.bg_canvas);
         let before = pixmap.data().to_vec();
@@ -568,7 +566,7 @@ fn test_domains_panel_png_capture() {
         }),
     ] {
         dock.domains = ui;
-        let frame = domains_frame(&dock);
+        let frame = domains_frame(&dock, &store);
         let mut pixmap = Pixmap::new(520, 620).expect("pixmap du panneau");
         pixmap.fill(theme.bg_panel);
         let shifted = ScaledRect {
@@ -611,5 +609,31 @@ fn ligne_ou(fichier: &str, texte: &str, ici: bool) -> LigneOu {
         noeud: "n".into(),
         texte: texte.into(),
         ici,
+    }
+}
+
+/// **TIROIR-2 — vide, le panneau garde la place de ce qu'il dit** : ses trois lignes tiennent au-
+/// dessus de l'aide et de « + Nouveau domaine ».
+#[test]
+fn test_tiroir_2_vide_le_panneau_garde_la_place_de_ce_qu_il_dit() {
+    let store = Store::new("vide");
+    let ui = DomainsUi::default();
+    for s in [1.0_f32, 1.5] {
+        let largeur = TabId::Domains.default_width() * s;
+        let cadre = ScaledRect {
+            x: 0.0,
+            y: 0.0,
+            w: largeur,
+            h: hauteur_naturelle(&store, &ui, largeur, s),
+            scale: s,
+        };
+        let l = layout_domains_panel(cadre, &store, &ui);
+        let m = Metrics::scaled(s);
+        let bas_du_vide = m.rows_top + m.hauteur_du_vide();
+        let haut_de_l_aide = l.add_button.y - m.hint_height - m.row_gap;
+        assert!(
+            bas_du_vide <= haut_de_l_aide + 0.01,
+            "à {s} : ce qu'il dit finit à {bas_du_vide}, l'aide commence à {haut_de_l_aide}"
+        );
     }
 }

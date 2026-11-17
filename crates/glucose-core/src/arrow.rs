@@ -29,6 +29,7 @@
 //!
 //! C'est la différence entre une flèche qui **relie** et une flèche qui **flotte**, et
 //! c'est ce qui manquait : DRAW-1 posait une flèche, mais elle ne s'accrochait à rien.
+//! Depuis BOUT-1, ses deux bouts ont une poignée : glissés, ils s'accrochent par la même loi.
 //!
 //! # ARROW-3 — le coude se pose, se déplace et se retire au même endroit
 //!
@@ -452,6 +453,15 @@ pub const HANDLE_RADIUS_PX: f64 = 6.0;
 /// on l'attrape à seize. C'est la même exception à SCALE-1 que la bande d'ARROW-1.
 pub const HANDLE_GRAB_PX: f64 = 16.0;
 
+/// L'un des deux bouts d'une flèche.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Extremite {
+    /// Celui d'où elle part : sa source.
+    Depart,
+    /// Celui où elle arrive : sa cible.
+    Arrivee,
+}
+
 /// Ce qu'une poignée de flèche désigne.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HandleKind {
@@ -459,6 +469,10 @@ pub enum HandleKind {
     Bend(usize),
     /// Le milieu du tronçon d'index donné : un appui y **insère** un coude.
     Midpoint(usize),
+    /// **BOUT-1 — un bout** : on le glisse sur un autre nœud, qu'il rejoint, ou dans le vide, où
+    /// il reste libre. Glucose Tauri n'en donnait aucune ; sa capture du 17/11 : *« aucun système
+    /// permettant de bouger indépendamment les points A et B d'une flèche »*.
+    Extremite(Extremite),
 }
 
 /// Une poignée de flèche : ce qu'elle désigne, et où elle se trouve dans le monde.
@@ -484,8 +498,8 @@ pub fn handles(arrow: &Annotation, noeuds: impl Noeuds) -> Vec<ArrowHandle> {
         kind: HandleKind::Midpoint(index),
         at: m.milieu(),
     });
-    // Les coudes sont les points **intérieurs** du chemin : les deux bouts n'en sont pas,
-    // et Glucose Tauri ne leur donne aucune poignée non plus.
+    // Les coudes sont les points **intérieurs** du chemin ; les deux bouts ont leur poignée
+    // à eux (BOUT-1), là où le trait touche son nœud.
     let coudes = points
         .iter()
         .enumerate()
@@ -495,7 +509,18 @@ pub fn handles(arrow: &Annotation, noeuds: impl Noeuds) -> Vec<ArrowHandle> {
             kind: HandleKind::Bend(index - 1),
             at: *at,
         });
-    milieux.chain(coudes).collect()
+    let bouts = [
+        (Extremite::Depart, points.first()),
+        (Extremite::Arrivee, points.last()),
+    ]
+    .into_iter()
+    .filter_map(|(bout, at)| {
+        Some(ArrowHandle {
+            kind: HandleKind::Extremite(bout),
+            at: *at?,
+        })
+    });
+    milieux.chain(coudes).chain(bouts).collect()
 }
 
 /// La poignée sous ce point, si l'une d'elles est à portée de saisie (ARROW-3).
@@ -522,7 +547,13 @@ pub fn handle_at(
         // plus proche » se lit, alors qu'un `si préféré ou plus proche` laissait un milieu
         // très proche battre un coude — ce qui aurait inséré un coude par-dessus un coude.
         .min_by(|(a, da), (b, db)| {
-            let rang = |h: &ArrowHandle| u8::from(matches!(h.kind, HandleKind::Midpoint(_)));
+            // Un coude, puis un bout, puis un milieu : sur une flèche courte, le milieu tombe
+            // près des bouts, et c'est le bout qu'on vient chercher (BOUT-1).
+            let rang = |h: &ArrowHandle| match h.kind {
+                HandleKind::Bend(_) => 0,
+                HandleKind::Extremite(_) => 1,
+                HandleKind::Midpoint(_) => 2,
+            };
             rang(a).cmp(&rang(b)).then(da.total_cmp(db))
         })
         .map(|(h, _)| h)

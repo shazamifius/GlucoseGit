@@ -518,6 +518,26 @@ impl Typography {
         }
         (width, height)
     }
+
+    /// **ARIANE-1 — l'ordonnée qui centre une ligne dans une bande** de `hauteur` commençant en
+    /// `haut` : celle que [`Self::draw_text`] attend, qui pose la ligne de base `size` plus bas.
+    /// La boîte de la ligne, de la montante à la descente de la police, se centre ; rien n'est
+    /// deviné. Le fil d'Ariane posait ce `y` comme une ligne de base, à 70 % de sa bande : ses
+    /// lettres tombaient douze pixels sous elle, et la bande les coupait (sa capture du 17/11).
+    pub fn haut_d_une_ligne_centree(
+        &self,
+        size: f32,
+        face: Face,
+        (haut, hauteur): (f32, f32),
+    ) -> f32 {
+        let size = clamp_font_size(size);
+        // Sans mesures, la boîte d'un caractère : un carré de côté `size`, posé sur sa base.
+        let (montante, descente) = self
+            .font(face)
+            .horizontal_line_metrics(size)
+            .map_or((size, 0.0), |m| (m.ascent, m.descent));
+        haut + (hauteur + montante + descente) / 2.0 - size
+    }
 }
 
 /// Normalise une taille de police : `NaN` devient 1, et rien ne descend sous un pixel.

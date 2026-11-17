@@ -124,6 +124,9 @@ pub struct TempsLayout {
     pub lignes: Vec<(WidgetRect, WidgetRect, usize)>,
     /// « + Marquer un jalon », ou le champ du nom.
     pub pied: WidgetRect,
+    /// La hauteur que la liste n'emploie pas, une fois tous ses jalons posés (ou la ligne qui
+    /// dit qu'il n'y en a aucun) : ce que le panneau rend à l'écran (TIROIR-2).
+    pub reste: f32,
 }
 
 /// Hauteur d'une ligne de jalon, en unités de la fiche.
@@ -153,7 +156,9 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
     let pied = WidgetRect::new(px + marge, py + ph - marge - 30.0 * s, interieur, 30.0 * s);
     // Les jalons les plus récents d'abord, tant qu'ils tiennent au-dessus du pied.
     let premiere = liste_y + 18.0 * s;
-    let place = ((pied.y - 8.0 * s - premiere) / (LIGNE * s)).max(0.0) as usize;
+    let libre = pied.y - 8.0 * s - premiere;
+    let place = (libre / (LIGNE * s)).max(0.0) as usize;
+    let reste = libre - ui.jalons.len().max(1) as f32 * LIGNE * s;
     let lignes = (0..ui.jalons.len())
         .rev()
         .take(place)
@@ -182,7 +187,23 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
         liste_y,
         lignes,
         pied,
+        reste,
     }
+}
+
+/// **La hauteur du panneau quand tous ses jalons s'y lisent** (TIROIR-2) : celle de sa mise en
+/// page, moins ce qu'elle laisse vide. Il était « toute la hauteur » de l'écran, vide sous un
+/// seul jalon (sa capture du 17/11 : des tiroirs « souvent trop gros »).
+pub fn hauteur_naturelle(ui: &TempsUi, largeur: f32, s: f32) -> f32 {
+    let haut = super::HAUTEUR_DE_MESURE * s;
+    let cadre = ScaledRect {
+        x: 0.0,
+        y: 0.0,
+        w: largeur,
+        h: haut,
+        scale: s,
+    };
+    haut - layout_temps_panel(cadre, ui).reste
 }
 
 /// Le point de la réglette sous l'abscisse `x` : de 0 (avant tout geste) à `n` (le présent).

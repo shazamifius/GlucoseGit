@@ -12,7 +12,13 @@ impl GlucoseApp {
     /// Le champ sous le pointeur, s'il y en a un.
     fn champ_sous_le_pointeur(&self, screen: ScreenFrame) -> Option<Champ> {
         let typo = &self.renderer.typography;
-        champ_sous(&self.dock_manager, typo, screen, self.pointer()).map(|(c, _)| c)
+        champ_sous(
+            (&self.dock_manager, &self.store),
+            typo,
+            screen,
+            self.pointer(),
+        )
+        .map(|(c, _)| c)
     }
 
     /// Le champ qu'on tape, s'il y en a un.
@@ -72,7 +78,9 @@ impl GlucoseApp {
     /// **L'appui prend le champ sous lui** ; dans le champ qu'on tape, il ne fait rien.
     pub(crate) fn prendre_un_champ(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         let typo = &self.renderer.typography;
-        let Some((champ, frame)) = champ_sous(&self.dock_manager, typo, screen, pointer) else {
+        let Some((champ, frame)) =
+            champ_sous((&self.dock_manager, &self.store), typo, screen, pointer)
+        else {
             return false;
         };
         if self.champ_en_frappe() != Some(champ) {

@@ -9,7 +9,7 @@ use crate::dock::domains::{
     hit_domains_panel, layout_domains_panel, DomainIntent, DomainsUi, WEIGHT_STEPS,
 };
 use crate::dock::{compute_panel_layouts, TabId};
-use crate::params::{Pointer, ScaledRect, ScreenFrame};
+use crate::params::{Pointer, ScreenFrame};
 use glucose_core::types::{Annotation, BoardImage};
 use winit::keyboard::{ModifiersState, SmolStr};
 
@@ -465,6 +465,7 @@ fn test_a_domain_created_by_clicking_survives_save_and_reopen() {
     let frame = {
         let boxes = compute_panel_layouts(
             &app.dock_manager,
+            &app.store,
             SCREEN.width,
             SCREEN.height,
             SCREEN.header_h,
@@ -474,13 +475,7 @@ fn test_a_domain_created_by_clicking_survives_save_and_reopen() {
             .iter()
             .find(|b| b.tab == TabId::Domains)
             .expect("onglet ouvert");
-        ScaledRect {
-            x: b.x,
-            y: b.y,
-            w: b.width,
-            h: b.height,
-            scale: SCREEN.scale,
-        }
+        b.contenu(SCREEN.scale)
     };
 
     // 1. Le clic sur « + Nouveau domaine », traduit par le panneau lui-même.
