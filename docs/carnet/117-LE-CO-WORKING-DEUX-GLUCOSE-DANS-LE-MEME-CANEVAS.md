@@ -169,6 +169,24 @@ mène encore à aucun canevas… »), jamais par-dessus une autre question.
 * Un lecteur voit ses gestes se défaire, au lieu d'un canevas qui ne se laisse pas toucher.
 * **Le téléphone** : jamais essayé.
 
+## 7 bis. Les photos (B1) — commencées, en correctif, arrêtées à sa demande (11 h 45)
+
+`~/.cache/glucose-bancs/photos-117/photos-b1.patch` (`git apply` depuis `main`, vérifié) — **ni compilé ni
+éprouvé** : la lettre gagne `Corps::Objet { cle, octets }` et `Corps::Demande { cles }` ;
+`GestePartage::images_posees` ; la salle passe `{"t":"passe","l","o"}` aux autres sans le garder ni le
+numéroter (`messages.js`, `salle.js`). **La conception** (B1 de la fiche 113) : les octets d'une photo
+partent avec le geste qui la pose, par ce passage ; qui arrive après — ou l'a manquée — **demande** ce
+qui lui manque (une fois par 30 s au plus), et qui l'a la renvoie ; à l'arrivée, les octets entrent
+dans `disque.objets` (`Source::Memoire`), s'écrivent dans son document (`sceller_des_octets`), et la
+clé **sort de `renderer.magasin.echecs`** (le cache négatif ne retente jamais sinon). **Reste** : le fil
+(`Ordre::Passe`, un second réassemblage, `Nouvelle::Passe`, rien de gardé en cas de coupure),
+`app/collaborer/photos.rs` (envoyer, demander, répondre), les épreuves (la lettre, `images_posees`,
+les clés manquantes, la réponse à une demande ; `salle.test.js` et un verdict de `salle_essai.mjs` : le
+passage va aux autres, pas à soi, et un retardataire ne le reçoit pas), `piloter.sh presse-image`, une
+étape « Alice colle une photo, Bob la voit » dans l'essai réel, les sabotages, **redéployer le relais**
+avant la version qui s'en sert. Les octets se lisent aujourd'hui sur la boucle : une photo de 10 Mo
+coûterait ~10-30 ms d'un coup — à lire sur le fil ensuite.
+
 ## 8. La recherche (consultée le 17/11/2026)
 
 * Matthew Weidner, [Architectures for Central Server Collaboration](https://mattweidner.com/2024/06/04/server-architectures.html)
