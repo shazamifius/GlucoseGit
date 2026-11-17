@@ -109,6 +109,16 @@ pub struct SceneOverlay<'a> {
     /// **La souris, en coordonnées du monde** : elle rapproche les liens des nœuds qu'elle
     /// approche (LIEN-4). Rien au doigt.
     pub souris: Option<(f64, f64)>,
+    /// **Les curseurs des autres participants** d'un canevas partagé (fiche 117).
+    pub curseurs: &'a [CurseurDuPair],
+}
+
+/// **Le curseur d'un autre participant** : où est sa souris dans le monde, sa couleur, son nom.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CurseurDuPair {
+    pub monde: (f64, f64),
+    pub couleur: [u8; 3],
+    pub nom: String,
 }
 
 impl<'a> SceneOverlay<'a> {
@@ -129,6 +139,7 @@ impl<'a> SceneOverlay<'a> {
             gabarit: &[],
             survole: None,
             souris: None,
+            curseurs: &[],
         }
     }
 }

@@ -27,6 +27,7 @@ pub mod cadrage;
 pub mod card;
 pub mod composants;
 pub(crate) mod curseur;
+pub mod curseurs;
 mod date;
 mod decision;
 pub mod domain;

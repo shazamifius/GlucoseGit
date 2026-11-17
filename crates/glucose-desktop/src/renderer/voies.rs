@@ -174,19 +174,25 @@ pub(super) fn dessiner_sur_les_photos(
     crate::perf::stage("ornements");
     let taille = (pixmap.width(), pixmap.height());
     dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);
-    // 9. Les images qui arrivent d'un depot web : au-dessus de tout, comme un toast, mais la
-    // ou elles se poseront.
-    super::arrivage::dessiner_les_arrivages(
-        kit,
-        pixmap,
-        overlay.arrivages,
-        (&pass.vp, ui.scale_factor),
-    );
+    dessiner_ce_qui_vient_d_ailleurs(kit, pixmap, overlay, (&pass.vp, ui.scale_factor));
     // **Une marque ici, et c'est la cinquieme du genre.** Sans elle, tout ce qui suit
     // `ornements` -- les guides, la boite de selection, les marqueurs de telechargement, puis
     // le debut de l'interface -- se facturait a `bande`, qui a monte a 14,95, 32,28 et
     // 20,66 ms sur le terrain alors que `bench_bande` la chiffre a 0,49 ms refaite.
     crate::perf::stage("reperes");
+}
+
+/// **Ce qui vient d'ailleurs**, au-dessus de tout, à sa place dans le monde : les images qui
+/// arrivent d'un dépôt web (comme un toast, mais là où elles se poseront), puis les curseurs des
+/// autres participants d'un canevas partagé (fiche 117).
+fn dessiner_ce_qui_vient_d_ailleurs(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    overlay: SceneOverlay<'_>,
+    vue: (&Viewport, f32),
+) {
+    super::arrivage::dessiner_les_arrivages(kit, pixmap, overlay.arrivages, vue);
+    super::curseurs::dessiner_les_curseurs(kit, pixmap, overlay.curseurs, vue);
 }
 
 /// Les reperes du geste en cours : les guides d'alignement et la boite de selection.

@@ -46,6 +46,7 @@ pub enum Entree {
 #[derive(Debug, Clone)]
 pub struct Pair {
     pub nom: String,
+    pub couleur: u8,
     /// Le tableau qu'il regarde et le point du monde où est sa souris.
     pub curseur: Option<(String, f64, f64)>,
     pub vu: Instant,
@@ -57,6 +58,7 @@ pub struct CanevasPartage {
     pub code: Code,
     pub marque: String,
     pub nom: String,
+    pub couleur: u8,
     pub entree: Entree,
     /// Les autres, par leur marque.
     pub pairs: BTreeMap<String, Pair>,
@@ -231,12 +233,14 @@ impl GlucoseApp {
         self.terminer_les_gestes_en_cours();
         self.consigner();
         self.store.partager_ce_canevas(&marque);
-        let nom = identite::Identite::la_sienne(&self.disque.identite).nom;
+        let moi = identite::Identite::la_sienne(&self.disque.identite);
+        let (nom, couleur) = (moi.nom, moi.couleur as u8);
         self.lancement.agents.partage = Some(CanevasPartage {
             lien,
             code: code.clone(),
             marque,
             nom,
+            couleur,
             entree: Entree::Partage,
             pairs: BTreeMap::new(),
             curseur_parti: None,
@@ -271,12 +275,14 @@ impl GlucoseApp {
         };
         self.quitter_le_canevas_partage();
         self.adopter_un_document_vierge();
-        let nom = identite::Identite::la_sienne(&self.disque.identite).nom;
+        let moi = identite::Identite::la_sienne(&self.disque.identite);
+        let (nom, couleur) = (moi.nom, moi.couleur as u8);
         self.lancement.agents.partage = Some(CanevasPartage {
             lien,
             code,
             marque,
             nom,
+            couleur,
             entree: Entree::AttendLaBase,
             pairs: BTreeMap::new(),
             curseur_parti: None,
@@ -351,10 +357,12 @@ impl GlucoseApp {
         }
         let pair = cp.pairs.entry(lettre.marque.clone()).or_insert(Pair {
             nom: lettre.nom.clone(),
+            couleur: lettre.couleur,
             curseur: None,
             vu: Instant::now(),
         });
         pair.nom.clone_from(&lettre.nom);
+        pair.couleur = lettre.couleur;
         pair.vu = Instant::now();
     }
 
@@ -429,6 +437,7 @@ impl GlucoseApp {
             let lettre = Lettre {
                 marque: cp.marque.clone(),
                 nom: cp.nom.clone(),
+                couleur: cp.couleur,
                 main: s.main,
                 corps,
             };
@@ -441,6 +450,7 @@ impl GlucoseApp {
             let lettre = Lettre {
                 marque: cp.marque.clone(),
                 nom: cp.nom.clone(),
+                couleur: cp.couleur,
                 main: Main::Humain,
                 corps: Corps::Curseur {
                     tableau: tableau.clone(),
@@ -452,6 +462,25 @@ impl GlucoseApp {
             cp.curseur_parti = Some((Instant::now(), tableau, x, y));
         }
         defaits
+    }
+
+    /// **Les curseurs des autres**, sur le tableau qu'on regarde, de ceux qu'on a vus récemment.
+    pub(crate) fn curseurs_des_pairs(&self) -> Vec<crate::params::CurseurDuPair> {
+        let Some(cp) = self.lancement.agents.partage.as_ref() else {
+            return Vec::new();
+        };
+        let tableau = &self.store.project.active_board_id;
+        cp.presents()
+            .into_iter()
+            .filter_map(|p| {
+                let (t, x, y) = p.curseur.as_ref()?;
+                (t == tableau).then(|| crate::params::CurseurDuPair {
+                    monde: (*x, *y),
+                    couleur: identite::COULEURS[usize::from(p.couleur) % identite::COULEURS.len()],
+                    nom: p.nom.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Sa souris dans le monde, si elle a bougé depuis le dernier curseur parti et qu'il est temps.

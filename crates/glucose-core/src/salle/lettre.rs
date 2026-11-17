@@ -39,6 +39,8 @@ pub struct Lettre {
     pub marque: String,
     /// Le nom qu'il se donne.
     pub nom: String,
+    /// Sa couleur : un rang dans la palette des participants (les dix de Glucose Tauri).
+    pub couleur: u8,
     /// **La main** : `Humain` pour lui, `Agent` pour une IA qui travaille dans son Glucose. Chez
     /// celui qui reçoit, l'humain devient un participant ([`Lettre::main_chez_moi`]).
     pub main: Main,
@@ -52,6 +54,7 @@ impl Lettre {
         w.u16(DOCUMENT_VERSION);
         w.text(&self.marque);
         w.text(&self.nom);
+        w.u8(self.couleur);
         match &self.main {
             Main::Agent(nom) => {
                 w.u8(1);
@@ -91,6 +94,7 @@ impl Lettre {
         }
         let marque = r.text()?;
         let nom = r.text()?;
+        let couleur = r.u8()?;
         let main = match r.u8()? {
             0 => Main::Humain,
             1 => Main::Agent(r.text()?),
@@ -121,6 +125,7 @@ impl Lettre {
         Ok(Self {
             marque,
             nom,
+            couleur,
             main,
             corps,
         })

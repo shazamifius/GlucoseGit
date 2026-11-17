@@ -159,6 +159,7 @@ impl GlucoseApp {
             gabarit: [self.fantome_du_gabarit(), self.fantome_du_storyboard()].concat(),
             survole: self.ui.noeud_survole.clone(),
             souris: self.souris_dans_le_monde(),
+            curseurs: self.curseurs_des_pairs(),
         }
     }
 
@@ -261,6 +262,7 @@ struct Dessus {
     gabarit: Vec<glucose_core::geometry::Rect>,
     survole: Option<String>,
     souris: Option<(f64, f64)>,
+    curseurs: Vec<crate::params::CurseurDuPair>,
 }
 
 impl Dessus {
@@ -281,6 +283,7 @@ impl Dessus {
             gabarit: &self.gabarit,
             survole: self.survole.as_deref(),
             souris: self.souris,
+            curseurs: &self.curseurs,
             ..SceneOverlay::sans_rien(self.guides(du_geste))
         }
     }

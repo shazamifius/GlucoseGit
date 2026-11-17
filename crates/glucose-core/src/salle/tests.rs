@@ -96,6 +96,7 @@ fn lettre_une_lettre_se_relit_et_signe_chez_l_autre() {
         let l = Lettre {
             marque: "a7".into(),
             nom: "Alice".into(),
+            couleur: 4,
             main,
             corps,
         };
@@ -104,6 +105,7 @@ fn lettre_une_lettre_se_relit_et_signe_chez_l_autre() {
     let humaine = Lettre {
         marque: "a7".into(),
         nom: "Alice".into(),
+        couleur: 4,
         main: Main::Humain,
         corps: Corps::Geste(un_geste()),
     };
