@@ -581,7 +581,7 @@ fn passe_des_panneaux<'a>(
     cache: &'a DockCache,
 ) -> DockPass<'a> {
     DockPass {
-        typo: &renderer.typography,
+        typo: &renderer.typo_ecran,
         theme: &renderer.theme,
         screen,
         pointer,

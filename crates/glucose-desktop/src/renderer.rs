@@ -144,6 +144,10 @@ pub struct Renderer {
     /// qui décodent pendant que la scène continue de se dessiner (DECODE-1).
     pub magasin: magasin::Magasin,
     pub typography: Typography,
+    /// **La typographie de l'interface** (GRILLE-1, fiche 120) : les mêmes polices, posées sur la
+    /// grille de l'écran. La bande, les panneaux, les menus et les messages l'écrivent ; le
+    /// canevas garde la sienne, qui vit dans le monde.
+    pub typo_ecran: Typography,
     pub math: math::MathRenderer,
     /// Les mises en page des nœuds de texte, gardées d'une image à l'autre : elles ne dépendent
     /// pas du zoom (P8 bis, fiche 73 § 7).
@@ -208,10 +212,12 @@ pub use cadrage::{Cadrage, Couche, Regard, SceneReduite};
 
 impl Renderer {
     pub fn new() -> Self {
+        let typography = Typography::new();
         Self {
             theme: Theme::dark(),
             magasin: magasin::Magasin::nouveau(),
-            typography: Typography::new(),
+            typo_ecran: typography.posee_sur_l_ecran(),
+            typography,
             math: math::MathRenderer::new(),
             mises_en_page: Default::default(),
             sens_des_textes: Default::default(),
@@ -319,7 +325,7 @@ impl Renderer {
         noter_le_cout_de_la_scene(debut);
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
-        render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
+        render_ui(pixmap, store, ui, &self.typo_ecran, &self.theme, pointer);
         self.magasin.fermer();
     }
 
@@ -364,7 +370,7 @@ impl Renderer {
         agrandir(plein, scene.tampon, f);
         crate::perf::stage("agrandir");
 
-        render_ui(plein, store, ui, &self.typography, &self.theme, pointer);
+        render_ui(plein, store, ui, &self.typo_ecran, &self.theme, pointer);
         self.magasin.fermer();
     }
 
@@ -609,7 +615,7 @@ mod tests {
             dock,
             store,
             &crate::dock::DockPass {
-                typo: &renderer.typography,
+                typo: &renderer.typo_ecran,
                 theme: &renderer.theme,
                 screen: ScreenFrame {
                     width: 1440.0,

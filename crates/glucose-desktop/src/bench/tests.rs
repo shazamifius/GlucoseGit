@@ -276,7 +276,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// contraste d'un texte courant (`#a8cfff`, Lc 75) — 247 pixels, le seul mot « lien »
 /// (261-285 × 472-486), au plus 67 niveaux ; regardé avant/après, agrandi : plus clair, toujours
 /// bleu et souligné.
-const EMPREINTE_TEMOIN: &str = "d51c3a9c3b682fcc";
+/// **Puis, le 18/11** (GRILLE-1 et GRILLE-2, fiche 120) : les lettres et les icônes de l'interface
+/// posées sur la grille de l'écran — 7 115 pixels, tous dans la bande et la rangée des onglets
+/// (12-1768 × 15-69), au plus 196 niveaux ; le canevas intact. Regardé avant/après, agrandi six
+/// fois : les minuscules sur des rangées entières, les traits des icônes d'un pixel.
+const EMPREINTE_TEMOIN: &str = "f9f33fd897dd2a6f";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -393,7 +397,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// bleu et souligné.
 /// **Puis, le 17/11** (BOUT-1, fiche 118) : la flèche choisie porte une poignée à chacun de ses
 /// deux bouts, deux disques clairs ; regardée.
-const EMPREINTE_TEMOIN_SELECTION: &str = "ace1245ccd1cb108";
+/// **Puis, le 18/11** (GRILLE-1 et GRILLE-2, fiche 120) : la bande, les onglets, les options de la
+/// flèche et la barre de la sélection sur la grille de l'écran — 14 218 pixels, aucun sur le
+/// canevas ; regardée avec l'image de l'écart.
+const EMPREINTE_TEMOIN_SELECTION: &str = "67066fbc8eaebf58";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -498,7 +505,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (MIROIR-1, fiche 118) : « Retourner horizontalement — Alt+Maj+H » et « Retourner
 /// verticalement — Alt+Maj+V » dans le groupe des images ; le menu s'élargit et gagne deux
 /// rangées. 25 280 pixels, tous dans le menu (639-897 × 319-717) ; regardé, agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "405989fe46116d3a";
+/// **Puis, le 18/11** (GRILLE-1 et GRILLE-2, fiche 120) : le menu, les barres et la bande sur la
+/// grille de l'écran — 25 941 pixels, aucun sur le canevas ; regardé avant/après, agrandi quatre
+/// fois.
+const EMPREINTE_TEMOIN_MENU: &str = "5c407ab2b6289aa8";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

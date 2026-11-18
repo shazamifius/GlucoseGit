@@ -56,6 +56,7 @@
 #[cfg(test)]
 pub(crate) mod coverage;
 mod detoure;
+mod ecran;
 mod encre;
 pub use encre::{forme_grise, peindre_exact, LETTRE_LISIBLE};
 pub mod glyph;
@@ -179,10 +180,23 @@ pub(crate) fn toutes_les_polices() -> [Police; 6] {
     polices
 }
 
-pub struct Typography {
+/// Les polices parsées, partagées par les deux typographies — celle du monde et celle de l'écran
+/// (GRILLE-1) : `fontdue` lit chaque glyphe au chargement, et une copie doublerait ce travail.
+struct Polices {
     faces: [Font; 5],
     /// Le repli des emojis (EMOJI-1).
     emoji: Font,
+    /// La hauteur d'x de chaque visage, en fraction du corps, lue dans sa table `OS/2` — celle
+    /// que GRILLE-1 pose sur la grille.
+    hauteurs_d_x: [Option<f32>; 5],
+}
+
+pub struct Typography {
+    polices: Rc<Polices>,
+    /// **Posée sur l'écran** (GRILLE-1, `typography/ecran.rs`) : la typographie de l'interface,
+    /// alignée sur la grille des pixels. Celle du canevas ne l'est pas : ses lettres vivent dans le
+    /// monde et changent de taille au zoom.
+    sur_l_ecran: bool,
     glyph_cache: RefCell<HashMap<GlyphKey, CachedGlyph>>,
     /// **L'image en cours** : chaque lettre retient la dernière qui l'a demandée, et une image
     /// qui commence oublie celles que la précédente n'a pas demandées
@@ -212,17 +226,32 @@ impl Default for Typography {
 
 impl Typography {
     pub fn new() -> Self {
-        let faces = FACE_BYTES.map(|bytes| {
-            Font::from_bytes(bytes, FontSettings::default())
-                .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue")
+        const INTEGREE: &str =
+            "police intégrée par include_bytes! — corruption du binaire si ceci échoue";
+        let faces = FACE_BYTES
+            .map(|bytes| Font::from_bytes(bytes, FontSettings::default()).expect(INTEGREE));
+        let emoji = Font::from_bytes(EMOJI_BYTES, FontSettings::default()).expect(INTEGREE);
+        let hauteurs_d_x = FACE_BYTES.map(|bytes| {
+            let face = ttf_parser::Face::parse(bytes, 0).expect(INTEGREE);
+            face.x_height()
+                .map(|x| f32::from(x) / f32::from(face.units_per_em()))
         });
-        let emoji = Font::from_bytes(EMOJI_BYTES, FontSettings::default())
-            .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue");
+        Self::de(
+            Rc::new(Polices {
+                faces,
+                emoji,
+                hauteurs_d_x,
+            }),
+            false,
+        )
+    }
+
+    fn de(polices: Rc<Polices>, sur_l_ecran: bool) -> Self {
         let mut octets = FACE_BYTES.to_vec();
         octets.push(EMOJI_BYTES);
         Self {
-            faces,
-            emoji,
+            polices,
+            sur_l_ecran,
             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
             image: Cell::new(0),
             contours: trace::Contours::de(&octets),
@@ -249,7 +278,7 @@ impl Typography {
 
     /// La police d'un visage.
     pub fn font(&self, face: Face) -> &Font {
-        &self.faces[face.index()]
+        &self.polices.faces[face.index()]
     }
 
     /// **La police qui dessine `ch` dans ce visage**, et l'indice de son glyphe (EMOJI-1) : le
@@ -258,7 +287,7 @@ impl Typography {
     fn police(&self, ch: char, face: Face) -> (&Font, u16) {
         match self.choix(ch, face) {
             (Some(face), indice) => (self.font(face), indice),
-            (None, indice) => (&self.emoji, indice),
+            (None, indice) => (&self.polices.emoji, indice),
         }
     }
 
@@ -277,7 +306,7 @@ impl Typography {
         if indice != 0 {
             return (Some(face), indice);
         }
-        match self.emoji.lookup_glyph_index(ch) {
+        match self.polices.emoji.lookup_glyph_index(ch) {
             0 => (Some(face), 0),
             repli => (None, repli),
         }
@@ -323,6 +352,12 @@ impl Typography {
         if let Some((entry, vue)) = cache.get_mut(&(face, ch, size_key, phase)) {
             *vue = image;
             return entry.clone();
+        }
+        if self.sur_l_ecran {
+            let maitre = self.maitre(&mut cache, (ch, size, face), size_key);
+            let entree = Rc::new(ecran::variante(&maitre, phase));
+            cache.insert((face, ch, size_key, phase), (entree.clone(), image));
+            return entree;
         }
 
         let origin = match cache.get_mut(&(face, ch, size_key, PHASE_ORIGIN)) {
@@ -452,7 +487,7 @@ impl Typography {
 
         // La partie fractionnaire verticale est la même pour toute la ligne : `ymin` et
         // `height` sont entiers, donc seule l'ordonnée de base porte une phase (GLYPH-1).
-        let (cell_y, phase_y) = split_position(y + size);
+        let (cell_y, phase_y) = self.ligne_de_base(y + size);
         let cell_y = cell_y + offset.1;
 
         for ch in text.chars() {
@@ -493,7 +528,7 @@ impl Typography {
         let bounds = (pixmap.width() as i32, pixmap.height() as i32);
         let data = pixmap.data_mut();
         let (cell_x, phase_x) = split_position(at.0);
-        let (cell_y, phase_y) = split_position(at.1);
+        let (cell_y, phase_y) = self.ligne_de_base(at.1);
         let entry = self.glyph_variant(ch, size, face, phase_y * SUBPIXEL_PHASES + phase_x);
         let gx = cell_x + entry.metrics.xmin;
         let gy = cell_y - entry.metrics.ymin - entry.metrics.height as i32;

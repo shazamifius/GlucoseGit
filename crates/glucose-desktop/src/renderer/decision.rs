@@ -28,10 +28,10 @@ impl Renderer {
         ui: &UiState,
         pointer: Pointer,
     ) {
-        let kit = (&self.typography, &self.theme);
+        let kit = (&self.typo_ecran, &self.theme);
         crate::ui::decision::poser_les_barres(pixmap, store, ui, kit);
         self.poser_la_fenetre_d_ancrage(pixmap, store, ui);
-        let kit = (&self.typography, &self.theme);
+        let kit = (&self.typo_ecran, &self.theme);
         crate::ui::decision::poser_les_reponses_attendues(pixmap, store, ui, kit, pointer);
         // **Ce que `ui` nomme** : ce qui ne paraît que sur décision de l'utilisateur. La marque
         // se posait autrefois chez l'appelant, après la bande, le fil d'Ariane et la minimap :

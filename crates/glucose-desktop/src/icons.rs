@@ -1,5 +1,7 @@
-//! Tracé vectoriel ultra-précis des icônes de Glucose via tiny-skia.
-//! Reproduit fidèlement les tracés SVG de Toolbar.tsx avec anti-aliasing et subpixel rendering.
+//! Tracé vectoriel des icônes de Glucose via tiny-skia : les tracés SVG de `Toolbar.tsx`, posés
+//! sur la grille de l'écran (GRILLE-2, `icons/grille.rs`).
+
+mod grille;
 
 use crate::renderer::push_rounded_rect;
 use tiny_skia::{
@@ -140,7 +142,7 @@ fn draw_tool_icon(
             pb.line_to(12.0, 6.5);
             pb.close();
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Pan => draw_pan_icon(pixmap, paint, stroke, ts),
@@ -152,7 +154,7 @@ fn draw_tool_icon(
             pb.move_to(7.0, 3.0);
             pb.line_to(7.0, 11.0);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Sticky => {
@@ -165,7 +167,7 @@ fn draw_tool_icon(
             pb.move_to(4.0, 7.5);
             pb.line_to(8.0, 7.5);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Arrow => {
@@ -177,7 +179,7 @@ fn draw_tool_icon(
             pb.line_to(12.0, 2.0);
             pb.line_to(12.0, 7.0);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Folder => draw_folder_icon(pixmap, paint, stroke, ts),
@@ -190,7 +192,7 @@ fn draw_tool_icon(
                     dash: StrokeDash::new(vec![3.0, 2.0], 0.0),
                     ..stroke.clone()
                 };
-                pixmap.stroke_path(&path, paint, &dashed_stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, &dashed_stroke, ts);
             }
         }
         IconType::Plus => draw_plus_icon(pixmap, paint, stroke, ts),
@@ -217,7 +219,7 @@ fn draw_panel_icon(
             push_rounded_rect(&mut pb, 1.5, 8.5, 5.5, 4.5, 1.0);
             push_rounded_rect(&mut pb, 9.0, 8.5, 5.5, 4.5, 1.0);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Timer => draw_timer_icon(pixmap, paint, stroke, ts),
@@ -230,7 +232,7 @@ fn draw_panel_icon(
             push_rounded_rect(&mut pb, 1.5, 9.0, 5.5, 5.0, 1.0);
             push_rounded_rect(&mut pb, 9.0, 9.0, 5.5, 5.0, 1.0);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Magnet => draw_magnet_icon(pixmap, paint, stroke, ts, color, s_width),
@@ -247,7 +249,7 @@ fn draw_panel_icon(
             pb.move_to(2.0, 13.0);
             pb.line_to(14.0, 13.0);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Plugins => draw_plugins_icon(pixmap, paint, stroke, ts),
@@ -259,7 +261,7 @@ fn draw_panel_icon(
             push_rounded_rect(&mut pb, 1.5, 9.0, 5.5, 5.5, 1.2);
             push_rounded_rect(&mut pb, 9.0, 9.0, 5.5, 5.5, 1.2);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::Domains => draw_domains_icon(pixmap, paint, stroke, ts),
@@ -291,7 +293,7 @@ fn draw_action_icon(
                 pb.line_to(9.5, 6.0);
             }
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         IconType::OrigineCommune | IconType::OriginesIndividuelles => {
@@ -315,7 +317,7 @@ fn draw_action_icon(
             pb.line_to(10.5, 12.0);
             pb.line_to(11.0, 4.0);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         // <path d="M11.5 1.5l3 3L5 14H2v-3z"/><path d="M9.5 3.5l3 3"/> — boîte de 16.
@@ -330,7 +332,7 @@ fn draw_action_icon(
             pb.move_to(9.5, 3.5);
             pb.line_to(12.5, 6.5);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, paint, stroke, ts, None);
+                grille::tracer(pixmap, &path, paint, stroke, ts);
             }
         }
         _ => {}
@@ -379,7 +381,7 @@ fn draw_magnet_icon(
             width: s_width * 0.8,
             ..stroke.clone()
         };
-        pixmap.stroke_path(&path, &faint_paint, &thin_stroke, ts, None);
+        grille::tracer(pixmap, &path, &faint_paint, &thin_stroke, ts);
     }
 
     let mut pb_rect = PathBuilder::new();
@@ -389,7 +391,7 @@ fn draw_magnet_icon(
             dash: StrokeDash::new(vec![2.5, 1.5], 0.0),
             ..stroke.clone()
         };
-        pixmap.stroke_path(&path, paint, &dashed, ts, None);
+        grille::tracer(pixmap, &path, paint, &dashed, ts);
     }
 }
 
@@ -401,7 +403,7 @@ fn draw_domains_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts:
     pb.push_circle(11.0, 6.0, 3.0);
     pb.push_circle(8.0, 11.0, 3.0);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -426,7 +428,7 @@ fn draw_plugins_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts:
     pb.line_to(6.0, 6.5);
     pb.close();
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -439,7 +441,7 @@ fn draw_plus_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: Tr
     pb.move_to(2.0, 8.0);
     pb.line_to(14.0, 8.0);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -452,7 +454,7 @@ fn draw_trans_domain_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke
     pb.push_circle(3.5, 8.0, 2.0);
     pb.push_circle(12.5, 8.0, 2.0);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
     let mut pb_line = PathBuilder::new();
     pb_line.move_to(5.5, 8.0);
@@ -462,7 +464,7 @@ fn draw_trans_domain_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke
             dash: StrokeDash::new(vec![1.8, 1.8], 0.0),
             ..stroke.clone()
         };
-        pixmap.stroke_path(&path, paint, &dashed, ts, None);
+        grille::tracer(pixmap, &path, paint, &dashed, ts);
     }
 }
 
@@ -479,7 +481,7 @@ fn draw_collab_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: 
     pb.move_to(8.0, 1.8);
     pb.cubic_to(5.8, 3.8, 5.8, 12.2, 8.0, 14.2);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -498,7 +500,7 @@ fn draw_pan_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: Tra
     pb.move_to(15.0, 10.0);
     pb.line_to(18.0, 10.0);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -515,7 +517,7 @@ fn draw_folder_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: 
     pb.line_to(2.5, 2.5);
     pb.close();
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -531,7 +533,7 @@ fn draw_timer_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: T
     pb.move_to(6.0, 2.0);
     pb.line_to(10.0, 2.0);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -559,7 +561,7 @@ fn draw_history_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts:
     pb.line_to(8.0, 8.0);
     pb.line_to(10.5, 9.3);
     if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
 }
 
@@ -586,9 +588,9 @@ fn draw_origine_icon(
         centres.push_circle(x + cote / 2.0, y + cote / 2.0, 1.2);
     }
     if let Some(path) = traits.finish() {
-        pixmap.stroke_path(&path, paint, stroke, ts, None);
+        grille::tracer(pixmap, &path, paint, stroke, ts);
     }
     if let Some(path) = centres.finish() {
-        pixmap.fill_path(&path, paint, tiny_skia::FillRule::Winding, ts, None);
+        grille::remplir(pixmap, &path, paint, ts);
     }
 }

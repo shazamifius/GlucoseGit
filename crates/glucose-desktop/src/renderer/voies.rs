@@ -375,7 +375,7 @@ impl Renderer {
         // **La chrome ne passe plus par la couche du dessus** (CHROME-1) : la carte la pose
         // d'après ses caches, et la couche ne porte plus que ce qui suit la vue.
         let ecran = (taille.0 as f32, taille.1 as f32);
-        let kit = (&self.typography, &self.theme);
+        let kit = (&self.typo_ecran, &self.theme);
         confie.chrome = crate::ui::chrome::ChromeConfiee::de(store, ui, kit, (ecran, pointer));
         self.magasin.fermer();
         confie
