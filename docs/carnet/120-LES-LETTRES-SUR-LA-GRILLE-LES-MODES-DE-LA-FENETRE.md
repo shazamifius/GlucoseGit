@@ -122,7 +122,8 @@ et sans structure qui explique où elles s'ouvrent. Les deux du milieu sont rég
   de la bande — s'ouvrent **en haut à gauche**. La loi proposée : **un tiroir s'ouvre du côté de son
   bouton**, collé au bord, empilé sous les autres de ce côté.
 
-Un prototype (hors du dépôt, `proto_tiroirs.py`) et son image, à lui montrer avant d'écrire.
+Un prototype (hors du dépôt : `~/.cache/glucose-bancs/session-120/tiroirs/`, son `LISEZ-MOI.md` à côté)
+et son image, à lui montrer avant d'écrire — l'image d'aujourd'hui y est, celle du prototype reste à prendre.
 
 ## 7. Ses demandes neuves du 18/11 — le détourage
 
