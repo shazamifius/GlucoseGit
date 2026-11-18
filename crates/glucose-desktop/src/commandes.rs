@@ -84,6 +84,10 @@ pub enum Commande {
     /// Retourner les images choisies, chacune sur elle-même (MIROIR-1, fiche 118).
     RetournerHorizontalement,
     RetournerVerticalement,
+    /// **Détourer les images choisies** : la forme principale seule, par l'IA (DETOURER-1, fiche
+    /// 121) ; ou **retirer leur fond uni**, exactement (DETOURER-3).
+    Detourer,
+    RetirerLeFondUni,
     Verrouiller,
     /// Pousser la sélection d'un cran, ou de dix.
     Pousser(Sens, bool),
@@ -187,7 +191,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 62] = [
+const SIMPLES: [(Commande, &str, &str); 64] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -242,6 +246,16 @@ const SIMPLES: [(Commande, &str, &str); 62] = [
         Commande::RetournerVerticalement,
         "image.retourner-v",
         "Retourner verticalement",
+    ),
+    (
+        Commande::Detourer,
+        "image.detourer",
+        "Détourer : la forme principale",
+    ),
+    (
+        Commande::RetirerLeFondUni,
+        "image.retirer-le-fond",
+        "Retirer le fond uni",
     ),
     (
         Commande::Verrouiller,

@@ -81,6 +81,8 @@ impl MenuAction {
             MenuAction::TrimBorders => Commande::RetirerLesBordures,
             MenuAction::RetournerH => Commande::RetournerHorizontalement,
             MenuAction::RetournerV => Commande::RetournerVerticalement,
+            MenuAction::Detourer => Commande::Detourer,
+            MenuAction::RetirerLeFondUni => Commande::RetirerLeFondUni,
             MenuAction::StoryboardDeLaSelection => Commande::StoryboardDeLaSelection,
             MenuAction::LireLeStoryboard => Commande::LireLeStoryboard,
             MenuAction::ExporterLesPlanches => Commande::ExporterLesPlanches,
@@ -180,6 +182,9 @@ pub enum MenuAction {
     /// Retourner les images choisies, chacune sur elle-même (MIROIR-1).
     RetournerH,
     RetournerV,
+    /// Détourer les images choisies, ou retirer leur fond uni (DETOURER-1, fiche 121).
+    Detourer,
+    RetirerLeFondUni,
     /// Une case par image choisie, dans l'ordre de lecture (P2, proposition 2, fiche 66).
     StoryboardDeLaSelection,
     /// Lire le storyboard en plein écran, depuis la case choisie (fiche 67).

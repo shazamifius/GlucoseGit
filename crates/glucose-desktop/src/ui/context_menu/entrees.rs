@@ -155,6 +155,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         Some((MenuAction::TrimBorders, "Retirer les bordures", "")),
         Some((MenuAction::RetournerH, "Retourner horizontalement", "")),
         Some((MenuAction::RetournerV, "Retourner verticalement", "")),
+        Some((MenuAction::Detourer, "Détourer : la forme principale", "")),
+        Some((MenuAction::RetirerLeFondUni, "Retirer le fond uni", "")),
         // Une case par image choisie (P2, proposition 2, fiche 66).
         Some((
             MenuAction::StoryboardDeLaSelection,

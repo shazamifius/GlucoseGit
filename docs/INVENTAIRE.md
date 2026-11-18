@@ -72,6 +72,8 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Transformer la sélection (origine commune ou individuelles) | poignées, barre d'action, `Alt` + coin | ✅ |
 | Recadrer une image | double-clic | ✅ |
 | **Retourner une image** (MIROIR-1, fiche 118) : de gauche à droite ou de haut en bas, chaque image sur elle-même ; une verrouillée ne se retourne pas | **menu d'une image**, la palette, `Alt+Maj+H`, `Alt+Maj+V` (ceux de PureRef) | ✅ menu |
+| **Détourer une image** (DETOURER-1 et 2, fiche 121) : la forme principale seule, en transparence, par une petite IA embarquée (u2netp, Apache 2.0, sans réseau) — environ 1,5 s sur son VivoBook, le curseur dit le travail ; le bord sans la couleur du fond ; un seul `Ctrl+Z` rend la photo, et le document garde les deux | **menu d'une image** « Détourer : la forme principale », la palette | ✅ menu |
+| **Retirer le fond uni** (DETOURER-3, fiche 121) : la couleur du bord devient transparente, exactement — le geste des dessins, des logos et des scans (l'IA y garderait le blanc entre les traits) | **menu d'une image** « Retirer le fond uni », la palette | ✅ menu |
 | Flèche : droite ou courbe, double sens, épaisseur, relation, ancres de texte | la barre de la flèche, `1…6` | ✅ |
 | **Flèche : ses deux bouts** (BOUT-1, fiche 118) — glissés sur un autre nœud, ou dans le vide | la poignée de chaque bout d'une flèche choisie | ✅ (le doigt glisse) |
 | **Flèche : retirer un coude, ou tous** (COUDE-1, fiche 118) | double-clic sur le coude ; **clic droit sur le coude** « Retirer ce coude » ; « Redresser la flèche » au menu et à la palette | ✅ menu (« Redresser ») |

@@ -5,6 +5,7 @@
 use super::palette::But;
 use super::Commande;
 use crate::app::GlucoseApp;
+use crate::interactions::detourer::Maniere;
 use glucose_core::store::StackMove;
 use glucose_core::types::Retournement;
 
@@ -51,6 +52,8 @@ impl GlucoseApp {
             Commande::RetirerLesBordures => self.retirer_les_bordures_de_la_selection(),
             Commande::RetournerHorizontalement => self.retourner(Retournement::Horizontal),
             Commande::RetournerVerticalement => self.retourner(Retournement::Vertical),
+            Commande::Detourer => self.detourer_la_selection(Maniere::FormePrincipale),
+            Commande::RetirerLeFondUni => self.detourer_la_selection(Maniere::FondUni),
             Commande::Verrouiller => self.toggle_lock(),
             Commande::Pousser(sens, dix) => self.nudge(sens.pas(), dix),
             Commande::ToutCadrer => self.cadrer(false),

@@ -1,0 +1,302 @@
+[
+ {
+  "nom": "DETOURER-1 — la convolution oublie son remplissage",
+  "fichier": "crates/glucose-core/src/detourage/conv.rs",
+  "avant": "let decalage = (kx * c.dilatation) as isize - c.remplissage as isize;",
+  "apres": "let decalage = (kx * c.dilatation) as isize;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — le ReLU fondu s'oublie",
+  "fichier": "crates/glucose-core/src/detourage/conv.rs",
+  "avant": "                if self.relu {",
+  "apres": "                if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — le regroupement arrondit vers le bas",
+  "fichier": "crates/glucose-core/src/detourage/calcul.rs",
+  "avant": "(v - noyau).div_ceil(pas) + 1",
+  "apres": "(v - noyau) / pas + 1",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — l'agrandissement quitte le demi-pixel",
+  "fichier": "crates/glucose-core/src/detourage/calcul.rs",
+  "avant": "let s = ((i as f32 + 0.5) * echelle - 0.5)",
+  "apres": "let s = ((i as f32) * echelle)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — le masque n'est plus étiré",
+  "fichier": "crates/glucose-core/src/detourage.rs",
+  "avant": "brut.iter().map(|x| (x - min) / etendue).collect();",
+  "apres": "brut.iter().map(|x| *x + 0.0 * (min + etendue)).collect();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — un tenseur se lit avant d'être écrit",
+  "fichier": "crates/glucose-core/src/detourage/modele.rs",
+  "avant": ".ok_or(\"tenseur lu avant d'être écrit\")",
+  "apres": ".or(Some([3, 8, 8])).ok_or(\"jamais\")",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — un tenseur s'écrit deux fois",
+  "fichier": "crates/glucose-core/src/detourage/modele.rs",
+  "avant": "if place.is_some() || op.sortie == 0 {",
+  "apres": "if op.sortie == 0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — une convolution prend des canaux qui ne sont pas les siens",
+  "fichier": "crates/glucose-core/src/detourage/modele.rs",
+  "avant": "let bonne = cv.cin == c && cv.pas > 0",
+  "apres": "let bonne = cv.pas > 0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — on concatène deux tailles",
+  "fichier": "crates/glucose-core/src/detourage/modele.rs",
+  "avant": "if lues.iter().any(|f| f[1] != h || f[2] != l) {",
+  "apres": "if lues.is_empty() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — on ajoute deux formes",
+  "fichier": "crates/glucose-core/src/detourage/modele.rs",
+  "avant": "if lues.len() != 2 || lues[1] != premiere {",
+  "apres": "if lues.len() != 2 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-2 — le premier plan sans sa correction",
+  "fichier": "crates/glucose-core/src/detourage/premier_plan.rs",
+  "avant": "f[c][i] = (fm + a * (rvb[c][i] - a * fm - (1.0 - a) * bm)).clamp(0.0, 1.0);",
+  "apres": "f[c][i] = fm.clamp(0.0, 1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-2 — le flou compte des pixels hors de l'image",
+  "fichier": "crates/glucose-core/src/detourage/premier_plan.rs",
+  "avant": "let compte = (i + r).min(n - 1) + 1 - i.saturating_sub(r);",
+  "apres": "let compte = 2 * r + 1;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-3 — la couleur du fond n'est plus la médiane du bord",
+  "fichier": "crates/glucose-core/src/detourage/fond_uni.rs",
+  "avant": "canaux[c][canaux[c].len() / 2]",
+  "apres": "canaux[c][0]",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-3 — sous le fond, la part se compte vers le blanc",
+  "fichier": "crates/glucose-core/src/detourage/fond_uni.rs",
+  "avant": "        (b - i) / b\n",
+  "apres": "        (b - i) / (1.0 - b)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-3 — l'opacité d'un pixel ne se garde plus",
+  "fichier": "crates/glucose-core/src/detourage/fond_uni.rs",
+  "avant": "sortie.push((alpha * f32::from(p[3])).round() as u8);",
+  "apres": "sortie.push((alpha * 255.0).round() as u8);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — une photo changée pendant le calcul est écrasée",
+  "fichier": "crates/glucose-desktop/src/interactions/detourer.rs",
+  "avant": ".is_some_and(|img| !img.locked && img.src.as_deref() == Some(fait.src.as_str()));",
+  "apres": ".is_some_and(|img| !img.locked);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — deux photos, deux gestes",
+  "fichier": "crates/glucose-desktop/src/interactions/detourer.rs",
+  "avant": "        self.store.begin_live_edit();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — le curseur ne dit pas le travail",
+  "fichier": "crates/glucose-desktop/src/interactions/cursor.rs",
+  "avant": "} else if self.attentes.detourage.is_some() {",
+  "apres": "} else if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — une photo verrouillée est offerte",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": ".any(|i| !i.locked && i.src.is_some())",
+  "apres": ".any(|i| i.src.is_some())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — les pixels prémultipliés lus tels quels",
+  "fichier": "crates/glucose-desktop/src/interactions/detourer.rs",
+  "avant": "    depremultiplier(&mut rvba);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "detourer"
+  ]
+ }
+]

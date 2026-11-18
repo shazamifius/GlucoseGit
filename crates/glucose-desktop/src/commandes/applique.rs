@@ -55,6 +55,8 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::RetirerLesBordures
         | C::RetournerHorizontalement
         | C::RetournerVerticalement
+        | C::Detourer
+        | C::RetirerLeFondUni
         | C::Verrouiller
         | C::StoryboardDeLaSelection
         | C::EnregistrerLImage
@@ -141,6 +143,9 @@ fn selon_le_choix(store: &Store, ui: &UiState, commande: Commande) -> bool {
         | C::RetournerVerticalement
         | C::Verrouiller
         | C::StoryboardDeLaSelection => images,
+        // Une image sans octets n'a rien à détourer, une image verrouillée refuse qu'on la change :
+        // les proposer mentirait (DETOURER-1, fiche 121).
+        C::Detourer | C::RetirerLeFondUni => images_a_detourer(store),
         C::EnregistrerLImage => {
             store.selected_image_ids.len() == 1 && store.selected_annotation_ids.is_empty()
         }
@@ -207,6 +212,16 @@ fn selon_le_document(store: &Store, commande: Commande) -> bool {
         // voit. Les autres sont rangées ailleurs par [`s_applique`].
         _ => false,
     }
+}
+
+/// **Une image choisie que le détourage peut changer** : déverrouillée, et qui a des octets.
+fn images_a_detourer(store: &Store) -> bool {
+    let board = &store.project.active_board_id;
+    store
+        .selected_image_ids
+        .iter()
+        .filter_map(|id| store.image(board, id))
+        .any(|i| !i.locked && i.src.is_some())
 }
 
 #[cfg(test)]

@@ -108,6 +108,24 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
     );
 }
 
+/// **Une image qui a des octets se détoure** (DETOURER-1, fiche 121) ; sans octets — les images
+/// de l'épreuve d'avant —, le menu ne le propose pas : il n'y aurait rien à détourer.
+#[test]
+fn test_detourer_1_une_image_qui_a_des_octets_se_detoure() {
+    let mut store = store_with(1, 0, true);
+    let board = store.project.active_board_id.clone();
+    store.update_image(&board, "i0", |i| i.src = Some("photo.png".into()));
+    let vues = actions(&menu(&store, (100.0, 100.0)));
+    let apres = vues
+        .iter()
+        .position(|a| *a == MenuAction::RetournerV)
+        .expect("retourner");
+    assert_eq!(
+        vues[apres + 1..apres + 3],
+        [MenuAction::Detourer, MenuAction::RetirerLeFondUni]
+    );
+}
+
 /// Une carte ou un dossier ne porte pas de verrou : l'entrée disparaît plutôt que d'être
 /// grisée — un menu qui offre ce qui n'existe pas est la faute R-33.
 #[test]

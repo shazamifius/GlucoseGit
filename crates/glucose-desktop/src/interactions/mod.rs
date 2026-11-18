@@ -17,6 +17,7 @@ pub mod couleurs;
 pub mod cursor;
 pub mod dater;
 pub mod depot_web;
+pub mod detourer;
 pub mod domains;
 pub mod drag;
 pub mod drop;

@@ -29,12 +29,17 @@ pub struct Attentes {
     /// **Les brouillons tenus au lancement** (LIBERE-1, fiche 72), attendus chacun sur son
     /// fil ; comme l'export, ils réveillent la boucle eux-mêmes.
     pub liberes: Option<crate::persist::reprise::Liberes>,
+    /// **Un détourage** (DETOURER-1, fiche 121) : tant qu'il attend ses originaux, la boucle
+    /// repasse ; son fil, lui, la réveille quand il a fini.
+    pub detourage: Option<crate::interactions::detourer::Detourage>,
 }
 
 impl Attentes {
     /// Rien n'attend : le réveil n'a pas à repasser pour elles.
     pub fn aucune(&self) -> bool {
-        self.bordures.is_none() && self.rangement.is_none()
+        self.bordures.is_none()
+            && self.rangement.is_none()
+            && self.detourage.as_ref().is_none_or(|d| d.au_travail())
     }
 }
 
@@ -44,6 +49,7 @@ impl GlucoseApp {
     pub(crate) fn poursuivre_les_attentes(&mut self) {
         self.poursuivre_les_bordures();
         self.poursuivre_le_rangement();
+        self.poursuivre_le_detourage();
         self.suivre_la_parente();
     }
 

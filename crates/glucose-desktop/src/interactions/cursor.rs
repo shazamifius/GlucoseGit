@@ -31,6 +31,10 @@ impl GlucoseApp {
             CursorIcon::Text
         } else if self.ui.active_tool == ActiveTool::Arrow {
             CursorIcon::Crosshair
+        } else if self.attentes.detourage.is_some() {
+            // Un détourage se fait sur son fil (DETOURER-1) : le signe du système d'un travail
+            // de fond, pendant lequel on continue — aucun message.
+            CursorIcon::Progress
         } else {
             CursorIcon::Default
         }
