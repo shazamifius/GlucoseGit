@@ -7,7 +7,7 @@
 #   bash outils/pilote/piloter.sh demarrer <maison> <sortie> [VAR=valeur…]
 #        (le document : le dernier brouillon de <maison>/state/glucose/brouillons ; jamais le sien)
 #   bash outils/pilote/piloter.sh clic|double|droit|aller <x> <y>
-#   bash outils/pilote/piloter.sh presser|relacher|milieu-presser|milieu-relacher
+#   bash outils/pilote/piloter.sh presser|relacher|milieu-presser|milieu-relacher|droit-presser|droit-relacher
 #   bash outils/pilote/piloter.sh glisser <x0> <y0> <x1> <y1> <ms> <hz>   (le déplacement au clic molette)
 #   bash outils/pilote/piloter.sh molette <crans> [<ms>]   (négatif : on zoome ; positif : on dézoome)
 #   « glisser » et « molette » rendent la main tout de suite : le pointeur joue le geste pendant
@@ -110,6 +110,8 @@ aller) ordre 'aller %s %s\n' "$2" "$3" ;;
 presser) ordre 'presser\n' ;;
 relacher) ordre 'relacher\n' ;;
 milieu-presser) ordre 'milieu-presser\n' ;;
+droit-presser) ordre 'droit-presser\n' ;;
+droit-relacher) ordre 'droit-relacher\n' ;;
 milieu-relacher) ordre 'milieu-relacher\n' ;;
 glisser) ordre 'glisser %s %s %s %s %s %s\n' "$2" "$3" "$4" "$5" "$6" "$7" ;;
 molette) ordre 'molette %s %s\n' "$2" "${3:-80}" ;;

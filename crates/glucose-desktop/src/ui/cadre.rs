@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_barre_1_le_mode_reference_garde_son_canevas_entier() {
         let mut ui = ui();
-        ui.reference = true;
+        ui.fenetre = crate::ui::fenetre::ModeDeFenetre::Reference;
         assert!(boutons(&ui, 1000.0).is_empty());
     }
 }

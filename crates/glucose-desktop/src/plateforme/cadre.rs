@@ -81,6 +81,27 @@ pub fn habiller(fenetre: &winit::window::Window) -> bool {
     }
 }
 
+/// **La barre du système rendue** (`maison` faux) **ou retirée de nouveau** (BARRE-3, fiche 120),
+/// sans relancer. Rend `true` si c'est à Glucose de dessiner ses boutons.
+pub fn rhabiller(fenetre: &winit::window::Window, maison: bool) -> bool {
+    #[cfg(windows)]
+    {
+        use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let Ok(poignee) = fenetre.window_handle() else {
+            return false;
+        };
+        let RawWindowHandle::Win32(w) = poignee.as_raw() else {
+            return false;
+        };
+        cadre_windows::rhabiller(w.hwnd.get(), maison)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = fenetre;
+        maison && std::env::var_os("GLUCOSE_CADRE").is_some()
+    }
+}
+
 /// **Ce que la bande occupe maintenant**, pour la prochaine question de Windows.
 pub fn poser_les_zones(zones: Zones) {
     #[cfg(windows)]

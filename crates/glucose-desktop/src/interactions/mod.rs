@@ -7,6 +7,7 @@
 mod aimant;
 pub mod ancrage;
 pub mod arrow_edit;
+pub mod barre;
 pub mod bord;
 pub mod champ;
 pub mod chrome;
@@ -39,6 +40,7 @@ pub mod presse_papiers;
 pub mod question;
 pub mod recadrage;
 pub mod reference;
+pub mod renommer;
 pub mod resize;
 pub mod retour;
 pub mod roue;

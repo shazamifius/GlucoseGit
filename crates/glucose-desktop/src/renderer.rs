@@ -694,4 +694,62 @@ mod tests {
         assert!(avant > 0 && detour > 0, "des lettres à chaque zoom");
         assert_eq!(apres, avant, "le détour ({detour} lettres) s'est oublié");
     }
+
+    /// **GRILLE-1 — le rendu réduit écrit la bande comme le rendu plein** (fiche 120) : nette, par
+    /// la typographie de l'écran, au bit près sur ses rangées ; à l'envers, la typographie du
+    /// canevas l'écrit autrement. Chaque rendu part d'une interface neuve : la bande garde son
+    /// dessin en cache, et un cache partagé cacherait la typographie qui l'a écrit. Les sabotages
+    /// avaient trouvé ce chemin aveugle.
+    #[test]
+    fn test_grille_1_le_rendu_reduit_ecrit_la_bande_comme_le_rendu_plein() {
+        let (w, h) = (1440u32, 900u32);
+        let mut renderer = Renderer::new();
+        let store = Store::new("reduit");
+        let guides = SnapGuides::default();
+        let pointer = Pointer { x: 0.0, y: 0.0 };
+        let mut plein = Pixmap::new(w, h).expect("un pixmap");
+        let overlay = SceneOverlay::sans_rien(&guides);
+        let regard = Regard::immobile();
+        let mut ui = UiState::new();
+        renderer.render(
+            &mut plein.as_mut(),
+            &store,
+            &mut ui,
+            overlay,
+            pointer,
+            regard,
+        );
+        let bande = ui.topbar_height() as usize * w as usize * 4;
+        let mut reduit = Pixmap::new(w, h).expect("un pixmap");
+        let mut petit = Pixmap::new(w / 2, h / 2).expect("un pixmap");
+        let scene = SceneReduite {
+            tampon: &mut petit,
+            facteur: 2,
+        };
+        let overlay = SceneOverlay::sans_rien(&guides);
+        let mut ui = UiState::new();
+        renderer.rendre_reduit(
+            &mut reduit.as_mut(),
+            scene,
+            &store,
+            &mut ui,
+            overlay,
+            pointer,
+        );
+        assert!(plein.data()[..bande] == reduit.data()[..bande]);
+        let mut monde = Pixmap::new(w, h).expect("un pixmap");
+        let (typo, theme) = (&renderer.typography, &renderer.theme);
+        crate::ui::render_ui(
+            &mut monde.as_mut(),
+            &store,
+            &mut UiState::new(),
+            typo,
+            theme,
+            pointer,
+        );
+        assert!(
+            monde.data()[..bande] != reduit.data()[..bande],
+            "la typographie du canevas écrirait une autre bande : l'épreuve distingue"
+        );
+    }
 }

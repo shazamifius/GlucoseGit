@@ -67,23 +67,20 @@ impl GlucoseApp {
                 self.sortir_de_la_membrane();
             }
             Commande::ModeReference => self.basculer_le_mode_reference(),
+            Commande::PleinEcran => self.basculer_le_plein_ecran(),
+            Commande::BarreDuSysteme => self.basculer_la_barre_du_systeme(),
+            Commande::RenommerLeDossier => self.renommer_le_dossier(),
             Commande::ModeZen => self.basculer_le_mode_zen(),
             Commande::Naviguer => self.enter_pan_mode(),
             Commande::Echap => self.escape_gesture(),
             Commande::PoserLeSignet(n) => self.geste_du_signet(n, true),
             Commande::AllerAuSignet(n) => self.geste_du_signet(n, false),
-            Commande::Outil(outil) => {
-                self.ui.active_tool = outil;
-                self.update_cursor();
-            }
+            Commande::Outil(outil) => self.prendre_l_outil(outil),
             Commande::EnregistrerLImage => self.enregistrer_l_image_sous(),
             Commande::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
             Commande::Dater => self.demander_la_date(),
             Commande::StoryboardDeLaSelection => self.storyboard_de_la_selection(),
-            Commande::LireLeStoryboard => {
-                let depuis = self.ui.storyboard.choisie.clone();
-                self.lire_le_storyboard(depuis.as_deref());
-            }
+            Commande::LireLeStoryboard => self.lire_depuis_la_case_choisie(),
             Commande::ExporterLesPlanches => self.exporter_les_planches(),
             Commande::Signets => self.montrer_les_signets(),
             Commande::NouvelOnglet => self.ajouter_un_onglet(),
@@ -105,6 +102,18 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         true
+    }
+
+    /// Prendre un outil de la bande : le curseur le dit.
+    fn prendre_l_outil(&mut self, outil: crate::ui::ActiveTool) {
+        self.ui.active_tool = outil;
+        self.update_cursor();
+    }
+
+    /// Lire le storyboard depuis la case choisie, ou depuis le début.
+    fn lire_depuis_la_case_choisie(&mut self) {
+        let depuis = self.ui.storyboard.choisie.clone();
+        self.lire_le_storyboard(depuis.as_deref());
     }
 
     /// Poser un signet, ou y voler, et dire ce qui a eu lieu.

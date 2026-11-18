@@ -317,4 +317,34 @@ impl Store {
             .count();
         board.images.len() + notes + board.folders.len()
     }
+
+    /// **Le dossier choisi sur le tableau actif, et son nom** (RENOMMER-1, fiche 120) : ce que
+    /// « Renommer le dossier » propose.
+    pub fn dossier_choisi_et_son_nom(&self) -> Option<(&str, &str)> {
+        let id = self.selected_folder_id.as_deref()?;
+        let f = self.active_board()?.folders.iter().find(|f| f.id == id)?;
+        Some((f.id.as_str(), f.name.as_str()))
+    }
+
+    /// **RENOMMER-1 — nomme ce dossier** de ce tableau (sa parole du 18/11 : *« il n'y a pas de
+    /// système pour nommer un dossier »*) : un seul geste, que `Ctrl+Z` défait et que le
+    /// co-working porte. Un nom vide, ou le même, ne nomme rien. Rend `true` s'il a changé.
+    pub fn renommer_le_dossier(&mut self, board: &str, id: &str, nom: &str) -> bool {
+        let nom = nom.trim();
+        let actuel = self
+            .project
+            .boards
+            .iter()
+            .find(|b| b.id == board)
+            .and_then(|b| b.folders.iter().find(|f| f.id == id));
+        if nom.is_empty() || actuel.is_none_or(|f| f.name == nom) {
+            return false;
+        }
+        self.update_folder(board, id, |f| f.name = nom.to_string());
+        true
+    }
 }
+
+#[cfg(test)]
+#[path = "folders/renommer_tests.rs"]
+mod renommer_tests;

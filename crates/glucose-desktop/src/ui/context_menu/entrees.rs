@@ -102,9 +102,12 @@ fn entrees_de_l_historique() -> Vec<Def> {
 /// Les entrées d'un menu ouvert sur une sélection : ce qu'on fait de ce qu'on a choisi.
 fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     // **Un dossier seul** (DOSSIER-1) : copier, dupliquer et l'ordre ne portent pas encore les
-    // dossiers — les proposer mentirait. La suppression, elle, les prend.
+    // dossiers — les proposer mentirait. Le renommer (RENOMMER-1) et le supprimer, si.
     if store.selected_image_ids.is_empty() && store.selected_annotation_ids.is_empty() {
-        return Some(vec![Some((MenuAction::Delete, "Supprimer", ""))]);
+        return Some(vec![
+            Some((MenuAction::RenommerLeDossier, "Renommer…", "")),
+            Some((MenuAction::Delete, "Supprimer", "")),
+        ]);
     }
     // « Copier » emporte tout : le lot, le texte, les images elles-mêmes — « Copier l'image »
     // n'avait plus de raison d'être un geste à part (COPIER-1, fiche 59).
@@ -243,8 +246,10 @@ fn entrees_du_vide() -> Vec<Def> {
         // Les façons de voir, qui ne touchent pas au document (ZEN-1, fiche 115). Une fenêtre sans
         // cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
         None,
-        Some((MenuAction::ModeReference, "Mode référence", "")),
-        Some((MenuAction::ModeZen, "Mode zen", "F11")),
+        Some((MenuAction::PleinEcran, "Plein écran", "F11")),
+        Some((MenuAction::ModeReference, "Mode référence", "Ctrl+Maj+A")),
+        Some((MenuAction::ModeZen, "Mode zen", "Maj+F11")),
+        Some((MenuAction::BarreDuSysteme, "Barre de Windows", "")),
         // Sans serveur, ces entrées n'ont pas d'objet ; le téléphone n'a pas d'explorateur.
         None,
         Some((MenuAction::JournalTechnique, "Journal technique…", "")),

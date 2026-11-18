@@ -36,6 +36,10 @@ impl GlucoseApp {
             // premier plan s'executait donc sur le canevas.
             WindowEvent::Focused(actif) => {
                 self.clic_de_reveil = *actif;
+                // La fenêtre existe chez le bureau : le mode référence retenu s'y pose devant.
+                if *actif && std::mem::take(&mut self.fenetre_de_reference.devant_au_focus) {
+                    self.garder_devant(true);
+                }
                 // Les modificateurs sont perimes des qu'on a quitte la fenetre : personne ne
                 // nous a dit que Ctrl avait ete relache pendant qu'un autre logiciel l'avait.
                 self.modifiers = winit::keyboard::ModifiersState::empty();

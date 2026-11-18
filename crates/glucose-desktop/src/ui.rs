@@ -19,6 +19,7 @@ pub mod chrome;
 pub mod context_menu;
 pub mod couleurs;
 pub mod decision;
+pub mod fenetre;
 pub mod frise;
 pub mod minimap;
 pub mod onglets;
@@ -215,11 +216,11 @@ pub struct UiState {
     pub onglets: onglets::EtatDesOnglets,
     /// **Le coude sous le clic droit**, que le menu propose de retirer (COUDE-1).
     pub coude_vise: Option<CoudeVise>,
-    /// **Le mode référence** (fiche 51 § 5) : plus aucune interface, le canevas partout. Le menu
-    /// contextuel et les messages restent — sans eux, on ne saurait plus en sortir.
-    pub reference: bool,
-    /// **Le mode zen** (`F11`, ZEN-1, fiche 115) : plus aucune interface, la fenêtre telle qu'elle
-    /// est ; « ZEN · F11 » en haut à droite le referme.
+    /// **Le mode de la fenêtre** (FENETRE-1, fiche 120) : normale, plein écran, ou référence —
+    /// sans cadre, sans interface, toujours devant (fiche 51 § 5).
+    pub fenetre: fenetre::ModeDeFenetre,
+    /// **Le mode zen** (`Maj+F11`, ZEN-1, fiche 115) : plus aucune interface, la fenêtre telle qu'elle
+    /// est ; « ZEN · Maj+F11 » en haut à droite le referme.
     pub zen: bool,
     /// **La porte aux IA publiques est ouverte** (fiche 116) : « Collaborer » s'allume.
     pub porte_ouverte: bool,
@@ -300,7 +301,7 @@ impl UiState {
             ariane_cache: None,
             onglets: onglets::EtatDesOnglets::default(),
             coude_vise: None,
-            reference: false,
+            fenetre: fenetre::ModeDeFenetre::Normale,
             zen: false,
             porte_ouverte: false,
             rail: rail::Rail::default(),
@@ -373,8 +374,12 @@ impl UiState {
     /// le canevas seul. Un seul
     /// prédicat, que la bande, les panneaux, les clics et le dessin lisent.
     #[inline]
+    pub fn en_reference(&self) -> bool {
+        self.fenetre == fenetre::ModeDeFenetre::Reference
+    }
+
     pub fn sans_interface(&self) -> bool {
-        self.reference || self.zen || self.lecture.is_some()
+        self.en_reference() || self.zen || self.lecture.is_some()
     }
 
     /// La bande existe-t-elle ? Zéro sans interface : tout ce qui se mesure sur elle — le

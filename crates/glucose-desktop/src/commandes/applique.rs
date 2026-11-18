@@ -82,6 +82,9 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::ExporterLesPlanches
         | C::SortirDeLaMembrane
         | C::ModeReference
+        | C::PleinEcran
+        | C::BarreDuSysteme
+        | C::RenommerLeDossier
         | C::JournalTechnique
         | C::VoirCeQuiPart
         | C::NePlusRegarder => selon_le_document(store, commande),
@@ -190,7 +193,11 @@ fn selon_le_document(store: &Store, commande: Commande) -> bool {
             .toutes_les_cases(&store.project.active_board_id)
             .is_empty(),
         // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
-        C::ModeReference => !cfg!(target_os = "android"),
+        // Le plein écran non plus : l'application y est déjà (FENETRE-1).
+        C::ModeReference | C::PleinEcran => !cfg!(target_os = "android"),
+        C::RenommerLeDossier => store.dossier_choisi_et_son_nom().is_some(),
+        // La barre blanche n'existe que sous Windows, où la bande la remplace (BARRE-1).
+        C::BarreDuSysteme => cfg!(windows),
         // Sans serveur, rien ne part, et il n'y a rien à voir partir ; le téléphone n'a pas
         // d'explorateur où ouvrir le dossier (fiche 56).
         C::JournalTechnique => crate::telemetrie::serveur().is_some(),

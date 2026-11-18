@@ -68,6 +68,9 @@ impl MenuAction {
             MenuAction::NouveauDocument => Commande::NouveauDocument,
             MenuAction::OuvrirUnDocument => Commande::OuvrirUnDocument,
             MenuAction::ModeReference => Commande::ModeReference,
+            MenuAction::PleinEcran => Commande::PleinEcran,
+            MenuAction::BarreDuSysteme => Commande::BarreDuSysteme,
+            MenuAction::RenommerLeDossier => Commande::RenommerLeDossier,
             MenuAction::ModeZen => Commande::ModeZen,
             MenuAction::Couper => Commande::Couper,
             MenuAction::Duplicate => Commande::Dupliquer,
@@ -154,6 +157,12 @@ pub enum MenuAction {
     OuvrirUnDocument,
     /// Entrer dans le mode référence, ou en sortir (fiche 51 § 5).
     ModeReference,
+    /// Passer en plein écran, ou en sortir (FENETRE-1, fiche 120).
+    PleinEcran,
+    /// La barre de Windows à la place de la bande, ou la bande de nouveau (BARRE-3).
+    BarreDuSysteme,
+    /// Le nouveau nom du dossier choisi (RENOMMER-1, fiche 120).
+    RenommerLeDossier,
     /// Entrer dans le mode zen, ou en sortir (ZEN-1, fiche 115).
     ModeZen,
     /// La même, puis retirée une fois copiée.

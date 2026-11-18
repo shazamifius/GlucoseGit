@@ -1,4 +1,4 @@
-//! ZEN-1 par les vrais gestes : `F11`, le clic sur l'indicateur, `Échap`, le menu du vide et la
+//! ZEN-1 par les vrais gestes : `Maj+F11`, le clic sur l'indicateur, `Échap`, le menu du vide et la
 //! palette.
 
 use super::*;
@@ -19,6 +19,13 @@ fn touche(app: &mut GlucoseApp, n: NamedKey) {
     app.handle_shortcut_input(&Key::Named(n), ElementState::Pressed);
 }
 
+/// `Maj+F11`, le geste du mode zen depuis FENETRE-1 (fiche 120).
+fn maj_f11(app: &mut GlucoseApp) {
+    app.modifiers = winit::keyboard::ModifiersState::SHIFT;
+    touche(app, NamedKey::F11);
+    app.modifiers = winit::keyboard::ModifiersState::empty();
+}
+
 fn cliquer(app: &mut GlucoseApp, (x, y): (f32, f32)) {
     app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(
         f64::from(x),
@@ -28,21 +35,21 @@ fn cliquer(app: &mut GlucoseApp, (x, y): (f32, f32)) {
     app.handle_mouse_up(MouseButton::Left);
 }
 
-/// **`F11` cache toute l'interface, et la rend** : la bande et les onglets partent (le canevas
+/// **`Maj+F11` cache toute l'interface, et la rend** : la bande et les onglets partent (le canevas
 /// prend leur place), la couche des décisions se peint (l'indicateur, sur la carte graphique
 /// aussi) ; la fenêtre, elle, n'est pas touchée.
 #[test]
-fn zen_1_f11_cache_l_interface_et_la_rend() {
+fn zen_1_maj_f11_cache_l_interface_et_la_rend() {
     let mut app = app();
     assert!(app.ui.header_height() > 0.0);
-    touche(&mut app, NamedKey::F11);
+    maj_f11(&mut app);
     assert!(app.ui.zen && app.ui.sans_interface());
     assert_eq!(app.ui.header_height(), 0.0, "plus de bande ni d'onglets");
     assert!(
         app.ui.attend_une_decision(&app.store),
         "l'indicateur se peint"
     );
-    touche(&mut app, NamedKey::F11);
+    maj_f11(&mut app);
     assert!(!app.ui.zen && !app.ui.sans_interface());
     assert!(app.ui.header_height() > 0.0, "la bande revient");
 }
@@ -52,7 +59,7 @@ fn zen_1_f11_cache_l_interface_et_la_rend() {
 #[test]
 fn zen_1_l_indicateur_referme_le_mode() {
     let mut app = app();
-    touche(&mut app, NamedKey::F11);
+    maj_f11(&mut app);
     let i = crate::ui::zen::placer(&app.ui, &app.renderer.typography, ECRAN);
     let (x, y, l, h) = i.prise;
     cliquer(&mut app, (x - 40.0, y + h + 40.0));
@@ -66,7 +73,7 @@ fn zen_1_l_indicateur_referme_le_mode() {
 #[test]
 fn zen_1_echap_le_menu_et_la_palette() {
     let mut app = app();
-    touche(&mut app, NamedKey::F11);
+    maj_f11(&mut app);
     app.ui.context_menu_at = Some((200.0, 200.0));
     touche(&mut app, NamedKey::Escape);
     assert!(app.ui.zen, "le menu d'abord");
@@ -76,4 +83,27 @@ fn zen_1_echap_le_menu_et_la_palette() {
     assert!(app.s_applique(Commande::ModeZen), "toujours offerte");
     assert!(app.executer(Commande::ModeZen));
     assert!(app.ui.zen);
+}
+
+/// **FENETRE-1 — `F11` est le plein écran, et se combine au zen** : la touche de tous les
+/// logiciels de bureau passe la fenêtre en plein écran, l'interface restant ; `Maj+F11` cache
+/// l'interface, la fenêtre restant en plein écran ; `F11` encore rend la fenêtre normale.
+#[test]
+fn fenetre_1_f11_est_le_plein_ecran_et_se_combine_au_zen() {
+    use crate::ui::fenetre::ModeDeFenetre;
+    let mut app = app();
+    touche(&mut app, NamedKey::F11);
+    assert_eq!(app.ui.fenetre, ModeDeFenetre::PleinEcran);
+    assert!(
+        !app.ui.zen && app.ui.header_height() > 0.0,
+        "l'interface reste"
+    );
+    maj_f11(&mut app);
+    assert!(
+        app.ui.zen && app.ui.fenetre == ModeDeFenetre::PleinEcran,
+        "les deux ensemble"
+    );
+    touche(&mut app, NamedKey::F11);
+    assert_eq!(app.ui.fenetre, ModeDeFenetre::Normale);
+    assert!(app.ui.zen, "le zen ne dépend pas de la fenêtre");
 }

@@ -38,10 +38,14 @@
 //! cadre se prend donc au même endroit qu'une fenêtre ordinaire.
 
 use crate::app::GlucoseApp;
+use crate::ui::fenetre::ModeDeFenetre;
 use winit::window::{ResizeDirection, WindowLevel};
 
-/// Le fichier qui retient le mode, dans le dossier où l'application habite.
-const SOUVENIR: &str = "mode-reference";
+/// Le fichier qui retient le mode de la fenêtre, dans le dossier où l'application habite
+/// (FENETRE-1).
+const SOUVENIR: &str = "mode-fenetre";
+/// Celui qui ne retenait que le mode référence, avant FENETRE-1 : il se lit encore une fois.
+const SOUVENIR_D_AVANT: &str = "mode-reference";
 
 /// La bordure de redimensionnement, en pixels logiques.
 const BORD: f64 = 8.0;
@@ -92,13 +96,21 @@ pub fn peut_redimensionner(
 pub struct FenetreDeReference {
     pub deplacement: Option<Deplacement>,
     pub pincement: PincementDeFenetre,
+    /// **Le déplacement a été confié au système** (sous Wayland) : le relâchement qui le finira,
+    /// s'il arrive jusqu'à Glucose, n'ouvre pas le menu.
+    pub confiee: bool,
+    /// **Le mode référence retenu attend que la fenêtre existe chez le bureau** pour s'y poser
+    /// devant (DEVANT-1) : elle y existe à coup sûr quand elle reçoit le focus.
+    pub devant_au_focus: bool,
 }
 
 /// Un déplacement de fenêtre au bouton droit : où était le curseur sur l'écran, et la fenêtre.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Deplacement {
     curseur: (f64, f64),
-    fenetre: (i32, i32),
+    /// Le coin de la fenêtre au départ ; `None` quand le système ne dit pas où elle est (sous
+    /// Wayland) : elle part alors par le geste du système, au premier mouvement (DEVANT-1).
+    fenetre: Option<(i32, i32)>,
     /// La fenêtre a-t-elle bougé ? Alors le relâchement n'ouvre pas le menu.
     a_bouge: bool,
 }
@@ -106,66 +118,123 @@ pub struct Deplacement {
 impl GlucoseApp {
     /// `Ctrl+Maj+A`, `Alt+T` et l'entrée du menu.
     pub(crate) fn basculer_le_mode_reference(&mut self) {
-        self.poser_le_mode_reference(!self.ui.reference);
-        let souvenir = self.souvenir_du_mode_reference();
-        // Un souvenir qui ne s'écrit pas coûte la relance, jamais le mode : il ne se dit pas.
-        if self.ui.reference {
-            let _ = crate::persist::atomic::write_atomic(&souvenir, b"1");
-        } else {
-            let _ = std::fs::remove_file(&souvenir);
-        }
+        self.basculer_la_fenetre(ModeDeFenetre::Reference);
     }
 
-    /// Le mode, appliqué à l'interface et à la fenêtre.
-    pub(crate) fn poser_le_mode_reference(&mut self, actif: bool) {
-        self.ui.reference = actif;
+    /// `F11` et l'entrée du menu (FENETRE-1).
+    pub(crate) fn basculer_le_plein_ecran(&mut self) {
+        self.basculer_la_fenetre(ModeDeFenetre::PleinEcran);
+    }
+
+    /// **Le geste qui demande `voulu`** : le mode change — le même geste le défait — et se retient
+    /// pour la relance.
+    fn basculer_la_fenetre(&mut self, voulu: ModeDeFenetre) {
+        self.poser_la_fenetre(self.ui.fenetre.apres(voulu));
+        let souvenir = self.souvenir_de_la_fenetre(SOUVENIR);
+        // Un souvenir qui ne s'écrit pas coûte la relance, jamais le mode : il ne se dit pas.
+        match self.ui.fenetre.souvenir() {
+            Some(nom) => {
+                let _ = crate::persist::atomic::write_atomic(&souvenir, nom.as_bytes());
+            }
+            None => {
+                let _ = std::fs::remove_file(&souvenir);
+            }
+        }
+        // Celui d'avant FENETRE-1 ne dit plus rien : le nouveau le remplace.
+        let _ = std::fs::remove_file(self.souvenir_de_la_fenetre(SOUVENIR_D_AVANT));
+    }
+
+    /// **Le mode, appliqué à l'interface et à la fenêtre.**
+    pub(crate) fn poser_la_fenetre(&mut self, mode: ModeDeFenetre) {
+        let etait_devant = self.ui.en_reference();
+        self.ui.fenetre = mode;
         self.ui.context_menu_at = None;
+        let reference = self.ui.en_reference();
         if let Some(fenetre) = &self.window {
             // **Une référence flotte, elle ne couvre pas l'écran** : agrandie et sans cadre, la
             // fenêtre ressemblait exactement à un jeu en plein écran fenêtré, et l'application
             // NVIDIA lui a appliqué RTX HDR et la vibrance — toutes ses couleurs changées, son
-            // essai du 07/10 (fiche 52). Elle se désagrandit donc en entrant dans le mode.
-            if actif && fenetre.is_maximized() {
+            // essai du 07/10 (fiche 52). Elle se désagrandit donc en entrant dans le mode. Le plein
+            // écran, lui, est demandé : il est ce qu'il dit.
+            if reference && fenetre.is_maximized() {
                 fenetre.set_maximized(false);
             }
-            fenetre.set_decorations(!actif);
-            fenetre.set_window_level(niveau(actif));
+            let plein = mode == ModeDeFenetre::PleinEcran;
+            fenetre.set_fullscreen(plein.then_some(winit::window::Fullscreen::Borderless(None)));
+            fenetre.set_decorations(!reference);
+            fenetre.set_window_level(niveau(reference));
+        }
+        if reference != etait_devant {
+            self.garder_devant(reference);
         }
         // La bande part ou revient : toute la vue change de cadre.
         self.mark_dirty();
     }
 
-    /// Le mode était-il actif à la fin de la session précédente ?
-    pub(crate) fn mode_reference_retenu(&self) -> bool {
-        self.souvenir_du_mode_reference().exists()
+    /// **Le mode de la fenêtre à la fin de la session précédente** — ou le mode référence que
+    /// retenait la version d'avant FENETRE-1.
+    pub(crate) fn mode_de_fenetre_retenu(&self) -> ModeDeFenetre {
+        std::fs::read_to_string(self.souvenir_de_la_fenetre(SOUVENIR))
+            .or_else(|_| std::fs::read_to_string(self.souvenir_de_la_fenetre(SOUVENIR_D_AVANT)))
+            .map_or(ModeDeFenetre::Normale, |s| ModeDeFenetre::lire(&s))
     }
 
-    fn souvenir_du_mode_reference(&self) -> std::path::PathBuf {
+    fn souvenir_de_la_fenetre(&self, nom: &str) -> std::path::PathBuf {
         self.disque
             .brouillons
             .parent()
             .unwrap_or(std::path::Path::new("."))
-            .join(SOUVENIR)
+            .join(nom)
+    }
+
+    /// **Toujours devant, sous Wayland** (DEVANT-1) : `winit` le demande à Windows, macOS et X11 ;
+    /// sous Wayland, la voie du bureau — et ce qui ne se peut pas se dit.
+    pub(crate) fn garder_devant(&mut self, oui: bool) {
+        #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+        {
+            use crate::plateforme::devant::{garder_devant, Bureau, Devant};
+            use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            let wayland = self
+                .window
+                .as_ref()
+                .and_then(|w| w.window_handle().ok())
+                .is_some_and(|h| matches!(h.as_raw(), RawWindowHandle::Wayland(_)));
+            if !wayland {
+                return;
+            }
+            if let (Devant::AlaMain(geste), true) = (garder_devant(Bureau::courant(), oui), oui) {
+                self.ui.show_toast_a_lire(geste);
+            }
+        }
+        #[cfg(not(all(unix, not(any(target_os = "macos", target_os = "android")))))]
+        let _ = oui;
     }
 
     /// **Le bouton droit s'enfonce** : en mode référence, un déplacement de fenêtre peut
     /// commencer. Rend `true` s'il a commencé — la vue, alors, ne bouge pas.
     pub(crate) fn commencer_a_deplacer_la_fenetre(&mut self) -> bool {
-        if !self.ui.reference {
+        self.fenetre_de_reference.confiee = false;
+        if !self.ui.en_reference() {
             return false;
         }
         let Some(fenetre) = &self.window else {
             return false;
         };
-        let (Ok(dedans), Ok(dehors)) = (fenetre.inner_position(), fenetre.outer_position()) else {
-            return false;
+        // Le curseur sur l'écran, si le système dit où est la fenêtre ; sous Wayland il ne le dit
+        // jamais, et la fenêtre partira par son geste à lui.
+        let (curseur, coin) = match (fenetre.inner_position(), fenetre.outer_position()) {
+            (Ok(dedans), Ok(dehors)) => (
+                (
+                    f64::from(dedans.x) + self.mouse_pos.0,
+                    f64::from(dedans.y) + self.mouse_pos.1,
+                ),
+                Some((dehors.x, dehors.y)),
+            ),
+            _ => (self.mouse_pos, None),
         };
         self.fenetre_de_reference.deplacement = Some(Deplacement {
-            curseur: (
-                f64::from(dedans.x) + self.mouse_pos.0,
-                f64::from(dedans.y) + self.mouse_pos.1,
-            ),
-            fenetre: (dehors.x, dehors.y),
+            curseur,
+            fenetre: coin,
             a_bouge: false,
         });
         true
@@ -180,7 +249,20 @@ impl GlucoseApp {
         let Some(d) = self.fenetre_de_reference.deplacement.as_mut() else {
             return false;
         };
-        let Some(fenetre) = &self.window else {
+        let Some(fenetre) = self.window.clone() else {
+            return true;
+        };
+        let Some(coin) = d.fenetre else {
+            // **Sous Wayland** (DEVANT-1) : au premier mouvement, la fenêtre part par le geste du
+            // système, qui garde la main jusqu'au relâchement — un relâchement que Glucose ne
+            // reçoit pas. Le déplacement s'oublie donc ici ; seul reste que ce relâchement-là,
+            // s'il arrive, n'ouvre pas le menu.
+            if self.mouse_pos != d.curseur {
+                self.fenetre_de_reference.deplacement = None;
+                self.fenetre_de_reference.confiee = true;
+                self.right_or_middle_down = false;
+                let _ = fenetre.drag_window();
+            }
             return true;
         };
         let Ok(dedans) = fenetre.inner_position() else {
@@ -194,8 +276,8 @@ impl GlucoseApp {
         if dx != 0.0 || dy != 0.0 {
             d.a_bouge = true;
             fenetre.set_outer_position(winit::dpi::PhysicalPosition::new(
-                d.fenetre.0 + dx.round() as i32,
-                d.fenetre.1 + dy.round() as i32,
+                coin.0 + dx.round() as i32,
+                coin.1 + dy.round() as i32,
             ));
         }
         true
@@ -204,15 +286,17 @@ impl GlucoseApp {
     /// Le bouton droit se relâche : le déplacement finit. Rend `true` si la fenêtre a bougé —
     /// le menu, alors, ne s'ouvre pas.
     pub(crate) fn finir_de_deplacer_la_fenetre(&mut self) -> bool {
-        self.fenetre_de_reference
+        let a_bouge = self
+            .fenetre_de_reference
             .deplacement
             .take()
-            .is_some_and(|d| d.a_bouge)
+            .is_some_and(|d| d.a_bouge);
+        a_bouge || std::mem::take(&mut self.fenetre_de_reference.confiee)
     }
 
     /// Le bord de la fenêtre sous ce point, en mode référence.
     pub(crate) fn bord_sous(&self, (x, y): (f64, f64)) -> Option<ResizeDirection> {
-        if !self.ui.reference {
+        if !self.ui.en_reference() {
             return None;
         }
         let (largeur, hauteur) = self.taille_de_la_fenetre();
@@ -265,7 +349,7 @@ impl GlucoseApp {
     /// (REFERENCE-2). Rend `true` si le geste lui revient — même sans fenêtre, il n'est pas
     /// au canevas.
     pub(crate) fn deplacer_la_fenetre_avec_alt(&mut self) -> bool {
-        if !(self.ui.reference && self.modifiers.alt_key()) {
+        if !(self.ui.en_reference() && self.modifiers.alt_key()) {
             return false;
         }
         if let Some(fenetre) = &self.window {
@@ -278,7 +362,7 @@ impl GlucoseApp {
     /// d'octaves, autour de son centre (REFERENCE-2). Rend `true` si le geste lui revient. Le
     /// pincement s'additionne, et l'image l'appliquera (REFERENCE-3).
     pub(crate) fn redimensionner_au_pincement(&mut self, octaves: f64) -> bool {
-        if !(self.ui.reference && self.modifiers.alt_key()) {
+        if !(self.ui.en_reference() && self.modifiers.alt_key()) {
             return false;
         }
         self.fenetre_de_reference.pincement.octaves += octaves;

@@ -52,9 +52,11 @@ fn actions(m: &ContextMenu) -> Vec<MenuAction> {
 #[test]
 fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
     let store = store_with(2, 0, false);
+    // La barre blanche n'existe que sous Windows (BARRE-3) : l'entrée n'y paraît que là.
+    let barre = cfg!(windows).then_some(MenuAction::BarreDuSysteme);
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
-        vec![
+        [
             MenuAction::Annuler,
             MenuAction::AjouterDesImages,
             MenuAction::Paste,
@@ -68,9 +70,13 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
             MenuAction::Enregistrer,
             MenuAction::EnregistrerSous,
             MenuAction::Exporter,
+            MenuAction::PleinEcran,
             MenuAction::ModeReference,
             MenuAction::ModeZen,
-        ],
+        ]
+        .into_iter()
+        .chain(barre)
+        .collect::<Vec<_>>(),
         "sans sélection, ni dupliquer ni supprimer n'ont d'objet"
     );
 }
@@ -262,7 +268,7 @@ fn test_au_doigt_chaque_entree_fait_quarante_huit_points_sans_raccourci() {
 /// recevait celui du vide, sans « Supprimer ». Copier, dupliquer et l'ordre ne portent pas les
 /// dossiers : les offrir mentirait.
 #[test]
-fn test_dossier_1_un_dossier_seul_offre_supprimer_et_rien_d_autre() {
+fn test_dossier_1_un_dossier_seul_offre_renommer_supprimer_et_rien_d_autre() {
     let mut store = store_with(1, 0, false);
     let board = store.project.active_board_id.clone();
     store.create_folder(
@@ -272,7 +278,11 @@ fn test_dossier_1_un_dossier_seul_offre_supprimer_et_rien_d_autre() {
     store.select_folder("d".into());
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
-        vec![MenuAction::Annuler, MenuAction::Delete]
+        vec![
+            MenuAction::Annuler,
+            MenuAction::RenommerLeDossier,
+            MenuAction::Delete
+        ]
     );
 }
 

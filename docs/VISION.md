@@ -151,6 +151,16 @@ Chaque décision, chaque ligne de code se juge contre elles.
   flip pour les images »*. Sur Windows : *« oui, après vérification, c'est exactement ça ! les boutons
   fonctionnent, ils sont juste décalés »*. **Ses choix** (structure des tiroirs, modes, barre de
   Windows) : dans la fiche de questions (fiche 118 § 5), à sa parole.
+* **Le 18/11**, la même capture renvoyée — *« voici une capture des choses qui ne fonctionnent pas
+  dans la version actuelle de Glucose »* (la 2.0.4-beta.2 qui les corrige attendait encore son
+  clic) —, puis, en cours de session : *« il n'y a pas de système pour nommer un dossier »* ; et
+  **le détourage** : *« ainsi qu'il n'y a pas de système qui permet de passer une image à fond uni
+  blanc ou complexe à juste la forme principale — par exemple une boule sur un fond multicolore, et
+  qu'on souhaite avoir juste en transparence que la boule —, ce serait vraiment vraiment utile
+  d'avoir ça dans Glucose. Pour l'instant, on sort la version en beta en utilisant la création de
+  quelqu'un — à voir quel est le meilleur algorithme, le plus adapté pour notre projet actuellement ;
+  attention aux licences — et ensuite, peut-être un jour, on créera notre propre algo, plus poussé,
+  relié à l'IA interne de Glucose, que j'aimerais reprendre from scratch »*.
 * **L'ergonomie se fait à la fin** (15/10), une grosse session quand toutes les fonctions seront là ;
   avant, chaque fonction a son bouton, au PC et au téléphone. **Nuancé le 10/11** : *« actuellement le
   Wikipédia est illisible et horrible à travailler dessus »* — il veut travailler l'ergonomie de la carte

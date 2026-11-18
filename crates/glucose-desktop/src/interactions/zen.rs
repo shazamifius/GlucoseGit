@@ -1,4 +1,4 @@
-//! **ZEN-1 — les gestes du mode zen** (fiche 115) : `F11`, la palette, le menu du vide et
+//! **ZEN-1 — les gestes du mode zen** (fiche 115) : `Maj+F11`, la palette, le menu du vide et
 //! l'indicateur le basculent ; `Échap` le referme. L'état vit dans [`crate::ui::UiState::zen`] ; ce
 //! qu'il cache, `UiState::sans_interface` le dit à tout ce qui se dessine et se clique.
 
@@ -14,7 +14,7 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    /// **L'indicateur « ZEN · F11 », cliqué** : le mode se referme, et le clic s'arrête là.
+    /// **L'indicateur « ZEN · Maj+F11 », cliqué** : le mode se referme, et le clic s'arrête là.
     pub(crate) fn click_zen(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         if !self.ui.zen {
             return false;

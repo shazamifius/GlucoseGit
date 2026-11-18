@@ -265,13 +265,13 @@ fn test_le_mode_reference_ne_confie_aucun_panneau() {
         1,
         "hors du mode, la carte pose le panneau"
     );
-    app.ui.reference = true;
+    app.ui.fenetre = crate::ui::fenetre::ModeDeFenetre::Reference;
     let (_, dedans) = une_image_et_son_dessus(&mut app);
     assert!(
         dedans.panneaux.is_empty(),
         "le mode reference porte un panneau"
     );
-    app.ui.reference = false;
+    app.ui.fenetre = crate::ui::fenetre::ModeDeFenetre::Normale;
     let (_, apres) = une_image_et_son_dessus(&mut app);
     assert_eq!(
         apres.panneaux.len(),
@@ -500,4 +500,43 @@ fn test_aucun_panneau_n_est_ouvert_au_lancement() {
     let app = GlucoseApp::new();
     let d = &app.dock_manager;
     assert!(d.top_tabs.is_empty() && d.bottom_tabs.is_empty() && d.right_tabs.is_empty());
+}
+
+/// **GRILLE-1 — un panneau s'écrit par la typographie de l'écran** (fiche 120) : la texture que
+/// la carte reçoit est celle que les panneaux composent avec elle ; à l'envers, celle que la
+/// typographie du canevas compose diffère — les sabotages l'avaient trouvée aveugle.
+#[test]
+fn test_grille_1_un_panneau_s_ecrit_par_la_typographie_de_l_ecran() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    app.dock_manager.toggle_tab(crate::dock::TabId::Temps);
+    let (_, confie) = une_image_et_son_dessus(&mut app);
+    let cle = confie.panneaux[0].cle.nom().expect("un nom").to_string();
+    let vue = app.dock_cache.pixels(&cle).expect("ses pixels");
+    let ecran = app.screen_frame(TAILLE.0 as f32, TAILLE.1 as f32);
+    let composer = |typo: &crate::typography::Typography| {
+        let cache = DockCache::new();
+        let pass = DockPass {
+            typo,
+            theme: &app.renderer.theme,
+            screen: ecran,
+            pointer: Pointer { x: 0.0, y: 0.0 },
+            cache: Some(&cache),
+        };
+        let mut rien = Pixmap::new(TAILLE.0, TAILLE.1).expect("un pixmap");
+        let poses = crate::dock::confier_les_docks(
+            &mut rien.as_mut(),
+            &app.dock_manager,
+            &app.store,
+            &pass,
+        );
+        let cle = poses[0].cle.nom().expect("un nom").to_string();
+        cache.pixels(&cle).expect("ses pixels").data().to_vec()
+    };
+    assert!(vue.data() == composer(&app.renderer.typo_ecran).as_slice());
+    assert!(
+        vue.data() != composer(&app.renderer.typography).as_slice(),
+        "la typographie du canevas écrirait un autre panneau : l'épreuve distingue"
+    );
 }

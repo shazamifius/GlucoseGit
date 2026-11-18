@@ -110,7 +110,14 @@ pub enum Commande {
     EntrerDansLaMembrane,
     SortirDeLaMembrane,
     ModeReference,
-    /// **Le mode zen** (`F11`) : plus aucune interface, la fenêtre telle qu'elle est (ZEN-1).
+    /// **Renommer le dossier choisi** (`F2`, RENOMMER-1, fiche 120).
+    RenommerLeDossier,
+    /// **La barre de Windows** à la place de la bande, ou la bande de nouveau (BARRE-3, fiche 120).
+    BarreDuSysteme,
+    /// **Le plein écran** (`F11`, FENETRE-1, fiche 120) : la fenêtre couvre l'écran, l'interface
+    /// reste.
+    PleinEcran,
+    /// **Le mode zen** (`Maj+F11`) : plus aucune interface, la fenêtre telle qu'elle est (ZEN-1).
     ModeZen,
     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
     Naviguer,
@@ -180,7 +187,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 59] = [
+const SIMPLES: [(Commande, &str, &str); 62] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -282,6 +289,17 @@ const SIMPLES: [(Commande, &str, &str); 59] = [
         "Sortir de la membrane",
     ),
     (Commande::ModeReference, "mode-reference", "Mode référence"),
+    (Commande::PleinEcran, "plein-ecran", "Plein écran"),
+    (
+        Commande::BarreDuSysteme,
+        "barre-du-systeme",
+        "Barre de Windows",
+    ),
+    (
+        Commande::RenommerLeDossier,
+        "renommer-le-dossier",
+        "Renommer le dossier…",
+    ),
     (Commande::ModeZen, "mode-zen", "Mode zen"),
     (
         Commande::Naviguer,

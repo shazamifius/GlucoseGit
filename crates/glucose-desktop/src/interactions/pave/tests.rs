@@ -316,7 +316,7 @@ fn test_le_point_fixe_se_mesure_par_rapport_au_curseur() {
 fn test_alt_et_pincer_au_mode_reference_agrandit_la_fenetre() {
     let pave = Factice::default();
     let mut app = application(&pave);
-    app.ui.reference = true;
+    app.ui.fenetre = crate::ui::fenetre::ModeDeFenetre::Reference;
     app.modifiers = winit::keyboard::ModifiersState::ALT;
     let avant = app.store.viewport();
     pave.0.borrow_mut().en_geste = true;

@@ -204,6 +204,9 @@ impl GlucoseApp {
                     self.mark_dirty();
                 }
             }
+            Suite::RenommerLeDossier { board, id } => {
+                self.repondre_au_dossier((&board, &id), reponse, champ);
+            }
             Suite::NommerLeChamp {
                 board,
                 storyboard,

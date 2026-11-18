@@ -70,7 +70,7 @@ fn test_l_ordre_de_la_chrome() {
         ["bande", "minimap", "cadre"]
     );
     // Le mode référence : rien de permanent.
-    ui.reference = true;
+    ui.fenetre = crate::ui::fenetre::ModeDeFenetre::Reference;
     assert!(ordre(&store, &mut ui).is_empty());
 }
 

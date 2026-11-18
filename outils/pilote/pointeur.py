@@ -14,6 +14,8 @@ Lit des ordres sur un tuyau nommé, une ligne chacun :
                       soi — on dézoome —, négatifs vers l'écran — on zoome)
   fin                (le pointeur s'en va)
   droit              (clic droit complet)
+  droit-presser | droit-relacher (le bouton droit tenu : le déplacement de la fenêtre en mode
+                     référence, fiche 120)
 Le pointeur vit tant que le programme vit : le siège garde sa capacité « pointeur », et le client
 garde son wl_pointer entre deux ordres. Comme une vraie souris, il s'arrête aux bords de la sortie ;
 un ordre qu'il ne comprend pas s'écrit dans son journal, et il continue (fiche 100 § 10 : une
@@ -106,6 +108,10 @@ def jouer(mots):
             pointeur.frame()
             display.flush()
             time.sleep(ecart)
+    elif mots[0] == "droit-presser":
+        bouton(BTN_DROIT, 1)
+    elif mots[0] == "droit-relacher":
+        bouton(BTN_DROIT, 0)
     elif mots[0] == "droit":
         bouton(BTN_DROIT, 1)
         bouton(BTN_DROIT, 0)

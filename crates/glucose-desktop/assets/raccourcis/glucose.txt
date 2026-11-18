@@ -6,7 +6,8 @@
 #
 # Ce sont exactement les raccourcis du code d'avant la fiche 72 : rien n'a changé à l'écran ;
 # depuis, les opérateurs des post-it et le groupe dans une membrane (fiche 98), les retours de
-# la vue (fiche 99), les retournements des images, ceux de PureRef (fiche 118).
+# la vue (fiche 99), les retournements des images, ceux de PureRef (fiche 118) ; le plein écran
+# à F11, le zen à Maj+F11, renommer un dossier à F2 (fiche 120).
 
 # Le document
 Ctrl+N          nouveau-document
@@ -28,6 +29,7 @@ Ctrl+V          coller
 Ctrl+D          dupliquer
 Ctrl+G          grouper
 Maj+T           dater
+F2              renommer-le-dossier
 Ctrl+A          tout-choisir
 Suppr           supprimer
 Effacer         supprimer
@@ -56,7 +58,8 @@ Espace          naviguer
 Echap           echap
 Ctrl+Maj+A      mode-reference
 Alt+T           mode-reference
-F11             mode-zen
+F11             plein-ecran
+Maj+F11         mode-zen
 
 # Les outils
 V               outil.selection

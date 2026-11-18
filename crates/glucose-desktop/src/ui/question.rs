@@ -129,6 +129,8 @@ pub enum Suite {
     Raccourci(crate::commandes::Commande),
     /// Rendre tous les raccourcis de Glucose, en oubliant ceux de l'utilisateur.
     RetablirLesRaccourcis,
+    /// **Le nouveau nom de ce dossier** (RENOMMER-1, fiche 120).
+    RenommerLeDossier { board: String, id: String },
     /// Le nom d'un champ de ce storyboard — son rang, ou `None` pour en ajouter un (fiches 67
     /// et 68).
     NommerLeChamp {

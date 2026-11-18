@@ -29,18 +29,21 @@ fn test_les_bords_et_les_coins() {
 fn test_le_mode_se_retient_et_se_defait() {
     let d = dossier("mode-reference");
     let mut app = application(&d);
-    assert!(!app.mode_reference_retenu());
+    assert!(!(app.mode_de_fenetre_retenu() == crate::ui::fenetre::ModeDeFenetre::Reference));
     app.basculer_le_mode_reference();
-    assert!(app.ui.reference);
+    assert!(app.ui.en_reference());
     assert_eq!(app.ui.header_height(), 0.0, "plus de bande");
     assert!(
-        application(&d).mode_reference_retenu(),
+        (application(&d).mode_de_fenetre_retenu() == crate::ui::fenetre::ModeDeFenetre::Reference),
         "retenu pour la relance"
     );
     app.basculer_le_mode_reference();
-    assert!(!app.ui.reference);
+    assert!(!app.ui.en_reference());
     assert!(app.ui.header_height() > 0.0, "la bande revient");
-    assert!(!application(&d).mode_reference_retenu(), "et oublié");
+    assert!(
+        !(application(&d).mode_de_fenetre_retenu() == crate::ui::fenetre::ModeDeFenetre::Reference),
+        "et oublié"
+    );
 }
 
 /// **`Ctrl+Maj+A` bascule le mode, et ne sélectionne rien** ; `Ctrl+A` sélectionne toujours.
@@ -51,7 +54,7 @@ fn test_ctrl_maj_a_bascule_le_mode_sans_tout_selectionner() {
     app.store.clear_selection();
     app.modifiers = ModifiersState::CONTROL | ModifiersState::SHIFT;
     app.handle_shortcut_input(&Key::Character("A".into()), ElementState::Pressed);
-    assert!(app.ui.reference);
+    assert!(app.ui.en_reference());
     assert!(
         app.store.selected_annotation_ids.is_empty(),
         "rien de sélectionné"
@@ -70,7 +73,11 @@ fn test_ctrl_maj_a_bascule_le_mode_sans_tout_selectionner() {
 fn test_plus_aucune_interface() {
     let dessin = |reference: bool| {
         let mut ui = crate::ui::UiState::new();
-        ui.reference = reference;
+        ui.fenetre = if reference {
+            crate::ui::fenetre::ModeDeFenetre::Reference
+        } else {
+            crate::ui::fenetre::ModeDeFenetre::Normale
+        };
         let store = glucose_core::store::Store::new("ref");
         let mut pixmap = tiny_skia::Pixmap::new(800, 600).expect("pixmap");
         crate::ui::render_ui(
@@ -106,7 +113,7 @@ fn test_plus_aucune_interface() {
 fn test_les_signets_repondent_en_mode_reference() {
     let d = dossier("reference-signets");
     let mut app = application(&d);
-    app.poser_le_mode_reference(true);
+    app.poser_la_fenetre(crate::ui::fenetre::ModeDeFenetre::Reference);
     let ici = app.store.viewport();
     app.modifiers = ModifiersState::CONTROL;
     app.handle_shortcut_input(&Key::Character("1".into()), ElementState::Pressed);
@@ -157,7 +164,7 @@ fn test_reference_2_le_pincement_et_le_cadre_de_la_fenetre() {
 fn test_reference_2_alt_donne_le_geste_a_la_fenetre() {
     let d = dossier("reference-alt");
     let mut app = application(&d);
-    app.poser_le_mode_reference(true);
+    app.poser_la_fenetre(crate::ui::fenetre::ModeDeFenetre::Reference);
     app.modifiers = ModifiersState::ALT;
     assert!(
         app.redimensionner_au_pincement(0.5),
@@ -172,7 +179,7 @@ fn test_reference_2_alt_donne_le_geste_a_la_fenetre() {
         !app.redimensionner_au_pincement(0.5),
         "sans Alt, la vue zoome"
     );
-    app.poser_le_mode_reference(false);
+    app.poser_la_fenetre(crate::ui::fenetre::ModeDeFenetre::Normale);
     app.modifiers = ModifiersState::ALT;
     assert!(
         !app.redimensionner_au_pincement(0.5),
@@ -190,7 +197,7 @@ fn test_reference_2_alt_par_le_clic_et_le_defilement() {
     let d = dossier("reference-alt-entrees");
     let mut app = application(&d);
     app.store.clear_selection();
-    app.poser_le_mode_reference(true);
+    app.poser_la_fenetre(crate::ui::fenetre::ModeDeFenetre::Reference);
     let jouer = |app: &mut crate::app::GlucoseApp, alt: bool| {
         app.selection_box = None;
         app.mouse_pos = (640.0, 360.0);
@@ -244,7 +251,7 @@ fn test_signet_2_le_meme_lieu_au_centre_du_canevas() {
     app.handle_shortcut_input(&Key::Character("2".into()), ElementState::Pressed);
     app.modifiers = ModifiersState::empty();
 
-    app.poser_le_mode_reference(true);
+    app.poser_la_fenetre(crate::ui::fenetre::ModeDeFenetre::Reference);
     let ailleurs = app.centre_du_canevas();
     assert_ne!(ailleurs, centre, "la bande partie, le centre a bouge");
     let vue = app.vue_du_signet('2').expect("le signet");
@@ -291,7 +298,7 @@ fn test_reference_3_une_taille_a_la_fois() {
 fn test_reference_3_les_pincements_s_additionnent() {
     let d = dossier("reference-pincements");
     let mut app = application(&d);
-    app.poser_le_mode_reference(true);
+    app.poser_la_fenetre(crate::ui::fenetre::ModeDeFenetre::Reference);
     app.modifiers = ModifiersState::ALT;
     assert!(app.redimensionner_au_pincement(0.25));
     assert!(app.redimensionner_au_pincement(0.25));
@@ -299,5 +306,55 @@ fn test_reference_3_les_pincements_s_additionnent() {
         app.fenetre_de_reference.pincement.en_attente(),
         0.5,
         "deux pincements, une seule demande en attente"
+    );
+}
+
+/// **FENETRE-1 — le mode de la fenêtre se retient, un autre geste en change, et le souvenir d'une
+/// version d'avant se lit** (le mode référence seul, « 1 » dans `mode-reference`), puis disparaît
+/// au premier geste.
+#[test]
+fn test_fenetre_1_le_mode_se_retient_et_le_souvenir_d_avant_se_lit() {
+    use crate::ui::fenetre::ModeDeFenetre;
+    let d = dossier("mode-fenetre");
+    let mut app = application(&d);
+    app.basculer_le_plein_ecran();
+    assert_eq!(
+        application(&d).mode_de_fenetre_retenu(),
+        ModeDeFenetre::PleinEcran
+    );
+    assert!(
+        app.ui.header_height() > 0.0,
+        "le plein écran garde l'interface"
+    );
+    app.basculer_le_mode_reference();
+    assert_eq!(
+        application(&d).mode_de_fenetre_retenu(),
+        ModeDeFenetre::Reference,
+        "un autre geste change de mode"
+    );
+    app.basculer_le_mode_reference();
+    assert_eq!(
+        application(&d).mode_de_fenetre_retenu(),
+        ModeDeFenetre::Normale
+    );
+    let d_avant = app
+        .disque
+        .brouillons
+        .parent()
+        .expect("un dossier")
+        .join("mode-reference");
+    std::fs::write(&d_avant, b"1").expect("écrire le souvenir d'avant");
+    assert_eq!(
+        application(&d).mode_de_fenetre_retenu(),
+        ModeDeFenetre::Reference
+    );
+    app.basculer_le_plein_ecran();
+    assert!(
+        !d_avant.exists(),
+        "le nouveau souvenir remplace celui d'avant"
+    );
+    assert_eq!(
+        application(&d).mode_de_fenetre_retenu(),
+        ModeDeFenetre::PleinEcran
     );
 }

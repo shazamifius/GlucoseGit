@@ -3,6 +3,7 @@
 //! décide dans [`super::Zones::sous`], éprouvé partout.
 
 use super::{Zone, Zones};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WPARAM};
@@ -26,6 +27,9 @@ static ZONES: Mutex<Zones> = Mutex::new(Zones {
     tenus: Vec::new(),
 });
 
+/// **La bande tient lieu de barre** (BARRE-3) : faux, la procédure se tait et Windows rend sa barre.
+static MAISON: AtomicBool = AtomicBool::new(true);
+
 pub(super) fn poser(zones: Zones) {
     if let Ok(mut z) = ZONES.lock() {
         *z = zones;
@@ -35,6 +39,7 @@ pub(super) fn poser(zones: Zones) {
 /// **Glisse la procédure, puis demande à Windows de recalculer le cadre.** Rend `false` si
 /// Windows refuse : la barre du système reste, et rien d'autre ne change.
 pub(super) fn habiller(fenetre: isize) -> bool {
+    MAISON.store(true, Ordering::Relaxed);
     let fenetre = HWND(fenetre as *mut _);
     // SAFETY : `fenetre` est la fenêtre vivante de ce fil ; la procédure ne lit que la propriété
     // qu'elle retire avec elle.
@@ -57,6 +62,32 @@ pub(super) fn habiller(fenetre: isize) -> bool {
         )
         .is_ok()
     }
+}
+
+/// **Rend la barre du système, ou la retire de nouveau** (BARRE-3) : la procédure se tait ou
+/// reparle, et Windows recalcule le cadre. Rend `true` si c'est à Glucose de dessiner ses boutons.
+pub(super) fn rhabiller(fenetre: isize, maison: bool) -> bool {
+    let poignee = HWND(fenetre as *mut _);
+    // SAFETY : lire une propriété de la fenêtre vivante de ce fil.
+    let glissee = !unsafe { GetPropW(poignee, ANCIENNE) }.0.is_null();
+    if maison && !glissee {
+        return habiller(fenetre);
+    }
+    MAISON.store(maison, Ordering::Relaxed);
+    // SAFETY : la fenêtre vivante de ce fil ; recalculer son cadre ne touche qu'à elle.
+    let recalcule = unsafe {
+        SetWindowPos(
+            poignee,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+        )
+    }
+    .is_ok();
+    maison && glissee && recalcule
 }
 
 /// Ce que Windows ajoute autour d'une fenêtre : la bordure qui dépasse de l'écran, agrandie.
@@ -82,7 +113,7 @@ unsafe extern "system" fn procedure(
     match message {
         // Windows retire les bordures et la barre ; on lui rend le haut, qu'il garde tel quel.
         // Agrandie, la fenêtre dépasse de l'écran de sa bordure : sa bande doit rester visible.
-        WM_NCCALCSIZE if wparam.0 != 0 => unsafe {
+        WM_NCCALCSIZE if wparam.0 != 0 && MAISON.load(Ordering::Relaxed) => unsafe {
             let parametres = lparam.0 as *mut NCCALCSIZE_PARAMS;
             let haut = (*parametres).rgrc[0].top;
             let rendu = suite();
@@ -96,7 +127,7 @@ unsafe extern "system" fn procedure(
             }
             rendu
         },
-        WM_NCHITTEST => {
+        WM_NCHITTEST if MAISON.load(Ordering::Relaxed) => {
             let defaut = suite();
             // Les bords des côtés et du bas restent ceux de Windows.
             let u = defaut.0 as u32;

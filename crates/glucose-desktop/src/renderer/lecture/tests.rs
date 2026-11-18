@@ -85,7 +85,7 @@ fn test_la_lecture_voile_tout_ce_qui_n_est_pas_la_case() {
     let (store, board) = document();
     let bande_du_haut = (720, 20);
     let mut sans = UiState::new();
-    sans.reference = true; // l'interface cachée, comme en lecture : seul le voile diffère
+    sans.fenetre = crate::ui::fenetre::ModeDeFenetre::Reference; // l'interface cachée, comme en lecture : seul le voile diffère
     let avant = rendre(&store, &mut sans);
     assert_ne!(
         rgb(&avant, bande_du_haut),
@@ -137,7 +137,7 @@ fn test_la_lecture_cache_les_prises_de_la_case_choisie() {
     // Le « + » de gauche, à moitié dans le cadre : sa moitié intérieure.
     let ou = ((x + 4.0) as u32, (y + h / 2.0) as u32);
     let mut ui = UiState::new();
-    ui.reference = true;
+    ui.fenetre = crate::ui::fenetre::ModeDeFenetre::Reference;
     ui.storyboard.choisie = Some(case.id.clone());
     let sans = rendre(&store, &mut ui);
     assert_ne!(

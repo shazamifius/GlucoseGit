@@ -9,6 +9,7 @@
 
 use super::GlucoseApp;
 use crate::error::{DesktopError, DesktopResult};
+use crate::ui::fenetre::ModeDeFenetre;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use tiny_skia::Pixmap;
@@ -166,7 +167,9 @@ impl GlucoseApp {
         }
         self.chronique.ecran.brancher(sonde);
         // **L'extinction de Windows** finit Glucose au lieu de le tuer (FIN-SESSION-1).
-        self.ui.cadre_maison = crate::plateforme::cadre::habiller(window);
+        // La barre du système, si elle était choisie (BARRE-3) ; sinon la bande la remplace.
+        self.ui.cadre_maison =
+            !self.barre_du_systeme_retenue() && crate::plateforme::cadre::habiller(window);
         self.lancement.session = crate::plateforme::fin::veiller_sur_la_fenetre(window);
         if self.lancement.session.is_some() {
             crate::dire!(
@@ -231,15 +234,19 @@ impl GlucoseApp {
         #[cfg(target_os = "linux")]
         let attrs =
             winit::platform::x11::WindowAttributesExtX11::with_name(attrs, "glucose", "glucose");
-        // Le mode référence retenu naît tel quel : sans cadre et au premier plan, sans qu'une
-        // fenêtre ordinaire paraisse d'abord (fiche 51 § 5).
-        self.ui.reference = self.mode_reference_retenu();
-        let attrs = if self.ui.reference {
-            attrs
+        // Le mode de la fenêtre retenu naît tel quel (FENETRE-1) : la référence sans cadre et au
+        // premier plan, sans qu'une fenêtre ordinaire paraisse d'abord (fiche 51 § 5) ; le plein
+        // écran, plein. Sous Wayland, la référence se pose devant au premier focus (DEVANT-1).
+        self.ui.fenetre = self.mode_de_fenetre_retenu();
+        self.fenetre_de_reference.devant_au_focus = self.ui.en_reference();
+        let attrs = match self.ui.fenetre {
+            ModeDeFenetre::Reference => attrs
                 .with_decorations(false)
-                .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
-        } else {
-            attrs
+                .with_window_level(winit::window::WindowLevel::AlwaysOnTop),
+            ModeDeFenetre::PleinEcran => {
+                attrs.with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
+            }
+            ModeDeFenetre::Normale => attrs,
         };
 
         // Le titre posé est celui que le cache retient : le prochain changement se comparera à lui.

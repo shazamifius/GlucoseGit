@@ -253,6 +253,8 @@ fn systeme(c: Commande) -> bool {
             | Commande::VoirCeQuiPart
             | Commande::JournalTechnique
             | Commande::ModeReference
+            | Commande::PleinEcran
+            | Commande::BarreDuSysteme
     )
 }
 
