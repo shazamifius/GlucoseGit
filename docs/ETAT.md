@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 17/11/2026 au soir** (fiches 108-119). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
+> **Au 18/11/2026** (fiches 108-120). **Le présent, en une page** : ce qui est publié, ce qui marche, ce qui ne
 > va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne garde pas
 > l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La direction et ses
 > paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque fonction et son
@@ -67,7 +67,14 @@
   (MIROIR-1 : `Alt+Maj+H`, `Alt+Maj+V` ; le document passe au schéma 6, qu'une 2.0.4-beta.1 refuse par
   son message) ; **les photos du co-working** (B1, fiche 119 : celles qu'on pose partent avec le geste,
   celles qui manquent se demandent en entrant ; prouvées par deux vrais Glucose à travers le relais en
-  ligne, redéployé — **pas encore à son écran**).
+  ligne, redéployé — **pas encore à son écran**) ; **la suite de sa capture, le 18/11** (fiche 120) :
+  **le texte et les icônes de l'interface nets** (GRILLE-1 et 2 : la ligne de base et la hauteur d'x
+  sur la grille, la position exacte au quart de pixel, des traits d'icône de pixels entiers — le
+  canevas inchangé), **les trois modes de la fenêtre** (FENETRE-1 : `F11` le plein écran,
+  `Ctrl+Maj+A` la référence, le zen à `Maj+F11`), **toujours devant sous Wayland** par la voie de
+  chaque bureau (DEVANT-1 : niri, KDE, Hyprland, sway ; GNOME le dit — essayé sous niri seulement),
+  **la barre de Windows au choix** (BARRE-3, jamais essayée sous Windows), **renommer un dossier**
+  (RENOMMER-1, `F2`).
   **Son Glucose installé** (profil Nix `GlucoseGit`) : `aeea3ef` (17/11, 22 h 49) — la porte
   publique, le co-working et ses photos, la page web et toute sa capture compris.
 * **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
@@ -102,9 +109,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Images** | PNG, JPEG, WebP, GIF (figé), BMP ; coller, déposer ; rotation, recadrage ; la mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; **de loin, le gris de ses lignes** ; **son papier, toujours le gris sombre des blocs** (PAPIER-1) ; **sa lueur dit sa parenté** : une IA du sens embarquée (15 Mo, multilingue, sans réseau) range les textes en familles — même couleur, d'autant plus forte et vive qu'elle est sûre ; un texte sans parent garde le contour gris de son bloc ; la couleur choisie va à sa lueur (PARENTE, fiche 106) |
 | **Flèches** | droites ou courbes, six relations, coudes, contournement, ancres de texte ; **la couleur des lueurs qu'elles relient** (grises vers une photo) ; **de loin, une trace** ; leur présence suit leur nombre et la souris — **la souris ne rapproche que les flèches de sens** parmi celles qu'un agent ou un script a posées (PARENTE-4) ; `Ctrl`+clic suit un lien ; la **fenêtre des liens** (`B`) amène ses voisins |
-| **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers, **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) ; **dater** un nœud (`Maj+T`), **la frise chronologique** (`Maj+R`) et **regarder un domaine** (« voir ») : deux lentilles qui estompent ce qu'elles écartent, jamais ne cachent |
+| **Organiser** | membranes (**en carte** : la plus petite région l'emporte, titre à la taille de la région), dossiers (**renommés** par `F2`), **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et **la roue** (à la Blender, dans Oklch) ; **dater** un nœud (`Maj+T`), **la frise chronologique** (`Maj+R`) et **regarder un domaine** (« voir ») : deux lentilles qui estompent ce qu'elles écartent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), **la page web** (deux doigts, une flèche se lit) |
-| **L'interface** | 109 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; le mode référence ; **le mode zen** (`F11`) |
+| **L'interface** | 116 commandes dans une table (`Commande::toutes`), la palette (`Ctrl+Maj+P`), les raccourcis comme donnée, changés dans Glucose ; **ses lettres et ses icônes posées sur la grille de l'écran** (GRILLE-1 et 2) ; **les trois modes de la fenêtre** (normale, plein écran `F11`, référence `Ctrl+Maj+A`, toujours devant sous Wayland par la voie du bureau) ; **le mode zen** (`Maj+F11`) ; sous Windows, la bande ou la barre du système, au choix |
 | **Collaborer** | **le co-working** (fiche 117) : partager ce canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré ; le conflit dit ; `Ctrl+Z` par main ; les curseurs ; un code pour regarder seulement |
 | **Les agents** | **une IA du nuage par Collaborer** (Claude.ai : la porte publique, son accord devant un code, le document ouvert seulement, *Lire seulement* au choix, son nom vérifié qui signe — fiche 116) ; `glucose --mcp` : une IA lit le tableau (par niveaux, ses domaines, ce que l'humain a choisi, la parenté que l'IA de Glucose donne aux textes et aux flèches) et y pose textes, membranes, flèches, domaines — chaque geste annulable, signé de son nom, rien sans son accord ; elle attache un écrit à un geste (`glucose_noter`) et relit l'histoire (`glucose_histoire`) |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
@@ -156,8 +163,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 
 ## 4. La qualité
 
-* **Les épreuves** : 3 318 vertes au 17/11 à 16 h 14 sur `1ccd2bee` (`bash outils/borne.sh nix develop -c
-  cargo test --workspace`), et celles du miroir et de COUDE-1 depuis ; clippy strict et `cargo fmt` à
+* **Les épreuves** : 3 339 vertes le 18/11 au matin (GRILLE compris, avant les témoins mis à jour) ;
+  depuis FENETRE-1, seules les épreuves des chantiers touchés et les cliquets — **la suite entière
+  reste à relancer** (`bash outils/borne.sh nix develop -c cargo test --workspace --no-fail-fast`) ; clippy strict et `cargo fmt` à
   zéro ; les **cliquets** (`tests/cliquets_suite.rs` : 80 lignes par fonction, 600 par fichier, le
   couplage au modèle…) ne se relèvent jamais.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
@@ -171,7 +179,9 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
   l'estompe), 16 sur 16 (le domaine regardé) et 12 sur 12 (le mode zen, fiche 115) ; 32 sur 32 (la porte
   publique, fiche 116 — dont une épreuve aveugle trouvée et écrite, en deux passes) ; 8 sur 8 (la page
   web), 29 sur 29 (le client du co-working, fiche 117), plus 1 du relais ; **34 sur 34 (sa capture et le
-  miroir, fiche 118 — un sabotage aveugle trouvé et son épreuve écrite)**.
+  miroir, fiche 118 — un sabotage aveugle trouvé et son épreuve écrite)** ; **fiche 120** : GRILLE 10 sur
+  12 puis les deux portes aveugles gardées, le second chantier 18 sur 19 (l'épreuve du script de KWin
+  resserrée, son sabotage pas encore rejoué).
 * **Les bancs** : sous sway sans écran, présenter ne bloque jamais, et niri imbriqué bloque sur son
   hôte : **le rythme ne se juge qu'à son écran**, par `outils/pilote/essai_ecran.sh` (ses gestes,
   pavé compris) et la section PARU-1 de la chronique (fiche 112).

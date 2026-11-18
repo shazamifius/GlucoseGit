@@ -90,7 +90,8 @@ fn test_devant_1_la_fenetre_se_designe_par_son_processus() {
 #[test]
 fn test_devant_1_kwin_pose_keep_above_sur_ce_processus() {
     let script = script_kwin(5123, true);
-    assert!(script.contains("f.pid === 5123") && script.contains("f.keepAbove = true"));
+    // La condition est exactement « ce processus » : aucune autre fenêtre ne passe devant.
+    assert!(script.contains("if (f.pid === 5123) {") && script.contains("f.keepAbove = true"));
     assert!(script_kwin(5123, false).contains("f.keepAbove = false"));
     let reponse = "method return time=1 sender=:1.4 -> destination=:1.9 serial=7\n   int32 3\n";
     assert_eq!(numero_du_script(reponse), Some(3));

@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 17/11/2026 au soir** (fiches 108-118). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 18/11/2026** (fiches 108-120). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -33,7 +33,8 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 
 | | chantier | fini quand |
 |---|---|---|
-| [~] | **Sa capture d'écran du 17/11** (fiche 118) : **faite** — les boutons de Windows (BARRE-2, VIDE-1), le fil d'Ariane, les tiroirs (TIROIR-1 à 3), les bouts de flèche, « Redresser », « Retirer ce coude », retourner une image (MIROIR-1). **Reste, à ses réponses** ([la fiche de questions](https://claude.ai/artifact/KwCMGG6Keymuzr5V4DJ4gN), questions 1 à 4) : **la structure des tiroirs** (une colonne, des onglets, des tiroirs libres ; bulles ou panneaux au bord), **les trois modes de la fenêtre** (normale, plein écran, toujours devant — la recherche : fiche 118 § 7), **la barre blanche de Windows**, **le texte « pixelisé »** (non reproduit ici : sa machine, son écran, son échelle, une capture non réduite ; puis une échelle de l'interface à lui) | ses réponses lues, mises en œuvre, et la 2.0.4-beta.2 à l'école sous Windows — **elle est en brouillon** (17/11 au soir), le clic « Publish release » est le sien |
+| [~] | **Sa capture d'écran du 17/11** (fiches 118 et 120) : **faite, sauf la structure des tiroirs** — les boutons de Windows (BARRE-2, VIDE-1), le fil d'Ariane, les tiroirs (TIROIR-1 à 3), les bouts de flèche, « Redresser », « Retirer ce coude », le miroir (fiche 118) ; **le texte et les icônes nets** (GRILLE-1 et 2), **les trois modes de la fenêtre** (FENETRE-1, DEVANT-1), **la barre de Windows au choix** (BARRE-3), **renommer un dossier** (RENOMMER-1, sa demande du 18/11) — fiche 120. **Reste** : **les tiroirs**, à sa parole sur l'image (l'allure plate que la charte exige, et « du côté de son bouton » — fiche 120 § 6) ; **l'échelle de l'interface** à lui (36 lectures de l'échelle de l'écran à rassembler d'abord) ; « toujours devant » sous KDE, Hyprland et sway, et la barre de Windows, jamais essayés | sa parole sur les tiroirs ; la 2.0.4-beta.2 publiée (son clic), puis la beta.3 à l'école sous Windows |
+| [ ] | **Le détourage** (sa parole du 18/11, VISION § 3) : une image sur fond blanc uni ou complexe → la forme principale seule, en transparence ; pour la beta, le meilleur algorithme existant **à licence permise** (RMBG de BRIA exclu, non commercial — et défaut de `rembg`) ; un jour, le nôtre, relié à l'IA interne de Glucose. La première recherche : fiche 120 § 7 (le fond uni sans IA d'abord ; u2netp, ISNet, BiRefNet lite selon la machine) | une photo détourée dans Glucose, annulable, sur toutes les machines, la licence écrite dans `decisions/` |
 | [~] | **Son lag, à son écran** (fiche 112) : le rythme n'était pas la cause (le « 32 % » était le compteur du tempo) ; **PARU-1** dit désormais ce que l'écran montre, et `outils/pilote/essai_ecran.sh` mesure ses vrais gestes (pavé virtuel). **Ensuite** : (1) **le calage sur le battement** — envoyer chaque image « au prochain battement moins une avance » efface la gigue d'un battement (prototype : `~/.cache/glucose-bancs/rythme-112/calage-et-sonde-prototype.patch`) ; l'avance n'est pas la bonne grandeur : l'image suivante de Glucose occupe la carte graphique pendant que niri compose — le levier est de **dessiner juste à temps** (fiche 112 § 5), puis mesurer en paires à son écran ; (2) la latence de deux battements de l'envoi à l'écran, sur une carte graphique partagée avec niri ; (3) **ses vraies sessions lues par PARU-1** — le 14/11 à 1 h 45 (fiche 116 § 1) : 19 % de battements sautés alors qu'une image était due, 46 ms de l'envoi à l'écran en médiane, 93 au p90 ; **le 14/11 à 4 h 37 sur sa carte de Wikipédia, sur batterie** (fiche 117 § 1) : **46,5 % de battements sautés**, 39 / 55 / 78 ms, « ornements » jusqu'à 33 ms, « écouter la main » jusqu'à 72 ms d'un coup — à reprendre là | à son écran, PARU-1 : la gigue nulle, aucun battement sauté de plus qu'aujourd'hui, la latence mesurée |
 | [~] | **La porte aux IA publiques** (PUBLIQUE-1, fiche 116) : **dans `main`**, sabotée (32 sur 32), essayée de bout en bout dans le vrai Glucose avec un faux claude.ai, **le relais en ligne** (`outils/porte`, son compte Cloudflare). **Reste** : **son essai avec son compte Claude.ai** (Collaborer → Ouvrir la porte → Copier l'adresse ; claude.ai → Personnaliser → Connecteurs → Ajouter un connecteur personnalisé ; la page « va dans Glucose » ; *Lire et écrire* devant le même code) ; la CI pour WinHTTP sous Windows ; le téléphone | Claude.ai, depuis son compte, pose un texte dans son canevas, signé « Claude (claude.ai) » |
 | [~] | **Le co-working sur un canevas** (CLIENT-1, fiche 117) : **fait** — deux vrais Glucose dans le même canevas, chaque geste vu chez l'autre, un retardataire qui rattrape tout, un vrai conflit montré des deux côtés, `Ctrl+Z` par main, les curseurs ; la salle **en ligne** (fiche 117 § 5). **Les photos d'un participant à l'autre** (B1) : **faites** (fiche 119 — ce que je pose part avec mon geste, ce qui manque se demande en entrant ; prouvées par deux vrais Glucose à travers le relais en ligne, redéployé ; la 2.0.4-beta.2 en brouillon les porte). **Reste** : (1) l'alerte « des photos attendent quelqu'un qui les a » (sa question 18) ; (2) **le partage qui survit à un relancement** (aujourd'hui on rejoint de nouveau par le code), et un instantané dans la salle pour qu'un long canevas se rattrape vite (Secsync) ; (3) son nom changé dans l'interface ; (4) le conflit **par propriété** (fusion à trois par le format à étiquettes) ; (5) le téléphone ; (6) **son essai** — il demande une version publiée sur ses deux machines (la 2.0.4-beta.2, son geste) | à son écran : son PC et son téléphone, ou deux Glucose sur son VivoBook, dans le même canevas |
@@ -45,6 +46,12 @@ canevas Glucose et les connexions MCP avec des IA publiques**. Elle passe devant
 | [ ] | **Les boutons qui manquent** (INVENTAIRE § 3), un par un, chacun conçu après une recherche (une fonction « de Tauri » se vérifie d'abord dans Tauri — « filtrer par domaine » n'y existait pas, fiche 115 § 7) : ~~l'export HTML~~ — **dans `main`** (fiche 117 ; reste l'iPad, Safari jamais essayé) ; d'abord les miroirs (`Ctrl+Maj+M`), les GIF animés et les vidéos, la provenance des images… | chacun dans `main`, saboté, regardé dans le vrai Glucose |
 
 ## 3. Ce qui attend son écran
+
+**Sa capture, la suite** (fiche 120), **sur son VivoBook** : le texte de la bande et des menus, et les
+icônes, regardés de près — nets ? trop fins à 100 % ? ; `F11` (plein écran), `F11` encore ; `Ctrl+Maj+A`
+(la référence passe devant, dans la couche flottante de niri), glisser au clic droit, `Ctrl+Maj+A` encore ;
+`Maj+F11` (le zen) ; choisir un dossier, `F2`, taper un nom, Entrée, puis `Ctrl+Z`. **À l'école, sous
+Windows** : la même chose, et « Barre de Windows » au menu du vide, deux fois.
 
 **Sa capture du 17/11** (fiche 118) — **à l'école, sous Windows, avec la 2.0.4-beta.2** : chaque bouton de
 la bande, surtout ceux de droite (Collaborer, Exporter, Plugins, Mood board, Domaines) ; un clic entre
@@ -140,9 +147,11 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 
 ## 4. Ce qui attend sa parole
 
-**Tout ce qui suit, et les quatre questions de sa capture, sont dans [la fiche de
-questions](https://claude.ai/artifact/KwCMGG6Keymuzr5V4DJ4gN)** (fiche 118 § 5), avec le contexte et nos
-propositions — il y répond en prose ; ses réponses vont dans VISION, et sortent d'ici.
+**Tout ce qui suit est dans [la fiche de questions](https://claude.ai/artifact/KwCMGG6Keymuzr5V4DJ4gN)**
+(fiche 118 § 5), avec le contexte et nos propositions — il y répond en prose ; ses réponses vont dans
+VISION, et sortent d'ici. Des quatre questions de sa capture, **trois sont faites en options, au défaut
+proposé** (les modes de la fenêtre, la barre de Windows, le texte — fiche 120) ; **la structure des
+tiroirs** attend sa parole sur l'image.
 
 * **Le cap** : l'iPad par le web dans la partie 1 ? (défaut : oui, en dernier) ; les presets Figma et Miro
   (défaut : partie 2) ; « avec des utilisateurs » = des gens qui s'en servent sans rien perdre (des comptes
@@ -156,8 +165,7 @@ propositions — il y répond en prose ; ses réponses vont dans VISION, et sort
 * **« Créer un sous-dossier »** (fiche 98 § 7) : ranger la sélection dans un dossier neuf — que deviennent
   les flèches qui traversent ? avec le dossier « à retravailler ».
 * **Ordonner « très très grandement »** ; **sa liste PureRef** ; **le dessin de la sélection** ; **le
-  défilement au bord** (« moche, pas fluide », plus tard) ; **les modes de la fenêtre** (pas pour
-  l'instant) ; **les rideaux**, **les membranes de Mary**, « optimiser » dans la Time Machine.
+  défilement au bord** (« moche, pas fluide », plus tard) ; **les rideaux**, **les membranes de Mary**, « optimiser » dans la Time Machine.
 * **Ses clés et ses appareils** : une copie de la clé de mise à jour sur une clé USB à lui ;
   `sauvegarde-profil-2026-10-31.7z` (ses clés de serveur, son identité web3), introuvable ici ; sa clé
   SauceNAO ; le modèle de l'iPad ; les téléphones de ses testeurs.
