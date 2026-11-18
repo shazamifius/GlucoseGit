@@ -1,0 +1,287 @@
+[
+  {
+    "nom": "FENETRE-1 — le même geste ne défait plus son mode",
+    "fichier": "crates/glucose-desktop/src/ui/fenetre.rs",
+    "avant": "        if self == voulu {",
+    "apres": "        if false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "fenetre_1"
+    ]
+  },
+  {
+    "nom": "FENETRE-1 — le souvenir d'avant ne se lit plus",
+    "fichier": "crates/glucose-desktop/src/interactions/reference.rs",
+    "avant": "            .or_else(|_| std::fs::read_to_string(self.souvenir_de_la_fenetre(SOUVENIR_D_AVANT)))\n",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "fenetre_1"
+    ]
+  },
+  {
+    "nom": "FENETRE-1 — le souvenir d'avant reste à côté du nouveau",
+    "fichier": "crates/glucose-desktop/src/interactions/reference.rs",
+    "avant": "        let _ = std::fs::remove_file(self.souvenir_de_la_fenetre(SOUVENIR_D_AVANT));",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "fenetre_1"
+    ]
+  },
+  {
+    "nom": "FENETRE-1 — F11 rendu au zen",
+    "fichier": "crates/glucose-desktop/assets/raccourcis/glucose.txt",
+    "avant": "F11             plein-ecran\n",
+    "apres": "F11             mode-zen\n",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "fenetre_1"
+    ]
+  },
+  {
+    "nom": "FENETRE-1 — le plein écran cache l'interface",
+    "fichier": "crates/glucose-desktop/src/ui.rs",
+    "avant": "        self.en_reference() || self.zen || self.lecture.is_some()",
+    "apres": "        self.fenetre != fenetre::ModeDeFenetre::Normale || self.zen || self.lecture.is_some()",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "fenetre_1"
+    ]
+  },
+  {
+    "nom": "ZEN-1 — l'indicateur hors de la grille déborde de sa prise",
+    "fichier": "crates/glucose-desktop/src/ui/zen.rs",
+    "avant": "        (largeur - ui.marges.droite - DROITE * s - l).floor(),",
+    "apres": "        largeur - ui.marges.droite - DROITE * s - l - 0.5,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "zen_1"
+    ]
+  },
+  {
+    "nom": "DEVANT-1 — une prise vide passe pour un bureau",
+    "fichier": "crates/glucose-desktop/src/plateforme/devant.rs",
+    "avant": "        let pose = |cle: &str| env(cle).is_some_and(|v| !v.is_empty());",
+    "apres": "        let pose = |cle: &str| env(cle).is_some();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "devant_1"
+    ]
+  },
+  {
+    "nom": "DEVANT-1 — la fenêtre désignée sans son processus",
+    "fichier": "crates/glucose-desktop/src/plateforme/devant.rs",
+    "avant": "        let sien = f.get(\"pid\")?.as_f64()? == f64::from(pid);",
+    "apres": "        let sien = f.get(\"pid\")?.as_f64().is_some();",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "devant_1"
+    ]
+  },
+  {
+    "nom": "DEVANT-1 — GNOME fait semblant",
+    "fichier": "crates/glucose-desktop/src/plateforme/devant.rs",
+    "avant": "        Bureau::Gnome => Devant::AlaMain(GNOME),",
+    "apres": "        Bureau::Gnome => Devant::Fait,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "devant_1"
+    ]
+  },
+  {
+    "nom": "DEVANT-1 — le script de KWin pose toutes les fenêtres devant",
+    "fichier": "crates/glucose-desktop/src/plateforme/devant.rs",
+    "avant": "if (f.pid === {pid})",
+    "apres": "if (true || f.pid === {pid})",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "devant_1"
+    ]
+  },
+  {
+    "nom": "DEVANT-1 — un script refusé par KWin (-1) se joue quand même",
+    "fichier": "crates/glucose-desktop/src/plateforme/devant.rs",
+    "avant": "        .filter(|n| *n >= 0)",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "devant_1"
+    ]
+  },
+  {
+    "nom": "BARRE-3 — le choix ne se retient plus",
+    "fichier": "crates/glucose-desktop/src/interactions/barre.rs",
+    "avant": "        if maison {",
+    "apres": "        if true {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "barre_3"
+    ]
+  },
+  {
+    "nom": "RENOMMER-1 — un nom vide nomme",
+    "fichier": "crates/glucose-core/src/store/folders.rs",
+    "avant": "        if nom.is_empty() || actuel.is_none_or(|f| f.name == nom) {",
+    "apres": "        if actuel.is_none_or(|f| f.name == nom) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "renommer_1"
+    ]
+  },
+  {
+    "nom": "RENOMMER-1 — le nom garde ses blancs",
+    "fichier": "crates/glucose-core/src/store/folders.rs",
+    "avant": "        let nom = nom.trim();",
+    "apres": "",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "renommer_1"
+    ]
+  },
+  {
+    "nom": "RENOMMER-1 — le même nom fait un geste",
+    "fichier": "crates/glucose-core/src/store/folders.rs",
+    "avant": "        if nom.is_empty() || actuel.is_none_or(|f| f.name == nom) {",
+    "apres": "        if nom.is_empty() || actuel.is_none() {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-core",
+      "--lib",
+      "--",
+      "renommer_1"
+    ]
+  },
+  {
+    "nom": "RENOMMER-1 — Échap renomme",
+    "fichier": "crates/glucose-desktop/src/interactions/renommer.rs",
+    "avant": "        if let (Reponse::Oui, Some(nom)) = (reponse, nom) {",
+    "apres": "        if let (_, Some(nom)) = (reponse, nom) {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "renommer_1"
+    ]
+  },
+  {
+    "nom": "RENOMMER-1 — « Renommer » offert sans dossier choisi",
+    "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+    "avant": "        C::RenommerLeDossier => store.dossier_choisi_et_son_nom().is_some(),",
+    "apres": "        C::RenommerLeDossier => true,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "renommer_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — le rendu réduit écrit l'interface par la typographie du monde",
+    "fichier": "crates/glucose-desktop/src/renderer.rs",
+    "avant": "        render_ui(plein, store, ui, &self.typo_ecran, &self.theme, pointer);",
+    "apres": "        render_ui(plein, store, ui, &self.typography, &self.theme, pointer);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — les panneaux confiés à la carte écrits par la typographie du monde",
+    "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+    "avant": "        typo: &renderer.typo_ecran,",
+    "apres": "        typo: &renderer.typography,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  }
+]
