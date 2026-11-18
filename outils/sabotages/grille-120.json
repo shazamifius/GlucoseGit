@@ -1,0 +1,195 @@
+[
+  {
+    "nom": "GRILLE-1 — la ligne de base de l'écran au quart de pixel, comme le monde",
+    "fichier": "crates/glucose-desktop/src/typography/ecran.rs",
+    "avant": "            (y.round() as i32, PHASE_ORIGIN)",
+    "apres": "            split_position(y)",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — plus d'étirement : la hauteur d'x hors de la grille",
+    "fichier": "crates/glucose-desktop/src/typography/ecran.rs",
+    "avant": "    if entiere >= 1.0 {",
+    "apres": "    if entiere >= 1.0 && false {",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — la phase horizontale oubliée",
+    "fichier": "crates/glucose-desktop/src/typography/ecran.rs",
+    "avant": "    let gauche = m.xmin + i32::from(phase % SUBPIXEL_PHASES);",
+    "apres": "    let gauche = m.xmin;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — la phase par ré-échantillonnage au lieu de l'image ×4",
+    "fichier": "crates/glucose-desktop/src/typography.rs",
+    "avant": "            let entree = Rc::new(ecran::variante(&maitre, phase));",
+    "apres": "            let entree = Rc::new(shifted_glyph(&ecran::variante(&maitre, 0), phase));",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — l'écran relit ses polices au lieu de les partager",
+    "fichier": "crates/glucose-desktop/src/typography/ecran.rs",
+    "avant": "        Self::de(self.polices.clone(), true)",
+    "apres": "        {\n            let mut t = Self::new();\n            t.sur_l_ecran = true;\n            t\n        }",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_1"
+    ]
+  },
+  {
+    "nom": "GRILLE-2 — la largeur du trait d'icône n'est plus arrondie",
+    "fichier": "crates/glucose-desktop/src/icons/grille.rs",
+    "avant": "    let largeur = (stroke.width * k).round().max(1.0);",
+    "apres": "    let largeur = stroke.width * k;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_2"
+    ]
+  },
+  {
+    "nom": "GRILLE-2 — l'axe d'un trait impair sur une frontière",
+    "fichier": "crates/glucose-desktop/src/icons/grille.rs",
+    "avant": "    let axe = if largeur % 2.0 == 1.0 { 0.5 } else { 0.0 };",
+    "apres": "    let axe = 0.0;",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "grille_2"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — la bande et ses voisins écrits par la typographie du monde (rendu processeur)",
+    "fichier": "crates/glucose-desktop/src/renderer.rs",
+    "avant": "        render_ui(pixmap, store, ui, &self.typo_ecran, &self.theme, pointer);",
+    "apres": "        render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_l_empreinte"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — le rendu réduit écrit l'interface par la typographie du monde",
+    "fichier": "crates/glucose-desktop/src/renderer.rs",
+    "avant": "        render_ui(plein, store, ui, &self.typo_ecran, &self.theme, pointer);",
+    "apres": "        render_ui(plein, store, ui, &self.typography, &self.theme, pointer);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "reduit",
+      "reduite",
+      "nettete"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — la chrome confiée à la carte écrite par la typographie du monde",
+    "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+    "avant": "        let kit = (&self.typo_ecran, &self.theme);",
+    "apres": "        let kit = (&self.typography, &self.theme);",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--test",
+      "chrome_suite",
+      "--test",
+      "voies_suite"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — les menus et les barres écrits par la typographie du monde",
+    "remplacements": [
+      {
+        "fichier": "crates/glucose-desktop/src/renderer/decision.rs",
+        "avant": "        crate::ui::decision::poser_les_barres(pixmap, store, ui, kit);\n",
+        "apres": "        crate::ui::decision::poser_les_barres(pixmap, store, ui, (&self.typography, &self.theme));\n"
+      },
+      {
+        "fichier": "crates/glucose-desktop/src/renderer/decision.rs",
+        "avant": "        let kit = (&self.typo_ecran, &self.theme);\n        crate::ui::decision::poser_les_reponses_attendues",
+        "apres": "        let kit = (&self.typography, &self.theme);\n        crate::ui::decision::poser_les_reponses_attendues"
+      }
+    ],
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_l_empreinte"
+    ]
+  },
+  {
+    "nom": "GRILLE-1 — les panneaux confiés à la carte écrits par la typographie du monde",
+    "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+    "avant": "        typo: &renderer.typo_ecran,",
+    "apres": "        typo: &renderer.typography,",
+    "cmd": [
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "peinture",
+      "dock"
+    ]
+  }
+]
