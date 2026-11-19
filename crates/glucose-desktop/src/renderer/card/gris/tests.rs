@@ -197,3 +197,59 @@ fn gris_1_le_dessin_vectoriel_suit_son_support() {
         "le SVG garde ses lettres à toute distance"
     );
 }
+
+/// **TABLE-4 de loin** (fiche 125) : le filet entre deux rangées est une forme du gris, comme le
+/// filet de l'en-tête — sinon, en dézoomant, il disparaîtrait d'un coup, quand la lettre cesse de
+/// se lire.
+#[test]
+fn table_4_de_loin_le_filet_des_rangees_est_une_forme() {
+    use crate::renderer::card::TextCard;
+    use crate::renderer::pass::{Clip, Pass};
+    use crate::renderer::scale::WorldScale;
+    let renderer = crate::renderer::Renderer::new();
+    let kit = renderer.kit();
+    // Sous le seuil des lettres lisibles (2,8 pixels pour un corps de 14 : 0,2).
+    let echelle = 0.1;
+    let ctx = Pass {
+        typography: kit.typography,
+        math: kit.math,
+        mises_en_page: kit.mises_en_page,
+        tints: kit.tints,
+        theme: kit.theme,
+        vp: Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: echelle,
+        },
+        scale: WorldScale::new(echelle, 1.0),
+        clip: Clip {
+            width: 800.0,
+            height: 600.0,
+            top: 0.0,
+        },
+        poignees: true,
+    };
+    assert!(!ctx.scale.draws_detail(), "l'épreuve regarde de loin");
+    let pleine_largeur = |texte: &str| {
+        let carte = TextCard {
+            origin: (0.0, 0.0),
+            size: (400.0, 0.0),
+            body: texte,
+            tint: (120, 160, 220),
+            fond: (20, 16, 16),
+            eclaires: None,
+            selected: false,
+            editing: None,
+        };
+        let (text, layout, at) = super::super::poser(&ctx, &carte).expect("un nœud posé");
+        let largeur = layout.width - 2.0 * layout.pad_x;
+        let mut n = 0;
+        super::formes_de_loin(&ctx, at, (&layout, &text, &carte), &mut |(f, _)| {
+            n += usize::from((f.droite - f.gauche - largeur).abs() < 1e-3);
+        });
+        n
+    };
+    let deux = pleine_largeur("| a | b |\n|---|---|\n| x | y |");
+    let trois = pleine_largeur("| a | b |\n|---|---|\n| x | y |\n| z | w |");
+    assert_eq!(trois, deux + 1, "un filet de plus entre « x » et « z »");
+}

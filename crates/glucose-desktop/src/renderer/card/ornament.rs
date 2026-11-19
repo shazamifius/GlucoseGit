@@ -14,7 +14,7 @@ use super::{CardLayout, TextCard, BULLET_BASELINE};
 use crate::params::Pen;
 use crate::renderer::pass::Pass;
 use crate::renderer::richtext::{
-    ink_of, mode_of, place_d_une_formule, retrait_d_ornement, VisualLine,
+    ink_of, mode_of, place_d_une_formule, retrait_d_ornement, TextLayout, VisualLine,
 };
 use crate::renderer::vectoriel::Vectoriel;
 use crate::typography::{Face, TextStyle};
@@ -155,6 +155,50 @@ fn numero<'b>(
 /// L'encre des ornements teintés.
 fn encre_d_ornement(tint: (u8, u8, u8)) -> Color {
     Color::from_rgba8(tint.0, tint.1, tint.2, ORNAMENT_ALPHA)
+}
+
+/// Le rapport de GitHub entre un séparateur discret et une bordure : dans Primer,
+/// `borderColor.muted` est `borderColor.default` à 0,7 d'alpha (`borderColor.json5`).
+const SEPARATEUR_DISCRET: f32 = 0.7;
+
+/// **TABLE-4 — le filet qui sépare deux rangées d'un tableau** (fiche 125) : au-dessus de la
+/// première ligne d'une rangée qui en suit une autre ([`TextLayout::separe_une_rangee`]), de la
+/// largeur du texte et de l'épaisseur du filet d'un `---`. Coupées en lignes (TABLE-3), deux
+/// rangées ne se distinguaient plus (vu au pilote sur ses tableaux, fiche 124 § 3). GitHub pose
+/// un filet au-dessus de chaque rangée ; Glucose Tauri n'en avait aucun (un navigateur sans style).
+///
+/// Il est plus discret que le filet de l'en-tête : il ne dit pas la même chose — « une autre
+/// rangée », pas « la fin de l'en-tête ». La boîte et l'encre, que les trois dessins posent.
+pub(super) fn separation_de_rangee(
+    text: &TextLayout,
+    rang: usize,
+    (gauche, y): (f32, f32),
+    layout: &CardLayout,
+    tint: (u8, u8, u8),
+) -> Option<((f32, f32, f32, f32), Color)> {
+    if !text.separe_une_rangee(rang) {
+        return None;
+    }
+    let mut encre = encre_d_ornement(tint);
+    encre.set_alpha(encre.alpha() * SEPARATEUR_DISCRET);
+    let largeur = layout.width - layout.pad_x * 2.0;
+    Some((
+        (gauche, y - layout.border / 2.0, largeur, layout.border),
+        encre,
+    ))
+}
+
+/// Le filet de TABLE-4, en pixels.
+pub(super) fn draw_separation(
+    pixmap: &mut PixmapMut,
+    (text, rang): (&TextLayout, usize),
+    at: (f32, f32),
+    layout: &CardLayout,
+    tint: (u8, u8, u8),
+) {
+    if let Some((boite, encre)) = separation_de_rangee(text, rang, at, layout, tint) {
+        fill(pixmap, boite, encre);
+    }
 }
 
 /// Dix chiffres d'un `u32`, et le point qui les suit.

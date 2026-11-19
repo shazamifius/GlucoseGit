@@ -164,6 +164,16 @@ impl TextLayout {
     pub fn fragments_of(&self, line: &VisualLine) -> &[Fragment] {
         &self.fragments[line.fragments.clone()]
     }
+
+    /// **TABLE-4 — la ligne `rang` ouvre une rangée qui en suit une autre** (fiche 125) : la
+    /// première ligne d'une rangée dont la ligne d'avant est une rangée aussi — ni l'en-tête, ni la
+    /// rangée qui suit le filet de l'en-tête. C'est là qu'un filet les sépare.
+    pub fn separe_une_rangee(&self, rang: usize) -> bool {
+        let rangee = |l: &VisualLine| l.kind == BlockKind::TableRow;
+        rang > 0
+            && self.lines.get(rang).is_some_and(|l| rangee(l) && l.first)
+            && rangee(&self.lines[rang - 1])
+    }
 }
 
 /// Ce qu'il faut savoir d'une boîte pour y couler du texte, **en unités monde**.

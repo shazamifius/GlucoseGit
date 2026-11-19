@@ -1,0 +1,107 @@
+[
+ {
+  "nom": "TABLE-4 — aucune rangée n'est séparée",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext.rs",
+  "avant": "        rang > 0\n            && self.lines",
+  "apres": "        rang > usize::MAX - 1\n            && self.lines",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ },
+ {
+  "nom": "TABLE-4 — la rangée sous le filet de l'en-tête est séparée aussi",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext.rs",
+  "avant": "            && rangee(&self.lines[rang - 1])\n",
+  "apres": "            && (rangee(&self.lines[rang - 1])\n                || self.lines[rang - 1].kind == BlockKind::TableRule)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ },
+ {
+  "nom": "TABLE-4 — chaque ligne d'une rangée coupée est séparée",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext.rs",
+  "avant": ".is_some_and(|l| rangee(l) && l.first)",
+  "apres": ".is_some_and(|l| rangee(l) || l.first)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ },
+ {
+  "nom": "TABLE-4 — les pixels ne posent pas le filet",
+  "fichier": "crates/glucose-desktop/src/renderer/card.rs",
+  "avant": "        draw_separation(pixmap, (text, rang), gauche, layout, card.tint);\n",
+  "apres": "        let _ = (&gauche, draw_separation as fn(_, _, _, _, _));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ },
+ {
+  "nom": "TABLE-4 — les vecteurs ne posent pas le filet",
+  "fichier": "crates/glucose-desktop/src/renderer/card/vecteurs.rs",
+  "avant": "                v.rectangle_net(boite, encre);",
+  "apres": "                let _ = (boite, encre);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ },
+ {
+  "nom": "TABLE-4 — de loin, le filet disparaît",
+  "fichier": "crates/glucose-desktop/src/renderer/card/gris.rs",
+  "avant": "            poser(plein(boite, encre));",
+  "apres": "            let _ = (boite, encre);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ },
+ {
+  "nom": "TABLE-4 — le filet tombe au milieu de la ligne, pas entre les rangées",
+  "fichier": "crates/glucose-desktop/src/renderer/card/ornament.rs",
+  "avant": "        (gauche, y - layout.border / 2.0, largeur, layout.border),",
+  "apres": "        (gauche, y + layout.line_height / 2.0, largeur, layout.border),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_4"
+  ]
+ }
+]

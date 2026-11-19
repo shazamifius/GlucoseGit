@@ -11,7 +11,7 @@
 //! pas (LIGNE-1).
 
 use super::habit::{boite_de_la_carte, voile_de_la_carte};
-use super::ornament::{ornement_en_vecteurs, plaque_de_code};
+use super::ornament::{ornement_en_vecteurs, plaque_de_code, separation_de_rangee};
 use super::{encre_de_la_ligne, poser, CardLayout, TextCard};
 use crate::renderer::pass::Pass;
 use crate::renderer::richtext::draw::{boite_de_la_selection, ligne_en_vecteurs};
@@ -72,6 +72,11 @@ fn corps_en_vecteurs<V: Vectoriel>(
     for (rang, line) in text.lines.iter().enumerate() {
         let (haut, bas) = bande_d_une_ligne(&text.lines, rang, y, layout.line_height);
         if v.voit_la_bande(haut, bas) {
+            let gauche = (at.0 + layout.pad_x, y);
+            let separation = separation_de_rangee(text, rang, gauche, layout, card.tint);
+            if let Some((boite, encre)) = separation {
+                v.rectangle_net(boite, encre);
+            }
             ligne_en_vecteurs_de_carte(ctx, v, (at.0, y), layout, (text, line), (card, selection));
         }
         y += layout.line_height;

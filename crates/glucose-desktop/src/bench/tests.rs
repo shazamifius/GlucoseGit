@@ -280,7 +280,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// posées sur la grille de l'écran — 7 115 pixels, tous dans la bande et la rangée des onglets
 /// (12-1768 × 15-69), au plus 196 niveaux ; le canevas intact. Regardé avant/après, agrandi six
 /// fois : les minuscules sur des rangées entières, les traits des icônes d'un pixel.
-const EMPREINTE_TEMOIN: &str = "f9f33fd897dd2a6f";
+/// **Puis, le 19/11** (TABLE-4, fiche 125) : le filet entre les deux rangées du tableau, « citation »
+/// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
+/// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
+/// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
+const EMPREINTE_TEMOIN: &str = "d2e2a45d469f4808";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -400,7 +404,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis, le 18/11** (GRILLE-1 et GRILLE-2, fiche 120) : la bande, les onglets, les options de la
 /// flèche et la barre de la sélection sur la grille de l'écran — 14 218 pixels, aucun sur le
 /// canevas ; regardée avec l'image de l'écart.
-const EMPREINTE_TEMOIN_SELECTION: &str = "67066fbc8eaebf58";
+/// **Puis, le 19/11** (TABLE-4, fiche 125) : le filet entre les deux rangées du tableau, « citation »
+/// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
+/// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
+/// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
+const EMPREINTE_TEMOIN_SELECTION: &str = "ac234fa294118bef";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -508,7 +516,11 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 18/11** (GRILLE-1 et GRILLE-2, fiche 120) : le menu, les barres et la bande sur la
 /// grille de l'écran — 25 941 pixels, aucun sur le canevas ; regardé avant/après, agrandi quatre
 /// fois.
-const EMPREINTE_TEMOIN_MENU: &str = "5c407ab2b6289aa8";
+/// **Puis, le 19/11** (TABLE-4, fiche 125) : le filet entre les deux rangées du tableau, « citation »
+/// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
+/// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
+/// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
+const EMPREINTE_TEMOIN_MENU: &str = "7fdd71dbe57c3482";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

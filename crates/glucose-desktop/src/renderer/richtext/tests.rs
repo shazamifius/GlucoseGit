@@ -526,7 +526,10 @@ fn test_liste_1_un_enfant_se_decale_d_un_retrait() {
 }
 
 /// L'abscisse de la première encre de la deuxième ligne d'une carte large de 400, posée en
-/// (100, 100) : ce qui diffère du fond de la carte, quelle que soit la couleur de l'ornement.
+/// (100, 100) : ce qui diffère du fond de la carte, quelle que soit la couleur de l'ornement,
+/// sur **toute la bande de la ligne** — la puce, un petit disque centré sur la hauteur d'œil, est
+/// la première encre à gauche. Une seule rangée, au milieu de la ligne, la manquait et lisait le
+/// texte (décalé lui aussi) : casser la place de la puce ne faisait rien tomber (fiche 125).
 fn premiere_encre_de_la_deuxieme_ligne(texte: &str) -> u32 {
     use glucose_core::store::Store;
     use glucose_core::types::{Annotation, Viewport};
@@ -549,15 +552,20 @@ fn premiere_encre_de_la_deuxieme_ligne(texte: &str) -> u32 {
     let mut ui = crate::ui::UiState::new();
     let image = crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 400);
     let pas = 14.0 * LINE_FACTOR;
-    let milieu = (100.0 + 16.0 + pas * 1.5) as u32;
-    let fond = image.pixel(112, milieu).expect("dans l'image");
-    let ecart = |x: u32| {
-        let c = image.pixel(x, milieu).expect("dans l'image");
+    let (haut, bas) = (
+        (100.0 + 16.0 + pas) as u32,
+        (100.0 + 16.0 + 2.0 * pas) as u32,
+    );
+    let fond = image.pixel(112, haut).expect("dans l'image");
+    let ecart = |x: u32, y: u32| {
+        let c = image.pixel(x, y).expect("dans l'image");
         i32::from(c.red()).abs_diff(i32::from(fond.red()))
             + i32::from(c.green()).abs_diff(i32::from(fond.green()))
             + i32::from(c.blue()).abs_diff(i32::from(fond.blue()))
     };
-    (112..400).find(|&x| ecart(x) > 24).expect("de l'encre")
+    (112..400)
+        .find(|&x| (haut..bas).any(|y| ecart(x, y) > 24))
+        .expect("de l'encre")
 }
 
 /// **LISTE-1, à l'image** : la puce d'un enfant est dessinée un retrait (14) plus loin que celle
@@ -571,4 +579,85 @@ fn test_liste_1_la_puce_d_un_enfant_est_dessinee_un_retrait_plus_loin() {
         (ecart - 14.0).abs() <= 1.5,
         "la puce du frère à {frere}, celle de l'enfant à {enfant}"
     );
+}
+
+// ── Les rangées d'un tableau (TABLE-4, fiche 125) ────────────────────────────
+
+const TABLEAU: &str = "| a | b |\n|---|---|\n| x | y |\n| z | w |";
+
+/// **TABLE-4 — seule une rangée qui en suit une autre est séparée**, par sa première ligne : ni
+/// l'en-tête, ni la rangée sous le filet de l'en-tête, ni la suite d'une rangée coupée.
+#[test]
+fn test_table_4_seule_une_rangee_qui_en_suit_une_autre_est_separee() {
+    let layout = pose(TABLEAU, LARGE, TextMode::Rendered);
+    let separees: Vec<bool> = (0..layout.lines.len())
+        .map(|i| layout.separe_une_rangee(i))
+        .collect();
+    assert_eq!(separees, vec![false, false, false, true]);
+    let longue = format!(
+        "| a | b |\n|---|---|\n| x | {}|\n| z | w |",
+        "mot ".repeat(60)
+    );
+    let coupee = pose(&longue, LARGE, TextMode::Rendered);
+    assert!(coupee.lines.len() > 5, "la rangée du milieu est coupée");
+    let premieres: Vec<usize> = (0..coupee.lines.len())
+        .filter(|&i| coupee.separe_une_rangee(i))
+        .collect();
+    assert_eq!(
+        premieres,
+        vec![coupee.lines.len() - 1],
+        "la première ligne de « z » seule"
+    );
+}
+
+/// **TABLE-4, à l'image** : le filet passe entre deux rangées, de toute la largeur du texte —
+/// lu là où aucune lettre n'est, à droite. Preuve à l'envers : entre l'en-tête et son filet, et
+/// sous le filet, rien (la loi d'avant, partout).
+#[test]
+fn test_table_4_le_filet_passe_entre_deux_rangees() {
+    use glucose_core::store::Store;
+    use glucose_core::types::{Annotation, Viewport};
+    let mut store = Store::new("tableau");
+    let board = store.project.active_board_id.clone();
+    let mut carte = Annotation::text("c", 0.0, 0.0, TABLEAU);
+    if let Annotation::Text { width, .. } = &mut carte {
+        *width = Some(400.0);
+    }
+    store.add_annotation(&board, carte);
+    store.clear_selection();
+    let vue = Viewport {
+        x: 100.0,
+        y: 100.0,
+        scale: 1.0,
+    };
+    store.set_viewport(&board, vue);
+    let store = crate::bench::ouvert(store);
+    let mut renderer = crate::renderer::Renderer::new();
+    let mut ui = crate::ui::UiState::new();
+    let image = crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 400);
+    let pas = 14.0 * LINE_FACTOR;
+    let x = 470;
+    let fond = image
+        .pixel(x, (100.0 + 16.0 + 0.5 * pas) as u32)
+        .expect("dans l'image");
+    let encre_autour = |frontiere: f32| {
+        let y = (100.0 + 16.0 + frontiere * pas).round() as u32;
+        (y - 2..=y + 2)
+            .map(|y| {
+                let c = image.pixel(x, y).expect("dans l'image");
+                i32::from(c.red()).abs_diff(i32::from(fond.red()))
+                    + i32::from(c.green()).abs_diff(i32::from(fond.green()))
+                    + i32::from(c.blue()).abs_diff(i32::from(fond.blue()))
+            })
+            .max()
+            .unwrap_or(0)
+    };
+    assert!(encre_autour(3.0) > 24, "un filet entre « x » et « z »");
+    for frontiere in [1.0, 2.0] {
+        assert!(
+            encre_autour(frontiere) <= 8,
+            "rien à la frontière {frontiere} : {}",
+            encre_autour(frontiere)
+        );
+    }
 }

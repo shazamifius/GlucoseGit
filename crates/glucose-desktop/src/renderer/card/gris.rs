@@ -55,7 +55,12 @@ pub(super) fn formes_de_loin(
     let hauteur_monde = layout.line_height / zoom;
     let gauche = at.0 + layout.pad_x;
     let mut y = at.1 + layout.pad_y;
-    for line in &text.lines {
+    for (rang, line) in text.lines.iter().enumerate() {
+        let separation =
+            super::ornament::separation_de_rangee(text, rang, (gauche, y), layout, card.tint);
+        if let Some((boite, encre)) = separation {
+            poser(plein(boite, encre));
+        }
         if line.kind == BlockKind::Code {
             let plaque = super::ornament::plaque_de_code((gauche, y), layout);
             poser(plein(plaque, ctx.theme.code_bg));

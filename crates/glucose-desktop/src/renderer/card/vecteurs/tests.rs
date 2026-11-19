@@ -204,3 +204,146 @@ fn test_le_releve_voit_toute_bande_qui_touche_l_ecran() {
         );
     }
 }
+
+/// Un peintre qui ne retient que le centre de chaque puce.
+#[derive(Default)]
+struct Puces(Vec<(f32, f32)>);
+
+impl Vectoriel for Puces {
+    fn rectangle(&mut self, _: (f32, f32, f32, f32), _: f32, _: Color) {}
+    fn rectangle_net(&mut self, _: (f32, f32, f32, f32), _: Color) {}
+    fn anneau(&mut self, _: Arrondi, _: f32, _: Color) {}
+    fn disque(&mut self, centre: (f32, f32), _: f32, _: Color) {
+        self.0.push(centre);
+    }
+    fn groupe(&mut self, _: &str, _: Color) {}
+    fn fin_du_groupe(&mut self) {}
+    fn glyphe(&mut self, _: (Police, u16), _: (f32, f32), _: f32) {}
+    fn forme(&mut self, _: &Forme, _: (f32, f32, f32, f32), _: Option<f32>, _: Color) {}
+}
+
+/// **LISTE-1, en vecteurs** (fiche 123) : la puce d'un enfant est posée un retrait plus loin que
+/// celle d'un frère — ce que le SVG et la carte graphique reçoivent. Le sabotage de cette place
+/// passait (fiche 125) : aucune épreuve ne lisait la puce dessinée en vecteurs.
+#[test]
+fn test_liste_1_vecteur_la_puce_d_un_enfant_est_un_retrait_plus_loin() {
+    let renderer = crate::renderer::Renderer::new();
+    let kit = renderer.kit();
+    let ctx = Pass {
+        typography: kit.typography,
+        math: kit.math,
+        mises_en_page: kit.mises_en_page,
+        tints: kit.tints,
+        theme: kit.theme,
+        vp: glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+        scale: WorldScale::new(1.0, 1.0),
+        clip: Clip {
+            width: 800.0,
+            height: 600.0,
+            top: 0.0,
+        },
+        poignees: true,
+    };
+    let puces = |texte: &str| {
+        let mut p = Puces::default();
+        let carte = TextCard {
+            origin: (0.0, 0.0),
+            size: (400.0, 0.0),
+            body: texte,
+            tint: (120, 160, 220),
+            fond: (20, 16, 16),
+            eclaires: None,
+            selected: false,
+            editing: None,
+        };
+        carte_en_vecteurs(&ctx, carte, &mut p);
+        p.0
+    };
+    let (freres, famille) = (puces("- a\n- b"), puces("- a\n  - b"));
+    assert_eq!((freres.len(), famille.len()), (2, 2), "deux puces chacune");
+    assert_eq!(freres[0], famille[0], "la première puce ne bouge pas");
+    let retrait = famille[1].0 - freres[1].0;
+    assert!(
+        (retrait - 14.0).abs() < 1e-3,
+        "la puce de l'enfant est un retrait (14) plus loin : {retrait}"
+    );
+}
+
+/// Un peintre qui ne retient que les rectangles nets (les filets).
+#[derive(Default)]
+struct Filets(Vec<(f32, f32, f32, f32)>);
+
+impl Vectoriel for Filets {
+    fn rectangle(&mut self, _: (f32, f32, f32, f32), _: f32, _: Color) {}
+    fn rectangle_net(&mut self, boite: (f32, f32, f32, f32), _: Color) {
+        self.0.push(boite);
+    }
+    fn anneau(&mut self, _: Arrondi, _: f32, _: Color) {}
+    fn disque(&mut self, _: (f32, f32), _: f32, _: Color) {}
+    fn groupe(&mut self, _: &str, _: Color) {}
+    fn fin_du_groupe(&mut self) {}
+    fn glyphe(&mut self, _: (Police, u16), _: (f32, f32), _: f32) {}
+    fn forme(&mut self, _: &Forme, _: (f32, f32, f32, f32), _: Option<f32>, _: Color) {}
+}
+
+/// **TABLE-4, en vecteurs** (fiche 125) : le SVG et la carte graphique reçoivent le filet entre
+/// deux rangées, une ligne et demie sous celui de l'en-tête, de la même largeur.
+#[test]
+fn test_table_4_vecteur_le_filet_passe_entre_deux_rangees() {
+    let renderer = crate::renderer::Renderer::new();
+    let kit = renderer.kit();
+    let ctx = Pass {
+        typography: kit.typography,
+        math: kit.math,
+        mises_en_page: kit.mises_en_page,
+        tints: kit.tints,
+        theme: kit.theme,
+        vp: glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+        scale: WorldScale::new(1.0, 1.0),
+        clip: Clip {
+            width: 800.0,
+            height: 600.0,
+            top: 0.0,
+        },
+        poignees: true,
+    };
+    let filets = |texte: &str| {
+        let mut f = Filets::default();
+        let carte = TextCard {
+            origin: (0.0, 0.0),
+            size: (400.0, 0.0),
+            body: texte,
+            tint: (120, 160, 220),
+            fond: (20, 16, 16),
+            eclaires: None,
+            selected: false,
+            editing: None,
+        };
+        carte_en_vecteurs(&ctx, carte, &mut f);
+        f.0
+    };
+    let deux = filets("| a | b |\n|---|---|\n| x | y |");
+    let trois = filets("| a | b |\n|---|---|\n| x | y |\n| z | w |");
+    assert_eq!(deux.len(), 1, "l'en-tête seul a son filet : {deux:?}");
+    assert_eq!(
+        trois.len(),
+        2,
+        "et un filet entre « x » et « z » : {trois:?}"
+    );
+    let (entete, rangee) = (trois[0], trois[1]);
+    let centre = |b: (f32, f32, f32, f32)| b.1 + b.3 / 2.0;
+    let pas = 14.0 * LINE_FACTOR;
+    assert!(
+        (centre(rangee) - centre(entete) - 1.5 * pas).abs() < 1.0,
+        "{entete:?} puis {rangee:?}"
+    );
+    assert!((rangee.2 - entete.2).abs() < 1e-3, "de la même largeur");
+}

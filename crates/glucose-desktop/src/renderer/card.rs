@@ -80,7 +80,7 @@ use dessus::dessiner_les_ornements;
 use glucose_core::text::{BlockKind, Selection};
 use habit::draw_card_papier;
 pub(super) use habit::{forme_de_la_carte, papier};
-use ornament::{draw_code_plate, draw_ornament};
+use ornament::{draw_code_plate, draw_ornament, draw_separation};
 pub(crate) use texte_seul::peindre_le_texte_seul;
 use tiny_skia::{Color, PixmapMut};
 
@@ -418,7 +418,9 @@ fn draw_card_body(
     let selection = card.editing.map(|s| s.selection).unwrap_or_default();
     draw_passages(ctx, pixmap, text, card);
     let mut cur_y = at.1 + layout.pad_y;
-    for line in &text.lines {
+    for (rang, line) in text.lines.iter().enumerate() {
+        let gauche = (at.0 + layout.pad_x, cur_y);
+        draw_separation(pixmap, (text, rang), gauche, layout, card.tint);
         draw_text_line(
             ctx,
             pixmap,
