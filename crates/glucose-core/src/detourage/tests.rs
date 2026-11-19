@@ -47,9 +47,9 @@ fn test_detourer_1_le_modele_embarque_se_lit() {
 
 /// **Le moteur rend l'étalon en numpy** (lui-même à 2·10⁻⁵ d'ONNX Runtime), sur toute l'image.
 /// La borne : numpy accumule ses convolutions en f64, le moteur en f32 (et en FMA quand le
-/// processeur l'a) — sur 119 convolutions enchaînées, l'écart mesuré le 18/11 est de 4·10⁻⁵ ; un
-/// opérateur faux (un décalage d'un pixel, un repère d'agrandissement, un ReLU oublié) le porte à
-/// plusieurs dixièmes.
+/// processeur l'a) — sur 119 convolutions enchaînées, l'écart mesuré est de 4·10⁻⁵ (le 18/11, et
+/// encore avec la convolution par tuiles, le 19/11) ; un opérateur faux (un décalage d'un pixel, un
+/// repère d'agrandissement, un ReLU oublié) le porte à plusieurs dixièmes.
 #[test]
 fn test_detourer_1_le_moteur_rend_l_etalon() {
     let m = embarque().expect("modèle");

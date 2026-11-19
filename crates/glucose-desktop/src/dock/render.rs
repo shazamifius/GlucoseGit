@@ -213,23 +213,19 @@ pub(super) fn draw_panel(
     draw_content(pixmap, brush, dock, store, panel.tab, panel.contenu(s));
 }
 
-/// L'ombre, le fond, la bordure et la poignée — ce que tout panneau a en commun.
+/// Le fond, la bordure et la poignée — ce que tout panneau a en commun. **Plat** (TIROIR-4) :
+/// ni ombre ni coin arrondi, un filet d'un pixel — la charte (`style.md` : « pas d'ombre portée
+/// molle », « coins peu ou pas arrondis sur la chrome ») ; ses « bulles » du 17/11 étaient
+/// l'ombre de huit pixels et les coins de six. Un tiroir tiré se dit par son filet d'accent.
 fn draw_frame(pixmap: &mut PixmapMut, brush: &Brush, panel: &PanelLayoutBox, seen: WidgetRect) {
     let theme = brush.theme;
-    let shadow = panel.shadow(brush.s);
-    let shadow_color = if panel.is_dragged {
-        theme.panel_shadow_dragged
-    } else {
-        theme.panel_shadow
-    };
-    brush.fill(pixmap, shadow, brush.px(8.0), shadow_color);
-    brush.fill(pixmap, seen, brush.px(6.0), theme.bg_panel);
+    brush.fill(pixmap, seen, 0.0, theme.bg_panel);
     let border = if panel.is_dragged {
         theme.border_accent
     } else {
         theme.border_subtle
     };
-    brush.stroke(pixmap, seen, brush.px(6.0), border, brush.px(1.0));
+    brush.stroke(pixmap, seen, 0.0, border, brush.px(1.0));
 
     let grip_center = (
         seen.x + seen.w / 2.0,

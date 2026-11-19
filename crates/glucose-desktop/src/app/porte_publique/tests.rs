@@ -269,11 +269,12 @@ fn publique_1_une_ia_du_nuage_entre_par_le_clic_de_l_utilisateur_signe_puis_sort
         "{}",
         q.texte
     );
+    // Le code de sa page, en tête : dans le titre (fiche 122).
     let espace: Vec<String> = code_affiche.chars().map(String::from).collect();
     assert!(
-        q.texte.contains(&espace.join(" ")),
+        q.titre.starts_with(&format!("Code {}", espace.join(" "))),
         "le code de sa page : {}",
-        q.texte
+        q.titre
     );
     repondre(&mut app, Reponse::Choix(0));
 
@@ -433,4 +434,39 @@ fn publique_1_une_ia_du_nuage_entre_par_le_clic_de_l_utilisateur_signe_puis_sort
         "le secret, donc l'adresse, ne change pas"
     );
     let _ = std::fs::remove_dir_all(&dossier);
+}
+
+/// **TEMOIN-2 — le témoin dit où l'IA travaille** : dans l'onglet qu'il regarde, « ton
+/// canevas » ; dans un autre, son nom — c'est ce qui manquait le 19/11, quand Claude.ai a tout
+/// posé dans « Textes optimisés » pendant qu'il regardait le premier onglet. Le même onglet,
+/// sans silence, ne se redit pas ; un changement d'onglet, si.
+#[test]
+fn test_temoin_2_le_temoin_dit_l_onglet_ou_l_ia_travaille() {
+    let mut app = GlucoseApp::new();
+    let regarde = app.store.project.active_board_id.clone();
+    let (autre, _) = app
+        .store
+        .ouvrir_un_tableau_pour_un_agent("Textes optimisés")
+        .expect("un onglet");
+    let ia = "Claude (claude.ai)";
+    app.temoigner(ia, &regarde);
+    assert_eq!(
+        app.ui.toast_message(),
+        Some("Claude (claude.ai) travaille dans ton canevas")
+    );
+    app.temoigner(ia, &autre);
+    let ailleurs = "Claude (claude.ai) travaille dans l'onglet « Textes optimisés »";
+    assert_eq!(app.ui.toast_message(), Some(ailleurs));
+    app.ui.current_toast = None;
+    app.temoigner(ia, &autre);
+    assert_eq!(
+        app.ui.toast_message(),
+        None,
+        "le même onglet, sans silence, se redit"
+    );
+    app.temoigner(ia, &regarde);
+    assert_eq!(
+        app.ui.toast_message(),
+        Some("Claude (claude.ai) travaille dans ton canevas")
+    );
 }

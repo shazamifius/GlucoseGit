@@ -1,0 +1,123 @@
+[
+ {
+  "nom": "LISTE-1 — la profondeur n'est jamais comptée",
+  "fichier": "crates/glucose-core/src/text/block.rs",
+  "avant": "let niveau = u8::try_from(self.listes.len()).unwrap_or(u8::MAX);",
+  "apres": "let niveau = u8::try_from(self.listes.len()).unwrap_or(u8::MAX) * 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — un élément à la colonne du texte devient un frère",
+  "fichier": "crates/glucose-core/src/text/block.rs",
+  "avant": "is_some_and(|&texte| retrait < texte)",
+  "apres": "is_some_and(|&texte| retrait <= texte)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — un tiret décalé n'est pas une puce (l'ancienne loi)",
+  "fichier": "crates/glucose-core/src/text/block.rs",
+  "avant": "let retrait = line.len() - line.trim_start_matches(' ').len();\n    let reste = &line[retrait..];",
+  "apres": "let retrait = 0 * line.len();\n    let reste = &line[retrait..];",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — une ligne au bord ne ferme pas la liste",
+  "fichier": "crates/glucose-core/src/text/block.rs",
+  "avant": "                self.listes.clear();",
+  "apres": "                self.listes.truncate(usize::MAX);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — une ligne vide ferme la liste",
+  "fichier": "crates/glucose-core/src/text/block.rs",
+  "avant": "_ if retrait > 0 || ligne.trim().is_empty() => kind,",
+  "apres": "_ if retrait > 0 => kind,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — le texte d'un enfant ne se décale pas",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/genre.rs",
+  "avant": "unit * (f32::from(niveau) + 1.0)",
+  "apres": "unit * (0.0 * f32::from(niveau) + 1.0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — le dessin en pixels pose la puce d'un enfant à la marge",
+  "fichier": "crates/glucose-desktop/src/renderer/card/ornament.rs",
+  "avant": "    let left = left + retrait_d_ornement(line.kind, layout.indent);\n    match line.kind {\n        BlockKind::Bullet { .. } if line.first => {\n            draw_bullet(",
+  "apres": "    match line.kind {\n        BlockKind::Bullet { .. } if line.first => {\n            draw_bullet(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "liste_1"
+  ]
+ },
+ {
+  "nom": "LISTE-1 — le dessin vectoriel pose la puce d'un enfant à la marge",
+  "fichier": "crates/glucose-desktop/src/renderer/card/ornament.rs",
+  "avant": "    let left = left + retrait_d_ornement(line.kind, layout.indent);\n    match line.kind {\n        BlockKind::Bullet { .. } if line.first => {\n            v.disque(",
+  "apres": "    match line.kind {\n        BlockKind::Bullet { .. } if line.first => {\n            v.disque(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "liste_1",
+   "vecteur",
+   "voie"
+  ]
+ }
+]

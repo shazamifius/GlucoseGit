@@ -64,10 +64,7 @@ impl GlucoseApp {
             return;
         }
 
-        if self.dock_manager.drag.is_some() {
-            self.dock_manager
-                .update_drag(position.x as f32, position.y as f32);
-            self.mark_dirty();
+        if self.glisser_le_tiroir((position.x as f32, position.y as f32)) {
             return;
         }
 
@@ -330,7 +327,7 @@ impl GlucoseApp {
                 // Un appui dans la fenêtre des liens, relâché sans bouger, y mène (LIEN-3).
                 self.relacher_dans_la_fenetre();
                 self.dock_manager.temps.glisse = false;
-                if let Some(dismissed) = self.dock_manager.finish_drag() {
+                if let Some(dismissed) = self.lacher_le_tiroir() {
                     self.ui
                         .show_toast(format!("Panneau {} fermé", dismissed.title()));
                     self.mark_dirty();

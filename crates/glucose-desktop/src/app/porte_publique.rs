@@ -271,18 +271,32 @@ impl GlucoseApp {
     }
 
     /// **Le témoin** : une IA du nuage qui se met à travailler dans le canevas le dit, une fois
-    /// par reprise.
-    pub(crate) fn temoigner(&mut self, signature: &str) {
+    /// par reprise — et **où**, quand c'est dans un autre onglet que celui qu'il regarde, et chaque
+    /// fois qu'elle change d'onglet (TEMOIN-2, fiche 123). Le 19/11, Claude.ai a tout posé dans
+    /// un onglet neuf, « Textes optimisés », pendant qu'il regardait le premier ; le témoin disait
+    /// « travaille dans ton canevas », et lui : *« mon Glucose n'a juste pas changé du tout »*.
+    pub(crate) fn temoigner(&mut self, signature: &str, onglet: &str) {
         let maintenant = Instant::now();
-        let reprise = self
-            .lancement
-            .agents
+        let agents = &mut self.lancement.agents;
+        let reprise = agents
             .dernier_geste_public
             .is_none_or(|t| maintenant.duration_since(t) > SILENCE);
-        self.lancement.agents.dernier_geste_public = Some(maintenant);
-        if reprise {
-            self.dire_ce_qui_arrive_au_canevas(format!("{signature} travaille dans ton canevas"));
+        let ailleurs = agents.dernier_onglet_public.as_deref() != Some(onglet);
+        agents.dernier_geste_public = Some(maintenant);
+        agents.dernier_onglet_public = Some(onglet.to_string());
+        if !(reprise || ailleurs) {
+            return;
         }
+        let nom = self
+            .store
+            .onglets()
+            .find(|(id, _, regarde)| *id == onglet && !regarde)
+            .map(|(_, nom, _)| nom.to_string());
+        let phrase = match nom {
+            Some(nom) => format!("{signature} travaille dans l'onglet « {nom} »"),
+            None => format!("{signature} travaille dans ton canevas"),
+        };
+        self.dire_ce_qui_arrive_au_canevas(phrase);
     }
 
     /// **Ce qu'un autre vient de faire dans ton canevas** — une IA du nuage qui s'y met (le
@@ -301,15 +315,17 @@ fn mots_des_droits(d: Droits) -> &'static str {
 }
 
 /// **La question d'accord** : qui, d'où, le code de sa page — et ce que chaque réponse donne.
+/// **Le code est dans le titre**, en tête : au milieu du texte, de la taille du reste, il ne se
+/// voyait pas (sa question « 272 ? » du 19/11, fiche 122) — la page de l'IA l'écrit en grand.
 fn question_d_accord(code: &str, nom: &str, hote: &str) -> Question {
     let code: String = code.chars().map(String::from).collect::<Vec<_>>().join(" ");
     Question {
-        titre: "Une IA demande ta porte".into(),
+        titre: format!("Code {code} · une IA demande ta porte"),
         texte: format!(
             "« {nom} », depuis {hote}, demande l'accès au document ouvert : le lire, et y \
-             travailler sous tes yeux.\n\nCode : {code} — le même que sur la page de ton IA ? \
-             Sinon, refuse.\n\nChacun de ses gestes sera signé de son nom et s'annulera par \
-             Ctrl+Z ; Collaborer la retire quand tu veux."
+             travailler sous tes yeux.\n\nLa page de ton IA montre-t-elle le même code ? Sinon, \
+             refuse.\n\nChacun de ses gestes sera signé de son nom et s'annulera par Ctrl+Z ; \
+             Collaborer la retire quand tu veux."
         ),
         choix: vec![
             ("Lire et écrire".into(), LIRE_ET_ECRIRE),

@@ -28,5 +28,20 @@
    "--",
    "publique_1_une_ia_du_nuage_entre"
   ]
+ },
+ {
+  "nom": "PUBLIQUE-1 — le code de la page quitte le titre de la question",
+  "fichier": "crates/glucose-desktop/src/app/porte_publique.rs",
+  "avant": "titre: format!(\"Code {code} · une IA demande ta porte\"),",
+  "apres": "titre: format!(\"Une IA demande ta porte {}\", code.len()),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "publique_1_une_ia_du_nuage_entre"
+  ]
  }
 ]

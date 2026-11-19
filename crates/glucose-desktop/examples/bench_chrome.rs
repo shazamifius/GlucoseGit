@@ -57,8 +57,7 @@ const GRAINE: u64 = 0x91ac05e;
 /// Un dock n'ouvrant que cet onglet — pour mesurer un panneau, et non leur somme.
 fn dock_avec(tab: TabId) -> DockManager {
     let mut dock = DockManager::new();
-    dock.top_tabs.clear();
-    dock.bottom_tabs.clear();
+    dock.tout_fermer();
     // Le dock sait de quel côté ranger l'onglet : le banc n'a pas à le redire.
     dock.toggle_tab(tab);
     dock

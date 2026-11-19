@@ -115,7 +115,7 @@ fn test_wrap_1_a_bulleted_paragraph_keeps_its_bullet_on_its_first_line_only() {
     let lines = lignes(&typo, text, 200.0);
     let bullets: Vec<&VisualLine> = lines
         .iter()
-        .filter(|l| l.kind == BlockKind::Bullet)
+        .filter(|l| l.kind == BlockKind::Bullet { niveau: 0 })
         .collect();
     assert!(bullets.len() >= 2, "{lines:?}");
     assert!(bullets[0].first && bullets[1..].iter().all(|l| !l.first));
@@ -162,9 +162,15 @@ fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
     assert_eq!(genre("# Titre"), BlockKind::Heading(1));
     assert_eq!(genre("## Sous-titre"), BlockKind::Heading(2));
     assert_eq!(genre("###### Six"), BlockKind::Heading(6));
-    assert_eq!(genre("- une puce"), BlockKind::Bullet);
-    assert_eq!(genre("* une autre"), BlockKind::Bullet);
-    assert_eq!(genre("1. un élément"), BlockKind::Ordered(1));
+    assert_eq!(genre("- une puce"), BlockKind::Bullet { niveau: 0 });
+    assert_eq!(genre("* une autre"), BlockKind::Bullet { niveau: 0 });
+    assert_eq!(
+        genre("1. un élément"),
+        BlockKind::Ordered {
+            numero: 1,
+            niveau: 0
+        }
+    );
     assert_eq!(genre("> une citation"), BlockKind::Quote);
     assert_eq!(genre("-# du petit texte"), BlockKind::Small);
     assert_eq!(genre("---"), BlockKind::Rule);

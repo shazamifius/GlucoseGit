@@ -17,8 +17,7 @@ fn app() -> GlucoseApp {
         b.annotations.clear();
     }
     app.store.journal.clear();
-    app.dock_manager.top_tabs.clear();
-    app.dock_manager.bottom_tabs.clear();
+    app.dock_manager.tout_fermer();
     app.dock_manager.toggle_tab(TabId::Preset);
     app
 }
@@ -67,7 +66,7 @@ fn test_preset_1_un_gabarit_se_pose_la_ou_on_l_a_vu() {
     cliquer_le_gabarit(&mut app, 3);
     assert_eq!(app.ui.placement.gabarit.as_deref(), Some("props"));
     assert!(
-        !app.dock_manager.top_tabs.contains(&TabId::Preset),
+        !app.dock_manager.is_open(TabId::Preset),
         "le panneau se ferme"
     );
 

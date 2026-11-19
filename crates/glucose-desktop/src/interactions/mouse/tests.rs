@@ -822,3 +822,55 @@ fn test_vide_1_un_appui_dans_le_vide_de_la_bande_ne_commence_rien_sur_le_canevas
     }
     assert_eq!(app.store.viewport(), vue, "la vue n'a pas bougé");
 }
+
+/// **TIROIR-4 — un tiroir s'ouvre du côté de son bouton**, par la souris sur la vraie bande :
+/// chacun des sept, ouvert par son bouton, est collé au bord du côté du **groupe** de la bande où
+/// son bouton est dessiné — celui de gauche, ou celui de droite, qui commence à « Collaborer ».
+/// Pas la moitié de l'écran : à 1440 pixels, le groupe de gauche la dépasse (Storyboard à 724),
+/// et un tiroir changerait de côté avec la largeur de la fenêtre (sa capture du 17/11 : la Time Machine, bouton à gauche, s'ouvrait à
+/// droite ; Domaines, à droite, s'ouvrait à gauche).
+#[test]
+fn test_tiroir_4_chaque_tiroir_s_ouvre_du_cote_de_son_bouton() {
+    for (action, tab) in [
+        (UiAction::Organize, TabId::Organize),
+        (UiAction::ToggleTimer, TabId::Pomodoro),
+        (UiAction::ToggleTimeMachine, TabId::Temps),
+        (UiAction::ToggleStoryboard, TabId::Storyboard),
+        (UiAction::TogglePlugins, TabId::Plugins),
+        (UiAction::TogglePreset, TabId::Preset),
+        (UiAction::ToggleDomains, TabId::Domains),
+    ] {
+        let mut app = GlucoseApp::new();
+        click_topbar(&mut app, action.clone());
+        assert!(
+            app.dock_manager.is_open(tab),
+            "{tab:?} s'ouvre par son bouton"
+        );
+        let barre = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, 0);
+        let bouton = barre
+            .buttons
+            .iter()
+            .find(|b| b.action == action)
+            .expect("le bouton");
+        let ecran = app.screen_frame(SCREEN.0, SCREEN.1);
+        let tiroir = crate::dock::places(&app.dock_manager, &app.store, ecran)
+            .into_iter()
+            .find(|b| b.tab == tab)
+            .expect("posé");
+        let collaborer = barre
+            .buttons
+            .iter()
+            .find(|b| b.action == UiAction::ToggleCollab)
+            .expect("Collaborer ouvre le groupe de droite");
+        let colle = if bouton.x < collaborer.x {
+            tiroir.x == 0.0
+        } else {
+            (tiroir.x + tiroir.width - SCREEN.0).abs() < 0.01
+        };
+        assert!(
+            colle,
+            "{tab:?} : son bouton est à {}, son tiroir à {}",
+            bouton.x, tiroir.x
+        );
+    }
+}

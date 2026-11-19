@@ -18,7 +18,7 @@ const CADRE: ScaledRect = ScaledRect {
 
 fn app_au_panneau() -> GlucoseApp {
     let mut app = GlucoseApp::new();
-    app.dock_manager.top_tabs = vec![TabId::Domains];
+    app.dock_manager.droite = vec![TabId::Domains];
     let board = app.store.project.active_board_id.clone();
     app.store.add_annotation(
         &board,
@@ -573,7 +573,7 @@ fn la_molette_fait_defiler_les_rangees() {
         app.molette_sur_les_domaines(1.0);
     }
     assert_eq!(app.dock_manager.domains.decalage, 0, "borné en haut");
-    app.dock_manager.top_tabs.clear();
+    app.dock_manager.tout_fermer();
     assert!(
         !app.molette_sur_les_domaines(-1.0),
         "panneau fermé : le canevas la reprend"
@@ -602,7 +602,7 @@ fn le_panneau_suit_le_catalogue() {
         "rien n'a changé"
     );
 
-    app.dock_manager.top_tabs.clear();
+    app.dock_manager.tout_fermer();
     app.store
         .creer_un_domaine("Feu", ("#000000".into(), "F".into()), 1)
         .unwrap();
@@ -612,7 +612,7 @@ fn le_panneau_suit_le_catalogue() {
         "fermé : rien"
     );
 
-    app.dock_manager.top_tabs = vec![TabId::Domains];
+    app.dock_manager.droite = vec![TabId::Domains];
     app.suivre_le_recensement();
     assert_eq!(
         app.dock_manager.domains.connus.ailleurs.len(),

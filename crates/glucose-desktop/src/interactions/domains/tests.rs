@@ -23,7 +23,7 @@ const SCREEN: ScreenFrame = ScreenFrame {
 /// Une application dont l'onglet DOMAINES est ouvert, avec un nœud texte et une image.
 pub(super) fn app_with_panel() -> GlucoseApp {
     let mut app = GlucoseApp::new();
-    app.dock_manager.top_tabs = vec![TabId::Domains];
+    app.dock_manager.droite = vec![TabId::Domains];
     let board = app.store.project.active_board_id.clone();
     // La hauteur d'une carte est celle de son texte (TEXT-FIT-1) : une carte créée
     // autrement serait recalée à l'ouverture, et le document relu différerait.

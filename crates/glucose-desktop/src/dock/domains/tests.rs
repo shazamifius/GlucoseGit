@@ -92,7 +92,7 @@ fn domains_frame(dock: &DockManager, store: &Store) -> ScaledRect {
 
 fn dock_with_domains() -> DockManager {
     let mut dock = DockManager::new();
-    dock.top_tabs = vec![TabId::Domains];
+    dock.droite = vec![TabId::Domains];
     dock
 }
 

@@ -1,0 +1,92 @@
+[
+ {
+  "nom": "TIROIR-4 — Storyboard s'ouvre à droite (la moitié de l'écran au lieu du groupe de la bande)",
+  "fichier": "crates/glucose-desktop/src/dock.rs",
+  "avant": "Self::Organize | Self::Pomodoro | Self::Temps | Self::Storyboard => Cote::Gauche,\n            Self::Plugins | Self::Preset | Self::Domains => Cote::Droite,",
+  "apres": "Self::Organize | Self::Pomodoro | Self::Temps => Cote::Gauche,\n            Self::Storyboard | Self::Plugins | Self::Preset | Self::Domains => Cote::Droite,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "tiroir_"
+  ]
+ },
+ {
+  "nom": "TIROIR-4 — first fit devient « last fit » (la dernière colonne où il tient)",
+  "fichier": "crates/glucose-desktop/src/dock.rs",
+  "avant": ".iter_mut()\n            .find(|(haut, _)| haut + hauteur <= place)",
+  "apres": ".iter_mut()\n            .rev()\n            .find(|(haut, _)| haut + hauteur <= place)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "tiroir_"
+  ]
+ },
+ {
+  "nom": "TIROIR-4 — une colonne de trop sort de l'écran",
+  "fichier": "crates/glucose-desktop/src/dock.rs",
+  "avant": ".clamp(0.0, (screen_w - width).max(0.0));",
+  "apres": ".max(f32::MIN);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "tiroir_"
+  ]
+ },
+ {
+  "nom": "TIROIR-3 — là où deux se croisent, le clic va à celui qu'on ne voit pas",
+  "fichier": "crates/glucose-desktop/src/dock.rs",
+  "avant": "        .into_iter()\n        .rev()\n        .find(|(_, vu, _)| vu.contains(p.x, p.y))",
+  "apres": "        .into_iter()\n        .find(|(_, vu, _)| vu.contains(p.x, p.y))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "tiroir_"
+  ]
+ },
+ {
+  "nom": "TIROIR-4 — un tiroir de gauche se ferme tiré vers la droite",
+  "fichier": "crates/glucose-desktop/src/dock.rs",
+  "avant": "Cote::Gauche => vu.x < -DISMISS_DRAG_PX,",
+  "apres": "Cote::Gauche => vu.x + vu.w > largeur_d_ecran + DISMISS_DRAG_PX,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dock_drag"
+  ]
+ },
+ {
+  "nom": "TIROIR-4 — le tiroir rangé saute (la main n'est pas recalée)",
+  "fichier": "crates/glucose-desktop/src/dock.rs",
+  "avant": "                drag.start_x += apres.x - x0;\n                drag.start_y += apres.y - y0;",
+  "apres": "                drag.start_x += 0.0 * (apres.x - x0);\n                drag.start_y += 0.0 * (apres.y - y0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "dock_drag"
+  ]
+ }
+]

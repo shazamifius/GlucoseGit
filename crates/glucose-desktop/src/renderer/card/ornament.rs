@@ -13,7 +13,9 @@
 use super::{CardLayout, TextCard, BULLET_BASELINE};
 use crate::params::Pen;
 use crate::renderer::pass::Pass;
-use crate::renderer::richtext::{ink_of, mode_of, place_d_une_formule, VisualLine};
+use crate::renderer::richtext::{
+    ink_of, mode_of, place_d_une_formule, retrait_d_ornement, VisualLine,
+};
 use crate::renderer::vectoriel::Vectoriel;
 use crate::typography::{Face, TextStyle};
 use glucose_core::text::BlockKind;
@@ -36,9 +38,12 @@ pub(super) fn draw_ornament(
     line: &VisualLine,
     card: &TextCard,
 ) -> bool {
+    let left = left + retrait_d_ornement(line.kind, layout.indent);
     match line.kind {
-        BlockKind::Bullet if line.first => draw_bullet(pixmap, (left, y), layout, card.tint),
-        BlockKind::Ordered(n) if line.first => {
+        BlockKind::Bullet { .. } if line.first => {
+            draw_bullet(pixmap, (left, y), layout, card.tint);
+        }
+        BlockKind::Ordered { numero: n, .. } if line.first => {
             draw_ordinal(ctx, pixmap, (left, y), layout, n, card.tint);
         }
         BlockKind::Quote => draw_quote_bar(pixmap, (left, y), layout, card.tint),
@@ -73,8 +78,9 @@ pub(super) fn ornement_de_loin(
 ) -> bool {
     use super::gris::plein;
     let encre = encre_d_ornement(card.tint);
+    let left = left + retrait_d_ornement(line.kind, layout.indent);
     match line.kind {
-        BlockKind::Bullet if line.first => {
+        BlockKind::Bullet { .. } if line.first => {
             let ((cx, cy), r) = (centre_de_la_puce((left, y), layout), layout.bullet);
             let disque = (cx - r, cy - r, 2.0 * r, 2.0 * r);
             poser((
@@ -84,7 +90,7 @@ pub(super) fn ornement_de_loin(
                 encre,
             ));
         }
-        BlockKind::Ordered(n) if line.first => {
+        BlockKind::Ordered { numero: n, .. } if line.first => {
             let mut buf = [0u8; ORDINAL_MAX];
             let (label, (x, y), style) = numero(ctx, (left, y), layout, (n, card.tint), &mut buf);
             let chiffres = label.chars().map(|c| (c, Some(Face::Regular)));
@@ -355,11 +361,12 @@ pub(super) fn ornement_en_vecteurs<V: Vectoriel>(
     (line, card): (&VisualLine, &TextCard),
 ) -> bool {
     let encre = encre_d_ornement(card.tint);
+    let left = left + retrait_d_ornement(line.kind, layout.indent);
     match line.kind {
-        BlockKind::Bullet if line.first => {
+        BlockKind::Bullet { .. } if line.first => {
             v.disque(centre_de_la_puce((left, y), layout), layout.bullet, encre);
         }
-        BlockKind::Ordered(n) if line.first => {
+        BlockKind::Ordered { numero: n, .. } if line.first => {
             let mut buf = [0u8; ORDINAL_MAX];
             let (label, at, style) = numero(ctx, (left, y), layout, (n, card.tint), &mut buf);
             v.texte(ctx.typography, at, label, style);

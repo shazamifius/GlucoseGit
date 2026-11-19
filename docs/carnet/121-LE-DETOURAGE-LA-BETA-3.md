@@ -61,7 +61,9 @@ les dessins, les logos, les scans).
   Runtime** — la conversion n'a rien changé.
 * **Le moteur** (`glucose-core/src/detourage/`, sans dépendance) : la lecture vérifie chaque forme
   avant tout calcul ; la convolution par blocs de quatre canaux, ligne par ligne, les fils sur les
-  canaux, **AVX2 et FMA choisis à l'exécution** (la charte) ; **à 4·10⁻⁵ de l'étalon**.
+  canaux, **AVX2 et FMA choisis à l'exécution** (la charte) ; **à 4·10⁻⁵ de l'étalon** — et
+  4,0·10⁻⁵ encore avec la convolution par tuiles, remesuré le 19/11 (fiche 122 ; la moyenne à
+  9·10⁻⁸, le maximum exact).
 * **Le coût, mesuré** sur son VivoBook : le masque en **1,0 s** (7 fils), 1,2 à 1,5 s avec la
   couleur du premier plan ; la référence ONNX fait 0,85 s sur un seul cœur — notre convolution est
   encore environ huit fois moins rapide par cœur (§ 9).
@@ -147,3 +149,25 @@ d'hier — inutile, mesuré sur le code.
   l'interface (4) atteinte, un téléphone à 2,75 n'a pas de 150 % — ne s'offre pas.
 * **Retenu** d'une session à l'autre (`echelle-interface`, à côté du mode de la fenêtre) ; un
   souvenir abîmé vaut 100 %, jamais une interface géante.
+
+## 11. Les épreuves et les sabotages
+
+* **La suite entière verte avant l'envoi de `aa72ab8c`** (3 385 épreuves, clippy strict ; fiche 122) —
+  la convolution par tuiles, ECHELLE-1, DETOURER-1 à 3.
+* **Les sabotages écrits, pas joués** : `outils/sabotages/detourage-121.json` (25, chacun filtré sur
+  son épreuve) et `echelle-121.json` (5) — joués par la fiche 123.
+
+## 12. Ce qui reste
+
+* **Rien n'a été regardé dans le vrai Glucose** : ni l'échelle (« Agrandir l'interface » deux
+  fois), ni le détourage hors du banc (`~/.cache/glucose-bancs/detourage-121/pilote/essai.sh`).
+* **La 2.0.4-beta.3 en brouillon** porte `15beb94` : ni le détourage, ni l'échelle, ni le travail
+  du 19/11 — à refaire avant son clic.
+* **Les tiroirs** : la page attendait sa parole ; elle est venue le 19/11 (*« exactement comme
+  proposé, et go l'allure plate »*), et TIROIR-4 est écrit par la fiche 122.
+
+## 13. La leçon
+
+* **Une page qu'il ne peut pas ouvrir ne reçoit aucune réponse** : sa fiche de questions (un doc
+  Claude) ne s'ouvrait pas depuis cette session, et ses réponses n'ont pas été lues. Depuis le
+  19/11, ses réponses vivent dans son Glucose, lues par sa porte (fiche 122).

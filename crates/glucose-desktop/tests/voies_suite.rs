@@ -1528,9 +1528,7 @@ fn test_panneaux_1_un_panneau_se_pose_pareil_sur_les_deux_voies() {
     let taille = synth::WITNESS_SIZE;
     let store = synth::witness_selected();
     let mut dock = DockManager::new();
-    dock.top_tabs.clear();
-    dock.bottom_tabs.clear();
-    dock.right_tabs.clear();
+    dock.tout_fermer();
     dock.toggle_tab(TabId::Temps);
     let (typo, theme) = (
         glucose_desktop::typography::Typography::new(),

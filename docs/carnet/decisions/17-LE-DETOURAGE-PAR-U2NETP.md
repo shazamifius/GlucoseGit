@@ -30,7 +30,8 @@ modèle n'emploie que sept opérations — convolution (dilatée 1, 2, 4, 8), Re
 maximum, agrandissement bilinéaire, concaténation, addition, sigmoïde —, quelques centaines de
 lignes. `outils/detourage/convertir.py` fige une fois le graphe ONNX en une liste d'opérations ;
 `outils/detourage/reference.py` l'exécute en numpy, et rend le masque d'ONNX Runtime à 2·10⁻⁵
-près ; le moteur rend l'étalon de numpy à 4·10⁻⁵ près (l'épreuve `le_moteur_rend_l_etalon`).
+près ; le moteur rend l'étalon de numpy à 4·10⁻⁵ près (l'épreuve `le_moteur_rend_l_etalon`) —
+4,0·10⁻⁵ remesuré le 19/11 avec la convolution par tuiles (fiche 122).
 
 ## Pourquoi celui-là, mesuré (fiche 121 § 3)
 

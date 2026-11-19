@@ -202,7 +202,7 @@ fn test_plain_paragraphs_cost_one_fragment_per_line() {
 fn test_a_bullet_keeps_its_indent_and_can_be_styled() {
     let source = "- une **puce**";
     let layout = pose(source, LARGE, TextMode::Rendered);
-    assert_eq!(layout.lines[0].kind, BlockKind::Bullet);
+    assert_eq!(layout.lines[0].kind, BlockKind::Bullet { niveau: 0 });
     assert_eq!(
         dessine(&layout, source),
         [[("une ", Face::Regular), ("puce", Face::Bold)]]
@@ -501,4 +501,74 @@ fn test_deux_formules_hautes_ne_se_touchent_pas() {
             );
         }
     }
+}
+
+// ── Les listes imbriquées (LISTE-1, fiche 123) ───────────────────────────────
+
+/// **LISTE-1 — un élément rangé sous un autre se décale d'un retrait**, son texte comme sa
+/// puce : `   - Gauche` sous `1. Côté` a son texte à deux retraits et son ornement à un ; au repos,
+/// ses espaces et son tiret ne sont pas dessinés.
+#[test]
+fn test_liste_1_un_enfant_se_decale_d_un_retrait() {
+    let source = "1. Côté\n   - Gauche";
+    let layout = pose(source, LARGE, TextMode::Rendered);
+    let enfant = &layout.lines[1];
+    assert_eq!(enfant.kind, BlockKind::Bullet { niveau: 1 });
+    assert_eq!(indent_of(enfant.kind, 14.0), 28.0);
+    assert_eq!(retrait_d_ornement(enfant.kind, 14.0), 14.0);
+    assert_eq!(retrait_d_ornement(layout.lines[0].kind, 14.0), 0.0);
+    let dessine: Vec<&str> = layout
+        .fragments_of(enfant)
+        .iter()
+        .map(|f| &source[f.start..f.end])
+        .collect();
+    assert_eq!(dessine, vec!["Gauche"]);
+}
+
+/// L'abscisse de la première encre de la deuxième ligne d'une carte large de 400, posée en
+/// (100, 100) : ce qui diffère du fond de la carte, quelle que soit la couleur de l'ornement.
+fn premiere_encre_de_la_deuxieme_ligne(texte: &str) -> u32 {
+    use glucose_core::store::Store;
+    use glucose_core::types::{Annotation, Viewport};
+    let mut store = Store::new("listes");
+    let board = store.project.active_board_id.clone();
+    let mut carte = Annotation::text("c", 0.0, 0.0, texte);
+    if let Annotation::Text { width, .. } = &mut carte {
+        *width = Some(400.0);
+    }
+    store.add_annotation(&board, carte);
+    store.clear_selection();
+    let vue = Viewport {
+        x: 100.0,
+        y: 100.0,
+        scale: 1.0,
+    };
+    store.set_viewport(&board, vue);
+    let store = crate::bench::ouvert(store);
+    let mut renderer = crate::renderer::Renderer::new();
+    let mut ui = crate::ui::UiState::new();
+    let image = crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 400);
+    let pas = 14.0 * LINE_FACTOR;
+    let milieu = (100.0 + 16.0 + pas * 1.5) as u32;
+    let fond = image.pixel(112, milieu).expect("dans l'image");
+    let ecart = |x: u32| {
+        let c = image.pixel(x, milieu).expect("dans l'image");
+        i32::from(c.red()).abs_diff(i32::from(fond.red()))
+            + i32::from(c.green()).abs_diff(i32::from(fond.green()))
+            + i32::from(c.blue()).abs_diff(i32::from(fond.blue()))
+    };
+    (112..400).find(|&x| ecart(x) > 24).expect("de l'encre")
+}
+
+/// **LISTE-1, à l'image** : la puce d'un enfant est dessinée un retrait (14) plus loin que celle
+/// d'un frère — les trois dessins (pixels, de loin, vecteurs) la placent par le même retrait.
+#[test]
+fn test_liste_1_la_puce_d_un_enfant_est_dessinee_un_retrait_plus_loin() {
+    let frere = premiere_encre_de_la_deuxieme_ligne("- a\n- b");
+    let enfant = premiere_encre_de_la_deuxieme_ligne("- a\n  - b");
+    let ecart = f64::from(enfant) - f64::from(frere);
+    assert!(
+        (ecart - 14.0).abs() <= 1.5,
+        "la puce du frère à {frere}, celle de l'enfant à {enfant}"
+    );
 }

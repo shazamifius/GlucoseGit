@@ -47,11 +47,12 @@ pub enum BlockKind {
     /// distingue que quelques-uns, et un entier laisse cette décision au rendu sans que le
     /// noyau ait à la connaître.
     Heading(u8),
-    /// `- ` ou `* ` — un élément de liste à puce.
-    Bullet,
-    /// `1. ` — un élément numéroté. Le numéro est **celui que l'auteur a écrit** : Glucose
-    /// montre le texte tel qu'il est, il ne renumérote pas derrière lui.
-    Ordered(u32),
+    /// `- ` ou `* ` — un élément de liste à puce, et sa **profondeur** : `0` au premier
+    /// niveau, `1` pour un élément rangé sous un autre (LISTE-1).
+    Bullet { niveau: u8 },
+    /// `1. ` — un élément numéroté, et sa profondeur. Le numéro est **celui que l'auteur a
+    /// écrit** : Glucose montre le texte tel qu'il est, il ne renumérote pas derrière lui.
+    Ordered { numero: u32, niveau: u8 },
     /// `> ` — une citation.
     Quote,
     /// `| a | b |` — une ligne de tableau. Ses cellules se lisent par [`cells`].
@@ -97,6 +98,15 @@ impl BlockKind {
     /// Ce bloc fait-il partie d'un tableau ?
     pub const fn in_table(self) -> bool {
         matches!(self, Self::TableRow | Self::TableRule)
+    }
+
+    /// Le même élément de liste, à la profondeur `niveau` ; tout autre genre, tel quel.
+    const fn au_niveau(self, niveau: u8) -> Self {
+        match self {
+            Self::Bullet { .. } => Self::Bullet { niveau },
+            Self::Ordered { numero, .. } => Self::Ordered { numero, niveau },
+            autre => autre,
+        }
     }
 }
 
@@ -144,6 +154,7 @@ pub fn blocks(source: &str) -> Blocks<'_> {
         at: 0,
         done: false,
         fenced: false,
+        listes: Vec::new(),
     }
 }
 
@@ -153,6 +164,9 @@ pub struct Blocks<'a> {
     at: usize,
     done: bool,
     fenced: bool,
+    /// LISTE-1 : la colonne où commence le texte de chaque élément de liste encore ouvert,
+    /// du plus extérieur au plus intérieur. Elle n'alloue qu'au premier élément de liste.
+    listes: Vec<usize>,
 }
 
 impl Iterator for Blocks<'_> {
@@ -175,6 +189,7 @@ impl Iterator for Blocks<'_> {
         if kind == BlockKind::Fence {
             self.fenced = !self.fenced;
         }
+        let kind = self.ranger(&rest[..len], kind, prefix);
         let block = Block {
             start: self.at,
             end: self.at + len,
@@ -184,6 +199,37 @@ impl Iterator for Blocks<'_> {
         };
         self.at += len + 1;
         Some(block)
+    }
+}
+
+impl Blocks<'_> {
+    /// **LISTE-1 — la profondeur d'un élément de liste**, la règle de CommonMark : un élément
+    /// est l'enfant du précédent quand sa marque commence au moins à la colonne où commence le
+    /// texte de celui-ci (`   - x` sous `1. y`, `  - x` sous `- y`) ; sinon, il est le frère du
+    /// premier ancêtre dont il atteint le texte. Une ligne vide, ou décalée sous le texte d'un
+    /// élément, laisse la liste ouverte ; une ligne au bord la ferme.
+    ///
+    /// Glucose Tauri, un navigateur, les dessinait imbriqués ; Glucose Rust lisait `   - x`
+    /// comme un paragraphe et montrait le tiret (les pages qu'une IA a posées par la porte, le
+    /// 19/11, fiche 123).
+    fn ranger(&mut self, ligne: &str, kind: BlockKind, prefix: usize) -> BlockKind {
+        let retrait = ligne.len() - ligne.trim_start_matches(' ').len();
+        match kind {
+            BlockKind::Bullet { .. } | BlockKind::Ordered { .. } => {
+                while self.listes.last().is_some_and(|&texte| retrait < texte) {
+                    self.listes.pop();
+                }
+                let niveau = u8::try_from(self.listes.len()).unwrap_or(u8::MAX);
+                // Le préfixe est le retrait plus la marque : la colonne de son texte.
+                self.listes.push(prefix);
+                kind.au_niveau(niveau)
+            }
+            _ if retrait > 0 || ligne.trim().is_empty() => kind,
+            _ => {
+                self.listes.clear();
+                kind
+            }
+        }
     }
 }
 
@@ -218,14 +264,18 @@ fn classify(line: &str, fenced: bool) -> (BlockKind, usize, usize) {
     if (1..=HEADING_MAX).contains(&hashes) && line[hashes..].starts_with(' ') {
         return (BlockKind::Heading(hashes as u8), hashes + 1, 0);
     }
-    for (mark, kind) in [
-        ("-# ", BlockKind::Small),
-        ("- ", BlockKind::Bullet),
-        ("* ", BlockKind::Bullet),
-        ("> ", BlockKind::Quote),
-    ] {
+    for (mark, kind) in [("-# ", BlockKind::Small), ("> ", BlockKind::Quote)] {
         if line.starts_with(mark) {
             return (kind, mark.len(), 0);
+        }
+    }
+    // Un élément de liste peut être décalé — c'est ce qui le range sous un autre (LISTE-1) :
+    // ses espaces de tête sont des signes, comme sa marque.
+    let retrait = line.len() - line.trim_start_matches(' ').len();
+    let reste = &line[retrait..];
+    for mark in ["- ", "* "] {
+        if reste.starts_with(mark) {
+            return (BlockKind::Bullet { niveau: 0 }, retrait + mark.len(), 0);
         }
     }
     // Une ligne de citation vide s'écrit `>` tout court ; sans ce cas, un paragraphe cité
@@ -233,8 +283,12 @@ fn classify(line: &str, fenced: bool) -> (BlockKind, usize, usize) {
     if line == ">" {
         return (BlockKind::Quote, 1, 0);
     }
-    if let Some((n, prefix)) = ordered(line) {
-        return (BlockKind::Ordered(n), prefix, 0);
+    if let Some((numero, prefix)) = ordered(reste) {
+        return (
+            BlockKind::Ordered { numero, niveau: 0 },
+            retrait + prefix,
+            0,
+        );
     }
     (BlockKind::Body, 0, 0)
 }

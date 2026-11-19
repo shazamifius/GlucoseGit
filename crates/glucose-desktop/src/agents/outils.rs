@@ -54,7 +54,9 @@ const OUTILS: &[(&str, &str, &str)] = &[
         "glucose_poser_texte",
         "Pose un texte (Markdown, LaTeX entre $…$) ou un post-it — qui peut être un opérateur \
          (ET, OU, MAIS, PARCE QUE) —, ou met à jour celui qui porte déjà cet identifiant : seul \
-         ce que l'appel nomme change. Rend son identifiant et sa boîte.",
+         ce que l'appel nomme change. Rend son identifiant et sa boîte. Les émojis s'affichent \
+         en noir et blanc : une couleur que l'humain doit voir passe par « couleur » (la teinte \
+         du texte) ou par une membrane colorée, jamais par un émoji.",
         r##"{"type":"object","properties":{"id":{"type":"string"},"texte":{"type":"string"},"post_it":{"type":"boolean"},"operateur":{"type":"string","enum":["et","ou","mais","parce-que","aucun"],"description":"un post-it devenu opérateur logique entre deux idées (une pilule ET, OU, MAIS, PARCE QUE) ; aucun le rend papier"},"dans":{"type":"string","description":"identifiant de la membrane où le poser ; elle grandit pour le contenir"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb : le papier d'un post-it, la teinte d'un texte — celle de la barre de couleur de l'humain ; glucose_lire la dit"},"domaines":{"type":"array","description":"les domaines de ce nœud, posés dans le même geste : [{\"domaine\":\"eau\",\"poids\":0.8}] s'il existe, [{\"nouveau\":\"eau chaude\"}] pour le créer","items":{}},"tableau":{"type":"string"}},"required":["texte"]}"##,
     ),
     (

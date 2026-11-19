@@ -1,0 +1,34 @@
+[
+ {
+  "nom": "TEMOIN-2 — un changement d'onglet ne se redit pas",
+  "fichier": "crates/glucose-desktop/src/app/porte_publique.rs",
+  "avant": "let ailleurs = agents.dernier_onglet_public.as_deref() != Some(onglet);",
+  "apres": "let ailleurs = agents.dernier_onglet_public.as_deref() != Some(onglet) && false;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temoin_2",
+   "publique_1"
+  ]
+ },
+ {
+  "nom": "TEMOIN-2 — le témoin ne dit jamais l'onglet (l'ancienne phrase)",
+  "fichier": "crates/glucose-desktop/src/app/porte_publique.rs",
+  "avant": ".find(|(id, _, regarde)| *id == onglet && !regarde)",
+  "apres": ".find(|(id, _, regarde)| *id == onglet && !regarde && false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temoin_2",
+   "publique_1"
+  ]
+ }
+]

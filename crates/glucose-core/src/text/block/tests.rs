@@ -47,6 +47,9 @@ const CORPUS: &[&str] = &[
     "```\njamais fermé\n# ni après",
     "# Titre\n\ndu corps\n- une puce\n> une citation\n---\n1. un\n2. deux",
     "texte\n```\ncode\n```\ntexte",
+    "1. un\n   - dessous\n      1. encore\n2. deux",
+    "  - décalé seul",
+    "- a\n - b\n\n  - c\ntexte\n  - d",
 ];
 
 /// Les blocs se suivent sans trou, séparés d'un `\n`, et couvrent la source entière.
@@ -131,21 +134,63 @@ fn test_headings_keep_their_text_and_lose_their_hashes() {
 
 #[test]
 fn test_bullets_accept_both_marks() {
-    assert_eq!(read("- un"), vec![(BlockKind::Bullet, "un")]);
-    assert_eq!(read("* un"), vec![(BlockKind::Bullet, "un")]);
+    assert_eq!(read("- un"), vec![(BlockKind::Bullet { niveau: 0 }, "un")]);
+    assert_eq!(read("* un"), vec![(BlockKind::Bullet { niveau: 0 }, "un")]);
     // Une emphase en début de ligne n'est pas une puce : il lui manque l'espace.
     assert_eq!(read("*gras*"), vec![(BlockKind::Body, "*gras*")]);
 }
 
 #[test]
 fn test_ordered_keeps_the_number_the_author_wrote() {
-    assert_eq!(read("1. un"), vec![(BlockKind::Ordered(1), "un")]);
-    assert_eq!(read("12. douze"), vec![(BlockKind::Ordered(12), "douze")]);
-    assert_eq!(read("0. zéro"), vec![(BlockKind::Ordered(0), "zéro")]);
+    assert_eq!(
+        read("1. un"),
+        vec![(
+            BlockKind::Ordered {
+                numero: 1,
+                niveau: 0
+            },
+            "un"
+        )]
+    );
+    assert_eq!(
+        read("12. douze"),
+        vec![(
+            BlockKind::Ordered {
+                numero: 12,
+                niveau: 0
+            },
+            "douze"
+        )]
+    );
+    assert_eq!(
+        read("0. zéro"),
+        vec![(
+            BlockKind::Ordered {
+                numero: 0,
+                niveau: 0
+            },
+            "zéro"
+        )]
+    );
     // Glucose ne renumérote pas : trois « 1. » restent trois « 1. ».
     assert_eq!(
         read("1. a\n1. b"),
-        vec![(BlockKind::Ordered(1), "a"), (BlockKind::Ordered(1), "b")]
+        vec![
+            (
+                BlockKind::Ordered {
+                    numero: 1,
+                    niveau: 0
+                },
+                "a"
+            ),
+            (
+                BlockKind::Ordered {
+                    numero: 1,
+                    niveau: 0
+                },
+                "b"
+            )
+        ]
     );
     assert_eq!(read("1.collé"), vec![(BlockKind::Body, "1.collé")]);
     assert_eq!(read(".1 x"), vec![(BlockKind::Body, ".1 x")]);
@@ -165,7 +210,7 @@ fn test_quotes_keep_their_empty_lines() {
 fn test_small_text_is_not_a_bullet() {
     assert_eq!(read("-# note"), vec![(BlockKind::Small, "note")]);
     // L'ordre des essais compte : `-# ` partage son premier octet avec `- `.
-    assert_ne!(read("-# note")[0].0, BlockKind::Bullet);
+    assert_ne!(read("-# note")[0].0, BlockKind::Bullet { niveau: 0 });
 }
 
 #[test]
@@ -176,7 +221,10 @@ fn test_a_rule_is_three_dashes_or_more_and_nothing_else() {
     // Le Markdown accepte `- - -` comme trait ; Glucose non, et c'est délibéré : la règle
     // « que des tirets » s'énonce sans exception, et `- - -` est d'abord une puce dont le
     // texte est « - - ». Personne n'écrit un séparateur avec des espaces dedans.
-    assert_eq!(read("- - -"), vec![(BlockKind::Bullet, "- -")]);
+    assert_eq!(
+        read("- - -"),
+        vec![(BlockKind::Bullet { niveau: 0 }, "- -")]
+    );
     // Des espaces traînants ne changent pas la nature de la ligne.
     assert_eq!(read("---   "), vec![(BlockKind::Rule, "")]);
     // Un tiret cadratin n'est pas un tiret bas d'ASCII.
@@ -379,4 +427,54 @@ fn test_dollars_still_choose_the_display_mode() {
     assert!(display, "$$ demande le mode affiché");
     let (_, display) = formula(r"$\frac{a}{b}$").expect("une formule");
     assert!(!display);
+}
+
+/// Les profondeurs d'une source, dans l'ordre de ses éléments de liste.
+fn niveaux(source: &str) -> Vec<(u8, &str)> {
+    blocks(source)
+        .filter_map(|b| match b.kind {
+            BlockKind::Bullet { niveau } | BlockKind::Ordered { niveau, .. } => {
+                Some((niveau, b.body_slice(source)))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// **LISTE-1 — un élément décalé jusqu'au texte du précédent est son enfant** : ce que Claude.ai
+/// a écrit le 19/11 (`   - ⬅️ Gauche` sous `1. Côté du bouton`, `  - 🔽` sous `* ✅ Si oui`),
+/// que Glucose lisait comme un paragraphe, tiret compris. Ses espaces sont des signes : le corps
+/// est le texte seul.
+#[test]
+fn test_liste_1_un_element_decale_est_l_enfant_du_precedent() {
+    assert_eq!(
+        niveaux("1. Côté\n   - Gauche\n   - Droite\n2. Collé"),
+        vec![(0, "Côté"), (1, "Gauche"), (1, "Droite"), (0, "Collé")]
+    );
+    assert_eq!(
+        niveaux("* oui\n  - un tiroir\n  - une barre"),
+        vec![(0, "oui"), (1, "un tiroir"), (1, "une barre")]
+    );
+    assert_eq!(
+        niveaux("- a\n  - b\n    - c\n  - d\n- e"),
+        vec![(0, "a"), (1, "b"), (2, "c"), (1, "d"), (0, "e")]
+    );
+    // Sous un numéro, le texte commence après « 1. » : un enfant de l'enfant y est à six.
+    assert_eq!(
+        niveaux("1. a\n   1. b\n      - c"),
+        vec![(0, "a"), (1, "b"), (2, "c")]
+    );
+}
+
+/// **LISTE-1 — un frère, pas un enfant**, quand le décalage n'atteint pas le texte du précédent ;
+/// une ligne vide garde la liste, une ligne au bord la ferme ; décalé sans parent, il est au
+/// premier niveau.
+#[test]
+fn test_liste_1_ce_qui_n_est_pas_un_enfant() {
+    assert_eq!(niveaux("- a\n - b"), vec![(0, "a"), (0, "b")]);
+    assert_eq!(niveaux("- a\n\n  - b"), vec![(0, "a"), (1, "b")]);
+    assert_eq!(niveaux("- a\ntexte\n  - b"), vec![(0, "a"), (0, "b")]);
+    assert_eq!(niveaux("  - seul"), vec![(0, "seul")]);
+    // Dans un bloc de code, un tiret décalé reste du code.
+    assert_eq!(niveaux("- a\n```\n  - b\n```"), vec![(0, "a")]);
 }

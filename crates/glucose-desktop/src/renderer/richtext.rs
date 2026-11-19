@@ -38,9 +38,12 @@
 //! voyant `Titre` — et qu'écrire au tout début du texte insérait avant un `#` invisible.
 
 pub mod draw;
+mod genre;
 pub mod hit;
 pub(crate) mod place;
 pub mod table;
+
+pub use genre::{emphasis_of, font_of, indent_of, ink_of, retrait_d_ornement};
 
 use super::math::MathRenderer;
 use super::wrap::wrap_paragraph;
@@ -50,19 +53,6 @@ use glucose_core::text::{blocks, inline_spans, Block, BlockKind, Emphasis, Span,
 
 /// Interligne, en multiples du corps (fiche 06 § 5.1 : `lineHeight: 1.4`).
 pub const LINE_FACTOR: f32 = 1.4;
-/// Grossissement d'un titre `# `.
-const H1_FACTOR: f32 = 1.25;
-/// Grossissement d'un sous-titre `## `.
-const H2_FACTOR: f32 = 1.10;
-/// Rapetissement d'un `-# `.
-///
-/// Il n'a pas de valeur à lui : le petit texte est au titre ce que le corps est au titre,
-/// donc l'inverse du grossissement d'un `# `. Une constante de moins à choisir, et la
-/// symétrie tient toute seule si le facteur des titres change un jour.
-const SMALL_FACTOR: f32 = 1.0 / H1_FACTOR;
-// Les titres sont plus grands que le corps, et un titre plus qu'un sous-titre : vérifié à la
-// compilation, pas dans un test qu'on pourrait oublier de lancer.
-const _: () = assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0);
 
 /// Ce que l'affichage fait des signes du Markdown (MODE-1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -90,64 +80,7 @@ impl From<Emphasis> for Face {
     }
 }
 
-// ── Du genre d'un bloc aux pixels ─────────────────────────────────────────────
-// Le genre est décidé par `glucose_core::text::block`, qui ne connaît ni police ni couleur.
-// Les quatre fonctions qui suivent sont la seule frontière entre ce qu'un bloc *est* et ce
-// qu'il *devient* à l'écran — taille, graisse, encre, retrait. Rien d'autre n'a le droit de
-// regarder un `BlockKind` pour en tirer une valeur.
-
-/// Le corps d'un bloc. Les grossissements sont des **multiples du corps courant** : ils
-/// héritent de l'unique transformation au lieu de redériver du zoom (CARD-1).
-///
-/// Au-delà du sous-titre, les niveaux gardent le corps et se distinguent par la graisse. La
-/// référence ne donne de valeur que pour `#` et `##` ; en inventer quatre autres serait
-/// affirmer des chiffres que personne n'a mesurés.
-pub fn font_of(kind: BlockKind, body: f32) -> f32 {
-    match kind {
-        BlockKind::Heading(1) => body * H1_FACTOR,
-        BlockKind::Heading(2) => body * H2_FACTOR,
-        BlockKind::Small => body * SMALL_FACTOR,
-        _ => body,
-    }
-}
-
-/// L'emphase que le genre impose à toute la ligne.
-///
-/// Elle s'**unit** à celle des fragments, ce qui fait qu'un `*mot*` dans un titre est en gras
-/// italique sans cas particulier — et qu'une ligne de bloc de code passe en chasse fixe par
-/// le même chemin qu'un `` `code` `` en ligne, avec son fond et tout le reste.
-pub fn emphasis_of(kind: BlockKind) -> Emphasis {
-    match kind {
-        BlockKind::Heading(_) => Emphasis::BOLD,
-        BlockKind::Code => Emphasis::CODE,
-        _ => Emphasis::NONE,
-    }
-}
-
-/// L'encre d'une ligne.
-///
-/// Une citation garde celle du corps : ce qui la distingue est sa barre et son retrait, pas
-/// une couleur de plus. La barre, elle, est grise — elle **est** le `>` que le repos efface,
-/// donc elle prend l'encre des signes.
-pub fn ink_of(kind: BlockKind, theme: &Theme) -> tiny_skia::Color {
-    match kind {
-        BlockKind::Heading(1) => theme.card_heading,
-        BlockKind::Heading(_) => theme.card_subheading,
-        _ => theme.card_body,
-    }
-}
-
-/// Le retrait d'une ligne, en multiples de `unit`.
-///
-/// Une seule règle, un seul endroit : la mise en page l'applique pour savoir où couper, le
-/// tracé pour savoir où poser la plume, le clic pour savoir où viser. Elle vivait en deux
-/// exemplaires, et les deux devaient rester d'accord à la main.
-pub fn indent_of(kind: BlockKind, unit: f32) -> f32 {
-    match kind {
-        BlockKind::Bullet | BlockKind::Ordered(_) | BlockKind::Quote => unit,
-        _ => 0.0,
-    }
-}
+// Du genre d'un bloc aux pixels — taille, graisse, encre, retrait : [`genre`].
 
 /// Valeur de [`Fragment::tab`] qui veut dire « à la suite du fragment précédent ».
 ///
@@ -272,6 +205,9 @@ fn span_at(spans: &[Span], at: usize) -> Option<&Span> {
 /// Un bloc littéral — du code, une formule — n'est pas analysé : ses octets se lisent tels
 /// quels, et son corps ne fait qu'une tranche.
 fn paragraph_spans(paragraph: &str, block: Block) -> Vec<Span> {
+    if block.kind == BlockKind::TableRow {
+        return table::spans_d_une_rangee(paragraph);
+    }
     let (prefix, suffix) = (block.prefix, block.suffix);
     let body = prefix..paragraph.len() - suffix;
 
@@ -333,7 +269,10 @@ pub fn layout_rich_text(
     let mut i = 0usize;
     while i < liste.len() {
         let block = liste[i];
-        if block.kind.in_table() {
+        // Au repos seulement (TABLE-3) : en édition, une rangée est sa source, barres
+        // comprises, coupée comme un paragraphe — les signes reviennent quand on corrige
+        // (MODE-1), et le curseur, qui suit des lignes sans trou, y marche comme partout.
+        if block.kind.in_table() && mode == TextMode::Rendered {
             let fin = liste[i..].iter().take_while(|b| b.kind.in_table()).count() + i;
             table::layout_table(&mut out, typography, source, &liste[i..fin], bx, mode);
             i = fin;
@@ -358,7 +297,8 @@ pub fn layout_rich_text(
             // de place — on n'a pas à voir un blanc là où un signe s'est effacé. En édition
             // elle redevient une ligne comme une autre, parce qu'on doit pouvoir la corriger.
             BlockKind::Fence if mode == TextMode::Rendered => {}
-            BlockKind::Rule => out.lines.push(bare_line(block, block.kind)),
+            // La séparation d'un tableau reste un filet en édition, comme un `---`.
+            BlockKind::Rule | BlockKind::TableRule => out.lines.push(bare_line(block, block.kind)),
             _ => layout_paragraph(&mut out, typography, source, block, bx, mode),
         }
     }

@@ -1,5 +1,6 @@
-//! Le dock : des panneaux posés en haut à gauche ou en bas à gauche de l'écran, qu'on glisse
-//! pour les réordonner et qu'on tire vers leur bord pour les fermer.
+//! Le dock : les tiroirs, chacun **du côté de son bouton**, collés au bord de l'écran sous la
+//! bande (TIROIR-4) ; on les glisse pour les réordonner, et on les tire hors de l'écran, vers
+//! leur bord, pour les fermer.
 //!
 //! # Un panneau, un module
 //!
@@ -59,16 +60,22 @@ pub enum TabId {
     Plugins,
     Preset,
     Domains,
-    /// La Time Machine (fiche 10 § 5.7) : seule à droite, sur toute la hauteur.
+    /// La Time Machine (fiche 10 § 5.7).
     Temps,
 }
 
 impl TabId {
-    pub fn anchor(&self) -> DockAnchor {
+    /// **TIROIR-4 — un tiroir s'ouvre du côté de son bouton** (fiche 121 § 9 ; sa parole du
+    /// 19/11 : *« tout ça, tu le fais exactement comme proposé »*, fiche 122). Sa capture du
+    /// 17/11 ne voyait *« aucune structure qui permettrait d'identifier pourquoi ces tiroirs
+    /// s'ouvrent comme ça »* : la Time Machine, dont le bouton est à gauche de la bande, s'ouvrait
+    /// à droite, et Domaines, à droite, s'ouvrait à gauche. Ordonner, Timer, Time Machine et
+    /// Storyboard sont dans le groupe de gauche de la bande ; Plugins, Mood board et Domaines dans
+    /// celui de droite (`ui::boutons`) — l'épreuve le lit dans la vraie bande.
+    pub fn cote(&self) -> Cote {
         match self {
-            Self::Organize | Self::Pomodoro | Self::Storyboard => DockAnchor::BottomLeft,
-            Self::Plugins | Self::Preset | Self::Domains => DockAnchor::TopLeft,
-            Self::Temps => DockAnchor::Right,
+            Self::Organize | Self::Pomodoro | Self::Temps | Self::Storyboard => Cote::Gauche,
+            Self::Plugins | Self::Preset | Self::Domains => Cote::Droite,
         }
     }
 
@@ -100,45 +107,42 @@ impl TabId {
 }
 
 /// **TIROIR-2 — un panneau a la hauteur de ce qu'il montre**, en pixels d'écran, poignée
-/// comprise ; [`place`] la borne à l'écran. Sa capture du 17/11 : le Storyboard et la Time
+/// comprise ; [`colonnes`] la borne à l'écran. Sa capture du 17/11 : le Storyboard et la Time
 /// Machine prenaient toute la hauteur pour quelques lignes, Domaines 430 pixels pour deux
 /// domaines — *« des bulles souvent trop grosses »*. Chacun la mesure sur sa propre mise en page.
 /// Ordonner et Pomodoro n'ont ni liste ni texte qui varie : leur hauteur est celle de leur
 /// contenu, une fois pour toutes (`test_tiroir_2_ordonner_et_pomodoro_sont_pleins`).
 fn hauteur_naturelle(dock: &DockManager, store: &Store, tab: TabId, s: f32) -> f32 {
     let largeur = tab.default_width() * s;
-    // Un panneau du haut a sa poignée sous son contenu (TIROIR-1) : elle s'ajoute.
-    let poignee = GRIP_HEIGHT * s;
-    match tab {
+    // Tout tiroir a sa poignée sous son contenu (TIROIR-1) : elle s'ajoute.
+    let contenu = match tab {
         TabId::Organize => 410.0 * s,
         TabId::Pomodoro => 184.0 * s,
         TabId::Storyboard => storyboard::hauteur_naturelle(&dock.storyboard, largeur, s),
         TabId::Temps => temps::hauteur_naturelle(&dock.temps, largeur, s),
-        TabId::Plugins => plugins::hauteur_naturelle(largeur, s) + poignee,
-        TabId::Preset => preset::hauteur_de(store) * s + poignee,
-        TabId::Domains => domains::hauteur_naturelle(store, &dock.domains, largeur, s) + poignee,
-    }
+        TabId::Plugins => plugins::hauteur_naturelle(largeur, s),
+        TabId::Preset => preset::hauteur_de(store) * s,
+        TabId::Domains => domains::hauteur_naturelle(store, &dock.domains, largeur, s),
+    };
+    contenu + GRIP_HEIGHT * s
 }
 
 /// Une hauteur sans borne, où un panneau pose tout ce qu'il a pour se mesurer (TIROIR-2) : bien
 /// plus que tout écran, en pixels logiques.
 pub(crate) const HAUTEUR_DE_MESURE: f32 = 1.0e6;
 
-/// Glissement d'un panneau vers sa sortie au-delà duquel il se ferme (fiche 10 § 4 : 80 px).
+/// Ce qu'un tiroir doit passer **au-delà du bord de l'écran**, de son côté, pour se fermer
+/// (fiche 10 § 4 : 80 px).
 pub const DISMISS_DRAG_PX: f32 = 80.0;
 
-/// Marge entre le bord de l'écran et le premier panneau, et entre deux panneaux.
-const DOCK_MARGIN: f32 = 12.0;
-const DOCK_GAP: f32 = 10.0;
 /// Hauteur de la bande de préhension d'un panneau.
 const GRIP_HEIGHT: f32 = 16.0;
 
+/// Le côté de l'écran où un tiroir s'ouvre : celui de son bouton (TIROIR-4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DockAnchor {
-    TopLeft,
-    BottomLeft,
-    /// Le bord droit, sur toute la hauteur : la Time Machine, comme chez Glucose Tauri.
-    Right,
+pub enum Cote {
+    Gauche,
+    Droite,
 }
 
 #[derive(Debug, Clone)]
@@ -152,8 +156,10 @@ pub struct DragSession {
 
 #[derive(Debug, Clone)]
 pub struct DockManager {
-    pub top_tabs: Vec<TabId>,
-    pub bottom_tabs: Vec<TabId>,
+    /// Les tiroirs ouverts de chaque côté, dans l'ordre où ils s'empilent : un tiroir qu'on
+    /// ouvre se pose sous les autres, sans les faire sauter.
+    pub gauche: Vec<TabId>,
+    pub droite: Vec<TabId>,
     pub drag: Option<DragSession>,
     pub organize: OrganizeState,
     pub pomodoro: PomodoroState,
@@ -163,8 +169,6 @@ pub struct DockManager {
     /// est en cours de frappe. Aucune donnée de domaine — celles-ci vivent dans le document
     /// (DOM-UI-1, `dock::domains`).
     pub domains: domains::DomainsUi,
-    /// Le panneau de droite : la Time Machine.
-    pub right_tabs: Vec<TabId>,
     /// Ce que la Time Machine montre : les gestes, les jalons, le point regardé.
     pub temps: temps::TempsUi,
     /// Le champ de nombre qu'on tient ou qu'on tape (CHAMP-1).
@@ -184,42 +188,45 @@ impl DockManager {
     /// quand on le demande.
     pub fn new() -> Self {
         Self {
-            top_tabs: Vec::new(),
-            bottom_tabs: Vec::new(),
+            gauche: Vec::new(),
+            droite: Vec::new(),
             drag: None,
             organize: OrganizeState::default(),
             pomodoro: PomodoroState::default(),
             storyboard: StoryboardState::default(),
             plugins: plugins::PluginsState::default(),
             domains: domains::DomainsUi::default(),
-            right_tabs: Vec::new(),
             temps: temps::TempsUi::default(),
             champ: None,
         }
     }
 
-    fn tabs(&self, anchor: DockAnchor) -> &Vec<TabId> {
-        match anchor {
-            DockAnchor::TopLeft => &self.top_tabs,
-            DockAnchor::BottomLeft => &self.bottom_tabs,
-            DockAnchor::Right => &self.right_tabs,
+    fn tabs(&self, cote: Cote) -> &Vec<TabId> {
+        match cote {
+            Cote::Gauche => &self.gauche,
+            Cote::Droite => &self.droite,
         }
     }
 
-    fn tabs_mut(&mut self, anchor: DockAnchor) -> &mut Vec<TabId> {
-        match anchor {
-            DockAnchor::TopLeft => &mut self.top_tabs,
-            DockAnchor::BottomLeft => &mut self.bottom_tabs,
-            DockAnchor::Right => &mut self.right_tabs,
+    fn tabs_mut(&mut self, cote: Cote) -> &mut Vec<TabId> {
+        match cote {
+            Cote::Gauche => &mut self.gauche,
+            Cote::Droite => &mut self.droite,
         }
+    }
+
+    /// Aucun tiroir ouvert, d'aucun côté.
+    pub fn tout_fermer(&mut self) {
+        self.gauche.clear();
+        self.droite.clear();
     }
 
     pub fn is_open(&self, tab: TabId) -> bool {
-        self.tabs(tab.anchor()).contains(&tab)
+        self.tabs(tab.cote()).contains(&tab)
     }
 
     pub fn toggle_tab(&mut self, tab: TabId) {
-        let list = self.tabs_mut(tab.anchor());
+        let list = self.tabs_mut(tab.cote());
         match list.iter().position(|&t| t == tab) {
             Some(pos) => {
                 list.remove(pos);
@@ -229,69 +236,82 @@ impl DockManager {
     }
 
     pub fn dismiss_tab(&mut self, tab: TabId) {
-        self.tabs_mut(tab.anchor()).retain(|&t| t != tab);
+        self.tabs_mut(tab.cote()).retain(|&t| t != tab);
     }
 
-    /// Suit le glissement d'un panneau et l'échange avec son voisin quand son centre dépasse
-    /// celui de l'autre. Rend `true` si un échange a eu lieu.
-    pub fn update_drag(&mut self, mouse_x: f32, mouse_y: f32) -> bool {
+    /// **Suit le glissement d'un tiroir, et le range où il est vu** : à la place du tiroir de son
+    /// côté dont le centre est le plus proche du sien — dans sa colonne ou dans la voisine.
+    /// `places` donne la géométrie que le dessin et le clic lisent (loi L4). Le tiroir tiré ne
+    /// saute pas : son origine suit sa nouvelle place. Rend `true` s'il a changé de rang.
+    pub fn update_drag(
+        &mut self,
+        (mouse_x, mouse_y): (f32, f32),
+        places: impl Fn(&DockManager) -> Vec<PanelLayoutBox>,
+    ) -> bool {
         let Some(drag) = self.drag.as_mut() else {
             return false;
         };
-        let (tab, start_x) = (drag.tab, drag.start_x);
         drag.current_x = mouse_x;
         drag.current_y = mouse_y;
-
-        let list = self.tabs_mut(tab.anchor());
-        let Some(index) = list.iter().position(|&t| t == tab) else {
+        let (tab, decalage) = (drag.tab, (mouse_x - drag.start_x, mouse_y - drag.start_y));
+        let avant = places(self);
+        let centre = |b: &PanelLayoutBox| (b.x + b.width / 2.0, b.y + b.height / 2.0);
+        let Some(lui) = avant.iter().find(|b| b.tab == tab) else {
             return false;
         };
-
-        // Les centres nominaux, dans l'ordre courant : c'est contre eux que le panneau tiré
-        // se compare.
-        let mut centers = Vec::with_capacity(list.len());
-        let mut x = DOCK_MARGIN;
-        for &t in list.iter() {
-            let w = t.default_width();
-            centers.push((x + w / 2.0, w));
-            x += w + DOCK_GAP;
-        }
-        let dragged = centers[index].0 + (mouse_x - start_x);
-
-        let neighbour = if index > 0 && dragged < centers[index - 1].0 {
-            Some(index - 1)
-        } else if index + 1 < centers.len() && dragged > centers[index + 1].0 {
-            Some(index + 1)
-        } else {
-            None
+        let (cx, cy) = centre(lui);
+        let vu = (cx + decalage.0, cy + decalage.1);
+        let distance = |b: &&PanelLayoutBox| {
+            let (x, y) = centre(b);
+            (x - vu.0).powi(2) + (y - vu.1).powi(2)
         };
-        let Some(neighbour) = neighbour else {
+        let plus_proche = avant
+            .iter()
+            .filter(|b| b.tab.cote() == tab.cote())
+            .min_by(|a, b| distance(a).total_cmp(&distance(b)))
+            .map(|b| b.tab);
+        let liste = self.tabs_mut(tab.cote());
+        let (Some(cible), Some(rang)) = (plus_proche, liste.iter().position(|&t| t == tab)) else {
             return false;
         };
-
-        list.swap(index, neighbour);
-        // Le panneau a changé de place : son origine suit, sinon il repartirait d'un bond.
-        let shift = centers[neighbour].1 + DOCK_GAP;
-        if let Some(drag) = self.drag.as_mut() {
-            drag.start_x += if neighbour < index { -shift } else { shift };
+        let Some(rang_cible) = liste
+            .iter()
+            .position(|&t| t == cible)
+            .filter(|&r| r != rang)
+        else {
+            return false;
+        };
+        liste.remove(rang);
+        liste.insert(rang_cible, tab);
+        let (x0, y0) = (lui.x, lui.y);
+        if let Some(apres) = places(self).into_iter().find(|b| b.tab == tab) {
+            if let Some(drag) = self.drag.as_mut() {
+                drag.start_x += apres.x - x0;
+                drag.start_y += apres.y - y0;
+            }
         }
         true
     }
 
-    /// Un panneau glissé de plus de [`DISMISS_DRAG_PX`] vers sa sortie — le haut pour le
-    /// dock du haut, le bas pour celui du bas — se ferme (fiche 10 § 4).
-    pub fn finish_drag(&mut self) -> Option<TabId> {
-        let drag = self.drag.take()?;
-        let dy = drag.current_y - drag.start_y;
-        let dx = drag.current_x - drag.start_x;
-        let dismissed = match drag.tab.anchor() {
-            DockAnchor::TopLeft => dy < -DISMISS_DRAG_PX,
-            DockAnchor::BottomLeft => dy > DISMISS_DRAG_PX,
-            DockAnchor::Right => dx > DISMISS_DRAG_PX,
+    /// **Un tiroir tiré au-delà du bord de l'écran, de son côté, de plus de
+    /// [`DISMISS_DRAG_PX`], se ferme** (fiche 10 § 4) : la sortie est le bord où il est collé.
+    /// Un tiroir de la colonne voisine traverse la première sans se fermer — c'est un
+    /// rangement, pas une sortie. `places` : la géométrie que le dessin lit.
+    pub fn finish_drag(
+        &mut self,
+        largeur_d_ecran: f32,
+        places: impl Fn(&DockManager) -> Vec<PanelLayoutBox>,
+    ) -> Option<TabId> {
+        let tab = self.drag.as_ref()?.tab;
+        let vu = places(self).into_iter().find(|b| b.tab == tab)?.seen();
+        self.drag = None;
+        let sorti = match tab.cote() {
+            Cote::Gauche => vu.x < -DISMISS_DRAG_PX,
+            Cote::Droite => vu.x + vu.w > largeur_d_ecran + DISMISS_DRAG_PX,
         };
-        dismissed.then(|| {
-            self.dismiss_tab(drag.tab);
-            drag.tab
+        sorti.then(|| {
+            self.dismiss_tab(tab);
+            tab
         })
     }
 
@@ -356,22 +376,16 @@ impl PanelLayoutBox {
         self.grip_rect().contains(px, py)
     }
 
-    /// **TIROIR-1 — le cadre de son contenu** : le panneau sans la bande de sa poignée quand
-    /// elle est en bas. Un panneau du haut posait son contenu sur toute sa hauteur, poignée
-    /// comprise : « + Nouveau domaine » couvrait la poignée qui referme le panneau (sa capture du
-    /// 17/11). En haut, la poignée surmonte déjà tout contenu.
+    /// **TIROIR-1 — le cadre de son contenu** : le panneau sans la bande de sa poignée, en bas.
+    /// Un panneau posait son contenu sur toute sa hauteur, poignée comprise : « + Nouveau
+    /// domaine » couvrait la poignée qui referme le panneau (sa capture du 17/11).
     pub fn contenu(&self, s: f32) -> ScaledRect {
         let vu = self.seen();
-        let poignee_en_bas = self.grip_y > self.y;
         ScaledRect {
             x: vu.x,
             y: vu.y,
             w: vu.w,
-            h: if poignee_en_bas {
-                vu.h - self.grip_height
-            } else {
-                vu.h
-            },
+            h: vu.h - self.grip_height,
             scale: s,
         }
     }
@@ -387,42 +401,32 @@ impl PanelLayoutBox {
         )
     }
 
-    /// L'ombre portée du panneau, décalée vers le bas et débordant de chaque côté.
-    ///
-    /// Elle est ici, et non dans [`draw_frame`] qui la dessine, parce que [`Self::extent`] en
-    /// a besoin aussi : une boîte englobante calculée à côté de l'ombre finirait par ne plus
-    /// la contenir le jour où l'une des deux bouge. Les deux dérivent donc de cette seule
-    /// définition.
-    fn shadow(&self, s: f32) -> WidgetRect {
-        let seen = self.seen();
-        WidgetRect::new(
-            seen.x - 2.0 * s,
-            seen.y + 3.0 * s,
-            seen.w + 4.0 * s,
-            seen.h + 4.0 * s,
-        )
-    }
-
-    /// Tout ce que le panneau peut noircir : son cadre, son ombre, et son trait de bordure.
+    /// Tout ce que le panneau peut noircir : son cadre et son trait de bordure — plat, sans
+    /// ombre (TIROIR-4 : la charte, `style.md` : « pas d'ombre portée molle »).
     ///
     /// C'est la taille du tampon qu'un panneau mis en cache doit se réserver (DOCK-CACHE-1).
     /// Elle est **exacte et dérivée**, jamais une marge choisie au jugé : un tampon trop
-    /// petit rognerait l'ombre, un tampon trop grand paierait des pixels vides à chaque
+    /// petit rognerait le trait, un tampon trop grand paierait des pixels vides à chaque
     /// composition.
     fn extent(&self, s: f32) -> WidgetRect {
         let seen = self.seen();
-        let shadow = self.shadow(s);
         // Le contour est tracé *sur* le bord : il déborde d'une demi-épaisseur.
         let demi_trait = 0.5 * s;
-        let x0 = (seen.x - demi_trait).min(shadow.x);
-        let y0 = (seen.y - demi_trait).min(shadow.y);
-        let x1 = (seen.x + seen.w + demi_trait).max(shadow.x + shadow.w);
-        let y1 = (seen.y + seen.h + demi_trait).max(shadow.y + shadow.h);
-        WidgetRect::new(x0, y0, x1 - x0, y1 - y0)
+        WidgetRect::new(
+            seen.x - demi_trait,
+            seen.y - demi_trait,
+            seen.w + 2.0 * demi_trait,
+            seen.h + 2.0 * demi_trait,
+        )
     }
 }
 
-/// La place de chaque panneau ouvert, dans les deux docks.
+/// **La place de chaque tiroir ouvert** (TIROIR-4) : de chaque côté, collés au bord sous la
+/// bande, empilés dans l'ordre où on les a ouverts ; une colonne a la largeur de son tiroir le
+/// plus large, et quand la hauteur manque, le suivant ouvre une colonne voisine, vers
+/// l'intérieur. Deux tiroirs ne se posent jamais l'un sur l'autre (TIROIR-3) tant que l'écran
+/// a la largeur de leurs colonnes ; au-delà, aucun ne sort de l'écran, et celui qui se dessine
+/// le dernier — à droite — est dessus, et prend le clic ([`panneau_sous`]).
 pub fn compute_panel_layouts(
     dock: &DockManager,
     store: &Store,
@@ -432,93 +436,72 @@ pub fn compute_panel_layouts(
     scale: f32,
 ) -> Vec<PanelLayoutBox> {
     let s = crate::theme::clamp_ui_scale(scale);
+    let grip_height = GRIP_HEIGHT * s;
     let mut layouts: Vec<PanelLayoutBox> = Vec::new();
-    for anchor in [
-        DockAnchor::TopLeft,
-        DockAnchor::BottomLeft,
-        DockAnchor::Right,
-    ] {
-        let mut x = DOCK_MARGIN * s;
-        for &tab in dock.tabs(anchor) {
-            let width = tab.default_width() * s;
-            if anchor == DockAnchor::Right {
-                x = screen_w - DOCK_MARGIN * s - width;
+    for cote in [Cote::Gauche, Cote::Droite] {
+        let mut bord = 0.0;
+        for colonne in colonnes(dock, store, cote, screen_h - header_h, s) {
+            let width = colonne
+                .iter()
+                .map(|(tab, _)| tab.default_width() * s)
+                .fold(0.0, f32::max);
+            // Une colonne de trop pour la largeur reste dans l'écran, contre l'autre bord.
+            let x = match cote {
+                Cote::Gauche => bord,
+                Cote::Droite => screen_w - bord - width,
             }
-            let naturelle = hauteur_naturelle(dock, store, tab, s);
-            let (y, height) = place(anchor, naturelle, screen_h, header_h, s);
-            if anchor != DockAnchor::Right {
-                x = hors_des_autres(&layouts, (x, y, width, height), DOCK_GAP * s);
+            .clamp(0.0, (screen_w - width).max(0.0));
+            let mut y = header_h;
+            for (tab, height) in colonne {
+                let dragging = dock.drag.as_ref().filter(|d| d.tab == tab);
+                layouts.push(PanelLayoutBox {
+                    tab,
+                    x,
+                    y,
+                    width,
+                    height,
+                    grip_y: y + height - grip_height,
+                    grip_height,
+                    is_dragged: dragging.is_some(),
+                    visual_offset_x: dragging.map_or(0.0, |d| d.current_x - d.start_x),
+                    visual_offset_y: dragging.map_or(0.0, |d| d.current_y - d.start_y),
+                });
+                y += height;
             }
-            let grip_height = GRIP_HEIGHT * s;
-            // La poignée est du côté de la sortie : en bas pour le dock du haut, en haut
-            // pour celui du bas (fiche 10 § 4) — et en haut à droite, où l'on tire vers le
-            // bord.
-            let grip_y = match anchor {
-                DockAnchor::TopLeft => y + height - grip_height,
-                DockAnchor::BottomLeft | DockAnchor::Right => y,
-            };
-            let dragging = dock.drag.as_ref().filter(|d| d.tab == tab);
-            layouts.push(PanelLayoutBox {
-                tab,
-                x,
-                y,
-                width,
-                height,
-                grip_y,
-                grip_height,
-                is_dragged: dragging.is_some(),
-                visual_offset_x: dragging.map_or(0.0, |d| d.current_x - d.start_x),
-                visual_offset_y: dragging.map_or(0.0, |d| d.current_y - d.start_y),
-            });
-            x += width + DOCK_GAP * s;
+            bord += width;
         }
     }
     layouts
 }
 
-/// L'ordonnée et la hauteur d'un panneau, selon son ancrage — jamais plus haut que l'écran.
-fn place(anchor: DockAnchor, naturelle: f32, screen_h: f32, header_h: f32, s: f32) -> (f32, f32) {
-    let margin = DOCK_MARGIN * s;
-    match anchor {
-        DockAnchor::TopLeft => {
-            let y = header_h + 8.0 * s;
-            let height = naturelle.min(screen_h - y - 2.0 * margin);
-            (y, height)
-        }
-        DockAnchor::BottomLeft => {
-            let height = naturelle.min(screen_h - header_h - 2.0 * margin);
-            (screen_h - height - margin, height)
-        }
-        DockAnchor::Right => {
-            let y = header_h + 8.0 * s;
-            (y, naturelle.min(screen_h - y - margin))
-        }
-    }
-}
-
-/// **TIROIR-3 — deux panneaux ne se posent jamais l'un sur l'autre.** Les deux rangées partent
-/// du bord gauche, l'une d'en haut, l'autre d'en bas : un panneau haut de l'une recouvrait ceux
-/// de l'autre (sa capture du 17/11 : Domaines s'ouvrait caché sous Storyboard). Un panneau qui en
-/// croiserait un autre déjà posé glisse à sa droite, de l'écart des panneaux.
-fn hors_des_autres(
-    poses: &[PanelLayoutBox],
-    (x0, y, w, h): (f32, f32, f32, f32),
-    ecart: f32,
-) -> f32 {
-    let mut x = x0;
-    // Chaque déplacement va à droite d'un panneau posé : au plus un par panneau.
-    for _ in 0..=poses.len() {
-        let croise = poses
-            .iter()
-            .filter(|p| x < p.x + p.width && p.x < x + w && y < p.y + p.height && p.y < y + h)
-            .map(|p| p.x + p.width + ecart)
-            .reduce(f32::max);
-        match croise {
-            Some(droite) => x = droite,
-            None => break,
+/// **Les tiroirs d'un côté, rangés en colonnes** : chacun à sa hauteur (TIROIR-2), jamais plus
+/// haute que la place sous la bande, **dans la première colonne où il tient** — le « first fit »
+/// du rangement en boîtes (D. S. Johnson, 1974) ; aucune ne l'a : il ouvre la suivante. Ranger
+/// seulement dans la dernière colonne (« next fit ») ouvrait une colonne pour Domaines quand il
+/// tenait sous Plugins : six tiroirs se croisaient à 1440 × 900 (fiche 122). Un tiroir qu'on
+/// ouvre se pose sous ceux de sa colonne : il ne fait sauter personne.
+fn colonnes(
+    dock: &DockManager,
+    store: &Store,
+    cote: Cote,
+    place: f32,
+    s: f32,
+) -> Vec<Vec<(TabId, f32)>> {
+    let mut colonnes: Vec<(f32, Vec<(TabId, f32)>)> = Vec::new();
+    for &tab in dock.tabs(cote) {
+        let hauteur = hauteur_naturelle(dock, store, tab, s).min(place);
+        match colonnes
+            .iter_mut()
+            .find(|(haut, _)| haut + hauteur <= place)
+        {
+            Some((haut, colonne)) => {
+                colonne.push((tab, hauteur));
+                *haut += hauteur;
+            }
+            None => colonnes.push((hauteur, vec![(tab, hauteur)])),
         }
     }
-    x
+    colonnes.into_iter().map(|(_, colonne)| colonne).collect()
 }
 
 // ── Le rendu ────────────────────────────────────────────────────────────────
@@ -538,14 +521,18 @@ pub fn cadre_du_panneau(
 }
 
 /// **Le panneau sous ce point**, et le cadre de son contenu : le clic va à lui, et à personne
-/// d'autre. Le panneau entier le prend, poignée comprise.
+/// d'autre. Le panneau entier le prend, poignée comprise ; là où deux se croisent (un écran trop
+/// étroit pour leurs colonnes), celui qui est dessiné dessus, le dernier.
 pub fn panneau_sous(
     dock: &DockManager,
     store: &Store,
     screen: ScreenFrame,
     p: Pointer,
 ) -> Option<(TabId, ScaledRect)> {
-    cadres(dock, store, screen)
+    let cadres: Vec<_> = cadres(dock, store, screen).collect();
+    cadres
+        .into_iter()
+        .rev()
         .find(|(_, vu, _)| vu.contains(p.x, p.y))
         .map(|(tab, _, contenu)| (tab, contenu))
 }
@@ -562,6 +549,19 @@ pub fn cadres_ouverts(
         .collect()
 }
 
+/// **La place des tiroirs sur cet écran** — celle que le dessin, le clic et le glisser lisent
+/// (loi L4).
+pub fn places(dock: &DockManager, store: &Store, screen: ScreenFrame) -> Vec<PanelLayoutBox> {
+    compute_panel_layouts(
+        dock,
+        store,
+        screen.width,
+        screen.height,
+        screen.header_h,
+        crate::theme::clamp_ui_scale(screen.scale),
+    )
+}
+
 /// Les panneaux ouverts : ce qu'ils couvrent à l'écran, et le cadre de leur contenu, à
 /// l'échelle bornée.
 fn cadres(
@@ -570,9 +570,7 @@ fn cadres(
     screen: ScreenFrame,
 ) -> impl Iterator<Item = (TabId, WidgetRect, ScaledRect)> {
     let s = crate::theme::clamp_ui_scale(screen.scale);
-    let boites =
-        compute_panel_layouts(dock, store, screen.width, screen.height, screen.header_h, s);
-    boites
+    places(dock, store, screen)
         .into_iter()
         .map(move |b| (b.tab, b.seen(), b.contenu(s)))
 }

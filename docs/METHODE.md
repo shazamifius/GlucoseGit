@@ -130,8 +130,10 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
 * Rust n'existe que dans `nix develop -c …` ; `cargo test --workspace` compte 5 à 8 minutes de compilation.
 * **Toute commande lourde est bornée** : `bash outils/borne.sh <commande>` — la plus petite de 60 % de
   la mémoire et de ce que la machine laisse au lancement (`MemAvailable` moins 1 Go), sans swap, une
-  compilation par 1,5 Go de borne ; trop peu, elle ne part pas. Le 19/11, la borne fixe de 4,8 Go,
-  prise pendant qu'il travaillait, a envoyé son bureau au swap : une image par seconde (fiche 122). Le 12/11, une suite nue (huit `rustc` à la fois) a noyé
+  compilation par 2,5 Go de borne (le `rustc` des épreuves du bureau monte à 2,4 Go) ; trop peu, elle ne part pas. Le 19/11, la borne fixe de 4,8 Go,
+  prise pendant qu'il travaillait, a envoyé son bureau au swap : une image par seconde (fiche 122).
+  Un `rustc` tué par sa borne peut laisser son crate à moitié écrit : des « undefined reference » à
+  l'édition de liens suivante — `cargo clean -p <crate>`, puis recompiler (fiche 122). Le 12/11, une suite nue (huit `rustc` à la fois) a noyé
   les 7,6 Go dans le swap compressé, où Linux ne tue rien : sa machine figée de 14 h 36 à 17 h 05
   (fiche 110). Bornée, elle meurt seule, en une seconde (code 137) — alors baisser `CARGO_BUILD_JOBS`.
 * **Nix ne voit que ce que git connaît** : un fichier neuf que le paquet nomme empêche `nix develop` de

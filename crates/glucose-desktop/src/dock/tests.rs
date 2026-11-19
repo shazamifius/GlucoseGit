@@ -1,4 +1,4 @@
-//! Les lois du dock : ses ancrages, son glissement, et — pour chaque panneau — le fait que
+//! Les lois du dock : ses côtés, son glissement, et — pour chaque panneau — le fait que
 //! **le clic tombe là où le dessin le montre** (loi L4).
 
 use super::*;
@@ -50,24 +50,20 @@ fn center(rect: WidgetRect) -> Pointer {
 
 fn dock_with(tab: TabId) -> DockManager {
     let mut dock = DockManager::new();
-    dock.top_tabs.clear();
-    dock.bottom_tabs.clear();
-    dock.tabs_mut(tab.anchor()).push(tab);
+    dock.tout_fermer();
+    dock.tabs_mut(tab.cote()).push(tab);
     dock
 }
 
-/// Fiche 10 § 4 — deux docks : Domaines, Presets, Plugins descendent du haut ; Ordonner,
-/// Storyboard, Pomodoro montent du bas. Largeurs 320 / 280 / 340 et 250 / 260 / ≥ 160.
-/// Fermeture au-delà de 80 px de glissement vers la sortie.
-#[test]
-fn test_dock_anchors_and_defaults() {
-    assert_eq!(TabId::Organize.anchor(), DockAnchor::BottomLeft);
-    assert_eq!(TabId::Pomodoro.anchor(), DockAnchor::BottomLeft);
-    assert_eq!(TabId::Storyboard.anchor(), DockAnchor::BottomLeft);
-    assert_eq!(TabId::Plugins.anchor(), DockAnchor::TopLeft);
-    assert_eq!(TabId::Preset.anchor(), DockAnchor::TopLeft);
-    assert_eq!(TabId::Domains.anchor(), DockAnchor::TopLeft);
+/// La géométrie que le dessin lit, sur l'écran de ces épreuves : ce que le glisser reçoit.
+fn geometrie(store: &Store) -> impl Fn(&DockManager) -> Vec<PanelLayoutBox> + '_ {
+    move |d| compute_panel_layouts(d, store, SCREEN.width, SCREEN.height, SCREEN.header_h, 1.0)
+}
 
+/// Les largeurs de la fiche 10 § 4 : Domaines 320, Presets 280, Plugins 340 ; Ordonner 250,
+/// Storyboard 260, Pomodoro 160 au minimum. Fermeture au-delà de 80 px hors de l'écran.
+#[test]
+fn test_dock_defaults() {
     assert_eq!(TabId::Domains.default_width(), 320.0);
     assert_eq!(TabId::Preset.default_width(), 280.0);
     assert_eq!(TabId::Plugins.default_width(), 340.0);
@@ -77,29 +73,77 @@ fn test_dock_anchors_and_defaults() {
     assert_eq!(DISMISS_DRAG_PX, 80.0);
 }
 
-/// La poignée est du côté de la sortie : en bas pour un panneau du haut, en haut pour un
-/// panneau du bas. C'est ce qui rend le geste de fermeture naturel — on tire vers le bord.
+/// **TIROIR-4 — collés au bord, sous la bande, la poignée en bas.** Un tiroir seul de son côté
+/// touche le bord de l'écran et la bande ; sa poignée est sous son contenu.
 #[test]
-fn test_the_grip_is_on_the_side_a_panel_leaves_by() {
-    let mut dock = DockManager::new();
-    dock.top_tabs = vec![TabId::Domains];
-    dock.bottom_tabs = vec![TabId::Organize];
-    dock.right_tabs = vec![TabId::Temps];
-    for panel in compute_panel_layouts(&dock, &Store::new("essai"), 1440.0, 900.0, 78.0, 1.0) {
-        let expected = match panel.tab.anchor() {
-            DockAnchor::TopLeft => panel.y + panel.height - panel.grip_height,
-            DockAnchor::BottomLeft | DockAnchor::Right => panel.y,
+fn test_tiroir_4_colles_au_bord_sous_la_bande() {
+    for tab in [
+        TabId::Temps,
+        TabId::Domains,
+        TabId::Organize,
+        TabId::Plugins,
+    ] {
+        let b = compute_panel_layouts(
+            &dock_with(tab),
+            &Store::new("essai"),
+            1440.0,
+            900.0,
+            78.0,
+            1.0,
+        )
+        .into_iter()
+        .find(|b| b.tab == tab)
+        .expect("ouvert");
+        let bord = match tab.cote() {
+            Cote::Gauche => b.x,
+            Cote::Droite => 1440.0 - (b.x + b.width),
         };
-        assert_eq!(panel.grip_y, expected, "{:?}", panel.tab);
-        if panel.tab == TabId::Temps {
-            assert_eq!(
-                panel.x + panel.width,
-                1440.0 - 12.0,
-                "la Time Machine tient le bord droit"
-            );
-            assert!(panel.y + panel.height <= 900.0, "et ne dépasse pas l'écran");
-        }
+        assert_eq!(
+            (bord, b.y),
+            (0.0, 78.0),
+            "{tab:?} collé au bord, sous la bande"
+        );
+        assert_eq!(
+            b.grip_y,
+            b.y + b.height - b.grip_height,
+            "{tab:?} : la poignée en bas"
+        );
     }
+}
+
+/// **TIROIR-4 — une colonne, une largeur ; une colonne voisine quand la hauteur manque.** Sur un
+/// écran bas, Ordonner puis Pomodoro puis le Storyboard : les deux premiers s'empilent, le
+/// troisième ouvre une colonne vers l'intérieur ; chaque tiroir d'une colonne en a la largeur.
+#[test]
+fn test_tiroir_4_une_colonne_voisine_quand_la_hauteur_manque() {
+    let mut dock = DockManager::new();
+    for tab in [TabId::Organize, TabId::Pomodoro, TabId::Storyboard] {
+        dock.toggle_tab(tab);
+    }
+    let boites = compute_panel_layouts(&dock, &Store::new("essai"), 1440.0, 800.0, 78.0, 1.0);
+    let b = |tab| boites.iter().find(|b| b.tab == tab).expect("ouvert");
+    let (o, p, sb) = (b(TabId::Organize), b(TabId::Pomodoro), b(TabId::Storyboard));
+    assert_eq!((o.x, o.y), (0.0, 78.0));
+    assert_eq!(
+        (p.x, p.y),
+        (0.0, o.y + o.height),
+        "Pomodoro sous Ordonner, sans écart"
+    );
+    assert_eq!(
+        p.width, o.width,
+        "une colonne, une largeur : celle d'Ordonner, la plus large"
+    );
+    assert!(p.y + p.height <= 800.0);
+    assert_eq!(
+        (sb.x, sb.y),
+        (o.width, 78.0),
+        "le Storyboard ouvre la colonne voisine"
+    );
+    assert_eq!(
+        sb.width,
+        TabId::Storyboard.default_width(),
+        "sa colonne a sa largeur"
+    );
 }
 
 /// Ordonner et Pomodoro ouverts, dans cet ordre : ce que Glucose Tauri ouvrait au lancement, et
@@ -116,51 +160,135 @@ fn test_dock_manager_toggle_and_dismiss() {
     let mut dock = ordonner_et_pomodoro();
     assert!(dock.is_open(TabId::Organize));
     assert!(dock.is_open(TabId::Pomodoro));
-    assert_eq!(dock.bottom_tabs.len(), 2);
+    assert_eq!(dock.gauche.len(), 2);
 
     dock.toggle_tab(TabId::Organize);
     assert!(!dock.is_open(TabId::Organize));
-    assert_eq!(dock.bottom_tabs.len(), 1);
+    assert_eq!(dock.gauche.len(), 1);
 
     dock.toggle_tab(TabId::Plugins);
     assert!(dock.is_open(TabId::Plugins));
-    assert_eq!(dock.top_tabs.len(), 1);
+    assert_eq!(dock.droite.len(), 1);
 
     dock.dismiss_tab(TabId::Plugins);
     assert!(!dock.is_open(TabId::Plugins));
 }
 
+/// Un glisser qui commence sur la poignée de ce tiroir.
+fn tenir(dock: &mut DockManager, store: &Store, tab: TabId) -> (f32, f32) {
+    let b = geometrie(store)(dock)
+        .into_iter()
+        .find(|b| b.tab == tab)
+        .expect("ouvert");
+    let (x, y) = (b.x + b.width / 2.0, b.grip_y + b.grip_height / 2.0);
+    dock.drag = Some(DragSession {
+        tab,
+        start_x: x,
+        start_y: y,
+        current_x: x,
+        current_y: y,
+    });
+    (x, y)
+}
+
+/// **Glisser range, tirer hors de l'écran ferme** (TIROIR-4). Pomodoro, sous Ordonner, tiré
+/// vers le haut, passe au-dessus — et ne saute pas : il reste là où la main le tient. Tiré vers
+/// la gauche, 79 px au-delà du bord le gardent ; 81 le ferment (fiche 10 § 4).
 #[test]
 fn test_dock_drag_swap_and_dismiss() {
+    let store = Store::new("essai");
     let mut dock = ordonner_et_pomodoro();
-    assert_eq!(dock.bottom_tabs, vec![TabId::Organize, TabId::Pomodoro]);
+    assert_eq!(dock.gauche, vec![TabId::Organize, TabId::Pomodoro]);
 
-    dock.drag = Some(DragSession {
-        tab: TabId::Pomodoro,
-        start_x: 300.0,
-        start_y: 500.0,
-        current_x: 300.0,
-        current_y: 500.0,
-    });
+    let (x, y) = tenir(&mut dock, &store, TabId::Pomodoro);
+    let vu = |dock: &DockManager| {
+        geometrie(&store)(dock)
+            .into_iter()
+            .find(|b| b.tab == TabId::Pomodoro)
+            .expect("ouvert")
+            .seen()
+    };
+    let depart = vu(&dock);
+    assert!(
+        !dock.update_drag((x, y - 100.0), geometrie(&store)),
+        "trop peu"
+    );
+    assert!(
+        dock.update_drag((x, y - 330.0), geometrie(&store)),
+        "il change de place"
+    );
+    assert_eq!(dock.gauche, vec![TabId::Pomodoro, TabId::Organize]);
+    let tenu = vu(&dock);
+    assert_eq!(
+        (tenu.x, tenu.y),
+        (depart.x, depart.y - 330.0),
+        "il ne saute pas : il reste sous la main"
+    );
+    assert_eq!(dock.finish_drag(SCREEN.width, geometrie(&store)), None);
 
-    assert!(dock.update_drag(50.0, 500.0), "le panneau change de place");
-    assert_eq!(dock.bottom_tabs, vec![TabId::Pomodoro, TabId::Organize]);
-
-    // 79 px vers le bas : le panneau reste ; 81 px : il se ferme (fiche 10 § 4, 80 px).
-    dock.update_drag(50.0, 579.0);
-    assert_eq!(dock.finish_drag(), None, "sous le seuil, le panneau reste");
+    let (x, y) = tenir(&mut dock, &store, TabId::Pomodoro);
+    dock.update_drag((x - 79.0, y), geometrie(&store));
+    assert_eq!(
+        dock.finish_drag(SCREEN.width, geometrie(&store)),
+        None,
+        "79 px : il reste"
+    );
     assert!(dock.is_open(TabId::Pomodoro));
-
-    dock.drag = Some(DragSession {
-        tab: TabId::Pomodoro,
-        start_x: 300.0,
-        start_y: 500.0,
-        current_x: 300.0,
-        current_y: 500.0,
-    });
-    dock.update_drag(300.0, 581.0);
-    assert_eq!(dock.finish_drag(), Some(TabId::Pomodoro));
+    let (x, y) = tenir(&mut dock, &store, TabId::Pomodoro);
+    dock.update_drag((x - 81.0, y), geometrie(&store));
+    assert_eq!(
+        dock.finish_drag(SCREEN.width, geometrie(&store)),
+        Some(TabId::Pomodoro)
+    );
     assert!(!dock.is_open(TabId::Pomodoro));
+
+    // À droite, la sortie est le bord droit.
+    let mut dock = dock_with(TabId::Domains);
+    let (x, y) = tenir(&mut dock, &store, TabId::Domains);
+    dock.update_drag((x - 200.0, y), geometrie(&store));
+    assert_eq!(
+        dock.finish_drag(SCREEN.width, geometrie(&store)),
+        None,
+        "vers l'intérieur : il reste"
+    );
+    let (x, y) = tenir(&mut dock, &store, TabId::Domains);
+    dock.update_drag((x + 81.0, y), geometrie(&store));
+    assert_eq!(
+        dock.finish_drag(SCREEN.width, geometrie(&store)),
+        Some(TabId::Domains)
+    );
+}
+
+/// **Un tiroir de la colonne voisine traverse la première sans se fermer** : c'est un
+/// rangement, pas une sortie — la sortie est le bord de l'écran.
+#[test]
+fn test_tiroir_4_la_colonne_voisine_se_range_sans_se_fermer() {
+    let store = Store::new("essai");
+    let mut dock = DockManager::new();
+    for tab in [TabId::Organize, TabId::Pomodoro, TabId::Storyboard] {
+        dock.toggle_tab(tab);
+    }
+    let places = |d: &DockManager| compute_panel_layouts(d, &store, 1440.0, 800.0, 78.0, 1.0);
+    let sb = places(&dock)
+        .into_iter()
+        .find(|b| b.tab == TabId::Storyboard)
+        .expect("ouvert");
+    assert!(sb.x > 0.0, "le Storyboard est dans la colonne voisine");
+    let (x, y) = (sb.x + sb.width / 2.0, sb.grip_y + sb.grip_height / 2.0);
+    dock.drag = Some(DragSession {
+        tab: TabId::Storyboard,
+        start_x: x,
+        start_y: y,
+        current_x: x,
+        current_y: y,
+    });
+    dock.update_drag((x - 120.0, y), places);
+    assert_eq!(
+        dock.finish_drag(1440.0, places),
+        None,
+        "120 px vers le bord : il reste"
+    );
+    assert!(dock.is_open(TabId::Storyboard));
 }
 
 // ── ORDONNER ────────────────────────────────────────────────────────────────
@@ -552,8 +680,8 @@ fn memes_pixels(a: &tiny_skia::Pixmap, b: &tiny_skia::Pixmap, quoi: &str) {
 /// Les six panneaux ouverts en même temps, pour éprouver le cache sur tous les cas.
 fn dock_complet() -> DockManager {
     let mut dock = DockManager::new();
-    dock.top_tabs = vec![TabId::Plugins, TabId::Preset, TabId::Domains];
-    dock.bottom_tabs = vec![TabId::Organize, TabId::Pomodoro, TabId::Storyboard];
+    dock.gauche = vec![TabId::Organize, TabId::Pomodoro, TabId::Storyboard];
+    dock.droite = vec![TabId::Plugins, TabId::Preset, TabId::Domains];
     dock
 }
 
@@ -827,13 +955,10 @@ fn test_the_cache_names_why_a_panel_was_redrawn() {
     assert_eq!(cache.prendre_les_raisons(), R::Pointeur.bit());
 }
 
-/// L'ombre d'un panneau tient **dans** la boîte que le cache lui réserve.
-///
-/// Si `extent` était plus petite que ce que `draw_frame` noircit, le cache rognerait l'ombre
-/// — et comme les deux dérivent maintenant de `shadow()`, ce test est ce qui garantit qu'elles
-/// ne peuvent pas se séparer plus tard.
+/// Le cadre d'un panneau, son trait compris, tient **dans** la boîte que le cache lui réserve
+/// (DOCK-CACHE-1) — et la serre : plat, il n'a plus d'ombre qui déborde (TIROIR-4).
 #[test]
-fn test_the_reserved_box_contains_the_shadow() {
+fn test_the_reserved_box_contains_the_frame() {
     for scale in [1.0f32, 1.25, 2.0] {
         for panel in compute_panel_layouts(
             &dock_complet(),
@@ -843,19 +968,20 @@ fn test_the_reserved_box_contains_the_shadow() {
             SCREEN.header_h,
             scale,
         ) {
-            let extent = panel.extent(scale);
-            let shadow = panel.shadow(scale);
-            let seen = panel.seen();
-            for (nom, r) in [("l'ombre", shadow), ("le cadre", seen)] {
-                assert!(
-                    r.x >= extent.x
-                        && r.y >= extent.y
-                        && r.x + r.w <= extent.x + extent.w
-                        && r.y + r.h <= extent.y + extent.h,
-                    "{nom} de {:?} sort de la boîte réservée à l'échelle {scale}",
-                    panel.tab
-                );
-            }
+            let (extent, seen) = (panel.extent(scale), panel.seen());
+            assert!(
+                seen.x >= extent.x
+                    && seen.y >= extent.y
+                    && seen.x + seen.w <= extent.x + extent.w
+                    && seen.y + seen.h <= extent.y + extent.h,
+                "le cadre de {:?} sort de la boîte réservée à l'échelle {scale}",
+                panel.tab
+            );
+            assert!(
+                extent.w - seen.w <= scale + 1e-3,
+                "{:?} : la boîte réserve plus que le trait",
+                panel.tab
+            );
         }
     }
 }
@@ -863,7 +989,7 @@ fn test_the_reserved_box_contains_the_shadow() {
 /// Les sept panneaux ouverts, la Time Machine comprise.
 fn les_sept() -> DockManager {
     let mut dock = dock_complet();
-    dock.right_tabs = vec![TabId::Temps];
+    dock.gauche.push(TabId::Temps);
     dock
 }
 
@@ -903,10 +1029,8 @@ fn test_tiroir_1_le_contenu_ne_couvre_jamais_la_poignee() {
             for b in &boites {
                 let contenu = b.contenu(scale);
                 let poignee = b.grip_rect();
-                let dessous = contenu.y + contenu.h <= poignee.y + 0.01;
-                let dessus = poignee.y + poignee.h <= contenu.y + 18.0 * scale;
                 assert!(
-                    dessous || dessus,
+                    contenu.y + contenu.h <= poignee.y + 0.01,
                     "{:?} à {scale} : le contenu couvre la poignée",
                     b.tab
                 );
@@ -960,9 +1084,7 @@ fn test_tiroir_2_un_panneau_a_la_hauteur_de_ce_qu_il_montre() {
         mb.height
     );
     // La Time Machine sans jalon.
-    let mut temps = dock_with(TabId::Temps);
-    temps.right_tabs = vec![TabId::Temps];
-    let tm = haut_de(&temps, &vide, TabId::Temps);
+    let tm = haut_de(&dock_with(TabId::Temps), &vide, TabId::Temps);
     assert!(
         tm.height < 400.0,
         "la Time Machine fait {} pixels",
@@ -1027,37 +1149,98 @@ fn test_tiroir_2_ordonner_et_pomodoro_sont_pleins() {
     }
 }
 
-/// **TIROIR-3 — deux panneaux ne se posent jamais l'un sur l'autre.** Domaines s'ouvrait caché
-/// sous le Storyboard (sa capture du 17/11). Tous ouverts, aux écrans courants, aucun panneau de
-/// gauche n'en croise un autre — ni la Time Machine là où la place suffit.
+/// Deux tiroirs se croisent-ils ?
+fn se_croisent(a: &PanelLayoutBox, b: &PanelLayoutBox) -> bool {
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+}
+
+/// **TIROIR-3 — deux tiroirs ne se posent jamais l'un sur l'autre**, quand l'écran a la largeur
+/// de leurs colonnes : tous ouverts aux écrans de bureau, six en 1440 × 900 (deux domaines), et
+/// le cas de tous les jours (la Time Machine, Domaines, Ordonner) jusqu'aux plus petits.
+/// Domaines s'ouvrait caché sous le Storyboard (sa capture du 17/11). Et nulle part un tiroir ne
+/// sort de l'écran. **La limite, mesurée** (fiche 122) : six ouverts en 1440 × 900 avec huit
+/// domaines, Domaines (494 pixels) ne tient sous aucun autre et ouvre une troisième colonne —
+/// 1 450 pixels de colonnes pour 1 440 ; c'est le cas « trop étroit », plus bas.
 #[test]
 fn test_tiroir_3_deux_panneaux_ne_se_posent_jamais_l_un_sur_l_autre() {
-    let store = avec_des_domaines(8);
-    for (w, h, scale, avec_le_temps) in [
-        (1440.0, 900.0, 1.0, false),
-        (1366.0, 768.0, 1.0, false),
-        (1280.0, 720.0, 1.0, false),
-        (1920.0, 1080.0, 1.0, true),
-        (2560.0, 1440.0, 1.25, true),
+    let (deux, huit) = (avec_des_domaines(2), avec_des_domaines(8));
+    let mut courants = DockManager::new();
+    for tab in [TabId::Temps, TabId::Domains, TabId::Organize] {
+        courants.toggle_tab(tab);
+    }
+    let mut echecs = Vec::new();
+    for (w, h, scale, dock, store) in [
+        (1440.0, 900.0, 1.0, dock_complet(), &deux),
+        (1920.0, 1080.0, 1.0, les_sept(), &huit),
+        (2560.0, 1440.0, 1.25, les_sept(), &huit),
+        (1366.0, 768.0, 1.0, courants.clone(), &huit),
+        (1280.0, 720.0, 1.0, courants.clone(), &huit),
     ] {
-        let dock = if avec_le_temps {
-            les_sept()
-        } else {
-            dock_complet()
-        };
-        let boites = compute_panel_layouts(&dock, &store, w, h, 78.0 * scale, scale);
+        let boites = compute_panel_layouts(&dock, store, w, h, 78.0 * scale, scale);
+        let mut fautes = Vec::new();
         for (i, a) in boites.iter().enumerate() {
+            if a.x < 0.0 || a.x + a.width > w + 0.01 || a.y + a.height > h + 0.01 {
+                fautes.push(format!("{:?} sort de l'écran", a.tab));
+            }
             for b in &boites[i + 1..] {
-                let croise = a.x < b.x + b.width
-                    && b.x < a.x + a.width
-                    && a.y < b.y + b.height
-                    && b.y < a.y + a.height;
-                assert!(
-                    !croise,
-                    "{:?} et {:?} se croisent à {w} × {h}",
-                    a.tab, b.tab
-                );
+                if se_croisent(a, b) {
+                    fautes.push(format!("{:?} et {:?} se croisent", a.tab, b.tab));
+                }
             }
         }
+        if !fautes.is_empty() {
+            let places: Vec<String> = boites
+                .iter()
+                .map(|b| format!("{:?} x {} y {} {}×{}", b.tab, b.x, b.y, b.width, b.height))
+                .collect();
+            echecs.push(format!(
+                "{w} × {h} : {fautes:?}\n    {}",
+                places.join("\n    ")
+            ));
+        }
     }
+    assert!(echecs.is_empty(), "\n{}", echecs.join("\n"));
+}
+
+/// **Un écran trop étroit pour leurs colonnes** (sept tiroirs en 1280 × 720) : aucun ne sort de
+/// l'écran, et là où deux se croisent, le clic va à celui qu'on voit — le dernier dessiné.
+#[test]
+fn test_tiroir_3_trop_etroit_le_clic_va_a_celui_qu_on_voit() {
+    let store = avec_des_domaines(8);
+    let ecran = ScreenFrame {
+        width: 1280.0,
+        height: 720.0,
+        header_h: 78.0,
+        scale: 1.0,
+    };
+    let dock = les_sept();
+    let boites = places(&dock, &store, ecran);
+    let mut croisements = 0;
+    for (i, a) in boites.iter().enumerate() {
+        assert!(
+            a.x >= 0.0 && a.x + a.width <= 1280.01,
+            "{:?} sort de l'écran",
+            a.tab
+        );
+        for b in &boites[i + 1..] {
+            if !se_croisent(a, b) {
+                continue;
+            }
+            croisements += 1;
+            // Le milieu de leur intersection : celui de dessus (`b`, dessiné après) le prend.
+            let x = (a.x.max(b.x) + (a.x + a.width).min(b.x + b.width)) / 2.0;
+            let y = (a.y.max(b.y) + (a.y + a.height).min(b.y + b.height)) / 2.0;
+            let sous = panneau_sous(&dock, &store, ecran, Pointer { x, y }).map(|(t, _)| t);
+            let dessus = boites
+                .iter()
+                .rev()
+                .find(|c| c.seen().contains(x, y))
+                .map(|c| c.tab);
+            assert_eq!(sous, dessus, "{:?} sur {:?}", b.tab, a.tab);
+        }
+    }
+    assert!(
+        croisements > 0,
+        "le cas n'est pas trop étroit : il n'éprouve rien"
+    );
 }

@@ -82,7 +82,7 @@ fn geste_de_document(app: &mut GlucoseApp, g: &Json) -> Option<String> {
         return Some("nouveau document".to_string());
     }
     if g.get("panneau_domaines").is_some() {
-        app.dock_manager.top_tabs = vec![crate::dock::TabId::Domains];
+        app.dock_manager.droite = vec![crate::dock::TabId::Domains];
         app.dock_manager.domains.connus = app.domaines_connus();
         return Some(format!(
             "le panneau montre {:?}",

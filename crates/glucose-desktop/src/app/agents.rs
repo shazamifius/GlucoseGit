@@ -36,6 +36,8 @@ pub struct Agents {
     pub(crate) portee: crate::agents::outils::Portee,
     /// Le dernier geste d'une IA du nuage : son témoin ne se répète pas à chaque geste.
     pub(crate) dernier_geste_public: Option<std::time::Instant>,
+    /// L'onglet de son dernier geste : le témoin le redit quand elle en change (TEMOIN-2).
+    pub(crate) dernier_onglet_public: Option<String>,
     /// **Le relais** de la porte publique : celui de Glucose, ou un autre — un relais local, dans
     /// les épreuves.
     pub(crate) relais: Option<String>,
@@ -144,7 +146,13 @@ impl GlucoseApp {
                         return;
                     };
                     if !portee.machine {
-                        self.temoigner(&client);
+                        // L'onglet que l'appel vise : le sien, ou celui qu'il regarde.
+                        let onglet = d.appel.arguments.get("tableau").and_then(Json::as_str);
+                        let onglet = onglet.map_or_else(
+                            || self.store.project.active_board_id.clone(),
+                            str::to_string,
+                        );
+                        self.temoigner(&client, &onglet);
                     }
                     let issue = self.executer_dans_sa_portee(&d.appel);
                     repondre(d, issue);

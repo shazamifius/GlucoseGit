@@ -42,6 +42,31 @@ impl GlucoseApp {
         true
     }
 
+    /// **Le tiroir tenu suit la main**, et se range où il est vu (TIROIR-4) — sur la géométrie que
+    /// le dessin lit. Rend `true` si un tiroir était tenu.
+    pub(crate) fn glisser_le_tiroir(&mut self, souris: (f32, f32)) -> bool {
+        if self.dock_manager.drag.is_none() {
+            return false;
+        }
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
+        let ecran = self.screen_frame(largeur, hauteur);
+        let store = &self.store;
+        self.dock_manager
+            .update_drag(souris, |d| crate::dock::places(d, store, ecran));
+        self.mark_dirty();
+        true
+    }
+
+    /// **Le tiroir lâché** : rangé, ou fermé s'il est sorti de l'écran de son côté. Rend celui
+    /// qui s'est fermé.
+    pub(crate) fn lacher_le_tiroir(&mut self) -> Option<crate::dock::TabId> {
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
+        let ecran = self.screen_frame(largeur, hauteur);
+        let store = &self.store;
+        self.dock_manager
+            .finish_drag(largeur, |d| crate::dock::places(d, store, ecran))
+    }
+
     fn click_dock_content(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         let Some(result) = handle_dock_click(
             &mut self.dock_manager,

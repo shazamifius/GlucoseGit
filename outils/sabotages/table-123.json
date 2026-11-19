@@ -1,0 +1,152 @@
+[
+ {
+  "nom": "TABLE-3 — la place ignorée : toujours la largeur naturelle (l'ancienne loi)",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "    if place >= somme_nat {",
+  "apres": "    if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — la combinaison linéaire fausse : toujours le minimum",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "let t = (place - somme_min) / (somme_nat - somme_min);",
+  "apres": "let t = 0.0 * (place - somme_min) / (somme_nat - somme_min);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — en deçà des minimales, on déborde comme la CSS",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "minimales.iter().map(|m| m * place / somme_min).collect()",
+  "apres": "minimales.to_vec()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — le mot le plus large n'est plus mesuré (la minimale vaut la naturelle)",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "mot = if ch == ' ' { 0.0 } else { mot + a };",
+  "apres": "mot += a;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — l'en-tête mesuré en romain, dessiné en gras",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "Some(Face::from(self.emphase(span)))",
+  "apres": "Some(Face::from(span.emphasis))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — en édition, la rangée garde ses taquets",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext.rs",
+  "avant": "if block.kind.in_table() && mode == TextMode::Rendered {",
+  "apres": "if block.kind.in_table() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — en édition, les barres ne sont pas des signes",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "        role: SpanRole::Marker,\n    };\n    let mut spans = Vec::new();",
+  "apres": "        role: SpanRole::Text,\n    };\n    let mut spans = Vec::new();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — une cellule se coupe à la place entière, pas à sa colonne",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "wrap_paragraph(cellule.texte, largeur, |at, ch| {",
+  "apres": "wrap_paragraph(cellule.texte, largeur.max(1.0e6), |at, ch| {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-1 — les taquets oublient la gouttière",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "gouttiere * c as f32) / bx.body",
+  "apres": "0.0 * gouttiere * c as f32) / bx.body",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-3 — une rangée ne pose que sa première ligne",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "for rang in 0..hauteur {",
+  "apres": "for rang in 0..hauteur.min(1) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ }
+]

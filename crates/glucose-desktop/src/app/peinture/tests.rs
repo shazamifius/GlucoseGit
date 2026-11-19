@@ -148,9 +148,7 @@ fn test_le_lisere_du_passe_part_sur_la_carte() {
 /// d'accueil, qui s'estompe d'une image à l'autre.
 fn sans_panneau(app: &mut GlucoseApp) {
     app.ui.current_toast = None;
-    app.dock_manager.top_tabs.clear();
-    app.dock_manager.bottom_tabs.clear();
-    app.dock_manager.right_tabs.clear();
+    app.dock_manager.tout_fermer();
 }
 
 /// Une image de la voie graphique, avec la couche du dessus qu'elle a peinte.
@@ -499,7 +497,7 @@ fn test_chrome_1_une_chrome_immobile_garde_ses_cles() {
 fn test_aucun_panneau_n_est_ouvert_au_lancement() {
     let app = GlucoseApp::new();
     let d = &app.dock_manager;
-    assert!(d.top_tabs.is_empty() && d.bottom_tabs.is_empty() && d.right_tabs.is_empty());
+    assert!(d.gauche.is_empty() && d.droite.is_empty());
 }
 
 /// **GRILLE-1 — un panneau s'écrit par la typographie de l'écran** (fiche 120) : la texture que
