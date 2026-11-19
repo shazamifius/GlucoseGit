@@ -357,19 +357,33 @@ fn test_acces_1_chaque_geste_du_clavier_a_son_entree() {
 /// un écran de cinq pouces ne tient qu'une douzaine d'entrées : le bas sortait de l'écran. Les
 /// colonnes tiennent dans l'écran, aucune entrée ne se chevauche, toutes sont là ; et sur un
 /// écran qui le tient, le menu reste d'une seule colonne.
+///
+/// **L'écran qui le tient se mesure au menu lui-même**, posé sur un écran sans limite : il en a
+/// exactement la hauteur — les rangées, les filets et la marge sont des entiers, les sommes sont
+/// exactes. Un écran fixe de 900 cessait de le tenir dès qu'une entrée s'ajoutait : sous Windows,
+/// « Barre de Windows » et les deux crans d'ECHELLE-1 l'ont fait passer à deux colonnes (fiche 124).
 #[test]
 fn test_acces_1_un_menu_trop_haut_se_range_en_colonnes() {
     let store = store_with(1, 0, false);
     let typo = Typography::new();
-    let haut = layout_context_menu(
-        &store,
-        (&typo, &crate::ui::UiState::default()),
-        ((10.0, 10.0), None),
-        SCREEN,
-        1.0,
-        true,
-    )
-    .expect("un menu");
+    let pose = |ecran: (f32, f32)| {
+        layout_context_menu(
+            &store,
+            (&typo, &crate::ui::UiState::default()),
+            ((10.0, 10.0), None),
+            ecran,
+            1.0,
+            true,
+        )
+        .expect("un menu")
+    };
+    let sans_limite = pose((SCREEN.0, 1.0e6));
+    let haut = pose((SCREEN.0, sans_limite.rect.3));
+    assert_eq!(actions(&haut), actions(&sans_limite));
+    assert!(
+        haut.rect.3 > 300.0,
+        "un menu qui tiendrait en 300 pixels n'exerce pas les colonnes"
+    );
     // Trois cents pixels : sous les deux premiers groupes, le troisième ne tient plus entier —
     // sans la règle des groupes, la colonne se couperait au milieu de lui.
     let bas = (SCREEN.0, 300.0);

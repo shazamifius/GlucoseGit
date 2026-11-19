@@ -25,6 +25,7 @@
 //! | `catalog` | presets, zones de tableau, métadonnées de projet |
 //! | `domains` | catalogue de domaines et pondérations des nœuds (DOM-1..DOM-3) |
 //! | `resize` | la boîte d'un nœud, posée par le geste de redimensionnement (RESIZE-1) |
+//! | `pousser` | un texte qui grandit pousse sa membrane (TEXT-FIT-2) |
 //!
 //! # R-35 — Les erreurs ne sont plus silencieuses
 //!
@@ -56,6 +57,7 @@ mod membranes;
 mod navigation;
 mod order;
 pub mod participation;
+pub mod pousser;
 mod resize;
 pub mod retour;
 mod selection;
