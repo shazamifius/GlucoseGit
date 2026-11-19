@@ -166,7 +166,8 @@ MIT) : sa loi est transcrite dans `crates/glucose-core/src/courbes/couverture.rs
 
 Les émojis sont les dessins de **Twemoji** (© 2019-2026 Twitter, Inc et ses contributeurs,
 [`jdecked/twemoji`](https://github.com/jdecked/twemoji), licence
-[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)), convertis par nous en police COLRv0 et
-mis aux mesures de Noto Emoji (`outils/emojis/`,
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)), convertis par nous en police COLRv0,
+mis aux mesures de Noto Emoji, avec une seconde palette pour les fonds sombres où les 34 dessins
+qu'aucune couleur n'y montrerait sont éclaircis (`outils/emojis/`,
 [leur licence](crates/glucose-desktop/assets/LICENSE-Twemoji-graphics.txt)) ; ce que Twemoji n'a
 pas vient de Noto Emoji (SIL Open Font License 1.1).

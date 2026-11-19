@@ -51,7 +51,7 @@ caractère des textes déjà posés.
 
 | | Noto Emoji (avant) | Twemoji en couleur + le reste |
 |---|---|---|
-| octets embarqués | 886 628 | 851 172 + 4 004 |
+| octets embarqués | 886 628 | 853 476 + 4 004 (851 172 avant la palette du fond sombre) |
 | caractères | 1 489 | 1 427 + 56 |
 | glyphes lus par `fontdue` au chargement | 1 489 | 56 (les couches passent par leur contour) |
 
@@ -75,11 +75,37 @@ caractère des textes déjà posés.
 ## L'attribution (CC-BY 4.0)
 
 *« Twemoji graphics Copyright 2019-2026 Twitter, Inc and other contributors, licensed under CC-BY
-4.0 — converted to a COLRv0 font for Glucose, scaled to the metrics of Noto Emoji. »* Elle est à
+4.0 — converted to a COLRv0 font for Glucose, scaled to the metrics of Noto Emoji ; a second
+palette, for dark backgrounds, lightens the 34 glyphs that no colour would show there. »* (La
+seconde palette, le 19/11 au soir : la section suivante.) Elle est à
 trois endroits : `assets/LICENSE-Twemoji-graphics.txt` (le texte de la licence, depuis l'archive),
 la section Licence du `README.md`, et **les champs de la police même** (`name` 0, 13 et 14), qui
 voyagent avec le programme. Glucose n'a pas d'écran « À propos » : le jour où il en aura un, les
 licences des polices y vont.
+
+## La palette du fond sombre (EMOJI-3, fiche 126)
+
+Regardé sur le papier d'un nœud (`#0d0d0d`), le ✔ de Twemoji (`#31373D`) valait **Lc 0** en APCA :
+invisible. 34 dessins sont dans ce cas — tous d'une seule couleur, presque tous dans le « noir » de
+Twemoji (✔ ✖ ➕ ➖ ➗ ♠ ♣ ⚫ ⬛ 🖤 🕷️ 🔙 🔜…), plus 👾 (violet) et 👣 🐾 🪾 (bruns) —, que Noto
+monochrome dessinait à l'encre claire du texte : la beta.3 les aurait effacés. Twemoji a refusé de
+changer ses couleurs (*« wontfix »*, `twitter/twemoji#420`, 2020) ; Discord, qui dessine avec lui,
+en reçoit la plainte depuis des années.
+
+* **Le format le prévoit** : une police porte plusieurs palettes, et déclare celle qui est faite
+  pour un fond sombre (OpenType, `CPAL` version 1, `USABLE_WITH_DARK_BACKGROUND`) ; WebKit la
+  branche sur `font-palette: dark`, FreeType sur `FT_PALETTE_FOR_DARK_BACKGROUND`.
+* **Qui change** : un émoji dont aucune couleur ne se voit sur le papier (APCA sous Lc 15, *« treat
+  as invisible »*). Une seule qui se voit suffit à le laisser : le ❤ de Twemoji vaut Lc 31 et se lit
+  par sa teinte — un seuil de pictogramme (Lc 45) appliqué à tous aurait éclairci 115 dessins, les
+  rouges compris.
+* **Comment** : ses couleurs montent d'un même pas de clarté (Oklch) jusqu'à celle de l'encre du
+  corps (`#dce1eb`), teinte gardée, chroma au bord de l'écran si sRGB ne la tient plus ; dans des
+  entrées neuves, car `#31373D` est aussi le détail de 81 dessins qui, eux, se voient.
+* **Glucose choisit par l'encre** : une encre plus claire que le milieu de l'échelle perçue
+  (clarté Oklab 0,5) est posée sur un papier sombre. Le post-it jaune, d'encre `#222`, garde les
+  couleurs d'origine.
+* **Ce que ça coûte** : cinq couleurs (518 au lieu de 513), 2 304 octets.
 
 ## Sources (consultées le 19/11/2026)
 
@@ -92,3 +118,9 @@ licences des polices y vont.
 * `fontdue` 0.9.4, `Font::from_bytes` — seuls les glyphes de la `cmap` (et de `GSUB` sur demande)
   sont préparés.
 * [Reproducible builds, `SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/).
+* EMOJI-3 : [OpenType, `CPAL`](https://learn.microsoft.com/en-us/typography/opentype/spec/cpal)
+  (les types de palettes) ; [`twitter/twemoji#420`](https://github.com/twitter/twemoji/issues/420)
+  (*« wontfix »*) ; [Discord, *The "heavy" emojis are almost non-visible*](https://support.discord.com/hc/nl/community/posts/360052083493-The-heavy-emojis-are-almost-non-visible) ;
+  [WebKit, *Customizing Color Fonts on the Web*](https://www.webkit.org/?p=12662) (`font-palette:
+  dark`) ; [APCA in a Nutshell](https://git.apcacontrast.com/documentation/APCA_in_a_Nutshell.html)
+  (Lc 15, Lc 45).

@@ -4,7 +4,7 @@
 
 **Ce qui change depuis la 2.0.4-beta.2**
 
-* **Les émojis sont en couleur** : 🟢 et 🔴 ne sont plus le même rond. Les dessins sont ceux de Twemoji, nets à tout zoom, dans le canevas comme dans l'export SVG ; vos textes gardent exactement leur mise en page.
+* **Les émojis sont en couleur** : 🟢 et 🔴 ne sont plus le même rond. Les dessins sont ceux de Twemoji, nets à tout zoom, dans le canevas comme dans l'export SVG ; vos textes gardent exactement leur mise en page. Les signes dessinés en noir (✔, ➕, ♠…) s'éclaircissent sur le fond sombre de vos textes, et gardent leur couleur sur un post-it.
 * **Les tableaux tiennent dans leur nœud** : une cellule trop longue passe à la ligne dans sa colonne, au lieu de sortir du bloc ; un filet discret sépare deux rangées.
 * **Les listes s'imbriquent** : un élément décalé sous un autre se range un cran plus loin, sa puce avec lui.
 * **Un texte qui grandit pousse sa membrane** : quand un texte s'allonge, le bas de la membrane qui le contient le suit — à la saisie comme à l'ouverture d'un document.
