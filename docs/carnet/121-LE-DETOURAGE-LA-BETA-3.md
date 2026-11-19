@@ -171,3 +171,6 @@ d'hier — inutile, mesuré sur le code.
 * **Une page qu'il ne peut pas ouvrir ne reçoit aucune réponse** : sa fiche de questions (un doc
   Claude) ne s'ouvrait pas depuis cette session, et ses réponses n'ont pas été lues. Depuis le
   19/11, ses réponses vivent dans son Glucose, lues par sa porte (fiche 122).
+
+**Correction du 19/11 après-midi (fiche 124)** : la fiche 123 n'a joué aucun sabotage (sa mémoire pleine) ;
+`detourage-121` et `echelle-121` sont joués par la fiche 124.

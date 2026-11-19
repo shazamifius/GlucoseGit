@@ -190,3 +190,6 @@ après `cargo clean` en a duré 39 : à couper en étapes (compiler, puis éprou
 
 Le travail des § 3, 6 (la phrase des émojis) et 7 est resté dans l'arbre, non validé, à la fin de
 la session ; il est validé et envoyé par la fiche 123.
+
+**Correction du 19/11 après-midi (fiche 124)** : la fiche 123 n'a rien compilé non plus (sa mémoire
+pleine) ; ce travail est validé et envoyé par la fiche 124.

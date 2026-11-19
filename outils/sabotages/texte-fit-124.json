@@ -1,0 +1,137 @@
+[
+ {
+  "nom": "TEXT-FIT-2 — la membrane ne suit jamais",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "        if voulu <= cadre.bottom() {",
+  "apres": "        if voulu <= cadre.bottom() + 1.0e9 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — sans l'écart du cadre",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "        let voulu = bas + ECART;",
+  "apres": "        let voulu = bas;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — celle qui la contient ne suit pas (MEMB-7)",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "        parente = annotations[rang].membrane_id();",
+  "apres": "        parente = None;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — hors du journal, la hauteur oublie le haut",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "        *height = bas - *y;",
+  "apres": "        *height = bas;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — par le journal, la hauteur oublie le haut",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "                    Rect::new(cadre.left, cadre.top, cadre.width, bas - cadre.top),",
+  "apres": "                    Rect::new(cadre.left, cadre.top, cadre.width, bas),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — un cycle s'arrête trop tôt",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "        if poussees.iter().any(|&(r, _)| r == rang) {",
+  "apres": "        if poussees.iter().any(|&(r, _)| r != rang) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — l'ouverture ne pousse pas",
+  "fichier": "crates/glucose-desktop/src/interactions/resize/ajuster.rs",
+  "avant": "            if ecrite.is_some_and(|h| fit > h) {",
+  "apres": "            if ecrite.is_some_and(|h| fit > h + 1.0e9) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "TEXT-FIT-2 — la saisie ne pousse pas",
+  "fichier": "crates/glucose-desktop/src/interactions/resize.rs",
+  "avant": "            self.store\n                .pousser_les_membranes(&board, ann_id, rect.top + height);",
+  "apres": "            let _ = (&board, rect.top + height);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "text_fit_2"
+  ]
+ },
+ {
+  "nom": "ACCES-1 — un menu qui tient juste passe à deux colonnes",
+  "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+  "avant": "        if !colonne.is_empty() && deja + sous + hauteur_de(groupe, (rangee, filet)) > hauteur {",
+  "apres": "        if !colonne.is_empty() && deja + sous + hauteur_de(groupe, (rangee, filet)) > hauteur - 1.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "acces_1"
+  ]
+ }
+]
