@@ -29,8 +29,9 @@
 
 * **« Réglé » seulement vérifié** : sur une copie de ses documents, sur GitHub, ou à son écran — jamais
   parce que ça compile, ni parce qu'une épreuve isolée passe.
-* **Une épreuve par invariant, sabotée** : `outils/saboter.py` casse la garde, lance les épreuves, exige
-  qu'elles tombent, restaure. Un fichier de sabotages par chantier, dans `outils/sabotages/`.
+* **Une épreuve par invariant, sabotée** : `outils/saboter.py` joue d'abord chaque commande sur le code
+  intact (le témoin : s'il tombe, rien n'est joué), puis casse la garde, lance les épreuves, exige qu'une
+  épreuve tombe réellement (sa ligne d'échec, pas un code de sortie quelconque), restaure (fiche 125). Un fichier de sabotages par chantier, dans `outils/sabotages/`.
 * **Une épreuve porte sa preuve à l'envers** : elle rejoue l'ancienne loi sur les mêmes données et vérifie
   qu'elle concluait l'inverse.
 * **Les deux voies au bit près**, ou à un écart mesuré, borné et expliqué (`tests/voies_suite.rs`).
@@ -140,11 +141,16 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   s'ouvrir tant qu'il n'est pas ajouté (`git add`).
 * **Pendant qu'une suite tourne, n'écrire aucun `.rs` dans le dépôt** : les cliquets lisent tous les
   fichiers, même ceux qu'aucun `mod` ne nomme. Préparer dans le scratchpad, recopier d'un coup.
-* **Les sabotages, à part** : `git worktree add --detach <scratchpad>/sab HEAD`, puis dans l'arbre
-  `CARGO_TARGET_DIR=~/.cache/glucose-bancs/sabotage-cible CARGO_PROFILE_DEV_OPT_LEVEL=0
-  CARGO_PROFILE_DEV_DEBUG=0 nice -n 19 nix develop /home/shaza/Projets/GlucoseGit -c python3
-  outils/saboter.py outils/sabotages/<x>.json`, en fond, avec un réveil sur sa sortie et sa durée dite
-  avant ; retirer l'arbre ensuite. **Jamais éditer un fichier qu'un sabotage touche** : il restaure ce
+* **Les sabotages, à part** : l'arbre détaché vit à un chemin fixe, gardé d'une session à l'autre avec sa
+  cible (`git -C ~/.cache/glucose-bancs/sabotage-arbre checkout --detach <commit>` ; s'il manque,
+  `git worktree add --detach ~/.cache/glucose-bancs/sabotage-arbre HEAD`), puis dans l'arbre
+  `RUST_TEST_THREADS=2 bash outils/borne.sh env CARGO_TARGET_DIR=~/.cache/glucose-bancs/sabotage-cible
+  CARGO_PROFILE_DEV_OPT_LEVEL=0 CARGO_PROFILE_DEV_DEBUG=0 nix develop /home/shaza/Projets/GlucoseGit -c
+  python3 outils/saboter.py outils/sabotages/<x>.json`, un fichier par commande, en fond, avec un réveil
+  sur sa sortie et sa durée dite avant. **Deux fils d'épreuves, pas quatre** : à quatre, la suite du
+  bureau a dépassé une borne de 2,7 Go (fiche 125). **Le détourage demande l'optimisation du dépôt**
+  (`CARGO_PROFILE_DEV_OPT_LEVEL=1`, une autre cible) : sans elle, son modèle dépasse le délai de 60 s, et
+  le témoin le dit. **Jamais éditer un fichier qu'un sabotage touche** : il restaure ce
   qu'il a lu. Un script de remplacement s'écrit **après** `cargo fmt`.
 * **Les épreuves tournent en parallèle** : deux qui écrivent le même fichier temporaire tombent au hasard
   (nommer par l'empreinte). Une épreuve graphique se saute sans carte ; `GLUCOSE_EXIGER_UNE_CARTE` la fait

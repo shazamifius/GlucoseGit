@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 19/11/2026** (fiches 108-124). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 19/11/2026, 16 h** (fiches 108-125). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -14,9 +14,9 @@
   co-working et ses photos, la porte aux IA publiques, la frise chronologique, le miroir des images,
   les boutons de Windows qui répondent où ils sont dessinés. Installeur Windows, AppImage, `.deb`,
   `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`. Son PC de l'école y est passé.
-* **En brouillon** : la 2.0.4-beta.3, sur `15beb94` — elle ne porte que les notes ; **à refaire avec
-  tout ce qui suit**, de préférence après le déménagement de Cloudflare (§ 6), pour porter les
-  adresses neuves.
+* **En brouillon** : la 2.0.4-beta.3, sur `15beb94` — vide ; **à refaire avec tout ce qui suit** : ses
+  notes sont écrites (`outils/publication/notes.md`, vérifiées), la CI de `main` tourne ; le
+  brouillon d'hier se retire d'abord (le flux de publication ne remplace rien).
 * **Sur `main` depuis la beta.2** :
   * **sa capture du 17/11, finie** — le texte et les icônes de l'interface nets (GRILLE-1 et 2), les
     trois modes de la fenêtre (`F11`, `Ctrl+Maj+A`, le zen à `Maj+F11`), toujours devant sous Wayland
@@ -29,10 +29,12 @@
   * **le détourage** (DETOURER-1 à 3, sa demande du 18/11) : « Détourer : la forme principale » par
     u2netp lu par un moteur à nous (1 s sur son VivoBook), et « Retirer le fond uni », exact ;
     annulables, envoyés au co-working — jamais regardé dans le vrai Glucose hors du banc ;
-  * **ce que Claude.ai écrivait et que Glucose dessinait mal** (fiches 123-124) : les tableaux
-    tiennent dans leur nœud (TABLE-3, la répartition de *CSS Tables 3*), les listes s'imbriquent
-    (LISTE-1, la règle de CommonMark), le témoin dit l'onglet où l'IA travaille (TEMOIN-2), et **un
-    texte qui grandit pousse sa membrane** (TEXT-FIT-2) — regardés sur une copie de son document ;
+  * **ce que Claude.ai écrivait et que Glucose dessinait mal** (fiches 123-125) : les tableaux
+    tiennent dans leur nœud (TABLE-3, la répartition de *CSS Tables 3*) et **un filet discret
+    sépare deux rangées** (TABLE-4), les listes s'imbriquent (LISTE-1, la règle de CommonMark), le
+    témoin dit l'onglet où l'IA travaille (TEMOIN-2), **un texte qui grandit pousse sa membrane**
+    (TEXT-FIT-2), et **les émojis sont en couleur** (EMOJI-2 : Twemoji 17 construit par nous en
+    COLRv0, `decisions/18`) — regardés sur une copie de son document ;
   * **la porte publique, vraie** : l'identité du document ne part plus au nuage, le code de la
     question d'accord est dans son titre.
 * **La porte aux IA publiques marche avec son compte** (19/11, fiche 122) : **Claude.ai** est entré
@@ -56,7 +58,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Naviguer** | canevas infini, zoom jusqu'à ×256 ; souris, pavé (pincement sous Windows, Linux et macOS), doigts ; `F` cadre la sélection, `Alt+F` tout ; **`Alt+Z`** le `Ctrl+Z` de la caméra ; signets ; minimap ; onglets ; **`Ctrl+F`** cherche dans tout le document ; le mode Focus par un geste choisi |
 | **Le document** | `.glucose` écrit geste après geste, brouillons, reprise au lancement, Time Machine (`Ctrl+H`) — **chaque geste signé**, ses écrits, **le journal des rectifications** de l'IA de Glucose —, les documents de Tauri lus ; au terminal, `glucose document.glucose` et une commande par outil des agents (`glucose aide`) |
 | **Images** | PNG, JPEG, WebP, GIF (figé), BMP ; coller, déposer ; rotation, recadrage, **retourner** (`Alt+Maj+H`, `Alt+Maj+V`) ; **détourer** la forme principale, **retirer le fond uni** ; la mémoire par étages |
-| **Texte** | Markdown, **tableaux qui tiennent dans leur nœud**, **listes imbriquées**, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; de loin, le gris de ses lignes ; son papier toujours le gris sombre des blocs ; **sa lueur dit sa parenté** (une IA du sens embarquée, sans réseau) ; un texte qui grandit pousse sa carte, **et sa membrane** ; les émojis, en noir et blanc |
+| **Texte** | Markdown, **tableaux qui tiennent dans leur nœud**, leurs rangées séparées d'un filet, **listes imbriquées**, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; de loin, le gris de ses lignes ; son papier toujours le gris sombre des blocs ; **sa lueur dit sa parenté** (une IA du sens embarquée, sans réseau) ; un texte qui grandit pousse sa carte, **et sa membrane** ; **les émojis en couleur** (Twemoji), un caractère à la fois |
 | **Flèches** | droites ou courbes, six relations, coudes (« Retirer ce coude », « Redresser la flèche »), bouts qu'on prend, contournement, ancres de texte ; la couleur des lueurs qu'elles relient ; de loin, une trace ; leur présence suit leur nombre et la souris (PARENTE-4) ; `Ctrl`+clic suit un lien ; la fenêtre des liens (`B`) |
 | **Organiser** | membranes **en carte** (la plus petite région l'emporte), dossiers (renommés par `F2`), **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et la roue (Oklch) ; **dater** un nœud (`Maj+T`), la frise chronologique (`Maj+R`), regarder un domaine — deux lentilles qui estompent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), la page web |
@@ -75,11 +77,11 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 **Vu par nous, pas encore réglé** :
 
-* **les émojis sont en noir et blanc** : 🟢 et 🔴 sont le même rond rayé — or Claude.ai s'en sert
-  comme de signaux (« fait », « reste à faire »), et sa phrase d'outil ne suffit pas. Le chemin est
-  trouvé (fiche 124 § 6 : une police COLRv0 construite par nous depuis Twemoji 17) ;
-* **les rangées d'un tableau coupé ne se distinguent pas** : une rangée de trois lignes suit la
-  précédente sans écart ni filet (Glucose Tauri n'en avait pas non plus) ;
+* **les émojis foncés se lisent mal sur le fond sombre** : ✔️, que Claude.ai écrit souvent,
+  Twemoji le dessine gris foncé (comme Apple, Google, Discord) ; fidèle, mais peu lisible — sa
+  question est dans son Glucose (`claude-code-coches`) ;
+* **une famille d'émojis se décompose, un drapeau devient deux lettres** : sans moteur de mise en
+  forme, Glucose dessine un caractère à la fois (`decisions/10` et `18`) ;
 * **la télémétrie compte une mise en veille comme une image** : 415 s chez un utilisateur Windows à
   carte AMD, la machine à 0 % pendant ces sept minutes — la « pire image » en est faussée ;
 * **les tiroirs ne défilent pas** : quand la hauteur manque même en colonnes, deux se croisent
@@ -98,21 +100,27 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 ## 4. La qualité
 
-* **Les épreuves** : sur GitHub, le 19/11, le tour 2 (`8c4e579`) a tout compilé partout, et seules deux épreuves tombaient — 2 144 sur 2 145 du bureau sous Linux, ACCES-1 de plus sous Windows ; corrigées dans `b4a633e`, dont **le tour 3 tournait à la fin de la session** (sa réponse : `gh run view 44532678404`) ; clippy strict (Rust 1.100 sur GitHub, 1.99 ici)
-  et `cargo fmt` à zéro ; les **cliquets** (80 lignes par fonction, 600 par fichier, le couplage au
-  modèle — 38 lignes, au plafond) ne se relèvent jamais : ce qui déborde s'extrait.
+* **Les épreuves** : sur GitHub, `d46f5e0` **vert sur les dix tâches** (le 19/11, 14 h 56 : le travail
+  des fiches 122 à 124) ; `78ed630` (EMOJI-2, TABLE-4) **en vérification à la fin de la session**
+  (`gh run view 44551546465`, sept tâches vertes à 16 h 20). Ici, la suite du bureau : 2 152 sur 2 157
+  — les empreintes témoins mises à jour depuis (le filet de TABLE-4, regardé), et le détourage, qui
+  dépasse son délai sans l'optimisation du dépôt (vert sur GitHub). Clippy strict et `cargo fmt` à
+  zéro ; les **cliquets** (80 lignes par fonction, 600 par fichier, le couplage au modèle — 38
+  lignes, au plafond) ne se relèvent jamais : ce qui déborde s'extrait.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
-  (`outils/sabotages/`, un fichier par chantier) — le compte de chaque fiche est dans sa fiche ;
-  le 19/11 : TEXT-FIT-2 et ACCES-1 9 sur 9, LISTE-1 6 sur 6 joués ; **pas encore joués** : les deux
-  derniers de `liste-123`, `temoin-123`, `table-123`, `tiroirs-122`, `porte-122`, `applique-122`,
-  `echelle-121`, `detourage-121`.
+  (`outils/sabotages/`, un fichier par chantier) ; **`saboter.py` joue d'abord le code intact (le
+  témoin) et exige une épreuve réellement tombée** (fiche 125). Joués avec témoin : `texte-fit-124`
+  9 sur 9, `emoji-125` 8 sur 8, `table-125` 7 sur 7, `liste-123` 7 sur 8 (le dernier, la puce en
+  vecteurs, arrêté avec la session). **Pas encore joués** : ce dernier, `temoin-123` (2), `table-123`
+  (10), `tiroirs-122` (6), `porte-122` (3), `applique-122` (2), `echelle-121` (5), `detourage-121`
+  (25).
 * **Regarder** : le vrai Glucose au pilote, hors écran, sur une copie de ses documents
   (`outils/pilote/piloter.sh`) ; **le rythme ne se juge qu'à son écran** (`outils/pilote/essai_ecran.sh`,
   la section PARU-1 de la chronique).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK,
   NixOS, l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) :
-  la dernière verte est `15beb94` (18/11) ; `b4a633e` en cours (ci-dessus). Elle se lance avant une publication, ou comme voie de vérification quand sa
-  machine est pleine — sur une branche `verification`, retirée dès la fusion.
+  la dernière verte est `d46f5e0` (19/11) ; `78ed630` en cours (ci-dessus). Elle se lance avant une
+  publication, ou comme voie de vérification quand sa machine est pleine.
 
 ## 5. Ses utilisateurs, et ce qu'on en sait
 

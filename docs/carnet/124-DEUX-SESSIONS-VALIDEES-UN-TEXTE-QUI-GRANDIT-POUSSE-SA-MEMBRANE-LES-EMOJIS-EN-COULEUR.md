@@ -211,3 +211,11 @@ sur le relais de leur version. Un compte se voit par `npx wrangler whoami` : à 
 * **Hors du dépôt** : `~/.cache/glucose-bancs/session-124/` (le portage des cliquets en Python,
   `outils/cliquets-sans-compiler.py <racine du dépôt>`) ; `pilote-124/` (la copie de son document, les
   captures) ; `emojis-124/` (Twemoji de Mozilla, les dessins de Twemoji 17, les scripts fontTools).
+
+**Correction du 19/11 à 15 h (fiche 125)** : le tour 3 est **tombé** sous Linux, Windows et Mac Intel,
+sur une seule épreuve — `test_text_fit_2_a_l_ouverture…`, dont la précondition (« le texte grandit de
+plus de 100 ») était fausse partout (il grandit de 78,4) : elle n'avait jamais passé, nulle part. Le
+« 9 sur 9 » du § 5 et du § 8 comptait donc huit fois l'échec de cette précondition comme une garde qui
+tient : `outils/saboter.py` ne jouait pas le code intact d'abord. La précondition est devenue exacte,
+l'outil joue un témoin et exige une épreuve réellement tombée ; rejoué : 9 sur 9, vrais. Le titre de
+cette fiche (« deux sessions validées par GitHub ») ne l'est devenu qu'au tour 4, à 14 h 56.

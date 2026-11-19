@@ -193,3 +193,6 @@ la session ; il est validé et envoyé par la fiche 123.
 
 **Correction du 19/11 après-midi (fiche 124)** : la fiche 123 n'a rien compilé non plus (sa mémoire
 pleine) ; ce travail est validé et envoyé par la fiche 124.
+
+**Correction du 19/11 à 15 h (fiche 125)** : le tour 3 de la fiche 124 est tombé ; ce travail est
+validé par GitHub au tour 4 (`d46f5e0`, dix tâches sur dix), et dans `main` depuis.
