@@ -303,8 +303,14 @@ impl DockManager {
         places: impl Fn(&DockManager) -> Vec<PanelLayoutBox>,
     ) -> Option<TabId> {
         let tab = self.drag.as_ref()?.tab;
-        let vu = places(self).into_iter().find(|b| b.tab == tab)?.seen();
+        // Vu où le dessin le montre — le glisser compris —, puis lâché quoi qu'il arrive : un
+        // tiroir fermé pendant qu'on le tenait ne laisse pas une main qui tient le vide.
+        let vu = places(self)
+            .into_iter()
+            .find(|b| b.tab == tab)
+            .map(|b| b.seen());
         self.drag = None;
+        let vu = vu?;
         let sorti = match tab.cote() {
             Cote::Gauche => vu.x < -DISMISS_DRAG_PX,
             Cote::Droite => vu.x + vu.w > largeur_d_ecran + DISMISS_DRAG_PX,

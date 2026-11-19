@@ -172,9 +172,9 @@ fn test_table_3_la_repartition_remplit_la_place() {
     for place in [80.0f32, 81.0, 200.0, 559.0] {
         let l = repartir(&minimales, &naturelles, place);
         assert!((somme(&l) - place).abs() < 1e-3, "{place} : {l:?}");
-        for c in 0..3 {
+        for ((largeur, minimale), naturelle) in l.iter().zip(&minimales).zip(&naturelles) {
             assert!(
-                l[c] >= minimales[c] - 1e-4 && l[c] <= naturelles[c] + 1e-4,
+                *largeur >= minimale - 1e-4 && *largeur <= naturelle + 1e-4,
                 "{l:?}"
             );
         }

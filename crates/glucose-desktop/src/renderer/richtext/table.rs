@@ -47,6 +47,10 @@ struct Cellule<'a> {
     gras: bool,
 }
 
+/// **Les lignes d'une cellule**, coupée dans sa colonne : la tranche `[s, e)` de son texte que
+/// porte chacune, dans l'ordre ([`wrap_paragraph`]).
+type Lignes = Vec<(usize, usize)>;
+
 impl Cellule<'_> {
     /// Le visage de l'octet `at` de la cellule — ou rien pour un signe effacé au repos
     /// (MODE-1), qui n'occupe aucune place.
@@ -133,7 +137,7 @@ pub(super) fn layout_table(
             out.lines.push(ligne_de_la_rangee(row, 0, 0..0, (0.0, 0.0)));
             continue;
         }
-        let coupes: Vec<Vec<(usize, usize)>> = cellules
+        let coupes: Vec<Lignes> = cellules
             .iter()
             .zip(&largeurs)
             .map(|(cellule, &largeur)| {
@@ -209,7 +213,7 @@ fn cellules<'a>(source: &'a str, rows: &[Block]) -> Vec<Vec<Cellule<'a>>> {
 /// La ligne de rang `rang` d'une rangée : celle de même rang de chaque cellule, sur son taquet.
 fn poser_une_ligne(
     out: &mut TextLayout,
-    (row, cellules, coupes): (&Block, &[Cellule<'_>], &[Vec<(usize, usize)>]),
+    (row, cellules, coupes): (&Block, &[Cellule<'_>], &[Lignes]),
     (taquets, rang): (&[f32], usize),
     outils: (&Typography, f32, TextMode),
 ) {
