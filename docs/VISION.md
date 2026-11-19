@@ -51,6 +51,12 @@ d'un projet Rust de plusieurs millions de lignes (web3) — *« une arborescence
 complexe »* —, construit par Protéo, posé sur Glucose, puis travailler sur ce projet avec Protéo, depuis
 Glucose.
 
+**Glucose R&D, et le hub de tout projet** (19/11) : *« maintenant, il faut se dire un truc SUPER
+important : Glucose R&D, ce sont les travaux réalisés avec l'IA, et voir comment un humain arrive à
+s'exprimer à un autre humain, et comment l'IA arrive à comprendre et à aider sur de gros projets »* ;
+*« l'objectif du logiciel est d'être le hub complet de TOUT projet au monde, ainsi que de révolutionner
+la feuille blanche »*.
+
 **La partie 1 d'abord** (25/10) : *« mettre une pause à Protéo et essayer de définitivement finir la
 partie 1 de Glucose : le logiciel complet, complet, en Rust, ultra optimisé, avec des utilisateurs et une
 ergonomie parfaite. »*
@@ -141,6 +147,14 @@ Chaque décision, chaque ligne de code se juge contre elles.
   **Sa parole du 14/11** (vers 1 h 46) : *« j'aimerais vraiment travailler sur les protocoles MCP de
   liaison de IA ainsi que le système de collaboration »* — la porte publique et le co-working, ses
   deux pages (fiches 111 et 113) prises pour accordées.
+* **Ses réponses aux pages de la porte et du co-working** (19/11, écrites dans Glucose, fiche 122) :
+  le co-working — *« je trouve vraiment que tes propositions sont incroyables et me conviennent à
+  300 % ; je n'ai vraiment pas de nuance à apporter »* ; **le web3**, son autre projet — *« il faut
+  garder en tête que je travaille sur un projet secondaire, le web3, qui permettra d'obtenir des
+  systèmes de synchronisation COMPLÈTEMENT différents du web2 — rien à voir avec la crypto, juste un
+  énorme projet qui vise la refonte COMPLÈTE du système mondial d'internet ; mais du coup, concentre-toi
+  sur le web2 »*. La porte publique : *« je pense qu'on a déjà tout : tout ce que tu as proposé est
+  déjà en partie appliqué dans le code ; si tu as des questions plus spécifiques, dis-les-moi »*.
 * **Sa capture d'écran du 17/11** (fiche 118 § 1, ses mots entiers) : les tiroirs — *« des bulles
   partout, non cohérentes avec l'écran, qui s'entrechoquent, souvent trop grosses […] et vraiment
   aucune structure particulière qui permettrait d'identifier pourquoi ces tiroirs s'ouvrent comme
@@ -151,6 +165,10 @@ Chaque décision, chaque ligne de code se juge contre elles.
   flip pour les images »*. Sur Windows : *« oui, après vérification, c'est exactement ça ! les boutons
   fonctionnent, ils sont juste décalés »*. **Ses choix** (structure des tiroirs, modes, barre de
   Windows) : dans la fiche de questions (fiche 118 § 5), à sa parole.
+* **Les tiroirs, sa réponse** (19/11, sur la page du prototype recopiée dans Glucose) : *« c'est plus
+  compliqué que ça ; je propose que tout ça, tu le fasses exactement comme proposé, et go l'allure
+  plate »* — un tiroir du côté de son bouton, collé au bord, plat ; et les trois choix de la fiche 120
+  restent (`F11` le plein écran, des icônes d'un pixel, aucune correction de contraste).
 * **Le 18/11**, la même capture renvoyée — *« voici une capture des choses qui ne fonctionnent pas
   dans la version actuelle de Glucose »* (la 2.0.4-beta.2 qui les corrige attendait encore son
   clic) —, puis, en cours de session : *« il n'y a pas de système pour nommer un dossier »* ; et
@@ -165,6 +183,17 @@ Chaque décision, chaque ligne de code se juge contre elles.
   avant, chaque fonction a son bouton, au PC et au téléphone. **Nuancé le 10/11** : *« actuellement le
   Wikipédia est illisible et horrible à travailler dessus »* — il veut travailler l'ergonomie de la carte
   de Wikipédia maintenant.
+* **La R&D de l'ergonomie, et la refonte finale** (19/11) : *« l'idée, c'est que Glucose, ce sont des
+  plugins et énormément de systèmes de customisation, afin que toute personne, peu importe d'où elle
+  vient, se plaise sur le logiciel ; mais la version proposée du logiciel, à nu, doit déjà être la plus
+  importante : j'aimerais pousser l'ergonomie du logiciel à 800 %, comme on ne l'a JAMAIS vue sur aucun
+  logiciel au monde — pousser le truc à fond, plus que Blender par exemple »* ; *« ça, c'est pour les
+  versions bien supérieures, et pas du tout pour tout de suite ; ce que tu proposes est intéressant, et
+  je préfère le garder tel quel : on est encore en beta »* ; **et** *« n'écris jamais dans ton code que
+  c'est la version définitive : à la toute fin, une fois le logiciel terminé, une grosse approche R&D en
+  ergonomie fera une refonte COMPLÈTE »*. D'où une règle de construction : l'interface reste une couche
+  à part (le noyau ne sait rien de l'écran ; raccourcis et presets sont des données), pour qu'une
+  refonte complète ne touche qu'elle.
 
 ## 4. Le domaine — sa définition (22/10)
 
@@ -377,5 +406,9 @@ et de sa construction ; les trois IA répondant à la même question.
 * *« Tu fais un truc, tu t'arrêtes, tu dis tout, puis tu attends un message de ma part et tu recommences
   ça en boucle — j'appelle pas ça travailler »* (septembre) : des sessions entières, les chantiers
   enchaînés.
+* **Les questions et les pages dans Glucose, plus en pages à part** (19/11) : *« évite de créer des pages
+  complètes en artefact, crée plutôt sur Glucose »* — il recopie les pages en attente dans un document
+  Glucose, y répond à côté, et donne l'adresse de sa porte publique *« pour toutes les réponses »* :
+  on les lit, et on y répond, par la porte (fiche 122).
 * **Les documents** (11/11) : *« trop de choses qui se contredisent, d'autres qui se répètent »* ; les
   sessions suivantes *« se retrouvent vite perdues »*.

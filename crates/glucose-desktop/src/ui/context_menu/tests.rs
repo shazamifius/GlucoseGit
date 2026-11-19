@@ -73,6 +73,8 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
             MenuAction::PleinEcran,
             MenuAction::ModeReference,
             MenuAction::ModeZen,
+            MenuAction::AgrandirLInterface,
+            MenuAction::ReduireLInterface,
         ]
         .into_iter()
         .chain(barre)

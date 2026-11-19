@@ -179,7 +179,7 @@ impl GlucoseApp {
             .map_or(ModeDeFenetre::Normale, |s| ModeDeFenetre::lire(&s))
     }
 
-    fn souvenir_de_la_fenetre(&self, nom: &str) -> std::path::PathBuf {
+    pub(crate) fn souvenir_de_la_fenetre(&self, nom: &str) -> std::path::PathBuf {
         self.disque
             .brouillons
             .parent()

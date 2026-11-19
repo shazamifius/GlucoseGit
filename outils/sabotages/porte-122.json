@@ -1,0 +1,32 @@
+[
+ {
+  "nom": "PUBLIQUE-1 — l'identité du document part au nuage telle quelle (son chemin)",
+  "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+  "avant": "        if self.lancement.agents.portee.machine {\n            self.store.identite.clone()",
+  "apres": "        if true {\n            self.store.identite.clone()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "publique_1_une_ia_du_nuage_entre"
+  ]
+ },
+ {
+  "nom": "PUBLIQUE-1 — l'empreinte change d'une lecture à l'autre",
+  "fichier": "crates/glucose-desktop/src/agents/executer/domaines.rs",
+  "avant": "let empreinte = glucose_core::hash::sha256(self.store.identite.as_bytes());",
+  "apres": "let empreinte = glucose_core::hash::sha256(format!(\"{:?}\", std::time::Instant::now()).as_bytes());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "publique_1_une_ia_du_nuage_entre"
+  ]
+ }
+]

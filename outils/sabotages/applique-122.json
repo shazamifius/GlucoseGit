@@ -1,0 +1,16 @@
+[
+ {
+  "nom": "APPLIQUE-1 — la fenêtre des liens ouverte, ce qui la fermerait s'offre quand même",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "    if store.fenetre_des_liens().is_some() && !commande.regarde_la_fenetre() {",
+  "apres": "    if false && store.fenetre_des_liens().is_some() && !commande.regarde_la_fenetre() {",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "test_applique_1"]
+ },
+ {
+  "nom": "ECHELLE-1 — l'identifiant d'un cran change",
+  "fichier": "crates/glucose-desktop/src/interactions/echelle.rs",
+  "avant": "            Vers::PlusGrand => \"agrandir\",",
+  "apres": "            Vers::PlusGrand => \"plus-grand\",",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "echelle_1"]
+ }
+]

@@ -131,6 +131,7 @@ fn test_detourer_1_la_convolution_egale_sa_definition() {
     for (cout, k, pas, dil, rempl, relu) in [
         (6, 3, 1, 2, 2, true),
         (6, 3, 2, 1, 1, false),
+        (5, 3, 2, 2, 2, true),
         (1, 1, 1, 1, 0, false),
         (9, 3, 1, 4, 4, true),
     ] {
@@ -373,12 +374,17 @@ fn test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse() {
     );
     assert!(Modele::lire(&juste).is_ok(), "le graphe juste se lit");
     let faux = [
+        // Chaque cas n'a qu'une faute — celle qu'il éprouve : sinon une autre garde le
+        // refuserait, et la sienne pourrait disparaître sans qu'il tombe.
         (
             "lu avant d'être écrit",
             petit_modele(
                 3,
-                2,
-                &[(6, vec![1], 2, vec![]), (1, vec![0], 1, conv_vers_un(3))],
+                1,
+                &[
+                    (1, vec![2], 1, conv_vers_un(3)),
+                    (1, vec![0], 2, conv_vers_un(3)),
+                ],
             ),
         ),
         (
@@ -403,12 +409,13 @@ fn test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse() {
         (
             "concaténer deux tailles",
             petit_modele(
+                5,
                 4,
-                3,
                 &[
                     (1, vec![0], 1, conv_vers_un(3)),
                     (2, vec![1], 2, pool.clone()),
                     (4, vec![1, 2], 3, vec![]),
+                    (1, vec![3], 4, conv_vers_un(2)),
                 ],
             ),
         ),

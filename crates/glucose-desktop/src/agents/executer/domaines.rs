@@ -128,6 +128,20 @@ impl GlucoseApp {
         }
     }
 
+    /// **L'identité de ce document telle que l'appel la lit** (fiche 80 : l'agent range sous elle
+    /// ce qu'il en a vu). Celle d'un document venu d'un fichier est son chemin : pour une IA du
+    /// nuage, son empreinte — la même d'une session à l'autre, muette sur le disque (C1). La
+    /// fiche 116 avait tu le chemin dans `fichier` et l'avait laissé ici : son essai lisait un
+    /// brouillon, dont l'identité est un instant ; le premier vrai client l'a reçu (fiche 122).
+    pub(super) fn document_vu(&self) -> String {
+        if self.lancement.agents.portee.machine {
+            self.store.identite.clone()
+        } else {
+            let empreinte = glucose_core::hash::sha256(self.store.identite.as_bytes());
+            format!("doc-{}", &glucose_core::hash::hex_of(&empreinte)[..16])
+        }
+    }
+
     /// Un exemple de ce qu'un domaine désigne : la première phrase de son nœud le plus lourd.
     fn exemple_de(&self, courant: &DocumentRecense, connu: &DomaineConnu) -> String {
         self.recensement()

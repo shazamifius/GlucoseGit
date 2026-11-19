@@ -360,17 +360,33 @@ fn publique_1_une_ia_du_nuage_entre_par_le_clic_de_l_utilisateur_signe_puis_sort
     let (_, r) = relais.passer(&mut app, ("POST", "/mcp"), Some(&cle), &lire);
     let dit = r.ecrire();
     assert!(dit.contains("absent"), "{dit}");
-    // Et lire le document ne dit pas où il vit sur le disque.
-    let (_, r) = relais.passer(
-        &mut app,
-        ("POST", "/mcp"),
-        Some(&cle),
-        &mcp_ancien(6, "glucose_lire", "{}"),
+    // Et lire le document ne dit pas où il vit sur le disque — ni par son fichier, ni par son
+    // identité, qui est son chemin quand il vient d'un fichier (fiche 122) ; elle reste la même
+    // d'une lecture à l'autre, pour que l'IA reconnaisse ce qu'elle a déjà vu.
+    app.store.identite = "/home/quelqu-un/Téléchargements/ses réponses.glucose".into();
+    let lu = |app: &mut GlucoseApp, relais: &FauxRelais, id| {
+        let (_, r) = relais.passer(
+            app,
+            ("POST", "/mcp"),
+            Some(&cle),
+            &mcp_ancien(id, "glucose_lire", "{}"),
+        );
+        r.ecrire()
+    };
+    let (une, deux) = (lu(&mut app, &relais, 6), lu(&mut app, &relais, 7));
+    assert!(
+        une.contains(r#"\"fichier\":\"le document ouvert\""#),
+        "{une}"
     );
     assert!(
-        r.ecrire().contains(r#"\"fichier\":\"le document ouvert\""#),
-        "{}",
-        r.ecrire()
+        !une.contains("quelqu-un") && !une.contains("réponses"),
+        "{une}"
+    );
+    assert!(une.contains(r#"\"document\":\"doc-"#), "{une}");
+    assert_eq!(
+        une.replace("\"id\":6", "\"id\":7"),
+        deux,
+        "la même identité"
     );
     assert!(
         !dit.contains("secret-du-voisin") && !dit.contains("quelqu-un"),

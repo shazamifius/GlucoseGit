@@ -42,7 +42,7 @@ fichier (`glucose > ~/sortie-glucose.txt 2>&1`), qu'on lit soi-même. **C'est à
 juger** (sa parole du 18/10) : une fenêtre sur son écran est permise pour un essai, puis fermée (`bash
 outils/essai_isole.sh <secondes> [capture.png]`) ; les bancs restent hors écran. **Ses données avant
 tout** : diagnostic sur une copie ; son dossier Glucose (`~/.local/state/glucose`) ne se touche jamais.
-Questions en prose, jamais en menu. Dire « nœud » (jamais « carte » pour un élément du tableau) et « carte
+Questions en prose, jamais en menu — **et dans son Glucose, plus en pages à part** (sa parole du 19/11 : on lit ses réponses et on y répond par sa porte, `outils/porte/claude_code.mjs`). Dire « nœud » (jamais « carte » pour un élément du tableau) et « carte
 graphique » en entier. Un point en français simple toutes les 30 à 45 minutes, l'heure lue (`date`).
 
 ## Les commandes
@@ -61,6 +61,7 @@ GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la v
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
 bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran : clic, molette, taper, capture
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
+node outils/porte/claude_code.mjs appeler glucose_lire '{"niveau":"complet"}'  # son Glucose ouvert, par sa porte : ses réponses, nos questions (19/11)
 bash outils/mettre_a_jour.sh  # son Glucose installé, après un envoi qui change le programme (sous chien de garde)
 ```
 

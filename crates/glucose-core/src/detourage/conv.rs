@@ -1,10 +1,10 @@
 //! **La convolution du détourage** (DETOURER-1) — presque tout le coût d'un modèle : 19,8 milliards
 //! de multiplications pour u2netp, 160 pour ISNet (fiche 121 § 3).
 //!
-//! Chaque fil prend une part des canaux de sortie, par blocs de [`BLOC`] : une ligne de sortie de
-//! chacun s'accumule à part (quelques kilo-octets, qui restent dans le cache), et chaque ligne
-//! d'entrée lue sert aux quatre. Avec un pas de un, la boucle intérieure parcourt deux tranches
-//! contiguës — le compilateur la vectorise.
+//! **Au pas de un** — toutes les convolutions d'u2netp —, [`tuiles`] : l'entrée bordée de zéros, des
+//! tuiles tenues dans les registres, les fils sur les lignes. **La voie générale** (ici, tout pas) :
+//! chaque fil prend une part des canaux de sortie, par blocs de [`BLOC`] ; une ligne de sortie de
+//! chacun s'accumule à part, et chaque ligne d'entrée lue sert aux quatre.
 //!
 //! **Le jeu d'instructions se choisit à l'exécution** (la charte, VISION § 2) : la même boucle,
 //! compilée une seconde fois pour AVX2 et FMA, sert les processeurs qui les ont ; les autres
@@ -14,11 +14,16 @@
 use super::calcul::Tenseur;
 use super::modele::Conv;
 
+mod tuiles;
+
 /// Les canaux de sortie calculés ensemble.
 const BLOC: usize = 4;
 
 /// La convolution `c` de `x`, son ReLU compris, sur `fils` fils.
 pub fn conv(x: &Tenseur, c: &Conv, relu: bool, fils: usize) -> Tenseur {
+    if c.pas == 1 {
+        return tuiles::conv(x, c, relu, fils);
+    }
     let (ho, lo) = (
         c.sortie(x.h, c.kh).expect("vérifié"),
         c.sortie(x.l, c.kl).expect("vérifié"),

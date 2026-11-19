@@ -251,6 +251,9 @@ fn entrees_du_vide() -> Vec<Def> {
         Some((MenuAction::PleinEcran, "Plein écran", "F11")),
         Some((MenuAction::ModeReference, "Mode référence", "Ctrl+Maj+A")),
         Some((MenuAction::ModeZen, "Mode zen", "Maj+F11")),
+        // L'échelle de l'interface, à son choix (ECHELLE-1, fiche 121).
+        Some((MenuAction::AgrandirLInterface, "Agrandir l'interface", "")),
+        Some((MenuAction::ReduireLInterface, "Réduire l'interface", "")),
         Some((MenuAction::BarreDuSysteme, "Barre de Windows", "")),
         // Sans serveur, ces entrées n'ont pas d'objet ; le téléphone n'a pas d'explorateur.
         None,

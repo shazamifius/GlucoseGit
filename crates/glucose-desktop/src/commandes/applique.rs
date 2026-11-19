@@ -19,6 +19,7 @@
 use super::Commande;
 use crate::app::GlucoseApp;
 use crate::interactions::depot_web::liens_choisis;
+use crate::interactions::echelle::cran_vers;
 use crate::interactions::fenetre::{candidats_a_montrer, noeud_montre_choisi};
 use crate::interactions::suivre::une_fleche_seule;
 use crate::ui::UiState;
@@ -71,11 +72,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::Relation(_)
         | C::Operateur(_)
         | C::Couleur(_)
-        | C::RoueDeCouleur => {
-            let fermee_d_abord =
-                store.fenetre_des_liens().is_some() && !commande.regarde_la_fenetre();
-            !fermee_d_abord && selon_le_choix(store, ui, commande)
-        }
+        | C::RoueDeCouleur => selon_le_choix(store, ui, commande),
         C::Annuler
         | C::Retablir
         | C::VuePrecedente
@@ -90,6 +87,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::JournalTechnique
         | C::VoirCeQuiPart
         | C::NePlusRegarder => selon_le_document(store, commande),
+        C::Echelle(vers) => cran_vers(ui, vers).is_some(),
         C::NouveauDocument
         | C::OuvrirUnDocument
         | C::Enregistrer
@@ -122,9 +120,13 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
     }
 }
 
-/// **Ce que le choix décide**, pour les commandes qui portent sur lui.
+/// **Ce que le choix décide**, pour les commandes qui portent sur lui. La fenêtre des liens
+/// ouverte, seules celles qui la regardent s'offrent : les autres la fermeraient d'abord.
 fn selon_le_choix(store: &Store, ui: &UiState, commande: Commande) -> bool {
     use Commande as C;
+    if store.fenetre_des_liens().is_some() && !commande.regarde_la_fenetre() {
+        return false;
+    }
     let images = !store.selected_image_ids.is_empty();
     let noeuds = images || !store.selected_annotation_ids.is_empty();
     match commande {

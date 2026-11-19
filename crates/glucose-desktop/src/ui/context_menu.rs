@@ -32,6 +32,7 @@
 //! parité.
 
 use crate::commandes::Commande;
+use crate::interactions::echelle::Vers;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use entrees::entrees;
@@ -72,6 +73,8 @@ impl MenuAction {
             MenuAction::BarreDuSysteme => Commande::BarreDuSysteme,
             MenuAction::RenommerLeDossier => Commande::RenommerLeDossier,
             MenuAction::ModeZen => Commande::ModeZen,
+            MenuAction::AgrandirLInterface => Commande::Echelle(Vers::PlusGrand),
+            MenuAction::ReduireLInterface => Commande::Echelle(Vers::PlusPetit),
             MenuAction::Couper => Commande::Couper,
             MenuAction::Duplicate => Commande::Dupliquer,
             MenuAction::EnregistrerLImage => Commande::EnregistrerLImage,
@@ -167,6 +170,9 @@ pub enum MenuAction {
     RenommerLeDossier,
     /// Entrer dans le mode zen, ou en sortir (ZEN-1, fiche 115).
     ModeZen,
+    /// L'interface d'un cran plus grande, ou plus petite (ECHELLE-1, fiche 121).
+    AgrandirLInterface,
+    ReduireLInterface,
     /// La même, puis retirée une fois copiée.
     Couper,
     Duplicate,

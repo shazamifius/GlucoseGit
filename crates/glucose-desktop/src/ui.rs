@@ -205,7 +205,13 @@ pub struct UiState {
     /// **La fenêtre a le droit de partir** (SAVE-3) : la boucle s'arrête à son prochain tour.
     /// Une réponse arrive dans un clic, loin de la boucle ; elle le dit ici (POPUP-1).
     pub fermer_la_fenetre: bool,
+    /// **L'échelle de l'interface** : celle de l'écran, fois [`Self::echelle_choisie`]
+    /// (ECHELLE-1, fiche 121). Tout ce qui dessine la chrome et tout ce qui y reçoit un clic la
+    /// lit — jamais le canevas.
     pub scale_factor: f32,
+    /// **L'échelle que l'utilisateur a choisie**, en pour cent — un cran de
+    /// [`crate::interactions::echelle::CRANS`].
+    pub echelle_choisie: u16,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
     /// La barre et les onglets, déjà dessinés (voir [`bande::BandeCache`]).
@@ -296,6 +302,7 @@ impl UiState {
             documents_ranges: cfg!(target_os = "android"),
             fermer_la_fenetre: false,
             scale_factor: 1.0,
+            echelle_choisie: 100,
             minimap_cache: None,
             bande_cache: None,
             ariane_cache: None,

@@ -238,6 +238,7 @@ impl GlucoseApp {
         // premier plan, sans qu'une fenêtre ordinaire paraisse d'abord (fiche 51 § 5) ; le plein
         // écran, plein. Sous Wayland, la référence se pose devant au premier focus (DEVANT-1).
         self.ui.fenetre = self.mode_de_fenetre_retenu();
+        self.ui.echelle_choisie = self.echelle_retenue();
         self.fenetre_de_reference.devant_au_focus = self.ui.en_reference();
         let attrs = match self.ui.fenetre {
             ModeDeFenetre::Reference => attrs
@@ -285,7 +286,7 @@ impl GlucoseApp {
 
         let scale_factor = window.scale_factor();
         self.scale_factor = scale_factor;
-        self.ui.scale_factor = scale_factor as f32;
+        self.poser_l_echelle();
         if std::mem::take(&mut self.lancement.accueil_a_montrer) {
             self.montrer_l_accueil();
         }

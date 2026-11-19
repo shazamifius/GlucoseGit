@@ -11,6 +11,7 @@
 //! (`assets/raccourcis/glucose.txt`) : exactement ceux du code d'avant la fiche 72, lus dans leur
 //! table au lieu d'être écrits dans cinq `match`. Rien n'a changé à l'écran.
 
+use crate::interactions::echelle::Vers;
 use crate::ui::couleurs::NOMS;
 use crate::ui::ActiveTool;
 use glucose_core::raccourcis::{Clavier, Couche, ErreurDeLigne};
@@ -121,6 +122,8 @@ pub enum Commande {
     /// **Le plein écran** (`F11`, FENETRE-1, fiche 120) : la fenêtre couvre l'écran, l'interface
     /// reste.
     PleinEcran,
+    /// **L'échelle de l'interface** (ECHELLE-1, fiche 121) : un cran de plus, un de moins, 100 %.
+    Echelle(Vers),
     /// **Le mode zen** (`Maj+F11`) : plus aucune interface, la fenêtre telle qu'elle est (ZEN-1).
     ModeZen,
     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
@@ -407,6 +410,7 @@ impl Commande {
                 .iter()
                 .flat_map(|&s| [Commande::Pousser(s, false), Commande::Pousser(s, true)]),
         );
+        v.extend(Vers::TOUS.map(Commande::Echelle));
         v.extend(OUTILS.iter().map(|(o, _, _)| Commande::Outil(*o)));
         v.extend((1..=9).map(Commande::AllerAuSignet));
         v.extend((1..=9).map(Commande::PoserLeSignet));
@@ -425,6 +429,7 @@ impl Commande {
             Commande::Pousser(s, dix) => {
                 format!("pousser.{}{}", s.nom(), if dix { ".dix" } else { "" })
             }
+            Commande::Echelle(vers) => format!("interface.{}", vers.id()),
             Commande::Outil(o) => format!("outil.{}", Self::outil(o).1),
             Commande::AllerAuSignet(n) => format!("signet.aller.{n}"),
             Commande::PoserLeSignet(n) => format!("signet.poser.{n}"),
@@ -452,6 +457,7 @@ impl Commande {
                 },
                 if dix { "dix pas" } else { "un pas" }
             ),
+            Commande::Echelle(vers) => vers.nom().to_string(),
             Commande::Outil(o) => Self::outil(o).2.to_string(),
             Commande::AllerAuSignet(n) => format!("Aller au signet {n}"),
             Commande::PoserLeSignet(n) => format!("Poser le signet {n}"),

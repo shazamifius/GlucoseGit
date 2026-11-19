@@ -11,7 +11,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_la_convolution_egale_sa_definition"
   ]
  },
  {
@@ -26,7 +26,82 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_la_convolution_egale_sa_definition"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — la tuile oublie la bordure",
+  "fichier": "crates/glucose-core/src/detourage/conv/tuiles.rs",
+  "avant": "v[(c * h + y + p) * l + p..][..x.l].copy_from_slice(ligne);",
+  "apres": "v[(c * h + y) * l..][..x.l].copy_from_slice(ligne);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "test_detourer_1_la_convolution_egale_sa_definition"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — la tuile lit sans dilatation",
+  "fichier": "crates/glucose-core/src/detourage/conv/tuiles.rs",
+  "avant": ".get(kx * c.dilatation..)",
+  "apres": ".get(kx..)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "test_detourer_1_la_convolution_egale_sa_definition"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — le ReLU de la tuile s'oublie",
+  "fichier": "crates/glucose-core/src/detourage/conv/tuiles.rs",
+  "avant": "*d = if self.relu { a.max(0.0) } else { a };",
+  "apres": "*d = a;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "test_detourer_1_la_convolution_egale_sa_definition"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — un fil écrit ses lignes au début",
+  "fichier": "crates/glucose-core/src/detourage/conv/tuiles.rs",
+  "avant": "tache.lancer(k * par_fil, &mut plans);",
+  "apres": "tache.lancer(0, &mut plans);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "test_detourer_1_la_convolution_egale_sa_definition"
+  ]
+ },
+ {
+  "nom": "DETOURER-1 — le dernier bloc écrit des canaux qui n'existent pas",
+  "fichier": "crates/glucose-core/src/detourage/conv/tuiles.rs",
+  "avant": "zip(bloc * BLOC..c.cout)",
+  "apres": "zip(bloc * BLOC..)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "test_detourer_1_la_convolution_egale_sa_definition"
   ]
  },
  {
@@ -41,7 +116,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_le_regroupement_au_plafond_lit_la_derniere_fenetre"
   ]
  },
  {
@@ -56,7 +131,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_l_agrandissement_est_au_demi_pixel"
   ]
  },
  {
@@ -71,7 +146,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_le_masque_s_etire_de_zero_a_un"
   ]
  },
  {
@@ -86,7 +161,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse"
   ]
  },
  {
@@ -101,7 +176,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse"
   ]
  },
  {
@@ -116,7 +191,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse"
   ]
  },
  {
@@ -131,7 +206,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse"
   ]
  },
  {
@@ -146,7 +221,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_un_graphe_qui_ne_s_enchaine_pas_se_refuse"
   ]
  },
  {
@@ -161,7 +236,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_2_le_premier_plan_retire_la_couleur_du_fond"
   ]
  },
  {
@@ -176,7 +251,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_2_le_flou_est_la_moyenne_de_la_fenetre_dans_l_image"
   ]
  },
  {
@@ -191,7 +266,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_3_la_couleur_du_fond_est_la_mediane_du_bord"
   ]
  },
  {
@@ -206,7 +281,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_3_le_fond_uni_se_retire_exactement"
   ]
  },
  {
@@ -221,7 +296,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_3_l_opacite_d_un_pixel_se_garde"
   ]
  },
  {
@@ -236,7 +311,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_une_photo_changee_pendant_le_calcul_garde_ce_qu_on_lui_a_fait"
   ]
  },
  {
@@ -251,7 +326,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_deux_photos_un_seul_geste"
   ]
  },
  {
@@ -266,7 +341,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_3_le_fond_uni_part_d_un_geste_et_ctrl_z_le_rend"
   ]
  },
  {
@@ -281,7 +356,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_1_ni_verrouillee_ni_sans_photo"
   ]
  },
  {
@@ -296,7 +371,7 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "detourer"
+   "test_detourer_3_une_photo_a_demi_transparente_se_relit_droite"
   ]
  }
 ]

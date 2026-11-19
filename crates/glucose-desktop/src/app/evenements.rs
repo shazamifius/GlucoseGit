@@ -191,8 +191,7 @@ impl GlucoseApp {
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale_factor = scale_factor;
-                self.ui.scale_factor = scale_factor as f32;
-                self.mark_dirty();
+                self.poser_l_echelle();
             }
             _ => {}
         }

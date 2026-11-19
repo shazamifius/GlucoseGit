@@ -91,7 +91,7 @@ fn scenes() -> Vec<(&'static str, GlucoseApp)> {
 
 /// **Ce qu'un geste peut changer** : le document, le choix, la vue et le vol de la caméra, la
 /// fenêtre des liens, une question, la roue, le focus, un message, un lot de bordures en
-/// attente, les lentilles.
+/// attente, les lentilles, l'échelle de l'interface.
 #[derive(Debug, PartialEq)]
 struct Etat {
     document: Project,
@@ -106,6 +106,8 @@ struct Etat {
         Option<glucose_core::timeline::TemporalFilter>,
         Option<String>,
     ),
+    /// L'échelle de l'interface choisie, en pour cent (ECHELLE-1, fiche 121).
+    interface: u16,
 }
 
 fn etat(app: &GlucoseApp) -> Etat {
@@ -134,6 +136,7 @@ fn etat(app: &GlucoseApp) -> Etat {
             app.store.temporal_filter,
             app.store.domaine_regarde.clone(),
         ),
+        interface: app.ui.echelle_choisie,
     }
 }
 
@@ -275,12 +278,16 @@ fn test_applique_1_ce_qu_elle_offre_fait_quelque_chose_et_rien_d_autre() {
                 | Commande::Relation(_)
         )
     };
+    // L'échelle de l'interface se retient sur le disque : un dossier à cette épreuve, pas celui
+    // que partagent toutes les applications d'épreuve.
+    let dossier = crate::epreuve::Dossier::nouveau("applique-1");
     let (mut tues, mut offerts) = (0, 0);
     for c in Commande::toutes() {
         if toujours(c) || systeme(c) {
             continue;
         }
         for (nom, mut app) in scenes() {
+            app.disque.brouillons = dossier.join("brouillons");
             let applique = app.s_applique(c);
             if !c.regarde_la_fenetre() {
                 app.fermer_la_fenetre_des_liens();

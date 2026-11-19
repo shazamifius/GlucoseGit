@@ -54,6 +54,7 @@ impl GlucoseApp {
             Commande::RetournerVerticalement => self.retourner(Retournement::Vertical),
             Commande::Detourer => self.detourer_la_selection(Maniere::FormePrincipale),
             Commande::RetirerLeFondUni => self.detourer_la_selection(Maniere::FondUni),
+            Commande::Echelle(vers) => self.changer_l_echelle(vers),
             Commande::Verrouiller => self.toggle_lock(),
             Commande::Pousser(sens, dix) => self.nudge(sens.pas(), dix),
             Commande::ToutCadrer => self.cadrer(false),

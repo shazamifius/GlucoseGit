@@ -1,0 +1,77 @@
+[
+ {
+  "nom": "ECHELLE-1 — le choix ne compte pas",
+  "fichier": "crates/glucose-desktop/src/interactions/echelle.rs",
+  "avant": "self.ui.scale_factor =\n            self.scale_factor as f32 * f32::from(self.ui.echelle_choisie) / 100.0;",
+  "apres": "self.ui.scale_factor = self.scale_factor as f32;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "echelle_1"
+  ]
+ },
+ {
+  "nom": "ECHELLE-1 — le choix ne se retient pas",
+  "fichier": "crates/glucose-desktop/src/interactions/echelle.rs",
+  "avant": "let _ = std::fs::write(self.souvenir_de_la_fenetre(SOUVENIR), cran.to_string());",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "echelle_1"
+  ]
+ },
+ {
+  "nom": "ECHELLE-1 — un souvenir abîmé est cru",
+  "fichier": "crates/glucose-desktop/src/interactions/echelle.rs",
+  "avant": ".filter(|c| CRANS.contains(c))",
+  "apres": ".filter(|c: &u16| *c > 0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "echelle_1"
+  ]
+ },
+ {
+  "nom": "ECHELLE-1 — l'échelle bornée ne retient pas l'agrandissement",
+  "fichier": "crates/glucose-desktop/src/interactions/echelle.rs",
+  "avant": "Vers::PlusGrand if ui.scale() < max =>",
+  "apres": "Vers::PlusGrand =>",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "echelle_1"
+  ]
+ },
+ {
+  "nom": "ECHELLE-1 — « 100 % » s'offre à 100 %",
+  "fichier": "crates/glucose-desktop/src/interactions/echelle.rs",
+  "avant": "cran.filter(|&c| c != ui.echelle_choisie)",
+  "apres": "cran",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "echelle_1"
+  ]
+ }
+]

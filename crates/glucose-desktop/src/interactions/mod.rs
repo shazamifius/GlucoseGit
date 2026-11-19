@@ -21,6 +21,7 @@ pub mod detourer;
 pub mod domains;
 pub mod drag;
 pub mod drop;
+pub mod echelle;
 pub mod elan;
 pub mod fenetre;
 pub mod frise;

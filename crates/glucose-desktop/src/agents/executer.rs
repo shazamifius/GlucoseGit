@@ -155,8 +155,9 @@ impl GlucoseApp {
             })
             .collect();
         Ok(Json::objet([
-            ("document", Json::from(self.store.identite.as_str())),
-            // Pour une IA du nuage, aucun chemin (C1, fiche 116 : l'essai réel l'a montré).
+            // Pour une IA du nuage, aucun chemin, ni ici ni là (C1, fiches 116 et 122 : deux
+            // essais réels l'ont montré, chacun pour un champ).
+            ("document", Json::from(self.document_vu())),
             ("fichier", Json::from(self.fichier_vu())),
             ("tableau", Json::from(board)),
             ("visible", boite_en_json(self.ce_qu_il_voit())),
