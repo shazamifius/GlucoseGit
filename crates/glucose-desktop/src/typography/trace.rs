@@ -172,8 +172,10 @@ impl Contours {
         (corps, demi): (f32, f32),
         (encre, contour): (Color, Color),
     ) {
-        let mut paint = Paint::default();
-        paint.anti_alias = true;
+        let mut paint = Paint {
+            anti_alias: true,
+            ..Paint::default()
+        };
         // Le trait de toutes les couches d'abord : un émoji se détoure par sa silhouette (EMOJI-2).
         paint.set_color(contour);
         for couche in couches.iter() {
