@@ -9,11 +9,24 @@ Plusieurs passages cassés ensemble (deux gardes qui se couvrent l'une l'autre, 
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
 # La racine du dépôt : le dossier parent de celui-ci.
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def epreuve_tombee(sortie):
+    """**La preuve qu'une épreuve est tombée** : la ligne d'échec de l'exécuteur — libtest de Rust
+    (« test result: FAILED », « panicked at »), `node --test` (« not ok »), un essai qui écrit ses
+    verdicts (« NON … », `outils/porte/essai/`).
+
+    Un code de sortie non nul ne suffit pas (fiche 125) : une édition de liens ratée, un processus
+    tué par la borne (137), Nix qui échoue sortent aussi en erreur, et ne disent rien de la garde.
+    """
+    return ("test result: FAILED" in sortie or "panicked at" in sortie
+            or re.search(r"^(not ok |NON\b)", sortie, re.MULTILINE) is not None)
 
 
 def lancer(sab):
@@ -41,7 +54,10 @@ def lancer(sab):
         if "error[" in sortie or "could not compile" in sortie:
             return "NE COMPILE PAS"
         if r.returncode != 0:
-            return "TOMBE"
+            if epreuve_tombee(sortie):
+                return "TOMBE"
+            dernieres = [l for l in sortie.splitlines() if l.strip()][-1:] or [""]
+            return f"ÉCHOUE SANS ÉPREUVE TOMBÉE (code {r.returncode}) : {dernieres[0][:120]}"
         # Une épreuve graphique qui n'obtient pas la carte se saute, et compte comme réussie :
         # en parallèle, plusieurs se la disputent (fiche 110). Avant de dire une épreuve aveugle,
         # la rejouer seule, un fil à la fois.
