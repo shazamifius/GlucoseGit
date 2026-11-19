@@ -28,7 +28,7 @@
     de 50 à 300 %, retenue d'une session à l'autre), regardée dans le vrai Glucose ;
   * **le détourage** (DETOURER-1 à 3, sa demande du 18/11) : « Détourer : la forme principale » par
     u2netp lu par un moteur à nous (1 s sur son VivoBook), et « Retirer le fond uni », exact ;
-    annulables, envoyés au co-working — jamais regardé dans le vrai Glucose hors du banc ;
+    annulables, envoyés au co-working — regardés au pilote (une boule, une pomme) : un liseré clair reste au bord du sujet ;
   * **ce que Claude.ai écrivait et que Glucose dessinait mal** (fiches 123-125) : les tableaux
     tiennent dans leur nœud (TABLE-3, la répartition de *CSS Tables 3*) et **un filet discret
     sépare deux rangées** (TABLE-4), les listes s'imbriquent (LISTE-1, la règle de CommonMark), le

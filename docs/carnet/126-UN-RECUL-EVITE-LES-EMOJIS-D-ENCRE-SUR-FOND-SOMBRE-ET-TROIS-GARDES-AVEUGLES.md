@@ -147,6 +147,21 @@ rien ne sort de l'écran »* — les ✔ en `#DAE2EA`, à côté du texte en `#D
 la phrase ; 🟢 🔵 📜 ✍️ 🔗 💬 dans leurs couleurs. Un post-it posé et tapé au pilote, *« ✔ fait ➕ 👣
 🔴 »* : ✔ et ➕ en `#31373D` (mesuré au pixel), 👣 brun, 🔴 rouge, sur le jaune.
 
+## 4 bis. Le détourage, regardé
+
+« Jamais regardé dans le vrai Glucose hors du banc » (ÉTAT, SUITE) : faux — l'essai de la fiche 121
+avait tourné le 18/11 sur la boule (`~/.cache/glucose-bancs/detourage-121/pilote/boule/`). Rejoué le
+19/11 sur le programme de ce jour, avec une vraie photo (une pomme sur fond blanc, 1 280 × 1 160,
+`~/.cache/glucose-bancs/pilote-126/detourage-pomme/`) : la pomme sort entière, sa queue comprise,
+son ombre portée sur le fond partie ; `Ctrl+Z` puis `Ctrl+Y` la rendent et la reprennent.
+
+**Ce que l'image montre, et que personne n'avait noté** : un **liseré clair** au bord — le long d'une
+rangée du bord droit, du rouge de la pomme (109, 30, 35) à un rose grisé (152, 109, 111 ; 145, 111,
+119) avant le noir. Un bord seulement transparent serait plus sombre que la pomme sur le noir : plus
+clair, il garde du blanc du fond, sur huit à dix pixels de l'image. Et sur la boule, de fines traces
+des rayures du fond restent au-dessus d'elle. À mesurer (l'erreur du premier plan sur les images de
+vérité du banc) puis corriger — SUITE, le détourage.
+
 ## 5. VEILLE-1 — une image qui contient une veille garde ce qu'elle a coûté
 
 `plateforme/veille.rs`. **Le temps endormi que l'horloge des images compte** : sous Windows,
