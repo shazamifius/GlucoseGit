@@ -5,8 +5,8 @@
 //! barre de toasts, jamais en silence (§ 6.4).
 //!
 //! Les messages n'y portent **aucun émoji** : l'interface est monochrome et écrite en Inter
-//! (`style.md`, FONT-1) — les emojis de Noto Emoji sont pour ce que l'utilisateur écrit
-//! (EMOJI-1). Le texte des [`CoreError`](glucose_core::error::CoreError) commence déjà par ce
+//! (`style.md`, FONT-1) — les émojis en couleur sont pour ce que l'utilisateur écrit
+//! (EMOJI-2). Le texte des [`CoreError`](glucose_core::error::CoreError) commence déjà par ce
 //! qui a échoué et finit par ce qu'il faut faire (§ 6.5) : il se suffit.
 //!
 //! # DOM-APP-1 — un geste de l'utilisateur, une entrée d'annulation

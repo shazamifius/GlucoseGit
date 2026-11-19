@@ -47,11 +47,6 @@ impl Typography {
         let out_b = outline_color.blue() * 255.0;
         let out_a = outline_color.alpha();
 
-        let r = color.red() * 255.0;
-        let g = color.green() * 255.0;
-        let b = color.blue() * 255.0;
-        let a = color.alpha();
-
         for ch in text.chars() {
             if ch == '\n' {
                 continue;
@@ -71,13 +66,8 @@ impl Typography {
                 let bornes = (pixmap.width() as i32, pixmap.height() as i32);
                 let couleur = (out_r, out_g, out_b, out_a);
                 glyph::blend_glyph(pixmap.data_mut(), bornes, &halo, coin, couleur);
-                // 2. Passe principale
-                self.blend_positioned(
-                    pixmap,
-                    (ch, size, face),
-                    (x, y + size),
-                    (color, (r, g, b, a)),
-                )
+                // 2. La lettre, couche par couche (EMOJI-2).
+                self.poser(pixmap, (ch, size, face), (x, y + size), (0, 0), color)
             };
             x += advance;
         }
@@ -123,8 +113,7 @@ impl Typography {
         let (mut g, mut h, mut d, mut b) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
         let mut plume = 0.0;
         for ch in text.chars().filter(|&ch| ch != '\n') {
-            let (police, indice) = self.police(ch, face);
-            let m = police.metrics_indexed(indice, size);
+            let m = self.metriques(self.choix(ch, face), size);
             g = g.min(plume + m.xmin as f32);
             d = d.max(plume + m.xmin as f32 + m.width as f32);
             h = h.min(size - (m.ymin + m.height as i32) as f32);
@@ -155,14 +144,13 @@ impl Typography {
         plume: (f32, f32),
         couleurs: (Color, Color),
     ) -> f32 {
-        let (choisi, indice) = self.choix(ch, face);
-        let police = choisi.map_or(Face::ALL.len(), Face::index);
+        let couches = self.contours.couches(self.choix(ch, face));
         let demi = DETOURAGE
             .iter()
             .map(|(a, b)| a.hypot(*b))
             .fold(0.0, f32::max);
         self.contours
-            .detourer(pixmap, (police, indice), plume, (size, demi), couleurs);
+            .detourer(pixmap, &couches, plume, (size, demi), couleurs);
         self.advance(ch, size, face)
     }
 
@@ -177,7 +165,9 @@ impl Typography {
         phase: u8,
     ) -> Rc<GlyphEntry> {
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
-        let cle = (face, ch, size_key, glyph::HALO | phase);
+        // Le halo d'un émoji est celui de sa silhouette (EMOJI-2) : la variante de son glyphe.
+        let glyphe = self.choix(ch, face);
+        let cle = (glyphe.0 as u8, glyphe.1, size_key, glyph::HALO | phase);
         let image = self.image.get();
         if let Some((entry, vue)) = self.glyph_cache.borrow_mut().get_mut(&cle) {
             *vue = image;
@@ -192,7 +182,7 @@ impl Typography {
                 // à une cellule et une phase que celles de la lettre déterminent.
                 let (qx, qy) = (px + (ox * n as f32) as i32, py + (oy * n as f32) as i32);
                 let fine = (qy.rem_euclid(n) * n + qx.rem_euclid(n)) as u8;
-                let e = self.glyph_variant(ch, size, face, fine);
+                let e = self.variante(glyphe, size, fine);
                 let m = e.metrics;
                 let coin = (
                     qx.div_euclid(n) + m.xmin,
@@ -201,7 +191,7 @@ impl Typography {
                 (e, coin)
             })
             .collect();
-        let modele = self.glyph_variant(ch, size, face, PHASE_ORIGIN).metrics;
+        let modele = self.variante(glyphe, size, PHASE_ORIGIN).metrics;
         let entry = Rc::new(glyph::halo(&copies, &modele));
         self.glyph_cache
             .borrow_mut()

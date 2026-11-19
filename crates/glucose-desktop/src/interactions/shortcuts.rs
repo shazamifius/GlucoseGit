@@ -380,7 +380,7 @@ impl GlucoseApp {
         };
         // La fiche 08 § 1.3 cite le libellé de la référence, cadenas compris. Il tourne dans
         // un navigateur, en couleur ; l'interface de Glucose est monochrome et écrite en Inter
-        // (FONT-1), Noto Emoji ne servant qu'au contenu (EMOJI-1). Le mot suffit — et
+        // (FONT-1), les émojis ne servant qu'au contenu (EMOJI-2). Le mot suffit — et
         // c'est le cadre rouge qui dit la chose à l'œil, pas le toast.
         self.ui.show_toast(if locked {
             "Images verrouillées"

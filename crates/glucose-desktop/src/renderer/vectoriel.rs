@@ -107,9 +107,21 @@ pub(crate) trait Vectoriel {
         };
         self.groupe(texte, style.color);
         let mut plume = x;
+        let polices = crate::typography::toutes_les_polices();
         for ch in texte.chars().filter(|&ch| ch != '\n') {
-            let glyphe = typographie.source(ch, style.face);
-            self.glyphe(glyphe, (plume, y + corps), corps);
+            // Un émoji pose ses couches, chacune dans un groupe de sa couleur (EMOJI-2) ; une
+            // lettre, son glyphe, à l'encre de la ligne.
+            for couche in typographie.couches(ch, style.face).iter() {
+                let (rang, indice) = couche.glyphe;
+                let glyphe = ((polices[rang], indice), (plume, y + corps), corps);
+                if couche.couleur.is_some() {
+                    self.groupe("", couche.sur(style.color));
+                    self.glyphe(glyphe.0, glyphe.1, glyphe.2);
+                    self.fin_du_groupe();
+                } else {
+                    self.glyphe(glyphe.0, glyphe.1, glyphe.2);
+                }
+            }
             plume += typographie.advance(ch, corps, style.face);
         }
         self.fin_du_groupe();
@@ -176,7 +188,11 @@ impl Vectoriel for Svg {
         if a < 1.0 {
             let _ = write!(groupe, r#" fill-opacity="{}""#, n(a));
         }
-        let _ = write!(groupe, r#" aria-label="{}">"#, echapper(mots));
+        // Les mots se lisent sur la ligne ; le groupe d'une couche d'émoji n'en porte pas (EMOJI-2).
+        if !mots.is_empty() {
+            let _ = write!(groupe, r#" aria-label="{}""#, echapper(mots));
+        }
+        groupe.push('>');
         self.poser(&groupe);
     }
 

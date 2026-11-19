@@ -44,15 +44,16 @@
 //!
 //! [`SUBPIXEL_PHASES`] positions par axe bornent l'erreur résiduelle à un huitième de pixel.
 //!
-//! # EMOJI-1 — un emoji se dessine, par la police de repli (fiche 58)
+//! # EMOJI-1 et EMOJI-2 — un émoji se dessine, en couleur, par les polices de repli
 //!
-//! Inter n'a aucun emoji : celui que Gboard propose à chaque phrase s'affichait comme une
-//! case vide. **Noto Emoji**, monochrome (`decisions/10`), sert de repli, et seulement de
-//! repli : un caractère que le visage demandé dessine reste à lui ; un caractère qu'il n'a pas,
-//! et que Noto Emoji a, se dessine en Noto Emoji ([`Typography::police`]). Aucune table écrite
-//! à la main : la `cmap` des deux polices décide, caractère par caractère. La mesure et le
-//! dessin passent par le même choix, et ne peuvent donc pas diverger.
+//! Inter n'a aucun émoji : celui que Gboard propose à chaque phrase s'affichait comme une case
+//! vide (fiche 58). **Twemoji en couleur**, puis **ce qui reste de Noto Emoji**, servent de repli,
+//! et seulement de repli : un caractère que le visage demandé dessine reste à lui ; la `cmap` de
+//! chaque police décide ([`Typography::choix`], `typography/choix.rs`). La mesure et le dessin
+//! passent par le même choix, et ne peuvent donc pas diverger. Un émoji en couleur se pose couche
+//! par couche, chacune de sa couleur (EMOJI-2, fiche 125, `typography/trace/couleur.rs`).
 
+mod choix;
 #[cfg(test)]
 pub(crate) mod coverage;
 mod detoure;
@@ -63,6 +64,7 @@ pub mod glyph;
 pub(crate) mod trace;
 
 pub use detoure::{LigneDetouree, DETOURAGE};
+pub use trace::{Couche, Couches};
 
 use fontdue::{Font, FontSettings};
 use glyph::{
@@ -73,6 +75,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use tiny_skia::{Color, PixmapMut};
+use trace::Glyphe;
 
 pub use glyph::GlyphEntry;
 
@@ -142,10 +145,15 @@ pub(crate) const FACE_BYTES: [&[u8]; 5] = [
     include_bytes!("../assets/JetBrainsMonoNL-Regular.ttf"),
 ];
 
-/// **La police de repli des emojis** (EMOJI-1) : Noto Emoji 3.002, monochrome, instance fixe
-/// de graisse 400, sous SIL Open Font License 1.1 (`assets/LICENSE-NotoEmoji.txt`,
-/// `decisions/10`).
-const EMOJI_BYTES: &[u8] = include_bytes!("../assets/NotoEmoji-Regular.ttf");
+/// **Les émojis en couleur** (EMOJI-2) : Twemoji 17 en COLRv0, construit par
+/// `outils/emojis/construire.sh` aux métriques de Noto Emoji — les dessins sous CC-BY 4.0
+/// (`assets/LICENSE-Twemoji-graphics.txt`, `decisions/18`).
+const COULEUR_BYTES: &[u8] = include_bytes!("../assets/GlucoseEmoji-Couleur.ttf");
+
+/// **Ce que Twemoji n'a pas** (EMOJI-1) : le reste de Noto Emoji 3.002, monochrome — le cadre de
+/// touche, les joints et les sélecteurs invisibles —, sous SIL Open Font License 1.1
+/// (`assets/LICENSE-NotoEmoji.txt`, `decisions/10`).
+const RESTE_BYTES: &[u8] = include_bytes!("../assets/NotoEmoji-Reste.ttf");
 
 /// Le nom de chaque police embarquée, dans l'ordre de [`FACE_BYTES`].
 const FACE_NOMS: [&str; 5] = [
@@ -164,13 +172,17 @@ pub struct Police {
     pub octets: &'static [u8],
 }
 
-/// **Toutes les polices embarquées** : les cinq visages, puis le repli des emojis — tout ce
-/// qu'une lettre de Glucose peut dessiner.
-pub(crate) fn toutes_les_polices() -> [Police; 6] {
+/// **Toutes les polices embarquées** : les cinq visages, puis les deux replis des émojis — tout
+/// ce qu'une lettre de Glucose peut dessiner, dans l'ordre de ses rangs (`choix.rs`).
+pub(crate) fn toutes_les_polices() -> [Police; 7] {
     let mut polices = [Police {
-        nom: "NotoEmoji-Regular",
-        octets: EMOJI_BYTES,
-    }; 6];
+        nom: "GlucoseEmoji-Couleur",
+        octets: COULEUR_BYTES,
+    }; 7];
+    polices[choix::RESTE] = Police {
+        nom: "NotoEmoji-Reste",
+        octets: RESTE_BYTES,
+    };
     for (k, police) in polices.iter_mut().take(5).enumerate() {
         *police = Police {
             nom: FACE_NOMS[k],
@@ -184,8 +196,9 @@ pub(crate) fn toutes_les_polices() -> [Police; 6] {
 /// (GRILLE-1) : `fontdue` lit chaque glyphe au chargement, et une copie doublerait ce travail.
 struct Polices {
     faces: [Font; 5],
-    /// Le repli des emojis (EMOJI-1).
-    emoji: Font,
+    /// Ce que Twemoji n'a pas, de Noto Emoji (EMOJI-1). Twemoji, lui, ne passe pas par `fontdue`,
+    /// qui n'en chargerait pas les couches (EMOJI-2) : ses contours suffisent.
+    reste: Font,
     /// La hauteur d'x de chaque visage, en fraction du corps, lue dans sa table `OS/2` — celle
     /// que GRILLE-1 pose sur la grille.
     hauteurs_d_x: [Option<f32>; 5],
@@ -230,7 +243,7 @@ impl Typography {
             "police intégrée par include_bytes! — corruption du binaire si ceci échoue";
         let faces = FACE_BYTES
             .map(|bytes| Font::from_bytes(bytes, FontSettings::default()).expect(INTEGREE));
-        let emoji = Font::from_bytes(EMOJI_BYTES, FontSettings::default()).expect(INTEGREE);
+        let reste = Font::from_bytes(RESTE_BYTES, FontSettings::default()).expect(INTEGREE);
         let hauteurs_d_x = FACE_BYTES.map(|bytes| {
             let face = ttf_parser::Face::parse(bytes, 0).expect(INTEGREE);
             face.x_height()
@@ -239,7 +252,7 @@ impl Typography {
         Self::de(
             Rc::new(Polices {
                 faces,
-                emoji,
+                reste,
                 hauteurs_d_x,
             }),
             false,
@@ -247,8 +260,7 @@ impl Typography {
     }
 
     fn de(polices: Rc<Polices>, sur_l_ecran: bool) -> Self {
-        let mut octets = FACE_BYTES.to_vec();
-        octets.push(EMOJI_BYTES);
+        let octets = toutes_les_polices().map(|p| p.octets);
         Self {
             polices,
             sur_l_ecran,
@@ -260,56 +272,9 @@ impl Typography {
         }
     }
 
-    /// **Trace ce caractère par son contour** (GRAND-1) — la police que le choix d'EMOJI-1 lui
-    /// donne, numérotée comme [`Self::contours`] —, et rend son avance.
-    fn tracer(
-        &self,
-        pixmap: &mut PixmapMut,
-        (ch, size, face): (char, f32, Face),
-        plume: (f32, f32),
-        couleur: Color,
-    ) -> f32 {
-        let (choisi, indice) = self.choix(ch, face);
-        let police = choisi.map_or(Face::ALL.len(), Face::index);
-        self.contours
-            .remplir(pixmap, (police, indice), plume, size, couleur);
-        self.advance(ch, size, face)
-    }
-
     /// La police d'un visage.
     pub fn font(&self, face: Face) -> &Font {
         &self.polices.faces[face.index()]
-    }
-
-    /// **La police qui dessine `ch` dans ce visage**, et l'indice de son glyphe (EMOJI-1) : le
-    /// visage s'il l'a, sinon Noto Emoji s'il l'a, sinon le `.notdef` du visage — un caractère
-    /// que personne ne dessine se voit, plutôt que de disparaître.
-    fn police(&self, ch: char, face: Face) -> (&Font, u16) {
-        match self.choix(ch, face) {
-            (Some(face), indice) => (self.font(face), indice),
-            (None, indice) => (&self.polices.emoji, indice),
-        }
-    }
-
-    /// **La police nommée qui dessine `ch` dans ce visage**, et l'indice de son glyphe — le
-    /// même choix que le tracé ([`Self::police`]) : le SVG écrit le glyphe même que le canevas
-    /// pose (P5, fiche 70).
-    pub fn source(&self, ch: char, face: Face) -> (Police, u16) {
-        let (choisi, indice) = self.choix(ch, face);
-        let rang = choisi.map_or(Face::ALL.len(), Face::index);
-        (toutes_les_polices()[rang], indice)
-    }
-
-    /// Le choix d'EMOJI-1 : le visage (`Some`) ou le repli des emojis (`None`), et l'indice.
-    fn choix(&self, ch: char, face: Face) -> (Option<Face>, u16) {
-        let indice = self.font(face).lookup_glyph_index(ch);
-        if indice != 0 {
-            return (Some(face), indice);
-        }
-        match self.polices.emoji.lookup_glyph_index(ch) {
-            0 => (Some(face), 0),
-            repli => (None, repli),
-        }
     }
 
     /// Récupère ou rastérise l'image d'un glyphe **non décalé** (R-26, R-40) — `None` au-delà
@@ -319,55 +284,42 @@ impl Typography {
         (!trace::se_trace(size)).then(|| self.glyph_variant(ch, size, face, PHASE_ORIGIN))
     }
 
-    /// De combien la plume avance après `ch` — **sans toucher au cache de glyphes**.
-    ///
-    /// # MEASURE-1 — mesurer n'est pas dessiner
-    ///
-    /// Le reflux d'un paragraphe demande une largeur par caractère, et rien d'autre. Passer
-    /// par [`Self::get_glyph`] pour l'obtenir fait payer un hachage, un emprunt de `RefCell`,
-    /// un `Rc::clone` et une écriture du compteur LRU — pour lire un seul `f32` déjà présent
-    /// dans les tables de la police. Mesuré sur 89 caractères : **3 415 ns par le cache contre
-    /// 1 844 ns en direct**, soit presque le double pour le service le plus fréquent du moteur,
-    /// puisqu'il tourne à chaque frame sur chaque carte visible.
-    ///
-    /// Le cache garde ce qui coûte vraiment — les **bitmaps**, que seul le tracé consomme.
-    /// `test_measuring_agrees_with_drawing` tient l'égalité des deux chemins : s'ils
-    /// divergeaient, le curseur tomberait à côté du texte.
-    pub fn advance(&self, ch: char, size: f32, face: Face) -> f32 {
-        let (font, indice) = self.police(ch, face);
-        font.metrics_indexed(indice, clamp_font_size(size))
-            .advance_width
+    /// Récupère la variante de `ch` décalée de `phase` (GLYPH-1) : celle du glyphe que le choix
+    /// lui donne — la silhouette d'un émoji (EMOJI-2).
+    fn glyph_variant(&self, ch: char, size: f32, face: Face, phase: u8) -> Rc<GlyphEntry> {
+        self.variante(self.choix(ch, face), size, phase)
     }
 
-    /// Récupère la variante de `ch` décalée de `phase` (GLYPH-1).
+    /// **La variante d'un glyphe** décalée de `phase`, gardée sous (police, indice) : deux visages
+    /// qui retombent sur le même émoji partagent son image, et une couche d'émoji a la sienne.
     ///
     /// Une variante décalée se dérive de la variante d'origine plutôt que d'une nouvelle
-    /// rastérisation : `fontdue` n'est donc appelé qu'**une fois par (caractère, taille,
-    /// graisse)**, quel que soit le nombre de phases. La lecture de l'origine la marque
-    /// de l'image en cours, ce qui la garde en cache tant que l'une de ses phases sert.
-    fn glyph_variant(&self, ch: char, size: f32, face: Face, phase: u8) -> Rc<GlyphEntry> {
+    /// rastérisation : le rastériseur n'est donc appelé qu'**une fois par (glyphe, taille)**,
+    /// quel que soit le nombre de phases. La lecture de l'origine la marque de l'image en cours,
+    /// ce qui la garde en cache tant que l'une de ses phases sert.
+    fn variante(&self, glyphe: Glyphe, size: f32, phase: u8) -> Rc<GlyphEntry> {
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
+        let cle = |phase| (glyphe.0 as u8, glyphe.1, size_key, phase);
         let image = self.image.get();
         let mut cache = self.glyph_cache.borrow_mut();
-        if let Some((entry, vue)) = cache.get_mut(&(face, ch, size_key, phase)) {
+        if let Some((entry, vue)) = cache.get_mut(&cle(phase)) {
             *vue = image;
             return entry.clone();
         }
         if self.sur_l_ecran {
-            let maitre = self.maitre(&mut cache, (ch, size, face), size_key);
+            let maitre = self.maitre(&mut cache, glyphe, size, size_key);
             let entree = Rc::new(ecran::variante(&maitre, phase));
-            cache.insert((face, ch, size_key, phase), (entree.clone(), image));
+            cache.insert(cle(phase), (entree.clone(), image));
             return entree;
         }
 
-        let origin = match cache.get_mut(&(face, ch, size_key, PHASE_ORIGIN)) {
+        let origin = match cache.get_mut(&cle(PHASE_ORIGIN)) {
             Some((entry, vue)) => {
                 *vue = image;
                 entry.clone()
             }
             None => {
-                let (font, indice) = self.police(ch, face);
-                let (metrics, bitmap) = font.rasterize_indexed(indice, size);
+                let (metrics, bitmap) = self.rasteriser(glyphe, size);
                 let (width, height) = (metrics.width, metrics.height);
                 let entry = Rc::new(GlyphEntry {
                     metrics,
@@ -375,7 +327,7 @@ impl Typography {
                     width,
                     height,
                 });
-                cache.insert((face, ch, size_key, PHASE_ORIGIN), (entry.clone(), image));
+                cache.insert(cle(PHASE_ORIGIN), (entry.clone(), image));
                 entry
             }
         };
@@ -384,7 +336,7 @@ impl Typography {
         }
 
         let shifted = Rc::new(shifted_glyph(&origin, phase));
-        cache.insert((face, ch, size_key, phase), (shifted.clone(), image));
+        cache.insert(cle(phase), (shifted.clone(), image));
         shifted
     }
 
@@ -475,65 +427,58 @@ impl Typography {
             let coin = (x + offset.0 as f32, y + offset.1 as f32);
             return self.griser(pixmap, text, coin, style) - offset.0 as f32;
         }
-        let TextStyle { color, face, .. } = style;
         let size = clamp_font_size(style.size);
-        let r = color.red() * 255.0;
-        let g = color.green() * 255.0;
-        let b = color.blue() * 255.0;
-        let a = color.alpha();
-
-        let w = pixmap.width() as i32;
-        let h = pixmap.height() as i32;
-
-        // La partie fractionnaire verticale est la même pour toute la ligne : `ymin` et
-        // `height` sont entiers, donc seule l'ordonnée de base porte une phase (GLYPH-1).
-        let (cell_y, phase_y) = self.ligne_de_base(y + size);
-        let cell_y = cell_y + offset.1;
-
-        for ch in text.chars() {
-            if ch == '\n' {
-                continue;
-            }
-            if trace::se_trace(size) {
-                let plume = (x + offset.0 as f32, y + size + offset.1 as f32);
-                x += self.tracer(pixmap, (ch, size, face), plume, color);
-                continue;
-            }
-            let data = pixmap.data_mut();
-            let (cell_x, phase_x) = split_position(x);
-            let entry = self.glyph_variant(ch, size, face, phase_y * SUBPIXEL_PHASES + phase_x);
-            let metrics = &entry.metrics;
-
-            let gx = cell_x + offset.0 + metrics.xmin;
-            let gy = cell_y - metrics.ymin - metrics.height as i32;
-            blend_glyph(data, (w, h), &entry, (gx, gy), (r, g, b, a));
-            x += metrics.advance_width;
+        // La ligne de base porte la même phase pour toute la ligne (GLYPH-1) : `poser` la relit.
+        for ch in text.chars().filter(|&ch| ch != '\n') {
+            x += self.poser(
+                pixmap,
+                (ch, size, style.face),
+                (x, y + size),
+                offset,
+                style.color,
+            );
         }
         x
     }
 
-    /// Compose un glyphe à une position fractionnaire et rend son avance — tracé s'il est plus
-    /// grand qu'un demi-carré (GRAND-1).
-    fn blend_positioned(
+    /// **Pose `ch`**, sa plume en `at.0` et sa ligne de base en `at.1`, sa cellule décalée de
+    /// `offset` pixels entiers (GLYPH-1), **couche par couche** — une lettre en a une, à l'encre du
+    /// texte ; un émoji en a plusieurs, chacune de sa couleur (EMOJI-2) —, et rend son avance.
+    /// Plus grand qu'un demi-carré, il se trace (GRAND-1).
+    pub(super) fn poser(
         &self,
         pixmap: &mut PixmapMut,
-        glyph: (char, f32, Face),
+        (ch, size, face): (char, f32, Face),
         at: (f32, f32),
-        (couleur, color): (Color, (f32, f32, f32, f32)),
+        offset: (i32, i32),
+        couleur: Color,
     ) -> f32 {
-        let (ch, size, face) = glyph;
         if trace::se_trace(size) {
-            return self.tracer(pixmap, glyph, at, couleur);
+            let plume = (at.0 + offset.0 as f32, at.1 + offset.1 as f32);
+            return self.tracer(pixmap, (ch, size, face), plume, couleur);
         }
-        let bounds = (pixmap.width() as i32, pixmap.height() as i32);
-        let data = pixmap.data_mut();
+        let glyphe = self.choix(ch, face);
         let (cell_x, phase_x) = split_position(at.0);
         let (cell_y, phase_y) = self.ligne_de_base(at.1);
-        let entry = self.glyph_variant(ch, size, face, phase_y * SUBPIXEL_PHASES + phase_x);
-        let gx = cell_x + entry.metrics.xmin;
-        let gy = cell_y - entry.metrics.ymin - entry.metrics.height as i32;
-        blend_glyph(data, bounds, &entry, (gx, gy), color);
-        entry.metrics.advance_width
+        let phase = phase_y * SUBPIXEL_PHASES + phase_x;
+        let bornes = (pixmap.width() as i32, pixmap.height() as i32);
+        for couche in self.contours.couches(glyphe).iter() {
+            let entry = self.variante(couche.glyphe, size, phase);
+            let m = &entry.metrics;
+            let coin = (
+                cell_x + offset.0 + m.xmin,
+                cell_y + offset.1 - m.ymin - m.height as i32,
+            );
+            let c = couche.sur(couleur);
+            let rgba = (
+                c.red() * 255.0,
+                c.green() * 255.0,
+                c.blue() * 255.0,
+                c.alpha(),
+            );
+            blend_glyph(pixmap.data_mut(), bornes, &entry, coin, rgba);
+        }
+        self.avance_de(glyphe, size)
     }
 
     /// Mesure la largeur et hauteur d'un texte via le cache de glyphes et métriques de police réelles (R-40)
@@ -941,17 +886,15 @@ mod tests {
             typo.draw_text_with_outline(&mut neuve.as_mut(), texte, x, y, style, Color::BLACK);
             let mut ancienne = Pixmap::new(420, 80).expect("tampon");
             ancienne.fill(fond);
-            let (noir, bleu) = ((0.0, 0.0, 0.0, 1.0), (96.0, 165.0, 250.0, 1.0));
             let mut plume = x;
             for ch in texte.chars() {
                 let lettre = (ch, corps, Face::Bold);
                 for (ox, oy) in DETOURAGE {
                     let a = (plume + ox, y + corps + oy);
-                    typo.blend_positioned(&mut ancienne.as_mut(), lettre, a, (Color::BLACK, noir));
+                    typo.poser(&mut ancienne.as_mut(), lettre, a, (0, 0), Color::BLACK);
                 }
                 let a = (plume, y + corps);
-                plume +=
-                    typo.blend_positioned(&mut ancienne.as_mut(), lettre, a, (style.color, bleu));
+                plume += typo.poser(&mut ancienne.as_mut(), lettre, a, (0, 0), style.color);
             }
             for (n, a) in neuve.data().iter().zip(ancienne.data()) {
                 pire = pire.max(n.abs_diff(*a));

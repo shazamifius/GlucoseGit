@@ -50,6 +50,9 @@
 //! La position n'est plus arrondie au quart de pixel (GLYPH-1) : le contour se pose à sa place
 //! exacte.
 
+mod couleur;
+pub use couleur::{Couche, Couches, Glyphe};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -87,6 +90,8 @@ impl ttf_parser::OutlineBuilder for Bati {
 pub struct Contours {
     polices: Vec<ttf_parser::Face<'static>>,
     cache: RefCell<HashMap<(usize, u16), Contour>>,
+    /// Les couches des glyphes en couleur, lues une fois (EMOJI-2, [`Contours::couches`]).
+    piles: RefCell<HashMap<Glyphe, Rc<[Couche]>>>,
 }
 
 /// Le contour d'un glyphe, partagé ; absent pour un glyphe qui n'en a pas (une espace).
@@ -106,6 +111,7 @@ impl Contours {
         Self {
             polices,
             cache: RefCell::new(HashMap::new()),
+            piles: RefCell::new(HashMap::new()),
         }
     }
 
@@ -161,29 +167,33 @@ impl Contours {
     pub fn detourer(
         &self,
         pixmap: &mut PixmapMut,
-        glyphe: (usize, u16),
+        couches: &Couches,
         (x, base): (f32, f32),
         (corps, demi): (f32, f32),
-        (couleur, contour): (Color, Color),
+        (encre, contour): (Color, Color),
     ) {
-        let (police, indice) = glyphe;
-        let Some(forme) = self.contour(police, indice) else {
-            return;
-        };
-        let s = corps / f32::from(self.polices[police].units_per_em());
         let mut paint = Paint::default();
-        paint.set_color(contour);
         paint.anti_alias = true;
-        let pose = Transform::from_row(s, 0.0, 0.0, -s, x, base);
-        // Le trait se trace dans les unités de la police, puis la pose l'agrandit de `s`.
-        let trait_ = Stroke {
-            width: 2.0 * demi / s,
-            line_join: LineJoin::Round,
-            ..Stroke::default()
-        };
-        pixmap.stroke_path(&forme, &paint, &trait_, pose, None);
-        paint.set_color(couleur);
-        pixmap.fill_path(&forme, &paint, FillRule::Winding, pose, None);
+        // Le trait de toutes les couches d'abord : un émoji se détoure par sa silhouette (EMOJI-2).
+        paint.set_color(contour);
+        for couche in couches.iter() {
+            let (police, indice) = couche.glyphe;
+            let Some(forme) = self.contour(police, indice) else {
+                continue;
+            };
+            let s = corps / f32::from(self.polices[police].units_per_em());
+            let pose = Transform::from_row(s, 0.0, 0.0, -s, x, base);
+            // Le trait se trace dans les unités de la police, puis la pose l'agrandit de `s`.
+            let trait_ = Stroke {
+                width: 2.0 * demi / s,
+                line_join: LineJoin::Round,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&forme, &paint, &trait_, pose, None);
+        }
+        for couche in couches.iter() {
+            self.remplir(pixmap, couche.glyphe, (x, base), corps, couche.sur(encre));
+        }
     }
 }
 
@@ -234,8 +244,7 @@ mod tests {
             let (x, y) = (100.0, 50.0);
             typo.draw_text(&mut p.as_mut(), &ch.to_string(), x, y, style);
             let (x0, y0, x1, y1) = encre(&p).expect("de l'encre");
-            let (police, indice) = typo.police(ch, face);
-            let m = police.metrics_indexed(indice, corps);
+            let m = typo.metriques(typo.choix(ch, face), corps);
             // La boîte de fontdue : `xmin` depuis la plume, `ymin` depuis la ligne de base vers
             // le haut ; la ligne de base est à `y + corps`.
             let gauche = x + m.xmin as f32;
@@ -329,8 +338,7 @@ mod tests {
         let mut ancienne = Pixmap::new(560, 360).expect("tampon");
         let mut plume = x;
         for ch in "OH".chars() {
-            let (choisi, indice) = typo.choix(ch, Face::Bold);
-            let glyphe = (choisi.map_or(Face::ALL.len(), Face::index), indice);
+            let glyphe = typo.choix(ch, Face::Bold);
             for (ox, oy) in crate::typography::DETOURAGE {
                 let a = (plume + ox, y + corps + oy);
                 typo.contours

@@ -70,8 +70,8 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
   pour Android et le web à chaque envoi.
 * **L'application a les siennes**, chacune défendue par une impossibilité de faire sans :
   `winit` (fenêtre), `wgpu` (Vulkan, Metal, Direct3D, GL ES derrière une interface), `tiny-skia`
-  (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes — Inter, et Noto Emoji
-  en repli, EMOJI-1), `image` (décodeurs), `arboard` (presse-papiers) et `rfd` (les sélecteurs
+  (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes — Inter, et le reste de Noto
+  Emoji en repli ; les émojis en couleur, Twemoji, par leur contour : EMOJI-2, `decisions/18`), `image` (décodeurs), `arboard` (presse-papiers) et `rfd` (les sélecteurs
   de fichiers, ouverts sur un fil à eux — DIAL-2, `persist::choix` —, et la seule boîte posée
   avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
   sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`

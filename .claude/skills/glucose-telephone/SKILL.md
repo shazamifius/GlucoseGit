@@ -87,8 +87,8 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
   d'état, et tout ce qui se pose en bas passe par `UiState::ecran_visible` — sans la navigation,
   ni le clavier, qui **recouvre** la fenêtre au lieu de la rétrécir. Un élément neuf collé à un
   bord se cale là, jamais sur l'écran entier.
-* **Un emoji tapé se dessine** par Noto Emoji, monochrome, en repli d'Inter (EMOJI-1, fiche
-  58) ; sans moteur de mise en forme, une famille se décompose et un drapeau devient deux
+* **Un emoji tapé se dessine** en couleur, par Twemoji en repli d'Inter (EMOJI-2, fiche 125,
+  `decisions/18`) ; sans moteur de mise en forme, une famille se décompose et un drapeau devient deux
   lettres.
 * **Le rail** écrit le nom de chaque icône quand la largeur le permet (fiche 58), colonne après
   colonne ; sinon les icônes seules. Aucun bouton derrière un défilement.

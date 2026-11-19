@@ -163,3 +163,10 @@ Le texte vu de près est dessiné par la carte graphique selon l'algorithme **Sl
 MIT) : sa loi est transcrite dans `crates/glucose-core/src/courbes/couverture.rs` et
 `crates/glucose-desktop/src/present/formes_gpu/formes.wgsl`
 ([sa licence](crates/glucose-desktop/src/present/formes_gpu/LICENSE-Slug.txt)).
+
+Les émojis sont les dessins de **Twemoji** (© 2019-2026 Twitter, Inc et ses contributeurs,
+[`jdecked/twemoji`](https://github.com/jdecked/twemoji), licence
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)), convertis par nous en police COLRv0 et
+mis aux mesures de Noto Emoji (`outils/emojis/`,
+[leur licence](crates/glucose-desktop/assets/LICENSE-Twemoji-graphics.txt)) ; ce que Twemoji n'a
+pas vient de Noto Emoji (SIL Open Font License 1.1).

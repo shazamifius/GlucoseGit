@@ -113,3 +113,50 @@ fn test_un_rectangle_net_tombe_sur_les_memes_pixels() {
     resvg::render(&arbre, tiny_skia::Transform::identity(), &mut lu.as_mut());
     assert_eq!(canevas.data(), lu.data());
 }
+
+/// **EMOJI-2 dans le SVG** : 🟢 et 🔴, écrits dans un texte d'encre noire, se lisent verts et
+/// rouges par un lecteur indépendant (`resvg`, `decisions/13`) — chaque couche dans un groupe de
+/// sa couleur, sans `aria-label` (les mots se lisent sur la ligne). Preuve à l'envers : sous la
+/// loi d'EMOJI-1, le groupe de la ligne était noir, et ses glyphes avec lui.
+#[test]
+fn test_emoji_2_le_svg_ecrit_les_couleurs_d_un_emoji() {
+    use crate::typography::{Face, TextStyle, Typography};
+    let typo = Typography::new();
+    let style = TextStyle {
+        size: 48.0,
+        color: Color::BLACK,
+        face: Face::Regular,
+    };
+    for (emoji, dominante) in [('\u{1F7E2}', 1), ('\u{1F534}', 0)] {
+        let mut svg = Svg::new();
+        svg.texte(&typo, (10.0, 10.0), &emoji.to_string(), style);
+        let ecrit = svg.finir((90, 80));
+        assert_eq!(
+            ecrit.matches("aria-label").count(),
+            1,
+            "les mots sur la ligne seule : {ecrit}"
+        );
+        let arbre =
+            resvg::usvg::Tree::from_str(&ecrit, &Default::default()).expect("un SVG lisible");
+        let mut lu = tiny_skia::Pixmap::new(90, 80).expect("une image");
+        resvg::render(&arbre, tiny_skia::Transform::identity(), &mut lu.as_mut());
+        let (mut somme, mut n) = ([0u32; 3], 0);
+        for px in lu.pixels().iter().filter(|p| p.alpha() == 255) {
+            let c = px.demultiply();
+            somme = [
+                somme[0] + u32::from(c.red()),
+                somme[1] + u32::from(c.green()),
+                somme[2] + u32::from(c.blue()),
+            ];
+            n += 1;
+        }
+        assert!(n > 200, "{emoji:?} se dessine ({n} pixels pleins)");
+        let autres = (0..3).filter(|&k| k != dominante);
+        for k in autres {
+            assert!(
+                somme[dominante] > somme[k] + 40 * n,
+                "{emoji:?} : la couleur {dominante} domine, {somme:?} pour {n}"
+            );
+        }
+    }
+}

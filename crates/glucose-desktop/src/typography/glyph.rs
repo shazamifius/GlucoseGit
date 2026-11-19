@@ -28,8 +28,9 @@ pub struct GlyphEntry {
     pub height: usize,
 }
 
-/// Clé de cache d'un glyphe : visage, caractère, taille en dixièmes de point, phase.
-pub(crate) type GlyphKey = (super::Face, char, u16, u8);
+/// Clé de cache d'un glyphe : le rang de sa police, son indice (EMOJI-2 — deux visages qui
+/// retombent sur le même émoji partagent son image), la taille en dixièmes de point, la phase.
+pub(crate) type GlyphKey = (u8, u16, u16, u8);
 
 /// Valeur de cache : le glyphe partagé, et la dernière image qui l'a demandé (fiche 104).
 pub(super) type CachedGlyph = (Rc<GlyphEntry>, u64);

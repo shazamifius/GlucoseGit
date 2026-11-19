@@ -2697,3 +2697,46 @@ fn test_estompe_1_une_photo_decodee_s_estompe_et_ne_cache_plus() {
         "sans frise, la noire couvre tout"
     );
 }
+
+/// **EMOJI-2, de près, sur les deux voies** (fiche 125) : 🟢 et 🔴 dans un texte lu de près —
+/// la carte graphique les dessine depuis les contours de leurs couches, chacune dans un groupe de
+/// sa couleur ; le processeur, couche par couche depuis son cache. Les deux voies rendent la même
+/// image (SLUG-1), et chacune montre du vert et du rouge. Preuve à l'envers : sous EMOJI-1, les
+/// deux ronds étaient de l'encre du texte, sans aucun pixel saturé.
+#[test]
+fn test_emoji_2_de_pres_les_deux_voies_posent_les_couleurs() {
+    let taille = (800u32, 600u32);
+    let mut store = document_de_pres(6.0, (150.37, 180.61));
+    if let Some(b) = store.active_board_mut() {
+        for a in &mut b.annotations {
+            if let glucose_core::types::Annotation::Text { text, .. } = a {
+                *text = "\u{1F7E2} \u{1F534} fin".to_string();
+            }
+        }
+    }
+    let Some(carte) = par_la_carte(taille, &store) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let processeur = par_le_processeur(taille, &store);
+    slug_1("les emojis", &processeur, &carte);
+    for (voie, image) in [("le processeur", &processeur), ("la carte", &carte)] {
+        let compte = |dominante: usize| {
+            image
+                .pixels()
+                .iter()
+                .filter(|p| {
+                    let c = [p.red(), p.green(), p.blue()].map(i32::from);
+                    // Le vert de Twemoji (#78B159) dépasse son rouge de 57 ; son rouge (#DD2E44), de 153.
+                    (0..3).all(|k| k == dominante || c[dominante] > c[k] + 40)
+                })
+                .count()
+        };
+        assert!(
+            compte(1) > 500 && compte(0) > 500,
+            "{voie} : {} pixels verts, {} rouges",
+            compte(1),
+            compte(0)
+        );
+    }
+}

@@ -38,8 +38,8 @@ impl Typography {
             .borrow_mut()
             .entry((face, ch))
             .or_insert_with(|| {
-                let (font, indice) = self.police(ch, face);
-                let (_, image) = font.rasterize_indexed(indice, reference);
+                // Un émoji : l'encre de sa silhouette, l'union de ses couches (EMOJI-2).
+                let (_, image) = self.rasteriser(self.choix(ch, face), reference);
                 image.iter().map(|&c| f32::from(c)).sum::<f32>() / 255.0
             });
         surface * (size / reference).powi(2)

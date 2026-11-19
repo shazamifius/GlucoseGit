@@ -1,0 +1,130 @@
+[
+ {
+  "nom": "EMOJI-2 — un émoji en couleur n'est que sa base",
+  "fichier": "crates/glucose-desktop/src/typography/trace/couleur.rs",
+  "avant": "        if !face.is_color_glyph(GlyphId(indice)) {",
+  "apres": "        if true || !face.is_color_glyph(GlyphId(indice)) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-2 — la couleur d'une couche s'oublie (l'encre du texte)",
+  "fichier": "crates/glucose-desktop/src/typography/trace/couleur.rs",
+  "avant": "                        couleur: (a == b)\n",
+  "apres": "                        couleur: (a != a)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-2 — un émoji ne pâlit pas avec son texte",
+  "fichier": "crates/glucose-desktop/src/typography/trace/couleur.rs",
+  "avant": "                c.set_alpha(c.alpha() * encre.alpha());",
+  "apres": "                c.set_alpha(c.alpha());",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-2 — la silhouette n'est que la base",
+  "fichier": "crates/glucose-desktop/src/typography/trace/couleur.rs",
+  "avant": "        self.couches(glyphe)\n            .iter()\n            .filter_map(|c| self.contour(c.glyphe.0, c.glyphe.1))",
+  "apres": "        Couches::Une(glyphe)\n            .iter()\n            .filter_map(|c| self.contour(c.glyphe.0, c.glyphe.1))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-2 — une grande lettre se trace d'une seule encre",
+  "fichier": "crates/glucose-desktop/src/typography/choix.rs",
+  "avant": "                .remplir(pixmap, couche.glyphe, plume, size, couche.sur(couleur));",
+  "apres": "                .remplir(pixmap, couche.glyphe, plume, size, couleur);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-2 — le SVG pose les couches à l'encre de la ligne",
+  "fichier": "crates/glucose-desktop/src/renderer/vectoriel.rs",
+  "avant": "                if couche.couleur.is_some() {",
+  "apres": "                if couche.couleur.is_none() && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-1 — le reste de Noto n'est jamais consulté",
+  "fichier": "crates/glucose-desktop/src/typography/choix.rs",
+  "avant": "        match self.polices.reste.lookup_glyph_index(ch) {",
+  "apres": "        match 0 * self.polices.reste.lookup_glyph_index(ch) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ },
+ {
+  "nom": "EMOJI-2 — Twemoji n'est jamais consulté",
+  "fichier": "crates/glucose-desktop/src/typography/choix.rs",
+  "avant": "        if let Some(indice) = self.contours.indice(COULEUR, ch) {",
+  "apres": "        if let Some(indice) = self.contours.indice(COULEUR, ch).filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "emoji_1",
+   "emoji_2"
+  ]
+ }
+]

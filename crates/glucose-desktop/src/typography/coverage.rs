@@ -26,7 +26,7 @@
 //!
 //! Corollaire pour les tests : un caractère que l'on veut délibérément absent de la police
 //! (pour éprouver le `.notdef`, par exemple) s'écrit échappé, pas en clair — et un emoji n'en
-//! est plus un : Noto Emoji le dessine en repli (EMOJI-1) ; `'\u{4E2D}'` n'est dans aucune.
+//! est plus un : Twemoji le dessine en repli (EMOJI-2) ; `'\u{4E2D}'` n'est dans aucune.
 
 use super::{Face, Typography, FACE_BYTES};
 use std::collections::BTreeSet;
@@ -519,7 +519,8 @@ pub(crate) fn missing_from_interface(chars: &str) -> Vec<char> {
 /// **EMOJI-1 — un emoji se dessine** (fiche 58) : le visage souriant, le pouce, le feu, le
 /// visage qui tremble d'Unicode 15 allument des pixels (le cœur U+2764, lui, est dans Inter), et diffèrent du `.notdef` ; un accent
 /// reste dessiné par Inter ; le sélecteur de variante et le joint ne prennent aucune place ; un
-/// caractère que ni Inter ni Noto Emoji n'a garde la case d'Inter — visible, jamais effacé.
+/// caractère qu'aucune police n'a garde la case d'Inter — visible, jamais effacé (EMOJI-2 :
+/// l'image d'un émoji en couleur est sa silhouette).
 #[test]
 fn test_emoji_1_un_emoji_se_dessine_par_le_repli() {
     let typo = Typography::new();

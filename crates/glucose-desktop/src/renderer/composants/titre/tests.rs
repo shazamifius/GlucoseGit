@@ -149,7 +149,7 @@ fn encre_au_bord(p: &Pixmap) -> usize {
 #[test]
 fn titre_3_la_texture_d_un_titre_est_le_titre_du_processeur() {
     // L'émoji s'écrit par son code : FONT-1 exige d'Inter chaque caractère littéral du crate, et
-    // celui-ci, Noto Emoji le dessine.
+    // celui-ci, Twemoji le dessine, en couleur (EMOJI-2).
     let vague = char::from_u32(0x1F30A).expect("la vague");
     let textes = [
         "Hydrologie".to_string(),

@@ -16,8 +16,8 @@
 //! 'path'`), et l'option « Outline text » de Figma. Le texte reste lisible par une machine :
 //! chaque ligne porte ses mots dans un `aria-label`.
 //!
-//! Le même mécanisme écrit les formules (les fontes de KaTeX) et les emojis (Noto Emoji) : une
-//! police nommée, un indice de glyphe.
+//! Le même mécanisme écrit les formules (les fontes de KaTeX) et les émojis (Twemoji, chacune de
+//! leurs couches dans un groupe de sa couleur, EMOJI-2) : une police nommée, un indice de glyphe.
 
 use super::{n, Svg};
 use crate::renderer::vectoriel::Vectoriel;

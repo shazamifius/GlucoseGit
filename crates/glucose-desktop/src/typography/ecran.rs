@@ -48,8 +48,9 @@
 use super::glyph::{
     split_position, CachedGlyph, GlyphEntry, GlyphKey, PHASE_ORIGIN, SUBPIXEL_PHASES,
 };
-use super::{Face, Typography};
-use fontdue::{Font, Metrics};
+use super::trace::Glyphe;
+use super::Typography;
+use fontdue::Metrics;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -78,9 +79,9 @@ pub(super) fn etirement(hauteur_d_x: Option<f32>, size: f32) -> f32 {
 
 /// **Le maître d'une lettre** : sa rastérisation à `SOUS` fois sa taille, étirée verticalement de
 /// `k` autour de la ligne de base. Ses métriques sont en sous-pixels, l'ordonnée vers le haut comme
-/// celles de `fontdue` ; l'avance reste celle du corps (`avance`), en pixels.
-pub(super) fn maitre(font: &Font, indice: u16, size: f32, (k, avance): (f32, f32)) -> GlyphEntry {
-    let (m, source) = font.rasterize_indexed(indice, size * SOUS as f32);
+/// celles de `fontdue` ; l'avance reste celle du corps (`avance`), en pixels. `(m, source)` est
+/// la rastérisation à `SOUS` fois la taille ([`Typography::rasteriser`]).
+pub(super) fn maitre((m, source): (Metrics, Vec<u8>), (k, avance): (f32, f32)) -> GlyphEntry {
     let (w, h) = (m.width, m.height);
     if w == 0 || h == 0 {
         return vide(m, avance);
@@ -191,21 +192,19 @@ impl Typography {
     pub(super) fn maitre(
         &self,
         cache: &mut HashMap<GlyphKey, CachedGlyph>,
-        (ch, size, face): (char, f32, Face),
+        glyphe: Glyphe,
+        size: f32,
         size_key: u16,
     ) -> Rc<GlyphEntry> {
-        let cle = (face, ch, size_key, MAITRE);
+        let cle = (glyphe.0 as u8, glyphe.1, size_key, MAITRE);
         if let Some((maitre, _)) = cache.get(&cle) {
             return maitre.clone();
         }
-        let (choisi, indice) = self.choix(ch, face);
-        let font = choisi.map_or(&self.polices.emoji, |f| self.font(f));
-        let hauteur_d_x = choisi.and_then(|f| self.polices.hauteurs_d_x[f.index()]);
-        let pas = (
-            etirement(hauteur_d_x, size),
-            font.metrics_indexed(indice, size).advance_width,
-        );
-        let maitre = Rc::new(maitre(font, indice, size, pas));
+        // Seuls les visages ont une hauteur d'x : un émoji est une image, que rien n'étire.
+        let hauteur_d_x = self.polices.hauteurs_d_x.get(glyphe.0).copied().flatten();
+        let pas = (etirement(hauteur_d_x, size), self.avance_de(glyphe, size));
+        let rasterise = self.rasteriser(glyphe, size * SOUS as f32);
+        let maitre = Rc::new(maitre(rasterise, pas));
         cache.insert(cle, (maitre.clone(), self.image.get()));
         maitre
     }
