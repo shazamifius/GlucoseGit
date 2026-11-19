@@ -1,0 +1,12 @@
+[
+  {"nom": "VEILLE-1 — la veille comptée dans l'image (la loi d'avant)",
+   "fichier": "crates/glucose-desktop/src/app/terrain.rs",
+   "avant": "            .saturating_sub(dormi)\n",
+   "apres": "",
+   "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "veille_1"]},
+  {"nom": "VEILLE-1 — hors de Windows, un temps endormi qui n'est pas nul",
+   "fichier": "crates/glucose-desktop/src/plateforme/veille.rs",
+   "avant": "pub fn endormi() -> Duration {\n    Duration::ZERO\n}",
+   "apres": "pub fn endormi() -> Duration {\n    Duration::from_secs(1)\n}",
+   "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "veille_1"]}
+]

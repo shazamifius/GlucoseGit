@@ -79,6 +79,8 @@ mod selection_x11;
 mod telechargement;
 #[cfg(windows)]
 mod telechargement_windows;
+/// Le temps endormi que l'horloge des images compte (VEILLE-1).
+pub mod veille;
 
 use moisson::Depot;
 use std::sync::mpsc::Receiver;

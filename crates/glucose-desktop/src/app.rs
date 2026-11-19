@@ -448,6 +448,8 @@ impl GlucoseApp {
         if let Some(window) = self.window.clone() {
             crate::perf::frame_begin();
             let frame_started = std::time::Instant::now();
+            // VEILLE-1 : la veille que l'horloge des images comptera pendant celle-ci.
+            let endormi = crate::plateforme::veille::endormi();
             // L'echeance de CETTE image, prise avant tout dessin : ce que le rendu demandera
             // ensuite -- une surface perdue, un composant manquant -- est pour la suivante.
             let due = self.image_due.take();
@@ -490,7 +492,8 @@ impl GlucoseApp {
             // qui reste d'ici la sert au travail de fond.
             self.attendre_l_heure_de_soumettre();
             self.presenter_et_noter_le_rythme(frame_started, due);
-            self.clore_l_image(frame_started, (width, height));
+            let dormi = crate::plateforme::veille::depuis(endormi);
+            self.clore_l_image(frame_started, dormi, (width, height));
         }
     }
 

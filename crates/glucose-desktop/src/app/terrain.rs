@@ -69,6 +69,7 @@ impl GlucoseApp {
     pub(super) fn clore_l_image(
         &mut self,
         debut: std::time::Instant,
+        dormi: std::time::Duration,
         (largeur, hauteur): (u32, u32),
     ) {
         // NAV-3 : l'age du plus ancien geste que cette image montre enfin. C'est **la**
@@ -106,7 +107,12 @@ impl GlucoseApp {
             .map_or(std::time::Duration::ZERO, |us| {
                 std::time::Duration::from_micros(us.max(0.0) as u64)
             });
-        let ecoule = debut.elapsed().saturating_sub(attente);
+        // **Ni le temps endormi** (VEILLE-1) : une veille au milieu d'une image n'est pas un gel —
+        // sous Windows, l'horloge des images la compte (`plateforme::veille`).
+        let ecoule = debut
+            .elapsed()
+            .saturating_sub(dormi)
+            .saturating_sub(attente);
         // **La resolution ne s'observe que sur la voie qu'elle commande.** Sur la voie
         // graphique, la scene ne se reduit jamais -- la carte filtre sans rien payer, donc
         // abimer l'image n'achete rien. Laisser le modele observer quand meme faisait trois
@@ -512,7 +518,7 @@ mod tests {
         let mut par_la_carte = GlucoseApp::new();
         par_la_carte.presenter = Some(Box::new(Carte));
         par_la_carte.resolution = reduite();
-        par_la_carte.clore_l_image(lente, (800, 600));
+        par_la_carte.clore_l_image(lente, Duration::ZERO, (800, 600));
         assert_eq!(
             par_la_carte.resolution.facteur(),
             1,
@@ -522,11 +528,35 @@ mod tests {
         let mut par_le_processeur = GlucoseApp::new();
         par_le_processeur.presenter = None;
         par_le_processeur.resolution = reduite();
-        par_le_processeur.clore_l_image(lente, (800, 600));
+        par_le_processeur.clore_l_image(lente, Duration::ZERO, (800, 600));
         assert!(
             par_le_processeur.resolution.reduite(),
             "sur la voie processeur, la meme image lente laisse la resolution reduite : la \
              decision distingue bien les deux voies"
+        );
+    }
+
+    /// **VEILLE-1 — une image qui contient une veille garde ce qu'elle a coûté** : trois secondes
+    /// à l'horloge des images, dont 2,99 endormies (sous Windows, l'`Instant` compte la veille :
+    /// 415 s chez un utilisateur à carte AMD, fiche 123 § 6), ne sont pas une image de trois
+    /// secondes. Preuve à l'envers : la même image, sans veille dite, en vaut trois.
+    #[test]
+    fn test_veille_1_une_image_qui_contient_une_veille_garde_son_cout() {
+        use std::time::{Duration, Instant};
+        let pire = |dormi| {
+            let mut app = GlucoseApp::new();
+            app.clore_l_image(Instant::now() - Duration::from_secs(3), dormi, (800, 600));
+            let pires = app.chronique.pires().iter().map(|vu| vu.duree_us);
+            pires.max().expect("une image enregistrée")
+        };
+        let eveillee = pire(Duration::from_millis(2_990));
+        assert!(
+            eveillee < 100_000,
+            "dix millisecondes de travail, pas {eveillee} µs"
+        );
+        assert!(
+            pire(Duration::ZERO) >= 3_000_000,
+            "sans veille dite, trois secondes"
         );
     }
 
