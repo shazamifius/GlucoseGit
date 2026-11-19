@@ -195,7 +195,7 @@ fn couleur_de(typo: &Typography, ch: char, palette: usize) -> Color {
 fn test_emoji_3_sur_le_papier_d_un_noeud_la_coche_se_lit() {
     let (typo, theme) = (Typography::new(), crate::theme::Theme::dark());
     let (lc, _) = le_plus_lisible(&typo, COCHE, theme.card_body, theme.card_paper);
-    assert!(lc >= 45.0, "✔ sur le papier d'un nœud : Lc {lc:.1}");
+    assert!(lc >= 45.0, "la coche sur le papier d'un nœud : Lc {lc:.1}");
     let origine = octets(couleur_de(&typo, COCHE, 0));
     assert!(
         apca(origine, octets(theme.card_paper)) < 15.0,
@@ -211,7 +211,7 @@ fn test_emoji_3_sur_un_post_it_la_coche_garde_sa_couleur() {
     let (encre, papier) = (theme.sticky_yellow_text, theme.sticky_yellow_bg);
     let (lc, rgb) = le_plus_lisible(&typo, COCHE, encre, papier);
     let origine = octets(couleur_de(&typo, COCHE, 0));
-    assert!(lc >= 45.0, "✔ sur un post-it : Lc {lc:.1}");
+    assert!(lc >= 45.0, "la coche sur un post-it : Lc {lc:.1}");
     assert!(
         rgb.iter().zip(origine).all(|(&a, b)| a.abs_diff(b) <= 2),
         "sa couleur d'origine {origine:?}, pas {rgb:?}"

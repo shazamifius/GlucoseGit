@@ -146,6 +146,97 @@ fn test_tiroir_4_une_colonne_voisine_quand_la_hauteur_manque() {
     );
 }
 
+/// Les sept tiroirs.
+const TOUS: [TabId; 7] = [
+    TabId::Organize,
+    TabId::Pomodoro,
+    TabId::Storyboard,
+    TabId::Plugins,
+    TabId::Preset,
+    TabId::Domains,
+    TabId::Temps,
+];
+
+/// La hauteur d'un tiroir ouvert seul, sur un écran assez haut pour qu'il ait la sienne.
+fn hauteur_seule(tab: TabId) -> f32 {
+    let store = Store::new("essai");
+    compute_panel_layouts(&dock_with(tab), &store, 1440.0, 4000.0, 78.0, 1.0)
+        .into_iter()
+        .find(|b| b.tab == tab)
+        .expect("ouvert")
+        .height
+}
+
+/// **TIROIR-4 — un tiroir se pose dans la première colonne où il tient** (le « first fit »). La
+/// scène se construit sur les hauteurs mêmes des tiroirs de gauche : les deux plus hauts, A puis
+/// B, ne tiennent pas l'un sous l'autre — B ouvre la colonne voisine ; le plus bas, C, tient sous
+/// l'un comme sous l'autre. Il va sous A. Preuve à l'envers : ranger dans la **dernière** colonne
+/// où il tient le poserait sous B (fiche 126 : le sabotage passait, aucune scène n'avait deux
+/// colonnes qui pouvaient le prendre).
+#[test]
+fn test_tiroir_4_un_tiroir_va_dans_la_premiere_colonne_ou_il_tient() {
+    let mut gauche: Vec<(TabId, f32)> = TOUS
+        .into_iter()
+        .filter(|t| t.cote() == Cote::Gauche)
+        .map(|t| (t, hauteur_seule(t)))
+        .collect();
+    gauche.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let ((a, ha), (b, hb), (c, hc)) = (gauche[0], gauche[1], gauche[gauche.len() - 1]);
+    assert!(
+        hc < hb,
+        "la scène demande un tiroir plus bas que les deux autres"
+    );
+    // A + C et B + C tiennent, A + B non : la place entre les deux.
+    let place = (ha.max(hb) + hc + ha + hb) / 2.0;
+    let mut dock = DockManager::new();
+    for tab in [a, b, c] {
+        dock.toggle_tab(tab);
+    }
+    let boites =
+        compute_panel_layouts(&dock, &Store::new("essai"), 1440.0, 78.0 + place, 78.0, 1.0);
+    let boite = |t| boites.iter().find(|x| x.tab == t).expect("ouvert");
+    let (ba, bb, bc) = (boite(a), boite(b), boite(c));
+    assert_ne!(ba.x, bb.x, "{b:?} ouvre la colonne voisine");
+    assert_eq!(
+        (bc.x, bc.y),
+        (ba.x, ba.y + ba.height),
+        "{c:?} sous {a:?}, dans la première colonne où il tient"
+    );
+}
+
+/// **TIROIR-4 — aucune colonne ne sort de l'écran** : les sept tiroirs ouverts sur un écran trop
+/// étroit et trop bas pour leurs colonnes — chacun reste entre les deux bords (là où ils se
+/// croisent, TIROIR-3 dit lequel prend le clic). L'épreuve vérifie qu'elle exerce son cas : les
+/// colonnes, mises bout à bout, sont plus larges que l'écran.
+#[test]
+fn test_tiroir_4_aucune_colonne_ne_sort_de_l_ecran() {
+    let mut dock = DockManager::new();
+    for tab in TOUS {
+        dock.toggle_tab(tab);
+    }
+    let (largeur, hauteur, bande) = (640.0, 360.0, 78.0);
+    let boites = compute_panel_layouts(&dock, &Store::new("essai"), largeur, hauteur, bande, 1.0);
+    assert_eq!(boites.len(), TOUS.len(), "les sept sont ouverts");
+    let colonnes: f32 = boites
+        .iter()
+        .filter(|b| b.y == bande)
+        .map(|b| b.width)
+        .sum();
+    assert!(
+        colonnes > largeur,
+        "le cas : {colonnes} de colonnes pour {largeur}"
+    );
+    for b in &boites {
+        assert!(
+            b.x >= 0.0 && b.x + b.width <= largeur,
+            "{:?} : de {} à {}, hors de l'écran",
+            b.tab,
+            b.x,
+            b.x + b.width
+        );
+    }
+}
+
 /// Ordonner et Pomodoro ouverts, dans cet ordre : ce que Glucose Tauri ouvrait au lancement, et
 /// que Glucose n'ouvre plus (fiche 59).
 fn ordonner_et_pomodoro() -> DockManager {

@@ -79,11 +79,14 @@ fn test_echelle_1_ce_qui_ne_changerait_rien_ne_s_offre_pas() {
 }
 
 /// **Un souvenir abîmé ne fait pas une interface géante** : ce qui n'est pas un cran vaut 100 %.
+/// « 60000 » et « 137 » se lisent comme des nombres et ne sont pas des crans — les seuls qui
+/// passent par la garde : « 99999 » ne tient pas dans un `u16`, et la lecture le refusait avant
+/// elle (fiche 126 : le sabotage de la garde passait).
 #[test]
 fn test_echelle_1_un_souvenir_abime_vaut_cent() {
     let d = dossier("echelle-abime");
     let app = application(&d);
-    for texte in ["99999", "abc", "", "125.5", "0"] {
+    for texte in ["60000", "137", "99999", "abc", "", "125.5", "0"] {
         std::fs::create_dir_all(app.souvenir_de_la_fenetre(SOUVENIR).parent().unwrap()).ok();
         std::fs::write(app.souvenir_de_la_fenetre(SOUVENIR), texte).expect("écrire");
         assert_eq!(app.echelle_retenue(), 100, "« {texte} »");
