@@ -233,6 +233,17 @@ n'a pas laissé compiler (§ 8).
   (`/.well-known/mcp/server-card.json`, `<point MCP>/server-card`…). **Pas mûre** : attendre que
   le chemin se fixe.
 
+* La mémoire de la suite d'épreuves à quatre fils (fiche 125 § 7) : [`mallopt(3)`](https://manpages.ubuntu.com/manpages/focal/man3/mallopt.3.html)
+  — glibc ouvre jusqu'à huit réserves (« arenas ») par cœur en 64 bits, `MALLOC_ARENA_MAX` les
+  plafonne ; [Ruby, *set M_ARENA_MAX for glibc malloc*](https://bugs.ruby-lang.org/issues/14759) —
+  des effets **contradictoires** (énorme pour certains ; 1,5 fois *plus* de mémoire à 2 dans un de
+  leurs bancs ; depuis glibc 2.26, le `tcache` réduit la contention). À mesurer chez nous — la
+  suite à quatre fils, `MALLOC_ARENA_MAX=2` contre le défaut, en paires, la pointe de la borne lue
+  — avant d'en faire une règle.
+* Cloudflare, plusieurs comptes : [*Create Free accounts from the dashboard*](https://developers.cloudflare.com/changelog/post/2026-08-04-free-dashboard-button/)
+  (le 4/08/2026 : « Create Account » dans le menu des comptes ; jusqu'à cinq comptes gratuits de
+  plus, un utilisateur d'au moins sept jours).
+
 ## 7. Les leçons
 
 * **Mesurer un défaut d'allure avant de le dire d'allure** : « gris foncé, peu lisible » était
@@ -254,3 +265,28 @@ n'a pas laissé compiler (§ 8).
   et la télémétrie, lue en début de session comme le `CLAUDE.md` le demande, l'aurait dit plus tôt.
 * **Un tirage au hasard juge un compte que personne ne peut rejouer en entier** : 24 sabotages,
   une vingtaine de minutes, une borne chiffrée — plutôt que de croire, ou de tout rejouer.
+
+## 8. Où la session s'arrête (19 h 40, à sa demande)
+
+* **Publiées** : la 2.0.4-beta.3 (son clic, 16 h 20, sur `15beb94`) et **la 2.0.4-beta.4** (son clic,
+  19 h 15, sur `9255281`, GitHub vert sur dix tâches). Son PC de l'école s'était mis à jour seul en
+  beta.3.
+* **Sur `main`, sur GitHub** : `578e92d` et le commit des documents de cette section — VEILLE-1
+  (`1ce6cf6`) y est, éprouvé ici, **pas encore vérifié par GitHub** (la lecture de Windows n'a
+  jamais été compilée).
+* **Hors de `main`, jamais compilé** : TIROIR-5 et 6 (§ 5 bis) — dans la copie de travail (neuf
+  fichiers : `dock.rs`, `dock/paint.rs`, `dock/render.rs`, `dock/tests.rs`, `dock/rangement.rs` et
+  ses épreuves, `interactions/pan_zoom.rs`, `interactions/panels.rs`, `outils/sabotages/tiroirs-126.json`)
+  et en correctif, `~/.cache/glucose-bancs/session-126/tiroirs-126.patch`. La borne a refusé toute
+  compilation de 18 h 57 à la fin : sa machine ne laissait que 2,8 à 3,1 Go (Brave, VS Code).
+* **Pas joués** : `veille-126` (2), `tiroirs-126` (10), le dernier de `liste-123`, `detourage-121`
+  (25).
+* **Son Glucose installé** : toujours `aeea3ef` — `bash outils/mettre_a_jour.sh`, sous chien de
+  garde, quand sa machine laisse de la mémoire.
+* **Dans son Glucose** : ses réponses lues — les ✔ (*« parfait comme ça »*), Cloudflare (*« ça me
+  convient à 100 % »*, puis sa crainte de polluer son compte) ; nos réponses posées
+  (`claude-code-cloudflare-2` et `-3`, `claude-code-beta-4`). **Le compte Cloudflare attend son
+  clic** (« Create Account », `glucose-canevas`) — ou sa décision de rester comme aujourd'hui.
+* **Hors du dépôt** : `~/.cache/glucose-bancs/pilote-126/` (la maison jetable, le binaire de
+  `1e1b951`, les captures des ✔, du post-it, du détourage de la pomme) ; `session-126/` (le
+  correctif des tiroirs).

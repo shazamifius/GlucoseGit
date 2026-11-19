@@ -21,8 +21,9 @@
   co-working et ses photos, la porte aux IA publiques, la frise, le miroir des images). Installeur
   Windows, AppImage, `.deb`, `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`.
 * **Sur `main` depuis la beta.4** : VEILLE-1 (une image qui contient une veille garde ce qu'elle a
-  coûté, sous Windows) ; TIROIR-5 et 6 (les tiroirs qui se rangent dans l'écran et défilent) **en
-  vérification**, fiche 126.
+  coûté, sous Windows) — éprouvé ici, **pas encore vérifié par GitHub**. **Hors de `main`** : TIROIR-5
+  et 6 (les tiroirs qui se rangent dans l'écran et défilent), **écrits, jamais compilés** — dans la
+  copie de travail et dans `~/.cache/glucose-bancs/session-126/tiroirs-126.patch` (fiche 126 § 8).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai

@@ -228,6 +228,10 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   avec `[skip ci]` ; le message de commit dans un fichier du scratchpad, puis `git commit -F`. **Suivre la
   CI** : `GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>`. Avant d'envoyer un
   fichier de `.github/workflows/` : `nix shell nixpkgs#actionlint -c actionlint`.
+* **Écrire dans son Glucose par la porte** (`outils/porte/claude_code.mjs`) : **toujours nommer l'onglet**
+  (`"tableau":"main"`) — sans lui, le nœud va dans l'onglet qu'il regarde ; le 19/11, une question est
+  tombée dans « Textes optimisés », à 4 000 unités de tout (fiche 126). Sa capture collée ne porte
+  pas d'adresse : elle se lit dans une **copie** de son `.glucose` (le PNG y est en clair).
 * **Le relais de la porte publique** (`outils/porte`, fiche 116) : `npx wrangler deploy` depuis son dossier
   (le compte de la télémétrie) ; ses épreuves, `node --test outils/porte/test/aiguillage.test.js` ; en
   local, `npx wrangler dev --ip 127.0.0.1 --port 8787` (son état dans `outils/porte/.wrangler`, ignoré).
