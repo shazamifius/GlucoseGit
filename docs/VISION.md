@@ -155,6 +155,11 @@ Chaque décision, chaque ligne de code se juge contre elles.
   énorme projet qui vise la refonte COMPLÈTE du système mondial d'internet ; mais du coup, concentre-toi
   sur le web2 »*. La porte publique : *« je pense qu'on a déjà tout : tout ce que tu as proposé est
   déjà en partie appliqué dans le code ; si tu as des questions plus spécifiques, dis-les-moi »*.
+* **Le compte Cloudflare de Glucose** (19/11) : ses deux serveurs vivaient sur celui d'un autre
+  projet — *« fermenislamber […] c'est un autre projet ; il faudrait vraiment switch ça »* ; devant
+  le plan (un compte à part, `glucose-canevas`, les serveurs `porte` et `boite-noire`, l'ancienne
+  adresse qui continue de marcher pour les Glucose installés), le soir : *« ça me convient à
+  100 % »* (fiche 126).
 * **Sa capture d'écran du 17/11** (fiche 118 § 1, ses mots entiers) : les tiroirs — *« des bulles
   partout, non cohérentes avec l'écran, qui s'entrechoquent, souvent trop grosses […] et vraiment
   aucune structure particulière qui permettrait d'identifier pourquoi ces tiroirs s'ouvrent comme

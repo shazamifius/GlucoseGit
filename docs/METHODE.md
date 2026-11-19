@@ -30,8 +30,10 @@
 * **« Réglé » seulement vérifié** : sur une copie de ses documents, sur GitHub, ou à son écran — jamais
   parce que ça compile, ni parce qu'une épreuve isolée passe.
 * **Une épreuve par invariant, sabotée** : `outils/saboter.py` joue d'abord chaque commande sur le code
-  intact (le témoin : s'il tombe, rien n'est joué), puis casse la garde, lance les épreuves, exige qu'une
-  épreuve tombe réellement (sa ligne d'échec, pas un code de sortie quelconque), restaure (fiche 125). Un fichier de sabotages par chantier, dans `outils/sabotages/`.
+  intact (le témoin : s'il tombe, ou ne joue aucune épreuve, rien n'est joué), puis casse la garde, lance
+  les épreuves, exige qu'une épreuve tombe réellement (sa ligne d'échec, pas un code de sortie quelconque)
+  et **la nomme**, restaure (fiches 125-126). `--temoins <fichiers>…` joue le code intact seul ; un
+  compte ancien se juge sur **un échantillon tiré au hasard** (fiche 126 § 3). Un fichier de sabotages par chantier, dans `outils/sabotages/`.
 * **Une épreuve porte sa preuve à l'envers** : elle rejoue l'ancienne loi sur les mêmes données et vérifie
   qu'elle concluait l'inverse.
 * **Les deux voies au bit près**, ou à un écart mesuré, borné et expliqué (`tests/voies_suite.rs`).
@@ -247,6 +249,10 @@ Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de
   et seulement ensuite part dans une version (`outils/publication/verifier_serveur.py` arrête l'oubli).
   Les épreuves du serveur : `node --test outils/telemetrie/test/valider.test.js`.
 * **Une commande qui déploie ou publie ne s'enchaîne qu'avec `if`**, jamais `;` (fiche 86).
+* **Avant tout geste sur une version** (la retirer, la refaire) : `gh release view <étiquette> --json
+  isDraft,publishedAt`. Le 19/11, une passation disait « brouillon vide, à retirer » d'une beta.3
+  publiée une heure plus tôt par son clic, et déjà installée (fiche 126). Une version publiée ne se
+  remplace pas : la suivante prend le numéro d'après.
 * **Windows, Mac, Android** : seule la CI les compile et les éprouve ; une correction propre à l'un part
   donc sans essai réel, et se dit telle. L'APK : `bash outils/android/construire.sh` (le SDK et le NDK sont
   absents ici : la CI le construit). `/dev/kvm` existe pour un téléphone virtuel ; les 4 Go de l'appareil

@@ -88,7 +88,7 @@ licences des polices y vont.
 Regardé sur le papier d'un nœud (`#0d0d0d`), le ✔ de Twemoji (`#31373D`) valait **Lc 0** en APCA :
 invisible. 34 dessins sont dans ce cas — tous d'une seule couleur, presque tous dans le « noir » de
 Twemoji (✔ ✖ ➕ ➖ ➗ ♠ ♣ ⚫ ⬛ 🖤 🕷️ 🔙 🔜…), plus 👾 (violet) et 👣 🐾 🪾 (bruns) —, que Noto
-monochrome dessinait à l'encre claire du texte : la beta.3 les aurait effacés. Twemoji a refusé de
+monochrome dessinait à l'encre claire du texte : la version suivante les aurait effacés. Twemoji a refusé de
 changer ses couleurs (*« wontfix »*, `twitter/twemoji#420`, 2020) ; Discord, qui dessine avec lui,
 en reçoit la plainte depuis des années.
 

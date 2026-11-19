@@ -17,9 +17,20 @@
   dans l'onglet qu'il regarde quand on ne lui en nomme aucun — et il regardait celui-là. Il ne
   l'aurait sans doute jamais vue (§ 4).
 * **La mémoire** : 3,6 Go disponibles, 1,8 Go de swap pris — il travaillait à côté.
+* **La télémétrie** (lue à 18 h 30) : 208 sessions ; **son PC de l'école en `2.0.4-beta.3`**
+  depuis l'après-midi — la beta.3 était publiée (§ 2).
 
 ## 2. Remis en question
 
+* **« La 2.0.4-beta.3 est un brouillon vide, à retirer par `gh release delete` »** (la passation,
+  ÉTAT, SUITE) : **faux**. Elle est **publiée depuis 16 h 20 — son clic**, l'instant même où la
+  session d'avant s'arrêtait, qui ne l'a jamais su ; « Latest », son `latest.json` lu quatre fois,
+  son PC de l'école mis à jour tout seul (deux sessions en beta.3). Elle porte le travail de
+  `15beb94` : le texte net de l'interface, les trois modes de la fenêtre, la barre de Windows, `F2`.
+  Le geste prévu aurait **supprimé une version publique, déjà installée**. Lu à temps par
+  `gh release view --json isDraft`, avant tout geste. La suivante s'appelle donc **2.0.4-beta.4** :
+  une machine en beta.3 ne se mettrait jamais à jour vers un autre programme du même numéro ; ses
+  notes disent « depuis la 2.0.4-beta.3 » et ne répètent rien de ce qu'elle portait.
 * **`saboter.py`, encore** : la fiche 125 l'avait fait exiger la preuve d'une épreuve tombée ;
   mais **le second essai, un fil à la fois** (pour les épreuves graphiques qui se sautent),
   comptait encore « TOMBE » pour n'importe quel code de sortie non nul — le mensonge même que la
@@ -32,7 +43,7 @@
 * **« Les ✔ foncés laissés fidèles, en attendant sa réponse »** (fiche 125 § 5) : faux, et pire
   qu'un défaut d'allure. Mesuré, le ✔ de Twemoji vaut **Lc 0** en APCA sur le papier d'un nœud —
   invisible —, et **34 dessins** sont dans ce cas, que sa version installée dessine en clair (Noto
-  monochrome, à l'encre du texte). **La beta.3 les aurait effacés** : un recul, sur les signes que
+  monochrome, à l'encre du texte). **La version suivante les aurait effacés** : un recul, sur les signes que
   les IA écrivent le plus (✔ ✖ ➕ ➖). Corrigé avant elle (§ 4).
 * **Mon premier plan pour les ✔ était faux, deux fois** — trouvé en mesurant, avant d'écrire :
   * un seuil de pictogramme (Lc 45) pour tous aurait éclairci **115** dessins, dont ❤ ❌ 🔴 :
@@ -83,6 +94,12 @@ seul, chaque commande une fois.
   « abc », « », « 125.5 » ne sont pas des nombres ; « 0 » tombait sur `> 0`. « 60000 » et « 137 »,
   lisibles et faux, sont l'interface géante que la garde empêche : ajoutés.
 
+**L'échantillon des anciens comptes** (ceux que l'outil d'avant la fiche 125 avait faits) : 24
+sabotages tirés au hasard (graine 126) parmi les 1 183 encore applicables des fichiers d'avant la
+fiche 121, dans 18 fichiers — **24 sur 24 tombent**, chacun sur une épreuve de son chantier, les
+22 témoins tiennent. Aucun mensonge trouvé ; vingt-quatre tirages sans échec bornent la part des
+comptes faux à 12 % environ (à 95 %) : les anciens comptes sont **probablement** sains.
+
 **Le nombre de sabotages qui s'appliquent encore** : 1 380 sur 1 527 (90 %) visent un passage qui
 existe une fois dans le code d'aujourd'hui ; les 147 autres gardaient du code réécrit depuis — ils
 disent « INTROUVABLE », ils ne mentent pas, mais ils ne gardent plus rien.
@@ -130,7 +147,25 @@ rien ne sort de l'écran »* — les ✔ en `#DAE2EA`, à côté du texte en `#D
 la phrase ; 🟢 🔵 📜 ✍️ 🔗 💬 dans leurs couleurs. Un post-it posé et tapé au pilote, *« ✔ fait ➕ 👣
 🔴 »* : ✔ et ➕ en `#31373D` (mesuré au pixel), 👣 brun, 🔴 rouge, sur le jaune.
 
-## 5. La recherche (consultée le 19/11/2026)
+## 5. VEILLE-1 — une image qui contient une veille garde ce qu'elle a coûté
+
+`plateforme/veille.rs`. **Le temps endormi que l'horloge des images compte** : sous Windows,
+`QueryInterruptTimePrecise` (qui compte la veille) moins `QueryUnbiasedInterruptTimePrecise` (qui
+ne la compte pas), en unités de 100 ns — une fonctionnalité de plus de la caisse `windows` déjà là
+(`Win32_System_WindowsProgramming`), aucune caisse neuve ; ailleurs, **zéro par construction**. La
+boucle le lit au début et à la fin de l'image (`app.rs`), et `clore_l_image` retranche ce qui a
+grandi entre les deux, comme elle retranche déjà l'attente du tempo. Aucune ligne neuve ne part
+au serveur : rien à déployer avant.
+
+* **Épreuves** : une image de trois secondes dont 2,99 endormies ne coûte pas trois secondes à la
+  chronique (par le vrai `clore_l_image`) ; la preuve à l'envers, sans veille dite, en vaut trois ;
+  le temps endormi ne recule pas, et vaut zéro hors de Windows. **Pas éprouvé ici** : la lecture de
+  Windows (seule la CI la compile) ; `depuis` et le branchement dans `redraw` ne se gardent pas sous
+  Linux — le temps endormi y est nul, et `redraw` demande une fenêtre.
+* **Pas encore envoyé** au moment du brouillon de la beta.4 : il partira dans la version d'après,
+  vérifié par GitHub (§ 8).
+
+## 6. La recherche (consultée le 19/11/2026)
 
 * Les émojis sombres : [`twitter/twemoji#420`](https://github.com/twitter/twemoji/issues/420) ;
   [Discord, *The "heavy" emojis are almost non-visible*](https://support.discord.com/hc/nl/community/posts/360052083493-The-heavy-emojis-are-almost-non-visible),
@@ -156,7 +191,7 @@ la phrase ; 🟢 🔵 📜 ✍️ 🔗 💬 dans leurs couleurs. Un post-it pos�
   (`/.well-known/mcp/server-card.json`, `<point MCP>/server-card`…). **Pas mûre** : attendre que
   le chemin se fixe.
 
-## 6. Les leçons
+## 7. Les leçons
 
 * **Mesurer un défaut d'allure avant de le dire d'allure** : « gris foncé, peu lisible » était
   « Lc 0, invisible », et la version suivante l'aurait montré à tous. Une couleur se juge sur le
@@ -172,3 +207,8 @@ la phrase ; 🟢 🔵 📜 ✍️ 🔗 💬 dans leurs couleurs. Un post-it pos�
 * **Un outil de preuve se relit après chaque correction** : celui de la fiche 125 gardait le défaut
   qu'elle avait corrigé, dans sa seconde branche.
 * **Ce que la porte pose sans onglet nommé va dans celui qu'il regarde** : nommer l'onglet, toujours.
+* **Un état publié se lit sur GitHub, pas dans nos documents** : la beta.3 « brouillon » était
+  publique depuis une heure. Avant tout geste sur une version : `gh release view --json isDraft` ;
+  et la télémétrie, lue en début de session comme le `CLAUDE.md` le demande, l'aurait dit plus tôt.
+* **Un tirage au hasard juge un compte que personne ne peut rejouer en entier** : 24 sabotages,
+  une vingtaine de minutes, une borne chiffrée — plutôt que de croire, ou de tout rejouer.

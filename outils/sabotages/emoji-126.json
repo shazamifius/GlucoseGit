@@ -1,5 +1,5 @@
 [
-  {"nom": "EMOJI-3 — toujours la palette d'origine (la beta.3 d'avant)",
+  {"nom": "EMOJI-3 — toujours la palette d'origine (EMOJI-2 seul)",
    "fichier": "crates/glucose-desktop/src/typography/trace/couleur.rs",
    "avant": "let mut c = couleurs[usize::from(sur_un_papier_sombre(encre))];",
    "apres": "let mut c = couleurs[0];",

@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 19/11/2026, 16 h** (fiches 108-125). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 19/11/2026, 18 h 40** (fiches 108-126). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -10,18 +10,18 @@
 
 ## 1. En bref
 
-* **Publiée** : la **2.0.4-beta.2** (son clic, le 18/11 à 11 h 49, construite sur `c8d7585`) — le
-  co-working et ses photos, la porte aux IA publiques, la frise chronologique, le miroir des images,
-  les boutons de Windows qui répondent où ils sont dessinés. Installeur Windows, AppImage, `.deb`,
-  `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`. Son PC de l'école y est passé.
-* **En brouillon** : la 2.0.4-beta.3, sur `15beb94` — vide ; **à refaire avec tout ce qui suit** : ses
-  notes sont écrites (`outils/publication/notes.md`, vérifiées), la CI de `main` tourne ; le
-  brouillon d'hier se retire d'abord (le flux de publication ne remplace rien).
-* **Sur `main` depuis la beta.2** :
-  * **sa capture du 17/11, finie** — le texte et les icônes de l'interface nets (GRILLE-1 et 2), les
-    trois modes de la fenêtre (`F11`, `Ctrl+Maj+A`, le zen à `Maj+F11`), toujours devant sous Wayland
-    (DEVANT-1, essayé sous niri, sway et KDE), la barre de Windows au choix, renommer un dossier
-    (`F2`) (fiches 120-121) ; **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
+* **Publiée** : la **2.0.4-beta.3** (son clic, le 19/11 à 16 h 20, construite sur `15beb94`) — sa
+  capture du 17/11 en partie : le texte et les icônes de l'interface nets (GRILLE-1 et 2), les trois
+  modes de la fenêtre (`F11`, `Ctrl+Maj+A`, le zen à `Maj+F11`), toujours devant sous Wayland
+  (DEVANT-1), la barre de Windows au choix, renommer un dossier (`F2`) (fiches 120-121). **Son PC de
+  l'école s'y est mis à jour tout seul** le jour même. Avant elle, la 2.0.4-beta.2 (18/11 : le
+  co-working et ses photos, la porte aux IA publiques, la frise, le miroir des images). Installeur
+  Windows, AppImage, `.deb`, `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`.
+* **À préparer** : la **2.0.4-beta.4** — tout ce qui suit ; ses notes sont écrites (`outils/publication/notes.md`,
+  « depuis la 2.0.4-beta.3 », vérifiées) ; la CI de `main` tourne (fiche 126). Le numéro change :
+  une machine en beta.3 ne se mettrait pas à jour vers un autre programme du même numéro.
+* **Sur `main` depuis la beta.3** :
+  * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
     Glucose à 100, 110 et 125 % (fiche 124) ;
   * **l'échelle de l'interface, à son choix** (ECHELLE-1 : « Agrandir l'interface » au menu du vide,
@@ -34,7 +34,10 @@
     sépare deux rangées** (TABLE-4), les listes s'imbriquent (LISTE-1, la règle de CommonMark), le
     témoin dit l'onglet où l'IA travaille (TEMOIN-2), **un texte qui grandit pousse sa membrane**
     (TEXT-FIT-2), et **les émojis sont en couleur** (EMOJI-2 : Twemoji 17 construit par nous en
-    COLRv0, `decisions/18`) — regardés sur une copie de son document ;
+    COLRv0, `decisions/18`) — **les signes d'encre (✔ ✖ ➕ ♠ ⚫ 🖤, invisibles sur le papier d'un
+    nœud) dans la palette du fond sombre que la police déclare, l'encre du texte disant le papier**
+    (EMOJI-3, fiche 126 : sans elle, la version suivante les aurait effacés) — regardés sur une copie de son
+    document ;
   * **la porte publique, vraie** : l'identité du document ne part plus au nuage, le code de la
     question d'accord est dans son titre.
 * **La porte aux IA publiques marche avec son compte** (19/11, fiche 122) : **Claude.ai** est entré
@@ -77,13 +80,12 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 **Vu par nous, pas encore réglé** :
 
-* **les émojis foncés se lisent mal sur le fond sombre** : ✔️, que Claude.ai écrit souvent,
-  Twemoji le dessine gris foncé (comme Apple, Google, Discord) ; fidèle, mais peu lisible — sa
-  question est dans son Glucose (`claude-code-coches`) ;
 * **une famille d'émojis se décompose, un drapeau devient deux lettres** : sans moteur de mise en
   forme, Glucose dessine un caractère à la fois (`decisions/10` et `18`) ;
 * **la télémétrie compte une mise en veille comme une image** : 415 s chez un utilisateur Windows à
-  carte AMD, la machine à 0 % pendant ces sept minutes — la « pire image » en est faussée ;
+  carte AMD, la machine à 0 % pendant ces sept minutes — la « pire image » en est faussée. **Sous
+  Windows seulement** : l'`Instant` de Rust y compte la veille, pas sous Linux, Android et macOS
+  (fiche 126 § 2) ;
 * **les tiroirs ne défilent pas** : quand la hauteur manque même en colonnes, deux se croisent
   (Storyboard et Domaines à 1440 × 900 avec huit domaines) ;
 * **ses deux serveurs vivent sur le compte Cloudflare d'un autre projet** (`ferme-nilslamber`, celui de
@@ -100,34 +102,35 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 ## 4. La qualité
 
-* **Les épreuves** : sur GitHub, `d46f5e0` **vert sur les dix tâches** (le 19/11, 14 h 56 : le travail
-  des fiches 122 à 124) ; `78ed630` (EMOJI-2, TABLE-4) **en vérification à la fin de la session**
-  (`gh run view 44551546465`, sept tâches vertes à 16 h 20). Ici, la suite du bureau : 2 152 sur 2 157
-  — les empreintes témoins mises à jour depuis (le filet de TABLE-4, regardé), et le détourage, qui
-  dépasse son délai sans l'optimisation du dépôt (vert sur GitHub). Clippy strict et `cargo fmt` à
-  zéro ; les **cliquets** (80 lignes par fonction, 600 par fichier, le couplage au modèle — 38
-  lignes, au plafond) ne se relèvent jamais : ce qui déborde s'extrait.
+* **Les épreuves** : sur GitHub, `36adb41` **vert sur les dix tâches**, le Mac à puce Apple compris
+  (le 19/11 à 18 h 58 : tout le travail des fiches 122 à 126 — `gh run view 44578416447`). Ici, la
+  bibliothèque du bureau (2 163) et du noyau (805) passent. Clippy strict et `cargo fmt` à zéro ; les
+  **cliquets** (80 lignes par fonction, 600 par fichier, le couplage au modèle — 38 lignes, au
+  plafond) ne se relèvent jamais : ce qui déborde s'extrait.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
   (`outils/sabotages/`, un fichier par chantier) ; **`saboter.py` joue d'abord le code intact (le
-  témoin) et exige une épreuve réellement tombée** (fiche 125). Joués avec témoin : `texte-fit-124`
-  9 sur 9, `emoji-125` 8 sur 8, `table-125` 7 sur 7, `liste-123` 7 sur 8 (le dernier, la puce en
-  vecteurs, arrêté avec la session). **Pas encore joués** : ce dernier, `temoin-123` (2), `table-123`
-  (10), `tiroirs-122` (6), `porte-122` (3), `applique-122` (2), `echelle-121` (5), `detourage-121`
-  (25).
+  témoin), exige une épreuve réellement tombée et la nomme** (fiches 125-126). Joués avec témoin :
+  `texte-fit-124` 9 sur 9, `emoji-125` 8 sur 8, `table-125` 7 sur 7, `liste-123` 7 sur 8, `temoin-123`
+  2 sur 2, `table-123` 10 sur 10, `tiroirs-122` 6 sur 6, `porte-122` 3 sur 3, `applique-122` 2 sur 2,
+  `echelle-121` 5 sur 5 (trois gardes étaient aveugles : leurs épreuves sont écrites), `emoji-126`
+  9 sur 9 ; **un échantillon de 24 anciens sabotages** tirés au hasard dans 18 fichiers : 24 sur 24
+  (fiche 126 § 3). **Pas encore joués** : le dernier de `liste-123` (la puce en vecteurs),
+  `detourage-121` (25), `veille-126` (2). 1 380 des 1 527 sabotages écrits s'appliquent encore au
+  code d'aujourd'hui ; les autres gardaient du code réécrit.
 * **Regarder** : le vrai Glucose au pilote, hors écran, sur une copie de ses documents
   (`outils/pilote/piloter.sh`) ; **le rythme ne se juge qu'à son écran** (`outils/pilote/essai_ecran.sh`,
   la section PARU-1 de la chronique).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK,
   NixOS, l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) :
-  la dernière verte est `d46f5e0` (19/11) ; `78ed630` en cours (ci-dessus). Elle se lance avant une
+  la dernière verte est `36adb41` (19/11, 18 h 58 ; ci-dessus). Elle se lance avant une
   publication, ou comme voie de vérification quand sa machine est pleine.
 
 ## 5. Ses utilisateurs, et ce qu'on en sait
 
-* **La télémétrie** (avec l'accord de chacun ; [TELEMETRIE](TELEMETRIE.md)) au 19/11 : **205 sessions,
-  10 installations, 40 fins anormales** — aucune neuve depuis le 17/11.
-  * **son PC de l'école** (GTX 1660 SUPER, Windows) : 58 sessions, **en 2.0.4-beta.2**, rien
-    d'anormal (pire image 1,1 s, au repos) ;
+* **La télémétrie** (avec l'accord de chacun ; [TELEMETRIE](TELEMETRIE.md)) au 19/11, 18 h 30 : **208
+  sessions, 10 installations, 40 fins anormales** — aucune neuve depuis le 17/11.
+  * **son PC de l'école** (GTX 1660 SUPER, Windows) : 61 sessions, **en 2.0.4-beta.3 depuis le
+    19/11** (la mise à jour automatique), rien d'anormal (pire image 1,1 s, au repos) ;
   * **son téléphone** (moto g54, PowerVR) : 30 sessions, 19 fins anormales — **aucune depuis la
     2.0.4-beta.1** (6 sessions, finies en arrière-plan comme Android le fait) ; prometteur pour
     MEMOIRE-4, pas encore une preuve ; 16,4 ms l'image typique ;

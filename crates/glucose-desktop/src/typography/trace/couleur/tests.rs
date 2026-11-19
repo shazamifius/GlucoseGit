@@ -190,7 +190,7 @@ fn couleur_de(typo: &Typography, ch: char, palette: usize) -> Color {
 
 /// **EMOJI-3 — sur le papier d'un nœud, ✔ se lit** : dessiné à l'encre du corps sur le papier d'un
 /// texte, il se lit comme un pictogramme (Lc 45). Preuve à l'envers : sa couleur d'origine, celle
-/// d'un papier clair, y est invisible (sous Lc 15) — ce que la 2.0.4-beta.3 aurait montré.
+/// d'un papier clair, y est invisible (sous Lc 15) — ce que la version suivante aurait montré.
 #[test]
 fn test_emoji_3_sur_le_papier_d_un_noeud_la_coche_se_lit() {
     let (typo, theme) = (Typography::new(), crate::theme::Theme::dark());
