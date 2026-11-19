@@ -43,9 +43,11 @@ fn test_text_fit_2_a_l_ouverture_un_texte_grandi_pousse_sa_membrane() {
     // La hauteur d'une version qui ne coupait pas : le tableau sur une ligne par rangée.
     let d_avant = text_card_fit_height(typo, math, &texte, 1.0e6);
     let neuve = text_card_fit_height(typo, math, &texte, 900.0);
+    // Le cas est exercé quand le texte neuf sort de la membrane d'avant, qui le contenait à l'écart
+    // du cadre près — ni plus, ni moins (fiche 125 : un « + 100 » choisi l'avait rendue fausse partout).
     assert!(
-        neuve > d_avant + 100.0,
-        "le cas n'est pas exercé : {neuve} contre {d_avant}"
+        neuve > d_avant + ECART,
+        "le cas n'est pas exercé : le texte neuf ({neuve}) tient encore dans la membrane d'avant ({d_avant} + {ECART})"
     );
     let haut = 42.0;
     let membrane = Annotation::membrane("m", 0.0, 0.0, 960.0, haut + d_avant + ECART);

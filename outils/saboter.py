@@ -1,6 +1,8 @@
 """Sabote une épreuve (fiche 46 § 5) : remplace un passage, lance les tests, exige qu'ils tombent, restaure.
 
 Usage : python saboter.py <fichier_json>
+Chaque commande se joue d'abord sur le code intact (le témoin, fiche 125) : si elle tombe déjà, ses
+sabotages ne sont pas joués.
 Le JSON : [{"nom":..., "fichier":..., "avant":..., "apres":..., "cmd":[...]}]
 Plusieurs passages cassés ensemble (deux gardes qui se couvrent l'une l'autre, fiche 100) :
           [{"nom":..., "remplacements":[{"fichier":..., "avant":..., "apres":...}, ...], "cmd":[...]}]
@@ -57,11 +59,36 @@ def lancer(sab):
             os.utime(chemin, None)
 
 
+def temoin(cmd):
+    """Le témoin : la commande sur le code intact. Elle doit passer, sinon « TOMBE » ne prouve rien.
+
+    Le 19/11 (fiche 125), une épreuve tombait déjà sur sa précondition, partout : ses sabotages ont
+    dit « TOMBE » huit fois sur huit, et le reste de l'épreuve n'avait jamais tourné. MÉTHODE § 4.1
+    le demandait (« toute épreuve neuve se lance d'abord sur le code intact ») ; l'outil l'exige.
+    Rend None si le témoin passe, sinon les lignes qui disent pourquoi il tombe.
+    """
+    r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    if r.returncode == 0:
+        return None
+    sortie = (r.stdout + r.stderr).splitlines()
+    return [l for l in sortie if "panicked at" in l or "error[" in l or "FAILED" in l][:6] or sortie[-6:]
+
+
 def main():
     with open(sys.argv[1], encoding="utf-8") as f:
         sabotages = json.load(f)
+    temoins = {}
     for sab in sabotages:
-        print(f"{sab['nom']:60s} {lancer(sab)}", flush=True)
+        cle = tuple(sab["cmd"])
+        if cle not in temoins:
+            temoins[cle] = temoin(sab["cmd"])
+            if temoins[cle] is not None:
+                print(f"TÉMOIN QUI TOMBE — le code intact échoue déjà sous « {' '.join(cle)} » :",
+                      *("    " + l for l in temoins[cle]), sep="\n", flush=True)
+        verdict = "SANS TÉMOIN (le code intact tombe)" if temoins[cle] is not None else lancer(sab)
+        print(f"{sab['nom']:60s} {verdict}", flush=True)
+    sys.exit(1 if any(t is not None for t in temoins.values()) else 0)
 
 
 main()
