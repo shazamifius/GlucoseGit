@@ -180,6 +180,33 @@ au serveur : rien à déployer avant.
 * **Pas encore envoyé** au moment du brouillon de la beta.4 : il partira dans la version d'après,
   vérifié par GitHub (§ 8).
 
+## 5 bis. TIROIR-5 et 6 — les tiroirs se rangent dans l'écran, et défilent ce qu'ils ne montrent plus
+
+Le chantier suivant de SUITE : la vraie fin de TIROIR-3 (fiche 122 § 7 : six tiroirs en 1440 × 900
+avec huit domaines se croisaient de 10 pixels). **ÉCRIT, À VÉRIFIER** — la mémoire de sa machine
+n'a pas laissé compiler (§ 8).
+
+* **TIROIR-5, le rangement** (`dock/rangement.rs`, sorti de `dock.rs` qui était à 595 lignes) : le
+  « first fit » de chaque côté, puis, tant que les colonnes ne tiennent pas dans la largeur, la
+  dernière du côté qui en a le plus se fond dans la moins pleine du sien ; une colonne trop haute
+  partage sa hauteur par **répartition équitable** (max-min : seuls les plus hauts cèdent, jusqu'à
+  une hauteur commune — le minuteur reste entier). Aucun nombre choisi.
+* **TIROIR-6, le défilement, une loi pour les panneaux qui débordaient** : le contenu se range dans
+  un cadre virtuel à sa hauteur naturelle, remonté du défilement (`PanelLayoutBox::contenu`), et
+  se dessine dans un tampon de sa seule partie visible — ce qui dépasse tombe hors du tampon, la
+  poignée reste intacte (TIROIR-1). Le dessin et le clic lisent le même cadre (L4) ; la poignée
+  prend le clic avant le contenu (`click_dock_grip`), si bien qu'aucun widget caché ne le reçoit.
+  La molette défile un tiroir qui cache quelque chose (d'une ligne de canevas par cran), et le
+  garde au bout ; un tiroir entier la laisse passer, comme avant. **Le filet du bord intérieur
+  prend l'accent sur la part montrée** : aucun trait de plus.
+* **Domaines garde son défilement** (DOM-UI-2) : il cache ses dernières rangées et les fait
+  défiler d'une par cran, « + Nouveau domaine » toujours visible — mieux qu'un défilement au
+  pixel. Mon premier plan le retirait comme code mort ; son épreuve de molette l'a montré meilleur.
+* **Les épreuves changées, et pourquoi** : `test_tiroir_3_trop_etroit…` (1280 → 500 de large) et
+  `test_tiroir_4_aucune_colonne…` (640 → 500) — leur cas, un chevauchement, n'existe plus que sous
+  une colonne par côté (Plugins 340 et la Time Machine 324) ; **le cas limite de la fiche 122 entre
+  dans la liste de TIROIR-3**, qui l'exceptait.
+
 ## 6. La recherche (consultée le 19/11/2026)
 
 * Les émojis sombres : [`twitter/twemoji#420`](https://github.com/twitter/twemoji/issues/420) ;

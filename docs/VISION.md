@@ -159,7 +159,13 @@ Chaque décision, chaque ligne de code se juge contre elles.
   projet — *« fermenislamber […] c'est un autre projet ; il faudrait vraiment switch ça »* ; devant
   le plan (un compte à part, `glucose-canevas`, les serveurs `porte` et `boite-noire`, l'ancienne
   adresse qui continue de marcher pour les Glucose installés), le soir : *« ça me convient à
-  100 % »* (fiche 126).
+  100 % »* ; puis, devant les workers de sa ferme dans le même compte : *« il y a déjà plein plein
+  de workers déjà existants […] fais super attention de ne rien supprimer, mais j'ai peur de
+  polluer pour absolument rien »* (fiche 126 : c'est un compte à part qu'on demande, rien ne
+  s'ajoute ni ne se retire dans le sien).
+* **Les émojis d'encre sur le fond sombre** (19/11 au soir), devant la palette du fond sombre (✔ ✖ ➕
+  éclaircis sur le papier d'un nœud, leur couleur d'origine sur un post-it) : *« non, c'est
+  parfait comme ça ! »* (fiche 126).
 * **Sa capture d'écran du 17/11** (fiche 118 § 1, ses mots entiers) : les tiroirs — *« des bulles
   partout, non cohérentes avec l'écran, qui s'entrechoquent, souvent trop grosses […] et vraiment
   aucune structure particulière qui permettrait d'identifier pourquoi ces tiroirs s'ouvrent comme

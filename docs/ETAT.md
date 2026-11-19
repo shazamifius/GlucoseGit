@@ -10,17 +10,20 @@
 
 ## 1. En bref
 
-* **Publiée** : la **2.0.4-beta.3** (son clic, le 19/11 à 16 h 20, construite sur `15beb94`) — sa
+* **Publiée** : la **2.0.4-beta.4** (son clic, le 19/11 à 19 h 15, construite sur `9255281`, vérifiée
+  par GitHub sur les dix tâches) — les émojis en couleur et les signes d'encre lisibles, les tableaux
+  qui tiennent dans leur nœud, les listes imbriquées, les tiroirs du côté de leur bouton, l'échelle
+  de l'interface, le détourage, un texte qui pousse sa membrane. Avant elle, la **2.0.4-beta.3** (son clic, le 19/11 à 16 h 20, construite sur `15beb94`) — sa
   capture du 17/11 en partie : le texte et les icônes de l'interface nets (GRILLE-1 et 2), les trois
   modes de la fenêtre (`F11`, `Ctrl+Maj+A`, le zen à `Maj+F11`), toujours devant sous Wayland
   (DEVANT-1), la barre de Windows au choix, renommer un dossier (`F2`) (fiches 120-121). **Son PC de
   l'école s'y est mis à jour tout seul** le jour même. Avant elle, la 2.0.4-beta.2 (18/11 : le
   co-working et ses photos, la porte aux IA publiques, la frise, le miroir des images). Installeur
   Windows, AppImage, `.deb`, `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`.
-* **À préparer** : la **2.0.4-beta.4** — tout ce qui suit ; ses notes sont écrites (`outils/publication/notes.md`,
-  « depuis la 2.0.4-beta.3 », vérifiées) ; la CI de `main` tourne (fiche 126). Le numéro change :
-  une machine en beta.3 ne se mettrait pas à jour vers un autre programme du même numéro.
-* **Sur `main` depuis la beta.3** :
+* **Sur `main` depuis la beta.4** : VEILLE-1 (une image qui contient une veille garde ce qu'elle a
+  coûté, sous Windows) ; TIROIR-5 et 6 (les tiroirs qui se rangent dans l'écran et défilent) **en
+  vérification**, fiche 126.
+* **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
     Glucose à 100, 110 et 125 % (fiche 124) ;
