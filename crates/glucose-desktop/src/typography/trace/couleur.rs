@@ -33,28 +33,71 @@ use ttf_parser::{GlyphId, RgbaColor};
 /// Un glyphe : le rang de sa police dans [`super::super::toutes_les_polices`], et son indice.
 pub type Glyphe = (usize, u16);
 
-/// **Une couche** : un glyphe et sa couleur — `None`, l'encre du texte (une lettre, ou une couche
-/// que la police peint « de la couleur du texte », l'indice de palette 0xFFFF).
+/// **Une couche** : un glyphe et ses deux couleurs — sur un papier clair (la palette d'origine), sur
+/// un papier sombre (celle que la police déclare faite pour lui, EMOJI-3) ; `None`, l'encre du texte
+/// (une lettre, ou une couche que la police peint « de la couleur du texte », l'indice 0xFFFF).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Couche {
     pub glyphe: Glyphe,
-    pub couleur: Option<Color>,
+    pub couleur: Option<[Color; 2]>,
 }
 
 impl Couche {
-    /// **La couleur où cette couche se pose**, dans un texte de couleur `encre` : la sienne, qui
-    /// pâlit avec le texte (l'estompe d'une lentille, FRISE-2 et DOMAINE-1, passe par l'alpha) —
-    /// ou l'encre même.
+    /// **La couleur où cette couche se pose**, dans un texte de couleur `encre` : la sienne pour le
+    /// papier de ce texte, qui pâlit avec lui (l'estompe d'une lentille, FRISE-2 et DOMAINE-1, passe
+    /// par l'alpha) — ou l'encre même.
     pub fn sur(&self, encre: Color) -> Color {
         match self.couleur {
             None => encre,
-            Some(c) => {
-                let mut c = c;
+            Some(couleurs) => {
+                let mut c = couleurs[usize::from(sur_un_papier_sombre(encre))];
                 c.set_alpha(c.alpha() * encre.alpha());
                 c
             }
         }
     }
+}
+
+/// # EMOJI-3 — un émoji se pose dans la palette de son papier (fiche 126)
+///
+/// Twemoji dessine son « noir » d'un gris très sombre, pensé pour un fond clair : sur le papier
+/// d'un texte de Glucose, presque noir, ✔ valait Lc 0 en APCA — invisible. Sa police porte donc une
+/// seconde palette, déclarée faite pour un fond sombre (`outils/emojis/construire.py`).
+///
+/// **Le papier se lit à l'encre** : l'encre d'un texte est choisie pour se lire sur son papier —
+/// claire sur le gris sombre d'un nœud, foncée sur un post-it jaune. Une encre plus claire que le
+/// milieu de l'échelle perçue (la clarté 0,5 d'Oklab, à égale distance du noir et du blanc) est
+/// donc posée sur un papier sombre. Aucun appelant n'a à dire son papier, et les trois dessins
+/// (pixels, carte graphique, SVG), qui passent tous par [`Couche::sur`], ne peuvent pas diverger.
+fn sur_un_papier_sombre(encre: Color) -> bool {
+    let [clarte, _, _] =
+        glucose_core::couleur::oklab([encre.red(), encre.green(), encre.blue()].map(f64::from));
+    clarte > 0.5
+}
+
+/// **La palette que cette police déclare faite pour un fond sombre** (OpenType, `CPAL` version 1 :
+/// le bit `USABLE_WITH_DARK_BACKGROUND` de ses types) ; la palette 0 si elle n'en déclare aucune.
+/// `ttf-parser` lit les palettes, pas leurs types : l'en-tête se lit ici — quatre `u16`, un
+/// `Offset32`, un `u16` par palette, puis l'offset du tableau des types.
+fn palette_du_fond_sombre(face: &ttf_parser::Face) -> u16 {
+    const FOND_SOMBRE: u32 = 0x0002;
+    let Some(cpal) = face.raw_face().table(ttf_parser::Tag::from_bytes(b"CPAL")) else {
+        return 0;
+    };
+    let lire = |debut: usize, n: usize| {
+        cpal.get(debut..debut + n)
+            .map(|o| o.iter().fold(0u32, |v, &b| v << 8 | u32::from(b)))
+    };
+    let (Some(1), Some(palettes)) = (lire(0, 2), lire(4, 2)) else {
+        return 0;
+    };
+    let types = match lire(12 + 2 * palettes as usize, 4) {
+        Some(o) if o != 0 => o as usize,
+        _ => return 0,
+    };
+    (0..palettes)
+        .find(|&p| lire(types + 4 * p as usize, 4).is_some_and(|t| t & FOND_SOMBRE != 0))
+        .map_or(0, |p| p as u16)
 }
 
 /// **Les couches d'un glyphe**, dans l'ordre où elles se posent : une seule, à l'encre du texte,
@@ -117,7 +160,7 @@ impl Contours {
             .filter(|&i| i != 0)
     }
 
-    /// **Les couches de ce glyphe**, lues une fois et gardées.
+    /// **Les couches de ce glyphe**, lues une fois et gardées, chacune dans ses deux palettes.
     ///
     /// Une couche « de la couleur du texte » ne se distingue pas à sa couleur : `ttf-parser` la
     /// remplace par celle qu'on lui donne. La peinture se fait donc **deux fois**, d'une encre noire
@@ -133,20 +176,34 @@ impl Contours {
             .borrow_mut()
             .entry((police, indice))
             .or_insert_with(|| {
-                let peindre = |encre| {
+                let peindre = |palette, encre| {
                     let mut releve = Releve::default();
-                    face.paint_color_glyph(GlyphId(indice), 0, encre, &mut releve);
+                    face.paint_color_glyph(GlyphId(indice), palette, encre, &mut releve);
                     releve.couches
                 };
-                let noire = peindre(RgbaColor::new(0, 0, 0, 0));
-                let blanche = peindre(RgbaColor::new(255, 255, 255, 255));
-                noire
-                    .iter()
-                    .zip(&blanche)
-                    .map(|(&(glyphe, a), &(_, b))| Couche {
+                let lire = |palette| {
+                    let noire = peindre(palette, RgbaColor::new(0, 0, 0, 0));
+                    let blanche = peindre(palette, RgbaColor::new(255, 255, 255, 255));
+                    noire
+                        .into_iter()
+                        .zip(blanche)
+                        .map(|((glyphe, a), (_, b))| {
+                            (
+                                glyphe,
+                                (a == b)
+                                    .then(|| Color::from_rgba8(a.red, a.green, a.blue, a.alpha)),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let claire = lire(0);
+                let sombre = lire(palette_du_fond_sombre(face));
+                claire
+                    .into_iter()
+                    .zip(sombre)
+                    .map(|((glyphe, c), (_, s))| Couche {
                         glyphe: (police, glyphe),
-                        couleur: (a == b)
-                            .then(|| Color::from_rgba8(a.red, a.green, a.blue, a.alpha)),
+                        couleur: c.zip(s).map(|(c, s)| [c, s]),
                     })
                     .collect()
             })
