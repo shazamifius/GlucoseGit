@@ -314,16 +314,18 @@ pub(super) const VIDE: [&str; 3] = [
 /// Elle était fixée à la main : vide sous deux domaines, et son contenu passait sur sa poignée
 /// (sa capture du 17/11 : « le tiroir de domaine a littéralement l'UX sur le bouton pour
 /// refermer le tiroir »).
+///
+/// Mesurée dans un cadre de hauteur nulle, comme la Time Machine : ce qui manque à un cadre vide
+/// (fiche 127).
 pub fn hauteur_naturelle(store: &Store, ui: &DomainsUi, largeur: f32, s: f32) -> f32 {
-    let haut = super::HAUTEUR_DE_MESURE * s;
     let cadre = ScaledRect {
         x: 0.0,
         y: 0.0,
         w: largeur,
-        h: haut,
+        h: 0.0,
         scale: s,
     };
-    haut - layout_domains_panel(cadre, store, ui).reste
+    -layout_domains_panel(cadre, store, ui).reste
 }
 
 /// Produit l'unique liste de rectangles du panneau (DOM-UI-2).
@@ -354,7 +356,10 @@ pub fn layout_domains_panel(
         );
     }
     let pitch = m.row_height + m.row_gap;
-    let room = (libre / pitch).floor().max(0.0) as usize;
+    // `k` rangées n'emploient que `k × pas − écart` : la dernière n'a pas besoin de l'écart qui
+    // la suivrait. À la hauteur naturelle, qui le garde, le compte tombe loin de l'arrondi
+    // (fiche 127 : compté sans lui, il perdait une rangée à certaines échelles).
+    let room = ((libre + m.row_gap) / pitch).floor().max(0.0) as usize;
     let domaines = store.project.domains.len();
     let total = domaines + ui.connus.ailleurs.len();
     let employe = if total == 0 {
@@ -412,7 +417,7 @@ fn la_liste_ou(
 ) -> DomainsPanelLayout {
     let (px, py, pw) = (frame.x, frame.y, frame.w);
     let pitch = m.swatch + m.row_gap;
-    let room = (libre / pitch).floor().max(0.0) as usize;
+    let room = ((libre + m.row_gap) / pitch).floor().max(0.0) as usize;
     let premier = decalage.min(n.saturating_sub(room));
     let montres = (n - premier).min(room);
     let lignes = (0..montres)

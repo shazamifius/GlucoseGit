@@ -122,6 +122,140 @@ fn test_tiroir_5_trop_etroit_aucun_tiroir_ne_se_perd() {
     assert_eq!(ranges, 7);
 }
 
+/// Ce qu'un tiroir seul montre, rangé sur un écran assez grand pour ne jamais le rétrécir : la
+/// boîte du rangement, à cette échelle.
+fn seul_et_entier(dock: &DockManager, store: &Store, s: f32) -> PanelLayoutBox {
+    let b = compute_panel_layouts(dock, store, 4000.0, 8000.0, 78.0, s).remove(0);
+    assert_eq!(b.height, b.naturelle, "le cas : il n'est pas rétréci");
+    b
+}
+
+/// `n` jalons nommés, du plus ancien au plus récent.
+fn jalons(n: usize) -> Vec<crate::dock::temps::JalonVu> {
+    (0..n)
+        .map(|k| crate::dock::temps::JalonVu {
+            apres: k,
+            libelle: format!("jalon {k}"),
+            nomme: true,
+            instant: 0,
+            date: None,
+        })
+        .collect()
+}
+
+/// Un document à `n` domaines.
+fn avec_des_domaines(n: usize) -> Store {
+    let mut store = Store::new("essai");
+    for k in 0..n {
+        let domaine = glucose_core::types::Domain {
+            id: format!("d-{k}"),
+            name: format!("domaine {k}"),
+            color: "#888888".into(),
+            icon: "◆".into(),
+            defini_a: 0,
+        };
+        store.try_add_domain(domaine).expect("des noms distincts");
+    }
+    store
+}
+
+/// **TIROIR-2 — la hauteur naturelle est exacte** : mesurée dans un cadre de hauteur nulle, elle
+/// est celle qu'on lit dans un cadre de mille pixels, au millième de pixel près — la mise en page
+/// est affine en la hauteur du cadre. Mesurée dans un cadre d'un million de pixels puis soustraite,
+/// elle s'en écartait jusqu'à un dixième de pixel (fiche 127).
+#[test]
+fn test_tiroir_2_la_hauteur_naturelle_est_exacte() {
+    use crate::dock::{domains, temps};
+    let store = avec_des_domaines(3);
+    let ui_temps = temps::TempsUi {
+        jalons: jalons(3),
+        ..Default::default()
+    };
+    let ui_domaines = domains::DomainsUi::default();
+    let mut echecs = Vec::new();
+    for pas in 10..=60 {
+        let s = pas as f32 * 0.05;
+        let cadre = crate::params::ScaledRect {
+            x: 0.0,
+            y: 0.0,
+            w: 324.0 * s,
+            h: 1000.0,
+            scale: s,
+        };
+        let (tm, dom) = (
+            temps::hauteur_naturelle(&ui_temps, cadre.w, s),
+            domains::hauteur_naturelle(&store, &ui_domaines, cadre.w, s),
+        );
+        let lu_tm = 1000.0 - temps::layout_temps_panel(cadre, &ui_temps).reste;
+        let lu_dom = 1000.0 - domains::layout_domains_panel(cadre, &store, &ui_domaines).reste;
+        for (quoi, mesure, lu) in [("Time Machine", tm, lu_tm), ("Domaines", dom, lu_dom)] {
+            if (mesure - lu).abs() > 1e-3 {
+                echecs.push(format!("{quoi} à {s} : {mesure} mesurée, {lu} lue"));
+            }
+        }
+    }
+    assert!(echecs.is_empty(), "{}", echecs.join("\n"));
+}
+
+/// **TIROIR-2 — à sa hauteur naturelle, un tiroir montre tout, à toute échelle** : la Time
+/// Machine tous ses jalons, Domaines toutes ses rangées, le Storyboard toutes ses cases sur une
+/// page — de 50 à 300 %, par pas de 5, à travers le vrai rangement. Regardé au pilote à 110 % (fiche
+/// 127), la Time Machine avait perdu son second jalon : sa hauteur se mesurait dans un cadre d'un
+/// million de pixels puis se soustrayait, et ses jalons se comptaient avec un écart de trop — un
+/// rapport qui valait 1,9999.
+#[test]
+fn test_tiroir_2_a_sa_hauteur_naturelle_un_tiroir_montre_tout_a_toute_echelle() {
+    let mut echecs = Vec::new();
+    for pas in 10..=60 {
+        let s = pas as f32 * 0.05;
+        for n in [1_usize, 2, 3, 5, 8] {
+            let mut dock = ouverts(&[TabId::Temps]);
+            dock.temps.jalons = jalons(n);
+            let b = seul_et_entier(&dock, &Store::new("essai"), s);
+            let l = crate::dock::temps::layout_temps_panel(b.contenu(s), &dock.temps);
+            if l.lignes.len() != n {
+                echecs.push(format!(
+                    "Time Machine à {s} : {} jalons sur {n}",
+                    l.lignes.len()
+                ));
+            }
+            let store = avec_des_domaines(n);
+            let dock = ouverts(&[TabId::Domains]);
+            let b = seul_et_entier(&dock, &store, s);
+            let l = crate::dock::domains::layout_domains_panel(b.contenu(s), &store, &dock.domains);
+            if l.hidden != 0 {
+                echecs.push(format!(
+                    "Domaines à {s} : {} rangées cachées sur {n}",
+                    l.hidden
+                ));
+            }
+            let mut dock = ouverts(&[TabId::Storyboard]);
+            dock.storyboard.contenu.cases = (0..n)
+                .map(|k| (format!("c-{k}"), k as i32, String::new()))
+                .collect();
+            let b = seul_et_entier(&dock, &Store::new("essai"), s);
+            let l = crate::dock::storyboard::layout_storyboard_panel(
+                b.contenu(s),
+                &dock.storyboard,
+                &dock.storyboard.contenu,
+            );
+            if l.lignes.len() != n || l.pages.is_some() {
+                echecs.push(format!(
+                    "Storyboard à {s} : {} cases sur {n}, pages {:?}",
+                    l.lignes.len(),
+                    l.pages.map(|p| p.3)
+                ));
+            }
+        }
+    }
+    assert!(
+        echecs.is_empty(),
+        "{} échecs :\n{}",
+        echecs.len(),
+        echecs.join("\n")
+    );
+}
+
 // ── TIROIR-6 : ce qu'un tiroir ne montre plus défile ─────────────────────────────
 
 use crate::dock::{render_docks, DockCache, DockManager, DockPass};

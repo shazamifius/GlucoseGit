@@ -36,6 +36,10 @@ const APERCU: (f32, f32) = (120.0, 3.0);
 const CELLULES_MAX: usize = 24;
 /// La hauteur d'une ligne de la liste, écart compris.
 const LIGNE: f32 = 24.0;
+/// L'écart sous une case de la liste, dans [`LIGNE`].
+const ECART: f32 = 4.0;
+/// Ce qui sépare « Re-numéroter » de la dernière case montrée, au-delà de son écart.
+const AVANT_RENUMEROTER: f32 = 6.0;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoryboardState {
@@ -372,11 +376,16 @@ fn poser_la_liste(
     // le bas du panneau, qui borne le nombre de lignes d'une page.
     let plus_bas = py + ph - pad_x - 24.0 * s;
     let premiere = haut + 22.0 * s;
-    let par_page = (((plus_bas - 8.0 * s - premiere) / (LIGNE * s)).floor() as usize).max(1);
+    // `k` cases n'emploient que `k × LIGNE − ECART` — la dernière n'a pas besoin de l'écart qui la
+    // suivrait ; « Re-numéroter » remonte au besoin de cet écart, et garde ses 6 sous elle. À la
+    // hauteur naturelle, qui le garde, le compte tombe à `n + ECART / LIGNE`. Compté avec 8 pour
+    // les 6 de la pose, il valait `n − 2 / LIGNE` : une case de moins, sur deux pages (fiche 127).
+    let avant = (AVANT_RENUMEROTER - ECART) * s;
+    let par_page = (((plus_bas - avant - premiere) / (LIGNE * s)).floor() as usize).max(1);
     let pages = n.div_ceil(par_page);
     let page = state.page.min(pages - 1);
     let montrees = n.min((page + 1) * par_page) - page * par_page;
-    let sous_la_liste = premiere + montrees as f32 * LIGNE * s + 6.0 * s;
+    let sous_la_liste = premiere + montrees as f32 * LIGNE * s + AVANT_RENUMEROTER * s;
     let renumeroter = WidgetRect::new(px + pad_x, sous_la_liste.min(plus_bas), inner_w, 24.0 * s);
     layout.liste = Some((haut, ajouter));
     layout.renumeroter = Some(renumeroter);
@@ -384,7 +393,7 @@ fn poser_la_liste(
         .enumerate()
         .map(|(i, rang)| {
             let y = premiere + i as f32 * LIGNE * s;
-            let ligne = WidgetRect::new(px + pad_x, y, inner_w, (LIGNE - 4.0) * s);
+            let ligne = WidgetRect::new(px + pad_x, y, inner_w, (LIGNE - ECART) * s);
             let retirer = WidgetRect::new(ligne.x + ligne.w - 20.0 * s, y, 20.0 * s, ligne.h);
             let description = WidgetRect::new(
                 ligne.x + 24.0 * s,

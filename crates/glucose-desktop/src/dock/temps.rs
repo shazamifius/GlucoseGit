@@ -129,8 +129,10 @@ pub struct TempsLayout {
     pub reste: f32,
 }
 
-/// Hauteur d'une ligne de jalon, en unités de la fiche.
+/// Hauteur d'une ligne de jalon, en unités de la fiche — son écart compris.
 const LIGNE: f32 = 38.0;
+/// L'écart sous une ligne de jalon, dans [`LIGNE`].
+const ECART: f32 = 6.0;
 /// Hauteur d'une ligne du détail du geste regardé.
 pub const LIGNE_DU_DETAIL: f32 = 16.0;
 
@@ -154,10 +156,13 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
             108.0
         } * s;
     let pied = WidgetRect::new(px + marge, py + ph - marge - 30.0 * s, interieur, 30.0 * s);
-    // Les jalons les plus récents d'abord, tant qu'ils tiennent au-dessus du pied.
+    // Les jalons les plus récents d'abord, tant qu'ils tiennent au-dessus du pied. `k` lignes
+    // n'emploient que `k × LIGNE − ECART` : la dernière n'a pas besoin de l'écart qui la suivrait.
+    // La hauteur naturelle, elle, le garde — à elle, le compte tombe à `n + ECART / LIGNE`, loin
+    // de l'arrondi : compté sans lui, il valait 1,9999 à 110 % et perdait un jalon (fiche 127).
     let premiere = liste_y + 18.0 * s;
     let libre = pied.y - 8.0 * s - premiere;
-    let place = (libre / (LIGNE * s)).max(0.0) as usize;
+    let place = ((libre + ECART * s) / (LIGNE * s)).max(0.0) as usize;
     let reste = libre - ui.jalons.len().max(1) as f32 * LIGNE * s;
     let lignes = (0..ui.jalons.len())
         .rev()
@@ -165,7 +170,7 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
         .enumerate()
         .map(|(i, rang)| {
             let y = premiere + i as f32 * LIGNE * s;
-            let ligne = WidgetRect::new(px + marge, y, interieur, (LIGNE - 6.0) * s);
+            let ligne = WidgetRect::new(px + marge, y, interieur, (LIGNE - ECART) * s);
             let bouton = WidgetRect::new(
                 ligne.x + ligne.w - 78.0 * s,
                 y + 6.0 * s,
@@ -194,16 +199,19 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
 /// **La hauteur du panneau quand tous ses jalons s'y lisent** (TIROIR-2) : celle de sa mise en
 /// page, moins ce qu'elle laisse vide. Il était « toute la hauteur » de l'écran, vide sous un
 /// seul jalon (sa capture du 17/11 : des tiroirs « souvent trop gros »).
+///
+/// **Mesurée dans un cadre de hauteur nulle** : la mise en page est affine en la hauteur du
+/// cadre, et ce qui manque à un cadre vide est la hauteur cherchée. Mesurée dans un cadre d'un
+/// million de pixels, puis soustraite, elle perdait jusqu'à un dixième de pixel (fiche 127).
 pub fn hauteur_naturelle(ui: &TempsUi, largeur: f32, s: f32) -> f32 {
-    let haut = super::HAUTEUR_DE_MESURE * s;
     let cadre = ScaledRect {
         x: 0.0,
         y: 0.0,
         w: largeur,
-        h: haut,
+        h: 0.0,
         scale: s,
     };
-    haut - layout_temps_panel(cadre, ui).reste
+    -layout_temps_panel(cadre, ui).reste
 }
 
 /// Le point de la réglette sous l'abscisse `x` : de 0 (avant tout geste) à `n` (le présent).
