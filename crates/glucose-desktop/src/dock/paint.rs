@@ -79,6 +79,24 @@ impl<'a> Brush<'a> {
         }
     }
 
+    /// **Ce pinceau, visant un autre tampon** dont le coin haut-gauche est `origine` (entière,
+    /// DOCK-CACHE-1) — le contenu visible d'un tiroir qui défile (TIROIR-6). Ses questions de
+    /// survol reviennent à celui-ci : le cache du panneau sait toujours de quoi son dessin dépend
+    /// (SURVOL-2).
+    pub fn vers<R>(&self, origine: (f32, f32), dessiner: impl FnOnce(&Brush<'a>) -> R) -> R {
+        let enfant = Brush {
+            typo: self.typo,
+            theme: self.theme,
+            s: self.s,
+            pointer: self.pointer,
+            origin: origine,
+            questions: Default::default(),
+        };
+        let rendu = dessiner(&enfant);
+        self.questions.borrow_mut().extend(enfant.questions.take());
+        rendu
+    }
+
     /// **Les questions de survol posées, et ce que le pointeur y répondait** — et leur oubli.
     pub(super) fn prendre_le_survol(&self) -> Vec<(WidgetRect, bool)> {
         self.questions

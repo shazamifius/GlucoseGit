@@ -37,6 +37,7 @@ pub mod paint;
 pub mod plugins;
 pub mod pomodoro;
 pub mod preset;
+mod rangement;
 pub mod render;
 pub mod storyboard;
 pub mod temps;
@@ -49,6 +50,7 @@ pub use clic::{handle_dock_click, PanelClickResult};
 pub use organize::{apply_organize_layout, LayoutMode, LayoutResult, OrganizeState, SortType};
 pub use plugins::OLLAMA_STATUS;
 pub use pomodoro::PomodoroState;
+pub use rangement::compute_panel_layouts;
 pub use render::{confier_les_docks, lisere, lisere_du_passe, render_docks, DockPass};
 pub use storyboard::StoryboardState;
 
@@ -173,6 +175,8 @@ pub struct DockManager {
     pub temps: temps::TempsUi,
     /// Le champ de nombre qu'on tient ou qu'on tape (CHAMP-1).
     pub champ: Option<champ::Saisie>,
+    /// De combien chaque tiroir a défilé (TIROIR-6) ; le rangement le borne à ce qu'il cache.
+    pub defilement: std::collections::HashMap<TabId, f32>,
 }
 
 impl Default for DockManager {
@@ -198,7 +202,13 @@ impl DockManager {
             domains: domains::DomainsUi::default(),
             temps: temps::TempsUi::default(),
             champ: None,
+            defilement: Default::default(),
         }
+    }
+
+    /// De combien ce tiroir a défilé (TIROIR-6).
+    pub fn defile(&self, tab: TabId) -> f32 {
+        self.defilement.get(&tab).copied().unwrap_or(0.0)
     }
 
     fn tabs(&self, cote: Cote) -> &Vec<TabId> {
@@ -356,6 +366,11 @@ pub struct PanelLayoutBox {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    /// La hauteur qu'il aurait si l'écran la lui laissait, poignée comprise (TIROIR-5) : plus
+    /// haute que `height`, ce qu'il ne montre pas défile (TIROIR-6).
+    pub naturelle: f32,
+    /// De combien son contenu a défilé vers le haut — zéro s'il se montre entier.
+    pub defile: f32,
     pub grip_y: f32,
     pub grip_height: f32,
     pub is_dragged: bool,
@@ -385,7 +400,22 @@ impl PanelLayoutBox {
     /// **TIROIR-1 — le cadre de son contenu** : le panneau sans la bande de sa poignée, en bas.
     /// Un panneau posait son contenu sur toute sa hauteur, poignée comprise : « + Nouveau
     /// domaine » couvrait la poignée qui referme le panneau (sa capture du 17/11).
+    ///
+    /// **TIROIR-6 — défilé, c'est le cadre de tout son contenu** : à sa hauteur naturelle, remonté
+    /// de son défilement. Le panneau s'y range comme sur un écran assez haut, et le dessin comme
+    /// le clic lisent ce même cadre (L4) ; seul ce qui tombe dans [`Self::contenu_visible`] se
+    /// voit. Montré entier, les deux cadres sont le même.
     pub fn contenu(&self, s: f32) -> ScaledRect {
+        let vu = self.contenu_visible(s);
+        ScaledRect {
+            y: vu.y - self.defile,
+            h: (self.naturelle - self.grip_height).max(vu.h),
+            ..vu
+        }
+    }
+
+    /// **Le cadre de son contenu tel qu'il se voit** : le panneau sans la bande de sa poignée.
+    pub fn contenu_visible(&self, s: f32) -> ScaledRect {
         let vu = self.seen();
         ScaledRect {
             x: vu.x,
@@ -425,89 +455,6 @@ impl PanelLayoutBox {
             seen.h + 2.0 * demi_trait,
         )
     }
-}
-
-/// **La place de chaque tiroir ouvert** (TIROIR-4) : de chaque côté, collés au bord sous la
-/// bande, empilés dans l'ordre où on les a ouverts ; une colonne a la largeur de son tiroir le
-/// plus large, et quand la hauteur manque, le suivant ouvre une colonne voisine, vers
-/// l'intérieur. Deux tiroirs ne se posent jamais l'un sur l'autre (TIROIR-3) tant que l'écran
-/// a la largeur de leurs colonnes ; au-delà, aucun ne sort de l'écran, et celui qui se dessine
-/// le dernier — à droite — est dessus, et prend le clic ([`panneau_sous`]).
-pub fn compute_panel_layouts(
-    dock: &DockManager,
-    store: &Store,
-    screen_w: f32,
-    screen_h: f32,
-    header_h: f32,
-    scale: f32,
-) -> Vec<PanelLayoutBox> {
-    let s = crate::theme::clamp_ui_scale(scale);
-    let grip_height = GRIP_HEIGHT * s;
-    let mut layouts: Vec<PanelLayoutBox> = Vec::new();
-    for cote in [Cote::Gauche, Cote::Droite] {
-        let mut bord = 0.0;
-        for colonne in colonnes(dock, store, cote, screen_h - header_h, s) {
-            let width = colonne
-                .iter()
-                .map(|(tab, _)| tab.default_width() * s)
-                .fold(0.0, f32::max);
-            // Une colonne de trop pour la largeur reste dans l'écran, contre l'autre bord.
-            let x = match cote {
-                Cote::Gauche => bord,
-                Cote::Droite => screen_w - bord - width,
-            }
-            .clamp(0.0, (screen_w - width).max(0.0));
-            let mut y = header_h;
-            for (tab, height) in colonne {
-                let dragging = dock.drag.as_ref().filter(|d| d.tab == tab);
-                layouts.push(PanelLayoutBox {
-                    tab,
-                    x,
-                    y,
-                    width,
-                    height,
-                    grip_y: y + height - grip_height,
-                    grip_height,
-                    is_dragged: dragging.is_some(),
-                    visual_offset_x: dragging.map_or(0.0, |d| d.current_x - d.start_x),
-                    visual_offset_y: dragging.map_or(0.0, |d| d.current_y - d.start_y),
-                });
-                y += height;
-            }
-            bord += width;
-        }
-    }
-    layouts
-}
-
-/// **Les tiroirs d'un côté, rangés en colonnes** : chacun à sa hauteur (TIROIR-2), jamais plus
-/// haute que la place sous la bande, **dans la première colonne où il tient** — le « first fit »
-/// du rangement en boîtes (D. S. Johnson, 1974) ; aucune ne l'a : il ouvre la suivante. Ranger
-/// seulement dans la dernière colonne (« next fit ») ouvrait une colonne pour Domaines quand il
-/// tenait sous Plugins : six tiroirs se croisaient à 1440 × 900 (fiche 122). Un tiroir qu'on
-/// ouvre se pose sous ceux de sa colonne : il ne fait sauter personne.
-fn colonnes(
-    dock: &DockManager,
-    store: &Store,
-    cote: Cote,
-    place: f32,
-    s: f32,
-) -> Vec<Vec<(TabId, f32)>> {
-    let mut colonnes: Vec<(f32, Vec<(TabId, f32)>)> = Vec::new();
-    for &tab in dock.tabs(cote) {
-        let hauteur = hauteur_naturelle(dock, store, tab, s).min(place);
-        match colonnes
-            .iter_mut()
-            .find(|(haut, _)| haut + hauteur <= place)
-        {
-            Some((haut, colonne)) => {
-                colonne.push((tab, hauteur));
-                *haut += hauteur;
-            }
-            None => colonnes.push((hauteur, vec![(tab, hauteur)])),
-        }
-    }
-    colonnes.into_iter().map(|(_, colonne)| colonne).collect()
 }
 
 // ── Le rendu ────────────────────────────────────────────────────────────────

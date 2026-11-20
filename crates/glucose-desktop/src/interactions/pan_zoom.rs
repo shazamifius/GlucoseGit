@@ -106,7 +106,7 @@ const ZOOM_LIGNE_PX: f64 = 40.0;
 /// Trente-deux : le doigt parcourt deux fois plus de canevas pour la même course sur le
 /// pavé. C'est toujours moins que les quarante du zoom, et cela se juge à la main — comme
 /// [`crate::interactions::elan`] le fait pour ses deux constantes de temps.
-const PAN_LIGNE_PX: f64 = 32.0;
+pub(crate) const PAN_LIGNE_PX: f64 = 32.0;
 
 /// Ce qu'un événement de défilement demande à la caméra.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -299,6 +299,10 @@ impl GlucoseApp {
         }
         // Sur la frise chronologique, la molette zoome son échelle (FRISE-1).
         if self.molette_vers_la_frise(delta) {
+            return true;
+        }
+        // Sur un tiroir qui cache une part de son contenu, la molette la fait défiler (TIROIR-6).
+        if self.molette_sur_un_tiroir(delta) {
             return true;
         }
         // Sur le panneau Domaines, la molette fait défiler ses rangées (fiche 88).

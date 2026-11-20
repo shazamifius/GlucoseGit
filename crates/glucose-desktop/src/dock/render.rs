@@ -209,8 +209,88 @@ pub(super) fn draw_panel(
     s: f32,
 ) {
     draw_frame(pixmap, brush, panel, panel.seen());
-    // Le contenu ne passe jamais sur la poignée (TIROIR-1).
-    draw_content(pixmap, brush, dock, store, panel.tab, panel.contenu(s));
+    let (cadre, vu) = (panel.contenu(s), panel.contenu_visible(s));
+    if cadre == vu {
+        // Le contenu ne passe jamais sur la poignée (TIROIR-1).
+        draw_content(pixmap, brush, dock, store, panel.tab, cadre);
+    } else {
+        draw_content_defile(pixmap, brush, (dock, store), panel, (cadre, vu));
+    }
+}
+
+/// **TIROIR-6 — un contenu qui défile se dessine dans un tampon de sa seule partie visible** : ce
+/// qui dépasse tombe hors du tampon, et la poignée reste intacte (TIROIR-1), comme le tiroir du
+/// dessous. L'origine du tampon est entière (DOCK-CACHE-1) ; son bas s'arrête avant la poignée.
+///
+/// **Le contenu défile sous le filet du cadre** : le tampon s'arrête au bord intérieur du filet
+/// (un pixel à cheval sur le bord du tiroir), en haut et sur les côtés — le filet reste dessus,
+/// comme la poignée en bas.
+///
+/// **Le tampon part de ce que le tiroir montre déjà là** (son fond), et non du transparent : le
+/// contenu s'y dessine exactement comme sur le tiroir, puis le tampon reprend sa place, recopié
+/// (`Remplacer`) — un seul arrondi, celui du dessin direct, au lieu de deux.
+fn draw_content_defile(
+    pixmap: &mut PixmapMut,
+    brush: &Brush<'_>,
+    (dock, store): (&DockManager, &Store),
+    panel: &PanelLayoutBox,
+    (cadre, vu): (ScaledRect, ScaledRect),
+) {
+    let filet = brush.px(1.0) / 2.0;
+    let (x0, y0) = ((vu.x + filet).ceil(), (vu.y + filet).ceil());
+    let (x1, y1) = ((vu.x + vu.w - filet).floor(), (vu.y + vu.h).floor());
+    // La région dans le tampon visé, bornée à lui : un tiroir peut déborder le cache du panneau.
+    let tampon = tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height());
+    let Some(region) = tiny_skia::IntRect::from_xywh(
+        (x0 - brush.origin.0) as i32,
+        (y0 - brush.origin.1) as i32,
+        (x1 - x0) as u32,
+        (y1 - y0) as u32,
+    )
+    .zip(tampon)
+    .and_then(|(r, tampon)| r.intersect(&tampon)) else {
+        return;
+    };
+    let Some(mut visible) = pixmap.as_ref().clone_rect(region) else {
+        return;
+    };
+    let coin = (
+        region.x() as f32 + brush.origin.0,
+        region.y() as f32 + brush.origin.1,
+    );
+    brush.vers(coin, |b| {
+        draw_content(&mut visible.as_mut(), b, dock, store, panel.tab, cadre);
+    });
+    crate::composition::poser(
+        pixmap,
+        &visible,
+        (region.x() as f32, region.y() as f32),
+        glucose_core::report::Melange::Remplacer,
+    );
+    draw_la_part_montree(pixmap, brush, panel, vu);
+}
+
+/// **Ce qui reste à voir** : le filet du bord intérieur du tiroir — celui qui regarde le canevas —
+/// prend l'accent sur la part montrée, à sa place dans le tout (TIROIR-6). Aucun trait de plus :
+/// le filet du cadre dit déjà où finit le tiroir, il dit aussi ce qu'il cache.
+fn draw_la_part_montree(
+    pixmap: &mut PixmapMut,
+    brush: &Brush<'_>,
+    panel: &PanelLayoutBox,
+    vu: ScaledRect,
+) {
+    let tout = (panel.naturelle - panel.grip_height).max(vu.h);
+    let bord = match panel.tab.cote() {
+        super::Cote::Gauche => vu.x + vu.w,
+        super::Cote::Droite => vu.x,
+    };
+    let part = WidgetRect::new(
+        bord - brush.px(0.5),
+        vu.y + vu.h * panel.defile / tout,
+        brush.px(1.0),
+        vu.h * vu.h / tout,
+    );
+    brush.fill(pixmap, part, 0.0, brush.theme.border_accent);
 }
 
 /// Le fond, la bordure et la poignée — ce que tout panneau a en commun. **Plat** (TIROIR-4) :

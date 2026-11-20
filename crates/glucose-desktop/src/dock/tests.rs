@@ -207,14 +207,16 @@ fn test_tiroir_4_un_tiroir_va_dans_la_premiere_colonne_ou_il_tient() {
 /// **TIROIR-4 — aucune colonne ne sort de l'écran** : les sept tiroirs ouverts sur un écran trop
 /// étroit et trop bas pour leurs colonnes — chacun reste entre les deux bords (là où ils se
 /// croisent, TIROIR-3 dit lequel prend le clic). L'épreuve vérifie qu'elle exerce son cas : les
-/// colonnes, mises bout à bout, sont plus larges que l'écran.
+/// colonnes, mises bout à bout, sont plus larges que l'écran — depuis TIROIR-5 (fiche 126), qui
+/// fond les colonnes jusqu'à ce qu'elles tiennent, seulement sous une colonne par côté — 664
+/// pixels, Plugins (340) et la Time Machine (324) : 500 en laisse bien moins.
 #[test]
 fn test_tiroir_4_aucune_colonne_ne_sort_de_l_ecran() {
     let mut dock = DockManager::new();
     for tab in TOUS {
         dock.toggle_tab(tab);
     }
-    let (largeur, hauteur, bande) = (640.0, 360.0, 78.0);
+    let (largeur, hauteur, bande) = (500.0, 360.0, 78.0);
     let boites = compute_panel_layouts(&dock, &Store::new("essai"), largeur, hauteur, bande, 1.0);
     assert_eq!(boites.len(), TOUS.len(), "les sept sont ouverts");
     let colonnes: f32 = boites
@@ -1118,7 +1120,11 @@ fn test_tiroir_1_le_contenu_ne_couvre_jamais_la_poignee() {
                 scale,
             );
             for b in &boites {
-                let contenu = b.contenu(scale);
+                // Ce qui se voit. Depuis TIROIR-6 (fiches 126-127), le cadre de tout le contenu
+                // d'un tiroir défilé passe sous sa poignée par construction ; seule sa part
+                // visible se dessine, et la poignée intacte se garde au pixel
+                // (`test_tiroir_6_defile_le_contenu_est_le_contenu_entier_remonte`).
+                let contenu = b.contenu_visible(scale);
                 let poignee = b.grip_rect();
                 assert!(
                     contenu.y + contenu.h <= poignee.y + 0.01,
@@ -1249,9 +1255,11 @@ fn se_croisent(a: &PanelLayoutBox, b: &PanelLayoutBox) -> bool {
 /// de leurs colonnes : tous ouverts aux écrans de bureau, six en 1440 × 900 (deux domaines), et
 /// le cas de tous les jours (la Time Machine, Domaines, Ordonner) jusqu'aux plus petits.
 /// Domaines s'ouvrait caché sous le Storyboard (sa capture du 17/11). Et nulle part un tiroir ne
-/// sort de l'écran. **La limite, mesurée** (fiche 122) : six ouverts en 1440 × 900 avec huit
-/// domaines, Domaines (494 pixels) ne tient sous aucun autre et ouvre une troisième colonne —
-/// 1 450 pixels de colonnes pour 1 440 ; c'est le cas « trop étroit », plus bas.
+/// sort de l'écran. **La limite de la fiche 122** — six ouverts en 1440 × 900 avec huit
+/// domaines : Domaines (494 pixels) ne tenait sous aucun autre et ouvrait une troisième colonne,
+/// 1 450 pixels de colonnes pour 1 440 — **est réglée par TIROIR-5** (fiche 126) : la troisième
+/// colonne se fond dans la moins pleine, qui partage sa hauteur, et ce que ses tiroirs ne
+/// montrent plus défile. Elle est dans la liste.
 #[test]
 fn test_tiroir_3_deux_panneaux_ne_se_posent_jamais_l_un_sur_l_autre() {
     let (deux, huit) = (avec_des_domaines(2), avec_des_domaines(8));
@@ -1262,6 +1270,7 @@ fn test_tiroir_3_deux_panneaux_ne_se_posent_jamais_l_un_sur_l_autre() {
     let mut echecs = Vec::new();
     for (w, h, scale, dock, store) in [
         (1440.0, 900.0, 1.0, dock_complet(), &deux),
+        (1440.0, 900.0, 1.0, dock_complet(), &huit),
         (1920.0, 1080.0, 1.0, les_sept(), &huit),
         (2560.0, 1440.0, 1.25, les_sept(), &huit),
         (1366.0, 768.0, 1.0, courants.clone(), &huit),
@@ -1293,13 +1302,16 @@ fn test_tiroir_3_deux_panneaux_ne_se_posent_jamais_l_un_sur_l_autre() {
     assert!(echecs.is_empty(), "\n{}", echecs.join("\n"));
 }
 
-/// **Un écran trop étroit pour leurs colonnes** (sept tiroirs en 1280 × 720) : aucun ne sort de
+/// **Un écran trop étroit pour leurs colonnes** (sept tiroirs en 500 × 720) : aucun ne sort de
 /// l'écran, et là où deux se croisent, le clic va à celui qu'on voit — le dernier dessiné.
 #[test]
 fn test_tiroir_3_trop_etroit_le_clic_va_a_celui_qu_on_voit() {
     let store = avec_des_domaines(8);
+    // Depuis TIROIR-5 (fiche 126), les colonnes se fondent jusqu'à tenir dans l'écran : deux
+    // tiroirs ne se croisent plus que sous une colonne par côté (664 pixels, Plugins et la Time
+    // Machine). À 500, celle de droite couvre celle de gauche de 160 à 324.
     let ecran = ScreenFrame {
-        width: 1280.0,
+        width: 500.0,
         height: 720.0,
         header_h: 78.0,
         scale: 1.0,
@@ -1309,7 +1321,7 @@ fn test_tiroir_3_trop_etroit_le_clic_va_a_celui_qu_on_voit() {
     let mut croisements = 0;
     for (i, a) in boites.iter().enumerate() {
         assert!(
-            a.x >= 0.0 && a.x + a.width <= 1280.01,
+            a.x >= 0.0 && a.x + a.width <= 500.01,
             "{:?} sort de l'écran",
             a.tab
         );
