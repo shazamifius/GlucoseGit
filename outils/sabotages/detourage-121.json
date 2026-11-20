@@ -236,7 +236,7 @@
    "glucose-core",
    "--lib",
    "--",
-   "test_detourer_2_le_premier_plan_retire_la_couleur_du_fond"
+   "test_detourer_2_"
   ]
  },
  {

@@ -226,7 +226,8 @@ fn test_detourer_1_le_reechantillonnage_garde_l_identite_et_les_aplats() {
 /// **DETOURER-2** : sur un bord où `I = α·F + (1 − α)·B`, l'estimation rend `F` bien mieux que
 /// `I` ne le faisait — le liseré du fond disparaît. La méthode est une approximation (sa première
 /// passe part de l'image, déjà mêlée au bord) : mesuré ici, 0,72 → 0,023 ; la loi exige au moins
-/// vingt fois moins de liseré, ce qu'aucune formule privée de sa correction ne donne.
+/// vingt fois moins de liseré. Sur ce sujet uni, la moyenne floue seule retombe déjà sur sa couleur :
+/// la correction se garde à part, là où le sujet est plein (l'épreuve suivante, fiche 127).
 #[test]
 fn test_detourer_2_le_premier_plan_retire_la_couleur_du_fond() {
     let (l, h) = (120, 80);
@@ -247,6 +248,54 @@ fn test_detourer_2_le_premier_plan_retire_la_couleur_du_fond() {
     assert!(
         apres * 20.0 < avant && avant > 0.5,
         "avant {avant}, après {apres}"
+    );
+}
+
+/// **DETOURER-2 — là où le sujet est plein, son premier plan est l'image même** : à l'opacité 1,
+/// `I = F`, et la correction de Forte le rend exactement (`fm + 1 · (I − fm)`), quand la moyenne floue
+/// des couleurs voisines, seule, rendrait une bouillie de ses rayures. Le sujet est rayé pour que le
+/// cas soit exercé : sur un sujet uni (l'épreuve d'au-dessus), le flou seul retombe sur sa couleur,
+/// et rien ne distinguait la formule de sa moitié — un sabotage aveugle (fiche 127).
+#[test]
+fn test_detourer_2_la_ou_le_sujet_est_plein_le_premier_plan_est_l_image() {
+    let (l, h) = (120, 80);
+    let alpha: Vec<f32> = (0..l * h)
+        .map(|i| ((i % l) as f32 - 55.0).clamp(0.0, 10.0) / 10.0)
+        .collect();
+    // Le sujet : des rayures de 8 pixels, rouges et bleues ; le fond, vert.
+    let sujet = |i: usize| {
+        if (i / l / 8) % 2 == 0 {
+            [0.9, 0.2, 0.1]
+        } else {
+            [0.1, 0.2, 0.9]
+        }
+    };
+    let b = [0.1, 0.8, 0.3];
+    let rvb: [Vec<f32>; 3] = std::array::from_fn(|c| {
+        (0..l * h)
+            .map(|i| alpha[i] * sujet(i)[c] + (1.0 - alpha[i]) * b[c])
+            .collect()
+    });
+    let estime = premier_plan::estimer(&rvb, &alpha, (l, h));
+    let pleins: Vec<usize> = (0..l * h).filter(|&i| alpha[i] == 1.0).collect();
+    let ecart_max = |plan: &dyn Fn(usize) -> f32| {
+        pleins
+            .iter()
+            .map(|&i| (plan(i) - rvb[0][i]).abs())
+            .fold(0.0_f32, f32::max)
+    };
+    let pire = ecart_max(&|i| estime[0][i]);
+    assert!(pire < 1e-5, "le premier plan s'écarte de l'image de {pire}");
+    // La preuve à l'envers : la moyenne floue seule (la première passe) ne rend pas les rayures.
+    let fa: Vec<f32> = (0..l * h).map(|i| rvb[0][i] * alpha[i]).collect();
+    let (fa, af) = (
+        premier_plan::flou(&fa, (l, h), 90),
+        premier_plan::flou(&alpha, (l, h), 90),
+    );
+    let flou_seul = ecart_max(&|i| fa[i] / (af[i] + 1e-5));
+    assert!(
+        flou_seul > 0.2,
+        "le cas : le flou seul s'en écarte de {flou_seul}"
     );
 }
 
