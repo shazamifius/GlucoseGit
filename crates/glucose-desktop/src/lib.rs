@@ -59,6 +59,7 @@ pub mod dock;
 mod epreuve;
 pub mod error;
 pub mod horloge;
+pub mod ia;
 pub mod icons;
 pub mod interactions;
 pub mod memoire;

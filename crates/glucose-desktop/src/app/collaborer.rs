@@ -6,6 +6,7 @@
 //! les siens) ; le fil, le réseau et le chiffre (`salle::lien`). Ici, rien que les relier — et le
 //! dire : qui est là, ce qu'un code permet, quand deux gestes se sont croisés.
 
+pub mod api;
 pub mod identite;
 pub mod photos;
 
@@ -164,6 +165,7 @@ impl GlucoseApp {
                     ("Partager ce canevas".into(), PARTAGER),
                     ("Rejoindre (le code copié)".into(), REJOINDRE),
                     porte,
+                    ("L'API publique…".into(), crate::app::collaborer::api::MENU),
                     ("Fermer".into(), Reponse::Annuler),
                 ],
                 ..Default::default()
@@ -176,6 +178,7 @@ impl GlucoseApp {
                 choix.push(("Copier le code pour regarder".into(), COPIER_LIRE));
                 choix.push(("Quitter le partage".into(), QUITTER));
                 choix.push(porte);
+                choix.push(("L'API publique…".into(), crate::app::collaborer::api::MENU));
                 choix.push(("Fermer".into(), Reponse::Annuler));
                 Question {
                     titre: "Canevas partagé".into(),
@@ -222,6 +225,7 @@ impl GlucoseApp {
             PARTAGER => self.partager_ce_canevas(),
             REJOINDRE => self.rejoindre_par_le_code_copie(),
             PORTE => self.montrer_la_porte_publique(),
+            crate::app::collaborer::api::MENU => self.montrer_l_api_publique(None),
             COPIER_ECRIRE | COPIER_LIRE => {
                 let texte = self.lancement.agents.partage.as_ref().and_then(|cp| {
                     if reponse == COPIER_ECRIRE {
@@ -341,6 +345,8 @@ impl GlucoseApp {
 
     /// **À chaque tour de la boucle** : ce qui arrive entre, ce qui part s'en va.
     pub(crate) fn suivre_le_canevas_partage(&mut self) {
+        // Le bilan des clés gratuites, quand le fil l'a rendu (fiche 128).
+        self.suivre_l_essai_ia();
         let Some(cp) = self.lancement.agents.partage.as_ref() else {
             return;
         };

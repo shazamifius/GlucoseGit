@@ -96,6 +96,10 @@ pub enum Suite {
     Collaborer,
     /// La porte aux IA publiques, ouverte ou fermée (fiche 116).
     PortePublique,
+    /// **« L'API publique »** : le menu des IA gratuites, et le résultat de l'essai (fiche 128).
+    ApiPublique,
+    /// La clé d'un fournisseur, écrite dans le champ (fiche 128).
+    ClefIa(crate::ia::modeles::Fournisseur),
     /// Retirer l'une des IA qui ont la porte, dans l'ordre de la liste.
     RetirerUneIa,
     /// **Une IA du nuage demande la porte** : sa demande, au guichet.

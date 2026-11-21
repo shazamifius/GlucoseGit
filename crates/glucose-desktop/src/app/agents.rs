@@ -26,6 +26,8 @@ pub struct Agents {
     /// L'accord de l'utilisateur, par agent, jusqu'à la fermeture de Glucose.
     accords: HashMap<String, bool>,
     attente: VecDeque<Demande>,
+    /// **L'essai des clés gratuites** en cours, s'il y en a un (fiche 128).
+    pub(crate) essai_ia: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
     /// **La porte aux IA publiques**, quand elle est ouverte (fiche 116).
     pub(crate) publique: Option<crate::agents::publique::lien::Lien>,
     /// **Le canevas partagé**, s'il l'est (fiche 117) : le fil vers sa salle, son code, les autres

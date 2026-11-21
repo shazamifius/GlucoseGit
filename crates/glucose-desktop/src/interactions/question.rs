@@ -166,6 +166,8 @@ impl GlucoseApp {
             Suite::Agent(client) => self.repondre_a_l_agent(client, reponse),
             Suite::OublierLesAgents if oui => self.lancement.agents.oublier(),
             Suite::Collaborer => self.repondre_a_collaborer(reponse),
+            Suite::ApiPublique => self.repondre_a_l_api_publique(reponse),
+            Suite::ClefIa(fournisseur) => self.enregistrer_la_cle(fournisseur, reponse, champ),
             Suite::PortePublique => self.repondre_a_la_porte(reponse),
             Suite::RetirerUneIa => self.retirer_une_ia(reponse),
             Suite::AccordPublic(demande) => self.repondre_a_l_ia(&demande, reponse),
