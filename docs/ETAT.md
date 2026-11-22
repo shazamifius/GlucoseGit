@@ -34,8 +34,12 @@
   menu « L'API publique », fiche 128) et `48094df` — **la discussion avec une IA gratuite** (fiche
   129) : le tiroir DISCUSSION, Gemini par sa clé, les outils de la porte, la bascule qui dort le
   temps que Google dit et qui le dit, `plateforme::echanger` sous Windows et Linux. Toute la suite
-  du dépôt passe (3 474 épreuves), **25 sabotages sur 25** ; **pas encore regardé au pilote**, et la
-  voie WinHTTP jamais compilée (la CI).
+  du dépôt passe, **25 sabotages sur 25**, **regardée au pilote avec sa clé** (Gemini a posé un
+  nœud signé de son nom, fiche 130 § 6) ; la voie WinHTTP jamais compilée (la CI). Puis
+  **LECTURE-1 et 2** (fiche 130) : une lecture d'agent n'attend plus jamais le geste de l'humain,
+  aucune demande n'attend derrière une autre (le 22/11, son Glucose n'avait servi aucun agent
+  treize minutes) ; `tools/list` dit quels outils ne font que lire. 3 481 épreuves, 11 sabotages,
+  l'avant et l'après au pilote.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
@@ -86,7 +90,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), la page web |
 | **L'interface** | 116 commandes dans une table, la palette (`Ctrl+Maj+P`), les raccourcis comme donnée ; ses lettres et ses icônes sur la grille de l'écran ; **son échelle, au choix** ; **les tiroirs du côté de leur bouton**, qui défilent quand la place manque ; les trois modes de la fenêtre et le zen ; sous Windows, la bande ou la barre du système |
 | **Collaborer** | **le co-working** (fiches 117 et 119) : partager un canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré, ses photos comprises ; le conflit dit ; `Ctrl+Z` par main ; les curseurs |
-| **Les agents** | **une IA du nuage par Collaborer** — Claude.ai et Mistral, essayés depuis son compte : son accord devant un code, le document ouvert seulement, son nom vérifié qui signe, le témoin qui dit l'onglet ; `glucose --mcp` pour une IA de sa machine — chaque geste annulable, signé, rien sans son accord |
+| **Les agents** | **une IA du nuage par Collaborer** — Claude.ai et Mistral, essayés depuis son compte : son accord devant un code, le document ouvert seulement, son nom vérifié qui signe, le témoin qui dit l'onglet ; `glucose --mcp` pour une IA de sa machine — chaque geste annulable, signé, rien sans son accord ; une lecture n'attend jamais son geste, aucun agent n'attend derrière un autre ; **une IA gratuite (Gemini) dans le tiroir DISCUSSION**, qui bascule d'un modèle à l'autre |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
 
 ## 3. Ce qui ne va pas
@@ -136,7 +140,7 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   9 sur 9 ; **un échantillon de 24 anciens sabotages** tirés au hasard dans 18 fichiers : 24 sur 24
   (fiche 126 § 3) ; à la fiche 127, `tiroirs-126` **13 sur 13**, `tiroirs-127` **5 sur 5**,
   `veille-126` **2 sur 2**, `liste-123` **8 sur 8** — et `detourage-121`, le dernier jamais joué
-  (fiche 127 § 9). 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
+  (fiche 127 § 9) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11**. 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
   autres gardaient du code réécrit.
 * **Regarder** : le vrai Glucose au pilote, hors écran, sur une copie de ses documents
   (`outils/pilote/piloter.sh`) ; **le rythme ne se juge qu'à son écran** (`outils/pilote/essai_ecran.sh`,
