@@ -114,7 +114,9 @@ def service():
         "[Service]\n"
         f"ExecStart=/run/current-system/sw/bin/python3 -I {PROGRAMME} veiller\n"
         "Environment=PATH=/run/current-system/sw/bin:/etc/profiles/per-user/%u/bin\n"
-        "Restart=always\nRestartSec=30\n\n[Install]\nWantedBy=default.target\n")
+        "Restart=always\nRestartSec=30\n"
+        # Redémarrer le veilleur ne tue pas les sessions : tmux reste en vie (22/11, une session tuée).
+        "KillMode=process\n\n[Install]\nWantedBy=default.target\n")
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "--user", "enable", "--now", UNITE.name], check=True)
     return f"service : {UNITE.name} actif"
