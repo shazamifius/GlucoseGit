@@ -1,0 +1,17 @@
+[
+  {"nom": "RELAIS — une consigne écrite par un agent est suivie quand même",
+   "fichier": "outils/relais/relais.py",
+   "avant": "    if auteur_recent(CONSIGNE, histoire) == \"humain\":",
+   "apres": "    if auteur_recent(CONSIGNE, histoire):",
+   "cmd": ["python3", "-m", "unittest", "discover", "-s", "outils/relais"]},
+  {"nom": "RELAIS — la pause ne l'arrête plus",
+   "fichier": "outils/relais/relais.py",
+   "avant": "    if pause:\n        return \"laisser\", \"pause\"\n",
+   "apres": "",
+   "cmd": ["python3", "-m", "unittest", "discover", "-s", "outils/relais"]},
+  {"nom": "RELAIS — au seuil, pas de passation : le compte tombe en plein travail",
+   "fichier": "outils/relais/relais.py",
+   "avant": "    if au_seuil:\n        return \"passation\", \"\"\n",
+   "apres": "",
+   "cmd": ["python3", "-m", "unittest", "discover", "-s", "outils/relais"]}
+]
