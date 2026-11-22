@@ -116,6 +116,7 @@ impl GlucoseApp {
             PanelClickResult::ApplyLayout(state) => self.apply_dock_layout(&state),
             PanelClickResult::Domain(intent) => self.apply_domain_intent(intent),
             PanelClickResult::Temps(intent) => self.agir_dans_le_temps(intent),
+            PanelClickResult::Discussion(intent) => self.agir_dans_la_discussion(intent),
             PanelClickResult::Gabarit(intent) => self.suivre_le_panneau_des_presets(intent),
             PanelClickResult::Storyboard(intent) => self.suivre_le_panneau_du_storyboard(intent),
             // Fiche 09 § 10.3 : pas de moteur, pas de téléchargement.

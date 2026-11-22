@@ -95,6 +95,44 @@ pub(super) fn envoyer(adresse: &Adresse, verbe: &str, corps: &[u8]) -> Result<u1
     Ok(statut(&requete.requete)? as u16)
 }
 
+/// **Pose une question à cette adresse et rend la réponse entière** (fiche 129) : son code et
+/// son corps, au plus `limite` octets. La réponse s'attend `demande.attente` — une IA pense avant
+/// de répondre ; le délai se pose sur la requête seule, la session garde les siens.
+pub(super) fn echanger(
+    adresse: &Adresse,
+    demande: &super::Requete,
+    limite: usize,
+) -> Result<super::Reponse, String> {
+    let requete = ouvrir(adresse, demande.verbe)?;
+    let attente = i32::try_from(demande.attente.as_millis()).unwrap_or(i32::MAX);
+    let en_tetes: String = demande
+        .en_tetes
+        .iter()
+        .map(|(nom, valeur)| format!("{nom}: {valeur}\r\n"))
+        .collect();
+    let en_tetes: Vec<u16> = en_tetes.encode_utf16().collect();
+    let longueur =
+        u32::try_from(demande.corps.len()).map_err(|_| "corps trop lourd".to_string())?;
+    unsafe {
+        WinHttpSetTimeouts(requete.requete.0, DELAI_MS, DELAI_MS, DELAI_MS, attente)
+            .map_err(|e| format!("delais : {e}"))?;
+        WinHttpSendRequest(
+            requete.requete.0,
+            (!en_tetes.is_empty()).then_some(en_tetes.as_slice()),
+            (!demande.corps.is_empty()).then_some(demande.corps.as_ptr().cast()),
+            longueur,
+            longueur,
+            0,
+        )
+        .map_err(|e| raison("envoi", &e))?;
+        WinHttpReceiveResponse(requete.requete.0, core::ptr::null_mut())
+            .map_err(|e| raison("reponse", &e))?;
+    }
+    let statut = statut(&requete.requete)? as u16;
+    let corps = lire_le_corps(&requete.requete, limite)?;
+    Ok(super::Reponse { statut, corps })
+}
+
 /// **Ce qu'une étape a rencontré, dit en mots** (DEPOT-WEB-6) : la phrase de Windows est longue,
 /// traduite, et ne dit pas l'essentiel — le réseau manquait-il, ou le serveur s'est-il tu ? Les
 /// quatre causes qu'un dépôt rencontre ont leur nom ; les autres gardent celle de Windows.

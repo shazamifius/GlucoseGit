@@ -1,42 +1,36 @@
-//! **« L'API publique »** (fiche 128) : Collaborer ouvre les clés des IA gratuites, les teste,
-//! et dit ce qui répond. La question se pose ici ; le réseau tourne sur un fil à part, et la
-//! boucle reprend son résultat à chaque tour — jamais elle n'attend un fournisseur.
+//! **« L'API publique »** (fiches 128 et 129) : Collaborer ouvre la discussion avec une IA
+//! gratuite, l'essai des modèles, et la clé. Le réseau tourne sur un fil à part
+//! ([`crate::ia::discussion`]) ; ce que l'essai trouve se lit dans le tiroir de la discussion,
+//! ligne à ligne.
 
 use crate::app::GlucoseApp;
-use crate::ia::cles::{self, Cles};
+use crate::ia::cles;
 use crate::ia::modeles::Fournisseur;
 use crate::ui::question::{Champ, Question, Reponse, Suite};
-use std::sync::mpsc::{channel, Receiver};
 
 /// Le bouton « L'API publique… » de Collaborer, puis les réponses de son menu.
 pub(crate) const MENU: Reponse = Reponse::Choix(14);
-pub(crate) const TESTER: Reponse = Reponse::Choix(10);
-pub(crate) const CLE_GOOGLE: Reponse = Reponse::Choix(11);
-pub(crate) const CLE_GITHUB: Reponse = Reponse::Choix(12);
-const RETOUR: Reponse = Reponse::Choix(13);
+const TESTER: Reponse = Reponse::Choix(10);
+const CLE_GOOGLE: Reponse = Reponse::Choix(11);
+const DISCUTER: Reponse = Reponse::Choix(12);
 /// « Enregistrer » dans la question où l'on écrit une clé : la réponse Oui.
 const ENREGISTRER: Reponse = Reponse::Oui;
 
-/// Ce qu'un essai rend au fil de la boucle : le bilan des clés, ou la raison de n'en rien dire.
-pub type Essai = Receiver<Result<String, String>>;
-
 impl GlucoseApp {
-    /// **« L'API publique… »** : les clés branchées, et les trois gestes.
+    /// **« L'API publique… »** : la clé branchée ou non, et les trois gestes.
     pub(crate) fn montrer_l_api_publique(&mut self, note: Option<String>) {
-        let cles = cles::lire_depuis(&cles::chemin());
-        let etat = |cle: &Option<String>| {
-            if cle.is_some() {
-                "branchée"
-            } else {
-                "pas branchée"
-            }
+        let branchee = self.cle_google().is_some();
+        let etat = if branchee {
+            "Ta clé Google AI Studio est branchée."
+        } else {
+            "Aucune clé n'est branchée : donne d'abord ta clé Google AI Studio (gratuite, sur \
+             aistudio.google.com)."
         };
         let mut texte = format!(
-            "Des IA gratuites pour Glucose. Google AI Studio : {}. GitHub : {}.\n\n\
-             « Tester » cherche les modèles que tes clés ouvrent sans payer, du plus capable au \
-             moins capable, et essaie les meilleurs un par un.",
-            etat(&cles.google),
-            etat(&cles.github),
+            "Des IA gratuites dans Glucose. {etat}\n\nLa discussion s'ouvre dans un tiroir : \
+             l'IA lit et écrit ce document sous tes yeux, chaque geste s'annule par Ctrl+Z. \
+             Quand un modèle atteint sa limite, le suivant prend le relais, et Glucose te le dit ; \
+             le meilleur reprend la main dès qu'il revient."
         );
         if let Some(n) = note {
             texte = format!("{n}\n\n{texte}");
@@ -45,9 +39,9 @@ impl GlucoseApp {
             titre: "L'API publique".into(),
             texte,
             choix: vec![
+                ("Discuter avec une IA".into(), DISCUTER),
                 ("Tester les modèles gratuits".into(), TESTER),
                 ("Donner la clé Google AI Studio".into(), CLE_GOOGLE),
-                ("Donner la clé GitHub".into(), CLE_GITHUB),
                 ("Fermer".into(), Reponse::Annuler),
             ],
             ..Default::default()
@@ -58,26 +52,20 @@ impl GlucoseApp {
     /// Sa réponse au menu de l'API publique.
     pub(crate) fn repondre_a_l_api_publique(&mut self, reponse: Reponse) {
         match reponse {
-            TESTER => self.lancer_l_essai_ia(),
-            CLE_GOOGLE => self.demander_une_cle(Fournisseur::Google),
-            CLE_GITHUB => self.demander_une_cle(Fournisseur::GitHub),
-            RETOUR => self.montrer_l_api_publique(None),
+            DISCUTER => self.ouvrir_la_discussion(),
+            TESTER => self.tester_les_modeles(),
+            CLE_GOOGLE => self.demander_la_cle_google(),
             _ => {}
         }
     }
 
-    /// La question où l'on écrit la clé d'un fournisseur ; « Enregistrer » la garde sur ce Glucose.
-    fn demander_une_cle(&mut self, fournisseur: Fournisseur) {
-        let nom = match fournisseur {
-            Fournisseur::Google => "Google AI Studio",
-            Fournisseur::GitHub => "GitHub",
-        };
+    /// La question où l'on écrit la clé ; « Enregistrer » la garde sur ce Glucose.
+    pub(crate) fn demander_la_cle_google(&mut self) {
         let question = Question {
-            titre: format!("Clé {nom}"),
-            texte: format!(
-                "Colle ta clé {nom} ici. Elle reste sur ce Glucose, à tes seuls droits de \
-                 lecture, et ne part que vers {nom}."
-            ),
+            titre: "Clé Google AI Studio".into(),
+            texte: "Colle ta clé Google AI Studio ici. Elle reste sur ce Glucose, à tes seuls \
+                    droits de lecture, et ne part que vers Google."
+                .into(),
             choix: vec![
                 ("Enregistrer".into(), ENREGISTRER),
                 ("Annuler".into(), Reponse::Annuler),
@@ -85,13 +73,14 @@ impl GlucoseApp {
             champ: Some(Champ::default()),
             ..Default::default()
         };
-        self.demander(question, Suite::ClefIa(fournisseur));
+        self.demander(question, Suite::ClefIa(Fournisseur::Google));
     }
 
-    /// Ce que la réponse à la question de clé décide : on garde la clé écrite, s'il y en a une.
+    /// Ce que la réponse à la question de clé décide : on garde la clé écrite, s'il y en a une ;
+    /// une clé neuve commence une conversation neuve.
     pub(crate) fn enregistrer_la_cle(
         &mut self,
-        fournisseur: Fournisseur,
+        _fournisseur: Fournisseur,
         reponse: Reponse,
         texte: Option<String>,
     ) {
@@ -102,82 +91,15 @@ impl GlucoseApp {
         let cle = texte
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty());
-        let mut tout = cles::lire_depuis(&cles::chemin());
-        match fournisseur {
-            Fournisseur::Google => tout.google = cle,
-            Fournisseur::GitHub => tout.github = cle,
-        }
-        let note = match cles::ecrire_dans(&cles::chemin(), &tout) {
+        let ecrit = match self.lancement.agents.cles.as_deref() {
+            Some(chemin) => cles::ecrire_dans(chemin, &cles::Cles { google: cle }),
+            None => Err("aucun dossier pour la garder".into()),
+        };
+        let note = match ecrit {
             Ok(()) => "Clé enregistrée sur ce Glucose.".to_string(),
             Err(e) => format!("La clé n'a pas pu s'enregistrer ({e})."),
         };
+        self.lancement.agents.conversation = None;
         self.montrer_l_api_publique(Some(note));
     }
-
-    /// Lance l'essai sur un fil à part : la boucle continue, et reprend le bilan au tour suivant.
-    fn lancer_l_essai_ia(&mut self) {
-        let tout = cles::lire_depuis(&cles::chemin());
-        let (tx, rx) = channel();
-        self.lancement.agents.essai_ia = Some(rx);
-        std::thread::spawn(move || {
-            let _ = tx.send(essayer(&tout));
-        });
-    }
-
-    /// Ce que l'essai a rendu, s'il est revenu : la question des modèles qui répondent.
-    pub(crate) fn suivre_l_essai_ia(&mut self) {
-        let Some(rx) = self.lancement.agents.essai_ia.as_ref() else {
-            return;
-        };
-        let Ok(resultat) = rx.try_recv() else {
-            return;
-        };
-        self.lancement.agents.essai_ia = None;
-        let texte = match resultat {
-            Ok(bilan) => bilan,
-            Err(e) => format!("L'essai n'a pas abouti : {e}."),
-        };
-        let question = Question {
-            titre: "Modèles gratuits".into(),
-            texte,
-            choix: vec![
-                ("Retour".into(), RETOUR),
-                ("Fermer".into(), Reponse::Annuler),
-            ],
-            ..Default::default()
-        };
-        self.demander(question, Suite::ApiPublique);
-    }
-}
-
-/// Teste les clés branchées, et rend le texte du bilan. Hors de Windows seulement pour l'instant :
-/// Windows n'a pas encore sa pile de réseau pour cet essai (WinHTTP, à brancher).
-#[cfg(not(windows))]
-fn essayer(cles: &Cles) -> Result<String, String> {
-    use crate::ia::essai;
-    let Some(cle) = cles.google.as_deref() else {
-        return Err("aucune clé Google AI Studio n'est donnée".into());
-    };
-    let bilan = essai::essayer_google(cle)?;
-    let mut texte = format!(
-        "Google AI Studio ouvre {} modèles de texte.\n",
-        bilan.modeles.len()
-    );
-    for m in bilan.modeles.iter().take(12) {
-        let repond = if bilan.qui_repond.contains(&m.id) {
-            "répond"
-        } else {
-            "—"
-        };
-        texte.push_str(&format!("\n{} : {repond}", m.id));
-    }
-    if bilan.qui_repond.is_empty() {
-        texte.push_str("\nAucun ne répond pour l'instant : la limite est peut-être atteinte.");
-    }
-    Ok(texte)
-}
-
-#[cfg(windows)]
-fn essayer(_cles: &Cles) -> Result<String, String> {
-    Err("l'essai n'est pas encore branché sous Windows".into())
 }

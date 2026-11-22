@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Cles {
     pub google: Option<String>,
-    pub github: Option<String>,
 }
 
 /// Le fichier des clés, dans le dossier de Glucose.
@@ -32,7 +31,6 @@ pub fn lire_depuis(chemin: &Path) -> Cles {
     };
     Cles {
         google: lire("google"),
-        github: lire("github"),
     }
 }
 
@@ -41,9 +39,6 @@ pub fn ecrire_dans(chemin: &Path, cles: &Cles) -> Result<(), String> {
     let mut paires = Vec::new();
     if let Some(k) = &cles.google {
         paires.push(("google", Json::texte(k.clone())));
-    }
-    if let Some(k) = &cles.github {
-        paires.push(("github", Json::texte(k.clone())));
     }
     let texte = Json::objet(paires).ecrire();
     if let Some(dossier) = chemin.parent() {

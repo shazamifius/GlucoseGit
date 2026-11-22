@@ -1,0 +1,377 @@
+[
+ {
+  "nom": "BASCULE-1 — un 429 et son délai ne font que céder la question (Google n'est plus écouté)",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "            (429, Some(d)) => Etat::Dort {\n                jusqu_a: maintenant.saturating_add(d.as_millis().try_into().unwrap_or(u64::MAX)),\n                pourquoi: \"sa limite gratuite est atteinte\".into(),\n            },",
+  "apres": "            (429, Some(_)) => Etat::Cede {\n                pourquoi: \"sa limite gratuite est atteinte\".into(),\n            },",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-1 — un modèle endormi ne se réveille jamais",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "            Etat::Dort { jusqu_a, .. } => *jusqu_a <= maintenant,",
+  "apres": "            Etat::Dort { .. } => false,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-1 — une surcharge le fait sortir pour de bon",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "            (503, _) => Etat::Cede {\n                pourquoi: \"il est surchargé\".into(),\n            },",
+  "apres": "            (503, _) => Etat::Sorti {\n                pourquoi: \"il est surchargé\".into(),\n            },",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-1 — un 400 vide la liste",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "            _ => Etat::Cede { pourquoi },",
+  "apres": "            _ => Etat::Sorti { pourquoi },",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-1 — une clé refusée n'arrête rien",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "            (401 | 403, _) => return Err(format!(\"Google refuse la clé : {pourquoi}\")),",
+  "apres": "            (401 | 403, _) => Etat::Sorti { pourquoi },",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-1 — une question neuve ne rend pas ceux qui ont cédé",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "            if matches!(etat, Etat::Cede { .. }) {\n                *etat = Etat::Eveille;\n            }",
+  "apres": "            let _ = etat;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-2 — le retour du meilleur ne se dit pas comme un retour",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "        if i < d {\n            return format!(\"{apres} est de retour : il reprend la main.\");\n        }",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "BASCULE-2 — le même modèle qui répond encore se redit",
+  "fichier": "crates/glucose-desktop/src/ia/bascule.rs",
+  "avant": "                    .filter(|&d| d != i)",
+  "apres": "                    .filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_bascule"
+  ]
+ },
+ {
+  "nom": "Gemini — la pensée en clair se dit comme une réponse",
+  "fichier": "crates/glucose-desktop/src/ia/gemini.rs",
+  "avant": "        if part.get(\"thought\").and_then(Json::as_bool) == Some(true) {",
+  "apres": "        if part.get(\"thought\").and_then(Json::as_bool) == Some(false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_la_pensee_en_clair"
+  ]
+ },
+ {
+  "nom": "Gemini — le délai d'un refus n'est pas lu",
+  "fichier": "crates/glucose-desktop/src/ia/gemini.rs",
+  "avant": "        .find_map(duree);",
+  "apres": "        .find_map(|_| None::<Duration>);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_un_refus_dit_quand_revenir"
+  ]
+ },
+ {
+  "nom": "Gemini — les schémas des outils passent par le sous-ensemble OpenAPI",
+  "fichier": "crates/glucose-desktop/src/ia/gemini.rs",
+  "avant": "                (\"parametersJsonSchema\", champ(o, \"inputSchema\")),",
+  "apres": "                (\"parameters\", champ(o, \"inputSchema\")),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_les_outils_de_gemini_sont_ceux_de_la_porte"
+  ]
+ },
+ {
+  "nom": "DISCUSSION-2 — une question après une interruption ouvre un second message",
+  "fichier": "crates/glucose-desktop/src/ia/discussion.rs",
+  "avant": "        if de_lui {",
+  "apres": "        if de_lui && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_une_question_rejoint"
+  ]
+ },
+ {
+  "nom": "DISCUSSION-1 — l'erreur d'un outil passe pour un résultat",
+  "fichier": "crates/glucose-desktop/src/ia/discussion.rs",
+  "avant": "    if resultat.get(\"isError\").and_then(Json::as_bool) == Some(true) {",
+  "apres": "    if resultat.get(\"isError\").and_then(Json::as_bool) == Some(true) && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_la_ligne_de_la_porte"
+  ]
+ },
+ {
+  "nom": "La clé se dit dans la description d'une conversation",
+  "fichier": "crates/glucose-desktop/src/ia/discussion.rs",
+  "avant": "            .field(\"histoire\", &self.histoire.len())",
+  "apres": "            .field(\"cle\", &self.cle)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_une_conversation_se_decrit_sans_sa_cle"
+  ]
+ },
+ {
+  "nom": "Le classement — la première version venue, même d'une famille à part",
+  "fichier": "crates/glucose-desktop/src/ia/modeles.rs",
+  "avant": "    let segment = id.strip_prefix(\"gemini-\")?.split('-').next()?;",
+  "apres": "    let segment = id\n        .strip_prefix(\"gemini-\")?\n        .split('-')\n        .find(|s| s.starts_with(|c: char| c.is_ascii_digit()))?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ia::tests::test_"
+  ]
+ },
+ {
+  "nom": "Le classement — Gemma dehors",
+  "fichier": "crates/glucose-desktop/src/ia/modeles.rs",
+  "avant": "    if id.starts_with(\"gemma-\") {\n        return Some(0);\n    }",
+  "apres": "    if id.starts_with(\"gemma-\") {\n        return None;\n    }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ia::tests::test_"
+  ]
+ },
+ {
+  "nom": "Le tiroir — une ligne coupée qui déborde",
+  "fichier": "crates/glucose-desktop/src/dock/discussion.rs",
+  "avant": "            if mesure(&essai) <= largeur {",
+  "apres": "            if mesure(&essai) <= largeur * 2.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_un_texte_se_coupe"
+  ]
+ },
+ {
+  "nom": "Le tiroir — la hauteur du fil sans l'échelle",
+  "fichier": "crates/glucose-desktop/src/dock/discussion.rs",
+  "avant": "ui.lignes.len() as f32 * LIGNE * s);",
+  "apres": "ui.lignes.len() as f32 * LIGNE);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_la_hauteur_suit_les_lignes"
+  ]
+ },
+ {
+  "nom": "Le champ — tout le début du texte, même ce qui ne tient pas",
+  "fichier": "crates/glucose-desktop/src/dock/discussion/paint.rs",
+  "avant": "        .find(|&i| large(&avant[i..]) <= place)",
+  "apres": "        .find(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_le_champ_montre_le_curseur"
+  ]
+ },
+ {
+  "nom": "Le clavier — un appui ailleurs ne rend pas le clavier du champ",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "        self.dock_manager.discussion.tape = false;",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_discussion_un_appui_ailleurs"
+  ]
+ },
+ {
+  "nom": "Le clavier — Échap ne rend pas le clavier",
+  "fichier": "crates/glucose-desktop/src/app/discussion.rs",
+  "avant": "            Key::Named(NamedKey::Escape) => self.dock_manager.discussion.tape = false,",
+  "apres": "            Key::Named(NamedKey::Escape) => {}",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_discussion_le_clavier"
+  ]
+ },
+ {
+  "nom": "Le tiroir ne descend pas au dernier message",
+  "fichier": "crates/glucose-desktop/src/app/discussion.rs",
+  "avant": "            .insert(TabId::Discussion, f32::MAX);",
+  "apres": "            .insert(TabId::Discussion, 0.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_discussion_ce_que_le_fil"
+  ]
+ },
+ {
+  "nom": "Le champ — la touche, pas le texte composé (un « ê » de touche morte se perd)",
+  "fichier": "crates/glucose-desktop/src/app/discussion.rs",
+  "avant": "            _ => return self.frapper_le_champ(OuEcrire::Discussion, key, texte),",
+  "apres": "            _ => return self.frapper_le_champ(OuEcrire::Discussion, key, None),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_discussion_un_accent"
+  ]
+ },
+ {
+  "nom": "Le tiroir — un mot coupé jusqu'au dernier caractère laisse une ligne vide derrière lui",
+  "fichier": "crates/glucose-desktop/src/dock/discussion.rs",
+  "avant": "                if coupe == reste.len() {\n                    break;\n                }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_un_mot_trop_long"
+  ]
+ },
+ {
+  "nom": "Le tiroir — la rustine « jamais de ligne vide » efface une ligne blanche voulue",
+  "fichier": "crates/glucose-desktop/src/dock/discussion.rs",
+  "avant": "        lignes.push(ligne);\n    }\n    lignes\n",
+  "apres": "        if !ligne.is_empty() {\n            lignes.push(ligne);\n        }\n    }\n    lignes\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_un_texte_se_coupe"
+  ]
+ }
+]

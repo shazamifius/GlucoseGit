@@ -146,8 +146,8 @@ fn test_tiroir_4_une_colonne_voisine_quand_la_hauteur_manque() {
     );
 }
 
-/// Les sept tiroirs.
-const TOUS: [TabId; 7] = [
+/// Les huit tiroirs (la discussion, fiche 129).
+const TOUS: [TabId; 8] = [
     TabId::Organize,
     TabId::Pomodoro,
     TabId::Storyboard,
@@ -155,6 +155,7 @@ const TOUS: [TabId; 7] = [
     TabId::Preset,
     TabId::Domains,
     TabId::Temps,
+    TabId::Discussion,
 ];
 
 /// La hauteur d'un tiroir ouvert seul, sur un écran assez haut pour qu'il ait la sienne.
@@ -218,7 +219,7 @@ fn test_tiroir_4_aucune_colonne_ne_sort_de_l_ecran() {
     }
     let (largeur, hauteur, bande) = (500.0, 360.0, 78.0);
     let boites = compute_panel_layouts(&dock, &Store::new("essai"), largeur, hauteur, bande, 1.0);
-    assert_eq!(boites.len(), TOUS.len(), "les sept sont ouverts");
+    assert_eq!(boites.len(), TOUS.len(), "les huit sont ouverts");
     let colonnes: f32 = boites
         .iter()
         .filter(|b| b.y == bande)

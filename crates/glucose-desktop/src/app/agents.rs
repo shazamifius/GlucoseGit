@@ -26,8 +26,14 @@ pub struct Agents {
     /// L'accord de l'utilisateur, par agent, jusqu'à la fermeture de Glucose.
     accords: HashMap<String, bool>,
     attente: VecDeque<Demande>,
-    /// **L'essai des clés gratuites** en cours, s'il y en a un (fiche 128).
-    pub(crate) essai_ia: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
+    /// **La discussion avec une IA gratuite** (fiche 129) : la question en route, s'il y en a une…
+    pub(crate) discussion: Option<crate::ia::discussion::EnRoute>,
+    /// … ou la conversation au repos, qui garde son histoire et ce que la bascule a appris.
+    pub(crate) conversation: Option<crate::ia::discussion::Conversation>,
+    /// **Le fichier de la clé des IA gratuites** : celui du dossier de Glucose, posé au vrai
+    /// lancement seulement. Une épreuve n'en a aucun : elle ne lit jamais la clé de l'utilisateur,
+    /// ne parle jamais à Google, n'écrit jamais dans son dossier (fiche 129).
+    pub(crate) cles: Option<std::path::PathBuf>,
     /// **La porte aux IA publiques**, quand elle est ouverte (fiche 116).
     pub(crate) publique: Option<crate::agents::publique::lien::Lien>,
     /// **Le canevas partagé**, s'il l'est (fiche 117) : le fil vers sa salle, son code, les autres
@@ -112,6 +118,7 @@ impl GlucoseApp {
         self.lancement.agents = Agents {
             boite: Some(boite),
             _porte: porte,
+            cles: Some(crate::ia::cles::chemin()),
             ..Agents::default()
         };
         // La porte publique ne se rouvre que chez le Glucose qui tient la porte locale : un
@@ -121,8 +128,10 @@ impl GlucoseApp {
         }
     }
 
-    /// **Ce que les agents demandent**, dans l'ordre où ils l'ont demandé.
+    /// **Ce que les agents demandent**, dans l'ordre où ils l'ont demandé — la discussion
+    /// d'abord, qui en est un (DISCUSSION-1, fiche 129).
     pub(crate) fn suivre_les_agents(&mut self) {
+        self.suivre_la_discussion();
         let agents = &mut self.lancement.agents;
         if let Some(boite) = &agents.boite {
             agents.attente.extend(boite.relever());

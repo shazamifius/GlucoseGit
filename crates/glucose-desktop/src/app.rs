@@ -5,6 +5,7 @@ pub mod agents;
 mod attentes;
 pub mod collaborer;
 mod decision;
+mod discussion;
 mod evenements;
 mod fenetre;
 mod fin;

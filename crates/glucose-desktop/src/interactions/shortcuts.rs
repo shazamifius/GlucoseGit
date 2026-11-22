@@ -111,6 +111,7 @@ impl GlucoseApp {
                 && (self.touche_de_la_roue(key)
                     || self.touche_de_l_ancrage(key)
                     || self.frapper_le_nom_du_jalon(key)
+                    || self.frapper_dans_la_discussion(key, texte)
                     || self.frapper_dans_le_champ(key)
                     || self.frapper_le_nom_de_l_onglet(key)
                     || self.touche_du_temps(key))

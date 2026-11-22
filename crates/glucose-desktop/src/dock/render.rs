@@ -341,6 +341,12 @@ fn draw_content(
             domains::paint::render_domains_panel(pixmap, store, &dock.domains, brush, frame)
         }
         TabId::Temps => super::temps::paint::render_temps_panel(pixmap, brush, frame, &dock.temps),
+        TabId::Discussion => super::discussion::paint::render_discussion_panel(
+            pixmap,
+            brush,
+            frame,
+            &dock.discussion,
+        ),
     }
 }
 

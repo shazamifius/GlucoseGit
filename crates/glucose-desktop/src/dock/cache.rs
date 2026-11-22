@@ -60,6 +60,7 @@ enum EtatPanneau {
     Preset,
     Domains(domains::DomainsUi),
     Temps(super::temps::TempsUi),
+    Discussion(super::discussion::DiscussionUi),
 }
 
 impl EtatPanneau {
@@ -74,6 +75,7 @@ impl EtatPanneau {
             TabId::Preset => Self::Preset,
             TabId::Domains => Self::Domains(dock.domains.clone()),
             TabId::Temps => Self::Temps(dock.temps.clone()),
+            TabId::Discussion => Self::Discussion(dock.discussion.clone()),
         }
     }
 }

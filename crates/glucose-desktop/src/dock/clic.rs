@@ -28,6 +28,8 @@ pub enum PanelClickResult {
     Temps(temps::TempsIntent),
     /// Armer un gabarit, ou retirer celui du tableau (PRESET-1).
     Gabarit(preset::GabaritIntent),
+    /// Un geste du tiroir DISCUSSION, à faire par la boucle (fiche 129).
+    Discussion(super::discussion::DiscussionIntent),
 }
 
 pub fn handle_dock_click(
@@ -93,6 +95,12 @@ fn click_panel(
                 Some(intent) => PanelClickResult::Domain(intent),
                 None => PanelClickResult::Handled,
             }
+        }
+        TabId::Discussion => {
+            use super::discussion as d;
+            let layout = d::layout_discussion_panel(frame, &dock.discussion);
+            d::click_discussion_panel(&dock.discussion, &layout, pointer)
+                .map_or(PanelClickResult::Handled, PanelClickResult::Discussion)
         }
         TabId::Temps => {
             let layout = temps::layout_temps_panel(frame, &dock.temps);

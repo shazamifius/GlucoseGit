@@ -31,6 +31,7 @@
 pub mod cache;
 pub mod champ;
 pub mod clic;
+pub mod discussion;
 pub mod domains;
 pub mod organize;
 pub mod paint;
@@ -64,6 +65,8 @@ pub enum TabId {
     Domains,
     /// La Time Machine (fiche 10 § 5.7).
     Temps,
+    /// La discussion avec une IA gratuite (fiche 129).
+    Discussion,
 }
 
 impl TabId {
@@ -77,7 +80,7 @@ impl TabId {
     pub fn cote(&self) -> Cote {
         match self {
             Self::Organize | Self::Pomodoro | Self::Temps | Self::Storyboard => Cote::Gauche,
-            Self::Plugins | Self::Preset | Self::Domains => Cote::Droite,
+            Self::Plugins | Self::Preset | Self::Domains | Self::Discussion => Cote::Droite,
         }
     }
 
@@ -90,6 +93,7 @@ impl TabId {
             Self::Preset => "MOOD BOARD",
             Self::Domains => "DOMAINES",
             Self::Temps => "TIME MACHINE",
+            Self::Discussion => "DISCUSSION",
         }
     }
 
@@ -104,6 +108,7 @@ impl TabId {
             Self::Preset => 280.0,
             Self::Domains => 320.0,
             Self::Temps => 324.0,
+            Self::Discussion => discussion::LARGEUR,
         }
     }
 }
@@ -123,6 +128,7 @@ fn hauteur_naturelle(dock: &DockManager, store: &Store, tab: TabId, s: f32) -> f
         TabId::Storyboard => storyboard::hauteur_naturelle(&dock.storyboard, largeur, s),
         TabId::Temps => temps::hauteur_naturelle(&dock.temps, largeur, s),
         TabId::Plugins => plugins::hauteur_naturelle(largeur, s),
+        TabId::Discussion => discussion::hauteur_naturelle(&dock.discussion, largeur, s),
         TabId::Preset => preset::hauteur_de(store) * s,
         TabId::Domains => domains::hauteur_naturelle(store, &dock.domains, largeur, s),
     };
@@ -173,6 +179,8 @@ pub struct DockManager {
     pub domains: domains::DomainsUi,
     /// Ce que la Time Machine montre : les gestes, les jalons, le point regardé.
     pub temps: temps::TempsUi,
+    /// Ce qui s'est dit avec l'IA, et le champ (fiche 129).
+    pub discussion: discussion::DiscussionUi,
     /// Le champ de nombre qu'on tient ou qu'on tape (CHAMP-1).
     pub champ: Option<champ::Saisie>,
     /// De combien chaque tiroir a défilé (TIROIR-6) ; le rangement le borne à ce qu'il cache.
@@ -201,6 +209,7 @@ impl DockManager {
             plugins: plugins::PluginsState::default(),
             domains: domains::DomainsUi::default(),
             temps: temps::TempsUi::default(),
+            discussion: discussion::DiscussionUi::default(),
             champ: None,
             defilement: Default::default(),
         }

@@ -345,8 +345,6 @@ impl GlucoseApp {
 
     /// **À chaque tour de la boucle** : ce qui arrive entre, ce qui part s'en va.
     pub(crate) fn suivre_le_canevas_partage(&mut self) {
-        // Le bilan des clés gratuites, quand le fil l'a rendu (fiche 128).
-        self.suivre_l_essai_ia();
         let Some(cp) = self.lancement.agents.partage.as_ref() else {
             return;
         };

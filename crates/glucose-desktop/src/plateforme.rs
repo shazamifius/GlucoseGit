@@ -123,6 +123,39 @@ pub fn envoyer(url: &str, verbe: Verbe, corps: &[u8]) -> Result<u16, String> {
     voie(&adresse, verbe, corps)
 }
 
+/// **Une question à un service web** (fiche 129) : le verbe (`GET` ou `POST`), l'adresse, ses
+/// en-têtes et son corps. [`telecharger`] ne fait que prendre, [`envoyer`] que déposer ; une IA
+/// demande, et sa réponse compte, ses refus compris.
+pub struct Requete<'a> {
+    pub verbe: &'a str,
+    pub url: &'a str,
+    pub en_tetes: &'a [(&'a str, &'a str)],
+    pub corps: &'a [u8],
+    /// **Combien attendre la réponse** : une IA pense avant de répondre. Les autres étapes
+    /// (le nom, la connexion, l'envoi) gardent [`DELAI`].
+    pub attente: std::time::Duration,
+}
+
+/// **Une réponse entière** : son code, et son corps, quel qu'il soit — un refus dit pourquoi, et
+/// quand revenir (le `RetryInfo` de Google).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reponse {
+    pub statut: u16,
+    pub corps: Vec<u8>,
+}
+
+/// **Pose la question et rend la réponse entière**, au plus `limite` octets : la même porte, une
+/// voie par système — WinHTTP sous Windows, `ureq` ailleurs (decisions/02 et 05).
+pub fn echanger(requete: &Requete, limite: usize) -> Result<Reponse, String> {
+    let adresse = sources::decouper(requete.url)
+        .ok_or_else(|| format!("adresse refusee : {}", requete.url))?;
+    #[cfg(windows)]
+    let voie = telechargement_windows::echanger;
+    #[cfg(not(windows))]
+    let voie = telechargement::echanger;
+    voie(&adresse, requete, limite)
+}
+
 /// **Glisse la sélection hors de cette fenêtre** (fiche 51 § 2), sous toutes ses formes
 /// (COPIER-1) — le lot pour Glucose, les images en fichiers pour tout le reste —, jusqu'au
 /// lâcher : rend vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine

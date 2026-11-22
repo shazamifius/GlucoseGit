@@ -264,7 +264,7 @@ use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::store::Store;
 
-const TOUS: [TabId; 7] = [
+const TOUS: [TabId; 8] = [
     TabId::Organize,
     TabId::Pomodoro,
     TabId::Storyboard,
@@ -272,6 +272,7 @@ const TOUS: [TabId; 7] = [
     TabId::Preset,
     TabId::Domains,
     TabId::Temps,
+    TabId::Discussion,
 ];
 
 fn ecran(largeur: f32, hauteur: f32) -> ScreenFrame {
@@ -456,7 +457,7 @@ fn test_tiroir_6_defile_le_contenu_est_le_contenu_entier_remonte() {
     assert_eq!(poignee, 0, "la poignée d'un tiroir entier");
 }
 
-/// **TIROIR-5 et 6 — au pire cas, aucun tiroir ne se pose sur un autre** : les sept ouverts sur un
+/// **TIROIR-5 et 6 — au pire cas, aucun tiroir ne se pose sur un autre** : tous ouverts sur un
 /// écran de 1440 × 600 — aucune paire ne se croise, chacun reste dans l'écran, et au moins un cache
 /// une part de son contenu : le cas est exercé.
 #[test]
@@ -464,7 +465,7 @@ fn test_tiroir_6_au_pire_cas_aucun_tiroir_ne_se_pose_sur_un_autre() {
     let store = Store::new("essai");
     let e = ecran(1440.0, 600.0);
     let boites = crate::dock::places(&ouverts(&TOUS), &store, e);
-    assert_eq!(boites.len(), 7);
+    assert_eq!(boites.len(), TOUS.len(), "chaque tiroir ouvert est rangé");
     assert!(
         boites.iter().any(|b| b.naturelle > b.height),
         "le cas : un tiroir défile"

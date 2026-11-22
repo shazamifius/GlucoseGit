@@ -60,6 +60,51 @@ fn agent() -> ureq::Agent {
     ureq::Agent::new_with_config(config)
 }
 
+/// **Pose une question à cette adresse et rend la réponse entière** (fiche 129) : son code et
+/// son corps, au plus `limite` octets ; la réponse s'attend `requete.attente`.
+pub(super) fn echanger(
+    adresse: &Adresse,
+    requete: &super::Requete,
+    limite: usize,
+) -> Result<super::Reponse, String> {
+    let config = ureq::Agent::config_builder()
+        .timeout_resolve(Some(DELAI))
+        .timeout_connect(Some(DELAI))
+        .timeout_send_request(Some(DELAI))
+        .timeout_recv_response(Some(requete.attente))
+        .timeout_recv_body(Some(requete.attente))
+        .user_agent(NAVIGATEUR)
+        .http_status_as_error(false)
+        .build();
+    let agent = ureq::Agent::new_with_config(config);
+    let url = url(adresse);
+    let mut reponse = match requete.verbe {
+        "GET" => avec(agent.get(&url), requete.en_tetes).call(),
+        "POST" => avec(agent.post(&url), requete.en_tetes).send(requete.corps),
+        autre => return Err(format!("verbe inconnu : {autre}")),
+    }
+    .map_err(|e| format!("requete : {e}"))?;
+    let statut = reponse.status().as_u16();
+    let corps = reponse
+        .body_mut()
+        .with_config()
+        .limit(limite as u64)
+        .read_to_vec()
+        .map_err(|e| format!("lecture : {e}"))?;
+    Ok(super::Reponse { statut, corps })
+}
+
+/// La requête, avec ses en-têtes.
+fn avec<B>(
+    mut requete: ureq::RequestBuilder<B>,
+    en_tetes: &[(&str, &str)],
+) -> ureq::RequestBuilder<B> {
+    for (nom, valeur) in en_tetes {
+        requete = requete.header(*nom, *valeur);
+    }
+    requete
+}
+
 /// **Envoie `corps` à cette adresse** (`POST`, en JSON) ou l'efface (`DELETE`), et rend le code
 /// de la réponse — la boîte noire qui voyage (fiche 54).
 pub(super) fn envoyer(adresse: &Adresse, verbe: &str, corps: &[u8]) -> Result<u16, String> {

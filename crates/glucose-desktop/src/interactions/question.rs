@@ -21,7 +21,7 @@ use crate::ui::question::{
 };
 use winit::keyboard::{Key, NamedKey};
 
-mod frappe;
+pub(crate) mod frappe;
 
 impl GlucoseApp {
     /// **Pose cette question** ; sa réponse déclenchera `suite`.

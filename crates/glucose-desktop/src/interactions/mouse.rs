@@ -226,8 +226,10 @@ impl GlucoseApp {
         if self.ui.onglets.renomme.is_some() && !self.clic_dans_le_champ_de_l_onglet() {
             self.valider_le_renommage();
         }
-        // De même, le champ de nombre qu'on tape (CHAMP-1).
+        // De même, le champ de nombre qu'on tape (CHAMP-1) ; et le champ de la discussion rend le
+        // clavier — un clic dans ce champ le lui redonne (fiche 129).
         self.valider_le_champ_quitte(self.screen_frame(screen_w, screen_h));
+        self.dock_manager.discussion.tape = false;
         // Une question posée ne répond qu'au bouton gauche : un clic droit derrière son voile
         // ouvrirait un menu, et une autre question à sa place (POPUP-1).
         if self.ui.question.is_some() && button != MouseButton::Left {
