@@ -1,0 +1,30 @@
+[
+  {
+    "nom": "CACHE-MCP — une liste moderne sans durée (ttlMs) : Claude Code la refuse",
+    "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+    "avant": "        o.push((\"ttlMs\".to_string(), Json::Nombre(0.0)));\n",
+    "apres": "",
+    "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "une_liste_moderne_dit_combien_de_temps_la_garder_et_pour_qui"]
+  },
+  {
+    "nom": "CACHE-MCP — la liste, qui varie selon la porte, dite publique",
+    "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+    "avant": "                    avec_son_cache(liste, \"private\")",
+    "apres": "                    avec_son_cache(liste, \"public\")",
+    "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "une_liste_moderne_dit_combien_de_temps_la_garder_et_pour_qui"]
+  },
+  {
+    "nom": "CACHE-MCP — la découverte moderne sans ses champs de cache",
+    "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+    "avant": "resultat(id, avec_son_cache(decouverte(), \"public\"), true)",
+    "apres": "resultat(id, decouverte(), true)",
+    "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "une_liste_moderne_dit_combien_de_temps_la_garder_et_pour_qui"]
+  },
+  {
+    "nom": "CACHE-MCP — l'ancienne époque reçoit des champs qu'elle ne connaît pas",
+    "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+    "avant": "                let liste = if moderne {\n                    avec_son_cache(liste, \"private\")\n                } else {\n                    liste\n                };",
+    "apres": "                let liste = avec_son_cache(liste, \"private\");",
+    "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "une_liste_moderne_dit_combien_de_temps_la_garder_et_pour_qui"]
+  }
+]

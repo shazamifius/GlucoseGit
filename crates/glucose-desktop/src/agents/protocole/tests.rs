@@ -86,6 +86,32 @@ fn une_version_moderne_inconnue_rend_les_versions_parlees() {
         .any(|v| v.as_str() == Some(VERSION_MODERNE)));
 }
 
+/// SEP-2549 : une découverte et une liste modernes disent combien de temps les garder et pour qui
+/// — Claude Code refuse une liste qui ne le dit pas. L'ancienne époque ne connaît pas ces champs.
+#[test]
+fn une_liste_moderne_dit_combien_de_temps_la_garder_et_pour_qui() {
+    let mut c = Connexion::default();
+    let cache = |r: &Json| {
+        let res = r.get("result").expect("un résultat");
+        (
+            res.get("ttlMs").and_then(Json::as_f64),
+            res.get("cacheScope")
+                .and_then(Json::as_str)
+                .map(str::to_owned),
+        )
+    };
+    let decouverte = reponse(c.traiter(&moderne(1, "server/discover", "")));
+    assert_eq!(cache(&decouverte), (Some(0.0), Some("public".into())));
+    let liste = reponse(c.traiter(&moderne(2, "tools/list", "")));
+    assert_eq!(cache(&liste), (Some(0.0), Some("private".into())));
+    let init = r#"{"jsonrpc":"2.0","id":3,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ancien","version":"1"}}}"#;
+    let mut ancien = Connexion::default();
+    reponse(ancien.traiter(init));
+    ancien.traiter(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#);
+    let liste = reponse(ancien.traiter(r#"{"jsonrpc":"2.0","id":4,"method":"tools/list"}"#));
+    assert_eq!(cache(&liste), (None, None));
+}
+
 #[test]
 fn un_client_ancien_fait_sa_poignee_de_main_puis_appelle() {
     let mut c = Connexion::default();

@@ -264,7 +264,7 @@ fn test_detourer_2_la_ou_le_sujet_est_plein_le_premier_plan_est_l_image() {
         .collect();
     // Le sujet : des rayures de 8 pixels, rouges et bleues ; le fond, vert.
     let sujet = |i: usize| {
-        if (i / l / 8) % 2 == 0 {
+        if (i / l / 8).is_multiple_of(2) {
             [0.9, 0.2, 0.1]
         } else {
             [0.1, 0.2, 0.9]

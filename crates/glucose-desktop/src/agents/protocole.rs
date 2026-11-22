@@ -140,7 +140,7 @@ impl Connexion {
             _ => declare,
         };
         if methode == "server/discover" {
-            return Suite::Repondre(resultat(id, decouverte(), true));
+            return Suite::Repondre(resultat(id, avec_son_cache(decouverte(), "public"), true));
         }
         self.methode_commune(id, methode, params, client, true)
     }
@@ -181,7 +181,15 @@ impl Connexion {
         let portee = self.portee;
         match methode {
             "ping" => Suite::Repondre(resultat(id, Json::objet([]), moderne)),
-            "tools/list" => Suite::Repondre(resultat(id, outils::liste_pour(portee), moderne)),
+            "tools/list" => {
+                let liste = outils::liste_pour(portee);
+                let liste = if moderne {
+                    avec_son_cache(liste, "private")
+                } else {
+                    liste
+                };
+                Suite::Repondre(resultat(id, liste, moderne))
+            }
             "tools/call" => {
                 let nom = params
                     .get("name")
@@ -289,6 +297,20 @@ fn resultat(id: &Json, mut r: Json, moderne: bool) -> String {
         ("result", r),
     ])
     .ecrire()
+}
+
+/// **Combien de temps garder ce résultat, et pour qui** : la version du 28/07/2026 l'exige de la
+/// découverte et des listes complètes (SEP-2549, « Caching » : « Servers MUST include caching
+/// hints » ; `ttlMs` ≥ 0 et `cacheScope` au premier niveau du résultat) — Claude Code refuse une
+/// liste qui ne le dit pas (22/11/2026 : « Invalid result for tools/list »). Toujours `0`, à
+/// redemander chaque fois : la liste suit la portée, qu'il peut changer pendant que Glucose tourne,
+/// et Glucose ne l'annonce pas (`listChanged` absent). `private` pour ce qui varie selon la porte.
+fn avec_son_cache(mut r: Json, pour_qui: &str) -> Json {
+    if let Json::Objet(o) = &mut r {
+        o.push(("ttlMs".to_string(), Json::Nombre(0.0)));
+        o.push(("cacheScope".to_string(), Json::from(pour_qui)));
+    }
+    r
 }
 
 fn erreur(id: &Json, code: f64, message: &str, donnees: Option<Json>) -> String {
