@@ -93,6 +93,20 @@ def second_compte():
     return f"second compte ({b}) : {', '.join(liens) or 'déjà prêt'} — {connecte}"
 
 
+def vscode_second():
+    """Le VS Code du compte B (lancé par `code-b`) : son propre dossier, les réglages du premier
+    par liens (son thème Encre, géré par home-manager), les mêmes extensions."""
+    utilisateur = r.MAISON / ".vscode-compte-b/User"
+    utilisateur.mkdir(parents=True, exist_ok=True)
+    liens = []
+    for nom in ("settings.json", "keybindings.json", "snippets"):
+        source, lien = r.MAISON / ".config/Code/User" / nom, utilisateur / nom
+        if source.exists() and not lien.exists() and not lien.is_symlink():
+            lien.symlink_to(source)
+            liens.append(nom)
+    return f"VS Code du compte B ({utilisateur.parent}) : {', '.join(liens) or 'déjà prêt'}"
+
+
 def service():
     UNITE.parent.mkdir(parents=True, exist_ok=True)
     UNITE.write_text(
@@ -108,6 +122,6 @@ def service():
 
 def installer():
     r.ETAT.mkdir(parents=True, exist_ok=True)
-    for etape in (membrane_dans_glucose, reglages_claude, second_compte, service):
+    for etape in (membrane_dans_glucose, reglages_claude, second_compte, vscode_second, service):
         print("•", etape())
     return 0

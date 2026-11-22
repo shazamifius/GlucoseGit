@@ -100,5 +100,16 @@ class Jauges(unittest.TestCase):
         dire.assert_called_once_with("Opus · 5 h 60 %")
 
 
+class Binaire(unittest.TestCase):
+    def test_le_claude_de_la_derniere_extension_par_numero_pas_par_texte(self):
+        with tempfile.TemporaryDirectory() as d:
+            for v in ("2.1.99", "2.1.330", "2.1.4"):
+                b = Path(d) / f"anthropic.claude-code-{v}-linux-x64/resources/native-binary/claude"
+                b.parent.mkdir(parents=True)
+                b.write_text("")
+            with mock.patch.object(r, "EXTENSIONS", Path(d)):
+                self.assertIn("2.1.330", r.claude_binaire())
+
+
 if __name__ == "__main__":
     unittest.main()

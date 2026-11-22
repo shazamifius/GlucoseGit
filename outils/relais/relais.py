@@ -34,7 +34,26 @@ COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
 # La passation coûte un tour : la demander avant le mur, pas au mur.
 SEUILS = {"five_hour": 90.0, "seven_day": 95.0}
 SILENCE = 35 * 60
-TMUX = "relais"
+EXTENSIONS = MAISON / ".vscode/extensions"
+
+
+def nom_tmux(compte):
+    """Une session tmux par compte : le VS Code de ce compte l'affiche (.vscode/tasks.json)."""
+    return f"relais-{compte}"
+
+
+def version(dossier):
+    morceaux = dossier.name.split("-")[2] if dossier.name.count("-") >= 2 else "0"
+    return tuple(int(x) if x.isdigit() else 0 for x in morceaux.split("."))
+
+
+def claude_binaire():
+    """**Le Claude de la dernière extension VS Code**, jamais celui de la ligne de commande : sa
+    parole du 22/11 — le Claude en ligne de commande était en 2.1.223 quand l'extension était en
+    2.1.330. L'extension embarque le sien et le met à jour seule : le relais suit VS Code."""
+    candidats = sorted(EXTENSIONS.glob("anthropic.claude-code-*/resources/native-binary/claude"),
+                       key=lambda p: version(p.parents[2]))
+    return str(candidats[-1]) if candidats else "claude"
 CONSIGNE, PASSATION, BATTEMENT, BLOQUE, REPONSE = (
     "relais-consigne", "relais-passation", "relais-battement", "relais-bloque", "relais-reponse")
 INVITE_REPONSE = "✍️ Ta réponse :"
@@ -271,16 +290,35 @@ def lancer(compte):
     reglages = ["RELAIS=1", f"RELAIS_COMPTE={compte}"]
     if COMPTES[compte]:
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
-    tmux("new-session", "-d", "-s", TMUX, "-x", "200", "-y", "50", "-c", str(DEPOT),
-         "env", *reglages, "claude", "--remote-control", f"relais-{compte}",
+    binaire = claude_binaire()
+    # --ide : branché sur le VS Code de ce compte (ses outils, ses différences affichées).
+    tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
+         "env", *reglages, binaire, "--ide", "--remote-control", f"relais-{compte}",
          "--append-system-prompt", REGLES, depart(compte))
     ecrire_json(ETAT / "session.json", {"compte": compte, "depuis": time.time()})
-    journal(f"session lancée sur le compte {compte}")
+    journal(f"session lancée sur le compte {compte} ({binaire})")
+
+
+def session_tmux():
+    """Le nom de la session du relais qui vit, s'il y en a une."""
+    for compte in COMPTES:
+        if tmux("has-session", "-t", nom_tmux(compte)).returncode == 0:
+            return nom_tmux(compte)
+    return None
+
+
+def taper(texte):
+    """Tape un texte dans la session qui vit, puis Entrée."""
+    nom = session_tmux()
+    if nom:
+        tmux("send-keys", "-t", nom, "-l", texte)
+        tmux("send-keys", "-t", nom, "Enter")
 
 
 def ecran():
-    r = tmux("capture-pane", "-p", "-t", TMUX)
-    return r.stdout if r.returncode == 0 else None
+    nom = session_tmux()
+    r = tmux("capture-pane", "-p", "-t", nom) if nom else None
+    return r.stdout if r and r.returncode == 0 else None
 
 
 def surveiller(memoire, histoire, maintenant):
@@ -303,8 +341,7 @@ def surveiller(memoire, histoire, maintenant):
     memoire["reponse_vue"] = r.get("empreinte")
     texte = r.get("texte", "").replace(INVITE_REPONSE, "").strip()
     if texte and auteur_recent(REPONSE, histoire) == "humain":
-        tmux("send-keys", "-t", TMUX, "-l", texte)
-        tmux("send-keys", "-t", TMUX, "Enter")
+        taper(texte)
         ecrire(REPONSE, INVITE_REPONSE)
         memoire["reponse_vue"] = (noeud(REPONSE) or {}).get("empreinte")
         journal("sa réponse tapée dans la session")
@@ -331,15 +368,14 @@ def un_tour():
     ok, pause = signee(n, memoire, histoire), en_pause(n.get("texte"))
     vivante = ecran() is not None
     if vivante and session.get("passation_demandee") and session.get("laissee") == "relayer":
-        tmux("kill-session", "-t", TMUX)
+        tmux("kill-session", "-t", session_tmux() or "")
         journal("passation écrite : session close, relais")
         memoire["compte"] = "b" if session.get("compte") == "a" else "a"
         vivante = False
     if vivante:
         surveiller(memoire, histoire, maintenant)
         if session.get("laissee") in ("pause", "consigne non signée") and ok and not pause:
-            tmux("send-keys", "-t", TMUX, "-l", "[Relais] Reprends selon sa consigne.")
-            tmux("send-keys", "-t", TMUX, "Enter")
+            taper("[Relais] Reprends selon sa consigne.")
         dit = f"session en cours depuis {heure(session.get('depuis', maintenant))}" + (
             f" — arrêtée : {session['laissee']}" if session.get("laissee") else "")
     elif not ok:
