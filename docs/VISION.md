@@ -147,6 +147,19 @@ Chaque décision, chaque ligne de code se juge contre elles.
   **Sa parole du 14/11** (vers 1 h 46) : *« j'aimerais vraiment travailler sur les protocoles MCP de
   liaison de IA ainsi que le système de collaboration »* — la porte publique et le co-working, ses
   deux pages (fiches 111 et 113) prises pour accordées.
+* **Les IA gratuites dans Glucose** (21/11, fiches 128 et 129) : *« j'avoue que j'aurais besoin de
+  lui pour pas mal de choses, de manière très rapide, presque temporaire ; pourrais-tu m'aider à
+  installer sur Glucose l'API Google ? Fais une interface dans Collaborer pour installer facilement
+  des API gratuites d'IA en ligne, et n'oublie pas de créer une fenêtre de chat qui demande [à]
+  utiliser le MCP »*. Puis : *« dans l'interface, tu crées un bouton API publique ; ensuite un bouton
+  "tester les modèles gratuits", qui teste l'API pour voir s'il y a des modèles gratuits, les plus
+  aboutis possible, et comme ça tu peux les utiliser ; et si ça atteint des limites, prévoir des
+  systèmes de bascule de modèle, avec un avertissement à l'utilisateur que ça vient de basculer — et
+  dès qu'un modèle plus évolué est de retour, ça rebasculera automatiquement ; si tu en as besoin,
+  utilise les clés GitHub »*. Sur le MCP : *« je ne sais pas trop comment ça fonctionne, mais je sais
+  que plusieurs IA comme toi utilisent le MCP pour accéder à Glucose »*. Et : *« tu peux travailler
+  tout ça en autonomie, n'attends pas ma parole »*. (GitHub Models a fermé le 30/07/2026 : ses clés
+  ne servent plus à rien, fiche 129.)
 * **Ses réponses aux pages de la porte et du co-working** (19/11, écrites dans Glucose, fiche 122) :
   le co-working — *« je trouve vraiment que tes propositions sont incroyables et me conviennent à
   300 % ; je n'ai vraiment pas de nuance à apporter »* ; **le web3**, son autre projet — *« il faut
@@ -406,6 +419,14 @@ et de sa construction ; les trois IA répondant à la même question.
 * Qui a fait quoi, lu dans l'histoire : *« oui »*. Ses corrections partent avec un document qu'il
   partage (retirables à l'export) : *« oui »*. Ses propres flèches : *« il ne faut pas que l'IA juge les
   flèches, mais qu'elle comprenne leur importance, afin de capter la méta derrière un document »* (§ 6).
+* **Glucose incassable, et son miroir en Markdown** (22/11) : *« l'idée, ce serait que Glucose soit
+  incassable, et si JAMAIS il est cassé, alors simplement avoir les fichiers .md rangés super bien dans
+  des dossiers — les dossiers prendront le titre des membranes dans lesquelles ils sont, et la
+  disposition des fichiers .md utilisera l'espace de Glucose ; tout ça en direct »*. **À double sens**,
+  pas à sens unique (*« bof »*), et **arbitré par la Time Machine** : quand il revient dans Glucose, elle
+  lui dit quel système a modifié des nœuds (*« il faudrait ajouter un nom »*), combien, ce que chacun
+  dit face à l'état actuel, et lui demande : **garder, supprimer ou dédoubler** — *« c'est à
+  l'utilisateur, quand il revient sur l'interface de Glucose, de choisir »*.
 
 ## 9. Sur la façon de travailler
 

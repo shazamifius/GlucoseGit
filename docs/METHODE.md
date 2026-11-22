@@ -126,8 +126,9 @@ Chacun résume des fautes réelles ; les fiches citées en gardent les cas ([`ca
 
 ## 5. Les gestes de cette machine
 
-Son VivoBook sous **NixOS, Wayland et niri** (depuis le 6/11/2026) ; la carte de la machine :
-`~/Projets/LISEZ-MOI.md`. Le PC Windows d'avant : [`carnet/ancien-pc-windows.md`](carnet/ancien-pc-windows.md).
+Son poste fixe sous **NixOS, Wayland et niri** (définitivement depuis le 22/11/2026) ; la carte de la
+machine : `~/Projets/LISEZ-MOI.md`. Les chiffres de mémoire ci-dessous viennent du VivoBook (7,6 Go, du 6
+au 22/11) : sur ce poste, `outils/borne.sh` en tire une borne bien plus large, mais la règle reste. Le PC Windows d'avant : [`carnet/ancien-pc-windows.md`](carnet/ancien-pc-windows.md).
 
 **Compiler, éprouver**
 * Rust n'existe que dans `nix develop -c …` ; `cargo test --workspace` compte 5 à 8 minutes de compilation.

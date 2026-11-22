@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 19/11/2026, 18 h 40** (fiches 108-126). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 22/11/2026, 23 h 40** (fiches 108-130). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -20,10 +20,22 @@
   l'école s'y est mis à jour tout seul** le jour même. Avant elle, la 2.0.4-beta.2 (18/11 : le
   co-working et ses photos, la porte aux IA publiques, la frise, le miroir des images). Installeur
   Windows, AppImage, `.deb`, `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`.
-* **Sur `main` depuis la beta.4** : VEILLE-1 (une image qui contient une veille garde ce qu'elle a
-  coûté, sous Windows) — éprouvé ici, **pas encore vérifié par GitHub**. **Hors de `main`** : TIROIR-5
-  et 6 (les tiroirs qui se rangent dans l'écran et défilent), **écrits, jamais compilés** — dans la
-  copie de travail et dans `~/.cache/glucose-bancs/session-126/tiroirs-126.patch` (fiche 126 § 8).
+* **Sur `main` depuis la beta.4** (`596e783`, **vert sur les dix tâches de GitHub**, le 20/11 à
+  23 h 55 ; **pas encore publié** — la question d'une beta.5 est dans son Glucose) :
+  * **les tiroirs qui se rangent dans l'écran et défilent** (TIROIR-5 et 6) — quand la hauteur
+    manque, une colonne partage sa place et chaque tiroir fait défiler ce qu'il ne montre plus, à la
+    molette ; regardés au pilote, 13 sabotages sur 13 ;
+  * **la loi de l'écart** (TIROIR-2) — **deux défauts de la beta.4 publiée**, vus au pilote : à 110 %
+    d'interface la Time Machine perdait un jalon, et le Storyboard montrait une case de moins, sur
+    deux pages, dès deux cases ;
+  * **VEILLE-1** — sous Windows, une image qui contient une mise en veille garde ce qu'elle a coûté
+    (la télémétrie ne prend plus une veille pour un gel).
+* **Commité depuis, pas encore éprouvé par GitHub** : `f9a8557` (DETOURER-2), `87dfb5a` (IA-1, le
+  menu « L'API publique », fiche 128) et `48094df` — **la discussion avec une IA gratuite** (fiche
+  129) : le tiroir DISCUSSION, Gemini par sa clé, les outils de la porte, la bascule qui dort le
+  temps que Google dit et qui le dit, `plateforme::echanger` sous Windows et Linux. Toute la suite
+  du dépôt passe (3 474 épreuves), **25 sabotages sur 25** ; **pas encore regardé au pilote**, et la
+  voie WinHTTP jamais compilée (la CI).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
@@ -48,13 +60,16 @@
   par son clic et a posé, signé « agent Claude (claude.ai) », l'onglet « Textes optimisés » de son
   document ; **Mistral** est entré aussi (Le Chat gratuit était saturé, il n'a rien posé) ; et
   **Claude Code** lit ses réponses par elle. Le critère de SUITE est rempli.
-* **Son Glucose installé** (profil Nix `GlucoseGit`) : `aeea3ef`, du 17/11 au soir — sans rien de ce
-  qui précède.
-* **La machine** : son VivoBook sous **NixOS** (i7-8550U, 7,6 Go, Intel UHD 620 et MX150, écran 60 Hz,
-  Wayland, niri), depuis le 6/11 — son PC Windows est cassé. **Windows, macOS et Android ne
-  s'éprouvent qu'à travers la CI.** Quand il travaille, Brave, VS Code et d'autres sessions de Claude
-  laissent souvent moins de 3,5 Go : rien ne se compile alors ici (la borne), et la vérification
-  passe par GitHub, sur une branche retirée après la fusion.
+* **Son Glucose** : la commande `glucose` lance le binaire compilé du dépôt
+  (`target/release/glucose-desktop`), plus une version installée (22/11) — il a toujours ce qu'on a
+  compilé en dernier. Son document de travail, `GLUCOSE PROJET.glucose` (rejoint par le code de sa
+  salle), est à la racine du dépôt, exclu de Git ; `glucose --mcp` le donne à chaque session de Claude.
+* **La machine** : **son poste fixe**, définitivement depuis le 22/11 au soir (Ryzen 5 7600X, 30 Go, RTX
+  4070 SUPER, niri) — le dépôt, les mémoires et les journaux y ont été rapatriés du VivoBook à
+  l'identique (même `87dfb5a`, même copie de travail, empreinte vérifiée), et `cargo check`, Clippy
+  strict et la version optimisée y passent. Du 6 au 22/11, c'était son VivoBook (7,6 Go) ; son PC
+  Windows est cassé. **Windows, macOS et Android ne s'éprouvent qu'à travers la CI.** La carte :
+  `~/Projets/LISEZ-MOI.md`.
 
 ## 2. Ce que fait Glucose Rust
 
@@ -69,7 +84,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Flèches** | droites ou courbes, six relations, coudes (« Retirer ce coude », « Redresser la flèche »), bouts qu'on prend, contournement, ancres de texte ; la couleur des lueurs qu'elles relient ; de loin, une trace ; leur présence suit leur nombre et la souris (PARENTE-4) ; `Ctrl`+clic suit un lien ; la fenêtre des liens (`B`) |
 | **Organiser** | membranes **en carte** (la plus petite région l'emporte), dossiers (renommés par `F2`), **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et la roue (Oklch) ; **dater** un nœud (`Maj+T`), la frise chronologique (`Maj+R`), regarder un domaine — deux lentilles qui estompent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), la page web |
-| **L'interface** | 116 commandes dans une table, la palette (`Ctrl+Maj+P`), les raccourcis comme donnée ; ses lettres et ses icônes sur la grille de l'écran ; **son échelle, au choix** ; **les tiroirs du côté de leur bouton** ; les trois modes de la fenêtre et le zen ; sous Windows, la bande ou la barre du système |
+| **L'interface** | 116 commandes dans une table, la palette (`Ctrl+Maj+P`), les raccourcis comme donnée ; ses lettres et ses icônes sur la grille de l'écran ; **son échelle, au choix** ; **les tiroirs du côté de leur bouton**, qui défilent quand la place manque ; les trois modes de la fenêtre et le zen ; sous Windows, la bande ou la barre du système |
 | **Collaborer** | **le co-working** (fiches 117 et 119) : partager un canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré, ses photos comprises ; le conflit dit ; `Ctrl+Z` par main ; les curseurs |
 | **Les agents** | **une IA du nuage par Collaborer** — Claude.ai et Mistral, essayés depuis son compte : son accord devant un code, le document ouvert seulement, son nom vérifié qui signe, le témoin qui dit l'onglet ; `glucose --mcp` pour une IA de sa machine — chaque geste annulable, signé, rien sans son accord |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
@@ -86,12 +101,12 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 * **une famille d'émojis se décompose, un drapeau devient deux lettres** : sans moteur de mise en
   forme, Glucose dessine un caractère à la fois (`decisions/10` et `18`) ;
-* **la télémétrie compte une mise en veille comme une image** : 415 s chez un utilisateur Windows à
-  carte AMD, la machine à 0 % pendant ces sept minutes — la « pire image » en est faussée. **Sous
-  Windows seulement** : l'`Instant` de Rust y compte la veille, pas sous Linux, Android et macOS
-  (fiche 126 § 2) ;
-* **les tiroirs ne défilent pas** : quand la hauteur manque même en colonnes, deux se croisent
-  (Storyboard et Domaines à 1440 × 900 avec huit domaines) ;
+* **la télémétrie des versions publiées compte une mise en veille comme une image** (415 s chez un
+  utilisateur Windows à carte AMD) : VEILLE-1, sur `main`, le règle — pas encore publié ;
+* **le détourage laisse un liseré clair** au bord d'une photo prise sur fond blanc : le reflet du
+  fond sur le sujet, que le masque garde à 0,99 — diagnostiqué, pas corrigé (fiche 127 § 5) ;
+* **deux défauts de la beta.4**, réglés sur `main` mais pas publiés : un jalon perdu dans la Time
+  Machine à 110 %, une case de moins dans le Storyboard ;
 * **ses deux serveurs vivent sur le compte Cloudflare d'un autre projet** (`ferme-nilslamber`, celui de
   `ferme-tiles`) : leur nom est dans l'adresse que chaque utilisateur colle dans Claude.ai, et les
   quotas gratuits sont partagés — le déménagement attend son clic (§ 6) ;
@@ -106,9 +121,10 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 ## 4. La qualité
 
-* **Les épreuves** : sur GitHub, `36adb41` **vert sur les dix tâches**, le Mac à puce Apple compris
-  (le 19/11 à 18 h 58 : tout le travail des fiches 122 à 126 — `gh run view 44578416447`). Ici, la
-  bibliothèque du bureau (2 163) et du noyau (805) passent. Clippy strict et `cargo fmt` à zéro ; les
+* **Les épreuves** : sur GitHub, **`596e783` vert sur les dix tâches**, les deux Mac compris (le
+  20/11 à 23 h 55 : VEILLE-1 compilé et éprouvé sous Windows pour la première fois, les tiroirs, la
+  loi de l'écart — `gh run view 44830190971`). Ici, la bibliothèque du bureau (2 176) et ses huit
+  suites d'intégration passent. Clippy strict et `cargo fmt` à zéro ; les
   **cliquets** (80 lignes par fonction, 600 par fichier, le couplage au modèle — 38 lignes, au
   plafond) ne se relèvent jamais : ce qui déborde s'extrait.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
@@ -118,30 +134,31 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   2 sur 2, `table-123` 10 sur 10, `tiroirs-122` 6 sur 6, `porte-122` 3 sur 3, `applique-122` 2 sur 2,
   `echelle-121` 5 sur 5 (trois gardes étaient aveugles : leurs épreuves sont écrites), `emoji-126`
   9 sur 9 ; **un échantillon de 24 anciens sabotages** tirés au hasard dans 18 fichiers : 24 sur 24
-  (fiche 126 § 3). **Pas encore joués** : le dernier de `liste-123` (la puce en vecteurs),
-  `detourage-121` (25), `veille-126` (2). 1 380 des 1 527 sabotages écrits s'appliquent encore au
-  code d'aujourd'hui ; les autres gardaient du code réécrit.
+  (fiche 126 § 3) ; à la fiche 127, `tiroirs-126` **13 sur 13**, `tiroirs-127` **5 sur 5**,
+  `veille-126` **2 sur 2**, `liste-123` **8 sur 8** — et `detourage-121`, le dernier jamais joué
+  (fiche 127 § 9). 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
+  autres gardaient du code réécrit.
 * **Regarder** : le vrai Glucose au pilote, hors écran, sur une copie de ses documents
   (`outils/pilote/piloter.sh`) ; **le rythme ne se juge qu'à son écran** (`outils/pilote/essai_ecran.sh`,
   la section PARU-1 de la chronique).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK,
   NixOS, l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) :
-  la dernière verte est `36adb41` (19/11, 18 h 58 ; ci-dessus). Elle se lance avant une
+  la dernière verte est `596e783` (20/11, 23 h 55 ; ci-dessus). Elle se lance avant une
   publication, ou comme voie de vérification quand sa machine est pleine.
 
 ## 5. Ses utilisateurs, et ce qu'on en sait
 
-* **La télémétrie** (avec l'accord de chacun ; [TELEMETRIE](TELEMETRIE.md)) au 19/11, 18 h 30 : **208
+* **La télémétrie** (avec l'accord de chacun ; [TELEMETRIE](TELEMETRIE.md)) au 20/11, 22 h : **219
   sessions, 10 installations, 40 fins anormales** — aucune neuve depuis le 17/11.
-  * **son PC de l'école** (GTX 1660 SUPER, Windows) : 61 sessions, **en 2.0.4-beta.3 depuis le
-    19/11** (la mise à jour automatique), rien d'anormal (pire image 1,1 s, au repos) ;
-  * **son téléphone** (moto g54, PowerVR) : 30 sessions, 19 fins anormales — **aucune depuis la
+  * **son PC de l'école** (GTX 1660 SUPER, Windows) : 64 sessions, **en 2.0.4-beta.4** (la mise à
+    jour automatique), rien d'anormal (pire image 1,1 s, au repos) ;
+  * **son téléphone** (moto g54, PowerVR) : 32 sessions, en 2.0.4-beta.2, 19 fins anormales — **aucune depuis la
     2.0.4-beta.1** (6 sessions, finies en arrière-plan comme Android le fait) ; prometteur pour
     MEMOIRE-4, pas encore une preuve ; 16,4 ms l'image typique ;
   * son VivoBook (UHD 620, la version `dev`) : 12 sessions jusqu'au 18/11 ;
   * un Linux à RTX 4070 SUPER, en 2.0.4-beta.1 (21 sessions, la dernière le 17/11) ;
-  * **un Windows à AMD Radeon 660M**, en 2.0.4-beta.2 (9 sessions, aucune fin anormale) — l'image de
-    415 s, très probablement une veille (§ 3) ;
+  * **un Windows à AMD Radeon 660M**, **en 2.0.4-beta.4** (14 sessions, la dernière le 20/11, aucune
+    fin anormale) — l'image de 415 s, très probablement une veille (§ 3) ;
   * un Windows à RTX 5070 portable, resté en 2.0.3-beta.6 (57 sessions, la dernière le 23/10) ; un
     Windows à GTX 1660 SUPER resté en 2.0.3-beta.3 ; un Windows neuf en 2.0.2-beta.2 ; un Android à
     Mali, une session ; un Windows à pilote Intel tué par `igvk64.dll` (le 29/10, en beta 6).
