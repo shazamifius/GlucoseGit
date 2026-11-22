@@ -197,3 +197,33 @@ fn chaque_schema_d_outil_se_lit() {
         );
     }
 }
+
+/// **LECTURE-2 — un outil qui ne fait que lire le dit au client** (`readOnlyHint`, MCP depuis
+/// 2025-03-26), et lui seul (fiche 130) : les quatre lecteurs, ni plus ni moins.
+#[test]
+fn lecture_2_les_lecteurs_se_disent_en_lecture_seule_et_eux_seuls() {
+    let liste = outils::liste();
+    let mut lecteurs: Vec<&str> = liste
+        .get("tools")
+        .and_then(Json::as_liste)
+        .expect("outils")
+        .iter()
+        .filter(|o| {
+            o.get("annotations")
+                .and_then(|a| a.get("readOnlyHint"))
+                .and_then(Json::as_bool)
+                == Some(true)
+        })
+        .filter_map(|o| o.get("name").and_then(Json::as_str))
+        .collect();
+    lecteurs.sort_unstable();
+    assert_eq!(
+        lecteurs,
+        [
+            "glucose_chercher",
+            "glucose_domaines",
+            "glucose_histoire",
+            "glucose_lire"
+        ]
+    );
+}

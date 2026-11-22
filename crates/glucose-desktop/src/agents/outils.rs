@@ -299,12 +299,20 @@ pub fn liste_pour(portee: Portee) -> Json {
         .iter()
         .filter(|(nom, _, _)| permis(nom, portee))
         .map(|(nom, description, _)| {
-            Json::objet([
+            let mut champs = vec![
                 ("name", Json::from(*nom)),
                 ("description", Json::from(*description)),
                 // Écrits à la main ci-dessus et éprouvés : ils se lisent toujours.
                 ("inputSchema", schema(nom).unwrap_or(Json::Nul)),
-            ])
+            ];
+            // **LECTURE-2** (fiche 130) : un outil qui ne fait que lire le dit au client
+            // (`readOnlyHint`, MCP depuis 2025-03-26) — le même fait que la boucle et « Lire
+            // seulement » lisent dans `LECTEURS`. Les autres gardent le défaut : ils écrivent.
+            if lit_seulement(nom) {
+                let lecture = Json::objet([("readOnlyHint", Json::Bool(true))]);
+                champs.push(("annotations", lecture));
+            }
+            Json::objet(champs)
         })
         .collect();
     Json::objet([("tools", Json::Liste(outils))])

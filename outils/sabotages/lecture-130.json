@@ -118,5 +118,35 @@
    "--",
    "app::agents::tests"
   ]
+ },
+ {
+  "nom": "LECTURE-2 — aucun lecteur ne se dit en lecture seule",
+  "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+  "avant": "            if lit_seulement(nom) {\n",
+  "apres": "            if false {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::protocole::tests::lecture_2"
+  ]
+ },
+ {
+  "nom": "LECTURE-2 — chaque outil se dit en lecture seule, même celui qui écrit",
+  "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+  "avant": "            if lit_seulement(nom) {\n",
+  "apres": "            if !nom.is_empty() {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::protocole::tests::lecture_2"
+  ]
  }
 ]
