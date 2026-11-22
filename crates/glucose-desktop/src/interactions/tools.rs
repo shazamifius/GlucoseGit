@@ -206,12 +206,14 @@ impl GlucoseApp {
             return glucose_core::arrow::Snap::free(point);
         };
         // La boîte même que le parcours du tableau lisait : une photo par sa boîte droite.
+        // Une membrane se vise par sa frontière (ARROW-4, fiche 130).
         let candidats = rangs.into_iter().filter_map(|k| {
+            use glucose_core::arrow::Visee;
             use glucose_core::quadtree::Noeud;
             match glucose_core::quadtree::noeud_au_rang(board, k)? {
-                Noeud::Image(i) => Some((i.id.as_str(), i.rect())),
-                Noeud::Annotation(a) => Some((a.id(), a.rect()?)),
-                Noeud::Dossier(f) => Some((f.id.as_str(), f.rect())),
+                Noeud::Image(i) => Some((i.id.as_str(), i.rect(), Visee::Boite)),
+                Noeud::Annotation(a) => Some((a.id(), a.rect()?, Visee::de(a))),
+                Noeud::Dossier(f) => Some((f.id.as_str(), f.rect(), Visee::Boite)),
             }
         });
         glucose_core::arrow::snap_parmi(candidats, point, exclude)

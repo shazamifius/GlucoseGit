@@ -130,3 +130,44 @@ fn test_snap_3_la_pointe_n_accroche_pas_sa_source() {
         "une autre carte, si"
     );
 }
+
+/// **ARROW-4, par le vrai chemin** (fiche 130) : une flèche tirée à l'outil, à la souris, du vide
+/// d'une membrane vers un texte posé en elle — sa parole du 22/11 : *« impossible de placer une
+/// flèche […] à l'intérieur d'une membrane, car celle-ci se rattache automatiquement à la
+/// membrane »*. Le départ reste libre, l'arrivée accroche le texte.
+#[test]
+fn test_arrow_4_une_fleche_se_tire_dans_une_membrane() {
+    let mut app = vide();
+    let board = app.store.project.active_board_id.clone();
+    app.store.add_annotation(
+        &board,
+        Annotation::membrane("membrane", 0.0, 0.0, 1000.0, 800.0),
+    );
+    app.store
+        .add_annotation(&board, carte("texte", (600.0, 300.0), (200.0, 100.0)));
+    app.store.clear_selection();
+    app.une_image_sans_fenetre((1200, 800));
+    app.ui.active_tool = ActiveTool::Arrow;
+    let vp = app.store.viewport();
+    let (sx, sy) = world_to_screen(250.0, 400.0, &vp);
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, 1200.0, 800.0);
+    let (tx, ty) = world_to_screen(650.0, 350.0, &vp);
+    app.handle_cursor_moved(PhysicalPosition::new(tx, ty));
+    app.handle_mouse_up(MouseButton::Left);
+    let bouts = app.store.active_board().and_then(|b| {
+        b.annotations.iter().rev().find_map(|a| match a {
+            Annotation::Arrow {
+                source_id,
+                target_id,
+                ..
+            } => Some((source_id.clone(), target_id.clone())),
+            _ => None,
+        })
+    });
+    assert_eq!(
+        bouts,
+        Some((None, Some("texte".to_string()))),
+        "libre dans le vide de la membrane, accrochée au texte"
+    );
+}

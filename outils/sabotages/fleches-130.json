@@ -1,0 +1,62 @@
+[
+ {
+  "nom": "ARROW-4 — une membrane se vise comme une boîte pleine (comme avant)",
+  "fichier": "crates/glucose-core/src/arrow/accroche.rs",
+  "avant": "            Annotation::Membrane { .. } => Visee::Frontiere,\n",
+  "apres": "            Annotation::Membrane { .. } => Visee::Boite,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "arrow::tests::test_arrow_4"
+  ]
+ },
+ {
+  "nom": "ARROW-4 — une membrane se vise comme une boîte pleine, par la souris",
+  "fichier": "crates/glucose-core/src/arrow/accroche.rs",
+  "avant": "            Annotation::Membrane { .. } => Visee::Frontiere,\n",
+  "apres": "            Annotation::Membrane { .. } => Visee::Boite,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_arrow_4"
+  ]
+ },
+ {
+  "nom": "ARROW-4 — de l'intérieur, le premier bord venu au lieu du plus proche",
+  "fichier": "crates/glucose-core/src/arrow/accroche.rs",
+  "avant": "        .min_by(|a, b| distance(*a, (x, y)).total_cmp(&distance(*b, (x, y))))\n",
+  "apres": "        .next()\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "arrow::tests::test_arrow_4"
+  ]
+ },
+ {
+  "nom": "ARROW-4 — le bureau vise chaque annotation comme une boîte",
+  "fichier": "crates/glucose-desktop/src/interactions/tools.rs",
+  "avant": "Noeud::Annotation(a) => Some((a.id(), a.rect()?, Visee::de(a))),",
+  "apres": "Noeud::Annotation(a) => Some((a.id(), a.rect()?, Visee::Boite)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "test_arrow_4"
+  ]
+ }
+]

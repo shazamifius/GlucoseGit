@@ -277,6 +277,63 @@ fn test_arrow_2_an_excluded_node_is_never_targeted() {
     assert_eq!(snap.point, (110.0, 30.0));
 }
 
+// ── ARROW-4 : une membrane se vise par sa frontière (fiche 130) ─────────────
+
+/// Une membrane de 1 000 × 800, et un texte de 200 × 100 posé en elle.
+fn membrane_et_texte() -> Board {
+    let mut board = plateau(&[("texte", 400.0, 300.0, 200.0, 100.0)]);
+    let m = Annotation::membrane("membrane", 0.0, 0.0, 1000.0, 800.0);
+    // La membrane d'abord, comme dans un tableau où on la pose avant ce qu'elle contient.
+    board.annotations.insert(0, m);
+    board
+}
+
+/// **Dedans, loin de sa frontière, le bout reste libre** — sa parole du 22/11 : *« impossible de
+/// placer une flèche à l'intérieur d'une membrane, car celle-ci se rattache automatiquement à la
+/// membrane »*. La preuve à l'envers : jugée comme une boîte pleine, elle l'accrochait.
+#[test]
+fn test_arrow_4_inside_a_membrane_far_from_its_border_the_end_stays_free() {
+    let board = membrane_et_texte();
+    let point = (150.0, 600.0);
+    assert_eq!(snap_to_nearest(&board, point, &[]), Snap::free(point));
+    let boite = Rect::new(0.0, 0.0, 1000.0, 800.0);
+    let avant = snap_parmi([("membrane", boite, Visee::Boite)], point, &[]);
+    assert_eq!(avant.node.as_deref(), Some("membrane"), "l'ancienne loi");
+}
+
+/// **Un texte posé dans une membrane se vise** : avant, les deux étaient à distance nulle et la
+/// membrane, venue d'abord, gagnait.
+#[test]
+fn test_arrow_4_a_text_inside_a_membrane_wins_over_it() {
+    let board = membrane_et_texte();
+    let snap = snap_to_nearest(&board, (450.0, 350.0), &[]);
+    assert_eq!(snap.node.as_deref(), Some("texte"));
+    assert_eq!(
+        snap.point,
+        (450.0, 350.0),
+        "on pointe où l'on veut dans le texte"
+    );
+}
+
+/// **La membrane se relie par sa frontière**, de l'intérieur comme de l'extérieur : le bout se pose
+/// sur le bord le plus proche.
+#[test]
+fn test_arrow_4_a_membrane_is_grabbed_by_its_border_from_both_sides() {
+    let board = membrane_et_texte();
+    let dedans = snap_to_nearest(&board, (30.0, 600.0), &[]);
+    assert_eq!(dedans.node.as_deref(), Some("membrane"));
+    assert_eq!(dedans.point, (0.0, 600.0));
+    let dehors = snap_to_nearest(&board, (-50.0, 600.0), &[]);
+    assert_eq!(dehors.node.as_deref(), Some("membrane"));
+    assert_eq!(dehors.point, (0.0, 600.0));
+    let en_bas = snap_to_nearest(&board, (500.0, 790.0), &[]);
+    assert_eq!(
+        en_bas.point,
+        (500.0, 800.0),
+        "le bord le plus proche, pas le premier venu"
+    );
+}
+
 // ── Le point d'ancrage de ce qu'une flèche dit ────────────────────────────
 
 /// Sur une flèche droite, l'étiquette se pose au milieu.
