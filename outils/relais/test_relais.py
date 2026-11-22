@@ -100,6 +100,20 @@ class Jauges(unittest.TestCase):
         dire.assert_called_once_with("Opus · 5 h 60 %")
 
 
+class Jeton(unittest.TestCase):
+    def test_present_absent_et_a_renouveler_sans_jamais_sa_valeur(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "github.md"
+            with mock.patch.object(r, "JETON", f):
+                self.assertTrue(r.jeton_github(0).startswith("absent"))
+                f.write_text("# commentaire\n\n")
+                self.assertTrue(r.jeton_github(0).startswith("absent"))
+                f.write_text("# commentaire\nghp_secret\n")
+                dit = r.jeton_github(f.stat().st_mtime + 4 * 86400)
+                self.assertIn("à renouveler", dit)
+                self.assertNotIn("ghp_secret", dit)
+
+
 class Binaire(unittest.TestCase):
     def test_le_claude_de_la_derniere_extension_par_numero_pas_par_texte(self):
         with tempfile.TemporaryDirectory() as d:

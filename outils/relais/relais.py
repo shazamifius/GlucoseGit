@@ -347,12 +347,40 @@ def surveiller(memoire, histoire, maintenant):
         journal("sa réponse tapée dans la session")
 
 
+JETON = MAISON / "Projets/github.md"
+
+
+def jeton_github(maintenant):
+    """Le jeton est-il là, et de quand (il le renouvelle tous les 3 jours) — jamais sa valeur."""
+    try:
+        present = any(l.strip() and not l.lstrip().startswith("#") for l in JETON.read_text().splitlines())
+    except OSError:
+        present = False
+    if not present:
+        return "absent — colle-le dans ~/Projets/github.md"
+    jours = (maintenant - JETON.stat().st_mtime) / 86400
+    return f"présent (posé il y a {jours:.0f} j)" + (" — à renouveler" if jours >= 3 else "")
+
+
+def travail(depuis):
+    """Ce que la session a produit : ses commits depuis son début, et ce que GitHub n'a pas encore.
+    Lu dans Git, sans dépenser un jeton d'usage — de quoi juger ce que coûte chaque pour-cent."""
+    def git(*a):
+        return subprocess.run(["git", "-C", str(DEPOT), *a], capture_output=True, text=True).stdout.strip()
+    faits = git("log", f"--since=@{int(depuis)}", "--format=%h %s").splitlines()
+    attente = git("rev-list", "--count", "origin/main..main") or "?"
+    liste = "".join(f"\n  - {c[:90]}" for c in faits[:5])
+    return f"{len(faits)} commit(s) depuis {heure(depuis)} · {attente} pas encore sur GitHub{liste}"
+
+
 def battre(memoire, etat, maintenant):
     compte = etat.get("compte") or memoire.get("compte") or "a"
     f = charge(compte, maintenant)
     jauge = " · ".join(f"{t} : {round(f[n][0])} %" for n, t in (("five_hour", "5 h"), ("seven_day", "semaine"))
                        if n in f) or "jauges pas encore lues"
-    ecrire(BATTEMENT, f"❤️ **Relais** · {heure(maintenant)}\n- compte {compte} · {jauge}\n- {etat['dit']}")
+    depuis = lire_json(ETAT / "session.json", {}).get("depuis") or maintenant
+    ecrire(BATTEMENT, f"❤️ **Relais** · {heure(maintenant)}\n- compte {compte} · {jauge}\n- {etat['dit']}"
+                      f"\n- travail : {travail(depuis)}\n- jeton GitHub : {jeton_github(maintenant)}")
     memoire["battu"] = maintenant
 
 
