@@ -11,6 +11,11 @@ viennent de son VivoBook (i7-8550U, 7,6 Go, Intel UHD 620) : leurs mesures et le
 sont celles de cette petite machine, plus la nôtre. Celles d'avant le 6/11 parlent de son PC Windows,
 cassé : ce qui y parle de `C:\`, de PowerShell, de WSL ou de `.exe` ne vaut plus ici.
 
+**Un relais autonome travaille sur Glucose** (22/11) : des sessions de Claude qui continuent seules, d'un
+compte à l'autre. Son mode d'emploi est dans son Glucose (`glucose lire tableau=main ids=relais-mode-emploi`,
+membrane « 🤖 Relais ») : à lire avant de toucher au dépôt. Tout ce qu'on a à lui dire s'écrit dans son
+Glucose ; il ne lit pas les conversations.
+
 ## Lire, dans cet ordre — environ 10 000 mots
 
 1. **[`docs/VISION.md`](docs/VISION.md), en entier** : ses paroles, datées, et **la charte** (100 images

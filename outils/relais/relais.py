@@ -56,6 +56,7 @@ def claude_binaire():
     return str(candidats[-1]) if candidats else "claude"
 CONSIGNE, PASSATION, BATTEMENT, BLOQUE, REPONSE = (
     "relais-consigne", "relais-passation", "relais-battement", "relais-bloque", "relais-reponse")
+MODE_EMPLOI = "relais-mode-emploi"  # ce qui est automatique, pour lui et pour toute session de Claude
 INVITE_REPONSE = "✍️ Ta réponse :"
 
 REGLES = (
@@ -69,7 +70,8 @@ REGLES = (
 def depart(compte):
     return (f"Session du relais (compte {compte}). Lis ~/.claude/CLAUDE.md, ~/Projets/LISEZ-MOI.md et "
             "toutes tes mémoires en entier, puis dans son Glucose (glucose lire tableau=main "
-            f"ids={CONSIGNE} ids={PASSATION}) sa consigne et la passation. Puis travaille selon la consigne.")
+            f"ids={CONSIGNE} ids={PASSATION} ids={MODE_EMPLOI}) sa consigne, la passation et le mode d'emploi "
+            "du relais. Puis travaille selon la consigne.")
 
 
 # ── Petits outils ─────────────────────────────────────────────────────────────────────────────
