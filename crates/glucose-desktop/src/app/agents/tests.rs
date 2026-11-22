@@ -283,33 +283,30 @@ fn lecture_1_un_agent_n_attend_jamais_derriere_un_autre() {
     assert!(existe(&app, "a"));
 }
 
-/// **LECTURE-1 — chaque agent garde son ordre** : sa lecture, demandée après son écriture,
-/// l'attend, et la voit.
+/// **LECTURE-1 — deux connexions du même nom ne s'attendent pas** (fiche 130), vu au pilote : chaque
+/// commande d'un terminal se présente comme « le terminal ». Une écriture qui attend le geste —
+/// peut-être déjà abandonnée par son client — ne retient pas la lecture d'un autre terminal, qui
+/// ne voit pas d'écriture fantôme.
 #[test]
-fn lecture_1_la_lecture_d_un_agent_voit_ce_qu_il_vient_d_ecrire() {
+fn lecture_1_deux_connexions_du_meme_nom_ne_s_attendent_pas() {
     let (mut app, boite) = app_et_boite();
-    autoriser(&mut app, &boite, "proteo");
+    autoriser(&mut app, &boite, "le terminal");
     app.store.begin_live_edit();
     let ecriture = appeler(
         &boite,
-        "proteo",
+        "le terminal",
         "glucose_poser_texte",
         r#"{"id":"a","texte":"x"}"#,
     );
-    let lecture = appeler(&boite, "proteo", "glucose_lire", "{}");
+    let lecture = appeler(&boite, "le terminal", "glucose_lire", "{}");
     app.suivre_les_agents();
-    assert!(
-        lecture.try_recv().is_err(),
-        "sa lecture attend son écriture"
-    );
+    let lu = ids_lus(&lecture.try_recv().expect("la lecture n'attend pas"));
+    assert!(!lu.iter().any(|id| id == "a"), "rien de fantôme : {lu:?}");
+    assert!(ecriture.try_recv().is_err(), "l'écriture attend son geste");
     app.store.end_live_edit();
     app.suivre_les_agents();
     assert!(!en_erreur(&ecriture.try_recv().expect("répondu")));
-    let lu = ids_lus(&lecture.try_recv().expect("répondu"));
-    assert!(
-        lu.iter().any(|id| id == "a"),
-        "il lit ce qu'il a écrit : {lu:?}"
-    );
+    assert!(existe(&app, "a"));
 }
 
 /// **LECTURE-1 — la question posée pour un agent ne retient pas ceux qui ont son accord.**

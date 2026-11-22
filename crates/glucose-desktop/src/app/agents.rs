@@ -7,14 +7,18 @@
 //!   autre ne l'est ; on ne chasse jamais la sienne ;
 //! * il **écrit** et l'utilisateur est au milieu d'un geste : ce que l'agent écrirait entrerait
 //!   dans son geste à lui (AGENT-1). Son relâchement réveille la boucle, et l'appel passe. Une
-//!   **lecture**, elle, passe toujours : elle ne peut rien écrire dans ce geste (LECTURE-1) ;
-//! * un appel **du même agent**, plus ancien, attend encore : chaque agent est servi dans l'ordre
-//!   où il a demandé (sa lecture voit ce qu'il vient d'écrire), mais **aucun n'attend derrière un
-//!   autre** (LECTURE-1, fiche 130).
+//!   **lecture**, elle, passe toujours : elle ne peut rien écrire dans ce geste (LECTURE-1).
 //!
-//! Le 22/11/2026, la roue des couleurs restée ouverte chez lui a retenu treize minutes toutes les
-//! demandes — la simple lecture de sa consigne par le relais comprise —, parce que la file
-//! entière attendait derrière son geste (fiche 130).
+//! **Aucun appel n'attend derrière un autre** (LECTURE-1, fiche 130). La boucle n'a aucun ordre
+//! à garder entre deux appels : chaque connexion attend la réponse avant d'envoyer sa demande
+//! suivante (`porte::servir`, la discussion), et deux requêtes envoyées sans attendre ne se
+//! promettent aucun ordre (JSON-RPC) — un agent lit donc toujours ce qu'il vient d'écrire (*Read
+//! Your Writes*, Terry et al. 1994). Un ordre par nom d'agent ferait attendre l'une derrière
+//! l'autre deux connexions sans lien qui portent le même nom (« le terminal ») — ou derrière une
+//! demande que son client a déjà abandonnée.
+//!
+//! Le 22/11/2026, de 23 h 12 à 23 h 25, son Glucose n'a répondu à aucun agent : la file entière
+//! attendait derrière sa tête — un geste resté ouvert, ou la question d'accord d'un autre agent.
 
 use crate::agents::json::Json;
 use crate::agents::outils;
@@ -86,21 +90,15 @@ impl Agents {
         }
     }
 
-    /// **La première demande qui peut passer** (LECTURE-1, fiche 130). Chaque agent est servi
-    /// dans l'ordre où il a demandé, mais aucun n'attend derrière un autre ; pendant le geste de
-    /// l'humain, seule une lecture passe (AGENT-1).
+    /// **La première demande qui peut passer** (LECTURE-1, fiche 130) : aucune n'attend derrière
+    /// une autre ; pendant le geste de l'humain, seule une lecture passe (AGENT-1).
     fn prochaine(&self, geste_ouvert: bool) -> Prochaine {
-        let mut retenus: Vec<&str> = Vec::new();
         let mut a_demander = None;
         for (i, d) in self.attente.iter().enumerate() {
-            let client = d.appel.client.as_str();
-            if retenus.contains(&client) {
-                continue;
-            }
             // Une IA du nuage a déjà son accord : la clé que Glucose lui a donnée après son clic
             // (PUBLIQUE-1, fiche 116).
             let accord = if d.appel.portee.machine {
-                self.accords.get(client).copied()
+                self.accords.get(&d.appel.client).copied()
             } else {
                 Some(true)
             };
@@ -111,10 +109,9 @@ impl Agents {
                 }
                 Some(true) => {}
                 None => {
-                    a_demander.get_or_insert_with(|| client.to_string());
+                    a_demander.get_or_insert_with(|| d.appel.client.clone());
                 }
             }
-            retenus.push(client);
         }
         Prochaine::Rien { a_demander }
     }
@@ -180,8 +177,9 @@ impl GlucoseApp {
         }
     }
 
-    /// **Ce que les agents demandent**, chacun dans l'ordre où il l'a demandé (LECTURE-1) — la
-    /// discussion d'abord, qui en est un (DISCUSSION-1, fiche 129).
+    /// **Ce que les agents demandent**, dans l'ordre où ils l'ont demandé, sans qu'aucun attende
+    /// derrière un autre (LECTURE-1) — la discussion d'abord, qui en est un (DISCUSSION-1, fiche
+    /// 129).
     pub(crate) fn suivre_les_agents(&mut self) {
         self.suivre_la_discussion();
         let agents = &mut self.lancement.agents;

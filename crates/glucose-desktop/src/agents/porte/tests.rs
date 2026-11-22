@@ -75,6 +75,50 @@ fn une_connexion_repond_dans_l_ordre_et_confie_les_outils_a_la_boucle() {
     assert_eq!(texte, r#"{"outil":"glucose_lire"}"#);
 }
 
+/// Ce que la boîte a reçu, dès qu'elle a reçu quelque chose ; tombe au lieu d'attendre toujours.
+fn relever_au_moins_une(boite: &Boite) -> Vec<crate::agents::Demande> {
+    let fin = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let recu = boite.relever();
+        if !recu.is_empty() {
+            return recu;
+        }
+        assert!(std::time::Instant::now() < fin, "aucune demande n'arrive");
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
+/// **LECTURE-1 — une connexion attend chaque réponse avant sa demande suivante** (fiche 130) : un
+/// agent lit donc toujours ce qu'il vient d'écrire (*Read Your Writes*), sans que la boucle garde
+/// d'ordre entre les demandes — elle n'en a jamais deux d'une même connexion.
+#[test]
+fn lecture_1_une_connexion_n_a_jamais_deux_demandes_dans_la_boite() {
+    let boite = Boite::nouvelle(Arc::new(|| {}));
+    let b = boite.clone();
+    let fil = std::thread::spawn(move || {
+        let entree = format!("{APPELER}\n{APPELER}\n");
+        servir(Cursor::new(entree.into_bytes()), Vec::new(), &b);
+    });
+    let premieres = relever_au_moins_une(&boite);
+    // Le temps qu'une connexion qui n'attendrait pas dépose sa seconde demande.
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let pendant = boite.relever();
+    assert_eq!(
+        premieres.len() + pendant.len(),
+        1,
+        "la seconde attend la réponse de la première"
+    );
+    let repondre = |d: crate::agents::Demande| {
+        let ligne = crate::agents::protocole::reponse_d_outil(&d.appel, Ok(Json::Nul));
+        let _ = d.reponse.send(ligne);
+    };
+    premieres.into_iter().for_each(repondre);
+    let secondes = relever_au_moins_une(&boite);
+    assert_eq!(secondes.len(), 1);
+    secondes.into_iter().for_each(repondre);
+    fil.join().expect("la connexion se termine");
+}
+
 #[test]
 fn quand_glucose_se_ferme_la_connexion_se_termine_au_lieu_d_attendre() {
     // Une boîte que personne ne relève, et dont la demande est jetée : la boucle est partie.

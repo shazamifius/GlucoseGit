@@ -15,10 +15,10 @@
   ]
  },
  {
-  "nom": "LECTURE-1 — un agent attend derrière un autre (la file entière, comme avant)",
+  "nom": "LECTURE-1 — la file entière attend derrière la première demande qui attend (comme avant)",
   "fichier": "crates/glucose-desktop/src/app/agents.rs",
-  "avant": "            if retenus.contains(&client) {\n",
-  "apres": "            if !retenus.is_empty() {\n",
+  "avant": "                Some(true) => {}\n",
+  "apres": "                Some(true) => return Prochaine::Rien { a_demander },\n",
   "cmd": [
    "cargo",
    "test",
@@ -30,10 +30,10 @@
   ]
  },
  {
-  "nom": "LECTURE-1 — l'ordre d'un agent n'est plus gardé (sa lecture passe devant son écriture)",
+  "nom": "LECTURE-1 — la question d'un agent retient toute la file (comme avant)",
   "fichier": "crates/glucose-desktop/src/app/agents.rs",
-  "avant": "            retenus.push(client);\n",
-  "apres": "            let _ = &retenus;\n",
+  "avant": "                    a_demander.get_or_insert_with(|| d.appel.client.clone());\n",
+  "apres": "                    return Prochaine::Rien { a_demander: Some(d.appel.client.clone()) };\n",
   "cmd": [
    "cargo",
    "test",
@@ -77,7 +77,7 @@
  {
   "nom": "AGENTS-1 — personne ne pose la question",
   "fichier": "crates/glucose-desktop/src/app/agents.rs",
-  "avant": "                    a_demander.get_or_insert_with(|| client.to_string());\n",
+  "avant": "                    a_demander.get_or_insert_with(|| d.appel.client.clone());\n",
   "apres": "                    let _ = &a_demander;\n",
   "cmd": [
    "cargo",
@@ -117,6 +117,21 @@
    "--lib",
    "--",
    "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "LECTURE-1 — une connexion n'attend plus sa réponse avant sa demande suivante",
+  "fichier": "crates/glucose-desktop/src/agents/porte.rs",
+  "avant": "                match attente.recv() {\n",
+  "apres": "                match Ok::<String, std::sync::mpsc::RecvError>(String::new()) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::porte::tests::lecture_1"
   ]
  },
  {
