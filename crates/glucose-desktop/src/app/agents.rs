@@ -3,12 +3,21 @@
 //!
 //! Un appel attend tant que :
 //!
-//! * l'utilisateur n'a pas répondu à la question — elle se pose dès qu'aucune autre ne l'est ;
-//!   on ne chasse jamais la sienne ;
-//! * il est au milieu d'un geste : ce que l'agent écrirait entrerait dans son geste à lui
-//!   (AGENT-1). Son relâchement réveille la boucle, et l'appel passe.
+//! * l'utilisateur n'a pas répondu à la question pour cet agent — elle se pose dès qu'aucune
+//!   autre ne l'est ; on ne chasse jamais la sienne ;
+//! * il **écrit** et l'utilisateur est au milieu d'un geste : ce que l'agent écrirait entrerait
+//!   dans son geste à lui (AGENT-1). Son relâchement réveille la boucle, et l'appel passe. Une
+//!   **lecture**, elle, passe toujours : elle ne peut rien écrire dans ce geste (LECTURE-1) ;
+//! * un appel **du même agent**, plus ancien, attend encore : chaque agent est servi dans l'ordre
+//!   où il a demandé (sa lecture voit ce qu'il vient d'écrire), mais **aucun n'attend derrière un
+//!   autre** (LECTURE-1, fiche 130).
+//!
+//! Le 22/11/2026, la roue des couleurs restée ouverte chez lui a retenu treize minutes toutes les
+//! demandes — la simple lecture de sa consigne par le relais comprise —, parce que la file
+//! entière attendait derrière son geste (fiche 130).
 
 use crate::agents::json::Json;
+use crate::agents::outils;
 use crate::agents::porte::{self, Porte};
 use crate::agents::{protocole, Boite, Demande};
 use crate::app::GlucoseApp;
@@ -76,6 +85,49 @@ impl Agents {
             ..Self::default()
         }
     }
+
+    /// **La première demande qui peut passer** (LECTURE-1, fiche 130). Chaque agent est servi
+    /// dans l'ordre où il a demandé, mais aucun n'attend derrière un autre ; pendant le geste de
+    /// l'humain, seule une lecture passe (AGENT-1).
+    fn prochaine(&self, geste_ouvert: bool) -> Prochaine {
+        let mut retenus: Vec<&str> = Vec::new();
+        let mut a_demander = None;
+        for (i, d) in self.attente.iter().enumerate() {
+            let client = d.appel.client.as_str();
+            if retenus.contains(&client) {
+                continue;
+            }
+            // Une IA du nuage a déjà son accord : la clé que Glucose lui a donnée après son clic
+            // (PUBLIQUE-1, fiche 116).
+            let accord = if d.appel.portee.machine {
+                self.accords.get(client).copied()
+            } else {
+                Some(true)
+            };
+            match accord {
+                Some(false) => return Prochaine::Refuser(i),
+                Some(true) if !geste_ouvert || outils::lit_seulement(&d.appel.nom) => {
+                    return Prochaine::Servir(i)
+                }
+                Some(true) => {}
+                None => {
+                    a_demander.get_or_insert_with(|| client.to_string());
+                }
+            }
+            retenus.push(client);
+        }
+        Prochaine::Rien { a_demander }
+    }
+}
+
+/// Ce que la file permet maintenant.
+enum Prochaine {
+    /// Servir la demande à ce rang.
+    Servir(usize),
+    /// La refuser : l'utilisateur a refusé son agent.
+    Refuser(usize),
+    /// Rien ne peut passer ; le premier agent sans réponse de l'utilisateur, s'il y en a un.
+    Rien { a_demander: Option<String> },
 }
 
 /// Le titre de la question d'accord.
@@ -128,57 +180,49 @@ impl GlucoseApp {
         }
     }
 
-    /// **Ce que les agents demandent**, dans l'ordre où ils l'ont demandé — la discussion
-    /// d'abord, qui en est un (DISCUSSION-1, fiche 129).
+    /// **Ce que les agents demandent**, chacun dans l'ordre où il l'a demandé (LECTURE-1) — la
+    /// discussion d'abord, qui en est un (DISCUSSION-1, fiche 129).
     pub(crate) fn suivre_les_agents(&mut self) {
         self.suivre_la_discussion();
         let agents = &mut self.lancement.agents;
         if let Some(boite) = &agents.boite {
             agents.attente.extend(boite.relever());
         }
-        while let Some((client, portee)) = self
-            .lancement
-            .agents
-            .attente
-            .front()
-            .map(|d| (d.appel.client.clone(), d.appel.portee))
-        {
-            // Une IA du nuage a déjà son accord : la clé que Glucose lui a donnée après son clic
-            // (PUBLIQUE-1, fiche 116).
-            let accord = if portee.machine {
-                self.lancement.agents.accords.get(&client).copied()
-            } else {
-                Some(true)
-            };
-            match accord {
-                Some(true) if self.store.in_live_edit() => return,
-                Some(true) => {
-                    let Some(d) = self.lancement.agents.attente.pop_front() else {
-                        return;
-                    };
-                    if !portee.machine {
-                        // L'onglet que l'appel vise : le sien, ou celui qu'il regarde.
-                        let onglet = d.appel.arguments.get("tableau").and_then(Json::as_str);
-                        let onglet = onglet.map_or_else(
-                            || self.store.project.active_board_id.clone(),
-                            str::to_string,
-                        );
-                        self.temoigner(&client, &onglet);
+        loop {
+            match self.lancement.agents.prochaine(self.store.in_live_edit()) {
+                Prochaine::Servir(i) => self.servir(i),
+                Prochaine::Refuser(i) => {
+                    if let Some(d) = self.lancement.agents.attente.remove(i) {
+                        let client = d.appel.client.clone();
+                        refuser(d, &client, "l'utilisateur ne l'a pas autorisé");
                     }
-                    let issue = self.executer_dans_sa_portee(&d.appel);
-                    repondre(d, issue);
                 }
-                Some(false) => {
-                    self.refuser_le_premier(&client, "l'utilisateur ne l'a pas autorisé")
-                }
-                None => {
-                    if self.ui.question.is_none() {
+                Prochaine::Rien { a_demander } => {
+                    if let Some(client) = a_demander.filter(|_| self.ui.question.is_none()) {
                         self.demander(question(&client), Suite::Agent(client));
                     }
                     return;
                 }
             }
         }
+    }
+
+    /// **Sert la demande à ce rang** : le témoin d'une IA du nuage, puis l'outil.
+    fn servir(&mut self, rang: usize) {
+        let Some(d) = self.lancement.agents.attente.remove(rang) else {
+            return;
+        };
+        if !d.appel.portee.machine {
+            // L'onglet que l'appel vise : le sien, ou celui qu'il regarde.
+            let onglet = d.appel.arguments.get("tableau").and_then(Json::as_str);
+            let onglet = onglet.map_or_else(
+                || self.store.project.active_board_id.clone(),
+                str::to_string,
+            );
+            self.temoigner(&d.appel.client, &onglet);
+        }
+        let issue = self.executer_dans_sa_portee(&d.appel);
+        repondre(d, issue);
     }
 
     /// **Exécute un appel** sous le nom de son agent (MAIN-1 : ce qu'il écrit porte son nom dans
@@ -238,16 +282,24 @@ impl GlucoseApp {
         self.demander(question, Suite::OublierLesAgents);
     }
 
+    /// Refuse **la première demande de cet agent** — pas la première de la file : un autre agent
+    /// peut attendre devant lui (LECTURE-1).
     fn refuser_le_premier(&mut self, client: &str, pourquoi: &str) {
-        if let Some(d) = self.lancement.agents.attente.pop_front() {
-            repondre(
-                d,
-                Err(format!(
-                    "« {client} » ne peut pas travailler dans Glucose : {pourquoi}"
-                )),
-            );
+        let attente = &mut self.lancement.agents.attente;
+        let rang = attente.iter().position(|d| d.appel.client == client);
+        if let Some(d) = rang.and_then(|r| attente.remove(r)) {
+            refuser(d, client, pourquoi);
         }
     }
+}
+
+fn refuser(d: Demande, client: &str, pourquoi: &str) {
+    repondre(
+        d,
+        Err(format!(
+            "« {client} » ne peut pas travailler dans Glucose : {pourquoi}"
+        )),
+    );
 }
 
 fn repondre(d: Demande, issue: Result<Json, String>) {

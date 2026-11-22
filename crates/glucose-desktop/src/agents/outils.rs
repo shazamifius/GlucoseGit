@@ -277,9 +277,15 @@ const DU_DOCUMENT: [&str; 16] = [
     "glucose_noter",
 ];
 
+/// **Cet outil ne fait-il que lire ?** Alors il passe même pendant un geste de l'humain
+/// (LECTURE-1, fiche 130) : il ne peut rien écrire dans ce geste.
+pub fn lit_seulement(nom: &str) -> bool {
+    LECTEURS.contains(&nom)
+}
+
 /// **Cet outil est-il ouvert à cette portée ?**
 pub fn permis(nom: &str, portee: Portee) -> bool {
-    (portee.machine || DU_DOCUMENT.contains(&nom)) && (portee.ecrire || LECTEURS.contains(&nom))
+    (portee.machine || DU_DOCUMENT.contains(&nom)) && (portee.ecrire || lit_seulement(nom))
 }
 
 /// Ce que `tools/list` rend à un agent de cette machine.

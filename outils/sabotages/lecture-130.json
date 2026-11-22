@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "LECTURE-1 — une lecture attend le geste comme une écriture",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "Some(true) if !geste_ouvert || outils::lit_seulement(&d.appel.nom) => {",
+  "apres": "Some(true) if !geste_ouvert => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "LECTURE-1 — un agent attend derrière un autre (la file entière, comme avant)",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "            if retenus.contains(&client) {\n",
+  "apres": "            if !retenus.is_empty() {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "LECTURE-1 — l'ordre d'un agent n'est plus gardé (sa lecture passe devant son écriture)",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "            retenus.push(client);\n",
+  "apres": "            let _ = &retenus;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "LECTURE-1 — « Plus tard » refuse la tête de la file, celle d'un autre agent",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "let rang = attente.iter().position(|d| d.appel.client == client);",
+  "apres": "let rang = (!attente.is_empty()).then_some(0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "AGENT-1 — une écriture passe pendant son geste",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "Some(true) if !geste_ouvert || outils::lit_seulement(&d.appel.nom) => {",
+  "apres": "Some(true) if true || !geste_ouvert => {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "AGENTS-1 — personne ne pose la question",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                    a_demander.get_or_insert_with(|| client.to_string());\n",
+  "apres": "                    let _ = &a_demander;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "AGENTS-1 — un agent refusé attend au lieu d'être refusé",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                Some(false) => return Prochaine::Refuser(i),\n",
+  "apres": "                Some(false) => {}\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ },
+ {
+  "nom": "LECTURE-1 — tout outil passe pour une lecture",
+  "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+  "avant": "    LECTEURS.contains(&nom)\n",
+  "apres": "    !nom.is_empty()\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents::tests"
+  ]
+ }
+]

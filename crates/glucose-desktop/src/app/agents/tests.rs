@@ -214,3 +214,151 @@ fn main_1_apres_un_agent_la_main_revient_a_l_humain() {
         .collect();
     assert_eq!(mains, [Main::Agent("proteo".into()), Main::Humain]);
 }
+
+/// Donne son accord à cet agent, par la vraie question.
+fn autoriser(app: &mut GlucoseApp, boite: &Boite, client: &str) {
+    let _ = appeler(boite, client, "glucose_lire", "{}");
+    app.suivre_les_agents();
+    repondre(app, Reponse::Oui);
+}
+
+/// Les identifiants des nœuds qu'une lecture rend à l'agent, tels qu'il les reçoit.
+fn ids_lus(ligne: &str) -> Vec<String> {
+    let r = Json::lire(ligne).expect("une réponse");
+    let texte = r
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .and_then(Json::as_liste)
+        .and_then(|l| l.first())
+        .and_then(|c| c.get("text"))
+        .and_then(Json::as_str)
+        .expect("le texte de la lecture");
+    let lu = Json::lire(texte).expect("la lecture est du JSON");
+    let noeuds = lu.get("noeuds").and_then(Json::as_liste).expect("noeuds");
+    noeuds
+        .iter()
+        .filter_map(|n| n.get("id").and_then(Json::as_str).map(str::to_string))
+        .collect()
+}
+
+/// **LECTURE-1 — une lecture passe pendant son geste** (fiche 130). Le 22/11, la roue des
+/// couleurs restée ouverte a retenu treize minutes la lecture de sa consigne par le relais ;
+/// et le geste, lui, reste ouvert.
+#[test]
+fn lecture_1_une_lecture_passe_pendant_son_geste() {
+    let (mut app, boite) = app_et_boite();
+    autoriser(&mut app, &boite, "relais");
+    app.store.begin_live_edit();
+    for outil in ["glucose_lire", "glucose_chercher"] {
+        let reponse = appeler(&boite, "relais", outil, r#"{"cherche":"x"}"#);
+        app.suivre_les_agents();
+        let ligne = reponse.try_recv();
+        assert!(ligne.is_ok(), "{outil} répond pendant son geste");
+        assert!(!en_erreur(&ligne.unwrap()), "{outil}");
+    }
+    assert!(app.store.in_live_edit(), "son geste reste ouvert");
+}
+
+/// **LECTURE-1 — aucun agent n'attend derrière un autre** : l'écriture de l'un attend la fin du
+/// geste, la lecture de l'autre passe.
+#[test]
+fn lecture_1_un_agent_n_attend_jamais_derriere_un_autre() {
+    let (mut app, boite) = app_et_boite();
+    autoriser(&mut app, &boite, "proteo");
+    autoriser(&mut app, &boite, "relais");
+    app.store.begin_live_edit();
+    let ecriture = appeler(
+        &boite,
+        "proteo",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    let lecture = appeler(&boite, "relais", "glucose_lire", "{}");
+    app.suivre_les_agents();
+    assert!(lecture.try_recv().is_ok(), "le relais n'attend pas proteo");
+    assert!(ecriture.try_recv().is_err(), "l'écriture attend son geste");
+    app.store.end_live_edit();
+    app.suivre_les_agents();
+    assert!(!en_erreur(&ecriture.try_recv().expect("répondu")));
+    assert!(existe(&app, "a"));
+}
+
+/// **LECTURE-1 — chaque agent garde son ordre** : sa lecture, demandée après son écriture,
+/// l'attend, et la voit.
+#[test]
+fn lecture_1_la_lecture_d_un_agent_voit_ce_qu_il_vient_d_ecrire() {
+    let (mut app, boite) = app_et_boite();
+    autoriser(&mut app, &boite, "proteo");
+    app.store.begin_live_edit();
+    let ecriture = appeler(
+        &boite,
+        "proteo",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    let lecture = appeler(&boite, "proteo", "glucose_lire", "{}");
+    app.suivre_les_agents();
+    assert!(
+        lecture.try_recv().is_err(),
+        "sa lecture attend son écriture"
+    );
+    app.store.end_live_edit();
+    app.suivre_les_agents();
+    assert!(!en_erreur(&ecriture.try_recv().expect("répondu")));
+    let lu = ids_lus(&lecture.try_recv().expect("répondu"));
+    assert!(
+        lu.iter().any(|id| id == "a"),
+        "il lit ce qu'il a écrit : {lu:?}"
+    );
+}
+
+/// **LECTURE-1 — la question posée pour un agent ne retient pas ceux qui ont son accord.**
+#[test]
+fn lecture_1_la_question_d_un_agent_ne_retient_pas_les_autres() {
+    let (mut app, boite) = app_et_boite();
+    autoriser(&mut app, &boite, "proteo");
+    let intrus = appeler(&boite, "intrus", "glucose_lire", "{}");
+    let proteo = appeler(
+        &boite,
+        "proteo",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    app.suivre_les_agents();
+    assert!(
+        matches!(&app.ui.question, Some((_, Suite::Agent(c))) if c == "intrus"),
+        "on demande pour l'intrus"
+    );
+    assert!(intrus.try_recv().is_err(), "l'intrus attend sa réponse");
+    assert!(!en_erreur(
+        &proteo.try_recv().expect("proteo ne l'attend pas")
+    ));
+    assert!(existe(&app, "a"));
+}
+
+/// **« Plus tard » refuse l'appel de l'agent questionné**, pas celui d'un autre qui attend devant
+/// lui dans la file (LECTURE-1 : la tête de la file n'est plus forcément la sienne).
+#[test]
+fn lecture_1_plus_tard_refuse_l_appel_de_cet_agent_et_pas_un_autre() {
+    let (mut app, boite) = app_et_boite();
+    autoriser(&mut app, &boite, "proteo");
+    app.store.begin_live_edit();
+    let ecriture = appeler(
+        &boite,
+        "proteo",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    let intrus = appeler(&boite, "intrus", "glucose_lire", "{}");
+    app.suivre_les_agents();
+    assert!(matches!(&app.ui.question, Some((_, Suite::Agent(c))) if c == "intrus"));
+    repondre(&mut app, Reponse::Annuler);
+    assert!(en_erreur(&intrus.try_recv().expect("l'intrus est refusé")));
+    assert!(
+        ecriture.try_recv().is_err(),
+        "proteo attend toujours son geste"
+    );
+    app.store.end_live_edit();
+    app.suivre_les_agents();
+    assert!(!en_erreur(&ecriture.try_recv().expect("répondu")));
+}
