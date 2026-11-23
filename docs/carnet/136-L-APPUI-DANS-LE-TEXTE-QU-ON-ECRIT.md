@@ -50,7 +50,7 @@ Le compte b cite tldraw, qui cache les poignées pendant l'écriture : **pas vé
   l'appui à un autre (l'arbitre ne voit pas le texte ; la flèche passe devant ; la poignée prend le
   point) : la partie qui a grandi, la flèche dont le bout tombe dans le texte, la poignée dedans, et la
   poignée **du dehors** qui se prend toujours.
-* **Trois sabotages sur trois** (`outils/sabotages/edit-prise-136.json`) : l'arbitre seul (deux
+* **Trois sabotages sur trois**, puis quatre sur quatre avec la garde du § 4 (`outils/sabotages/edit-prise-136.json`) : l'arbitre seul (deux
   épreuves tombent), les poignées encore prises dedans, toute la scène donnée au texte.
 * **Regardé au pilote**, l'avant et l'après (§ 1).
 
@@ -65,7 +65,8 @@ Le compte b cite tldraw, qui cache les poignées pendant l'écriture : **pas vé
   redimensionnement (`resize.rs`). **Non relu** : un texte reçu d'un autre participant du co-working ;
   aucune épreuve ne garde l'égalité des deux boîtes hors saisie.
 * La garde `ann_id == id` de `dans_le_texte_ecrit` (la boîte vivante d'un texte quitté juste avant
-  qu'un autre s'ouvre, entre deux images) n'a pas d'épreuve.
+  qu'un autre s'ouvre, entre deux images) : **son épreuve est écrite** (`7921115`), et son sabotage
+  tombe — **quatre sabotages sur quatre** dans `edit-prise-136.json`.
 * **Faute de cette session** : la passation a d'abord porté « 23 h 25 », une heure estimée au lieu
   d'être lue (il était 23 h 05) — la règle de MÉTHODE § 3 n'est pas une formalité.
 
