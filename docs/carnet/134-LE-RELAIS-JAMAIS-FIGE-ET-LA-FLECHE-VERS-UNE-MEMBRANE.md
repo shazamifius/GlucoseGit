@@ -382,7 +382,7 @@ croix, la case rouge, `#ef4444` (`24-vise-rouge.png`) ; sur la lueur des chats, 
 celle des chats, la pipette se désarme (`28-prise-famille.png`). Son Glucose est recompilé sur
 `57dedf5`.
 
-## 14. REJOINDRE-1 — rejoindre un canevas par un champ (23/11, 21 h 40)
+## 14. REJOINDRE-1 — rejoindre un canevas par un champ (23/11, 21 h 25)
 
 **Sa note** (`text-kpll-346`, avec sa capture du téléphone, la question Collaborer qui dit « Aucun code
 dans le presse-papiers ») : *« c'est con que ça ne fonctionne pas juste parce qu'on n'a pas directement
@@ -411,3 +411,42 @@ dit « Rejoindre… » (`3-collaborer.png`) ; le champ vide, la frappe, « Ce n'
 avec le texte gardé (`4` à `6`) ; un vrai code de 58 signes au presse-papiers du compositeur, déjà dans
 le champ, qui défile jusqu'à sa fin (`8-prerempli.png`). **Pas essayé** : le clavier d'Android lui-même
 (l'APK ne se construit que par la CI) — à son téléphone.
+
+## 15. EDITION-LONGUE — écrire un long texte, vu au pilote ; SUIVRE-1 (23/11, 21 h 30 - 21 h 45)
+
+**Sa note** (`text-wiov-325`, membrane des bogues) porte quatre choses : (a) une longue phrase fait un
+bloc **très long et très étroit** ; (b) zoomé de près, avant d'avoir validé, **le texte disparaît** ;
+(c) **un `Ctrl+Z` pendant l'écriture efface tout**, ou renvoie « un tour en arrière au hasard » ;
+(d) écrire au-delà de l'écran oblige à **se déplacer pour voir ce qu'on écrit**.
+
+**Regardé au pilote** (`~/.cache/glucose-bancs/edition-134/`, le binaire de `a8ef6c4`) :
+* (a) **reproduit** (`4-cadre.png`) : 194 signes donnent un texte de 240 × 189, huit lignes de quatre
+  mots. Un texte naît à 240 (`DEFAULT_TEXT_CARD_WIDTH`) et ne grandit qu'en hauteur ; chez Glucose
+  Tauri, il était **« libre jusqu'à 600 px, ou fixé si redimensionné »** (fiche 06 § 5.1 — un « À
+  FAIRE » jamais fait) : c'est TEXT-FIT-3, au plan ;
+* (b) **pas reproduit** sur la carte graphique de ce poste : zoomé jusqu'au bout pendant l'écriture,
+  les lettres restent dessinées (`6` à `9`) — sa note venait peut-être de son VivoBook, ou d'une
+  version d'avant ; à son écran ;
+* (c) **pas reproduit** : trois `Ctrl+Z` dans un texte existant défont trois mots, un à un ; un
+  `Ctrl+Z` dans un texte neuf défait le dernier mot (TEXTE-UNDO-1). Hors de l'écriture, en revanche,
+  un `Ctrl+Z` défait **toute** l'écriture d'un coup (un geste) : c'est peut-être ce qu'il a vu ;
+* (d) **reproduit** (`14-sous-l-ecran.png`) : le texte grandit sous le bord, la vue ne suit pas.
+
+**SUIVRE-1 — fait** (`45ad503`, `91b6674`) : la loi existait — CLAVIER-3, « la ligne qu'on écrit reste
+en vue » — mais seul le clavier du téléphone l'appelait. Elle rejoint SAISIE-2 (`montrer.rs`, « ce
+qu'on écrit est à l'écran »), prend aussi **la largeur** (le curseur, avec la hauteur de sa ligne d'air
+de chaque côté : aucune marge à choisir), passe par le plus petit décalage (`rapprocher`), à la même
+échelle, hors de l'histoire de la caméra, et **toute commande d'écriture la demande** (`after_text_change`,
+l'annulation dans la saisie). **Vu au pilote après** (`20-apres-suivre.png`) : la vue suit — mais la
+dernière ligne s'arrêtait **sous la barre de couleur**, que la saisie fait naître (le nœud est choisi) ;
+d'où `ce_qui_se_voit` : la fenêtre, moins le clavier et les marges (BORD-1), et moins la barre la plus
+haute. L'attendu d'une épreuve de CLAVIER-3 réécrit pour cette loi (le bas de la ligne au haut de la
+barre, et non au bas de la fenêtre). Trois épreuves (sous le bas, au-delà du bord droit de près,
+`Ctrl+Z` après avoir regardé ailleurs), chacune avec l'envers ; **six sabotages sur six**
+(`suivre-134.json`).
+
+**Son geste « Toujours »** (21 h 47) : son Glucose tournait depuis 8 h 23 — sans rien de ce qui avait
+été fait le 23/11. Le relancer sans l'accord permanent aurait fait redemander l'accord à chaque appel du
+relais (le fichier `agents-toujours.txt` n'existait pas) : on le lui a demandé dans son Glucose ; il a
+fermé Glucose, le service l'a relancé en dix secondes sur le binaire de `45ad503`, et il a cliqué
+« Toujours, dans ce document ». **Le relais peut désormais relancer son Glucose pour une version neuve.**

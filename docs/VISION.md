@@ -428,7 +428,10 @@ plus jamais le lui demander.**
   j'aime bien au niveau design pour le coup, mais… en fait ce serait bien d'avoir du flou, comme avec
   l'IA qui parle du domaine en question — juste pour avoir un flou prononcé de ce qu'on vient de
   sélectionner ; sinon je pense que ça me va »* (B, et le reste du canevas flouté — lu ainsi, à
-  confirmer par une image D).
+  confirmer par une image D). **Sa réponse finale**, sous l'image D (23/11, vers 21 h 40) : *« pour
+  le coup, le flou c'est super intéressant — réponse finale : les carrés avec le flou, mais alors au
+  moins 60 % moins que ce qu'il y a actuellement »* — B, les équerres, et un flou réduit d'au moins
+  60 %.
 * **Trans-domaines** (R&D).
 * **Les rideaux** (un tableau dans une membrane), **les membranes de Mary** (étirées, minimisées),
   « optimiser » dans la Time Machine.
@@ -538,6 +541,15 @@ et de sa construction ; les trois IA répondant à la même question.
   la semaine, MAIS ON NE REGARDE JAMAIS la limite de tokens d'un modèle, c'est extrêmement important ;
   objectif : on vise toujours 90 %, que ce soit la session de la semaine, celle de 5 heures, ou 90 %
   d'utilisation des tokens […] et on switch, ou on recrée un nouveau chat »* (fiche 134).
+* **Sa consigne au relais, récrite le 23/11 vers 21 h 40** : *« l'objectif est de fixer TOUS les
+  problèmes de Glucose et de continuer son développement de manière intelligente et réfléchie ;
+  l'idée, ce serait aussi de rendre moins brouillon toute la carte Glucose, où tu es impérativement
+  prié d'être actif afin de pouvoir collaborer tous les deux ; veille aussi au fonctionnement de
+  l'automatisation de Claude, afin qu'il soit H24 actif et que tout fonctionne bien ; s'il y a des
+  redémarrages obligatoires, comme une nouvelle version, il faut s'assurer que tu as assez de limite
+  de tokens et t'assurer que tout reparte bien ; et l'idée, c'est vraiment archiver le plus possible
+  sur la map Glucose tous les problèmes s'ils sont définitivement résolus ou finis »*. Le même soir,
+  devant la carte où nos bulles se chevauchaient : *« c'est le bazar, je comprends plus rien »*.
 * **Archiver, jamais supprimer** (ses notes du 23/11 au soir) : *« archive les bugs une fois qu'ils sont
   corrigés »* ; *« archive les textes ainsi que les réponses une fois que c'est testé et déjà approuvé
   sur la dernière version de Glucose, afin de faire de la place visuellement dans le canva »* ; *« idée :
