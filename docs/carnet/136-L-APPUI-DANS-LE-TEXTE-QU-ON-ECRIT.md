@@ -68,3 +68,16 @@ Le compte b cite tldraw, qui cache les poignées pendant l'écriture : **pas vé
   qu'un autre s'ouvre, entre deux images) n'a pas d'épreuve.
 * **Faute de cette session** : la passation a d'abord porté « 23 h 25 », une heure estimée au lieu
   d'être lue (il était 23 h 05) — la règle de MÉTHODE § 3 n'est pas une formalité.
+
+## 5. La suite entière, et une épreuve qu'ANCRE-1 a démasquée
+
+La suite entière sur `58fcc1b` : **3 572 épreuves passées, une tombée**, et seule aussi (pas la
+charge) — `test_survol_2_de_loin_la_souris_ne_redessine_rien` (SURVOL-2, fiche 106). **Verte sur
+`91b6674`, tombée dès `af53d41`** (ANCRE-1, rejouée dans l'arbre détaché). Instrumentée : en (697, 424)
+de l'écran, à 5 %, la souris est à 7 px du trait de `f-z3` — les liens de « z » sont coudés par
+(300, 300), et leur long segment longe y ≈ 300 du monde, juste au-dessus du point. L'index ne voyait
+que la copie factice `(0,0)-(1,1)` de leurs bouts ; depuis ANCRE-1, il voit la flèche où elle se
+dessine, et l'allumer au survol est juste (le commentaire de l'épreuve le dit). **La prémisse était
+fausse, pas Glucose** : le point va à 41,5°, entre les liens de « a » et à 51 px des coudés de « z »
+(`bd38703`). Rien de relâché. C'est la deuxième scène, après LIEN-4, qui reposait sur la copie : les
+autres épreuves qui posent des flèches à `(0,0)-(1,1)` accrochées méritent le même regard.
