@@ -16,7 +16,7 @@ use winit::event::MouseButton;
 const SCREEN: (f32, f32) = (1440.0, 900.0);
 
 /// Rend une frame : c'est ce qui remplit l'index spatial dont le test de clic dépend.
-fn render(app: &mut GlucoseApp) {
+pub(super) fn render(app: &mut GlucoseApp) {
     let mut pixmap = Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
     let mut view = pixmap.as_mut();
     let overlay = SceneOverlay::sans_rien(&app.active_guides);
@@ -31,7 +31,7 @@ fn render(app: &mut GlucoseApp) {
 }
 
 /// Une application dont la caméra place l'origine du monde au milieu du canevas.
-fn app() -> GlucoseApp {
+pub(super) fn app() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     if let Some(b) = app.store.active_board_mut() {
         b.annotations.clear();
@@ -41,14 +41,14 @@ fn app() -> GlucoseApp {
     app
 }
 
-fn with_image(app: &mut GlucoseApp, id: &str, cx: f64, cy: f64) {
+pub(super) fn with_image(app: &mut GlucoseApp, id: &str, cx: f64, cy: f64) {
     let board = app.store.project.active_board_id.clone();
     app.store
         .add_image(&board, BoardImage::new(id, cx, cy, 200.0, 100.0));
     render(app);
 }
 
-fn image_x(app: &GlucoseApp, id: &str) -> f64 {
+pub(super) fn image_x(app: &GlucoseApp, id: &str) -> f64 {
     app.store
         .active_board()
         .and_then(|b| b.images.iter().find(|i| i.id == id))
@@ -57,7 +57,7 @@ fn image_x(app: &GlucoseApp, id: &str) -> f64 {
 }
 
 /// Appuie au centre de l'image `id`, là où elle est dessinée.
-fn press_on(app: &mut GlucoseApp, id: &str) {
+pub(super) fn press_on(app: &mut GlucoseApp, id: &str) {
     let vp = app.store.viewport();
     let img = app
         .store
@@ -69,7 +69,7 @@ fn press_on(app: &mut GlucoseApp, id: &str) {
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
 }
 
-fn drag_by(app: &mut GlucoseApp, dx: f64, steps: usize) {
+pub(super) fn drag_by(app: &mut GlucoseApp, dx: f64, steps: usize) {
     let vp = app.store.viewport();
     let (x0, y0) = app.mouse_pos;
     for i in 1..=steps {
@@ -78,7 +78,7 @@ fn drag_by(app: &mut GlucoseApp, dx: f64, steps: usize) {
     }
 }
 
-fn release(app: &mut GlucoseApp) {
+pub(super) fn release(app: &mut GlucoseApp) {
     app.handle_mouse_up(MouseButton::Left);
 }
 
@@ -468,7 +468,7 @@ fn test_memb_1_une_membrane_garde_ce_qu_on_y_lache_et_l_emporte() {
     let vp = app.store.viewport();
     let (sx, sy) = world_to_screen(650.0, -150.0, &vp);
     app.init_item_drag(650.0, -150.0);
-    let base = app.drag_selection_base.expect("une zone").encre;
+    let base = app.glisser.base.expect("une zone").encre;
     assert!(
         base.left + base.width >= 1200.0,
         "la zone redessinée couvre ce qui déborde : {base:?}"
@@ -507,7 +507,7 @@ fn test_titre_1_glisser_une_grande_membrane_redessine_son_titre() {
     let vp = app.store.viewport();
     let (sx, sy) = world_to_screen(100.0, 100.0, &vp);
     app.init_item_drag(100.0, 100.0);
-    let base = app.drag_selection_base.expect("une boîte").boite;
+    let base = app.glisser.base.expect("une boîte").boite;
     assert_eq!(base.top, 0.0, "l'aimant regarde la boîte");
     let _ = app.prendre_la_salissure();
     app.handle_item_drag_move(sx + 10.0 * vp.scale, sy);

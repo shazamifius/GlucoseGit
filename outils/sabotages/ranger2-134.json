@@ -1,0 +1,137 @@
+[
+ {
+  "nom": "RANGER-2 — lâchée sur un dossier, elle n'y entre pas",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "                    self.ranger_la_selection(&board, &dossier);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — le dossier visé n'est jamais retenu pendant le glisser",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "            self.glisser.depot = depot;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — un dossier qu'on glisse se vise lui-même",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "c.owner == PickOwner::Folder && !self.store.selected_folder_ids.contains(&c.id)",
+  "apres": "c.owner == PickOwner::Folder",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — n'importe quel nœud sous le pointeur est un dépôt",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "c.owner == PickOwner::Folder && !self.store.selected_folder_ids.contains(&c.id)",
+  "apres": "!self.store.selected_folder_ids.contains(&c.id)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — Échap laisse le dossier visé",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "        self.store.cancel_live_edit();\n        self.glisser = Glisser::default();\n",
+  "apres": "        self.store.cancel_live_edit();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — la boîte du dépôt n'est jamais connue",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "        let id = self.glisser.depot.as_deref()?;\n",
+  "apres": "        let id: &str = None?;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — la peinture ne passe pas le dépôt",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "            depot: self.boite_du_depot(),\n",
+  "apres": "            depot: None,\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — la couche du dessus ne dessine pas le dépôt",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        scene::dessiner_le_fantome(pixmap, theme, dossier, &pass.vp);\n",
+  "apres": "        let _ = dossier;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ },
+ {
+  "nom": "RANGER-2 — le dépôt se dessine sur tout l'écran",
+  "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+  "avant": "        scene::dessiner_le_fantome(pixmap, theme, dossier, &pass.vp);\n",
+  "apres": "        let _ = dossier;\n        scene::dessiner_le_fantome(pixmap, theme, glucose_core::geometry::Rect::new(-1e4, -1e4, 2e4, 2e4), &pass.vp);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::drag::ranger"
+  ]
+ }
+]

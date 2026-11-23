@@ -3,6 +3,7 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use glucose_core::geometry::Rect;
+use glucose_core::hit_priority::PickOwner;
 use glucose_core::smart_align::{snap_move_sur, union_rect, AlignRect, SnapGuides};
 use std::collections::HashSet;
 
@@ -15,12 +16,27 @@ pub struct BaseDuGlisser {
     pub encre: Rect,
 }
 
+/// **Ce qu'un glisser porte**, de l'appui au lâcher — un seul état, remis à zéro d'un coup.
+#[derive(Debug, Clone, Default)]
+pub struct Glisser {
+    /// Où la main a appuyé, en unités monde.
+    pub depart: (f64, f64),
+    /// Ce que l'aimant regarde, et ce que chaque pas salit.
+    pub base: Option<BaseDuGlisser>,
+    /// Ce que le glisser emporte, que l'aimant ne regarde pas (SNAP-4).
+    pub exclus: HashSet<String>,
+    /// Le déplacement déjà appliqué, aimant compris.
+    pub applique: (f64, f64),
+    /// **Le dossier sous ce qu'on glisse** : le lâcher l'y range (RANGER-2, fiche 134).
+    pub depot: Option<String>,
+}
+
 impl GlucoseApp {
     /// Initialise une session de drag pour les éléments sélectionnés.
     pub fn init_item_drag(&mut self, wx: f64, wy: f64) {
         self.is_dragging_item = true;
-        self.drag_start_world = (wx, wy);
-        self.drag_applied_delta = (0.0, 0.0);
+        self.glisser.depart = (wx, wy);
+        self.glisser.applique = (0.0, 0.0);
         self.store.begin_live_edit();
 
         // Préparer la boîte englobante, et ce que l'aimant ne regarde pas (SNAP-1). Ce qui bouge
@@ -42,10 +58,10 @@ impl GlucoseApp {
                 rects.push(f.rect());
                 encre = Some(encre.map_or(f.rect(), |e| e.union(f.rect())));
             }
-            self.drag_selection_base = union_rect(&rects)
+            self.glisser.base = union_rect(&rects)
                 .zip(encre)
                 .map(|(boite, encre)| BaseDuGlisser { boite, encre });
-            self.drag_exclus = exclude;
+            self.glisser.exclus = exclude;
         }
     }
 
@@ -54,14 +70,14 @@ impl GlucoseApp {
         let active_bid = self.store.project.active_board_id.clone();
         let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(screen_x, screen_y, &vp);
-        let raw_dx = wx - self.drag_start_world.0;
-        let raw_dy = wy - self.drag_start_world.1;
+        let raw_dx = wx - self.glisser.depart.0;
+        let raw_dy = wy - self.glisser.depart.1;
 
         let mut target_dx = raw_dx;
         let mut target_dy = raw_dy;
 
         if self.ui.smart_align {
-            if let Some(base) = self.drag_selection_base.map(|b| b.boite) {
+            if let Some(base) = self.glisser.base.map(|b| b.boite) {
                 let proposed = AlignRect {
                     left: base.left + raw_dx,
                     top: base.top + raw_dy,
@@ -69,9 +85,9 @@ impl GlucoseApp {
                     height: base.height,
                 };
                 // Les voisines de la sélection, parmi ce que l'écran montre (SNAP-4).
-                let exclus = std::mem::take(&mut self.drag_exclus);
+                let exclus = std::mem::take(&mut self.glisser.exclus);
                 let lignes = self.lignes_d_aimant(proposed, &exclus);
-                self.drag_exclus = exclus;
+                self.glisser.exclus = exclus;
                 let snap = snap_move_sur(proposed, &lignes, self.options_d_aimant());
                 target_dx += snap.dx;
                 target_dy += snap.dy;
@@ -81,15 +97,55 @@ impl GlucoseApp {
             self.active_guides = SnapGuides::default();
         }
 
-        let step_dx = target_dx - self.drag_applied_delta.0;
-        let step_dy = target_dy - self.drag_applied_delta.1;
-        self.drag_applied_delta = (target_dx, target_dy);
+        let step_dx = target_dx - self.glisser.applique.0;
+        let step_dy = target_dy - self.glisser.applique.1;
+        self.glisser.applique = (target_dx, target_dy);
 
         // Chaque position devient son départ plus le déplacement **total** du geste : le geste
         // s'écrira en une seule translation, que le fichier rejoue au bit près (GLISSER-1).
         self.store
             .glisser_la_selection(&active_bid, (target_dx, target_dy));
         self.salir_le_deplacement((target_dx, target_dy), (step_dx, step_dy));
+        let depot = self.dossier_sous(screen_x, screen_y);
+        if depot != self.glisser.depot {
+            self.glisser.depot = depot;
+            self.mark_dirty();
+        }
+    }
+
+    /// **RANGER-2 — le dossier où lâcher range la sélection** : sous le pointeur, celui qu'un
+    /// clic y prendrait (le même arbitre), s'il n'est pas emporté par elle.
+    fn dossier_sous(&self, screen_x: f64, screen_y: f64) -> Option<String> {
+        let (wx, wy) = screen_to_world(screen_x, screen_y, &self.store.viewport());
+        self.pick_candidates_at(wx, wy)
+            .into_iter()
+            .find(|c| {
+                c.owner == PickOwner::Folder && !self.store.selected_folder_ids.contains(&c.id)
+            })
+            .map(|c| c.id)
+    }
+
+    /// La boîte du dossier où lâcher rangera ce qu'on glisse, en unités monde (RANGER-2).
+    pub(crate) fn boite_du_depot(&self) -> Option<Rect> {
+        let id = self.glisser.depot.as_deref()?;
+        glucose_core::arrow::node_rect(self.store.active_board()?, id)
+    }
+
+    /// **RANGER-2 — ce que la main lâche sur un dossier y entre**, dans le même geste que le
+    /// déplacement : un seul `Ctrl+Z` défait les deux. Rien à dire de plus : la boîte du dossier
+    /// l'annonçait pendant le glisser, et son badge compte ce qui est entré (le cliquet des toasts).
+    /// Refusé — ce que la sélection ne permet pas —, ce qu'on a lâché reste où la main l'a posé.
+    fn ranger_la_selection(&mut self, board: &str, dossier: &str) {
+        let s = &self.store;
+        let choisis: Vec<String> = s
+            .selected_annotation_ids
+            .iter()
+            .chain(s.selected_image_ids.iter())
+            .chain(s.selected_folder_ids.iter())
+            .cloned()
+            .collect();
+        let ids: Vec<&str> = choisis.iter().map(String::as_str).collect();
+        let _ = self.store.ranger_dans_un_dossier(board, dossier, &ids);
     }
 
     /// Declare ce qu'un pas de deplacement a sali (A.1) -- le premier geste a le faire.
@@ -110,7 +166,7 @@ impl GlucoseApp {
     ///   vient. Le doute vaut `Tout`, c'est la regle de surete.
     fn salir_le_deplacement(&self, cumul: (f64, f64), pas: (f64, f64)) {
         // L'encre, et non la boîte : le grand titre d'une membrane bouge avec elle (TITRE-1).
-        let Some(base) = self.drag_selection_base.map(|b| b.encre) else {
+        let Some(base) = self.glisser.base.map(|b| b.encre) else {
             self.mark_dirty();
             return;
         };
@@ -138,10 +194,8 @@ impl GlucoseApp {
         }
         self.is_dragging_item = false;
         self.store.cancel_live_edit();
+        self.glisser = Glisser::default();
         self.active_guides = SnapGuides::default();
-        self.drag_selection_base = None;
-        self.drag_exclus.clear();
-        self.drag_applied_delta = (0.0, 0.0);
         self.mark_dirty();
     }
 
@@ -151,22 +205,25 @@ impl GlucoseApp {
             self.is_dragging_item = false;
             // Le dépôt : ce qu'on lâche change peut-être de membrane (MEMB-1) — dans le même
             // geste que le déplacement, qu'un seul `Ctrl+Z` défait.
-            if self.drag_applied_delta != (0.0, 0.0) {
+            if self.glisser.applique != (0.0, 0.0) {
                 let board = self.store.project.active_board_id.clone();
                 self.store.rattacher_la_selection(&board);
                 // Une image lâchée dans une case du storyboard s'y ajuste — dans le même geste,
                 // après les pas du glisser : défaire rend l'ajustement, puis le déplacement.
                 let images = self.store.selected_image_ids.to_vec();
                 self.store.ajuster_dans_les_cases(&board, &images);
+                if let Some(dossier) = self.glisser.depot.take() {
+                    self.ranger_la_selection(&board, &dossier);
+                }
             }
             self.store.end_live_edit();
+            self.glisser = Glisser::default();
             self.active_guides = SnapGuides::default();
-            self.drag_selection_base = None;
-            self.drag_exclus.clear();
-            self.drag_applied_delta = (0.0, 0.0);
         }
     }
 }
 
+#[cfg(test)]
+mod ranger_tests;
 #[cfg(test)]
 mod tests;

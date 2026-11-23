@@ -160,6 +160,7 @@ impl GlucoseApp {
             survole: self.ui.noeud_survole.clone(),
             souris: self.souris_dans_le_monde(),
             curseurs: self.curseurs_des_pairs(),
+            depot: self.boite_du_depot(),
         }
     }
 
@@ -263,6 +264,8 @@ struct Dessus {
     survole: Option<String>,
     souris: Option<(f64, f64)>,
     curseurs: Vec<crate::params::CurseurDuPair>,
+    /// Le dossier où lâcher range ce qu'on glisse (RANGER-2).
+    depot: Option<glucose_core::geometry::Rect>,
 }
 
 impl Dessus {
@@ -284,6 +287,7 @@ impl Dessus {
             survole: self.survole.as_deref(),
             souris: self.souris,
             curseurs: &self.curseurs,
+            depot: self.depot,
             ..SceneOverlay::sans_rien(self.guides(du_geste))
         }
     }

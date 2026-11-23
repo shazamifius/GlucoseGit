@@ -228,6 +228,10 @@ fn dessiner_les_reperes_du_geste(
     for &zone in overlay.gabarit {
         scene::dessiner_le_fantome(pixmap, theme, zone, &pass.vp);
     }
+    // Le dossier où lâcher range ce qu'on glisse : « ça arrivera ici » (RANGER-2).
+    if let Some(dossier) = overlay.depot {
+        scene::dessiner_le_fantome(pixmap, theme, dossier, &pass.vp);
+    }
 
     // 8. Boite de selection elastique (Marquee)
     if let Some((x1, y1, x2, y2)) = overlay.selection_box {

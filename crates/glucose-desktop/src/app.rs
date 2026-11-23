@@ -217,11 +217,8 @@ pub struct GlucoseApp {
     pub right_down_at: Option<(f64, f64)>,
     pub is_panning: bool,
     pub is_dragging_item: bool,
-    pub drag_start_world: (f64, f64),
-    pub drag_selection_base: Option<crate::interactions::drag::BaseDuGlisser>,
-    /// Ce que le glisser emporte, que l'aimant ne regarde pas (SNAP-4).
-    pub drag_exclus: std::collections::HashSet<String>,
-    pub drag_applied_delta: (f64, f64),
+    /// Ce qu'un glisser porte, de l'appui au lâcher (SNAP-1, RANGER-2).
+    pub glisser: crate::interactions::drag::Glisser,
     /// Le redimensionnement en cours, s'il y en a un (RESIZE-1).
     pub resize_session: Option<ResizeSession>,
     /// L'objet en train de naître sous la main, s'il y en a un (DRAW-1).
@@ -400,10 +397,7 @@ impl GlucoseApp {
             right_down_at: None,
             is_panning: false,
             is_dragging_item: false,
-            drag_start_world: (0.0, 0.0),
-            drag_selection_base: None,
-            drag_exclus: std::collections::HashSet::new(),
-            drag_applied_delta: (0.0, 0.0),
+            glisser: Default::default(),
             resize_session: None,
             draw_session: None,
             bend_session: None,

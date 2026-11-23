@@ -111,6 +111,9 @@ pub struct SceneOverlay<'a> {
     pub souris: Option<(f64, f64)>,
     /// **Les curseurs des autres participants** d'un canevas partagé (fiche 117).
     pub curseurs: &'a [CurseurDuPair],
+    /// **Le dossier où lâcher range ce qu'on glisse**, en unités monde (RANGER-2) : il se dessine
+    /// comme le fantôme d'un nœud à naître — « ça arrivera ici ».
+    pub depot: Option<glucose_core::geometry::Rect>,
 }
 
 /// **Le curseur d'un autre participant** : où est sa souris dans le monde, sa couleur, son nom.
@@ -140,6 +143,7 @@ impl<'a> SceneOverlay<'a> {
             survole: None,
             souris: None,
             curseurs: &[],
+            depot: None,
         }
     }
 }

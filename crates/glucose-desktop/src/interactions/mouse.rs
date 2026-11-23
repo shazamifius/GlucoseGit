@@ -346,7 +346,7 @@ impl GlucoseApp {
                 // Le cycle descend avant que le glisser ne s'efface : c'est ce qui a bougé,
                 // pas la distance parcourue par le curseur, qui dit si on déplaçait un nœud
                 // ou si on cherchait celui du dessous.
-                if self.drag_applied_delta == (0.0, 0.0) {
+                if self.glisser.applique == (0.0, 0.0) {
                     self.advance_pick_cycle();
                     // SEL-MULTI-1 : rien n'a bouge, donc c'etait un clic -- la selection se
                     // ramene a l'element presse. Un glissement, lui, la garde entiere.

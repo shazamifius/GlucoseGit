@@ -81,7 +81,7 @@ impl ResizeTarget {
 ///
 /// Ce n'est pas une copie du document mais l'état **de départ** du geste, sans lequel un
 /// déplacement du pointeur ne se traduit pas en rectangle (même rôle que
-/// `drag_selection_base` pour le déplacement).
+/// `glisser.base` pour le déplacement).
 #[derive(Debug, Clone)]
 pub struct ResizeSession {
     pub target: ResizeTarget,
