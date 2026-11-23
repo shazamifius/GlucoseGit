@@ -1,0 +1,425 @@
+[
+ {
+  "nom": "OPACITE-1 — la teinte garde les chiffres de l'opacité",
+  "fichier": "crates/glucose-core/src/types/folder.rs",
+  "avant": "Some(_) => &couleur[..7],",
+  "apres": "Some(_) => couleur,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — une couleur sans opacité écrite se lit transparente",
+  "fichier": "crates/glucose-core/src/types/folder.rs",
+  "avant": "opacite_ecrite(couleur).unwrap_or(OPACITE_DE_NAISSANCE)",
+  "apres": "opacite_ecrite(couleur).unwrap_or(0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — l'opacité de naissance s'écrit aussi (huit chiffres partout)",
+  "fichier": "crates/glucose-core/src/types/folder.rs",
+  "avant": "if opacite == OPACITE_DE_NAISSANCE || hexadecimale(teinte, 6).is_none() {",
+  "apres": "if hexadecimale(teinte, 6).is_none() {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — des chiffres collés à un #rgb",
+  "fichier": "crates/glucose-core/src/types/folder.rs",
+  "avant": "if opacite == OPACITE_DE_NAISSANCE || hexadecimale(teinte, 6).is_none() {",
+  "apres": "if opacite == OPACITE_DE_NAISSANCE {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — colorer perd l'opacité du dossier",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "couleur_de_dossier(voulue, f.opacite())",
+  "apres": "couleur_de_dossier(voulue, crate::types::OPACITE_DE_NAISSANCE)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — opacifier change la teinte",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "couleur_de_dossier(f.teinte(), opacite)",
+  "apres": "couleur_de_dossier(crate::types::COULEUR_DE_NAISSANCE, opacite)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — un dossier déjà à sa couleur compte pour un changement",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": ".filter(|(f, c)| f.color != *c)",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — la roue lit la couleur entière, opacité comprise",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "couleurs.push(propre.then_some(f.teinte()));",
+  "apres": "couleurs.push(propre.then_some(f.color.as_str()));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — la pipette prend la couleur entière",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "(f.teinte() != crate::types::COULEUR_DE_NAISSANCE).then_some(f.teinte())",
+  "apres": "(f.teinte() != crate::types::COULEUR_DE_NAISSANCE).then_some(f.color.as_str())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "opacite_1",
+   "couleur_1",
+   "roue_1"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — une IA ne voit pas l'opacité d'un dossier gris",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "let nee = f.color == crate::types::COULEUR_DE_NAISSANCE;",
+  "apres": "let nee = f.teinte() == crate::types::COULEUR_DE_NAISSANCE;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_dossier"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le bandeau monte avec le corps (le titre s'efface)",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "(peint(opacite.min(OPACITE_DE_NAISSANCE)), peint(opacite))",
+  "apres": "(peint(opacite), peint(opacite))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — choisi, l'opacité double (la loi d'avant)",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "1.0 - (1.0 - a) * (1.0 - a)",
+  "apres": "(2.0 * a).min(1.0)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le corps n'est jamais peint",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "if corps <= bandeau {",
+  "apres": "if corps <= 1.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le corps peint à son opacité par-dessus le voile",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "let en_plus = 1.0 - (1.0 - corps) / (1.0 - bandeau);",
+  "apres": "let en_plus = corps;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le corps couvre aussi le bandeau",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "        at.1 + layout.header,\n        layout.width,",
+  "apres": "        at.1,\n        layout.width,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le dessin lit la couleur entière (gris)",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "tint: parse_hex_color(f.teinte(), 136, 136, 136),",
+  "apres": "tint: parse_hex_color(&f.color, 136, 136, 136),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le dessin ignore l'opacité choisie",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "opacite: f.opacite(),",
+  "apres": "opacite: OPACITE_DE_NAISSANCE,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — la mini-carte lit la couleur entière (gris)",
+  "fichier": "crates/glucose-desktop/src/ui/minimap.rs",
+  "avant": "parse_hex_color(f.teinte(), 136, 136, 136)",
+  "apres": "parse_hex_color(&f.color, 136, 136, 136)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — la roue ne voit pas le dossier choisi",
+  "fichier": "crates/glucose-desktop/src/interactions/roue.rs",
+  "avant": "let opacite = self.store.dossiers_choisis().first().map(|f| f.opacite());",
+  "apres": "let opacite: Option<u8> = None;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le curseur n'est jamais placé",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "opacite: opacite.then_some((gauche + d + colonne + ECART * s, haut, CURSEUR * s, d)),",
+  "apres": "opacite: None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — la roue ne s'élargit pas",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "let colonnes = if opacite { 2.0 } else { 1.0 };",
+  "apres": "let colonnes = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — un clic sur le curseur ne le trouve pas",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "if let Some(rect) = roue.opacite.filter(|&r| dans(r, px, py)) {",
+  "apres": "if let Some(rect) = roue.opacite.filter(|_| false) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — le curseur dessiné tout opaque",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "let a = 1.0 - (i as f32 + 0.5) / lignes as f32;",
+  "apres": "let a = 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — régler l'opacité repose une couleur que la main n'a pas touchée",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/opacite.rs",
+  "avant": "let couleur = roue.couleur_touchee.then(|| roue.apres.map(hex));",
+  "apres": "let couleur = Some(roue.apres.map(hex));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — choisir une couleur oublie l'opacité réglée",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/opacite.rs",
+  "avant": "let opacite = roue.opacite.filter(|_| roue.opacite_touchee);",
+  "apres": "let opacite: Option<u8> = None;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — la molette sur le curseur change la clarté",
+  "fichier": "crates/glucose-desktop/src/interactions/roue.rs",
+  "avant": "if matches!(endroit, Some(Endroit::Opacite(_))) {",
+  "apres": "if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ },
+ {
+  "nom": "OPACITE-1 — Maj n'affine pas l'opacité",
+  "fichier": "crates/glucose-desktop/src/interactions/roue.rs",
+  "avant": "opacite: (opacite - dy * part / (2.0 * rayon)).clamp(0.0, 1.0),",
+  "apres": "opacite: (opacite - dy / (2.0 * rayon)).clamp(0.0, 1.0),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::roue"
+  ]
+ }
+]

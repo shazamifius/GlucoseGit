@@ -154,7 +154,8 @@ fn test_les_metriques_sont_celles_de_la_fiche() {
     // Les opacités de la fiche sont en pourcentage ; le rendu les veut sur 255. La conversion
     // est vérifiée ici plutôt que recopiée de tête.
     let pourcent = |p: f64| (p * 255.0).round() as u8;
-    assert_eq!(BODY_ALPHA, (pourcent(0.025), pourcent(0.05)));
+    // Le corps : 2,5 % à la naissance ; choisi, sa loi (OPACITE-1) — `tests/opacite.rs`.
+    assert_eq!(OPACITE_DE_NAISSANCE, pourcent(0.025));
     assert_eq!(BORDER_ALPHA, (pourcent(0.14), pourcent(0.45)));
     assert_eq!(ICON_ALPHA, (pourcent(0.45), pourcent(0.70)));
     assert_eq!(BADGE_ALPHA, (pourcent(0.18), pourcent(0.40)));
@@ -384,3 +385,5 @@ fn test_the_count_is_the_child_board_content() {
     // Un dossier dont le tableau n'existe pas encore ne compte rien, et ne panique pas.
     assert_eq!(store.folder_child_count("fantome"), 0);
 }
+
+mod opacite;

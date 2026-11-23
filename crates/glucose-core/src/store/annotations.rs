@@ -3,7 +3,7 @@
 use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, ArrowPredicate, Point2D, StickyOperator};
+use crate::types::{couleur_de_dossier, Annotation, ArrowPredicate, Point2D, StickyOperator};
 
 /// Un réglage d'une flèche (FLECHE-3) : ce que la barre d'options d'une flèche propose.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -282,17 +282,35 @@ impl Store {
             .iter()
             .map(|a| a.id().to_string())
             .collect();
-        let mut changes = self.colorer(&board, &ids, couleur);
+        let changes = self.colorer(&board, &ids, couleur);
         let voulue = couleur.unwrap_or(crate::types::COULEUR_DE_NAISSANCE);
-        let dossiers: Vec<String> = self
+        // La teinte change, l'opacité que le dossier porte reste (OPACITE-1).
+        changes + self.recolorer_les_dossiers_choisis(|f| couleur_de_dossier(voulue, f.opacite()))
+    }
+
+    /// **OPACITE-1 — l'opacité du corps de chaque dossier choisi**, sur 255 (sa note du 23/11,
+    /// fiche 133) ; leur teinte ne change pas. Rend combien ont changé ; l'appelant en fait un
+    /// geste.
+    pub fn opacifier_la_selection(&mut self, opacite: u8) -> usize {
+        self.recolorer_les_dossiers_choisis(|f| couleur_de_dossier(f.teinte(), opacite))
+    }
+
+    /// Donne à chaque dossier choisi la couleur que `voulue` lui calcule, s'il ne l'a pas déjà.
+    fn recolorer_les_dossiers_choisis(
+        &mut self,
+        voulue: impl Fn(&crate::types::CanvasFolder) -> String,
+    ) -> usize {
+        let board = self.project.active_board_id.clone();
+        let a_changer: Vec<(String, String)> = self
             .dossiers_choisis()
             .into_iter()
-            .filter(|f| f.color != voulue)
-            .map(|f| f.id.clone())
+            .map(|f| (f, voulue(f)))
+            .filter(|(f, c)| f.color != *c)
+            .map(|(f, c)| (f.id.clone(), c))
             .collect();
-        for id in dossiers {
-            self.update_folder(&board, &id, |f| f.color = voulue.to_string());
-            changes += 1;
+        let changes = a_changer.len();
+        for (id, couleur) in a_changer {
+            self.update_folder(&board, &id, |f| f.color = couleur);
         }
         changes
     }

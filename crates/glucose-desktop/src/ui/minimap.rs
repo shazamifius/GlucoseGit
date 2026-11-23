@@ -385,7 +385,7 @@ fn dessine_les_dossiers(
     for f in &board.folders {
         let boite = glucose_core::geometry::Rect::new(f.x, f.y, f.width, f.height);
         let (fx, fy, fw, fh) = place_dans_la_carte(mb, boite, pad, 4.0 * s);
-        let (r, g, b) = crate::renderer::parse_hex_color(&f.color, 136, 136, 136);
+        let (r, g, b) = crate::renderer::parse_hex_color(f.teinte(), 136, 136, 136);
         let mut folder_paint = Paint {
             anti_alias: true,
             ..Default::default()

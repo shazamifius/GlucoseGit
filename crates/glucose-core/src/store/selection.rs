@@ -114,8 +114,9 @@ impl Store {
             .map(|a| a.couleur_propre())
             .collect();
         for f in self.dossiers_choisis() {
-            let propre = f.color != crate::types::COULEUR_DE_NAISSANCE;
-            couleurs.push(propre.then_some(f.color.as_str()));
+            // Sa teinte, sans son opacité (OPACITE-1) : ce que la roue montre et que la pipette prend.
+            let propre = f.teinte() != crate::types::COULEUR_DE_NAISSANCE;
+            couleurs.push(propre.then_some(f.teinte()));
         }
         couleurs
     }
@@ -131,7 +132,7 @@ impl Store {
             return a.couleur_propre();
         }
         let f = board.folders.iter().find(|f| f.id == id)?;
-        (f.color != crate::types::COULEUR_DE_NAISSANCE).then_some(f.color.as_str())
+        (f.teinte() != crate::types::COULEUR_DE_NAISSANCE).then_some(f.teinte())
     }
 
     /// Les dossiers choisis sur le tableau actif, dans l'ordre du tableau.

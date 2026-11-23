@@ -171,7 +171,9 @@ fn decrire_une_annotation(a: &Annotation, catalogue: &[Domain]) -> Decrit {
 /// boîte, son nom, sa couleur s'il en a reçu une ; et ce qu'il ouvre, où l'agent entre comme
 /// l'humain d'un double-clic.
 fn decrire_un_dossier(f: &crate::types::CanvasFolder) -> Decrit {
-    let couleur = (f.color != crate::types::COULEUR_DE_NAISSANCE).then(|| f.color.clone());
+    // Sa couleur entière, l'opacité comprise (`#rrggbbaa`, OPACITE-1) : ce que l'humain voit.
+    let nee = f.color == crate::types::COULEUR_DE_NAISSANCE;
+    let couleur = (!nee).then(|| f.color.clone());
     Decrit {
         id: f.id.clone(),
         sorte: Sorte::Dossier,

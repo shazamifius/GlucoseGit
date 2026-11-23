@@ -165,3 +165,25 @@ fn test_mcp_dossier_2_un_agent_renomme_un_dossier_et_son_tableau() {
             .is_err());
     }
 }
+
+/// **OPACITE-1 — une IA lit l'opacité d'un dossier** (fiche 133) : ce que l'humain voit, elle le
+/// lit — la couleur entière, `#rrggbbaa`, dès que la teinte ou l'opacité n'est plus celle de la
+/// naissance ; rien pour un dossier né de rien.
+#[test]
+fn test_opacite_1_une_ia_lit_l_opacite_d_un_dossier() {
+    let (mut app, dossier, _) = un_dossier_plein();
+    let lue = |app: &mut GlucoseApp| {
+        let r = appeler(app, "glucose_lire", "{}");
+        noeud(&r, &dossier)
+            .and_then(|d| texte(d, "couleur"))
+            .map(str::to_string)
+    };
+    assert_eq!(lue(&mut app), None, "né de rien");
+    app.store.select_folder(dossier.clone(), false);
+    app.store.opacifier_la_selection(0x80);
+    assert_eq!(
+        lue(&mut app).as_deref(),
+        Some("#88888880"),
+        "son gris, à moitié opaque"
+    );
+}

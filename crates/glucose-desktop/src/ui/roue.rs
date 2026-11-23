@@ -3,6 +3,10 @@
 //! ([`glucose_core::couleur::roue`]). Sa parole du 9/11/2026 : *« le même système de palette que
 //! Blender, avec la roue — elle est extrêmement ergonomique »*.
 //!
+//! **OPACITE-1** (fiche 133) : quand un dossier est choisi, un second curseur, à droite de la
+//! clarté, règle l'opacité de son corps — chaque ligne y montre la couleur posée sur le fond du
+//! canevas à cette opacité : ce que le dossier sera.
+//!
 //! # La mise en page est une fonction pure
 //!
 //! [`placer`] rend les rectangles sans rien dessiner ; le dessin et le clic lisent la même mise en
@@ -29,6 +33,8 @@ pub struct RoueAPlat {
     /// Le disque : son coin haut-gauche et son diamètre (un nombre entier de pixels).
     pub disque: (f32, f32, f32),
     pub curseur: (f32, f32, f32, f32),
+    /// Le curseur de l'opacité, quand un dossier est choisi (OPACITE-1).
+    pub opacite: Option<(f32, f32, f32, f32)>,
     /// La couleur d'avant la roue, et celle qu'elle pose.
     pub avant: (f32, f32, f32, f32),
     pub apres: (f32, f32, f32, f32),
@@ -57,11 +63,19 @@ pub(crate) fn disque(clarte: f64, diametre: u32) -> tiny_skia::Pixmap {
     tiny_skia::Pixmap::from_vec(octets, taille).expect("autant d'octets que de pixels")
 }
 
-/// **La roue au-dessus de la barre `sous`**, centrée sur elle et tenue dans l'écran.
-pub fn placer(sous: (f32, f32, f32, f32), screen: (f32, f32), scale: f32) -> RoueAPlat {
+/// **La roue au-dessus de la barre `sous`**, centrée sur elle et tenue dans l'écran ; avec le
+/// curseur de l'opacité si `opacite` (un dossier est choisi).
+pub fn placer(
+    sous: (f32, f32, f32, f32),
+    screen: (f32, f32),
+    scale: f32,
+    opacite: bool,
+) -> RoueAPlat {
     let s = crate::theme::clamp_ui_scale(scale);
     let d = diametre(scale) as f32;
-    let largeur = MARGE * s * 2.0 + d + ECART * s + CURSEUR * s;
+    let colonne = ECART * s + CURSEUR * s;
+    let colonnes = if opacite { 2.0 } else { 1.0 };
+    let largeur = MARGE * s * 2.0 + d + colonne * colonnes;
     let hauteur = MARGE * s * 2.0 + d + ECART * s + APERCU * s;
     let x = (sous.0 + sous.2 / 2.0 - largeur / 2.0).clamp(0.0, (screen.0 - largeur).max(0.0));
     // L'écart de toutes les barres du bas, l'une sur l'autre.
@@ -77,6 +91,7 @@ pub fn placer(sous: (f32, f32, f32, f32), screen: (f32, f32), scale: f32) -> Rou
         rect: (x, y, largeur, hauteur),
         disque: (gauche, haut, d),
         curseur: (gauche + d + ECART * s, haut, CURSEUR * s, d),
+        opacite: opacite.then_some((gauche + d + colonne + ECART * s, haut, CURSEUR * s, d)),
         avant: (gauche, bas, a * 1.25, a),
         apres: (gauche + a * 1.25, bas, a * 1.25, a),
         code: (code_x, bas, pipette_x - ECART * s - code_x, a),
@@ -91,6 +106,8 @@ pub enum Endroit {
     Disque(f64, f64),
     /// Le curseur : la clarté sous le point, de 0 (en bas) à 1 (en haut).
     Clarte(f64),
+    /// Le curseur de l'opacité, de 0 (en bas) à 1 (en haut) — OPACITE-1.
+    Opacite(f64),
     /// Le champ du code `#rrggbb`.
     Code,
     /// Le bouton de la pipette.
@@ -110,11 +127,14 @@ pub fn endroit(roue: &RoueAPlat, px: f32, py: f32) -> Option<Endroit> {
     if dx.hypot(dy) <= 1.0 {
         return Some(Endroit::Disque(dx, dy));
     }
+    // La hauteur du point dans un curseur, de 0 (en bas) à 1 (en haut).
+    let hauteur =
+        |(_, cy, _, ch): (f32, f32, f32, f32)| f64::from(1.0 - (py - cy) / ch).clamp(0.0, 1.0);
     if dans(roue.curseur, px, py) {
-        let (_, cy, _, ch) = roue.curseur;
-        return Some(Endroit::Clarte(
-            f64::from(1.0 - (py - cy) / ch).clamp(0.0, 1.0),
-        ));
+        return Some(Endroit::Clarte(hauteur(roue.curseur)));
+    }
+    if let Some(rect) = roue.opacite.filter(|&r| dans(r, px, py)) {
+        return Some(Endroit::Opacite(hauteur(rect)));
     }
     if dans(roue.code, px, py) {
         return Some(Endroit::Code);
@@ -134,7 +154,7 @@ pub fn draw_roue(
     (screen, scale): ((f32, f32), f32),
 ) {
     let s = crate::theme::clamp_ui_scale(scale);
-    let plat = placer(sous, screen, scale);
+    let plat = placer(sous, screen, scale, roue.opacite.is_some());
     pastille(pixmap, plat.rect, s, theme);
     let (x, y, d) = plat.disque;
     pixmap.draw_pixmap(
@@ -149,6 +169,10 @@ pub fn draw_roue(
     let r = d / 2.0;
     anneau(pixmap, (x + r + px as f32 * r, y + r + py as f32 * r), s);
     dessiner_le_curseur(pixmap, plat.curseur, roue.place, s);
+    if let (Some(rect), Some(opacite)) = (plat.opacite, roue.opacite) {
+        let couleur = roue.apres.unwrap_or((136, 136, 136));
+        dessiner_l_opacite(pixmap, rect, (couleur, opacite), theme.bg_canvas, s);
+    }
     apercu(pixmap, plat.avant, roue.avant, theme);
     apercu(pixmap, plat.apres, roue.apres, theme);
     dessiner_le_code(pixmap, roue, plat.code, (typography, theme, s));
@@ -236,7 +260,41 @@ fn dessiner_le_curseur(
             crate::renderer::scale::fill_crisp(pixmap, rect, Color::from_rgba8(r, g, b, 255));
         }
     }
-    let y = cy + (1.0 - place.clarte as f32) * ch;
+    encoche(pixmap, (cx, cy, cw, ch), place.clarte as f32, s);
+}
+
+/// **Le curseur de l'opacité** (OPACITE-1) : à chaque hauteur, la couleur posée sur le fond du
+/// canevas à cette opacité — opaque en haut, le fond seul en bas —, et l'encoche de l'opacité du
+/// dossier. Un dossier sans couleur choisie montre son gris de naissance.
+fn dessiner_l_opacite(
+    pixmap: &mut PixmapMut,
+    (cx, cy, cw, ch): (f32, f32, f32, f32),
+    ((r, g, b), opacite): ((u8, u8, u8), u8),
+    fond: Color,
+    s: f32,
+) {
+    let lignes = ch.round().max(1.0) as u32;
+    let sur_le_fond = |c: u8, f: f32, a: f32| f32::from(c) / 255.0 * a + f * (1.0 - a);
+    for i in 0..lignes {
+        let a = 1.0 - (i as f32 + 0.5) / lignes as f32;
+        let couleur = Color::from_rgba(
+            sur_le_fond(r, fond.red(), a),
+            sur_le_fond(g, fond.green(), a),
+            sur_le_fond(b, fond.blue(), a),
+            1.0,
+        );
+        let rect = tiny_skia::Rect::from_xywh(cx, cy + i as f32, cw, 1.0);
+        if let (Some(rect), Some(couleur)) = (rect, couleur) {
+            crate::renderer::scale::fill_crisp(pixmap, rect, couleur);
+        }
+    }
+    encoche(pixmap, (cx, cy, cw, ch), f32::from(opacite) / 255.0, s);
+}
+
+/// L'encoche d'un curseur à la hauteur `part` (0 en bas, 1 en haut) : sombre, puis claire,
+/// lisible sur toute couleur.
+fn encoche(pixmap: &mut PixmapMut, (cx, cy, cw, ch): (f32, f32, f32, f32), part: f32, s: f32) {
+    let y = cy + (1.0 - part) * ch;
     for (epaisseur, couleur) in [(3.0 * s, (20, 20, 20)), (1.0 * s, (240, 240, 240))] {
         let rect = tiny_skia::Rect::from_xywh(cx - s, y - epaisseur / 2.0, cw + 2.0 * s, epaisseur);
         if let Some(rect) = rect {

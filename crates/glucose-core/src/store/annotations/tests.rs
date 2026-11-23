@@ -198,6 +198,63 @@ fn test_couleur_1_le_dossier_choisi_se_colore_avec_la_selection() {
     assert_eq!(couleur.as_deref(), Some(COULEUR_DE_NAISSANCE));
 }
 
+/// **OPACITE-1 — l'opacité d'un dossier choisi, et sa teinte, chacune à sa place** (fiche 133) :
+/// opacifier ne touche ni la teinte d'un dossier, ni ce qui n'est pas un dossier ; colorer, ni
+/// « Par défaut », ne touchent son opacité ; ce que la roue lit et que la pipette prend est la
+/// teinte seule ; revenir à l'opacité de la naissance rend les six chiffres d'avant.
+#[test]
+fn opacite_1_l_opacite_et_la_teinte_d_un_dossier_ne_se_touchent_pas() {
+    use crate::types::{CanvasFolder, COULEUR_DE_NAISSANCE, OPACITE_DE_NAISSANCE};
+    let (mut store, board, _) = tableau();
+    let mut dossier = CanvasFolder::new("d", "Dossier", "");
+    dossier.x = 5000.0;
+    store.create_folder(&board, dossier);
+    store.select_folder("d".into(), false);
+    store.set_selected_annotation_ids(vec!["c".into()]);
+    let couleur_du_dossier = |s: &Store| {
+        s.active_board()
+            .and_then(|b| b.folders.iter().find(|f| f.id == "d"))
+            .map(|f| f.color.clone())
+            .unwrap_or_default()
+    };
+    store.colorer_la_selection(Some("#34d399"));
+    assert_eq!(store.opacifier_la_selection(0x80), 1, "le dossier seul");
+    assert_eq!(couleur_du_dossier(&store), "#34d39980");
+    assert_eq!(
+        store.couleurs_choisies(),
+        [Some("#34d399"), Some("#34d399")],
+        "la roue lit la teinte"
+    );
+    assert_eq!(
+        store.couleur_du_noeud("d"),
+        Some("#34d399"),
+        "la pipette aussi"
+    );
+    store.colorer_la_selection(Some("#ff0000"));
+    assert_eq!(
+        couleur_du_dossier(&store),
+        "#ff000080",
+        "la teinte change seule"
+    );
+    store.colorer_la_selection(None);
+    assert_eq!(
+        couleur_du_dossier(&store),
+        format!("{COULEUR_DE_NAISSANCE}80")
+    );
+    assert_eq!(
+        store.couleurs_choisies(),
+        [None, None],
+        "« Par défaut » se lit"
+    );
+    assert_eq!(store.opacifier_la_selection(OPACITE_DE_NAISSANCE), 1);
+    assert_eq!(couleur_du_dossier(&store), COULEUR_DE_NAISSANCE);
+    assert_eq!(
+        store.opacifier_la_selection(OPACITE_DE_NAISSANCE),
+        0,
+        "déjà"
+    );
+}
+
 /// **ROUE-1 — la couleur que porte un nœud, pour la pipette** (fiche 99) : celle qu'on a choisie
 /// pour un post-it ou un dossier ; rien pour un dossier à sa couleur de naissance, ni pour un nœud
 /// qu'on n'a pas coloré, ni pour un nœud inconnu.

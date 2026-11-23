@@ -33,6 +33,21 @@ pub(crate) fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h:
     pb.close();
 }
 
+/// **Le bas d'un rectangle arrondi** (OPACITE-1, fiche 133) : coins carrés en haut, arrondis en
+/// bas — le corps d'un dossier sous son bandeau. Les coins du bas sont ceux de
+/// [`push_rounded_rect`], au même rayon ramené.
+pub(crate) fn push_bas_arrondi(pb: &mut PathBuilder, (x, y, w, h): (f32, f32, f32, f32), r: f32) {
+    let r = r.min(w / 2.0).min(h);
+    let k = r * ARC;
+    pb.move_to(x, y);
+    pb.line_to(x + w, y);
+    pb.line_to(x + w, y + h - r);
+    pb.cubic_to(x + w, y + h - r + k, x + w - r + k, y + h, x + w - r, y + h);
+    pb.line_to(x + r, y + h);
+    pb.cubic_to(x + r - k, y + h, x, y + h - r + k, x, y + h - r);
+    pb.close();
+}
+
 /// **Où poser les points de contrôle d'un quart de cercle**, en fraction du rayon :
 /// `4/3 · tan(π/8) = 4/3 · (√2 − 1)`. C'est la seule cubique qui part et arrive tangente aux
 /// deux côtés et passe par le milieu de l'arc ; l'écart au cercle ne dépasse nulle part

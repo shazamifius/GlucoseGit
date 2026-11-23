@@ -14,9 +14,11 @@
 //! peuvent pas diverger s'ils lisent la même constante.
 //!
 //! Le corps est teinté par la couleur du dossier à très faible opacité, comme la référence :
-//! c'est un cadre qui contient, pas un objet qui s'affirme. La sélection double cette
-//! opacité, remplace le pointillé par un trait plein et ajoute un halo — la même grammaire
-//! que les membranes, qui sont l'autre conteneur du canevas.
+//! c'est un cadre qui contient, pas un objet qui s'affirme. **Son opacité est au choix**
+//! (OPACITE-1, fiche 133 : la roue de couleur), et le bandeau n'en dépasse jamais celle de la
+//! naissance ([`opacites`]). La sélection peint le cadre deux fois, remplace le pointillé par un
+//! trait plein et ajoute un halo — la même grammaire que les membranes, qui sont l'autre
+//! conteneur du canevas.
 //!
 //! # Ce que la relecture contre Tauri a corrigé (fiche 70)
 //!
@@ -32,6 +34,7 @@
 
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
+use crate::renderer::arrondi::push_bas_arrondi;
 use crate::renderer::handles::draw_resize_handles;
 use crate::renderer::pass::Clip;
 use crate::renderer::scale::WorldScale;
@@ -43,7 +46,7 @@ use glucose_core::hit_priority::pick_consts;
 use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
-use glucose_core::types::CanvasFolder;
+use glucose_core::types::{CanvasFolder, OPACITE_DE_NAISSANCE};
 use tiny_skia::{Color, LineCap, Path, PathBuilder, PixmapMut, Rect};
 
 /// Rayon des coins du cadre, en unités monde (fiche 06 § 8.1).
@@ -52,8 +55,6 @@ pub(super) const CORNER_RADIUS: f32 = 10.0;
 pub(super) const MIN_WIDTH: f32 = 180.0;
 /// Hauteur minimale d'un dossier, en unités monde.
 pub(super) const MIN_HEIGHT: f32 = 120.0;
-/// Opacité du corps, sur 255 : 2,5 % au repos, 5 % sélectionné.
-const BODY_ALPHA: (u8, u8) = (6, 13);
 /// Opacité de la bordure : 14 % au repos, 45 % sélectionnée.
 const BORDER_ALPHA: (u8, u8) = (36, 115);
 /// Épaisseur de la bordure, en unités monde : 1 px au repos, 1,4 px sélectionnée.
@@ -110,10 +111,11 @@ impl Layout {
     }
 }
 
-/// Ce qu'un dossier sait de lui-même pour se dessiner : sa teinte, s'il est choisi, l'échelle,
-/// et ce qu'il contient.
+/// Ce qu'un dossier sait de lui-même pour se dessiner : sa teinte, l'opacité de son corps, s'il
+/// est choisi, l'échelle, et ce qu'il contient.
 struct Etat {
     tint: (u8, u8, u8),
+    opacite: u8,
     selected: bool,
     scale: WorldScale,
     compte: usize,
@@ -144,7 +146,8 @@ fn visibles<'a>(
             return None;
         }
         let etat = Etat {
-            tint: parse_hex_color(&f.color, 136, 136, 136),
+            tint: parse_hex_color(f.teinte(), 136, 136, 136),
+            opacite: f.opacite(),
             selected: store.selected_folder_ids.contains(&f.id),
             scale,
             compte: store.folder_child_count(&f.child_board_id),
@@ -220,12 +223,62 @@ fn arrondi((x, y, w, h): (f32, f32, f32, f32), rayon: f32) -> Option<Path> {
     pb.finish()
 }
 
-/// Le cadre : halo de sélection, corps teinté, bordure, séparation du bandeau.
+/// **OPACITE-1 — l'opacité du bandeau et celle du corps**, de 0 à 1 (fiche 133).
+///
+/// * Le corps prend l'opacité que le dossier porte ; **le bandeau ne dépasse jamais celle de la
+///   naissance** : son titre, son icône et son compteur s'écrivent dans la teinte même du dossier,
+///   et un bandeau opaque de cette teinte les effacerait (à 100 %, couleur sur couleur). Le
+///   bandeau suit l'opacité vers le bas, jamais vers le haut — aucun seuil à régler.
+/// * **Choisi, le cadre est peint deux fois** : 1 − (1 − α)². La sélection doublait l'opacité
+///   (2,5 → 5 %, fiche 06 § 8) ; doubler ne veut plus rien dire au-delà de 50 %, peindre deux
+///   fois se voit à toute opacité sous 100 %, et redonne les 5 % de la fiche à 1/255 près.
+fn opacites(opacite: u8, choisi: bool) -> (f32, f32) {
+    let peint = |a: u8| {
+        let a = f32::from(a) / 255.0;
+        if choisi {
+            1.0 - (1.0 - a) * (1.0 - a)
+        } else {
+            a
+        }
+    };
+    (peint(opacite.min(OPACITE_DE_NAISSANCE)), peint(opacite))
+}
+
+/// La teinte à cette opacité, de 0 à 1.
+fn voile((r, g, b): (u8, u8, u8), alpha: f32) -> Color {
+    let c = |v: u8| f32::from(v) / 255.0;
+    Color::from_rgba(c(r), c(g), c(b), alpha.clamp(0.0, 1.0)).unwrap_or(Color::TRANSPARENT)
+}
+
+/// Le corps du cadre, peint par-dessus le voile du bandeau jusqu'à son opacité : ce qui lui
+/// manque, par la composition « par-dessus » de Porter et Duff, retournée —
+/// `1 − (1 − corps) / (1 − bandeau)`. Le bandeau n'atteint jamais 1 ([`opacites`]).
+fn remplir_le_corps(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat) {
+    let (bandeau, corps) = opacites(etat.opacite, etat.selected);
+    if corps <= bandeau {
+        return;
+    }
+    let en_plus = 1.0 - (1.0 - corps) / (1.0 - bandeau);
+    let mut pb = PathBuilder::new();
+    let boite = (
+        at.0,
+        at.1 + layout.header,
+        layout.width,
+        layout.height - layout.header,
+    );
+    push_bas_arrondi(&mut pb, boite, layout.radius);
+    if let Some(bas) = pb.finish() {
+        p.remplir(&bas, voile(etat.tint, en_plus));
+    }
+}
+
+/// Le cadre : halo de sélection, voile, corps, bordure, séparation du bandeau.
 fn draw_frame(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat) {
     let Etat {
         tint: (r, g, b),
         selected,
         scale,
+        opacite,
         ..
     } = *etat;
     let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
@@ -248,7 +301,8 @@ fn draw_frame(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat
     let Some(cadre) = arrondi(boite, layout.radius) else {
         return;
     };
-    p.remplir(&cadre, Color::from_rgba8(r, g, b, pick(BODY_ALPHA)));
+    p.remplir(&cadre, voile(etat.tint, opacites(opacite, selected).0));
+    remplir_le_corps(p, at, layout, etat);
     let trait_ = Trait {
         largeur: scale.world(if selected {
             BORDER_WIDTH.1
@@ -311,6 +365,7 @@ fn draw_header(
         selected,
         scale,
         compte,
+        ..
     } = *etat;
     let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
     let coin = (at.0 + scale.world(ICON.0), at.1 + scale.world(ICON.1));

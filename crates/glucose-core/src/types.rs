@@ -71,7 +71,10 @@ pub use annotation::{
     MembraneMode, Point2D, TextAnchor, TextSelection,
 };
 pub use board::{Board, FolderTreeNode, Pris, Viewport};
-pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode, COULEUR_DE_NAISSANCE};
+pub use folder::{
+    couleur_de_dossier, opacite_de, teinte_de, CanvasFolder, FolderMirrorSource, FolderSortMode,
+    COULEUR_DE_NAISSANCE, OPACITE_DE_NAISSANCE,
+};
 pub use image::{AssetRef, BoardImage, Retournement};
 pub use operateur::{StickyOperator, DEFAULT_OPERATOR_HEIGHT};
 pub use project::{AssetStore, BoardZone, Preset, PresetSlot, Project};

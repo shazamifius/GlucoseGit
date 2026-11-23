@@ -9,7 +9,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 const ECRAN: (f32, f32) = (1440.0, 900.0);
 
 /// Une application au tableau vide, l'accueil éteint, une membrane sans couleur choisie.
-fn app() -> GlucoseApp {
+pub(super) fn app() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     app.ui.current_toast = None;
     if let Some(b) = app.store.active_board_mut() {
@@ -25,16 +25,16 @@ fn app() -> GlucoseApp {
     app
 }
 
-fn ecran(app: &GlucoseApp) -> ScreenFrame {
+pub(super) fn ecran(app: &GlucoseApp) -> ScreenFrame {
     app.screen_frame(ECRAN.0, ECRAN.1)
 }
 
-fn couleur(app: &GlucoseApp) -> Option<String> {
+pub(super) fn couleur(app: &GlucoseApp) -> Option<String> {
     app.store.couleurs_choisies()[0].map(str::to_string)
 }
 
 /// La roue placée, telle que le clic la lit.
-fn plat(app: &GlucoseApp) -> crate::ui::roue::RoueAPlat {
+pub(super) fn plat(app: &GlucoseApp) -> crate::ui::roue::RoueAPlat {
     let e = ecran(app);
     let barre = crate::ui::couleurs::layout_barre_de_couleur(
         &app.store,
@@ -43,23 +43,24 @@ fn plat(app: &GlucoseApp) -> crate::ui::roue::RoueAPlat {
         e.scale,
     )
     .expect("la barre de couleur");
-    placer(barre.rect, (e.width, e.height), e.scale)
+    let opacite = app.ui.roue.as_ref().is_some_and(|r| r.opacite.is_some());
+    placer(barre.rect, (e.width, e.height), e.scale, opacite)
 }
 
 /// Le point de l'écran d'un point du disque, en fractions de son rayon.
-fn sur_le_disque(app: &GlucoseApp, (dx, dy): (f64, f64)) -> (f32, f32) {
+pub(super) fn sur_le_disque(app: &GlucoseApp, (dx, dy): (f64, f64)) -> (f32, f32) {
     let (x, y, d) = plat(app).disque;
     let r = d / 2.0;
     (x + r + dx as f32 * r, y + r + dy as f32 * r)
 }
 
-fn presser_sur_le_disque(app: &mut GlucoseApp, point: (f64, f64)) {
+pub(super) fn presser_sur_le_disque(app: &mut GlucoseApp, point: (f64, f64)) {
     let ici = sur_le_disque(app, point);
     presser(app, ici);
 }
 
 /// Le curseur va là — le vrai chemin de la souris, et du doigt.
-fn aller(app: &mut GlucoseApp, (x, y): (f32, f32)) {
+pub(super) fn aller(app: &mut GlucoseApp, (x, y): (f32, f32)) {
     app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(
         f64::from(x),
         f64::from(y),
@@ -67,17 +68,17 @@ fn aller(app: &mut GlucoseApp, (x, y): (f32, f32)) {
 }
 
 /// Le bouton gauche presse là, par le vrai chemin de la souris.
-fn presser(app: &mut GlucoseApp, ici: (f32, f32)) {
+pub(super) fn presser(app: &mut GlucoseApp, ici: (f32, f32)) {
     aller(app, ici);
     app.handle_mouse_down(winit::event::MouseButton::Left, ECRAN.0, ECRAN.1);
 }
 
-fn lacher(app: &mut GlucoseApp) {
+pub(super) fn lacher(app: &mut GlucoseApp) {
     app.handle_mouse_up(winit::event::MouseButton::Left);
 }
 
 /// Une touche, par le chemin de ce qui passe avant tout.
-fn touche(app: &mut GlucoseApp, nommee: NamedKey) {
+pub(super) fn touche(app: &mut GlucoseApp, nommee: NamedKey) {
     app.prendre_la_touche(&Key::Named(nommee), true, None);
 }
 

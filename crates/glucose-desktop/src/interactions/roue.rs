@@ -21,7 +21,7 @@
 use crate::app::GlucoseApp;
 use crate::params::{Pointer, ScreenFrame};
 use crate::ui::roue::{endroit, placer, Endroit};
-use glucose_core::couleur::roue::{hex, place_sous, PlaceDansLaRoue};
+use glucose_core::couleur::roue::{place_sous, PlaceDansLaRoue};
 use glucose_core::couleur::{Oklch, DIFFERENCE_A_PEINE_VISIBLE};
 
 /// La roue ouverte : la place choisie, les couleurs d'avant et d'après, le disque dessiné à la
@@ -39,6 +39,12 @@ pub struct RoueOuverte {
     pub code: Option<crate::interactions::text_entry::TextEntry>,
     /// La pipette est armée : le prochain clic sur le canevas prend la couleur d'un nœud.
     pub pipette: bool,
+    /// L'opacité du corps des dossiers choisis, sur 255 — `None` sans dossier choisi (OPACITE-1).
+    pub opacite: Option<u8>,
+    /// Ce que la roue a touché : chaque mouvement repart des couleurs d'avant et repose les deux
+    /// ([`GlucoseApp::reposer`]) — régler l'opacité seule ne colore rien.
+    couleur_touchee: bool,
+    opacite_touchee: bool,
     glisse: Option<Glisse>,
 }
 
@@ -52,6 +58,11 @@ enum Glisse {
     },
     Clarte {
         clarte: f64,
+        dernier: (f32, f32),
+    },
+    /// L'opacité non arrondie (OPACITE-1) : `Maj` affine sans que l'octet la fige.
+    Opacite {
+        opacite: f64,
         dernier: (f32, f32),
     },
 }
@@ -73,6 +84,7 @@ impl GlucoseApp {
             .or_else(|| crate::renderer::parse_hex_rgb(crate::theme::DOMAIN_PALETTE[0]))
             .unwrap_or((96, 165, 250));
         let place = PlaceDansLaRoue::de(Oklch::des_octets(depart), 0.0);
+        let opacite = self.store.dossiers_choisis().first().map(|f| f.opacite());
         self.ui.roue = Some(RoueOuverte {
             place,
             avant,
@@ -81,6 +93,9 @@ impl GlucoseApp {
             clarte_du_disque: place.clarte,
             code: None,
             pipette: false,
+            opacite,
+            couleur_touchee: false,
+            opacite_touchee: false,
             glisse: None,
         });
         self.mark_dirty();
@@ -114,6 +129,12 @@ impl GlucoseApp {
                     dernier: ici,
                 });
             }
+            Some(Endroit::Opacite(opacite)) => {
+                self.tenir_la_roue(Glisse::Opacite {
+                    opacite,
+                    dernier: ici,
+                });
+            }
             Some(Endroit::Ailleurs) => {}
         }
         true
@@ -126,7 +147,13 @@ impl GlucoseApp {
             self.ui.ecran_visible((screen.width, screen.height)),
             screen.scale,
         )?;
-        let plat = placer(barre.rect, (screen.width, screen.height), screen.scale);
+        let opacite = self.ui.roue.as_ref().is_some_and(|r| r.opacite.is_some());
+        let plat = placer(
+            barre.rect,
+            (screen.width, screen.height),
+            screen.scale,
+            opacite,
+        );
         endroit(&plat, px, py)
     }
 
@@ -161,6 +188,13 @@ impl GlucoseApp {
                 let c = (clarte - dy * part / (2.0 * rayon)).clamp(0.0, 1.0);
                 Glisse::Clarte {
                     clarte: c,
+                    dernier: (x, y),
+                }
+            }
+            Glisse::Opacite { opacite, dernier } => {
+                let dy = f64::from(y - dernier.1);
+                Glisse::Opacite {
+                    opacite: (opacite - dy * part / (2.0 * rayon)).clamp(0.0, 1.0),
                     dernier: (x, y),
                 }
             }
@@ -202,6 +236,10 @@ impl GlucoseApp {
                 clarte,
                 ..roue.place
             },
+            Glisse::Opacite { opacite, .. } => {
+                self.poser_l_opacite(opacite);
+                return;
+            }
         };
         if self.modifiers.control_key() {
             place = place.calee();
@@ -238,7 +276,10 @@ impl GlucoseApp {
         if self.ui.roue.is_none() {
             return false;
         }
-        if self.endroit_de_la_roue((px, py), screen).is_some() {
+        let endroit = self.endroit_de_la_roue((px, py), screen);
+        if matches!(endroit, Some(Endroit::Opacite(_))) {
+            self.molette_sur_l_opacite(crans);
+        } else if endroit.is_some() {
             let place = self.ui.roue.as_ref().map(|r| r.place);
             if let Some(place) = place {
                 let clarte = (place.clarte + crans * DIFFERENCE_A_PEINE_VISIBLE).clamp(0.0, 1.0);
@@ -266,10 +307,8 @@ impl GlucoseApp {
         let octets = place.couleur().octets();
         roue.place = place;
         roue.apres = Some(octets);
-        self.store.cancel_live_edit();
-        self.store.begin_live_edit();
-        self.store.colorer_la_selection(Some(&hex(octets)));
-        self.mark_dirty();
+        roue.couleur_touchee = true;
+        self.reposer();
     }
 
     /// **Une touche quand la roue est ouverte** : elle les prend toutes.
@@ -287,11 +326,9 @@ impl GlucoseApp {
             Key::Named(NamedKey::Backspace) => {
                 if let Some(roue) = self.ui.roue.as_mut() {
                     roue.apres = None;
+                    roue.couleur_touchee = true;
                 }
-                self.store.cancel_live_edit();
-                self.store.begin_live_edit();
-                self.store.colorer_la_selection(None);
-                self.mark_dirty();
+                self.reposer();
             }
             _ => {}
         }
@@ -316,6 +353,7 @@ impl GlucoseApp {
 }
 
 mod code;
+mod opacite;
 
 #[cfg(test)]
 mod tests;
