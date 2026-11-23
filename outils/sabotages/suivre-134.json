@@ -1,0 +1,77 @@
+[
+ {
+  "nom": "SUIVRE-1 — la frappe ne demande plus la ligne en vue",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/keys.rs",
+  "avant": "        // Ce qu'on écrit reste à l'écran (SUIVRE-1).\n        self.garder_la_ligne_en_vue();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "suivre_1"
+  ]
+ },
+ {
+  "nom": "SUIVRE-1 — Ctrl+Z dans la saisie ne la demande plus",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/keys.rs",
+  "avant": "        session.goal_x = None;\n        self.mark_dirty();\n        self.garder_la_ligne_en_vue();\n",
+  "apres": "        session.goal_x = None;\n        self.mark_dirty();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "suivre_1"
+  ]
+ },
+ {
+  "nom": "SUIVRE-1 — la largeur ignorée",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "        let dx = rapprocher((x - air, x + air), (0.0, f64::from(droite)));\n",
+  "apres": "        let dx = 0.0_f64;\n        let _ = (x, droite);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "suivre_1"
+  ]
+ },
+ {
+  "nom": "SUIVRE-1 — la hauteur ignorée",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "        let dy = rapprocher((haut, haut + air), (plafond, f64::from(plancher)));\n",
+  "apres": "        let dy = 0.0_f64;\n        let _ = (haut, plafond, plancher);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "suivre_1"
+  ]
+ },
+ {
+  "nom": "SUIVRE-1 — le curseur sans sa ligne d'air",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "        let dx = rapprocher((x - air, x + air), (0.0, f64::from(droite)));\n",
+  "apres": "        let dx = rapprocher((x, x), (0.0, f64::from(droite)));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "suivre_1"
+  ]
+ }
+]

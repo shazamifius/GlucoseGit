@@ -30,8 +30,6 @@
 use super::keys::Command;
 use crate::app::GlucoseApp;
 use crate::plateforme::clavier::{Clavier, EtatDuClavier};
-use crate::renderer::card::{text_box, TEXT_ORIGIN};
-use crate::renderer::richtext::hit::line_of_offset;
 use glucose_core::text::selection::{Direction, Motion};
 use glucose_core::text::Selection;
 use std::ops::Range;
@@ -221,44 +219,6 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         self.garder_la_ligne_en_vue();
-    }
-
-    /// **La ligne qu'on écrit reste en vue** (CLAVIER-3) : quand le clavier sort, la fenêtre
-    /// rétrécit (`adjustResize`), et ce qu'on écrit pouvait passer dessous.
-    ///
-    /// La vue bouge du moins possible — zéro si la ligne se voit déjà — et seulement en
-    /// hauteur : le clavier ne prend que de la hauteur. Une ligne plus haute que ce qui reste
-    /// montre son haut, là où le curseur commence.
-    pub(crate) fn garder_la_ligne_en_vue(&mut self) {
-        let Some(session) = self.editing_session.as_ref() else {
-            return;
-        };
-        let (Some(boite), Some((mise_en_page, largeur))) =
-            (self.card_box(&session.ann_id), self.editing_layout())
-        else {
-            return;
-        };
-        let rang = line_of_offset(&mise_en_page, session.selection.head);
-        let hauteur = f64::from(text_box(largeur).line_height);
-        let Some(board) = self.store.active_board() else {
-            return;
-        };
-        let mut vue = board.viewport;
-        let id = board.id.clone();
-        let haut_monde = boite.origin.1 + f64::from(TEXT_ORIGIN.1) + rang as f64 * hauteur;
-        let haut = haut_monde * vue.scale + vue.y;
-        let bas = haut + hauteur * vue.scale;
-        let plafond = f64::from(self.ui.header_height());
-        // Le bas de ce qui se voit : la fenêtre, moins le clavier qui la recouvre (BORD-1).
-        let visible = self.ui.ecran_visible(self.taille_de_la_fenetre());
-        let plancher = f64::from(visible.1);
-        // Le décalage le plus proche de zéro qui pose la ligne entre les deux ; le haut prime.
-        let decalage = 0.0_f64.min(plancher - bas).max(plafond - haut);
-        if decalage != 0.0 {
-            vue.y += decalage;
-            self.store.set_viewport(&id, vue);
-            self.mark_dirty();
-        }
     }
 }
 

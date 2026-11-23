@@ -10,8 +10,14 @@
 //! Le titre d'une membrane seulement : un texte et un post-it s'ouvrent là où l'on vient de
 //! cliquer, donc à l'écran — et les ramener entiers à l'écran ferait sauter la vue sur un long
 //! texte dont on a double-cliqué un mot du milieu.
+//!
+//! **Pendant qu'on écrit, la ligne du curseur** (CLAVIER-3, fiche 57 ; SUIVRE-1, fiche 134 § 15) :
+//! [`GlucoseApp::garder_la_ligne_en_vue`] — la même loi du plus petit décalage, pour la seule ligne
+//! où l'on écrit, après chaque commande d'écriture.
 
 use crate::app::GlucoseApp;
+use crate::renderer::card::{text_box, TEXT_ORIGIN};
+use crate::renderer::richtext::hit::{line_of_offset, offset_to_x};
 use glucose_core::geometry::Rect;
 use glucose_core::types::{Annotation, Viewport};
 
@@ -40,6 +46,64 @@ impl GlucoseApp {
             vue_qui_montre(glucose_core::membrane_titre::bande(boite), vue, canevas)
         {
             self.vol.voler_vers(cible);
+            self.mark_dirty();
+        }
+    }
+}
+
+impl GlucoseApp {
+    /// **La ligne qu'on écrit reste en vue** (CLAVIER-3) : quand le clavier du téléphone sort, la
+    /// fenêtre rétrécit (`adjustResize`), et ce qu'on écrit pouvait passer dessous. **Au bureau
+    /// aussi** (SUIVRE-1, sa note `text-wiov-325` : *« quand tu écris et que ça dépasse ton écran,
+    /// il faut se déplacer juste pour pouvoir voir ce qu'on est en train d'écrire »*) : chaque
+    /// commande d'écriture la demande — la frappe, un collage, les flèches, `Ctrl+Z`.
+    ///
+    /// La vue bouge du moins possible — zéro si la ligne se voit déjà —, à la même échelle, sans
+    /// entrer dans l'histoire de la caméra (ce n'est pas un geste) : en hauteur, **la ligne
+    /// entière** ; en largeur, **le curseur, avec la hauteur de sa ligne d'air** de chaque côté —
+    /// ce qu'on va taper se voit, et aucune marge n'est à choisir (SAISIE-2). Une ligne plus haute
+    /// que ce qui reste montre son haut, là où le curseur commence.
+    pub(crate) fn garder_la_ligne_en_vue(&mut self) {
+        let Some(session) = self.editing_session.as_ref() else {
+            return;
+        };
+        let (Some(boite), Some((mise_en_page, largeur))) =
+            (self.card_box(&session.ann_id), self.editing_layout())
+        else {
+            return;
+        };
+        let rang = line_of_offset(&mise_en_page, session.selection.head);
+        let corps = text_box(largeur);
+        let x_du_curseur = mise_en_page.lines.get(rang).map_or(0.0, |ligne| {
+            let police = crate::renderer::richtext::font_of(ligne.kind, corps.body);
+            let (typo, tampon) = (&self.renderer.typography, &session.buffer);
+            offset_to_x(
+                typo,
+                &mise_en_page,
+                ligne,
+                tampon,
+                session.selection.head,
+                police,
+            )
+        });
+        let hauteur = f64::from(corps.line_height);
+        let Some(board) = self.store.active_board() else {
+            return;
+        };
+        let (mut vue, id) = (board.viewport, board.id.clone());
+        let s = vue.scale;
+        let haut = (boite.origin.1 + f64::from(TEXT_ORIGIN.1) + rang as f64 * hauteur) * s + vue.y;
+        let x = (boite.origin.0 + f64::from(TEXT_ORIGIN.0 + x_du_curseur)) * s + vue.x;
+        let air = hauteur * s;
+        let plafond = f64::from(self.ui.header_height());
+        // Ce qui se voit : la fenêtre, moins le clavier et les marges du système (BORD-1).
+        let (droite, plancher) = self.ui.ecran_visible(self.taille_de_la_fenetre());
+        let dy = rapprocher((haut, haut + air), (plafond, f64::from(plancher)));
+        let dx = rapprocher((x - air, x + air), (0.0, f64::from(droite)));
+        if dx != 0.0 || dy != 0.0 {
+            vue.x += dx;
+            vue.y += dy;
+            self.store.set_viewport(&id, vue);
             self.mark_dirty();
         }
     }
@@ -178,5 +242,155 @@ mod tests {
         let mut app = collee_au_bandeau(Annotation::text("t", 0.0, -10.0, "Un texte"));
         app.start_text_edit("t".into(), String::new());
         assert_eq!(app.vol.cible(), None);
+    }
+
+    // ── SUIVRE-1 — au bureau, la ligne qu'on écrit reste en vue ─────────────────────────────
+
+    /// Un texte de 240 de large en `(x, y)`, en saisie au bout de « Un », sous la vue `v`.
+    fn en_saisie((x, y): (f64, f64), v: Viewport) -> GlucoseApp {
+        let mut app = GlucoseApp::new();
+        app.ui.current_toast = None;
+        let tableau = app.store.project.active_board_id.clone();
+        if let Some(b) = app.store.active_board_mut() {
+            b.annotations.clear();
+        }
+        let mut t = Annotation::text("t", x, y, "Un");
+        if let Annotation::Text { width, height, .. } = &mut t {
+            (*width, *height) = (Some(240.0), Some(60.0));
+        }
+        app.store.add_annotation(&tableau, t);
+        app.store.set_viewport(&tableau, v);
+        app.start_text_edit("t".into(), "Un".into());
+        app
+    }
+
+    /// La frappe, lettre après lettre, par le point unique où toute écriture passe — celui où la
+    /// touche mène (un `KeyEvent` de winit ne se construit pas hors de la boucle).
+    fn taper(app: &mut GlucoseApp, texte: &str) {
+        use crate::interactions::text_edit::keys::Command;
+        for c in texte.chars() {
+            app.apply_text_command(Command::Insert(c.to_string()), false);
+        }
+    }
+
+    /// Le haut et le bas de la ligne du curseur à l'écran, et l'abscisse du curseur, sous `v`.
+    fn ligne_a_l_ecran(app: &GlucoseApp, v: Viewport) -> (f64, f64, f64) {
+        use crate::renderer::card::{text_box, TEXT_ORIGIN};
+        use crate::renderer::richtext::{font_of, hit};
+        let session = app.editing_session.as_ref().expect("en saisie");
+        let boite = app.card_box("t").expect("sa boîte");
+        let (mise, largeur) = app.editing_layout().expect("sa mise en page");
+        let rang = hit::line_of_offset(&mise, session.selection.head);
+        let corps = text_box(largeur);
+        let ligne = &mise.lines[rang];
+        let typo = &app.renderer.typography;
+        let police = font_of(ligne.kind, corps.body);
+        let x = hit::offset_to_x(
+            typo,
+            &mise,
+            ligne,
+            &session.buffer,
+            session.selection.head,
+            police,
+        );
+        let h = f64::from(corps.line_height);
+        let haut = (boite.origin.1 + f64::from(TEXT_ORIGIN.1) + rang as f64 * h) * v.scale + v.y;
+        let gauche = (boite.origin.0 + f64::from(TEXT_ORIGIN.0 + x)) * v.scale + v.x;
+        (haut, haut + h * v.scale, gauche)
+    }
+
+    fn vue_de(app: &GlucoseApp) -> Viewport {
+        app.store.active_board().expect("un tableau").viewport
+    }
+
+    /// **Écrire sous le bas de l'écran fait monter la vue** (sa note `text-wiov-325` : *« quand tu
+    /// écris et que ça dépasse ton écran, il faut se déplacer »*) : la ligne du curseur reste
+    /// au-dessus du bas, à la même échelle. **L'envers** : sous la vue d'avant, cette ligne était
+    /// sous le bas de la fenêtre — c'est ce qu'il voyait.
+    #[test]
+    fn suivre_1_ecrire_sous_le_bas_fait_monter_la_vue() {
+        let avant = vue(0.0, 0.0, 1.0);
+        let mut app = en_saisie((100.0, 840.0), avant);
+        taper(
+            &mut app,
+            " texte qui grandit, mot après mot, jusqu'à passer sous le bas de \
+                         l'écran : la vue doit suivre la ligne où l'on écrit.",
+        );
+        let plancher = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).1);
+        let (_, bas_avant, _) = ligne_a_l_ecran(&app, avant);
+        assert!(
+            bas_avant > plancher,
+            "l'envers : cachée sous la vue d'avant"
+        );
+        let premiere = 840.0 + f64::from(crate::renderer::card::TEXT_ORIGIN.1);
+        assert!(premiere < plancher, "on avait commencé à l'écran");
+        let apres = vue_de(&app);
+        assert_eq!(
+            (apres.x, apres.scale),
+            (0.0, 1.0),
+            "ni l'abscisse ni l'échelle"
+        );
+        let (haut, bas, _) = ligne_a_l_ecran(&app, apres);
+        assert!(
+            (bas - plancher).abs() < 1e-6,
+            "la ligne juste au-dessus du bas : {bas} contre {plancher}"
+        );
+        assert!(haut >= f64::from(app.ui.header_height()));
+    }
+
+    /// **Écrire au-delà du bord droit, de près, fait glisser la vue** : le curseur garde la hauteur
+    /// de sa ligne d'air avant le bord. **L'envers** : sous la vue d'avant, il était dehors.
+    #[test]
+    fn suivre_1_ecrire_au_dela_du_bord_droit_fait_glisser_la_vue() {
+        let avant = vue(-200.0, -900.0, 4.0);
+        let mut app = en_saisie((300.0, 300.0), avant);
+        taper(&mut app, " mot de plus");
+        let droite = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).0);
+        let air = f64::from(crate::renderer::card::text_box(240.0).line_height) * 4.0;
+        let (_, _, x_avant) = ligne_a_l_ecran(&app, avant);
+        assert!(
+            x_avant + air > droite,
+            "l'envers : dehors sous la vue d'avant"
+        );
+        let apres = vue_de(&app);
+        assert_eq!(
+            (apres.y, apres.scale),
+            (-900.0, 4.0),
+            "ni la hauteur ni l'échelle"
+        );
+        let (_, _, x) = ligne_a_l_ecran(&app, apres);
+        assert!(
+            (x + air - droite).abs() < 1e-6,
+            "le curseur à sa ligne d'air du bord : {x}"
+        );
+    }
+
+    /// **`Ctrl+Z` pendant l'écriture ramène aussi la ligne** : on a regardé ailleurs, on défait le
+    /// dernier mot — la vue revient là où l'on écrit. **L'envers** : sous la vue où l'on était allé
+    /// regarder, cette ligne était cachée.
+    #[test]
+    fn suivre_1_ctrl_z_ramene_la_ligne_qu_on_ecrit() {
+        use crate::interactions::text_edit::keys::Command;
+        let avant = vue(0.0, 0.0, 1.0);
+        let mut app = en_saisie((100.0, 840.0), avant);
+        taper(
+            &mut app,
+            " texte qui grandit, mot après mot, jusqu'à passer sous le bas de l'écran : \
+             la vue doit suivre la ligne où l'on écrit.",
+        );
+        let tableau = app.store.project.active_board_id.clone();
+        app.store.set_viewport(&tableau, avant);
+        app.apply_text_command(Command::Undo, false);
+        let plancher = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).1);
+        let (_, bas_avant, _) = ligne_a_l_ecran(&app, avant);
+        assert!(
+            bas_avant > plancher,
+            "l'envers : cachée là où l'on regardait"
+        );
+        let (_, bas, _) = ligne_a_l_ecran(&app, vue_de(&app));
+        assert!(
+            (bas - plancher).abs() < 1e-6,
+            "revenue au-dessus du bas : {bas}"
+        );
     }
 }

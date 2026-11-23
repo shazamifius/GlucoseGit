@@ -6,6 +6,7 @@
 use super::*;
 use crate::app::GlucoseApp;
 use crate::plateforme::clavier::{Clavier, EtatDuClavier};
+use crate::renderer::card::{text_box, TEXT_ORIGIN};
 use glucose_core::types::{Annotation, Viewport};
 use std::sync::{Arc, Mutex};
 
