@@ -4,20 +4,194 @@
   "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
   "avant": "        if !sur_un_contenu {\n",
   "apres": "        if sur_un_contenu && !sur_un_contenu {\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "pipette_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_1"
+  ]
  },
  {
   "nom": "PIPETTE-1 — la portée sans le flou (l'étalement seul)",
   "fichier": "crates/glucose-desktop/src/renderer/halo.rs",
   "avant": "    f64::from(eclat.etalement() + flou / par_unite)\n",
   "apres": "    let _ = (flou, par_unite);\n    f64::from(eclat.etalement())\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "pipette_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_1"
+  ]
  },
  {
   "nom": "PIPETTE-1 — une lueur sans bord (toute distance la prend)",
   "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
   "avant": "                (d <= portee_de_la_lueur(sens.lueur(a).1, echelle)).then_some((d, couleur))\n",
   "apres": "                let _ = sens;\n                Some((d, couleur))\n",
-  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "pipette_1"]
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_1"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — la souris ne vise plus (l'appel retiré)",
+  "fichier": "crates/glucose-desktop/src/interactions/mouse.rs",
+  "avant": "        self.viser_a_la_pipette((position.x as f32, position.y as f32));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — le clic ne remet pas la visée à rien",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "            roue.pipette = false;\n            roue.vise = None;\n        }\n        let vue",
+  "apres": "            roue.pipette = false;\n        }\n        let vue",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — le code ignore la visée",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "        None => match roue.vise {\n",
+  "apres": "        None => match None::<Option<(u8, u8, u8)>> {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — la case « après » ignore la visée",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "apercu(pixmap, plat.apres, roue.vise.unwrap_or(roue.apres), theme);",
+  "apres": "apercu(pixmap, plat.apres, roue.apres, theme);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — pas de croix au curseur",
+  "fichier": "crates/glucose-desktop/src/interactions/cursor.rs",
+  "avant": "        } else if self.ui.roue.as_ref().is_some_and(|r| r.vise.is_some()) {\n",
+  "apres": "        } else if false && self.ui.roue.as_ref().is_some_and(|r| r.vise.is_some()) {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — elle vise aussi sur la roue",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "            .endroit_de_la_roue(ici, self.screen_frame(l, h))\n            .is_some()\n",
+  "apres": "            .endroit_de_la_roue(ici, self.screen_frame(l, h))\n            .is_some()\n            && false\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2"
+  ]
+ },
+ {
+  "nom": "PIPETTE-2 — le libellé qui ne tient pas (« Rien à prendre »)",
+  "fichier": "crates/glucose-desktop/src/ui/roue.rs",
+  "avant": "pub const RIEN_A_PRENDRE: &str = \"Aucune\";",
+  "apres": "pub const RIEN_A_PRENDRE: &str = \"Rien à prendre\";",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_2_rien_a_prendre"
+  ]
+ },
+ {
+  "nom": "PIPETTE-3 — dans sa boîte, la famille ignorée",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "                    .or_else(|| self.renderer.sens_des_textes.couleur_a_prendre(a))\n",
+  "apres": "                    .or_else(|| { let _ = a; None })\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_3"
+  ]
+ },
+ {
+  "nom": "PIPETTE-3 — dans sa lueur, la loi d'avant (la couleur choisie seule)",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "                Noeud::Annotation(a @ Annotation::Text { .. }) => {\n                    Some((a, sens.couleur_a_prendre(a)?))\n",
+  "apres": "                Noeud::Annotation(a @ Annotation::Text { color: Some(c), .. }) => {\n                    Some((a, crate::renderer::parse_hex_rgb(c)?))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_3"
+  ]
+ },
+ {
+  "nom": "PIPETTE-3 — le gris se prend",
+  "fichier": "crates/glucose-desktop/src/renderer/sens.rs",
+  "avant": "            (*couleur != self.gris).then_some(*couleur)\n",
+  "apres": "            Some(*couleur)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "pipette_3"
+  ]
  }
 ]

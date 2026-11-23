@@ -186,8 +186,27 @@ pub fn draw_roue(
     dessiner_la_pipette(pixmap, plat.pipette, encre, s);
 }
 
-/// Ce que le code dit quand la pipette armée ne vise aucune couleur (PIPETTE-2).
-pub const RIEN_A_PRENDRE: &str = "rien à prendre";
+/// Ce que le code dit quand la pipette armée ne vise aucune couleur (PIPETTE-2) : le mot d'un
+/// champ de couleur vide, qui tient dans le champ à toutes les échelles (« Rien à prendre » n'y
+/// tenait pas — l'épreuve `pipette_2_rien_a_prendre_tient_dans_le_code`).
+pub const RIEN_A_PRENDRE: &str = "Aucune";
+
+/// **Ce que dit le champ du code** : à la frappe, ce qu'on tape ; la pipette armée, ce qu'elle
+/// prendrait sous la souris, ou qu'il n'y a rien à prendre (PIPETTE-2) — rien ne se tait ; sinon la
+/// couleur posée, ou « Par défaut ».
+pub fn texte_du_code(roue: &RoueOuverte) -> String {
+    match &roue.code {
+        Some(saisie) => format!("#{}", saisie.text()),
+        None => match roue.vise {
+            Some(None) => RIEN_A_PRENDRE.to_string(),
+            Some(Some(couleur)) => glucose_core::couleur::roue::hex(couleur),
+            None => roue.apres.map_or_else(
+                || super::couleurs::PAR_DEFAUT.to_string(),
+                glucose_core::couleur::roue::hex,
+            ),
+        },
+    }
+}
 
 /// Le champ du code : la couleur posée en `#rrggbb` (ou « Par défaut ») ; à la frappe, ce qu'on
 /// tape, dans un bouton allumé, et son curseur.
@@ -199,17 +218,7 @@ fn dessiner_le_code(
 ) {
     let (cx, cy, _, ch) = rect;
     let corps = 12.0 * s;
-    let texte = match &roue.code {
-        Some(saisie) => format!("#{}", saisie.text()),
-        None => match roue.vise {
-            Some(None) => RIEN_A_PRENDRE.to_string(),
-            Some(Some(couleur)) => glucose_core::couleur::roue::hex(couleur),
-            None => roue.apres.map_or_else(
-                || super::couleurs::PAR_DEFAUT.to_string(),
-                glucose_core::couleur::roue::hex,
-            ),
-        },
-    };
+    let texte = texte_du_code(roue);
     if roue.code.is_some() {
         super::action_bar::bouton(pixmap, rect, (s, true), theme);
     }

@@ -520,28 +520,156 @@ fn vise(app: &GlucoseApp) -> Option<Option<(u8, u8, u8)>> {
     app.ui.roue.as_ref().and_then(|r| r.vise)
 }
 
+/// Ce que dit le champ du code de la roue ouverte.
+fn code_dit(app: &GlucoseApp) -> String {
+    crate::ui::roue::texte_du_code(app.ui.roue.as_ref().expect("la roue ouverte"))
+}
+
+/// La couleur que la case « après » de la roue dessinée montre, en son milieu.
+fn case_apres(app: &GlucoseApp) -> (u8, u8, u8) {
+    let mut pixmap = tiny_skia::Pixmap::new(ECRAN.0 as u32, ECRAN.1 as u32).expect("pixmap");
+    let e = ecran(app);
+    let barre = crate::ui::couleurs::layout_barre_de_couleur(
+        &app.store,
+        &app.renderer.typography,
+        app.ui.ecran_visible((e.width, e.height)),
+        e.scale,
+    )
+    .expect("la barre de couleur");
+    let roue = app.ui.roue.as_ref().expect("la roue ouverte");
+    let outils = (&app.renderer.typography, &crate::theme::Theme::dark());
+    let lieu = ((e.width, e.height), e.scale);
+    crate::ui::roue::draw_roue(&mut pixmap.as_mut(), roue, barre.rect, outils, lieu);
+    let (x, y) = milieu(plat(app).apres);
+    let p = pixmap.pixel(x as u32, y as u32).expect("dans l'écran");
+    (p.red(), p.green(), p.blue())
+}
+
 /// **PIPETTE-2 — armée, la roue montre ce qu'elle prendrait** (sa note du 23/11 : *« pour que ce
-/// soit visible »*) : sur la lueur du texte bleu, son bleu ; dans le vide, rien à prendre ; un
-/// clic la désarme, et la roue cesse de viser. **L'envers** : désarmée, la souris ne vise rien.
+/// soit visible »*) : sur la lueur du texte bleu, son bleu — dans la case « après » et le code —,
+/// et la croix au curseur ; dans le vide, « Aucune » ; sur la roue, elle ne vise rien ; un
+/// clic la désarme, et la roue cesse de viser. **L'envers** : désarmée, la souris ne vise rien, le
+/// code dit la couleur posée et le curseur reste la flèche.
 #[test]
 fn pipette_2_armee_la_roue_montre_ce_qu_elle_prendrait() {
+    use winit::window::CursorIcon;
     let mut app = avec_un_texte_bleu();
     assert!(app.ouvrir_la_roue());
-    let bouger = |app: &mut GlucoseApp, (x, y): (f64, f64)| {
-        app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(x, y));
-    };
-    bouger(&mut app, (1150.0, 410.0));
+    aller(&mut app, (1150.0, 410.0));
     assert_eq!(vise(&app), None, "désarmée, elle ne vise rien");
+    assert_eq!(code_dit(&app), crate::ui::couleurs::PAR_DEFAUT);
+    assert_eq!(app.current_cursor(), CursorIcon::Default);
     armer(&mut app);
-    bouger(&mut app, (1150.0, 410.0));
+    aller(&mut app, (1150.0, 410.0));
     assert_eq!(
         vise(&app),
         Some(Some((0x2a, 0x8c, 0xf9))),
         "sa lueur, son bleu"
     );
-    bouger(&mut app, (1150.0, 600.0));
+    assert_eq!(
+        code_dit(&app),
+        "#2a8cf9",
+        "le code dit ce qu'elle prendrait"
+    );
+    assert_eq!(app.current_cursor(), CursorIcon::Crosshair, "la croix vise");
+    assert_eq!(
+        case_apres(&app),
+        (0x2a, 0x8c, 0xf9),
+        "la case « après » le montre"
+    );
+    aller(&mut app, (1150.0, 600.0));
     assert_eq!(vise(&app), Some(None), "dans le vide, rien à prendre — dit");
+    assert_eq!(code_dit(&app), crate::ui::roue::RIEN_A_PRENDRE);
+    let sur_la_roue = milieu(plat(&app).code);
+    aller(&mut app, sur_la_roue);
+    assert_eq!(vise(&app), None, "sur la roue, elle ne vise rien");
+    assert_eq!(app.current_cursor(), CursorIcon::Default);
+    aller(&mut app, (1150.0, 600.0));
     presser(&mut app, (1150.0, 600.0));
     lacher(&mut app);
     assert_eq!(vise(&app), None, "le clic la désarme");
+    assert_eq!(app.current_cursor(), CursorIcon::Default);
+}
+
+/// **« Aucune » tient dans le champ du code**, à toutes les échelles de l'interface (ECHELLE-1, de
+/// 50 à 300 %) : un libellé qui déborde passe sous le bouton de la pipette — « Rien à prendre »,
+/// le premier choisi, y prenait 83 pixels sur 72.
+#[test]
+fn pipette_2_rien_a_prendre_tient_dans_le_code() {
+    let app = app();
+    let typo = &app.renderer.typography;
+    for echelle in [0.5_f32, 1.0, 1.1, 1.25, 1.5, 2.0, 3.0] {
+        let s = crate::theme::clamp_ui_scale(echelle);
+        let (_, _, largeur, _) = placer((0.0, 800.0, 400.0, 40.0), ECRAN, echelle, false).code;
+        let texte = typo
+            .measure_text(
+                crate::ui::roue::RIEN_A_PRENDRE,
+                12.0 * s,
+                crate::typography::Face::Regular,
+            )
+            .0;
+        assert!(
+            texte + 4.0 * s <= largeur,
+            "à {echelle} : {texte} + la marge dépasse {largeur}"
+        );
+    }
+}
+
+/// Un texte de 300 × 60 sans couleur choisie, en `(x, y)`.
+fn poser_un_texte_sans_couleur(app: &mut GlucoseApp, id: &str, (x, y): (f64, f64)) {
+    let tableau = app.store.project.active_board_id.clone();
+    let mut texte = Annotation::text(id, x, y, "Un texte sans couleur choisie.");
+    if let Annotation::Text { width, height, .. } = &mut texte {
+        (*width, *height) = (Some(300.0), Some(60.0));
+    }
+    app.store.add_annotation(&tableau, texte);
+}
+
+/// **PIPETTE-3 — un texte sans couleur choisie donne celle de sa famille** (sa note du 23/11 :
+/// *« la couleur exacte d'un bloc de texte »* — celle que sa lueur montre) : dans sa boîte comme
+/// dans sa lueur, la pipette prend la couleur que l'IA lui donne, exactement celle que la lueur
+/// peint ; un texte seul, dont la lueur est grise, ne donne rien — dit « Aucune ». **L'envers** :
+/// la loi d'avant ne lisait que la couleur choisie, et ce texte n'en porte pas.
+#[test]
+fn pipette_3_un_texte_sans_couleur_donne_celle_de_sa_famille() {
+    use crate::parente::AvisDUnNoeud;
+    let mut app = avec_un_texte_bleu();
+    poser_un_texte_sans_couleur(&mut app, "famille", (1000.0, 560.0));
+    poser_un_texte_sans_couleur(&mut app, "seul", (1000.0, 760.0));
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    let tableau = app.store.project.active_board_id.clone();
+    let avis = |famille: Option<usize>| AvisDUnNoeud {
+        famille,
+        teinte: famille.map(|_| 1.0),
+        surete: if famille.is_some() { 1.0 } else { 0.0 },
+        parent: None,
+    };
+    let avis = [("famille", avis(Some(0))), ("seul", avis(None))]
+        .into_iter()
+        .map(|(id, a)| (id.to_string(), a))
+        .collect();
+    app.renderer.sens_des_textes =
+        crate::renderer::sens::SensDesTextes::avec_l_avis(&tableau, avis);
+    let sens = &app.renderer.sens_des_textes;
+    let la_famille = app.store.project.annotation(&tableau, "famille").unwrap();
+    let peinte = sens.lueur(la_famille).0;
+    assert_ne!(peinte, sens.gris(), "sa lueur montre une couleur");
+    assert_eq!(
+        app.store.couleur_du_noeud("famille"),
+        None,
+        "l'envers : la loi d'avant n'avait rien à prendre"
+    );
+    assert!(app.ouvrir_la_roue());
+    armer(&mut app);
+    aller(&mut app, (1150.0, 590.0));
+    assert_eq!(vise(&app), Some(Some(peinte)), "dans sa boîte, sa famille");
+    aller(&mut app, (1150.0, 670.0));
+    assert_eq!(vise(&app), Some(Some(peinte)), "dans sa lueur, sa famille");
+    aller(&mut app, (1150.0, 790.0));
+    assert_eq!(vise(&app), Some(None), "un texte seul ne donne rien");
+    assert_eq!(code_dit(&app), crate::ui::roue::RIEN_A_PRENDRE);
+    presser(&mut app, (1150.0, 670.0));
+    lacher(&mut app);
+    let hex = glucose_core::couleur::roue::hex(peinte);
+    assert_eq!(couleur(&app), Some(hex), "le clic la pose, exacte");
 }

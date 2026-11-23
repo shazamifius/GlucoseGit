@@ -145,7 +145,15 @@ impl GlucoseApp {
                     _ => None,
                 }
             }
-            PickOwner::Annotation | PickOwner::Membrane | PickOwner::Folder => self
+            // Un texte sans couleur choisie donne celle de sa famille, si sa lueur en montre une
+            // (PIPETTE-3).
+            PickOwner::Annotation => {
+                let a = self.store.project.annotation(&tableau, &dessus.id)?;
+                (self.store.couleur_du_noeud(&dessus.id))
+                    .and_then(crate::renderer::parse_hex_rgb)
+                    .or_else(|| self.renderer.sens_des_textes.couleur_a_prendre(a))
+            }
+            PickOwner::Membrane | PickOwner::Folder => self
                 .store
                 .couleur_du_noeud(&dessus.id)
                 .and_then(crate::renderer::parse_hex_rgb),
@@ -157,6 +165,8 @@ impl GlucoseApp {
     /// (sa note du 23/11 : *« fonctionne SUPER mal »* — viser la lueur, là où la couleur d'un texte
     /// se voit, ne prenait rien, en silence). La portée est celle du dessin
     /// ([`crate::renderer::halo::portee_de_la_lueur`]) ; les textes proches se lisent par l'index.
+    /// Coloré : de sa couleur choisie, ou de celle de sa famille (PIPETTE-3) ; une lueur grise ne
+    /// donne rien.
     fn lueur_coloree_sous(&mut self, (wx, wy): (f64, f64)) -> Option<(u8, u8, u8)> {
         use crate::renderer::halo::portee_de_la_lueur;
         use glucose_core::quadtree::{noeud_au_rang, Noeud};
@@ -171,8 +181,8 @@ impl GlucoseApp {
         rangs
             .iter()
             .filter_map(|&r| match noeud_au_rang(tableau, r)? {
-                Noeud::Annotation(a @ Annotation::Text { color: Some(c), .. }) => {
-                    Some((a, crate::renderer::parse_hex_rgb(c)?))
+                Noeud::Annotation(a @ Annotation::Text { .. }) => {
+                    Some((a, sens.couleur_a_prendre(a)?))
                 }
                 _ => None,
             })

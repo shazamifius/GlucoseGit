@@ -109,11 +109,7 @@ impl SensDesTextes {
     /// **La lueur d'un texte** : sa couleur, et la sûreté qu'elle porte — pleine pour la couleur
     /// qu'on a choisie, celle de l'IA sinon, nulle pour un texte qu'elle n'a pas lu (gris).
     pub(crate) fn lueur(&self, ann: &Annotation) -> (Rgb, f32) {
-        let choisie = match ann {
-            Annotation::Text { color: Some(c), .. } => super::parse_hex_rgb(c),
-            _ => None,
-        };
-        choisie.map_or_else(
+        choisie(ann).map_or_else(
             || {
                 self.par_texte
                     .get(ann.id())
@@ -122,6 +118,18 @@ impl SensDesTextes {
             },
             |c| (c, 1.0),
         )
+    }
+
+    /// **PIPETTE-3 — la couleur que la pipette prend d'un texte** : celle que sa lueur montre — la
+    /// choisie, sinon celle de sa famille (sa note du 23/11 : *« la couleur exacte d'un bloc de
+    /// texte »*, celle qu'on voit) ; jamais le gris de ce dont l'IA ne dit rien : il ne dit rien,
+    /// et ne se prend pas. Le gris se reconnaît exactement — une famille sans aucune sûreté n'a
+    /// plus de vivacité, et tombe sur lui ([`Self::poser`]).
+    pub(crate) fn couleur_a_prendre(&self, ann: &Annotation) -> Option<Rgb> {
+        choisie(ann).or_else(|| {
+            let (couleur, _) = self.par_texte.get(ann.id())?;
+            (*couleur != self.gris).then_some(*couleur)
+        })
     }
 
     /// La couleur d'un texte, sans sa sûreté : ses ornements, ses passages qui brillent, le bout
@@ -213,6 +221,14 @@ impl SensDesTextes {
         sens.poser(&avis);
         sens.avis = Some((tableau.to_string(), avis));
         sens
+    }
+}
+
+/// La couleur qu'on a choisie pour un texte, s'il en porte une : elle passe devant celle de l'IA.
+fn choisie(ann: &Annotation) -> Option<Rgb> {
+    match ann {
+        Annotation::Text { color: Some(c), .. } => super::parse_hex_rgb(c),
+        _ => None,
     }
 }
 

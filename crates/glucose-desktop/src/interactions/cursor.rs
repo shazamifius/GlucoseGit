@@ -17,6 +17,10 @@ impl GlucoseApp {
         } else if let Some(champ) = self.curseur_du_champ() {
             // Un champ de nombre du dock se glisse, ou se tape (CHAMP-1).
             champ
+        } else if self.ui.roue.as_ref().is_some_and(|r| r.vise.is_some()) {
+            // La pipette armée vise hors de la roue : la croix dit le point qu'elle prend
+            // (PIPETTE-2) ; sur la roue, elle ne vise rien, la flèche revient.
+            CursorIcon::Crosshair
         } else if self.is_panning {
             CursorIcon::Grabbing
         } else if self.ui.active_tool == ActiveTool::Pan {
