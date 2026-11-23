@@ -219,28 +219,36 @@ fn dessiner_le_code(
     }
 }
 
-/// La pipette : un trait en biais et sa poire, à l'encre du bouton.
+/// **La pipette** (sa note du 23/11 : *« le logo […] fonctionne SUPER mal »* — un trait et un point
+/// de 2,6 px, qu'on ne reconnaissait pas) : en biais, la pointe en bas à gauche, **le tube** fin, **la
+/// bague** en travers, **la poire** épaisse en haut à droite — la silhouette des pipettes de Blender
+/// et de Material (« colorize »), à l'encre du bouton.
 fn dessiner_la_pipette(pixmap: &mut PixmapMut, rect: (f32, f32, f32, f32), encre: Color, s: f32) {
     let (x, y, w, h) = rect;
     let (cx, cy) = (x + w / 2.0, y + h / 2.0);
-    let r = h * 0.32;
+    let r = h * 0.34;
+    // `t` le long de la pipette, de la pointe (0) au bout de la poire (1) ; `n` en travers.
+    let k = std::f32::consts::FRAC_1_SQRT_2;
+    let point = |t: f32, n: f32| (cx - r + 2.0 * r * t + n * k, cy + r - 2.0 * r * t + n * k);
     let mut paint = Paint::default();
     paint.set_color(encre);
     paint.anti_alias = true;
-    let mut trait_ = PathBuilder::new();
-    trait_.move_to(cx - r, cy + r);
-    trait_.line_to(cx + r * 0.45, cy - r * 0.45);
-    if let Some(chemin) = trait_.finish() {
-        let stroke = Stroke {
-            width: 2.0 * s,
-            ..Stroke::default()
-        };
-        pixmap.stroke_path(&chemin, &paint, &stroke, Transform::identity(), None);
-    }
-    if let Some(poire) = PathBuilder::from_circle(cx + r * 0.6, cy - r * 0.6, 2.6 * s) {
-        let plein = tiny_skia::FillRule::Winding;
-        pixmap.fill_path(&poire, &paint, plein, Transform::identity(), None);
-    }
+    let mut trait_ = |de: (f32, f32), a: (f32, f32), largeur: f32| {
+        let mut pb = PathBuilder::new();
+        pb.move_to(de.0, de.1);
+        pb.line_to(a.0, a.1);
+        if let Some(chemin) = pb.finish() {
+            let stroke = Stroke {
+                width: largeur,
+                line_cap: tiny_skia::LineCap::Round,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&chemin, &paint, &stroke, Transform::identity(), None);
+        }
+    };
+    trait_(point(0.0, 0.0), point(0.55, 0.0), 1.8 * s);
+    trait_(point(0.55, -3.2 * s), point(0.55, 3.2 * s), 1.8 * s);
+    trait_(point(0.72, 0.0), point(1.0, 0.0), 4.4 * s);
 }
 
 /// Le curseur de clarté : la couleur de la place à chaque clarté, de 1 en haut à 0 en bas, et

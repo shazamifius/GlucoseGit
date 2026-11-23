@@ -337,3 +337,9 @@ l'envers) ; **trois sabotages sur trois** (`pipette-134.json`). **Regardé au pi
 la lueur rouge, qui ne prenait rien (`6-lueur.png`), prend `#ef4444` (`7-lueur-apres.png`). **Reste**
 (b), (c), (d) — l'aperçu, rien ne se tait, l'icône — et la question de la couleur de famille.
 
+**L'icône — faite** (20 h 56) : un trait et un point de 2,6 px devenus **une pipette** — la pointe en bas
+à gauche, le tube fin, la bague en travers, la poire épaisse en haut à droite (la silhouette de Blender
+et de Material « colorize »), à l'encre du bouton (`ui/roue.rs`, `dessiner_la_pipette`). Regardée au
+pilote, l'avant et l'après agrandis (`~/.cache/glucose-bancs/pipette-134/3-icone-avant-zoom.png`,
+`8-icone-zoom.png`). Un dessin, sans épreuve qui le garde : c'est l'image qui le juge.
+
