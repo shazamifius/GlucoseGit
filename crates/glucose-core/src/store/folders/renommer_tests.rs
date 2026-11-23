@@ -97,3 +97,32 @@ fn test_dossier_2_choisir_seul_efface_la_selection_d_avant() {
         (0, 1)
     );
 }
+
+/// **RENOMMER-2 — un nom, un seul** (fiche 133) : le tableau qu'un dossier ouvre prend son nom,
+/// dans le même geste — `Ctrl+F`, les agents et le chemin d'un tableau lisaient encore
+/// « Dossier » d'un dossier renommé. Un `Ctrl+Z` rend les deux noms.
+#[test]
+fn test_renommer_2_le_tableau_du_dossier_prend_son_nom() {
+    let (mut store, board, id) = un_dossier_choisi();
+    let ouvre = store.active_board().expect("un tableau").folders[0]
+        .child_board_id
+        .clone();
+    let onglet = store.active_board().expect("un tableau").name.clone();
+    let nom_du_tableau = |s: &Store| {
+        let b = s.project.boards.iter().find(|b| b.id == ouvre);
+        b.expect("son tableau").name.clone()
+    };
+    assert!(store.renommer_le_dossier(&board, &id, "archive"));
+    assert_eq!(nom_du_tableau(&store), "archive");
+    assert_eq!(
+        store.chemin_du_tableau(&ouvre),
+        [onglet.as_str(), "archive"]
+    );
+    assert_eq!(store.chemin_du_tableau(&board), [onglet.as_str()]);
+    assert!(store.chemin_du_tableau("aucun").is_empty());
+    assert!(store.undo(), "un seul geste");
+    assert_eq!(
+        (nom(&store), nom_du_tableau(&store)),
+        ("Dossier".into(), "Dossier".into())
+    );
+}

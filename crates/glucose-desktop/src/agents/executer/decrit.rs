@@ -77,6 +77,7 @@ pub(super) fn decrit_en_json(d: &Decrit, rendu: &Rendu) -> Json {
         ("operateur", d.operateur.map(|o| o.id())),
         ("couleur", d.couleur.as_deref()),
         ("adresse", d.adresse.as_deref()),
+        ("ouvre", d.ouvre.as_deref()),
     ];
     champs.extend(
         facultatifs

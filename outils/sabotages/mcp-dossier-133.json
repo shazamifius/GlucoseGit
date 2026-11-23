@@ -1,0 +1,182 @@
+[
+ {
+  "nom": "MCP-DOSSIER-1 — les dossiers hors de la description (comme avant)",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "let mut decrits: Vec<Decrit> = photos.chain(annotations).chain(dossiers).collect();",
+  "apres": "let _ = dossiers;\n    let mut decrits: Vec<Decrit> = photos.chain(annotations).collect();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-1 — un dossier ne dit pas ce qu'il ouvre",
+  "fichier": "crates/glucose-desktop/src/agents/executer/decrit.rs",
+  "avant": "        (\"ouvre\", d.ouvre.as_deref()),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-1 — le plan oublie les dossiers",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "matches!(n.sorte, Sorte::Membrane | Sorte::Dossier)",
+  "apres": "n.sorte == Sorte::Membrane",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-1 — un dossier ne dit pas son badge",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "(Sorte::Dossier, Some(ouvre)) => Some(self.store.folder_child_count(ouvre)),",
+  "apres": "(Sorte::Dossier, Some(_)) => None,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-3 — la lecture ne dit pas où est le tableau",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "(\"ou\", Json::from(self.store.chemin_du_tableau(board).join(FIL))),",
+  "apres": "(\"ou\", Json::from(board)),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-3 — le chemin oublie les dossiers traversés",
+  "fichier": "crates/glucose-core/src/store/boards.rs",
+  "avant": "std::iter::once(onglet).chain(dossiers).collect()",
+  "apres": "let _ = dossiers.count();\n        vec![onglet]",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "renommer"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-4 — un identifiant absent se tait (comme avant)",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": ".filter(|id| !decrits.iter().any(|d| d.id == **id))",
+  "apres": ".filter(|_| false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "RENOMMER-2 — le tableau du dossier garde son nom de naissance",
+  "fichier": "crates/glucose-core/src/store/folders.rs",
+  "avant": "                s.rename_board(&ouvre, nom);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "renommer"
+  ]
+ },
+ {
+  "nom": "RENOMMER-2 — le dossier et son tableau, deux gestes",
+  "fichier": "crates/glucose-core/src/store/folders.rs",
+  "avant": "        let ouvert = self.in_live_edit();",
+  "apres": "        let ouvert = true;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "renommer"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-2 — renommer le tableau d'un dossier oublie le dossier",
+  "fichier": "crates/glucose-core/src/store/folders.rs",
+  "avant": "let f = parent.folders.iter().find(|f| f.child_board_id == id)?;",
+  "apres": "let f = parent.folders.iter().find(|_| false)?;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-2 — un nom vide passe",
+  "fichier": "crates/glucose-core/src/store/folders.rs",
+  "avant": "        if nom.is_empty() {\n            return Err(Refus::NomVide);",
+  "apres": "        if nom.is_empty() && false {\n            return Err(Refus::NomVide);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ },
+ {
+  "nom": "MCP-DOSSIER-2 — l'outil de renommage n'existe pas à l'exécution",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "            \"glucose_renommer\" => self.agent_renommer(&board, &a),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::executer::tests::mcp_dossier"
+  ]
+ }
+]

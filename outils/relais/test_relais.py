@@ -453,6 +453,16 @@ class Mains(unittest.TestCase):
         ]}
         self.assertEqual(r.ses_paroles(h, ["vieille", "avant"]), ["avant", "note-1", "urgent"])
 
+    def test_un_dossier_n_est_pas_un_identifiant(self):
+        # Le 23/11, l'histoire disait « pose le dossier « Dossier » » : la session recevait ids=Dossier.
+        h = {"gestes": [
+            {"auteur": "Aigle Émeraude", "fait": ["pose le dossier « Dossier »", "pose ou retire un tableau"]},
+            {"auteur": "Aigle Émeraude", "fait": ["change le dossier « Dossier »"]},
+            {"auteur": "Aigle Émeraude", "fait": ["pose le texte « text-f5fn-357 »"]},
+        ]}
+        self.assertEqual(r.ses_paroles(h), ["text-f5fn-357"])
+        self.assertIn("ouvre", r.depart("a", ["text-f5fn-357"]))
+
     def test_la_session_lit_ses_notes_avant_tout(self):
         self.assertIn("ids=note-1 ids=urgent", r.depart("a", ["note-1", "urgent"]))
         self.assertIn("avant toute autre tâche", r.depart("a", ["note-1"]))

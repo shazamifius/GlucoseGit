@@ -1,0 +1,34 @@
+[
+ {
+  "nom": "RELAIS-DOSSIER — le nom d'un dossier passe pour un identifiant (comme avant)",
+  "fichier": "outils/relais/loi.py",
+  "avant": "            if \" dossier \" in fait:\n                continue\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-DOSSIER — la session ne sait pas qu'une note peut être dans un dossier",
+  "fichier": "outils/relais/loi.py",
+  "avant": "dans un dossier : chaque dossier dit le tableau qu'il ouvre (ouvre), lis-le avec ",
+  "apres": "ailleurs : lis-le avec ",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

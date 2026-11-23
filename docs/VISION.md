@@ -51,6 +51,20 @@ d'un projet Rust de plusieurs millions de lignes (web3) — *« une arborescence
 complexe »* —, construit par Protéo, posé sur Glucose, puis travailler sur ce projet avec Protéo, depuis
 Glucose.
 
+**Le MCP, poussé à 300 %** (sa note du 23/11, membrane « tableau des propositions à la volée ») :
+*« pour ce qui est du MCP, c'est TOI qui l'utilises tous les jours ; moi, en tant qu'utilisateur, je ne
+peux pas faire de propositions car je ne suis pas une IA ; mais fais le maximum de propositions afin
+que le MCP soit le plus parfait possible : peu de jetons, plein d'outils ultra compréhensibles et
+simples à utiliser — vraiment essayer de pousser les choses à 300 % »* ; *« cette map Glucose est super
+vaste : j'ai AUCUNE idée de si tu arrives à voir l'ensemble des sujets, à voir où je suis actif ou pas,
+si tu arrives à repérer TOUS les petits détails, toutes les indications, les questions, les demandes,
+les annotations »*. **Et l'IA qui sait où il travaille** (sa réponse à Q8, le fil « où je suis ») :
+*« c'est une proposition à avoir dans Glucose, mais l'idée, c'est aussi d'améliorer l'intelligence
+artificielle de Glucose : pouvoir noter exactement où travaille l'utilisateur, où est souvent sa
+fenêtre visuelle de son écran, savoir où sont les modifications récentes ; tout ça peut être enregistré
+dans le système de hub, que les MCP peuvent accéder à tout moment, et servir à l'IA interne de
+l'utilisateur, grâce au MCP, pour comprendre ses intentions »*.
+
 **Glucose R&D, et le hub de tout projet** (19/11) : *« maintenant, il faut se dire un truc SUPER
 important : Glucose R&D, ce sont les travaux réalisés avec l'IA, et voir comment un humain arrive à
 s'exprimer à un autre humain, et comment l'IA arrive à comprendre et à aider sur de gros projets »* ;
@@ -203,6 +217,43 @@ Chaque décision, chaque ligne de code se juge contre elles.
   quelqu'un — à voir quel est le meilleur algorithme, le plus adapté pour notre projet actuellement ;
   attention aux licences — et ensuite, peut-être un jour, on créera notre propre algo, plus poussé,
   relié à l'IA interne de Glucose, que j'aimerais reprendre from scratch »*.
+* **Ses notes du 23/11** (écrites dans son Glucose depuis son autre appareil, membrane « tableau des
+  propositions à la volée ») :
+  * **les projets récents, comme Blender** : *« crée une interface, lorsqu'on cherche à retrouver un
+    projet récent, un peu comme Blender : la liste des projets dernièrement ouverts sur Glucose ; elle
+    s'affiche lorsque l'utilisateur fait Ctrl+O ; on peut y avoir une barre de recherche, un scroll
+    avec TOUS les projets récents — mais si possible voir aussi les projets jamais ouverts présents
+    sur son PC — et des projets notés en rouge car supprimés ; mais s'ils ont été déplacés, le prendre
+    en compte aussi ; et une option en bas pour rechercher dans ce PC, comme le Ctrl+O actuel, juste
+    au cas où ; à voir le fonctionnement sur téléphone, sur Linux et sur Windows »* ;
+  * **compatible avec le plus de logiciels possible** : *« suggère-moi toutes les interactions de
+    glisser-déposer avec VS Code, car j'aimerais que Glucose soit le plus compatible possible avec le
+    maximum de logiciels »* ; et les scripts — *« un .py glissé depuis VS Code ou l'explorateur devient
+    un bloc de texte en Markdown ; mais il n'est plus possible de le glisser-déposer en tant que script,
+    et l'édition d'un script au sein de Glucose est plutôt nulle, car c'est du Markdown ; ce serait
+    vraiment bien d'avoir une interface meilleure pour l'édition rapide de script »* — son exemple : un
+    script Maya qu'on fait marcher en le glissant dans Maya, *« j'aimerais pouvoir le faire depuis
+    Glucose aussi »* ;
+  * **importer n'importe quel fichier** : *« pouvoir importer tous les fichiers, que ce soit .blend, .ma,
+    .md, .py : si c'est traduisible et lisible en texte, l'afficher en tant que texte ; sinon, faire des
+    systèmes de raccourcis d'ouverture — à l'époque, Glucose Tauri avait ces options, comme si c'était
+    un énorme launcher : on pouvait importer un dossier ENTIER depuis Windows ou Linux et l'avoir dans
+    Glucose, ça permettait de s'organiser dans Glucose »*.
+* **Ses réponses aux questions rapides** (écrites dans son Glucose, lues le 23/11) : **Q16**, deux
+  personnes sur le même nœud, garder les deux comme Figma — *« oui, complètement, je suis d'accord ;
+  merci énormément de continuer à comparer les autres logiciels, c'est SUPER intéressant, c'est quelque
+  chose à absolument garder !! »* ; **Q17**, un canevas que celui qui n'a que le code « regarder » ne
+  peut pas toucher : *« oui aussi »* ; **Q18**, l'alerte « des photos attendent quelqu'un qui les a » :
+  *« oui, clairement, ce serait une fonctionnalité super intéressante et visible pour l'utilisateur »* ;
+  **Q19**, son nom dans un canevas partagé : *« carrément, je suis plutôt d'accord : on demande le
+  pseudo ainsi que la couleur d'affichage »* ; **Q10**, glisser un nœud vers une fenêtre posée
+  par-dessus Glucose, quand Alt est pris par les bureaux : *« oui, j'aimerais bien trouver une autre
+  touche, qui serait spécifique à Glucose, mais aussi ultra accessible, et pas trop bizarre en termes
+  d'expérience utilisateur »* ; **une beta.5** : *« yep, complètement ; mais on peut ajouter aussi le
+  système d'IA gratuite par API, actuellement en développement, si celui-ci est testé et fiable »* ;
+  **les GitHub Pages** : *« ah oui, à 100 %, il faudrait faire ça »*, et *« il faudrait aussi enlever
+  tous les trucs qui pourraient discréditer mon travail dans les docs .md, car tout ce qui touche à des
+  réflexions de Claude ou à des choix, ça ne sert à rien […] ça ne fait vraiment pas propre du tout »*.
 * **L'ergonomie se fait à la fin** (15/10), une grosse session quand toutes les fonctions seront là ;
   avant, chaque fonction a son bouton, au PC et au téléphone. **Nuancé le 10/11** : *« actuellement le
   Wikipédia est illisible et horrible à travailler dessus »* — il veut travailler l'ergonomie de la carte
@@ -270,6 +321,16 @@ plus jamais le lui demander.**
   rendre plus transparentes »*. Devant les quatre vues à 21, 11 et 6 %
   ([la page](https://claude.ai/artifact/6cUix7pewFDikQumRqjnLZ)) : *« ok, c'est vraiment vraiment
   parfait, 11 % ! on garde »* — le voile d'une seule membrane de Tauri (fiche 107).
+
+### Les dossiers et la pipette (23/11)
+
+* **L'opacité d'un dossier** : *« les dossiers sont très transparents par défaut ; ce serait bien,
+  avec le système de couleur, d'avoir une option pour changer son opacité »*.
+* **La pipette** : *« le logo de l'outil pipette présent dans les couleurs, ainsi que l'outil lui-même,
+  fonctionnent SUPER mal ; il faudrait qu'on puisse avoir la couleur exacte d'un bloc de texte
+  directement avec sa sélection, pour que ce soit visible qu'on vient bien de prendre la même couleur
+  que le bloc sélectionné ; ça permet, en tant qu'utilisateur, de créer des codes couleur super
+  facilement »*.
 
 ### Les textes : un fond toujours gris, un halo qui dit le sens (11/11)
 
@@ -427,6 +488,14 @@ et de sa construction ; les trois IA répondant à la même question.
   lui dit quel système a modifié des nœuds (*« il faudrait ajouter un nom »*), combien, ce que chacun
   dit face à l'état actuel, et lui demande : **garder, supprimer ou dédoubler** — *« c'est à
   l'utilisateur, quand il revient sur l'interface de Glucose, de choisir »*.
+* **Le miroir, à la main seulement, et le fichier lié** (sa note du 23/11) : *« un système de création
+  de miroir de fichiers — pour coller au cahier des charges de la NASA, on a besoin que Glucose ne
+  meure jamais, avec un système d'auto-réécriture de .md dans des sous-dossiers Windows ou Linux, peu
+  importe ; warning : cette option doit être juste et uniquement activable manuellement, elle n'est
+  pas cochée par défaut »* ; et *« dès que tu importes un fichier, en glisser-déposer ou non, dès que
+  c'est AUTRE chose qu'une image, il demande si tu veux le système de miroir — à double sens ou non :
+  si tu renommes dans Glucose ton .md, ça le renomme sur ton PC ; si tu le modifies aussi ; il faut que
+  pour l'utilisateur ce soit clair, écrit et compréhensible facilement »*.
 
 ## 9. Sur la façon de travailler
 

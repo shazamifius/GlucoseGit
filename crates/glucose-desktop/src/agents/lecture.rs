@@ -12,6 +12,7 @@
 //! Wikipédia, posé par les commandes, y pesait 140 000 caractères. Le plan ne rend que les
 //! **membranes**, emboîtées, et ce que chacune contient : la géographie de la carte, d'où l'agent
 //! descend ensuite (`dans`). Sa règle : « une IA doit savoir où se situe quoi » (VISION, 22/10).
+//! Les dossiers y sont depuis la fiche 133 : ils étaient invisibles à toute lecture.
 
 use glucose_core::hash::{hex_of, sha256};
 use glucose_core::store::agents::{Decrit, Sorte};
@@ -93,7 +94,8 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
     let plan = d.niveau == Niveau::Plan;
     let pris = decrits
         .iter()
-        .filter(|n| dans(n) && (!plan || n.sorte == Sorte::Membrane));
+        // Le plan est la géographie : les membranes, et les dossiers, ces portes vers ailleurs.
+        .filter(|n| dans(n) && (!plan || matches!(n.sorte, Sorte::Membrane | Sorte::Dossier)));
     if let Some(ids) = &d.ids {
         return pris
             .filter(|n| ids.contains(&n.id.as_str()))

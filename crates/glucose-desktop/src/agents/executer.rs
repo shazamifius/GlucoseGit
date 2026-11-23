@@ -11,14 +11,14 @@ mod decrit;
 mod disposer;
 mod domaines;
 mod grouper;
+mod lire;
 mod partir;
 mod temps;
 
 use super::json::Json;
-use super::lecture::{choisir, Demande, Niveau};
 use crate::app::GlucoseApp;
 use crate::renderer::card::text_card_fit_height;
-use decrit::{boite_en_json, decrit_en_json, parente_en_json};
+use decrit::boite_en_json;
 use glucose_core::geometry::Rect;
 use glucose_core::store::agents::Lien;
 use glucose_core::types::{Annotation, ArrowPredicate, BoardImage, DEFAULT_TEXT_CARD_WIDTH};
@@ -77,6 +77,7 @@ impl GlucoseApp {
         );
         let issue = match nom {
             "glucose_lire" => self.agent_lire(&board, &a),
+            "glucose_renommer" => self.agent_renommer(&board, &a),
             "glucose_poser_texte" => self.agent_poser_texte(&board, &a),
             "glucose_poser_membrane" => self.agent_poser_membrane(&board, &a),
             "glucose_ecrire" => self.agent_ecrire(&board, &a),
@@ -98,74 +99,6 @@ impl GlucoseApp {
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.
         self.mark_dirty();
         issue
-    }
-
-    /// **Lire par niveaux** (`lecture`) : le sommaire par défaut, le texte entier des nœuds
-    /// choisis, ou la phrase qui contient ce qu'on cherche.
-    fn agent_lire(&self, board: &str, a: &Args<'_>) -> Result<Json, String> {
-        let decrits = self
-            .store
-            .decrire_pour_un_agent(board)
-            .map_err(|r| r.to_string())?;
-        let ids = match a.0.get("ids") {
-            None => None,
-            Some(l) => Some(
-                l.as_liste()
-                    .ok_or("l'argument « ids » est une liste d'identifiants")?
-                    .iter()
-                    .filter_map(Json::as_str)
-                    .collect(),
-            ),
-        };
-        let domaine = self.domaine_a_lire(a)?;
-        let demande = Demande {
-            domaine: domaine.as_deref(),
-            dans: a.texte("dans"),
-            ids,
-            cherche: a.texte("cherche"),
-            niveau: Niveau::lire(a.texte("niveau"))?,
-        };
-        let plan = demande.niveau == Niveau::Plan;
-        let avis = self.renderer.sens_des_textes.avis_du_tableau(board);
-        let noeuds = choisir(&decrits, &demande)
-            .into_iter()
-            .map(|(d, rendu)| {
-                let mut j = decrit_en_json(d, &rendu);
-                parente_en_json(avis.and_then(|a| a.get(&d.id)), &mut j);
-                // Le plan dit ce que chaque membrane porte, sans le porter (fiche 90).
-                if let (true, Json::Objet(champs)) = (plan, &mut j) {
-                    let n = decrits
-                        .iter()
-                        .filter(|x| x.membrane.as_deref() == Some(d.id.as_str()))
-                        .count();
-                    champs.push(("contient".to_string(), Json::Nombre(n as f64)));
-                }
-                j
-            })
-            .collect();
-        let tableaux = self
-            .store
-            .onglets()
-            .map(|(id, nom, actif)| {
-                Json::objet([
-                    ("id", Json::from(id)),
-                    ("nom", Json::from(nom)),
-                    ("regarde", Json::Bool(actif)),
-                ])
-            })
-            .collect();
-        Ok(Json::objet([
-            // Pour une IA du nuage, aucun chemin, ni ici ni là (C1, fiches 116 et 122 : deux
-            // essais réels l'ont montré, chacun pour un champ).
-            ("document", Json::from(self.document_vu())),
-            ("fichier", Json::from(self.fichier_vu())),
-            ("tableau", Json::from(board)),
-            ("visible", boite_en_json(self.ce_qu_il_voit())),
-            ("selection", self.ce_qu_il_designe(board)),
-            ("noeuds", Json::Liste(noeuds)),
-            ("tableaux", Json::Liste(tableaux)),
-            ("domaines", self.catalogue_pour_un_agent()),
-        ]))
     }
 
     /// **Ce que l'utilisateur désigne** : les nœuds qu'il a sélectionnés sur le tableau qu'il

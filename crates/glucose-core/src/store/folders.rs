@@ -330,6 +330,11 @@ impl Store {
     /// **RENOMMER-1 — nomme ce dossier** de ce tableau (sa parole du 18/11 : *« il n'y a pas de
     /// système pour nommer un dossier »*) : un seul geste, que `Ctrl+Z` défait et que le
     /// co-working porte. Un nom vide, ou le même, ne nomme rien. Rend `true` s'il a changé.
+    ///
+    /// **RENOMMER-2 — un nom, un seul** (fiche 133) : le tableau que le dossier ouvre portait son
+    /// propre nom, « Dossier » à sa naissance, que rien ne changeait — `Ctrl+F` et les agents
+    /// lisaient encore « Dossier » d'un dossier nommé « archive ». Il prend le nom du dossier,
+    /// dans le même geste.
     pub fn renommer_le_dossier(&mut self, board: &str, id: &str, nom: &str) -> bool {
         let nom = nom.trim();
         let actuel = self
@@ -338,11 +343,82 @@ impl Store {
             .iter()
             .find(|b| b.id == board)
             .and_then(|b| b.folders.iter().find(|f| f.id == id));
-        if nom.is_empty() || actuel.is_none_or(|f| f.name == nom) {
+        let Some(dossier) = actuel.filter(|f| !nom.is_empty() && f.name != nom) else {
             return false;
-        }
-        self.update_folder(board, id, |f| f.name = nom.to_string());
+        };
+        let ouvre = dossier.child_board_id.clone();
+        self.en_un_geste(|s| {
+            s.update_folder(board, id, |f| f.name = nom.to_string());
+            if s.project
+                .boards
+                .iter()
+                .any(|b| b.id == ouvre && b.name != nom)
+            {
+                s.rename_board(&ouvre, nom);
+            }
+        });
         true
+    }
+
+    /// **Ce qui suit forme un seul geste** : le sien s'il n'y en a pas d'ouvert, sinon celui qui
+    /// l'est (un geste d'agent) — une transaction ne s'ouvre pas dans une autre.
+    fn en_un_geste(&mut self, f: impl FnOnce(&mut Self)) {
+        let ouvert = self.in_live_edit();
+        if !ouvert {
+            self.begin_live_edit();
+        }
+        f(self);
+        if !ouvert {
+            self.end_live_edit();
+        }
+    }
+
+    /// **MCP-DOSSIER-2 — un agent renomme un dossier ou un onglet** (sa note du 23/11 : *« lorsque
+    /// tu auras réparé le MCP, on pourra renommer archive »* ; une IA, le 22/11 : *« aucun outil
+    /// ne permet de renommer un dossier ou un onglet »*). `id` est un dossier de ce tableau, ou un
+    /// tableau : le tableau d'un dossier se renomme avec lui (RENOMMER-2). Rend la sorte renommée.
+    pub fn renommer_pour_un_agent(
+        &mut self,
+        board: &str,
+        id: &str,
+        nom: &str,
+    ) -> Result<&'static str, super::agents::Refus> {
+        use super::agents::Refus;
+        let nom = nom.trim();
+        if nom.is_empty() {
+            return Err(Refus::NomVide);
+        }
+        let ici = self
+            .project
+            .boards
+            .iter()
+            .find(|b| b.id == board)
+            .is_some_and(|b| b.folders.iter().any(|f| f.id == id));
+        if ici {
+            self.renommer_le_dossier(board, id, nom);
+            return Ok("dossier");
+        }
+        let Some(tableau) = self.project.boards.iter().find(|b| b.id == id) else {
+            return Err(Refus::NoeudInconnu(id.to_string()));
+        };
+        let meme_nom = tableau.name == nom;
+        // Le dossier qui ouvre ce tableau, s'il y en a un : il se renomme avec lui (RENOMMER-2).
+        let dossier = self.project.boards.iter().find_map(|parent| {
+            let f = parent.folders.iter().find(|f| f.child_board_id == id)?;
+            Some((parent.id.clone(), f.id.clone()))
+        });
+        match dossier {
+            Some((parent, dossier)) => {
+                self.renommer_le_dossier(&parent, &dossier, nom);
+                Ok("dossier")
+            }
+            None => {
+                if !meme_nom {
+                    self.rename_board(id, nom);
+                }
+                Ok("tableau")
+            }
+        }
     }
 }
 

@@ -38,7 +38,9 @@ def depart(compte, paroles=()):
     Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait)."""
     ecrit = (f" Depuis la dernière session, il a écrit dans son Glucose ({lire_ids(paroles)}) : lis-le "
              "en premier et réponds-lui dans son Glucose — une réponse à côté de chaque note, ou reliée "
-             "par une flèche — avant toute autre tâche." if paroles else "")
+             "par une flèche — avant toute autre tâche. Une note que cette lecture dit introuvable est "
+             "dans un dossier : chaque dossier dit le tableau qu'il ouvre (ouvre), lis-le avec "
+             "tableau=…." if paroles else "")
     return (f"Session du relais (compte {compte}). Lis ~/.claude/CLAUDE.md, ~/Projets/LISEZ-MOI.md, "
             f"toutes tes mémoires et le mode d'emploi du relais ({MODE_EMPLOI}) en entier, puis dans son "
             f"Glucose (glucose lire tableau=main ids={CONSIGNE} ids={PASSATION}) sa consigne et la "
@@ -93,6 +95,10 @@ def ses_paroles(histoire, avant=()):
         if not humaine(geste.get("auteur")):
             continue
         for fait in geste.get("fait", []):
+            # L'histoire nomme un dossier par son NOM (« Dossier ») : ce n'est pas un identifiant, et
+            # le dossier se lit avec son tableau (fiche 133 ; le 23/11, « ids=Dossier » ne lisait rien).
+            if " dossier " in fait:
+                continue
             for ident in re.findall(r"«\s*([^»]+?)\s*»", fait):
                 if fait.startswith("retire"):
                     ids = [i for i in ids if i != ident]

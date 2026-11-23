@@ -6,7 +6,8 @@
 //! Glucose **demande** au lieu de deviner. La question arrive dans la réponse à l'appel, avec un
 //! exemple de ce que le nom désigne déjà, pour que l'agent sache de quel sujet on parle.
 
-use super::{decrit_en_json, Args};
+use super::decrit::decrit_en_json;
+use super::Args;
 use crate::agents::json::Json;
 use crate::agents::lecture::{passage, premiere_phrase, Rendu};
 use crate::app::GlucoseApp;

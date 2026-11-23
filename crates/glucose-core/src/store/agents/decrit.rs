@@ -36,6 +36,9 @@ pub struct Decrit {
     pub couleur: Option<String>,
     /// Pour une photo : l'adresse d'où elle vient — la page qu'elle montre.
     pub adresse: Option<String>,
+    /// **Pour un dossier : le tableau qu'il ouvre** (MCP-DOSSIER-1) — celui qu'un agent lit pour
+    /// voir ce qu'il contient, comme l'humain y entre d'un double-clic.
+    pub ouvre: Option<String>,
     /// Les domaines qu'il porte, leur nom et leur poids.
     pub domaines: Vec<DomaineDecrit>,
     /// **Ceux qu'il hérite de ses membranes** (DOM-6), et de laquelle — sans ceux qu'il porte.
@@ -80,6 +83,7 @@ pub(crate) fn decrire_le_tableau(board: &Board, catalogue: &[Domain]) -> Vec<Dec
         operateur: None,
         couleur: None,
         adresse: i.source_url.clone(),
+        ouvre: None,
         domaines: decrire_les_domaines(catalogue, &i.domains),
         herites: Vec::new(),
         date: i.temporal_anchor.clone(),
@@ -88,7 +92,8 @@ pub(crate) fn decrire_le_tableau(board: &Board, catalogue: &[Domain]) -> Vec<Dec
         .annotations
         .iter()
         .map(|a| decrire_une_annotation(a, catalogue));
-    let mut decrits: Vec<Decrit> = photos.chain(annotations).collect();
+    let dossiers = board.folders.iter().map(decrire_un_dossier);
+    let mut decrits: Vec<Decrit> = photos.chain(annotations).chain(dossiers).collect();
     heriter(&mut decrits);
     decrits
 }
@@ -153,8 +158,35 @@ fn decrire_une_annotation(a: &Annotation, catalogue: &[Domain]) -> Decrit {
         operateur,
         couleur: a.couleur_propre().map(str::to_string),
         adresse: None,
+        ouvre: None,
         domaines: decrire_les_domaines(catalogue, a.domains()),
         herites: Vec::new(),
         date: a.temporal_anchor().cloned(),
+    }
+}
+
+/// **MCP-DOSSIER-1 — un dossier, tel qu'un agent le lit** (sa note du 23/11 : *« réparer le MCP »* ;
+/// celle d'une IA, le 22/11 : *« les dossiers sont invisibles pour une IA ; ça va contre ta règle
+/// "lu par un humain ET par une IA de la même façon" »*). Ce que l'humain voit d'un dossier : sa
+/// boîte, son nom, sa couleur s'il en a reçu une ; et ce qu'il ouvre, où l'agent entre comme
+/// l'humain d'un double-clic.
+fn decrire_un_dossier(f: &crate::types::CanvasFolder) -> Decrit {
+    let couleur = (f.color != crate::types::COULEUR_DE_NAISSANCE).then(|| f.color.clone());
+    Decrit {
+        id: f.id.clone(),
+        sorte: Sorte::Dossier,
+        boite: f.rect(),
+        texte: Some(f.name.clone()),
+        membrane: None,
+        source: None,
+        cible: None,
+        relation: None,
+        operateur: None,
+        couleur,
+        adresse: None,
+        ouvre: Some(f.child_board_id.clone()),
+        domaines: Vec::new(),
+        herites: Vec::new(),
+        date: None,
     }
 }

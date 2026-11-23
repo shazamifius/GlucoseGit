@@ -64,6 +64,9 @@ pub enum Sorte {
     Membrane,
     Fleche,
     Photo,
+    /// **Un dossier** (MCP-DOSSIER-1, fiche 133) : un portail vers un tableau à lui ; son texte est
+    /// son nom, et `ouvre` le tableau qu'il ouvre.
+    Dossier,
 }
 
 impl Sorte {
@@ -74,6 +77,7 @@ impl Sorte {
             Self::Membrane => "membrane",
             Self::Fleche => "fleche",
             Self::Photo => "photo",
+            Self::Dossier => "dossier",
         }
     }
 
@@ -118,6 +122,8 @@ pub enum Refus {
     },
     /// Rien de ce qui est nommé n'a de boîte : il n'y a rien à entourer (GROUPER-1).
     RienAGrouper,
+    /// Un nom fait de blancs ne nomme rien (MCP-DOSSIER-2).
+    NomVide,
 }
 
 impl std::fmt::Display for Refus {
@@ -145,6 +151,7 @@ impl std::fmt::Display for Refus {
             Self::RienAGrouper => f.write_str(
                 "rien de ce qui est nommé n'a de boîte : une flèche seule ne se groupe pas",
             ),
+            Self::NomVide => f.write_str("un nom vide ne nomme rien"),
         }
     }
 }

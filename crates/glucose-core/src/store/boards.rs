@@ -85,6 +85,28 @@ impl Store {
             .map(|b| b.name.as_str())
     }
 
+    /// **MCP-DOSSIER-3 — où est ce tableau** : le nom de son onglet, puis celui de chaque dossier
+    /// qu'on traverse pour l'atteindre — le fil que l'humain lit en haut de l'écran quand il est
+    /// entré dans un dossier. Un agent qui lisait un dossier se croyait dans « Canvas Principal »
+    /// (une IA, le 22/11). Vide si aucun tableau ne porte cet identifiant.
+    pub fn chemin_du_tableau(&self, board_id: &str) -> Vec<&str> {
+        let boards = &self.project.boards;
+        let nom_du_tableau = |id: &str| boards.iter().find(|b| b.id == id).map(|b| b.name.as_str());
+        let pile = super::build_folder_stack(boards, board_id);
+        let racine = pile.first().map_or(board_id, |(parent, _)| parent.as_str());
+        let Some(onglet) = nom_du_tableau(racine) else {
+            return Vec::new();
+        };
+        let dossiers = pile.iter().map(|(parent, dossier)| {
+            boards
+                .iter()
+                .find(|b| &b.id == parent)
+                .and_then(|b| b.folders.iter().find(|f| &f.id == dossier))
+                .map_or("?", |f| f.name.as_str())
+        });
+        std::iter::once(onglet).chain(dossiers).collect()
+    }
+
     /// **Range l'onglet `id` juste avant l'onglet `avant`**, ou au bout (BOARDS-1).
     ///
     /// Seul lui bouge : tout le reste garde sa place relative, le contenu des dossiers

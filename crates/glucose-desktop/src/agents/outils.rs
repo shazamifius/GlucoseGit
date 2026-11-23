@@ -15,7 +15,8 @@ flèches qui relient les nœuds. Ce que tu poses apparaît tout de suite sous le
 l'utilisateur, sur le tableau qu'il regarde ; chaque appel est un geste qu'il peut annuler \
 (Ctrl+Z). Commence par glucose_lire : il rend le sommaire du tableau (chaque nœud, sa première \
 phrase, sa taille) — sur un grand tableau, son plan d'abord (niveau plan : les membranes seules) ; lis ensuite en entier seulement les nœuds dont tu as besoin (ids), ou \
-cherche une phrase dans tous (cherche). « selection » dit les nœuds que l'utilisateur a \
+cherche une phrase dans tous (cherche). Un dossier est une porte vers un autre tableau : la \
+lecture dit celui qu'il ouvre (ouvre), qu'on lit avec « tableau ». « selection » dit les nœuds que l'utilisateur a \
 sélectionnés : quand il parle de « ça », c'est eux. L'empreinte d'un nœud change quand son texte \
 change : garde-la, et à la lecture suivante, relis seulement ceux dont l'empreinte a changé — \
 l'utilisateur les a récrits. Les positions sont en unités du canevas, l'origine en haut \
@@ -45,9 +46,10 @@ const OUTILS: &[(&str, &str, &str)] = &[
          « cherche » rend la phrase (passage) de chaque nœud qui contient ces mots ; « dans » ne \
          garde qu'une membrane ; « domaine » ne garde que les nœuds qui le portent ; niveau \
          « complet » rend tous les textes ; niveau « plan » rend seulement les membranes et ce que \
-         chacune contient — la carte d'un grand tableau, d'où descendre ensuite par « dans ». Chaque nœud dit ses domaines et leur poids ; chaque texte, sa parenté (parente) : la famille de sens que l'IA de Glucose lui trouve — des textes de la même famille se ressemblent sûrement, et l'humain voit leur halo de la même couleur ; aucune s'il est seul — et sa sûreté, de 0 à 1 (l'opacité de son halo) ; chaque flèche entre deux textes, la sûreté que ses deux textes parlent de la même chose (sa famille est toujours vide) — quand les liens abondent, l'humain voit les flèches sûres garder leur force et les autres s'effacer. Rend aussi ce \
-         que l'utilisateur a sélectionné (selection), la partie visible à l'écran, la liste des \
-         tableaux et les domaines de ce document (domaines).",
+         chacune contient — la carte d'un grand tableau, d'où descendre ensuite par « dans ». Chaque nœud dit ses domaines et leur poids ; chaque texte, sa parenté (parente) : la famille de sens que l'IA de Glucose lui trouve — des textes de la même famille se ressemblent sûrement, et l'humain voit leur halo de la même couleur ; aucune s'il est seul — et sa sûreté, de 0 à 1 (l'opacité de son halo) ; chaque flèche entre deux textes, la sûreté que ses deux textes parlent de la même chose (sa famille est toujours vide) — quand les liens abondent, l'humain voit les flèches sûres garder leur force et les autres s'effacer. Un dossier (sorte « dossier ») dit son nom, le tableau qu'il ouvre (ouvre) et combien il contient (contient) : lis ce tableau avec « tableau » pour voir dedans. Rend aussi où est le tableau lu (ou : son onglet, puis les dossiers traversés), \
+         ce que l'utilisateur a sélectionné (selection), la partie visible à l'écran, les identifiants \
+         demandés qui ne sont pas sur ce tableau (introuvables), la liste des onglets et les \
+         domaines de ce document (domaines).",
         r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet","plan"]}}}"##,
     ),
     (
@@ -55,8 +57,8 @@ const OUTILS: &[(&str, &str, &str)] = &[
         "Pose un texte (Markdown, LaTeX entre $…$) ou un post-it — qui peut être un opérateur \
          (ET, OU, MAIS, PARCE QUE) —, ou met à jour celui qui porte déjà cet identifiant : seul \
          ce que l'appel nomme change. Rend son identifiant et sa boîte. Les émojis s'affichent \
-         en noir et blanc : une couleur que l'humain doit voir passe par « couleur » (la teinte \
-         du texte) ou par une membrane colorée, jamais par un émoji.",
+         en couleur ; mais un sens qui tient à une couleur passe par « couleur » (la teinte du \
+         texte) ou par une membrane colorée, jamais par un émoji.",
         r##"{"type":"object","properties":{"id":{"type":"string"},"texte":{"type":"string"},"post_it":{"type":"boolean"},"operateur":{"type":"string","enum":["et","ou","mais","parce-que","aucun"],"description":"un post-it devenu opérateur logique entre deux idées (une pilule ET, OU, MAIS, PARCE QUE) ; aucun le rend papier"},"dans":{"type":"string","description":"identifiant de la membrane où le poser ; elle grandit pour le contenir"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb : le papier d'un post-it, la teinte d'un texte — celle de la barre de couleur de l'humain ; glucose_lire la dit"},"domaines":{"type":"array","description":"les domaines de ce nœud, posés dans le même geste : [{\"domaine\":\"eau\",\"poids\":0.8}] s'il existe, [{\"nouveau\":\"eau chaude\"}] pour le créer","items":{}},"tableau":{"type":"string"}},"required":["texte"]}"##,
     ),
     (
@@ -98,6 +100,14 @@ const OUTILS: &[(&str, &str, &str)] = &[
          tableau à toi (un carnet, des archives), où poser ensuite avec « tableau ». L'onglet que \
          l'utilisateur regarde ne change pas. Le même nom rend toujours le même onglet.",
         r##"{"type":"object","properties":{"nom":{"type":"string"}},"required":["nom"]}"##,
+    ),
+    (
+        "glucose_renommer",
+        "Renomme un dossier (son id, sur ce tableau) ou un onglet (son id de tableau), en un geste \
+         que l'utilisateur peut annuler. Un dossier et le tableau qu'il ouvre portent le même nom : \
+         renommer l'un renomme l'autre. Le titre d'une membrane se change par \
+         glucose_poser_membrane (titre).",
+        r##"{"type":"object","properties":{"id":{"type":"string","description":"un dossier de ce tableau, ou un tableau"},"nom":{"type":"string"},"tableau":{"type":"string"}},"required":["id","nom"]}"##,
     ),
     (
         "glucose_poser_domaine",
@@ -258,8 +268,9 @@ const LECTEURS: [&str; 4] = [
 /// **Les outils ouverts à une IA du nuage** : ceux qui ne regardent que le document ouvert.
 /// `glucose_domaines` lit les autres fichiers et dit leurs chemins : il reste à cette machine.
 /// Un outil neuf n'est ouvert au nuage que quand on l'ajoute ici, exprès.
-const DU_DOCUMENT: [&str; 16] = [
+const DU_DOCUMENT: [&str; 17] = [
     "glucose_lire",
+    "glucose_renommer",
     "glucose_poser_texte",
     "glucose_poser_membrane",
     "glucose_ecrire",
