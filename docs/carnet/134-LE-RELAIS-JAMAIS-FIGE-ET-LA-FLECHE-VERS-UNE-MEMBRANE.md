@@ -343,3 +343,41 @@ et de Material « colorize »), à l'encre du bouton (`ui/roue.rs`, `dessiner_la
 pilote, l'avant et l'après agrandis (`~/.cache/glucose-bancs/pipette-134/3-icone-avant-zoom.png`,
 `8-icone-zoom.png`). Un dessin, sans épreuve qui le garde : c'est l'image qui le juge.
 
+
+**PIPETTE-2 — finie** (`836a28e`, `57dedf5`, 21 h 15) : armée et hors de la roue, chaque mouvement vise
+comme le clic viserait (`viser_a_la_pipette`, dans `handle_cursor_moved`) ; **la case « après » et le
+code de la roue montrent ce qu'elle prendrait**, et **le curseur devient la croix** ; sur la roue, elle
+ne vise rien (la flèche revient) ; le clic, le code ou un second clic sur la pipette la désarment. Rien
+ne se tait : là où il n'y a rien à prendre, le code dit **« Aucune »** et la case reste vide.
+« Rien à prendre », le premier libellé, **ne tenait pas** dans le champ du code (83 pixels sur 72 à
+100 % : il passait sous le bouton de la pipette) — vu par l'épreuve qui mesure le libellé à toutes les
+échelles de l'interface (de 50 à 300 %), pas à l'œil. **Choix pris seul** : pas de pastille qui suit
+le curseur (la loupe de Figma) — la roue se met à jour comme le champ de couleur de Blender, et la
+croix dit le point visé ; une pastille au curseur reste possible si la roue est trop loin de ce qu'il
+vise (son écran le dira).
+
+**PIPETTE-3 — un texte sans couleur choisie donne celle de sa famille** (21 h 13) : la question
+ouverte plus haut, tranchée par ses mots (*« la couleur exacte d'un bloc de texte »* : celle qu'on voit).
+La pipette prend **ce que la lueur montre** — la couleur choisie, sinon celle de sa famille (l'IA du
+sens) —, dans la boîte comme dans la lueur ; **le gris de ce dont l'IA ne dit rien ne se prend pas**
+(« Aucune ») : il se reconnaît exactement, sans seuil — une famille sans sûreté n'a plus de vivacité
+et tombe sur ce gris (`SensDesTextes::couleur_a_prendre` ; la couleur choisie lue par une seule
+fonction, `choisie`, que la lueur appelle aussi). Ce qu'on prend devient une couleur **choisie** sur le
+nœud visé : le code couleur d'une famille, posé par sa main (et que le journal des rectifications
+verra comme tel). À contester s'il voulait le contraire : notre réponse `relais-rep-368` promettait
+« un nœud sans couleur choisie le dit » — c'était avant de voir que sa lueur, elle, en montre une.
+
+**Prouvé** : les épreuves `pipette_2` (la souris, la croix, le code, **le pixel de la case « après »**
+dans la roue dessinée, la roue qui ne vise pas, le clic qui désarme ; l'envers désarmé),
+`pipette_2_rien_a_prendre_tient_dans_le_code`, `pipette_3` (un texte de famille sans couleur, dans sa
+boîte et dans sa lueur, la couleur exacte que la lueur peint ; un texte seul ne donne rien ; le clic la
+pose ; l'envers : la loi d'avant n'avait rien à prendre). **Treize sabotages sur treize**
+(`pipette-134.json` : les trois de PIPETTE-1, sept de PIPETTE-2, trois de PIPETTE-3), chacun sur
+l'épreuve qu'il vise. Clippy strict, les cliquets (le couplage reste à 38 : `Project::annotation`, un
+appel). **Regardé au pilote** (`demarrer-2.sh` : le texte bleu, le rouge, le gris, et deux textes
+presque identiques sur les chats, que l'IA met en famille, lueur ambrée) : sur la lueur rouge, la
+croix, la case rouge, `#ef4444` (`24-vise-rouge.png`) ; sur la lueur des chats, `#cf9741`
+(`25-vise-famille.png`) ; dans le vide et sur le texte gris, « Aucune », qui tient dans son champ
+(`26`, `27`) ; le clic sur la lueur des chats colore le texte gris de `#cf9741`, sa lueur devient
+celle des chats, la pipette se désarme (`28-prise-famille.png`). Son Glucose est recompilé sur
+`57dedf5`.
