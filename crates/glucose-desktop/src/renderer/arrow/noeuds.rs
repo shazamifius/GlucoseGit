@@ -55,12 +55,9 @@ impl crate::renderer::Renderer {
         edition: Option<&crate::renderer::TextEditSession>,
     ) {
         let mesure = (&self.typography, &self.math, &self.mises_en_page);
+        let projet = &store.project;
         self.boite_vivante = edition.and_then(|e| {
-            let ann = store
-                .active_board()?
-                .annotations
-                .iter()
-                .find(|a| a.id() == e.ann_id)?;
+            let ann = projet.annotation(&projet.active_board_id, &e.ann_id)?;
             let boite = crate::renderer::card::boite_montree(mesure, ann, Some(e))?;
             Some((e.ann_id.clone(), boite))
         });

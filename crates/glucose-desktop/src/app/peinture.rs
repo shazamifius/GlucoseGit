@@ -164,18 +164,22 @@ impl GlucoseApp {
         }
     }
 
-    /// Le panneau Storyboard suit le document : ses cases, la case choisie, et ses champs quand
-    /// le document les change (STORYBOARD-2, fiche 67).
-    fn suivre_la_grille_dans_le_panneau(&mut self) {
+    /// Ce qui suit l'état à chaque image, avant de savoir s'il faut repeindre : le panneau
+    /// Storyboard suit le document (ses cases, la case choisie, ses champs : STORYBOARD-2, fiche
+    /// 67), la palette, la date, et la boîte du texte qu'on écrit, que ses flèches liront
+    /// (FLECHE-EDITION).
+    fn suivre_avant_l_image(&mut self) {
         self.dock_manager
             .storyboard
             .suivre(&self.store, &self.ui.storyboard);
+        self.suivre_la_palette();
+        self.suivre_la_date();
+        self.renderer
+            .poser_la_boite_vivante(&self.store, self.editing_session.as_ref());
     }
 
     pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
-        self.suivre_la_grille_dans_le_panneau();
-        self.suivre_la_palette();
-        self.suivre_la_date();
+        self.suivre_avant_l_image();
         // La salissure est **consommee** : ce qui est redessine maintenant cesse d'etre sale,
         // et une nouvelle demande arrivee pendant le rendu appartient a l'image suivante.
         let Some(sale) = self.ce_quil_faut_repeindre(tampon_neuf) else {
@@ -189,8 +193,6 @@ impl GlucoseApp {
         let mut reduit = self.tampons.reduit.take();
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
         let dessus = self.ce_qui_se_pose_dessus();
-        self.renderer
-            .poser_la_boite_vivante(&self.store, self.editing_session.as_ref());
         let overlay = SceneOverlay {
             // Le rectangle que la main trace sous la grille armée se dessine comme lui (TRACE-1).
             selection_box: self.selection_box.or(self.rectangle_trace_a_l_ecran()),
