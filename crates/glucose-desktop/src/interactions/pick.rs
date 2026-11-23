@@ -60,9 +60,11 @@ impl GlucoseApp {
 
         // Les poignées de coude passent avant le redimensionnement : elles appartiennent à
         // un objet déjà sélectionné, comme lui, et une flèche n'a pas de poignée de taille.
+        // En écriture, l'appui dans le texte est au texte (EDIT-PRISE) : ses poignées ne se
+        // prennent que du dehors.
+        let au_texte = self.dans_le_texte_ecrit((wx, wy));
         if self.place_with_tool(wx, wy)
-            || self.begin_arrow_bend(wx, wy)
-            || self.begin_resize_at(wx, wy)
+            || (!au_texte && (self.begin_arrow_bend(wx, wy) || self.begin_resize_at(wx, wy)))
             || self.prendre_la_zone_choisie()
             || self.prendre_la_case_choisie()
             || self.prendre_la_poignee_du_storyboard()
@@ -161,6 +163,10 @@ impl GlucoseApp {
     /// **relâchement** que le cycle descend d'un cran ([`Self::advance_pick_cycle`]), afin de
     /// ne jamais gêner un glisser.
     fn pick_for_click(&mut self, wx: f64, wy: f64) -> Option<PickCandidate> {
+        if let Some(texte) = self.le_texte_ecrit_sous((wx, wy)) {
+            self.pick_cycle = None;
+            return Some(texte);
+        }
         let candidates = self.pick_candidates_at(wx, wy);
         // Le cycle compare deux clics en pixels logiques, comme son rayon (DPI-1).
         let densite = self.densite();
@@ -179,6 +185,42 @@ impl GlucoseApp {
         );
         self.pick_cycle = cycle;
         picked
+    }
+
+    /// **EDIT-PRISE — en écriture, l'appui dans le texte qu'on écrit est au texte** (sa note du
+    /// 23/11, `text-kpll-370` : *« parfois on ne peut pas sélectionner à la souris une partie du
+    /// texte, car… ça quitte le bloc texte carrément »*). Une poignée de son bord (24 px de prise,
+    /// la première et la dernière ligne d'un petit texte dedans) et une flèche qui passe dessus
+    /// (rang 20 contre 40) prenaient l'appui avant lui : le glisser redimensionnait, ou validait la
+    /// saisie et emportait la flèche. Dans la boîte que le texte montre, rien ne passe devant lui ;
+    /// ses poignées se prennent par leur moitié du dehors (tldraw les cache pendant l'écriture).
+    pub(crate) fn dans_le_texte_ecrit(&self, (wx, wy): (f64, f64)) -> bool {
+        let Some((id, boite)) = &self.renderer.boite_vivante else {
+            return false;
+        };
+        self.editing_session
+            .as_ref()
+            .is_some_and(|s| &s.ann_id == id)
+            && boite.contains_point(glucose_core::geometry::Point::new(wx, wy))
+    }
+
+    /// **Le texte qu'on écrit**, si l'appui tombe dans la boîte qu'il montre (EDIT-PRISE) : posé
+    /// d'office, car l'arbitre ne connaît que la boîte du document — un texte qui grandit pendant
+    /// qu'on l'écrit dépasse de la sienne.
+    fn le_texte_ecrit_sous(&self, point: (f64, f64)) -> Option<PickCandidate> {
+        use glucose_core::hit_priority::{PickKind, PICK_RANK_TEXT};
+        let s = self.editing_session.as_ref()?;
+        let (_, boite) = self.renderer.boite_vivante.as_ref()?;
+        self.dans_le_texte_ecrit(point).then(|| PickCandidate {
+            owner: PickOwner::Annotation,
+            id: s.ann_id.clone(),
+            kind: PickKind::Text,
+            rank: PICK_RANK_TEXT,
+            z: 0,
+            corner: None,
+            dist: 0.0,
+            area: boite.area(),
+        })
     }
 
     /// Le relâchement d'un clic qui n'a rien déplacé fait descendre le cycle d'un cran.
@@ -337,5 +379,7 @@ impl GlucoseApp {
     }
 }
 
+#[cfg(test)]
+mod edit_prise_tests;
 #[cfg(test)]
 mod tests;

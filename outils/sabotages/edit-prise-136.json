@@ -1,0 +1,47 @@
+[
+ {
+  "nom": "EDIT-PRISE — l'arbitre seul désigne ce que l'appui prend (la loi d'avant : le texte qui a grandi et la flèche par-dessus le volent)",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "        if let Some(texte) = self.le_texte_ecrit_sous((wx, wy)) {\n            self.pick_cycle = None;\n            return Some(texte);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "edit_prise"
+  ]
+ },
+ {
+  "nom": "EDIT-PRISE — les poignées se prennent encore dans le texte qu'on écrit",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "            || (!au_texte && (self.begin_arrow_bend(wx, wy) || self.begin_resize_at(wx, wy)))\n",
+  "apres": "            || (self.begin_arrow_bend(wx, wy) || self.begin_resize_at(wx, wy))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "edit_prise"
+  ]
+ },
+ {
+  "nom": "EDIT-PRISE — toute la scène est au texte qu'on écrit (ses poignées ne se prennent plus du dehors)",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "            && boite.contains_point(glucose_core::geometry::Point::new(wx, wy))\n",
+  "apres": "            && (boite.contains_point(glucose_core::geometry::Point::new(wx, wy)) || true)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "edit_prise"
+  ]
+ }
+]
