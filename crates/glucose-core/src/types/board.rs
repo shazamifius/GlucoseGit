@@ -115,13 +115,16 @@ impl Board {
     /// sa note du 22/11) qu'il croise, et que `voir` laisse voir. Une seule question au noyau,
     /// sans ouvrir ses listes (le cliquet du couplage, règle S de la fiche 12 § 3).
     pub fn pris_par(&self, lasso: crate::geometry::Rect, voir: impl Fn(&str) -> bool) -> Pris {
+        // Une flèche se prend là où elle se dessine, jamais à la copie de ses bouts (ANCRE-1).
+        let boites = crate::arrow::boites_du_tableau(self);
+        let boite = |id: &str| boites.get(id).copied();
         Pris {
             images: (self.images.iter())
                 .filter(|i| lasso.overlaps(i.rect()) && voir(&i.id))
                 .map(|i| i.id.clone())
                 .collect(),
             annotations: (self.annotations.iter())
-                .filter(|a| lasso.overlaps(a.encre()) && voir(a.id()))
+                .filter(|a| lasso.overlaps(crate::arrow::encre_vue(a, boite)) && voir(a.id()))
                 .map(|a| a.id().to_string())
                 .collect(),
             dossiers: (self.folders.iter())

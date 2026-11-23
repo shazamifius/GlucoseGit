@@ -1,0 +1,152 @@
+[
+ {
+  "nom": "ANCRE-1 — l'index ne recale plus les flèches (la loi d'avant : la copie de leurs bouts)",
+  "fichier": "crates/glucose-core/src/quadtree.rs",
+  "avant": "        self.recaler_les_fleches(board, &accrochees);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — une flèche accrochée reprend sa plage de copie à chaque passe (deux écritures par passe)",
+  "fichier": "crates/glucose-core/src/quadtree.rs",
+  "avant": "            Some(idx) => {\n                let range = if garder {\n                    self.slots[idx as usize].range\n                } else {\n                    range\n                };\n",
+  "apres": "            Some(idx) => {\n                let _ = garder;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — chaque bout se cherche par son nom haché, à chaque passe",
+  "fichier": "crates/glucose-core/src/quadtree/boites.rs",
+  "avant": "        let noeud = if self.vivant_et_nomme(retenu, id) {",
+  "apres": "        let noeud = if false && self.vivant_et_nomme(retenu, id) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — aucune flèche n'est dite accrochée",
+  "fichier": "crates/glucose-core/src/quadtree/boites.rs",
+  "avant": "if source_id.is_some() || target_id.is_some()",
+  "apres": "if false && (source_id.is_some() || target_id.is_some())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — les coudes oubliés par l'index",
+  "fichier": "crates/glucose-core/src/quadtree/boites.rs",
+  "avant": ".fold(depart.union(arrivee), |r, p| r.union(point(p.x, p.y)));",
+  "apres": ".fold(depart.union(arrivee), |r, _p| r);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — la sélection élastique prend la copie",
+  "fichier": "crates/glucose-core/src/types/board.rs",
+  "avant": "lasso.overlaps(crate::arrow::encre_vue(a, boite))",
+  "apres": "lasso.overlaps(a.encre())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — F cadre la copie",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": ".map(|a| encre_vue(a, |n: &str| node_rect(board, n)))",
+  "apres": ".map(Annotation::encre)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — l'IA lit la boîte de la copie",
+  "fichier": "crates/glucose-core/src/store/agents/decrit.rs",
+  "avant": "boite: crate::arrow::enveloppe_with(a, boite).unwrap_or_else(|| a.bounds()),",
+  "apres": "boite: a.bounds(),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — la zone redessinée pendant un glisser lit la copie",
+  "fichier": "crates/glucose-core/src/store/membranes.rs",
+  "avant": ".map(|a| crate::arrow::encre_vue(a, |n: &str| crate::arrow::node_rect(board, n)));",
+  "apres": ".map(Annotation::encre);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ },
+ {
+  "nom": "ANCRE-1 — le cadre du groupe lit la copie (la zone de clic invisible)",
+  "fichier": "crates/glucose-core/src/hit_priority/handles.rs",
+  "avant": "        .map(|a| boite_vue(input, a));",
+  "apres": "        .map(Annotation::bounds);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ancre_1"
+  ]
+ }
+]

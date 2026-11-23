@@ -81,6 +81,9 @@ pub struct SpatialHash {
     /// dernier [`SpatialHash::index_board`] l'a vu. Ce sont elles qui disent ce qu'un rang de
     /// l'index désigne, même quand le tableau a grandi depuis (GESTE-1).
     longueurs: [usize; 3],
+    /// Les nœuds où chaque flèche accrochée a trouvé ses bouts à la passe précédente (ANCRE-1) :
+    /// relus par leur nom, ils évitent tout hachage tant que rien ne change.
+    bouts: Vec<[NodeIdx; 2]>,
 }
 
 impl SpatialHash {
@@ -99,6 +102,7 @@ impl SpatialHash {
             cell_writes: 0,
             hachages: 0,
             longueurs: [0; 3],
+            bouts: Vec::new(),
         }
     }
 
@@ -271,29 +275,6 @@ impl SpatialHash {
         self.attach(idx, range);
     }
 
-    // ── Boîtes englobantes du modèle ────────────────────────────────────────
-
-    /// Boîte d'une image : ancrage au CENTRE (convention historique du culling).
-    /// Boîte d'un dossier : ancrage HAUT-GAUCHE, comme une membrane.
-    fn folder_bbox(f: &crate::types::CanvasFolder) -> (f64, f64, f64, f64) {
-        (f.x, f.y, f.x + f.width, f.y + f.height)
-    }
-
-    /// Boîte englobante d'une image : tournée comprise — un coin penché qui dépasse de la
-    /// boîte droite doit se trouver dans les cellules qu'il couvre.
-    fn image_bbox(img: &crate::types::BoardImage) -> (f64, f64, f64, f64) {
-        let r = img.bounds();
-        (r.left, r.top, r.right(), r.bottom())
-    }
-
-    /// Boîte englobante d'une annotation : son encre — points de passage d'une flèche et titre
-    /// d'une membrane compris (TITRE-1) : un grand titre au-dessus d'une membrane encore hors de
-    /// l'écran se voit, et se dessine.
-    fn annotation_bbox(ann: &crate::types::Annotation) -> (f64, f64, f64, f64) {
-        let r = ann.encre();
-        (r.left, r.top, r.right(), r.bottom())
-    }
-
     pub fn insert_image(&mut self, img: &crate::types::BoardImage) {
         let (a, b, c, d) = Self::image_bbox(img);
         self.insert(&img.id, a, b, c, d);
@@ -315,12 +296,19 @@ impl SpatialHash {
         for img in &board.images {
             let (a, b, c, d) = Self::image_bbox(img);
             let range = self.range_of(a, b, c, d);
-            self.sync_at(&img.id, range, &mut glissement);
+            self.sync_at(&img.id, range, false, &mut glissement);
         }
-        for ann in &board.annotations {
+        // Une flèche accrochée garde sa plage pendant la passe : elle dépend de ses nœuds, que la
+        // passe n'a pas encore tous vus — elle se recale après eux (ANCRE-1).
+        let mut accrochees = Vec::new();
+        for (i, ann) in board.annotations.iter().enumerate() {
             let (a, b, c, d) = Self::annotation_bbox(ann);
             let range = self.range_of(a, b, c, d);
-            self.sync_at(ann.id(), range, &mut glissement);
+            let garder = boites::accrochee(ann);
+            let idx = self.sync_at(ann.id(), range, garder, &mut glissement);
+            if garder {
+                accrochees.push((i, idx));
+            }
         }
         // Les dossiers sont des nœuds du canevas comme les autres. Sans eux ici, un dossier
         // seul sur un tableau n'était **pas cliquable du tout** : `collect_candidates_indexed`
@@ -329,7 +317,7 @@ impl SpatialHash {
         for f in &board.folders {
             let (a, b, c, d) = Self::folder_bbox(f);
             let range = self.range_of(a, b, c, d);
-            self.sync_at(&f.id, range, &mut glissement);
+            self.sync_at(&f.id, range, false, &mut glissement);
         }
         std::mem::swap(&mut self.ordre_precedent, &mut self.ordre);
         self.longueurs = [
@@ -344,6 +332,7 @@ impl SpatialHash {
         if self.ordre_precedent.len() != self.index_of.len() {
             self.sweep();
         }
+        self.recaler_les_fleches(board, &accrochees);
     }
 
     /// Synchronise le nœud que la passe présente maintenant.
@@ -364,17 +353,32 @@ impl SpatialHash {
     /// exacte, donc aucune justesse ne dépend de lui. Il se découvre tout seul — le premier
     /// nœud qui manque à l'appel passe par le chemin lent, et son ancien rang donne l'écart
     /// que toute la queue partage. Un hachage, puis le chemin rapide reprend.
-    fn sync_at(&mut self, id: &str, range: CellRange, glissement: &mut i64) {
+    ///
+    /// `garder` : un nœud déjà connu garde sa plage, sans écriture — `range` ne sert qu'à sa
+    /// naissance (une flèche accrochée, recalée après la passe, ANCRE-1).
+    fn sync_at(
+        &mut self,
+        id: &str,
+        range: CellRange,
+        garder: bool,
+        glissement: &mut i64,
+    ) -> NodeIdx {
         let k = self.ordre.len();
         let idx = match self.retrouver_sans_hacher(id, k, *glissement) {
             Some(idx) => {
+                let range = if garder {
+                    self.slots[idx as usize].range
+                } else {
+                    range
+                };
                 self.touch(idx, range);
                 idx
             }
-            None => self.resoudre(id, range, k, glissement),
+            None => self.resoudre(id, range, garder, (k, glissement)),
         };
         self.slots[idx as usize].rang = k as u32;
         self.ordre.push(idx);
+        idx
     }
 
     /// Le nœud attendu au rang `k`, retrouvé sans hacher son nom — ou rien.
@@ -400,13 +404,24 @@ impl SpatialHash {
     }
 
     /// Chemin lent : un hachage. Il apprend au passage de combien la queue a glissé.
-    fn resoudre(&mut self, id: &str, range: CellRange, k: usize, glissement: &mut i64) -> NodeIdx {
+    fn resoudre(
+        &mut self,
+        id: &str,
+        range: CellRange,
+        garder: bool,
+        (k, glissement): (usize, &mut i64),
+    ) -> NodeIdx {
         self.hachages += 1;
         match self.index_of.get(id).copied() {
             Some(idx) => {
                 // Le nœud était déjà indexé : son rang d'avant dit l'écart que l'insertion ou
                 // la suppression vient d'imposer à tout ce qui suit.
                 *glissement = k as i64 - self.slots[idx as usize].rang as i64;
+                let range = if garder {
+                    self.slots[idx as usize].range
+                } else {
+                    range
+                };
                 self.touch(idx, range);
                 idx
             }
@@ -567,10 +582,12 @@ impl SpatialHash {
         self.free.clear();
         self.ordre_precedent.clear();
         self.ordre.clear();
+        self.bouts.clear();
         self.rebuilds += 1;
     }
 }
 
+mod boites;
 mod geste;
 mod visibles;
 pub use geste::SuiviDuGeste;

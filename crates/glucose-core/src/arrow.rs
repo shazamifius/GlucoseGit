@@ -46,10 +46,12 @@ mod accroche;
 pub mod aspect;
 pub mod champ;
 pub mod contour;
+mod enveloppe;
 mod noeuds;
 pub mod trace;
 
 pub use accroche::{snap_parmi, snap_to_nearest, Snap, Visee, SNAP_DIST};
+pub use enveloppe::{boites_du_tableau, encre_vue, enveloppe_with};
 pub use noeuds::{Bout, Itineraire, Noeuds};
 
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
@@ -152,16 +154,16 @@ pub fn touche_un_lien(board: &Board, noeud: &str) -> bool {
     })
 }
 
-/// **L'emprise d'un nœud** : son encre ([`Annotation::encre`] — l'enveloppe d'une flèche, le titre
-/// d'une membrane), ou la boîte d'une photo ou d'un dossier — la boîte que `F` cadre
-/// (`Store::selection_bounds`), et celle vers laquelle on vole. [`node_rect`] reste la boîte où une
-/// flèche s'accroche : une flèche n'en a pas.
+/// **L'emprise d'un nœud** : son encre ([`Annotation::encre`] — le titre d'une membrane ; pour
+/// une flèche, l'enveloppe de son tracé ancré, ANCRE-1), ou la boîte d'une photo ou d'un dossier
+/// — la boîte que `F` cadre (`Store::selection_bounds`), et celle vers laquelle on vole.
+/// [`node_rect`] reste la boîte où une flèche s'accroche : une flèche n'en a pas.
 pub fn emprise(board: &Board, id: &str) -> Option<Rect> {
     board
         .annotations
         .iter()
         .find(|a| a.id() == id)
-        .map(Annotation::encre)
+        .map(|a| encre_vue(a, |n: &str| node_rect(board, n)))
         .or_else(|| node_rect(board, id))
 }
 

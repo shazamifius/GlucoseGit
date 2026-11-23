@@ -91,7 +91,7 @@ impl Emport {
             .annotations
             .iter()
             .filter(|a| self.annotations.contains(a.id()))
-            .map(Annotation::encre);
+            .map(|a| crate::arrow::encre_vue(a, |n: &str| crate::arrow::node_rect(board, n)));
         images.chain(annotations).reduce(|a, b| a.union(b))
     }
 

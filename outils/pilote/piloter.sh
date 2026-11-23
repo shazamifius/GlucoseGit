@@ -6,7 +6,7 @@
 #
 #   bash outils/pilote/piloter.sh demarrer <maison> <sortie> [VAR=valeur…]
 #        (le document : le dernier brouillon de <maison>/state/glucose/brouillons ; jamais le sien)
-#   bash outils/pilote/piloter.sh clic|double|droit|aller <x> <y>
+#   bash outils/pilote/piloter.sh clic|maj-clic|double|droit|aller <x> <y>
 #   bash outils/pilote/piloter.sh presser|relacher|milieu-presser|milieu-relacher|droit-presser|droit-relacher
 #   bash outils/pilote/piloter.sh glisser <x0> <y0> <x1> <y1> <ms> <hz>   (le déplacement au clic molette)
 #   bash outils/pilote/piloter.sh molette <crans> [<ms>]   (négatif : on zoome ; positif : on dézoome)
@@ -104,6 +104,9 @@ demarrer)
   echo $! > "$etat/glucose.pid"
   ;;
 clic) ordre 'aller %s %s\npresser\nrelacher\n' "$2" "$3" ;;
+# Maj tenu par le clavier virtuel le temps du clic du pointeur : le compositeur donne au client
+# les modificateurs du dernier clavier, donc le clic arrive avec Maj (sa note text-kpll-375).
+maj-clic) wtype_ -M shift -s 1500 -m shift & sleep 0.5; ordre 'aller %s %s\npresser\nrelacher\n' "$2" "$3"; wait ;;
 double) ordre 'aller %s %s\npresser\nrelacher\npresser\nrelacher\n' "$2" "$3" ;;
 droit) ordre 'aller %s %s\ndroit\n' "$2" "$3" ;;
 aller) ordre 'aller %s %s\n' "$2" "$3" ;;

@@ -88,10 +88,14 @@ pub(crate) fn decrire_le_tableau(board: &Board, catalogue: &[Domain]) -> Vec<Dec
         herites: Vec::new(),
         date: i.temporal_anchor.clone(),
     });
-    let annotations = board
-        .annotations
-        .iter()
-        .map(|a| decrire_une_annotation(a, catalogue));
+    // La boîte d'une flèche, dite à une IA, est celle de son tracé : là où l'humain la voit
+    // (ANCRE-1), jamais la copie de ses bouts.
+    let boites = crate::arrow::boites_du_tableau(board);
+    let boite = |id: &str| boites.get(id).copied();
+    let annotations = board.annotations.iter().map(|a| Decrit {
+        boite: crate::arrow::enveloppe_with(a, boite).unwrap_or_else(|| a.bounds()),
+        ..decrire_une_annotation(a, catalogue)
+    });
     let dossiers = board.folders.iter().map(decrire_un_dossier);
     let mut decrits: Vec<Decrit> = photos.chain(annotations).chain(dossiers).collect();
     heriter(&mut decrits);

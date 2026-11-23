@@ -345,7 +345,7 @@ fn par_le_nom(
 ///
 /// L'arbitre reçoit des tranches et non un tableau : c'est ce qui lui permet de ne voir que
 /// le voisinage du curseur. Le résolveur travaille donc sur ces mêmes tranches.
-fn node_rect_of(input: &PickInput<'_>, id: &str) -> Option<crate::geometry::Rect> {
+pub(super) fn node_rect_of(input: &PickInput<'_>, id: &str) -> Option<crate::geometry::Rect> {
     if let Some(img) = input.images.iter().find(|i| i.id == id) {
         return Some(img.rect());
     }

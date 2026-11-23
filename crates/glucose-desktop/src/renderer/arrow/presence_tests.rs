@@ -37,7 +37,10 @@ fn test_lien_4_la_proximite_en_tailles_de_noeud() {
 }
 
 /// Un nœud « a », treize liens vers des nœuds loin de lui ; un nœud « z » très loin, treize liens
-/// aussi : vingt-six liens, la densité à zéro. La vue à la taille réelle.
+/// aussi, pliés par un coude qui les fait passer à l'écran : vingt-six liens à l'écran, la densité
+/// à zéro. La vue à la taille réelle. (La scène posait la copie des bouts de chaque flèche en
+/// (0, 0) : les liens de « z » comptaient à l'écran par cette copie, que l'index ne lit plus —
+/// ANCRE-1, fiche 135.)
 fn application() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     let board = app.store.project.active_board_id.clone();
@@ -68,6 +71,9 @@ fn application() -> GlucoseApp {
             } = &mut f
             {
                 (*source_id, *target_id) = (Some(hub.into()), Some(id));
+            }
+            if let (Annotation::Arrow { waypoints, .. }, "z") = (&mut f, hub) {
+                waypoints.push(glucose_core::types::Point2D { x: 300.0, y: 300.0 });
             }
             app.store.add_annotation(&board, f);
         }

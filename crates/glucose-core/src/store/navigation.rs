@@ -354,20 +354,27 @@ impl Store {
                     .annotations
                     .iter()
                     .filter(|a| choisi(&self.selected_annotation_ids, a.id()))
-                    .map(Annotation::encre),
+                    // Une flèche se cadre là où elle se dessine (ANCRE-1).
+                    .map(|a| {
+                        crate::arrow::encre_vue(a, |n: &str| crate::arrow::node_rect(board, n))
+                    }),
             )
             .reduce(|acc, r| acc.union(r))
     }
 
     fn calculer_les_bornes(&self, board_id: &str) -> Option<crate::geometry::Rect> {
         let board = self.project.boards.iter().find(|b| b.id == board_id)?;
+        // Une flèche compte là où elle se dessine, jamais à la copie de ses bouts (ANCRE-1) : une
+        // copie partie au loin faisait cadrer, et exporter, un grand vide.
+        let boites = crate::arrow::boites_du_tableau(board);
+        let encre = |a: &Annotation| crate::arrow::encre_vue(a, |n: &str| boites.get(n).copied());
         board
             .images
             .iter()
             .map(|img| img.rect())
             .chain(board.folders.iter().map(|f| f.rect()))
             // Le titre d'une membrane compris (TITRE-1) : cadrer tout, et l'exporter, montre son nom.
-            .chain(board.annotations.iter().map(Annotation::encre))
+            .chain(board.annotations.iter().map(encre))
             // BORNES-2 (fiche 70) : les zones d'un gabarit et les cases d'un storyboard sont du
             // contenu — un tableau qui ne porte qu'un storyboard se cadre, et s'exporte entier.
             .chain(board.zones.iter().map(|z| z.rect()))

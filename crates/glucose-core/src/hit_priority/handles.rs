@@ -120,7 +120,7 @@ pub fn emprise_du_groupe(input: &PickInput) -> Option<AlignRect> {
         .annotations
         .iter()
         .filter(|a| input.selected_annotation_ids.iter().any(|s| s == a.id()))
-        .map(Annotation::bounds);
+        .map(|a| boite_vue(input, a));
     let dossier = input
         .folders
         .iter()
@@ -131,6 +131,19 @@ pub fn emprise_du_groupe(input: &PickInput) -> Option<AlignRect> {
         return None;
     }
     crate::smart_align::union_rect(&boites)
+}
+
+/// **La boîte d'une annotation dans le cadre du groupe** : la sienne, ou pour une flèche
+/// l'enveloppe de son tracé ancré — jamais la copie de ses bouts, qu'un glisser pouvait emporter
+/// loin d'elle : le cadre devenait une zone de clic invisible (ANCRE-1, sa note `text-kpll-375`).
+fn boite_vue(input: &PickInput, a: &Annotation) -> AlignRect {
+    let trace = match input.noeuds {
+        Some(noeuds) => crate::arrow::enveloppe_with(a, noeuds),
+        None => {
+            crate::arrow::enveloppe_with(a, |id: &str| super::candidates::node_rect_of(input, id))
+        }
+    };
+    trace.unwrap_or_else(|| a.bounds())
 }
 
 /// **Les poignées du groupe sous le curseur**, si la sélection forme un groupe — `None` sinon.
