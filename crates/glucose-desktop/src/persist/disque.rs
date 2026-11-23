@@ -244,6 +244,13 @@ impl GlucoseApp {
         match e.synchroniser() {
             Ok(()) => {
                 self.retenir_le_canevas(partage);
+                // Le partage suit son document : fermé, plus rien de la salle ne s'y applique —
+                // sinon un geste arrivé entre la croix et la fin du programme ferait naître un
+                // brouillon, que le lancement suivant rouvrirait avant le document (BROUILLON-1).
+                // Celui qu'on rejoint attend encore sa base : il ne participe pas, il reste.
+                if self.store.partage.is_some() {
+                    self.quitter_le_canevas_partage();
+                }
                 true
             }
             Err(err) => {

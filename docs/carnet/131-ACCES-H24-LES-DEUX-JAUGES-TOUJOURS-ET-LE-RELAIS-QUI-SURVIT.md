@@ -109,6 +109,13 @@
   rejoué deux fois, il déplacerait deux fois ; le numéro se lit donc à la fermeture du document,
   pas à la fin du programme (la boucle peut encore appliquer un geste entre les deux).
 
+* **Le partage suit son document** : à la fermeture d'un document qui participe, le partage
+  s'arrête avec lui. Sinon, un geste arrivé entre la croix et la fin du programme s'écrivait dans
+  un **brouillon neuf** (le document fermé n'a plus d'écriture), que le lancement suivant aurait
+  rouvert **avant** son document (BROUILLON-1) — vu par une épreuve qui écrivait ce geste. Celui
+  qu'on rejoint attend encore sa base (la base passe par la même fermeture) : il ne participe pas
+  encore, il reste.
+
 ## 5. Vérifié
 
 * **Le relais** : 31 épreuves (dont un vrai dépôt Git jetable pour le ❤️, avec la preuve à
@@ -133,11 +140,13 @@
   Glucose ; ce Glucose fermé (SIGTERM, comme son service) puis relancé dans le même compositeur — le
   relais vit, la demande suivante passe **525 ms** après la relance, sans erreur. Le relais d'avant,
   même essai : il répond, puis **meurt avec Glucose**.
-* **PARTAGE-SURVIT** : 6 épreuves par la vraie application (enregistrer, partager, la croix,
-  relancer ; le fil vers une adresse morte, jamais le réseau ni son presse-papiers), **10
-  sabotages sur 10** (`partage-survit-131`). Le dixième passait d'abord : mon épreuve écrivait le
-  geste arrivé après la fermeture, ce qui faisait naître un brouillon — le sabotage écrivait sous
-  sa clé à lui. L'entrée juste : le geste appliqué sans être écrit, comme la boucle avant `finir`.
+* **PARTAGE-SURVIT** : 8 épreuves par la vraie application (enregistrer, partager, la croix,
+  relancer ; le fil vers une adresse morte, jamais le réseau ni son presse-papiers), **11
+  sabotages sur 11** (`partage-survit-131`). Un sabotage passait d'abord (« le numéro retenu à la
+  fin du programme ») : mon épreuve écrivait le geste arrivé après la croix, ce qui faisait naître
+  un brouillon, et le sabotage écrivait sous sa clé à lui — c'est ce qui a montré le brouillon
+  parasite. Le partage qui s'arrête avec son document a rendu ce sabotage sans objet (plus rien ne
+  s'applique après la croix) : il est remplacé par les deux gardes de la règle neuve.
   Le branchement au lancement (`ouvrir_la_porte_des_agents`) ouvre une vraie porte : seul l'essai
   réel le garde. **L'essai réel, à travers la vraie salle en ligne** (deux Glucose hors écran,
   `~/.cache/glucose-bancs/acces-h24-131/essai_partage.sh`, captures dans `partage-apres/`) : Alice
@@ -171,13 +180,6 @@
   ancien — le sien) : depuis le 22/11, son Glucose (un service) et les relais des agents tournent
   ce même binaire. Corrigés : le Glucose d'essai se retrouve par son binaire **et** son dossier
   personnel (`le_glucose_de`).
-* **Un geste vide de la salle salit le document** : il fait monter la version sans rien écrire, et
-  la croix demande alors d'enregistrer un document nommé. Vu dans une épreuve ; un vrai geste
-  s'écrit et laisse le document propre.
-* **Après la fermeture du document par la croix**, un geste de la salle écrit avant la fin du
-  programme ferait naître un brouillon (le document fermé n'a plus d'écriture). Une fenêtre de
-  quelques images ; pas réglé.
-
 ## 7. Choix pris seul, à contester
 
 * **« Toujours » l'emporte sur un « Refuser » donné plus tôt dans la session** à un autre nom : le

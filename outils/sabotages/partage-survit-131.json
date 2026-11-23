@@ -30,21 +30,6 @@
   ]
  },
  {
-  "nom": "PARTAGE-SURVIT — le numéro retenu à la fin du programme, pas à la fermeture du document",
-  "fichier": "crates/glucose-desktop/src/app/fin.rs",
-  "avant": "        self.chronique.clore_la_boite_noire();\n",
-  "apres": "        self.chronique.clore_la_boite_noire();\n        self.retenir_le_canevas(self.souvenir_du_canevas());\n",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
   "nom": "PARTAGE-SURVIT — la reprise repart de zéro",
   "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
   "avant": "if !self.store.rejoindre(&marque, code.peut_ecrire(), n) {",
@@ -147,6 +132,36 @@
    "--lib",
    "--",
    "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — le partage continue après la fermeture de son document (brouillon parasite)",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "                if self.store.partage.is_some() {\n                    self.quitter_le_canevas_partage();\n                }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — la fermeture coupe aussi le partage qu'on rejoint",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "                if self.store.partage.is_some() {\n                    self.quitter_le_canevas_partage();\n                }\n",
+  "apres": "                self.quitter_le_canevas_partage();\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer"
   ]
  }
 ]

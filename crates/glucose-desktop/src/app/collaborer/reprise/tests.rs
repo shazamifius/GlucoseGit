@@ -136,15 +136,29 @@ fn partage_survit_ferme_proprement_il_rejoint_sa_salle_au_bon_numero() {
     );
 }
 
-/// **Le numéro est celui du fichier** : ce qui s'applique après la fermeture du document — la
-/// boucle tourne encore jusqu'à `finir` — ne s'écrit nulle part, et ne doit pas compter.
+/// **Le partage suit son document** : après la croix, plus rien de la salle ne s'y applique, et
+/// aucun brouillon ne naît — le lancement suivant le rouvrirait avant le document (BROUILLON-1).
+/// Le numéro retenu reste celui du fichier.
 #[test]
-fn partage_survit_le_numero_retenu_est_celui_du_fichier() {
-    let d = dossier("canevas-exact");
+fn partage_survit_apres_la_croix_rien_de_la_salle_ne_s_applique() {
+    let d = dossier("canevas-croix");
     let (mut app, chemin, _) = document_partage(&d);
     assert!(fermer(&mut app));
+    assert!(
+        app.lancement.agents.partage.is_none(),
+        "le partage s'arrête avec son document"
+    );
     arrive(&mut app, 2, "b0b-1");
+    image_suivante(&mut app);
     app.finir();
+    let brouillons = std::fs::read_dir(d.join("brouillons"))
+        .map(|l| {
+            l.flatten()
+                .filter(|e| e.path().extension().is_some_and(|x| x == "glucose"))
+                .count()
+        })
+        .unwrap_or(0);
+    assert_eq!(brouillons, 0, "aucun brouillon parasite");
     assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), Some(1));
 }
 
@@ -221,4 +235,40 @@ fn partage_survit_le_code_reste_un_secret_hors_du_document() {
             .mode();
         assert_eq!(mode & 0o777, 0o600, "lisible de lui seul");
     }
+}
+
+/// **Rejoindre** : la base reçue devient le document — et ferme celui qu'on quitte, par la même
+/// porte — sans couper le partage qui attendait cette base : on y entre.
+#[test]
+fn partage_survit_la_base_recue_ne_coupe_pas_le_partage_qu_on_rejoint() {
+    let d = dossier("canevas-rejoindre");
+    let mut app = lancer(&d);
+    noter(&mut app, "c1", "le document qu'on quitte");
+    image_suivante(&mut app);
+    let code = Code::neuf([8; 32]);
+    let lien = lien::lancer(
+        MORTE,
+        code.clone(),
+        0,
+        app.lancement.agents.boite.clone().unwrap(),
+    );
+    let objets = Arc::clone(&app.disque.objets);
+    let qui = ("c0c".into(), "Carla".into(), 1);
+    app.lancement.agents.partage = Some(CanevasPartage::neuf(
+        lien,
+        code,
+        qui,
+        Entree::AttendLaBase,
+        objets,
+    ));
+    let base = glucose_core::types::Project::new("la salle");
+    app.entrer_par_la_base(1, base);
+    let cp = app
+        .lancement
+        .agents
+        .partage
+        .as_ref()
+        .expect("le partage reste");
+    assert_eq!(cp.entree, Entree::Dedans);
+    assert_eq!(app.store.partage.as_ref().map(|p| p.confirme), Some(1));
 }
