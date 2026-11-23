@@ -398,6 +398,10 @@ plus jamais le lui demander.**
   leur importance, afin de capter la méta derrière un document »* — une flèche qu'il tire n'est ni
   éteinte ni jugée : elle est un signal dont l'IA apprend (§ 8 bis).
 
+* **Choisir un texte pour l'écrire** (23/11 au soir, `text-kpll-356`) : *« j'ai eu beaucoup de mal à
+  sélectionner ce bloc texte, car trop de zones de clic, et la gestion d'intention est trop mal faite ;
+  du coup, pour éditer ce texte, j'ai dû vraiment galérer »*.
+
 ## 7. La caméra et la carte de Wikipédia
 
 * **`Alt+Z`** (9/11) : revenir en arrière dans les placements de la caméra — *« tu focus sur un bloc qu'il
@@ -420,7 +424,11 @@ plus jamais le lui demander.**
 
 * **Le dossier**, à retravailler (15/10) ; **le dessin de la sélection** (E, pour l'instant) — sa
   réponse du 23/11 (Q12, voir trois façons en vraies images) : *« ah oui carrément, envoie les photos
-  sur Glucose aussi, je choisirai »*.
+  sur Glucose aussi, je choisirai »* ; puis, sous l'image B (les équerres), le 23/11 au soir : *« ça
+  j'aime bien au niveau design pour le coup, mais… en fait ce serait bien d'avoir du flou, comme avec
+  l'IA qui parle du domaine en question — juste pour avoir un flou prononcé de ce qu'on vient de
+  sélectionner ; sinon je pense que ça me va »* (B, et le reste du canevas flouté — lu ainsi, à
+  confirmer par une image D).
 * **Trans-domaines** (R&D).
 * **Les rideaux** (un tableau dans une membrane), **les membranes de Mary** (étirées, minimisées),
   « optimiser » dans la Time Machine.
