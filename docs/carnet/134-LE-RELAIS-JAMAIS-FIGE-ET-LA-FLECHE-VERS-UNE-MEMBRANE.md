@@ -315,3 +315,14 @@ de couleur choisie ») — la case « après » de la roue suit la souris ; (c) 
 sans couleur le dit ; (d) l'icône redessinée (une vraie pipette : la poire et le tube). Recherche à
 faire avant : la pipette de Blender (l'aperçu sous le curseur, `Échap`), celle de Figma (la loupe).
 
+
+**La recherche commencée** (20 h 48) : la pipette de Blender ([manuel, *Eyedropper*](https://docs.blender.org/manual/en/4.1/interface/controls/buttons/eyedropper.html))
+s'arme aussi par `E` au-dessus d'un bouton de couleur, mélange les couleurs qu'on traverse en glissant
+(`Espace` recommence) ; celle de Figma montre une loupe et le code sous le curseur. **Ce que le code dit
+déjà** : la lueur d'un texte s'étale de `Eclat::etalement()` unités monde autour de la boîte qu'il montre
+(`renderer/halo.rs`, `halo_geometry`) — c'est la loi qui dira « la lueur couvre ce point » ; sa couleur
+est `SensDuRendu::lueur` : la choisie (sûreté 1), sinon **celle de sa famille** (l'IA), sinon le gris.
+**Question de conception ouverte** : un texte sans couleur choisie mais dont la famille colore la lueur
+— la pipette prend-elle la couleur de la famille (celle qu'on voit) ? « Tout a une signification » le
+permet (le code couleur de cette famille) ; la loi d'aujourd'hui refuse. Penchant : la prendre, et le
+dire (« la couleur de sa famille »), le gris seul ne se prenant pas.
