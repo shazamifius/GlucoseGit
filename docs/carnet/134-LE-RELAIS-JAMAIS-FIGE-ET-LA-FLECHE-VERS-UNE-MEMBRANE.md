@@ -326,3 +326,14 @@ est `SensDuRendu::lueur` : la choisie (sûreté 1), sinon **celle de sa famille*
 — la pipette prend-elle la couleur de la famille (celle qu'on voit) ? « Tout a une signification » le
 permet (le code couleur de cette famille) ; la loi d'aujourd'hui refuse. Penchant : la prendre, et le
 dire (« la couleur de sa famille »), le gris seul ne se prenant pas.
+
+**PIPETTE-1 — fait** (`8f1c989`, 20 h 51) : hors d'un contenu (sur une membrane, un dossier, le vide),
+la lueur d'un texte coloré qui couvre le point passe devant — elle est peinte par-dessus. Sa portée est
+celle du dessin, sans constante : l'étalement au repos puis la portée du flou (HALO-2) pour l'opacité
+que sa sûreté lui donne (`renderer/halo.rs`, `portee_de_la_lueur`) ; les textes proches se lisent par
+l'index (le cliquet du couplage reste à 38) ; le plus proche l'emporte. Épreuve `pipette_1` (cinquante
+unités sous la boîte, là où seul le flou porte, la couleur se prend ; deux cent quarante plus bas, rien ;
+l'envers) ; **trois sabotages sur trois** (`pipette-134.json`). **Regardé au pilote** : le même clic sur
+la lueur rouge, qui ne prenait rien (`6-lueur.png`), prend `#ef4444` (`7-lueur-apres.png`). **Reste**
+(b), (c), (d) — l'aperçu, rien ne se tait, l'icône — et la question de la couleur de famille.
+
