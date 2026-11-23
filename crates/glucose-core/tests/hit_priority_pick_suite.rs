@@ -118,7 +118,10 @@ fn test_pick_membrane_edge() {
 fn test_pick_3_un_texte_pres_du_bord_d_un_groupe_se_prend_meme_dezoome() {
     let groupe = membrane("groupe", -4196.3, 5302.8, 935.2, 216.8, Some("Groupe"));
     let texte = text_ann("texte", -3553.5, 5330.1, 240.0, 149.6);
-    let annotations = [groupe, texte];
+    // Une flèche qui croise ses pointillés à gauche : là, rien ne couvre le bord, il passe devant
+    // elle (rang 10 contre 20) — sans quoi « passer après » vaudrait partout.
+    let fleche = Annotation::arrow("fleche", -4300.0, 5400.0, -4100.0, 5400.0);
+    let annotations = [groupe, texte, fleche];
     let (images, folders): ([BoardImage; 0], [glucose_core::types::CanvasFolder; 0]) = ([], []);
     let rien: [String; 0] = [];
     let premier = |wx: f64, wy: f64, scale: f64| {
@@ -154,11 +157,11 @@ fn test_pick_3_un_texte_pres_du_bord_d_un_groupe_se_prend_meme_dezoome() {
                 assert_eq!(avant.as_deref(), Some("groupe"), "l'envers, à {scale}");
             }
         }
-        let (pris, _) = premier(-4190.0, 5400.0, scale);
+        let (pris, _) = premier(-4194.0, 5400.0, scale);
         assert_eq!(
             pris.as_deref(),
             Some("groupe"),
-            "sur ses pointillés, à {scale}"
+            "sur ses pointillés découverts, devant la flèche qui les croise, à {scale}"
         );
     }
 }
