@@ -2,6 +2,7 @@
 (ce que la session a produit, ce que GitHub n'a pas encore), la présence du jeton — jamais sa
 valeur. Extrait de `relais.py` le 23/11, qui passait ses six cents lignes.
 """
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -12,6 +13,31 @@ MAISON = Path.home()
 DEPOT = MAISON / "Projets/GlucoseGit"
 EXTENSIONS = MAISON / ".vscode/extensions"
 JETON = MAISON / "Projets/github.md"
+
+
+def lire_json(chemin, defaut):
+    try:
+        return json.loads(Path(chemin).read_text())
+    except (OSError, ValueError):
+        return defaut
+
+
+def ecrire_json(chemin, donnees):
+    chemin = Path(chemin)
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    provisoire = chemin.with_suffix(".tmp")
+    provisoire.write_text(json.dumps(donnees, ensure_ascii=False, indent=1))
+    os.replace(provisoire, chemin)
+
+
+def dernier_signe(bail):
+    """Le dernier signe de vie d'une session à lui : son dernier message, ou la dernière ligne de sa
+    conversation, que Claude Code écrit à chaque réponse et à chaque outil."""
+    try:
+        ecrit = Path(bail["transcript"]).stat().st_mtime if bail.get("transcript") else 0.0
+    except OSError:
+        ecrit = 0.0
+    return max(float(bail.get("depuis") or 0), ecrit)
 
 
 def version(dossier):

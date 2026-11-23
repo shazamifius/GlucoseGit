@@ -13,6 +13,10 @@ INVITE_REPONSE = "✍️ Ta réponse :"
 # son écran, ou écrit sa conversation, au moins aussi souvent. 35 minutes sans un signe : elle ne
 # travaille plus.
 SILENCE = 35 * 60
+# **La mémoire du modèle** (son contexte) : à 90 %, la session écrit sa passation et une conversation
+# neuve reprend — sa règle du 23/11 (text-kpll-351) : *« on vise toujours 90 %, que ce soit la
+# semaine, les 5 heures ou l'utilisation de tokens […] et on switch ou on recrée un nouveau chat »*.
+SEUIL_CONTEXTE = 90.0
 # Ce qui réveille une session sans qu'il ait rien écrit : la fin d'une commande en arrière-plan (le
 # 23/11 à 14 h 41, la vérification de Claude, réveillée ainsi, a pris la main au relais). Une session
 # à lui qui travaille garde la main par son journal ; une session qui ne fait que veiller ne la prend plus.
@@ -36,8 +40,33 @@ def lire_ids(ids):
     return "glucose lire tableau=main " + " ".join(f"ids={i}" for i in ids) + " niveau=complet"
 
 
-def depart(compte, paroles=()):
-    """Le premier message d'une session du relais : ce qu'elle lit, et **d'abord ce qu'il a écrit
+# ── Ses textes : ce que le relais dit aux sessions, à lui de le récrire ──────────────────────
+# Sa note du 23/11 (text-kpll-351) : *« un système qui me permet de voir le script de passation
+# envoyé directement à l'ouverture d'une session Claude […] il ne me convient pas du tout ; de même
+# pour le script de stop »*. Chaque texte vit dans un nœud de sa membrane « relais » ; le relais y
+# ajoute les faits du moment (le compte, ses notes, le motif, sa consigne). Sa version ne vaut que
+# si sa main l'a écrite en dernier — jamais une IA (`signee`) ; sinon, celle-ci.
+TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE = (
+    "relais-texte-depart", "relais-texte-passation", "relais-texte-relance")
+TEXTES = {
+    TEXTE_DEPART: (
+        f"Lis ~/.claude/CLAUDE.md, ~/Projets/LISEZ-MOI.md, toutes tes mémoires et le mode d'emploi du "
+        f"relais ({MODE_EMPLOI}) en entier, puis dans son Glucose (glucose lire tableau=main "
+        f"ids={CONSIGNE} ids={PASSATION}) sa consigne et la passation. Puis travaille selon la consigne."),
+    TEXTE_PASSATION: (
+        f"Écris MAINTENANT la passation dans son Glucose : remplace le texte du nœud {PASSATION} "
+        f"(glucose poser-texte tableau=main id={PASSATION} texte=-) par l'état exact — fait, en cours, "
+        "non commité, prochaine étape, pièges payés. Si tu n'as rien changé depuis celle qui y est, "
+        "garde-la et ajoute seulement en tête une ligne qui la confirme, avec l'heure. Puis termine ton "
+        "tour."),
+    TEXTE_RELANCE: (
+        "Ne t'arrête pas : continue selon sa consigne et le plan (SUITE § 2, la passation). Si tu "
+        "attends une réponse de lui, écris la question dans son Glucose et prends une autre tâche."),
+}
+
+
+def depart(compte, paroles=(), texte=None):
+    """Le premier message d'une session du relais : son texte, et **d'abord ce qu'il a écrit
     depuis la dernière** — elle lui répond avant tout (sa parole du 23/11 : « soit actif sur le
     Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait)."""
     ecrit = (f" Depuis la dernière session, il a écrit dans son Glucose ({lire_ids(paroles)}) : lis-le "
@@ -45,10 +74,7 @@ def depart(compte, paroles=()):
              "par une flèche — avant toute autre tâche. Une note que cette lecture dit introuvable est "
              "dans un dossier : chaque dossier dit le tableau qu'il ouvre (ouvre), lis-le avec "
              "tableau=…." if paroles else "")
-    return (f"Session du relais (compte {compte}). Lis ~/.claude/CLAUDE.md, ~/Projets/LISEZ-MOI.md, "
-            f"toutes tes mémoires et le mode d'emploi du relais ({MODE_EMPLOI}) en entier, puis dans son "
-            f"Glucose (glucose lire tableau=main ids={CONSIGNE} ids={PASSATION}) sa consigne et la "
-            f"passation.{ecrit} Puis travaille selon la consigne.")
+    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{ecrit}"
 
 
 # ── Qui écrit, et ce qu'il a écrit ────────────────────────────────────────────────────────────
@@ -69,18 +95,19 @@ def humaine(auteur):
     return bool(auteur) and not auteur.startswith("agent ") and auteur != "l'IA de Glucose"
 
 
-def signee(n, memoire, histoire):
-    """La consigne est la sienne : son empreinte est celle qu'une main humaine a écrite en dernier.
-    Une fois vue d'elle, l'empreinte est gardée ; un geste d'agent la change, et elle ne vaut plus
-    rien. `histoire` : les gestes que le veilleur n'a pas encore vus."""
+def signee(n, memoire, histoire, ident=CONSIGNE):
+    """Ce nœud (sa consigne, l'un de ses textes) est le sien : son empreinte est celle qu'une main
+    humaine a écrite en dernier. Une fois vue d'elle, l'empreinte est gardée ; un geste d'agent la
+    change, et elle ne vaut plus rien. `histoire` : les gestes que le veilleur n'a pas encore vus."""
     if not n or not n.get("empreinte"):
         return False
-    if memoire.get("consigne_signee") == n["empreinte"]:
+    cle = "consigne" if ident == CONSIGNE else f"signe:{ident}"
+    if memoire.get(f"{cle}_signee") == n["empreinte"]:
         return True
-    geste = dernier_geste(CONSIGNE, histoire)
+    geste = dernier_geste(ident, histoire)
     if geste and humaine(geste.get("auteur")):
-        memoire["consigne_signee"] = n["empreinte"]
-        memoire["consigne_par"] = f"{geste['auteur']}, le {geste.get('date', '?')}"
+        memoire[f"{cle}_signee"] = n["empreinte"]
+        memoire[f"{cle}_par"] = f"{geste['auteur']}, le {geste.get('date', '?')}"
         return True
     return False
 
@@ -141,6 +168,13 @@ def decider(session, consigne_texte, pause, a_signee, relayer, maintenant, ecrit
     return ("laisser", "relancer") if suite else ("continuer", "")
 
 
+def contexte_plein(contexte, session):
+    """La mémoire du modèle de **cette** session a-t-elle passé le seuil ? La barre d'état l'écrit à
+    chaque réponse (`contexte.json`) ; une lecture d'avant son lancement est celle d'une autre."""
+    return (float(contexte.get("lu") or 0) >= float(session.get("depuis") or float("inf"))
+            and float(contexte.get("pct") or 0) >= SEUIL_CONTEXTE)
+
+
 def dire_session(session, memoire, maintenant):
     """Ce que le ❤️ dit d'une session vivante. **Figée, elle ne se dit pas « au travail »** : le
     23/11, une session est restée 1 h 48 devant une question de Claude Code au démarrage pendant que
@@ -153,25 +187,21 @@ def dire_session(session, memoire, maintenant):
     return dit + (f" — arrêtée : {session['laissee']}" if session.get("laissee") else "")
 
 
-def raison_continuer(consigne_texte):
-    return ("[Relais] Ne t'arrête pas : continue selon sa consigne et le plan (SUITE § 2, la passation). "
-            "Si tu attends une réponse de lui, écris la question dans son Glucose et prends une autre "
-            f"tâche. Sa consigne :\n{consigne_texte.strip()}")
+def raison_continuer(consigne_texte, texte=None):
+    return f"[Relais] {texte or TEXTES[TEXTE_RELANCE]} Sa consigne :\n{consigne_texte.strip()}"
 
 
 POURQUOI = {
     "limite": "Ce compte arrive à sa limite.",
     "retrait": "Il travaille dans une session de Claude à lui, sur ce dépôt : une seule session à la "
                "fois (sa parole du 23/11), le relais s'efface et reprendra quand elle se taira.",
+    "contexte": f"Ta conversation a rempli {SEUIL_CONTEXTE:.0f} % de la mémoire du modèle : une "
+                "conversation neuve reprendra, avec ta passation (sa règle du 23/11).",
 }
 
 
-def raison_passation(motif=None):
-    return (f"[Relais] {POURQUOI.get(motif, POURQUOI['limite'])} Écris MAINTENANT la passation dans son "
-            f"Glucose : remplace le texte du nœud {PASSATION} (glucose poser-texte tableau=main "
-            f"id={PASSATION} texte=-) par l'état exact — fait, en cours, non commité, prochaine étape, "
-            "pièges payés. Si tu n'as rien changé depuis celle qui y est, garde-la et ajoute seulement en "
-            "tête une ligne qui la confirme, avec l'heure. Puis termine ton tour.")
+def raison_passation(motif=None, texte=None):
+    return f"[Relais] {POURQUOI.get(motif, POURQUOI['limite'])} {texte or TEXTES[TEXTE_PASSATION]}"
 
 
 RAISON_PASSATION = raison_passation()

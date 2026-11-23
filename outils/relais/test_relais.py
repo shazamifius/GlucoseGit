@@ -105,9 +105,25 @@ class Jauges(unittest.TestCase):
 
     def test_sous_le_seuil_ou_jauge_jamais_lue_le_veilleur_laisse_faire(self):
         """Une jauge jamais lue : on lance, et la session elle-même la lit — son lancement sonde."""
-        self.poser("a", 89, 94, 5000)
+        self.poser("a", 89, 89, 5000)
         self.assertIsNone(r.garder({"compte": "a"}, 1000))
         self.assertIsNone(r.garder({"compte": "b"}, 1000))
+
+    def test_la_semaine_a_90_passe_la_main_comme_les_cinq_heures(self):
+        """Sa règle du 23/11 : « on vise toujours 90 % » — la semaine était à 95."""
+        self.poser("a", 10, 91, 5000)
+        self.assertEqual(r.garder({"compte": "a"}, 1000), "passation")
+
+    def test_la_memoire_du_modele_a_90_demande_une_conversation_neuve(self):
+        """Sa note du 23/11 (text-kpll-351) : on ne regardait jamais la limite du modèle."""
+        self.poser("a", 10, 10, 5000)
+        session = {"compte": "a", "depuis": 900}
+        r.ecrire_json(r.ETAT / "contexte.json", {"lu": 950, "pct": 91})
+        self.assertEqual(r.garder(session, 1000), "contexte")
+        r.ecrire_json(r.ETAT / "contexte.json", {"lu": 950, "pct": 89})
+        self.assertIsNone(r.garder(session, 1000))
+        r.ecrire_json(r.ETAT / "contexte.json", {"lu": 800, "pct": 99})
+        self.assertIsNone(r.garder(session, 1000), "la lecture d'une conversation d'avant")
 
     def test_une_remise_passee_vide_la_fenetre(self):
         self.poser("a", 99, 10, 500)
@@ -149,6 +165,15 @@ class Jauges(unittest.TestCase):
         self.assertEqual(r.charge("b", time.time())["five_hour"][0], 60.0)
         dire.assert_called_once_with("Opus · 5 h 60 %")
 
+    def test_la_barre_d_etat_d_une_session_du_relais_garde_sa_memoire_du_modele(self):
+        entree = {"context_window": {"used_percentage": 42}}
+        for relais, ecrit in (("0", False), ("1", True)):
+            with mock.patch("sys.stdin") as stdin, mock.patch("builtins.print"), \
+                    mock.patch.dict("os.environ", {"RELAIS_COMPTE": "b", "RELAIS": relais}):
+                stdin.read.return_value = json.dumps(entree)
+                r.jauges()
+            self.assertEqual(r.lire_json(r.ETAT / "contexte.json", {}).get("pct"), 42 if ecrit else None)
+
 
 class Veilleur(unittest.TestCase):
     """Un tour du veilleur, Glucose et tmux remplacés : ce qu'il fait d'une session vivante."""
@@ -188,7 +213,7 @@ class Veilleur(unittest.TestCase):
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
         r.un_tour()
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
-        self.lancer.assert_called_once_with("a", [])
+        self.lancer.assert_called_once_with("a", [], None)
         self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), "compte à sa limite")
 
     def test_au_mur_des_deux_comptes_il_attend_la_plus_lointaine_remise(self):
@@ -218,7 +243,7 @@ class Veilleur(unittest.TestCase):
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
         dits = [appel.args[0] for appel in r.journal.call_args_list]
         self.assertTrue(any("passation écrite" in dit for dit in dits), dits)
-        self.lancer.assert_called_once_with("a", [])
+        self.lancer.assert_called_once_with("a", [], None)
 
     def test_relayee_sans_passation_neuve_il_le_dit(self):
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": 0, "passation_demandee": 1,
@@ -315,7 +340,7 @@ class Veilleur(unittest.TestCase):
                  {"rang": 4, "auteur": "agent claude-code", "fait": ["pose le texte « sa-reponse »"]}]
         with self.histoire(*notes, total=5), mock.patch.object(r, "ecran", lambda: None):
             r.un_tour()
-        self.lancer.assert_called_once_with("a", ["note-1"])
+        self.lancer.assert_called_once_with("a", ["note-1"], None)
         memoire = r.lire_json(r.ETAT / "veilleur.json", {})
         self.assertEqual((memoire["vu"], memoire["paroles"]), (5, []))
 
@@ -363,6 +388,32 @@ class Veilleur(unittest.TestCase):
         dire, session = self.crochet()
         self.assertIn(json.dumps(r.RAISON_PASSATION, ensure_ascii=False), dire.call_args.args[0])
 
+    def test_la_memoire_du_modele_a_90_le_veilleur_et_le_crochet_demandent_la_passation(self):
+        """Sa note du 23/11 : à 90 % du contexte, une conversation neuve — même avec les deux comptes libres."""
+        self.jauge("b", 10, 10)
+        self.jauge("a", 10, 10)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
+        r.ecrire_json(r.ETAT / "contexte.json", {"lu": self.maintenant - 5, "pct": 93})
+        r.un_tour()
+        self.taper.assert_called_once_with(r.raison_passation("contexte"))
+        self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("passation_pourquoi"), "contexte")
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
+        dire, session = self.crochet()
+        self.assertIn(json.dumps(r.raison_passation("contexte"), ensure_ascii=False), dire.call_args.args[0])
+        self.assertEqual(session.get("passation_pourquoi"), "contexte")
+
+    def test_le_veilleur_lance_et_relance_avec_ses_textes(self):
+        """Sa note du 23/11 : ce qu'il récrit dans son Glucose est ce que la session reçoit."""
+        siens = {r.TEXTE_DEPART: "Mon départ.", r.TEXTE_RELANCE: "Ma relance."}
+        with mock.patch.object(r, "ses_textes", lambda memoire, histoire: siens), \
+                mock.patch.object(r, "ecran", lambda: None):
+            r.un_tour()
+        self.lancer.assert_called_once_with("b", [], "Mon départ.")
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant, "laissee": "relancer"})
+        with mock.patch.object(r, "ses_textes", lambda memoire, histoire: siens):
+            r.un_tour()
+        self.taper.assert_called_once_with(r.raison_continuer("continue", "Ma relance."))
+
     def test_au_seuil_sans_autre_compte_elle_va_jusqu_au_mur_prevenue_une_fois(self):
         self.jauge("b", 92, 60)
         self.jauge("a", 100, 60)
@@ -389,6 +440,27 @@ class Veilleur(unittest.TestCase):
 
 
 class Lancement(unittest.TestCase):
+    def lancer(self, *arguments):
+        tmux = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        with tempfile.TemporaryDirectory() as dossier, mock.patch.object(r, "ETAT", Path(dossier)), \
+                mock.patch.object(r, "session_tmux", lambda: None), mock.patch.object(r, "tmux", tmux), \
+                mock.patch.object(r, "claude_binaire", lambda: "claude"), \
+                mock.patch.object(r, "journal", mock.Mock()):
+            self.assertTrue(r.lancer(*arguments))
+        commande = tmux.call_args.args
+        return commande[commande.index("claude"):]
+
+    def test_en_bypass_jamais_en_mode_auto(self):
+        """Sa réponse du 23/11 : « on fait tout en mode bypass, jamais de mode auto » — figé deux fois."""
+        claude = self.lancer("b")
+        mode = claude.index("--permission-mode")
+        self.assertEqual(claude[mode + 1], "bypassPermissions")
+        self.assertIn("--allow-dangerously-skip-permissions", claude)
+
+    def test_son_texte_de_depart(self):
+        self.assertIn("Mon départ.", self.lancer("b", [], "Mon départ.")[-1])
+        self.assertIn(r.TEXTES[r.TEXTE_DEPART], self.lancer("b", [], None)[-1])
+
     def test_sans_la_question_de_chrome_au_demarrage(self):
         """Le compte b n'avait jamais répondu à « Claude in Chrome » : sans --no-chrome, Claude Code la
         pose avant le premier message, et personne n'est là (le 23/11, 1 h 48 figée, fiche 134)."""
@@ -456,6 +528,20 @@ class Binaire(unittest.TestCase):
 
 class Mains(unittest.TestCase):
     """Qui signe sa consigne : sa main, de ce Glucose ou d'un autre appareil — jamais une IA."""
+
+    def test_ses_textes_ne_valent_que_de_sa_main(self):
+        """Sa note du 23/11 : voir et récrire ce que le relais envoie. Une IA qui les change ne vaut rien."""
+        lus = {"noeuds": [{"id": r.TEXTE_DEPART, "empreinte": "e1", "texte": " Mon départ. "},
+                          {"id": r.TEXTE_RELANCE, "empreinte": "e2", "texte": "Une IA l'a écrit."}]}
+        histoire = {"gestes": [{"auteur": "Aigle Émeraude", "fait": [f"change le texte « {r.TEXTE_DEPART} »"]},
+                               {"auteur": "agent claude-code", "fait": [f"change le texte « {r.TEXTE_RELANCE} »"]}]}
+        memoire = {}
+        with mock.patch.object(r, "glucose", lambda *a, **k: lus):
+            self.assertEqual(r.ses_textes(memoire, histoire), {r.TEXTE_DEPART: "Mon départ."})
+            self.assertEqual(r.ses_textes(memoire, {"gestes": []}), {r.TEXTE_DEPART: "Mon départ."},
+                             "vue une fois, sa version reste la sienne")
+        self.assertIn(r.TEXTES[r.TEXTE_RELANCE], r.raison_continuer("c"))
+        self.assertTrue(r.raison_passation("contexte", "Ma passation.").endswith("Ma passation."))
 
     def consigne(self, auteur):
         return {"gestes": [{"auteur": auteur, "date": "23/11/2026 11:17",

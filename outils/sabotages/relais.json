@@ -2,8 +2,8 @@
  {
   "nom": "RELAIS — une consigne écrite par un agent est suivie quand même",
   "fichier": "outils/relais/loi.py",
-  "avant": "    if geste and humaine(geste.get(\"auteur\")):\n        memoire[\"consigne_signee\"]",
-  "apres": "    if geste:\n        memoire[\"consigne_signee\"]",
+  "avant": "    if geste and humaine(geste.get(\"auteur\")):\n        memoire[f\"{cle}_signee\"]",
+  "apres": "    if geste:\n        memoire[f\"{cle}_signee\"]",
   "cmd": [
    "python3",
    "-m",

@@ -145,7 +145,7 @@
  },
  {
   "nom": "UNE-SEULE — le journal de sa conversation n'est pas un signe de vie",
-  "fichier": "outils/relais/relais.py",
+  "fichier": "outils/relais/machine.py",
   "avant": "        ecrit = Path(bail[\"transcript\"]).stat().st_mtime if bail.get(\"transcript\") else 0.0",
   "apres": "        ecrit = 0.0",
   "cmd": [
@@ -162,8 +162,8 @@
  {
   "nom": "UNE-SEULE — le crochet Stop ne cède pas à sa session",
   "fichier": "outils/relais/relais.py",
-  "avant": "    motif = \"retrait\" if main_humaine(maintenant) else (",
-  "apres": "    motif = \"retrait\" if False else (",
+  "avant": "    motif = \"retrait\" if main_humaine(maintenant) else \"contexte\"",
+  "apres": "    motif = \"retrait\" if False else \"contexte\"",
   "cmd": [
    "python3",
    "-m",
@@ -338,8 +338,8 @@
  {
   "nom": "SES-NOTES — le lancement oublie ses notes",
   "fichier": "outils/relais/relais.py",
-  "avant": "    if not lancer(compte, memoire.get(\"paroles\", [])):",
-  "apres": "    if not lancer(compte, []):",
+  "avant": "    if not lancer(compte, memoire.get(\"paroles\", []), ",
+  "apres": "    if not lancer(compte, [], ",
   "cmd": [
    "python3",
    "-m",

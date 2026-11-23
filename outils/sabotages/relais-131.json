@@ -98,8 +98,8 @@
  {
   "nom": "RELAIS-JAUGES — le seuil passé en plein tour attend la fin du tour (comme avant)",
   "fichier": "outils/relais/relais.py",
-  "avant": "    if geste in (\"passation\", \"retrait\"):\n",
-  "apres": "    if geste in (\"retrait\",):\n",
+  "avant": "    if geste in (\"passation\", \"retrait\", \"contexte\"):\n",
+  "apres": "    if geste in (\"retrait\", \"contexte\"):\n",
   "cmd": [
    "python3",
    "-m",

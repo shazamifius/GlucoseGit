@@ -34,18 +34,19 @@ from pathlib import Path
 # pour que la bibliothèque standard passe toujours devant.
 sys.path.append(str(Path(__file__).resolve().parent))
 from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
-                 REPONSE, SILENCE, decider, depart, dernier_geste, dire_session, en_pause, heure, humaine,
-                 raison_continuer, raison_entendre, raison_passation, raison_prevenir, ses_paroles,
-                 signee)
+                 REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES, contexte_plein,
+                 decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, raison_continuer,
+                 raison_entendre, raison_passation, raison_prevenir, ses_paroles, signee)
 from loi import MODE_EMPLOI, RAISON_PASSATION, lire_ids  # noqa: E402,F401  (pour les épreuves)
-from machine import DEPOT, MAISON, claude_binaire, jeton_github, travail  # noqa: E402
+from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
+                     lire_json, travail)
 
 ETAT = MAISON / ".local/state/relais"
 # a : le dossier par défaut de Claude Code (~/.claude) ; b : son propre dossier — sa connexion à lui,
 # les mémoires et les journaux partagés par liens (installer).
 COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
-# La passation coûte un tour : la demander avant le mur, pas au mur.
-SEUILS = {"five_hour": 90.0, "seven_day": 95.0}
+# La passation coûte un tour : la demander avant le mur, pas au mur. 90 % partout (sa règle du 23/11).
+SEUILS = {"five_hour": 90.0, "seven_day": 90.0}
 # Le mur : une fenêtre pleine, et le serveur refuse le compte (« You've hit your … limit »).
 MUR = {"five_hour": 100.0, "seven_day": 100.0}
 
@@ -56,21 +57,6 @@ def nom_tmux(compte):
 
 
 # ── Petits outils ─────────────────────────────────────────────────────────────────────────────
-
-def lire_json(chemin, defaut):
-    try:
-        return json.loads(Path(chemin).read_text())
-    except (OSError, ValueError):
-        return defaut
-
-
-def ecrire_json(chemin, donnees):
-    chemin = Path(chemin)
-    chemin.parent.mkdir(parents=True, exist_ok=True)
-    provisoire = chemin.with_suffix(".tmp")
-    provisoire.write_text(json.dumps(donnees, ensure_ascii=False, indent=1))
-    os.replace(provisoire, chemin)
-
 
 def journal(message):
     ETAT.mkdir(parents=True, exist_ok=True)
@@ -141,6 +127,9 @@ def jauges():
     limites = entree.get("rate_limits") or {}
     if limites:
         ecrire_json(ETAT / f"jauges-{compte_courant()}.json", {"lu": time.time(), "rate_limits": limites})
+    contexte = (entree.get("context_window") or {}).get("used_percentage")
+    if os.environ.get("RELAIS") == "1" and contexte is not None:
+        ecrire_json(ETAT / "contexte.json", {"lu": time.time(), "pct": contexte})
     morceaux = [(entree.get("model") or {}).get("display_name", "")]
     for nom, titre in (("five_hour", "5 h"), ("seven_day", "semaine")):
         f = limites.get(nom) or {}
@@ -177,6 +166,13 @@ def ecrire(ident, texte, **place):
     return glucose("poser-texte", "tableau=main", f"id={ident}", *reglages, "texte=-", entree=texte)
 
 
+def ses_textes(memoire, histoire):
+    """Ses versions des textes du relais (`TEXTES`), celles que sa main a écrites en dernier."""
+    lus = (glucose("lire", "tableau=main", *(f"ids={i}" for i in TEXTES)) or {}).get("noeuds", [])
+    return {n["id"]: n["texte"].strip() for n in lus if n.get("id") in TEXTES
+            and (n.get("texte") or "").strip() and signee(n, memoire, histoire, n["id"])}
+
+
 def gestes_neufs(memoire):
     """Les gestes du document que le veilleur n'a pas encore vus (ceux d'après `vu`), **tous** —
     le 23/11, 127 gestes en une heure depuis son autre appareil, quand le relais n'en relisait que
@@ -194,16 +190,6 @@ def gestes_neufs(memoire):
 
 
 # ── Une seule session ─────────────────────────────────────────────────────────────────────────
-
-def dernier_signe(bail):
-    """Le dernier signe de vie d'une session à lui : son dernier message, ou la dernière ligne de sa
-    conversation, que Claude Code écrit à chaque réponse et à chaque outil."""
-    try:
-        ecrit = Path(bail["transcript"]).stat().st_mtime if bail.get("transcript") else 0.0
-    except OSError:
-        ecrit = 0.0
-    return max(float(bail.get("depuis") or 0), ecrit)
-
 
 def main_humaine(maintenant):
     """Une session à lui tient-elle le dépôt ? Son dernier signe, ou None après SILENCE sans un."""
@@ -288,19 +274,23 @@ def fin_de_tour():
     n = noeud(CONSIGNE)
     texte = (n or {}).get("texte", "")
     compte = compte_courant()
-    motif = "retrait" if main_humaine(maintenant) else (
+    motif = "retrait" if main_humaine(maintenant) else "contexte" if contexte_plein(
+        lire_json(ETAT / "contexte.json", {}), session) else (
         "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else None)
+    textes = memoire.get("textes", {})
     action, pourquoi = decider(session, texte, en_pause(texte), signee(n, memoire, gestes_neufs(memoire)),
                                motif, maintenant, passation_ecrite(session),
                                bool((entree or {}).get("stop_hook_active")))
     session["arrets"] = [t for t in session.get("arrets", []) if maintenant - t < 120] + [maintenant]
     if action == "passation":
         demander_passation(session, maintenant, motif or "limite")
-        print(json.dumps({"decision": "block", "reason": raison_passation(session.get("passation_pourquoi"))},
+        print(json.dumps({"decision": "block", "reason": raison_passation(session.get("passation_pourquoi"),
+                                                                                textes.get(TEXTE_PASSATION))},
                          ensure_ascii=False))
     elif action == "continuer":
         session.pop("laissee", None)
-        print(json.dumps({"decision": "block", "reason": raison_continuer(texte)}, ensure_ascii=False))
+        print(json.dumps({"decision": "block", "reason": raison_continuer(texte, textes.get(TEXTE_RELANCE))},
+                         ensure_ascii=False))
     else:
         session["laissee"] = pourquoi
     ecrire_json(ETAT / "session.json", session)
@@ -345,7 +335,7 @@ def session_tmux():
     return None
 
 
-def lancer(compte, paroles=()):
+def lancer(compte, paroles=(), texte=None):
     """Lance la session du relais sur ce compte — **jamais une seconde** : s'il en vit une, rien."""
     if session_tmux():
         journal("une session du relais vit déjà : pas de seconde")
@@ -355,10 +345,14 @@ def lancer(compte, paroles=()):
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
     binaire = claude_binaire()
     # --ide : branché sur le VS Code de ce compte. --no-chrome : sans lui, un compte qui n'a jamais
-    # répondu à « Claude in Chrome » se fige au démarrage sur cette question (le 23/11, 1 h 48, fiche 134).
+    # répondu à « Claude in Chrome » se fige au démarrage sur cette question (le 23/11, 1 h 48). Le
+    # bypass, jamais le mode auto (sa réponse du 23/11 : « il faut que Claude ne soit JAMAIS bloqué ») :
+    # le mode auto s'est figé deux fois sur une permission ; ses réglages ont déjà
+    # skipDangerousModePermissionPrompt, sinon Claude Code poserait sa question au démarrage (fiche 134).
     fait = tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
-                "env", *reglages, binaire, "--ide", "--no-chrome", "--remote-control", f"relais-{compte}",
-                "--append-system-prompt", REGLES, depart(compte, paroles))
+                "env", *reglages, binaire, "--ide", "--no-chrome", "--permission-mode", "bypassPermissions",
+                "--allow-dangerously-skip-permissions", "--remote-control", f"relais-{compte}",
+                "--append-system-prompt", REGLES, depart(compte, paroles, texte))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
         return False
@@ -394,6 +388,7 @@ def garder(session, maintenant, humaine_la=None):
       minutes, le compte à 97 %) ;
     * « prevenir » — un seuil passé et personne pour reprendre : elle continue jusqu'au mur, prévenue
       une fois ;
+    * « contexte » — la mémoire du modèle à 90 % : la passation, puis une conversation neuve ;
     * None : rien à faire."""
     compte = session.get("compte")
     if not compte:
@@ -404,6 +399,8 @@ def garder(session, maintenant, humaine_la=None):
         return None
     if humaine_la:
         return "retrait"
+    if contexte_plein(lire_json(ETAT / "contexte.json", {}), session):
+        return "contexte"
     if not plein(compte, maintenant)[0]:
         return None
     if ailleurs(compte, maintenant)[0]:
@@ -434,10 +431,11 @@ def tenir(session, memoire, humaine_la, maintenant):
         if not retrait:
             memoire["compte"] = autre(session.get("compte"))
         return False
-    if geste in ("passation", "retrait"):
-        demander_passation(session, maintenant, "retrait" if geste == "retrait" else "limite")
-        taper(raison_passation(session["passation_pourquoi"]))
-        journal(("une session à lui prend la main" if geste == "retrait" else "seuil passé en plein tour")
+    if geste in ("passation", "retrait", "contexte"):
+        demander_passation(session, maintenant, geste if geste != "passation" else "limite")
+        taper(raison_passation(session["passation_pourquoi"], memoire.get("textes", {}).get(TEXTE_PASSATION)))
+        journal({"retrait": "une session à lui prend la main", "contexte": "la mémoire du modèle à 90 %"}
+                .get(geste, "seuil passé en plein tour")
                 + f" : passation demandée au compte {session.get('compte')}")
     elif geste == "prevenir":
         session["prevenue"] = maintenant
@@ -485,12 +483,12 @@ def entendre(memoire, histoire):
         journal("ses notes tapées dans la session")
 
 
-def relancer(session, texte, ok, pause):
+def relancer(session, texte, ok, pause, sien=None):
     """Une session laissée à l'arrêt repart quand rien ne l'arrête plus : la pause levée, la
     consigne de nouveau la sienne, ou une relance que le crochet ne pouvait plus faire (`decider`).
     Une fois : la demande tapée, l'arrêt est oublié (avant, il se retapait à chaque tour)."""
     if session.get("laissee") in ("pause", "consigne non signée", "relancer") and ok and not pause:
-        taper(raison_continuer(texte))
+        taper(raison_continuer(texte, sien))
         session.pop("laissee")
         ecrire_json(ETAT / "session.json", session)
         journal("session relancée selon sa consigne")
@@ -529,7 +527,7 @@ def attendre(memoire, ok, pause, humaine_la, maintenant):
     compte, libre_a = choisir(memoire.get("compte", "a"), maintenant)
     if not compte:
         return "les comptes sont à leur limite : reprise vers " + (heure(libre_a) if libre_a else "?")
-    if not lancer(compte, memoire.get("paroles", [])):
+    if not lancer(compte, memoire.get("paroles", []), memoire.get("textes", {}).get(TEXTE_DEPART)):
         return "une session du relais vit déjà : jamais une seconde"
     memoire["compte"], memoire["paroles"] = compte, []
     return f"session lancée sur le compte {compte}"
@@ -547,6 +545,7 @@ def un_tour():
         journal("Glucose ne répond pas, ou la consigne manque")
         return
     histoire = neufs or {"gestes": []}
+    memoire["textes"] = ses_textes(memoire, histoire)
     ok, pause = signee(n, memoire, histoire), en_pause(n.get("texte"))
     memoire["paroles"] = ses_paroles(histoire, memoire.get("paroles", []))
     humaine_la = main_humaine(maintenant)
@@ -555,7 +554,7 @@ def un_tour():
         surveiller(memoire, histoire, maintenant)
         if not humaine_la and not session.get("passation_demandee"):
             entendre(memoire, histoire)
-            relancer(session, n.get("texte", ""), ok, pause)
+            relancer(session, n.get("texte", ""), ok, pause, memoire["textes"].get(TEXTE_RELANCE))
         dit = dire_session(session, memoire, maintenant)
     else:
         dit = attendre(memoire, ok, pause, humaine_la, maintenant)
