@@ -83,7 +83,7 @@ fn coudes(app: &GlucoseApp) -> Vec<(f64, f64)> {
 }
 
 /// Un tronçon passe-t-il dans cette boîte ? Deux mille points le long de lui.
-fn traverse(p: (f64, f64), q: (f64, f64), (x, y, w, h): (f64, f64, f64, f64)) -> bool {
+pub(super) fn traverse(p: (f64, f64), q: (f64, f64), (x, y, w, h): (f64, f64, f64, f64)) -> bool {
     (1..2000).any(|k| {
         let t = k as f64 / 2000.0;
         let (px, py) = (p.0 + (q.0 - p.0) * t, p.1 + (q.1 - p.1) * t);

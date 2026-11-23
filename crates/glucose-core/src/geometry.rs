@@ -63,6 +63,14 @@ impl Rect {
         p.x >= self.left && p.x <= self.right() && p.y >= self.top && p.y <= self.bottom()
     }
 
+    /// `other` tout entier dedans, ses bords compris.
+    pub fn contains_rect(&self, other: Rect) -> bool {
+        self.left <= other.left
+            && other.right() <= self.right()
+            && self.top <= other.top
+            && other.bottom() <= self.bottom()
+    }
+
     pub fn contains_center(&self, other: Rect) -> bool {
         self.contains_point(other.center())
     }

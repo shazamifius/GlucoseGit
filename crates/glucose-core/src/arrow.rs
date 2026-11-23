@@ -265,8 +265,17 @@ fn contourner(
         arrivee: bout(arrivee),
         courbe: est_courbe(arrow),
     };
+    // **Ce que contient un bout n'est pas un obstacle** (FLECHE-7) : la flèche s'arrête au bord
+    // de sa source et de sa cible, rien de leur intérieur ne se voit. Vers une membrane, elle
+    // contournait les nœuds qu'elle porte jusqu'à son centre, puis revenait à son bord (sa
+    // capture du 23/11, fiche 134). La règle ne change pas d'un tronçon à l'autre : le problème
+    // reste le plus court chemin entre des boîtes (`contour`).
+    let interieurs = [cle.depart.boite, cle.arrivee.boite];
     noeuds.itineraire(&cle, &mut || {
-        let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| noeuds.obstacles(zone, sortie);
+        let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| {
+            noeuds.obstacles(zone, sortie);
+            sortie.retain(|o| !interieurs.iter().flatten().any(|b| b.contains_rect(*o)));
+        };
         let (a, b) = (cle.depart.point, cle.arrivee.point);
         let mut etapes = contour::itineraire(a, b, &mut requete);
         if cle.courbe && !etapes.is_empty() {

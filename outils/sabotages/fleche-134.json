@@ -1,0 +1,77 @@
+[
+ {
+  "nom": "FLECHE-7 — ce que contient un bout reste un obstacle (comme avant : le zigzag de sa capture)",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "            sortie.retain(|o| !interieurs.iter().flatten().any(|b| b.contains_rect(*o)));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit::contour_membrane"
+  ]
+ },
+ {
+  "nom": "FLECHE-7 — ce qui touche un bout ne se contourne plus (un nœud à cheval sur le bord traversé)",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "b.contains_rect(*o)",
+  "apres": "b.overlaps(*o)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit::contour_membrane"
+  ]
+ },
+ {
+  "nom": "FLECHE-7 — seule la cible compte",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "let interieurs = [cle.depart.boite, cle.arrivee.boite];",
+  "apres": "let interieurs = [None, cle.arrivee.boite];",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit::contour_membrane"
+  ]
+ },
+ {
+  "nom": "FLECHE-7 — seule la source compte",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "let interieurs = [cle.depart.boite, cle.arrivee.boite];",
+  "apres": "let interieurs = [cle.depart.boite, None];",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit::contour_membrane"
+  ]
+ },
+ {
+  "nom": "FLECHE-7 — « dedans » ne compte pas les bords",
+  "fichier": "crates/glucose-core/src/geometry.rs",
+  "avant": "        self.left <= other.left\n            && other.right() <= self.right()",
+  "apres": "        self.left <= other.left\n            && other.right() <= self.left",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit::contour_membrane"
+  ]
+ }
+]
