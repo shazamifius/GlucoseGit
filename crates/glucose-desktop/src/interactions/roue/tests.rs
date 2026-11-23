@@ -466,3 +466,45 @@ fn roue_1_le_disque_ne_se_refait_qu_au_dela_d_une_demi_difference_visible() {
         "une demi-différence visible : le disque se refait"
     );
 }
+
+/// **PIPETTE-1 — viser la lueur d'un texte coloré prend sa couleur** (sa note du 23/11 : son papier
+/// est gris, sa couleur se voit autour de lui) : dans le vide, cinquante sous sa boîte — au-delà de
+/// l'étalement (trente), là où seul le flou porte encore sa couleur —, la pipette prend son bleu ;
+/// deux cent quarante plus bas, hors de sa lueur, rien. **L'envers** : le sommet de l'arbitre, la
+/// loi d'avant, n'y trouvait que le vide.
+#[test]
+fn pipette_1_viser_la_lueur_d_un_texte_prend_sa_couleur() {
+    let mut app = avec_une_source("#20c0ff");
+    let tableau = app.store.project.active_board_id.clone();
+    let mut bleu = Annotation::text("bleu", 1000.0, 300.0, "Un texte bleu.");
+    if let Annotation::Text {
+        width,
+        height,
+        color,
+        ..
+    } = &mut bleu
+    {
+        (*width, *height, *color) = (Some(300.0), Some(60.0), Some("#2a8cf9".into()));
+    }
+    app.store.add_annotation(&tableau, bleu);
+    app.store.clear_selection();
+    app.store.select_annotation("m".into(), false);
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    assert!(
+        app.pick_candidate_at(1150.0, 410.0).is_none(),
+        "l'envers : sous la lueur, l'arbitre ne voit que le vide"
+    );
+    assert!(app.ouvrir_la_roue());
+    armer(&mut app);
+    presser(&mut app, (1150.0, 600.0));
+    lacher(&mut app);
+    assert_eq!(couleur(&app), None, "hors de sa lueur, rien");
+    armer(&mut app);
+    presser(&mut app, (1150.0, 410.0));
+    lacher(&mut app);
+    assert_eq!(
+        couleur(&app).as_deref(),
+        Some("#2a8cf9"),
+        "sa lueur, son bleu"
+    );
+}

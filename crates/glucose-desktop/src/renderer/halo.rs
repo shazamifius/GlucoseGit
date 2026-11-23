@@ -446,6 +446,18 @@ fn peindre_par_segments(
     }
 }
 
+/// **PIPETTE-1 — jusqu'où la lueur d'une carte se voit**, en unités monde autour de la boîte
+/// qu'elle montre : l'étalement au repos, puis la portée du flou au-delà de laquelle elle ne change
+/// plus un pixel (HALO-2) pour l'opacité que sa sûreté lui donne. Rien de choisi : la loi même du
+/// dessin ([`halo_geometry`]). La pipette vise un texte par sa lueur — c'est là que sa couleur se
+/// voit, son papier restant gris (sa note du 23/11).
+pub(crate) fn portee_de_la_lueur(surete: f32, scale: WorldScale) -> f64 {
+    let eclat = Eclat::REPOS;
+    let flou = EdgeProfile::new(scale.world(eclat.sigma())).reach(eclat.alpha(surete));
+    let par_unite = scale.world(1.0).max(f32::EPSILON);
+    f64::from(eclat.etalement() + flou / par_unite)
+}
+
 /// La boîte dilatée de la lueur d'une carte, ou `None` si elle ne touche pas le cadre.
 ///
 /// `rect` est la boîte que la carte **montre** ([`super::card::boite_montree`]), et non celle

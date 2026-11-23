@@ -1,0 +1,23 @@
+[
+ {
+  "nom": "PIPETTE-1 — la lueur ne se vise plus (la loi d'avant)",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "        if !sur_un_contenu {\n",
+  "apres": "        if sur_un_contenu && !sur_un_contenu {\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "pipette_1"]
+ },
+ {
+  "nom": "PIPETTE-1 — la portée sans le flou (l'étalement seul)",
+  "fichier": "crates/glucose-desktop/src/renderer/halo.rs",
+  "avant": "    f64::from(eclat.etalement() + flou / par_unite)\n",
+  "apres": "    let _ = (flou, par_unite);\n    f64::from(eclat.etalement())\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "pipette_1"]
+ },
+ {
+  "nom": "PIPETTE-1 — une lueur sans bord (toute distance la prend)",
+  "fichier": "crates/glucose-desktop/src/interactions/roue/code.rs",
+  "avant": "                (d <= portee_de_la_lueur(sens.lueur(a).1, echelle)).then_some((d, couleur))\n",
+  "apres": "                let _ = sens;\n                Some((d, couleur))\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "pipette_1"]
+ }
+]

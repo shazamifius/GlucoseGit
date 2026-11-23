@@ -86,9 +86,20 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    /// La couleur que porte le nœud du dessus en `(wx, wy)`, s'il en porte une.
+    /// La couleur que porte le nœud du dessus en `(wx, wy)`, s'il en porte une. **Hors d'un contenu**
+    /// — sur une membrane, un dossier, le vide —, la lueur d'un texte coloré qui couvre le point
+    /// passe devant : elle est peinte par-dessus (PIPETTE-1).
     fn couleur_du_noeud_sous(&mut self, wx: f64, wy: f64) -> Option<(u8, u8, u8)> {
-        let dessus = self.pick_candidate_at(wx, wy)?;
+        let dessus = self.pick_candidate_at(wx, wy);
+        let sur_un_contenu = dessus
+            .as_ref()
+            .is_some_and(|c| matches!(c.owner, PickOwner::Image | PickOwner::Annotation));
+        if !sur_un_contenu {
+            if let Some(lueur) = self.lueur_coloree_sous((wx, wy)) {
+                return Some(lueur);
+            }
+        }
+        let dessus = dessus?;
         let tableau = self.store.project.active_board_id.clone();
         match dessus.owner {
             PickOwner::Image => {
@@ -108,6 +119,40 @@ impl GlucoseApp {
                 .and_then(crate::renderer::parse_hex_rgb),
             PickOwner::Arrow | PickOwner::Groupe => None,
         }
+    }
+
+    /// **PIPETTE-1 — la couleur du texte coloré dont la lueur couvre ce point**, le plus proche
+    /// (sa note du 23/11 : *« fonctionne SUPER mal »* — viser la lueur, là où la couleur d'un texte
+    /// se voit, ne prenait rien, en silence). La portée est celle du dessin
+    /// ([`crate::renderer::halo::portee_de_la_lueur`]) ; les textes proches se lisent par l'index.
+    fn lueur_coloree_sous(&mut self, (wx, wy): (f64, f64)) -> Option<(u8, u8, u8)> {
+        use crate::renderer::halo::portee_de_la_lueur;
+        use glucose_core::quadtree::{noeud_au_rang, Noeud};
+        use glucose_core::types::Annotation;
+        self.renderer.sync_spatial_index(&self.store);
+        let echelle =
+            crate::renderer::scale::WorldScale::new(self.store.viewport().scale, self.ui.scale());
+        let mut rangs = Vec::new();
+        let (index, sens) = (&self.renderer.spatial_hash, &self.renderer.sens_des_textes);
+        index.query_rect_ranks_into(wx, wy, wx, wy, portee_de_la_lueur(1.0, echelle), &mut rangs);
+        let tableau = self.store.active_board()?;
+        rangs
+            .iter()
+            .filter_map(|&r| match noeud_au_rang(tableau, r)? {
+                Noeud::Annotation(a @ Annotation::Text { color: Some(c), .. }) => {
+                    Some((a, crate::renderer::parse_hex_rgb(c)?))
+                }
+                _ => None,
+            })
+            .filter_map(|(a, couleur)| {
+                let b = a.rect()?;
+                let dx = (b.left - wx).max(wx - (b.left + b.width)).max(0.0);
+                let dy = (b.top - wy).max(wy - (b.top + b.height)).max(0.0);
+                let d = dx.hypot(dy);
+                (d <= portee_de_la_lueur(sens.lueur(a).1, echelle)).then_some((d, couleur))
+            })
+            .min_by(|x, y| x.0.total_cmp(&y.0))
+            .map(|(_, couleur)| couleur)
     }
 
     /// Une couleur dite autrement que par le disque — le code, la pipette — devient la place de la
