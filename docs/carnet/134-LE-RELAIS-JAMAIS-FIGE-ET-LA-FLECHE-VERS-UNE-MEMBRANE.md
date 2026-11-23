@@ -381,3 +381,33 @@ croix, la case rouge, `#ef4444` (`24-vise-rouge.png`) ; sur la lueur des chats, 
 (`26`, `27`) ; le clic sur la lueur des chats colore le texte gris de `#cf9741`, sa lueur devient
 celle des chats, la pipette se désarme (`28-prise-famille.png`). Son Glucose est recompilé sur
 `57dedf5`.
+
+## 14. REJOINDRE-1 — rejoindre un canevas par un champ (23/11, 21 h 40)
+
+**Sa note** (`text-kpll-346`, avec sa capture du téléphone, la question Collaborer qui dit « Aucun code
+dans le presse-papiers ») : *« c'est con que ça ne fonctionne pas juste parce qu'on n'a pas directement
+d'espace texte pour coller notre code sur téléphone ou autre ; ce serait cool d'avoir juste un
+emplacement texte pour pouvoir écrire à la main si jamais »*.
+
+**La cause** : « Rejoindre (le code copié) » ne lisait que le presse-papiers ; **sous Android, Glucose
+n'a que le sien** (`interactions/presse_papiers.rs` : `arboard` ne sait rien y faire, fiche 54) — un code
+copié d'un message ou d'un courriel n'y arrive jamais. Le co-working du téléphone était donc fermé, quel
+que soit le geste.
+
+**Fait** (`a8ef6c4`) : « Rejoindre… » ouvre une question à champ (`app/collaborer/rejoindre.rs`, un module
+à part : `collaborer.rs` tenait 577 lignes sur 600). Sous Android, le clavier du système remplit le champ
+(le miroir CLAVIER-1 vise le champ d'une question) — et sa suggestion du presse-papiers passe **par la
+saisie**, pas par Glucose : le code d'un message s'y colle d'un toucher. Au bureau, **le code copié y
+est déjà**, tout choisi (« Le code copié est déjà là. ») — et seulement un code : ce que le presse-papiers
+porte d'autre ne s'affiche pas. Un texte qui n'est pas un code se redemande tel qu'on l'a écrit (« Ce
+n'est pas un code de Glucose. ») ; « Annuler » et `Échap` reviennent à Collaborer ; un code lisible
+rejoint sa salle par la porte habituelle du document qu'on quitte (BROUILLON-1).
+
+**Prouvé** : trois épreuves par les vrais gestes (la frappe, Entrée, `Échap`), dont l'envers (le
+presse-papiers vide ouvre un champ, là où la loi d'avant répondait « aucun code ») ; **neuf sabotages
+sur neuf** (`rejoindre-134.json`) ; Clippy strict, les cliquets. **Regardé au pilote à la taille de son
+téléphone** (1080 × 2400 à 2,75 ; `~/.cache/glucose-bancs/rejoindre-134/`) : Collaborer par la palette
+dit « Rejoindre… » (`3-collaborer.png`) ; le champ vide, la frappe, « Ce n'est pas un code de Glucose »
+avec le texte gardé (`4` à `6`) ; un vrai code de 58 signes au presse-papiers du compositeur, déjà dans
+le champ, qui défile jusqu'à sa fin (`8-prerempli.png`). **Pas essayé** : le clavier d'Android lui-même
+(l'APK ne se construit que par la CI) — à son téléphone.
