@@ -57,9 +57,13 @@ Le compte b cite tldraw, qui cache les poignées pendant l'écriture : **pas vé
 ## 4. Ce qui reste
 
 * **Son écran** : son Glucose recompilé sur `7ee455e` ; sa relance le lui donne.
-* **Hors saisie, la même question peut se poser** : `boite_montree` en mode rendu peut-elle dépasser
-  la boîte du document (un texte posé par une IA avec une hauteur trop petite, une largeur changée) ?
-  Si oui, le bas d'un texte ne se prendrait pas d'un clic, même hors saisie. Non vérifié.
+* **Hors saisie, la même question se posait** : `boite_montree` prend `max(hauteur du document,
+  hauteur que le texte demande)` (`CardLayout::text_card`) ; si le document était plus bas, le bas du
+  texte ne se prendrait pas d'un clic. **Relu dans le code** : chaque chemin qui écrit un texte mesure
+  sa hauteur — l'ouverture d'un document (`fit_all_text_cards`, `persist/disque.rs`, `import.rs`,
+  `ajout.rs`), l'outil texte (`tools.rs`), les IA par la porte (`agents/executer.rs`, trois outils), le
+  redimensionnement (`resize.rs`). **Non relu** : un texte reçu d'un autre participant du co-working ;
+  aucune épreuve ne garde l'égalité des deux boîtes hors saisie.
 * La garde `ann_id == id` de `dans_le_texte_ecrit` (la boîte vivante d'un texte quitté juste avant
   qu'un autre s'ouvre, entre deux images) n'a pas d'épreuve.
 * **Faute de cette session** : la passation a d'abord porté « 23 h 25 », une heure estimée au lieu
