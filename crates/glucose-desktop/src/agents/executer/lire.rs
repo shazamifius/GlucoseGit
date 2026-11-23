@@ -120,6 +120,25 @@ impl GlucoseApp {
             ("nom", Json::from(nom.trim())),
         ]))
     }
+
+    /// **RANGER-1** : range des nœuds dans un dossier de ce tableau, en un geste (fiche 134 ; ses
+    /// notes du 23/11 : *« archive les bugs une fois qu'ils sont corrigés »*).
+    pub(super) fn agent_ranger(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
+        let dossier = a.requis("dossier")?;
+        let ids = ids_demandes(a)?.ok_or("l'argument « ids » nomme les nœuds à ranger")?;
+        let fait = self
+            .store
+            .geste_d_agent(|s| s.ranger_dans_un_dossier(board, dossier, &ids))
+            .map_err(|r| r.to_string())?;
+        let n = |x: usize| Json::Nombre(x as f64);
+        Ok(Json::objet([
+            ("dossier", Json::from(dossier)),
+            ("ouvre", Json::from(fait.ouvre.as_str())),
+            ("ranges", n(fait.ranges)),
+            ("fleches_vers_le_dossier", n(fait.vers_le_dossier)),
+            ("fleches_arrivees", n(fait.arrivees)),
+        ]))
+    }
 }
 
 /// Les identifiants que l'agent demande à lire en entier.

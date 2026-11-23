@@ -78,6 +78,7 @@ impl GlucoseApp {
         let issue = match nom {
             "glucose_lire" => self.agent_lire(&board, &a),
             "glucose_renommer" => self.agent_renommer(&board, &a),
+            "glucose_ranger" => self.agent_ranger(&board, &a),
             "glucose_poser_texte" => self.agent_poser_texte(&board, &a),
             "glucose_poser_membrane" => self.agent_poser_membrane(&board, &a),
             "glucose_ecrire" => self.agent_ecrire(&board, &a),

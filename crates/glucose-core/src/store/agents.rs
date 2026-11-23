@@ -124,6 +124,10 @@ pub enum Refus {
     RienAGrouper,
     /// Un nom fait de blancs ne nomme rien (MCP-DOSSIER-2).
     NomVide,
+    /// On ne range que dans un dossier de ce tableau (RANGER-1).
+    PasUnDossier(String),
+    /// Un dossier ne se range pas en lui-même (RANGER-1).
+    DansSoiMeme(String),
 }
 
 impl std::fmt::Display for Refus {
@@ -152,6 +156,8 @@ impl std::fmt::Display for Refus {
                 "rien de ce qui est nommé n'a de boîte : une flèche seule ne se groupe pas",
             ),
             Self::NomVide => f.write_str("un nom vide ne nomme rien"),
+            Self::PasUnDossier(d) => write!(f, "« {d} » n'est pas un dossier de ce tableau"),
+            Self::DansSoiMeme(d) => write!(f, "le dossier « {d} » ne se range pas en lui-même"),
         }
     }
 }

@@ -10,6 +10,7 @@ mod mcp_dossier;
 mod operateur_2;
 mod parente_3;
 mod plan;
+mod ranger_1;
 mod temps_1;
 
 use crate::agents::json::Json;

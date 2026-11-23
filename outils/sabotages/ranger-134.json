@@ -1,0 +1,197 @@
+[
+ {
+  "nom": "RANGER-1 — une flèche qui traverse ne vise pas le dossier (elle pendrait)",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "        Sort::ViseLeDossier(s)\n",
+  "apres": "        Sort::Reste\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — une flèche vers le dossier n'arrive jamais",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "} else if (s && au_dossier(target_id)) || (t && au_dossier(source_id)) {",
+  "apres": "} else if false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — le passage d'une flèche qui vise le dossier reste",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "        *passage = None;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — une membrane n'emporte pas ses membres",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "        if membres.is_empty() {",
+  "apres": "        if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — un membre garde une membrane restée dehors",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "m.filter(|m| partent.contains(*m)).map(str::to_string)",
+  "apres": "m.map(str::to_string)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — une flèche nommée dont les bouts restent part quand même",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "                    partent.remove(a.id());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — un dossier se range en lui-même",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "        if id == dossier {\n",
+  "apres": "        if false {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — ils arrivent où ils étaient",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "|g| (px - g.left, py - g.top))",
+  "apres": "|_| (0.0, 0.0))",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — la sélection garde ce qui est parti",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "        self.selected_annotation_ids\n            .retain(|i| !partent.contains(i));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — le geste n'entre pas au journal",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "        self.record_as_one_gesture(edits);\n",
+  "apres": "        drop(edits);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — les départs dans l'ordre des cases (JRN-2)",
+  "fichier": "crates/glucose-core/src/store/ranger.rs",
+  "avant": "    for i in (0..b.annotations.len()).rev() {\n        let arrivee",
+  "apres": "    for i in 0..b.annotations.len() {\n        let arrivee",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — l'outil n'est pas branché",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "            \"glucose_ranger\" => self.agent_ranger(&board, &a),\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ },
+ {
+  "nom": "RANGER-1 — l'outil n'est pas ouvert au nuage",
+  "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+  "avant": "    \"glucose_renommer\",\n    \"glucose_ranger\",\n",
+  "apres": "    \"glucose_renommer\",\n    \"glucose_lire\",\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ranger_1"
+  ]
+ }
+]
