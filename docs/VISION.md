@@ -391,6 +391,9 @@ plus jamais le lui demander.**
   flèches disent quelque chose.
 * **Une flèche vers une membrane** (sa note du 23/11, avec sa capture) : *« pour relier un texte à une
   membrane, la flèche fait absolument n'importe quoi »* (fiche 134 : FLECHE-7).
+* **Une flèche pendant l'édition** (sa note du 23/11 au soir, avec sa capture) : *« toujours et encore le
+  même problème : […] les flèches qui sont déjà assignées à un texte qui est en mode édition, et donc en
+  train de grandir, eh bien la flèche ne se met pas à jour, et passe par-dessus le texte »*.
 * **L'IA et les flèches** (12/11) : *« il ne faut pas que l'IA juge les flèches, mais qu'elle comprenne
   leur importance, afin de capter la méta derrière un document »* — une flèche qu'il tire n'est ni
   éteinte ni jugée : elle est un signal dont l'IA apprend (§ 8 bis).
