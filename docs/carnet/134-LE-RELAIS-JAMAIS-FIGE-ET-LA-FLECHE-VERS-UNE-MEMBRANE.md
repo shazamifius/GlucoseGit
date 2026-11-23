@@ -267,6 +267,11 @@ cadre, par son nom ou son vide). Épreuve neuve sur **sa géométrie exacte**, �
 avec l'envers (`test_pick_3_un_texte_pres_du_bord_d_un_groupe_se_prend_meme_dezoome`) ; deux
 épreuves anciennes réécrites, parce que la loi neuve les contredit (MÉTHODE § 4.7) : les pointillés
 couverts par deux photos, et le cycle des re-clics (texte, photo, puis le bord). Trois sabotages
-(`pick-3-134.json`). **Pas touché** : le bord d'un **dossier**, qui n'est pas peint sous ce qui le
+(`pick-3-134.json`) — **le deuxième passait** (« le bord passe après tout, même découvert ») : rien ne
+mettait un bord découvert en concurrence ; une flèche croise désormais les pointillés dans l'épreuve
+(`ed86230`), **trois sur trois tombent**. **Regardé au pilote** (`~/.cache/glucose-bancs/pick-3-134/`) :
+sa scène vue à 0,17 (le texte fait 41 × 12 px), un clic le prend, un double-clic l'ouvre, on y écrit ;
+**le binaire d'avant, même clic : le « Groupe »**. Ses cinq « Groupe » vides restent vides : MEMB-9 ne
+vaut que pour une membrane neuve ; la question est dans son Glucose. **Pas touché** : le bord d'un **dossier**, qui n'est pas peint sous ce qui le
 recouvre de la même façon ; et le rang exact du bord couvert (le corps, 60, plutôt qu'un rang
 entre la photo et le corps) n'a pas d'épreuve qui le distingue.
