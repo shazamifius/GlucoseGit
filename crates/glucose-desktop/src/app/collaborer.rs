@@ -1,5 +1,5 @@
 //! **Collaborer** (CLIENT-1, fiche 117) : le bouton ouvre la question — partager ce canevas,
-//! rejoindre par le code copié, la porte aux IA publiques —, et à chaque tour de la boucle, ce qui
+//! rejoindre par son code (REJOINDRE-1), la porte aux IA publiques —, et à chaque tour de la boucle, ce qui
 //! arrive de la salle entre au magasin, ce que le magasin fait partir va au fil.
 //!
 //! Le magasin tient la loi (`store::participation` : en attente, rejouer l'ordre de la salle, défaire
@@ -9,6 +9,7 @@
 pub mod api;
 pub mod identite;
 pub mod photos;
+mod rejoindre;
 pub mod reprise;
 
 use crate::app::GlucoseApp;
@@ -158,13 +159,12 @@ impl GlucoseApp {
             None => Question {
                 titre: "Collaborer".into(),
                 texte: "Partager ce canevas : d'autres y travaillent avec toi, chacun dans son \
-                        Glucose ; tu leur donnes un code. Rejoindre : copie d'abord le code \
-                        qu'on t'a donné.\n\nLa porte aux IA publiques : Claude.ai, depuis le \
-                        nuage."
+                        Glucose ; tu leur donnes un code. Rejoindre : avec le code qu'on t'a \
+                        donné.\n\nLa porte aux IA publiques : Claude.ai, depuis le nuage."
                     .into(),
                 choix: vec![
                     ("Partager ce canevas".into(), PARTAGER),
-                    ("Rejoindre (le code copié)".into(), REJOINDRE),
+                    ("Rejoindre…".into(), REJOINDRE),
                     porte,
                     ("L'API publique…".into(), crate::app::collaborer::api::MENU),
                     ("Fermer".into(), Reponse::Annuler),
@@ -224,7 +224,7 @@ impl GlucoseApp {
     pub(crate) fn repondre_a_collaborer(&mut self, reponse: Reponse) {
         match reponse {
             PARTAGER => self.partager_ce_canevas(),
-            REJOINDRE => self.rejoindre_par_le_code_copie(),
+            REJOINDRE => self.demander_le_code(),
             PORTE => self.montrer_la_porte_publique(),
             crate::app::collaborer::api::MENU => self.montrer_l_api_publique(None),
             COPIER_ECRIRE | COPIER_LIRE => {
@@ -299,20 +299,6 @@ impl GlucoseApp {
         self.retenir_le_canevas_en_cours();
         let note = code.texte_ecrire().map(|t| self.copier_un_code(t));
         self.montrer_collaborer_avec(note);
-    }
-
-    /// **Rejoindre** : le code se lit dans le presse-papiers ; le document qu'on quitte passe par la
-    /// porte habituelle (BROUILLON-1), puis la base de la salle prend sa place.
-    fn rejoindre_par_le_code_copie(&mut self) {
-        let lu = crate::interactions::presse_papiers::ouvrir().and_then(|mut a| a.texte());
-        match lu.ok().as_deref().and_then(Code::lire_le_texte) {
-            Some(code) => self.laisser_puis(crate::persist::close::Ensuite::Rejoindre(code)),
-            None => self.montrer_collaborer_avec(Some(
-                "Aucun code dans le presse-papiers : copie d'abord celui qu'on t'a donné \
-                 (glucose-ecrire-… ou glucose-lire-…)."
-                    .into(),
-            )),
-        }
     }
 
     /// Le document laissé : un canevas vide attend la base, le fil part.

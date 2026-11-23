@@ -94,6 +94,8 @@ pub enum Suite {
     OublierLesAgents,
     /// **« Collaborer »** : partager ce canevas, le rejoindre, ses codes (fiche 117).
     Collaborer,
+    /// **Rejoindre un canevas** par le code écrit dans le champ (REJOINDRE-1).
+    Rejoindre,
     /// La porte aux IA publiques, ouverte ou fermée (fiche 116).
     PortePublique,
     /// **« L'API publique »** : le menu des IA gratuites, et le résultat de l'essai (fiche 128).

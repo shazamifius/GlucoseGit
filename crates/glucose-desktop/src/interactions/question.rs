@@ -166,6 +166,7 @@ impl GlucoseApp {
             Suite::Agent(client) => self.repondre_a_l_agent(client, reponse),
             Suite::OublierLesAgents if oui => self.oublier_les_agents(),
             Suite::Collaborer => self.repondre_a_collaborer(reponse),
+            Suite::Rejoindre => self.rejoindre_par_le_code(reponse, champ),
             Suite::ApiPublique => self.repondre_a_l_api_publique(reponse),
             Suite::ClefIa(fournisseur) => self.enregistrer_la_cle(fournisseur, reponse, champ),
             Suite::PortePublique => self.repondre_a_la_porte(reponse),

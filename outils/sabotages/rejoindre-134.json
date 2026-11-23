@@ -1,0 +1,137 @@
+[
+ {
+  "nom": "REJOINDRE-1 — le bouton n'ouvre plus la question",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "            REJOINDRE => self.demander_le_code(),\n",
+  "apres": "            REJOINDRE => {}\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — la réponse n'est branchée à rien",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "            Suite::Rejoindre => self.rejoindre_par_le_code(reponse, champ),\n",
+  "apres": "            Suite::Rejoindre => {}\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — la réponse ignore le champ",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "        match Code::lire_le_texte(&texte) {\n",
+  "apres": "        match Code::lire_le_texte(\"\") {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — le code copié ne pré-remplit plus",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "        self.poser_la_question_du_code(copie.unwrap_or_default(), entete);\n",
+  "apres": "        let _ = copie;\n        self.poser_la_question_du_code(String::new(), entete);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — n'importe quel texte copié pré-remplit",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "            .filter(|t| Code::lire_le_texte(t).is_some())\n",
+  "apres": "            .filter(|_| true)\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — le code copié n'est pas nettoyé",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "            .map(|t| t.trim().to_string());\n",
+  "apres": "            .map(|t| t.to_string());\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — un texte faux referme la question",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "            None => self.poser_la_question_du_code(texte, Some(PAS_UN_CODE)),\n",
+  "apres": "            None => {}\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — un texte faux s'efface",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "            None => self.poser_la_question_du_code(texte, Some(PAS_UN_CODE)),\n",
+  "apres": "            None => self.poser_la_question_du_code(String::new(), Some(PAS_UN_CODE)),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "REJOINDRE-1 — Annuler rejoint quand même",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/rejoindre.rs",
+  "avant": "        if reponse != Reponse::Oui {\n",
+  "apres": "        if false && reponse != Reponse::Oui {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rejoindre_1"
+  ]
+ }
+]
