@@ -116,6 +116,16 @@
   qu'on rejoint attend encore sa base (la base passe par la même fermeture) : il ne participe pas
   encore, il reste.
 
+* **DOSSIER-2** (sa note 🐞 du 22/11 : *« le rectangle de sélection oublie les dossiers »* ; écrit
+  à la fiche 130, mis de côté, fini ici, `d86f52f`) : plusieurs dossiers se choisissent
+  (`selected_folder_ids`, une liste comme les autres), le rectangle les prend, Maj+clic en ajoute,
+  renommer seulement quand un seul est choisi. Le rectangle pose au noyau **une seule question**,
+  `Board::pris_par` — trois lectures directes du modèle quittent le bureau (le cliquet du couplage,
+  qui était au plafond, avait refusé la quatrième). Une épreuve par la vraie souris, deux du noyau ;
+  **4 sabotages sur 5** (`dossier-2-131`) : **Maj+clic sur un dossier reste aveugle** (son épreuve
+  passe par la touche et la souris : à écrire). Une épreuve de la 130 ne compilait plus (une
+  référence à une valeur temporaire) : corrigée.
+
 ## 5. Vérifié
 
 * **Le relais** : 31 épreuves (dont un vrai dépôt Git jetable pour le ❤️, avec la preuve à
