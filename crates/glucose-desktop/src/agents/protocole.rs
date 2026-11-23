@@ -32,6 +32,9 @@ const ARGUMENTS_INVALIDES: f64 = -32602.0;
 const VERSION_INCONNUE: f64 = -32022.0;
 /// Les en-têtes d'une requête HTTP ne disent pas ce que dit son corps (« HeaderMismatch »).
 const ENTETES_CONTRAIRES: f64 = -32020.0;
+/// **La connexion s'est fermée** pendant l'appel : JSON-RPC 2.0 § 5.1 réserve −32000 à −32099 au
+/// serveur, et le kit TypeScript de MCP nomme −32000 `ConnectionClosed`.
+const CONNEXION_FERMEE: f64 = -32000.0;
 
 /// Ce qu'une ligne demande.
 #[derive(Debug, Clone, PartialEq)]
@@ -311,6 +314,11 @@ fn avec_son_cache(mut r: Json, pour_qui: &str) -> Json {
         o.push(("cacheScope".to_string(), Json::from(pour_qui)));
     }
     r
+}
+
+/// **La porte s'est fermée pendant l'appel** (RELAIS-2, fiche 131).
+pub fn erreur_de_fermeture(id: &Json, message: &str) -> String {
+    erreur(id, CONNEXION_FERMEE, message, None)
 }
 
 fn erreur(id: &Json, code: f64, message: &str, donnees: Option<Json>) -> String {

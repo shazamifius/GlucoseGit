@@ -1,0 +1,107 @@
+[
+ {
+  "nom": "RELAIS-2 — le relais meurt avec la porte (comme avant)",
+  "fichier": "crates/glucose-desktop/src/agents/relais.rs",
+  "avant": "        if lien.envoyer(&ligne) == Envoi::Coupee {\n            match revenir",
+  "apres": "        if lien.envoyer(&ligne) == Envoi::Coupee {\n            return 0;\n        }\n        if false {\n            match revenir",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ },
+ {
+  "nom": "RELAIS-2 — une requête que la fermeture emporte reste sans réponse",
+  "fichier": "crates/glucose-desktop/src/agents/relais/lien.rs",
+  "avant": "    for id in orphelines {",
+  "apres": "    for id in orphelines.into_iter().take(0) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ },
+ {
+  "nom": "RELAIS-2 — la poignée de main rejouée répond au client",
+  "fichier": "crates/glucose-desktop/src/agents/relais/lien.rs",
+  "avant": "let a_taire = prelude.iter().filter(|l| identifiant(l).is_some()).count();",
+  "apres": "let a_taire = prelude.len() * 0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ },
+ {
+  "nom": "RELAIS-2 — une requête n'entre pas dans la dette",
+  "fichier": "crates/glucose-desktop/src/agents/relais/lien.rs",
+  "avant": "            dette.attendues.extend(id.clone().map(|id| (id, false)));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ },
+ {
+  "nom": "RELAIS-2 — la fermeture répond aussi aux requêtes en vol",
+  "fichier": "crates/glucose-desktop/src/agents/relais/lien.rs",
+  "avant": ".partition(|(_, partie)| *partie);",
+  "apres": ".partition(|_| true);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ },
+ {
+  "nom": "RELAIS-2 — une requête partie n'est pas marquée partie",
+  "fichier": "crates/glucose-desktop/src/agents/relais/lien.rs",
+  "avant": "                dette.attendues.push((id, true));\n",
+  "apres": "                dette.attendues.push((id, false));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ },
+ {
+  "nom": "RELAIS-2 — une ligne qui n'est pas entrée ne se renvoie pas",
+  "fichier": "crates/glucose-desktop/src/agents/relais/lien.rs",
+  "avant": "            (false, _, Some(_)) => {\n                dette.fermee = true;\n                Envoi::Coupee",
+  "apres": "            (false, _, Some(_)) => {\n                dette.fermee = true;\n                Envoi::Repondue",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "agents::relais"
+  ]
+ }
+]

@@ -22,10 +22,14 @@
 //! `GLUCOSE_PORTE` nomme une autre porte : un instrument, pour les épreuves, qui n'ouvre alors
 //! jamais Glucose.
 
+mod lien;
+
 use super::json::Json;
 use super::porte;
 use super::protocole::{Connexion, Suite};
-use std::io::{BufRead, BufReader, Read, Write};
+pub use lien::Sortie;
+use lien::{Envoi, Lien};
+use std::io::{BufRead, BufReader, Write};
 use std::time::{Duration, Instant};
 
 /// Le temps qu'on laisse à Glucose pour ouvrir sa porte après l'avoir lancé : le lancement le
@@ -41,44 +45,68 @@ pub fn relayer() -> i32 {
         crate::dire_erreur!("[glucose --mcp] aucune porte pour ce compte");
         return 1;
     };
-    let mut entree = BufReader::new(std::io::stdin());
+    let sortie: Sortie = std::sync::Arc::new(std::sync::Mutex::new(Box::new(std::io::stdout())));
+    relayer_par(&mut BufReader::new(std::io::stdin()), &sortie, &nom, ouvrir)
+}
+
+/// **Le relais, ses flux donnés** : le client d'un côté, la porte nommée de l'autre. Une porte
+/// qui se ferme se rebranche à la ligne suivante (RELAIS-2, [`lien`]).
+pub fn relayer_par(entree: &mut impl BufRead, sortie: &Sortie, nom: &str, ouvrir: bool) -> i32 {
     // Le client a fermé l'entrée avant tout outil : rien n'a été ouvert, rien à fermer.
-    let Some((prelude, premier)) = repondre_seul(&mut entree, &mut std::io::stdout()) else {
+    let Some((prelude, premier)) = repondre_seul(entree, &mut Partagee(sortie)) else {
         return 0;
     };
-    let flux = match brancher(&nom, ouvrir) {
-        Ok(f) => f,
+    let mut lien = match brancher(nom, ouvrir).and_then(|f| Lien::sur(f, &prelude, sortie)) {
+        Ok(l) => l,
         Err(e) => {
             crate::dire_erreur!("[glucose --mcp] {e}");
             return 1;
         }
     };
-    let Ok(retour) = flux.try_clone() else {
-        return 1;
-    };
-    // Les réponses de la poignée de main rejouée ont déjà été données : elles se taisent.
-    let a_taire = prelude.iter().filter(|l| a_une_reponse(l)).count();
-    let _ = std::thread::Builder::new()
-        .name("glucose-relais".into())
-        .spawn(move || {
-            let mut retour = BufReader::new(retour);
-            for _ in 0..a_taire {
-                if !matches!(porte::lire_une_ligne(&mut retour), Ok(Some(_))) {
-                    return;
+    let mut suivante = Some(premier);
+    while let Some(ligne) = suivante {
+        if lien.envoyer(&ligne) == Envoi::Coupee {
+            match revenir(nom, ouvrir).and_then(|f| Lien::sur(f, &prelude, sortie)) {
+                Ok(neuf) => {
+                    lien = neuf;
+                    if lien.envoyer(&ligne) == Envoi::Coupee {
+                        repondre_en_erreur(sortie, &ligne, lien::FERMEE);
+                    }
                 }
+                Err(e) => repondre_en_erreur(sortie, &ligne, &e),
             }
-            recopier(&mut retour, &mut std::io::stdout());
-        });
-    let mut aller = flux;
-    for ligne in prelude.iter().chain([&premier]) {
-        if writeln!(aller, "{ligne}").is_err() {
-            return 1;
         }
+        suivante = porte::lire_une_ligne(entree).ok().flatten();
     }
-    recopier(&mut entree, &mut aller);
     // Le client a fermé l'entrée : c'est le signal de fin (« Servers SHOULD exit promptly when
     // their standard input is closed »).
     0
+}
+
+/// Une requête qui n'a pas pu partir reçoit son erreur ; une notification se perd en silence,
+/// comme le protocole le veut (elle n'attend aucune réponse).
+fn repondre_en_erreur(sortie: &Sortie, ligne: &str, pourquoi: &str) {
+    if let Some(id) = Json::lire(ligne).ok().and_then(|m| m.get("id").cloned()) {
+        lien::dire(
+            sortie,
+            &super::protocole::erreur_de_fermeture(&id, pourquoi),
+        );
+    }
+}
+
+/// La sortie partagée, vue comme un flux : pour la poignée de main que le relais rend seul.
+struct Partagee<'a>(&'a Sortie);
+
+impl Write for Partagee<'_> {
+    fn write(&mut self, octets: &[u8]) -> std::io::Result<usize> {
+        let mut s = self.0.lock().map_err(|_| std::io::ErrorKind::BrokenPipe)?;
+        s.write(octets)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let mut s = self.0.lock().map_err(|_| std::io::ErrorKind::BrokenPipe)?;
+        s.flush()
+    }
 }
 
 /// **Répond seul** jusqu'au premier appel d'outil (RELAIS-1) : rend la poignée de main à
@@ -109,11 +137,6 @@ pub fn repondre_seul(
     }
 }
 
-/// Une ligne qui attend une réponse : une requête, avec son identifiant.
-fn a_une_reponse(ligne: &str) -> bool {
-    Json::lire(ligne).is_ok_and(|m| m.get("id").is_some())
-}
-
 /// **La porte à joindre**, et s'il faut ouvrir Glucose quand elle ne répond pas : celle de ce
 /// compte, ou celle que nomme `GLUCOSE_PORTE` — un instrument d'épreuve, qui n'ouvre jamais Glucose.
 /// Le relais et les commandes du terminal (fiche 90) la joignent pareil.
@@ -131,28 +154,10 @@ pub(super) fn porte_a_joindre() -> Option<(String, bool)> {
 pub(super) fn brancher(nom: &str, ouvrir: bool) -> Result<porte::Flux, String> {
     match porte::connecter(nom) {
         Ok(f) => Ok(f),
-        Err(_) if ouvrir => lancer_glucose().and_then(|()| attendre(nom)),
+        Err(_) if ouvrir => lancer_glucose().and_then(|()| {
+            attendre(nom).ok_or_else(|| "Glucose s'est ouvert, mais sa porte ne répond pas".into())
+        }),
         Err(e) => Err(format!("la porte {nom} ne répond pas : {e}")),
-    }
-}
-
-/// Recopie un flux dans l'autre, en vidant à chaque morceau : une réponse ne reste jamais dans
-/// un tampon pendant que le client l'attend.
-fn recopier(depuis: &mut impl Read, vers: &mut impl Write) {
-    let mut tampon = [0u8; 64 * 1024];
-    loop {
-        match depuis.read(&mut tampon) {
-            Ok(0) | Err(_) => return,
-            Ok(n) => {
-                if vers
-                    .write_all(&tampon[..n])
-                    .and_then(|()| vers.flush())
-                    .is_err()
-                {
-                    return;
-                }
-            }
-        }
     }
 }
 
@@ -190,17 +195,28 @@ fn lancer_glucose() -> Result<(), String> {
         .map_err(|e| format!("Glucose n'a pas pu s'ouvrir : {e}"))
 }
 
-/// Attend que la porte de Glucose réponde.
-fn attendre(nom: &str) -> Result<porte::Flux, String> {
+/// Attend que la porte de Glucose réponde, le temps d'un lancement.
+fn attendre(nom: &str) -> Option<porte::Flux> {
     let debut = Instant::now();
     loop {
         if let Ok(f) = porte::connecter(nom) {
-            return Ok(f);
+            return Some(f);
         }
         if debut.elapsed() > LANCEMENT_MAX {
-            return Err("Glucose s'est ouvert, mais sa porte ne répond pas".to_string());
+            return None;
         }
         std::thread::sleep(ESSAI);
+    }
+}
+
+/// **Rebrancher** (RELAIS-2) : Glucose était là un instant plus tôt — son service, une mise à jour
+/// ou l'utilisateur le relancent peut-être déjà. On lui laisse le temps d'un lancement avant de
+/// l'ouvrir soi-même : jamais deux Glucose.
+fn revenir(nom: &str, ouvrir: bool) -> Result<porte::Flux, String> {
+    match attendre(nom) {
+        Some(f) => Ok(f),
+        None if ouvrir => brancher(nom, true),
+        None => Err(format!("la porte {nom} ne répond plus")),
     }
 }
 

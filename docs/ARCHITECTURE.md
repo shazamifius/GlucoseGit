@@ -430,7 +430,10 @@ des plantages de Windows, la batterie.
 Un agent — Protéo, Claude, tout client MCP — travaille dans le Glucose ouvert, sous les yeux de
 l'utilisateur. `glucose --mcp` (`agents/relais.rs`) est le programme qu'un client lance : il
 répond seul à la découverte et à la liste des outils, et ne se branche — et n'ouvre Glucose —
-qu'au premier appel d'outil (RELAIS-1). La **porte** (`agents/porte.rs`) n'est pas un port
+qu'au premier appel d'outil (RELAIS-1) ; il relaie ligne par ligne et **survit à Glucose** — une
+requête que la fermeture emporte reçoit une erreur qui le dit, la suivante se rebranche, après
+lui avoir laissé le temps d'un lancement pour revenir seul (`relais/lien.rs`, RELAIS-2, fiche 131).
+La **porte** (`agents/porte.rs`) n'est pas un port
 réseau : un tuyau nommé sous Windows, réservé au compte (AGENTS-2), dont le bout du relais est en
 E/S superposée (`porte/tuyau.rs`, TUYAU-1) ; une prise Unix ailleurs ; aucune au téléphone. Le
 **protocole** (`agents/protocole.rs`, MCP du 28/07/2026 et les versions d'avant) est pur ; le JSON
