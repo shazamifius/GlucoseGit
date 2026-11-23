@@ -141,6 +141,18 @@ def decider(session, consigne_texte, pause, a_signee, relayer, maintenant, ecrit
     return ("laisser", "relancer") if suite else ("continuer", "")
 
 
+def dire_session(session, memoire, maintenant):
+    """Ce que le ❤️ dit d'une session vivante. **Figée, elle ne se dit pas « au travail »** : le
+    23/11, une session est restée 1 h 48 devant une question de Claude Code au démarrage pendant que
+    le ❤️ disait « au travail depuis 16:00 » (fiche 134)."""
+    compte = session.get("compte")
+    if memoire.get("bloque_signale"):
+        return (f"🆘 session du compte {compte} figée : rien ne bouge à son écran depuis "
+                f"{heure(memoire.get('ecran_depuis', maintenant))} — son écran est dans « {BLOQUE} »")
+    dit = f"session du compte {compte} au travail depuis {heure(session.get('depuis', maintenant))}"
+    return dit + (f" — arrêtée : {session['laissee']}" if session.get("laissee") else "")
+
+
 def raison_continuer(consigne_texte):
     return ("[Relais] Ne t'arrête pas : continue selon sa consigne et le plan (SUITE § 2, la passation). "
             "Si tu attends une réponse de lui, écris la question dans son Glucose et prends une autre "

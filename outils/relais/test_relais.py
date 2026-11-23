@@ -372,6 +372,35 @@ class Veilleur(unittest.TestCase):
         self.taper.assert_called_once_with(r.raison_prevenir(self.maintenant + 3600))
         self.tmux.assert_not_called()
 
+    def test_figee_le_battement_ne_dit_plus_au_travail(self):
+        """Le 23/11, de 16 h à 17 h 48 : figée au démarrage, le ❤️ disait « au travail » (fiche 134)."""
+        self.jauge("b", 10, 10)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 7000})
+        r.un_tour()
+        self.assertIn("au travail", r.lire_json(r.ETAT / "veilleur.json", {})["dit"])
+        memoire = r.lire_json(r.ETAT / "veilleur.json", {})
+        memoire.update(bloque_signale=True, ecran_depuis=self.maintenant - 2200)
+        r.ecrire_json(r.ETAT / "veilleur.json", memoire)
+        r.un_tour()
+        dit = r.lire_json(r.ETAT / "veilleur.json", {})["dit"]
+        self.assertIn("figée", dit)
+        self.assertNotIn("au travail", dit)
+        self.assertIn(r.heure(self.maintenant - 2200), dit)
+
+
+class Lancement(unittest.TestCase):
+    def test_sans_la_question_de_chrome_au_demarrage(self):
+        """Le compte b n'avait jamais répondu à « Claude in Chrome » : sans --no-chrome, Claude Code la
+        pose avant le premier message, et personne n'est là (le 23/11, 1 h 48 figée, fiche 134)."""
+        tmux = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        with tempfile.TemporaryDirectory() as dossier, mock.patch.object(r, "ETAT", Path(dossier)), \
+                mock.patch.object(r, "session_tmux", lambda: None), mock.patch.object(r, "tmux", tmux), \
+                mock.patch.object(r, "claude_binaire", lambda: "claude"), \
+                mock.patch.object(r, "journal", mock.Mock()):
+            self.assertTrue(r.lancer("b"))
+        commande = tmux.call_args.args
+        self.assertIn("--no-chrome", commande[commande.index("claude"):])
+
 
 class Travail(unittest.TestCase):
     """Ce que GitHub n'a pas encore, dans un vrai dépôt Git jetable (son « GitHub » : un dépôt nu)."""

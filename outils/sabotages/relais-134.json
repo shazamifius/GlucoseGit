@@ -1,0 +1,66 @@
+[
+ {
+  "nom": "RELAIS-CHROME — la session se lance sans --no-chrome (figée sur la question de Chrome)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "\"--ide\", \"--no-chrome\", \"--remote-control\"",
+  "apres": "\"--ide\", \"--remote-control\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-FIGEE — figée, la loi dit encore « au travail »",
+  "fichier": "outils/relais/loi.py",
+  "avant": "    if memoire.get(\"bloque_signale\"):\n        return (f\"🆘",
+  "apres": "    if False:\n        return (f\"🆘",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-FIGEE — le veilleur ne demande pas à la loi ce que dit le ❤️",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        dit = dire_session(session, memoire, maintenant)\n",
+  "apres": "        dit = f\"session du compte {session.get('compte')} au travail\"\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-FIGEE — l'heure dite n'est pas celle où l'écran s'est figé",
+  "fichier": "outils/relais/loi.py",
+  "avant": "{heure(memoire.get('ecran_depuis', maintenant))}",
+  "apres": "{heure(maintenant)}",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

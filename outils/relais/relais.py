@@ -34,7 +34,7 @@ from pathlib import Path
 # pour que la bibliothèque standard passe toujours devant.
 sys.path.append(str(Path(__file__).resolve().parent))
 from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
-                 REPONSE, SILENCE, decider, depart, dernier_geste, en_pause, heure, humaine,
+                 REPONSE, SILENCE, decider, depart, dernier_geste, dire_session, en_pause, heure, humaine,
                  raison_continuer, raison_entendre, raison_passation, raison_prevenir, ses_paroles,
                  signee)
 from loi import MODE_EMPLOI, RAISON_PASSATION, lire_ids  # noqa: E402,F401  (pour les épreuves)
@@ -354,9 +354,10 @@ def lancer(compte, paroles=()):
     if COMPTES[compte]:
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
     binaire = claude_binaire()
-    # --ide : branché sur le VS Code de ce compte (ses outils, ses différences affichées).
+    # --ide : branché sur le VS Code de ce compte. --no-chrome : sans lui, un compte qui n'a jamais
+    # répondu à « Claude in Chrome » se fige au démarrage sur cette question (le 23/11, 1 h 48, fiche 134).
     fait = tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
-                "env", *reglages, binaire, "--ide", "--remote-control", f"relais-{compte}",
+                "env", *reglages, binaire, "--ide", "--no-chrome", "--remote-control", f"relais-{compte}",
                 "--append-system-prompt", REGLES, depart(compte, paroles))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
@@ -555,8 +556,7 @@ def un_tour():
         if not humaine_la and not session.get("passation_demandee"):
             entendre(memoire, histoire)
             relancer(session, n.get("texte", ""), ok, pause)
-        dit = f"session du compte {session.get('compte')} au travail depuis {heure(session.get('depuis', maintenant))}" + (
-            f" — arrêtée : {session['laissee']}" if session.get("laissee") else "")
+        dit = dire_session(session, memoire, maintenant)
     else:
         dit = attendre(memoire, ok, pause, humaine_la, maintenant)
     if neufs is not None:
