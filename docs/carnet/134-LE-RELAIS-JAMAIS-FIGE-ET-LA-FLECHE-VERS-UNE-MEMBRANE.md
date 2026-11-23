@@ -102,6 +102,18 @@ Les quatre images sont dans sa membrane `relais-q12-images` (`relais-q12-a`, `-b
 « ✍️ Ta lettre », et l'explication réécrite (`relais-q12-explique-1800`). `proto.patch` et
 `selection_essai.rs` mis à jour dans le dossier du banc.
 
+**L'image D** (le relais, 20 h 42 — sa lettre B, *« et du flou »*) : les équerres de B, et **le reste du
+canevas flouté** — réduit au quart, trois flous de boîte (une gaussienne à peu de frais), agrandi,
+posé hors de l'union des formes choisies (`GLUCOSE_ESSAI_SELECTION=d`). Posée dans sa membrane
+(`relais-q12-d`, sa lettre sous elle), prise par `prendre-d.sh` (un cran dézoomé, pour que le texte
+témoin se voie flouté). **Ce que le prototype triche** : il force la voie du processeur
+(`la_carte_pose_les_photos` rend faux sous `d`) — par la carte graphique, le calque du dessus n'a pas les
+pixels du canevas. Dans `main`, le flou vivra **sur la carte graphique** (Kawase double, une passe
+de plus sur la texture de la scène), et sur la voie du processeur par la même réduction au quart ;
+il s'efface pendant un glisser. L'arbre du prototype se refait : `git worktree add --detach
+~/.cache/glucose-bancs/q12-arbre HEAD`, `git apply proto.patch`, recopier `selection_essai.rs`,
+compiler avec `CARGO_TARGET_DIR=~/.cache/glucose-bancs/cible-q12`.
+
 ## 6. La 2.0.4-beta.5 — le brouillon est prêt
 
 La vérification de GitHub de `378239d` : **verte sur les dix tâches**. Le brouillon : `gh workflow run
