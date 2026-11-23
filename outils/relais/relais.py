@@ -33,6 +33,8 @@ DEPOT = MAISON / "Projets/GlucoseGit"
 COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
 # La passation coûte un tour : la demander avant le mur, pas au mur.
 SEUILS = {"five_hour": 90.0, "seven_day": 95.0}
+# Le mur : une fenêtre pleine, et le serveur refuse le compte (« You've hit your … limit »).
+MUR = {"five_hour": 100.0, "seven_day": 100.0}
 SILENCE = 35 * 60
 EXTENSIONS = MAISON / ".vscode/extensions"
 
@@ -126,11 +128,19 @@ def charge(compte, maintenant):
     return fenetres
 
 
-def plein(compte, maintenant):
-    """Ce compte est-il au seuil ? Et sinon, quand le redevient-il libre (None : il l'est)."""
+def plein(compte, maintenant, seuils=SEUILS):
+    """Ce compte a-t-il passé ses seuils ? Et si oui, quand redevient-il libre (None : il l'est).
+
+    Libre seulement quand **toutes** ses fenêtres pleines sont remises : la plus lointaine de leurs
+    remises, jamais la plus proche (le 23/11, une semaine pleine jusqu'à 16 h et cinq heures
+    pleines jusqu'à 4 h ne rendaient pas le compte à 4 h).
+
+    Une jauge lue il y a longtemps reste vraie de ce côté-là : dans une fenêtre, l'usage ne fait que
+    s'ajouter jusqu'à sa remise. Elle ne peut que **sous-estimer** (le compte servi ailleurs,
+    claude.ai compris) — d'où le veilleur, qui ferme une session que le serveur refuse."""
     murs = [remise for nom, (pct, remise) in charge(compte, maintenant).items()
-            if pct >= SEUILS.get(nom, 100.0)]
-    return (True, min(murs)) if murs else (False, None)
+            if pct >= seuils.get(nom, 100.0)]
+    return (True, max(murs)) if murs else (False, None)
 
 
 def jauges():
@@ -205,17 +215,22 @@ def en_pause(texte):
 
 # ── Le crochet « Stop » ───────────────────────────────────────────────────────────────────────
 
-def decider(session, consigne_texte, pause, a_signee, au_seuil, maintenant):
-    """(action, raison) — action : « laisser » (Claude s'arrête), « continuer » ou « passation »."""
+def decider(session, consigne_texte, pause, a_signee, au_seuil, maintenant, ecrite=False):
+    """(action, raison) — action : « laisser » (Claude s'arrête), « continuer » ou « passation ».
+
+    Une passation demandée ne laisse partir la session qu'**écrite** (`ecrite` : le nœud a changé
+    depuis la demande). La demande peut arriver du veilleur en plein tour, tapée dans la session :
+    le tour qui finit alors ne l'a peut-être pas encore lue, et la redemander ne coûte rien. Trois
+    arrêts en deux minutes sans elle : la session ne peut plus l'écrire, on relaie quand même."""
+    recents = [t for t in session.get("arrets", []) if maintenant - t < 120]
     if session.get("passation_demandee"):
-        return "laisser", "relayer"
+        return ("laisser", "relayer") if ecrite or len(recents) >= 3 else ("passation", "")
     if au_seuil:
         return "passation", ""
     if pause:
         return "laisser", "pause"
     if not a_signee or not (consigne_texte or "").strip():
         return "laisser", "consigne non signée"
-    recents = [t for t in session.get("arrets", []) if maintenant - t < 120]
     if len(recents) >= 3:
         return "laisser", "à vide"
     return "continuer", ""
@@ -230,7 +245,25 @@ def raison_continuer(consigne_texte):
 RAISON_PASSATION = (
     "[Relais] Ce compte arrive à sa limite. Écris MAINTENANT la passation dans son Glucose : remplace "
     f"le texte du nœud {PASSATION} (glucose poser-texte tableau=main id={PASSATION} texte=-) par "
-    "l'état exact — fait, en cours, non commité, prochaine étape, pièges payés. Puis termine ton tour.")
+    "l'état exact — fait, en cours, non commité, prochaine étape, pièges payés. Si tu n'as rien "
+    "changé depuis celle qui y est, garde-la et ajoute seulement en tête une ligne qui la confirme, "
+    "avec l'heure. Puis termine ton tour.")
+
+
+def demander_passation(session, maintenant):
+    """Retient la demande et l'empreinte de la passation d'avant (la première fois seulement) :
+    c'est à elle qu'on saura si la session l'a récrite."""
+    if not session.get("passation_demandee"):
+        session["passation_demandee"] = maintenant
+        session["passation_avant"] = (noeud(PASSATION) or {}).get("empreinte")
+
+
+def passation_ecrite(session):
+    """Le nœud de la passation a-t-il changé depuis la demande ?"""
+    if not session.get("passation_demandee"):
+        return False
+    maintenant = (noeud(PASSATION) or {}).get("empreinte")
+    return maintenant is not None and maintenant != session.get("passation_avant")
 
 
 def fin_de_tour():
@@ -247,11 +280,11 @@ def fin_de_tour():
     texte = (n or {}).get("texte", "")
     action, pourquoi = decider(session, texte, en_pause(texte),
                                signee(n, memoire, glucose("histoire", "nombre=200")),
-                               plein(compte_courant(), maintenant)[0], maintenant)
+                               plein(compte_courant(), maintenant)[0], maintenant,
+                               passation_ecrite(session))
     session["arrets"] = [t for t in session.get("arrets", []) if maintenant - t < 120] + [maintenant]
     if action == "passation":
-        session["passation_demandee"] = maintenant
-        session["passation_avant"] = (noeud(PASSATION) or {}).get("empreinte")
+        demander_passation(session, maintenant)
         print(json.dumps({"decision": "block", "reason": RAISON_PASSATION}, ensure_ascii=False))
     elif action == "continuer":
         session.pop("laissee", None)
@@ -323,6 +356,38 @@ def ecran():
     return r.stdout if r and r.returncode == 0 else None
 
 
+def garder(session, maintenant):
+    """Ce que le veilleur fait d'une session vivante, d'après les jauges de son compte, à chaque tour :
+
+    * « fermer » — **le mur** : une fenêtre pleine, le serveur la refuse. Elle ne peut plus rien
+      écrire, et tmux la tiendrait ouverte sur son message de limite, prise pour vivante (le 23/11,
+      la session b, lancée sur une semaine pleine que personne n'avait lue, a figé le relais) ;
+    * « passation » — un seuil passé, et rien encore demandé : **la passation n'attend pas la fin
+      du tour** (le 23/11 à 0 h 15, un tour durait depuis 48 minutes, le compte à 97 %) ;
+    * None : rien à faire."""
+    compte = session.get("compte")
+    if not compte:
+        return None
+    if plein(compte, maintenant, MUR)[0]:
+        return "fermer"
+    if plein(compte, maintenant)[0] and not session.get("passation_demandee"):
+        return "passation"
+    return None
+
+
+def fermer(session, raison):
+    """Ferme la session du relais et le dit : avec ou sans sa passation écrite."""
+    tmux("kill-session", "-t", session_tmux() or "")
+    dite = "écrite" if passation_ecrite(session) else "PAS récrite (la précédente reste)"
+    journal(f"{raison} : session close, passation {dite}, relais")
+    session["laissee"] = raison
+    ecrire_json(ETAT / "session.json", session)
+
+
+def autre(compte):
+    return next((c for c in COMPTES if c != compte), compte)
+
+
 def surveiller(memoire, histoire, maintenant):
     vu = ecran()
     if vu is None:
@@ -364,13 +429,26 @@ def jeton_github(maintenant):
     return f"présent (posé il y a {jours:.0f} j)" + (" — à renouveler" if jours >= 3 else "")
 
 
+def git(*arguments):
+    """Une lecture de Git, jamais une écriture ; vide si elle échoue ou tarde (le réseau)."""
+    try:
+        r = subprocess.run(["git", "-C", str(DEPOT), *arguments], capture_output=True, text=True,
+                           timeout=30, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
 def travail(depuis):
     """Ce que la session a produit : ses commits depuis son début, et ce que GitHub n'a pas encore.
-    Lu dans Git, sans dépenser un jeton d'usage — de quoi juger ce que coûte chaque pour-cent."""
-    def git(*a):
-        return subprocess.run(["git", "-C", str(DEPOT), *a], capture_output=True, text=True).stdout.strip()
+    Lu dans Git, sans dépenser un jeton d'usage — de quoi juger ce que coûte chaque pour-cent.
+
+    **Ce que GitHub a, demandé à GitHub** (`ls-remote`) : les envois passent par l'adresse qui porte
+    le jeton, qui ne met jamais `origin/main` à jour ; compter contre lui comptait ce qui était déjà
+    parti (le 23/11, « 1 pas encore sur GitHub » quand `c0d093a` y était)."""
     faits = git("log", f"--since=@{int(depuis)}", "--format=%h %s").splitlines()
-    attente = git("rev-list", "--count", "origin/main..main") or "?"
+    distant = git("ls-remote", "origin", "refs/heads/main").split()[:1]
+    attente = (git("rev-list", "--count", f"{distant[0]}..main") if distant else "") or "?"
     liste = "".join(f"\n  - {c[:90]}" for c in faits[:5])
     return f"{len(faits)} commit(s) depuis {heure(depuis)} · {attente} pas encore sur GitHub{liste}"
 
@@ -397,11 +475,17 @@ def un_tour():
     histoire = glucose("histoire", "nombre=200")
     ok, pause = signee(n, memoire, histoire), en_pause(n.get("texte"))
     vivante = ecran() is not None
-    if vivante and session.get("passation_demandee") and session.get("laissee") == "relayer":
-        tmux("kill-session", "-t", session_tmux() or "")
-        journal("passation écrite : session close, relais")
-        memoire["compte"] = "b" if session.get("compte") == "a" else "a"
+    geste = garder(session, maintenant) if vivante else None
+    if vivante and (geste == "fermer" or (session.get("passation_demandee")
+                                         and session.get("laissee") == "relayer")):
+        fermer(session, "compte à sa limite" if geste == "fermer" else "passation demandée")
+        memoire["compte"] = autre(session.get("compte"))
         vivante = False
+    elif geste == "passation":
+        demander_passation(session, maintenant)
+        ecrire_json(ETAT / "session.json", session)
+        taper(RAISON_PASSATION)
+        journal(f"seuil passé en plein tour : passation demandée au compte {session.get('compte')}")
     if vivante:
         surveiller(memoire, histoire, maintenant)
         if session.get("laissee") in ("pause", "consigne non signée") and ok and not pause:

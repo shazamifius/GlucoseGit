@@ -1,0 +1,194 @@
+[
+ {
+  "nom": "RELAIS-JAUGES — libre à la plus proche remise (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "return (True, max(murs)) if murs else (False, None)",
+  "apres": "return (True, min(murs)) if murs else (False, None)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — la passation demandée laisse partir sans être écrite (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "return (\"laisser\", \"relayer\") if ecrite or len(recents) >= 3 else (\"passation\", \"\")",
+  "apres": "return \"laisser\", \"relayer\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — sans passation, la session est redemandée sans fin",
+  "fichier": "outils/relais/relais.py",
+  "avant": "if ecrite or len(recents) >= 3 else",
+  "apres": "if ecrite else",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — le mur ne ferme pas la session (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if plein(compte, maintenant, MUR)[0]:\n        return \"fermer\"\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — la passation se redemande à chaque tour",
+  "fichier": "outils/relais/relais.py",
+  "avant": "if plein(compte, maintenant)[0] and not session.get(\"passation_demandee\"):",
+  "apres": "if plein(compte, maintenant)[0]:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — le veilleur ne ferme pas au mur",
+  "fichier": "outils/relais/relais.py",
+  "avant": "if vivante and (geste == \"fermer\" or (",
+  "apres": "if vivante and (False or (",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — le seuil passé en plein tour attend la fin du tour (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    elif geste == \"passation\":\n",
+  "apres": "    elif False:\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — la référence de la passation suit chaque demande",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if not session.get(\"passation_demandee\"):\n        session[\"passation_demandee\"] = maintenant",
+  "apres": "    if True:\n        session[\"passation_demandee\"] = maintenant",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — une passation inchangée passe pour écrite",
+  "fichier": "outils/relais/relais.py",
+  "avant": "return maintenant is not None and maintenant != session.get(\"passation_avant\")",
+  "apres": "return maintenant is not None",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — le crochet ne regarde pas si la passation est écrite",
+  "fichier": "outils/relais/relais.py",
+  "avant": "                               passation_ecrite(session))",
+  "apres": "                               False)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-JAUGES — la fermeture dit toujours « écrite »",
+  "fichier": "outils/relais/relais.py",
+  "avant": "dite = \"écrite\" if passation_ecrite(session) else \"PAS récrite (la précédente reste)\"",
+  "apres": "dite = \"écrite\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-5 — compter contre origin/main (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "distant = git(\"ls-remote\", \"origin\", \"refs/heads/main\").split()[:1]",
+  "apres": "distant = [\"origin/main\"]",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

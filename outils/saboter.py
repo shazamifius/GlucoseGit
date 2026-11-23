@@ -26,8 +26,9 @@ def jouer(cmd):
 
 def tombees(sortie):
     """**Les épreuves tombées, par leur nom** : la ligne d'échec de l'exécuteur — libtest de Rust
-    (« test x ... FAILED »), `node --test` (« not ok 3 - x »), un essai qui écrit ses verdicts
-    (« NON … », `outils/porte/essai/`).
+    (« test x ... FAILED »), `node --test` (« not ok 3 - x »), `unittest` de Python (« FAIL: x (…) »,
+    « ERROR: x (…) », `outils/relais/`), un essai qui écrit ses verdicts (« NON … »,
+    `outils/porte/essai/`).
 
     Un code de sortie non nul ne suffit pas (fiche 125) : une édition de liens ratée, un processus
     tué par la borne (137), Nix qui échoue sortent aussi en erreur, et ne disent rien de la garde.
@@ -36,6 +37,7 @@ def tombees(sortie):
     """
     noms = re.findall(r"^test (\S+) \.\.\. FAILED$", sortie, re.MULTILINE)
     noms += re.findall(r"^\s*not ok \d+ - (.+)$", sortie, re.MULTILINE)
+    noms += re.findall(r"^(?:FAIL|ERROR): (\S+)", sortie, re.MULTILINE)
     noms += re.findall(r"^(NON\b.{0,80})", sortie, re.MULTILINE)
     if not noms and ("test result: FAILED" in sortie or "panicked at" in sortie):
         noms = ["(une épreuve, sans nom lisible)"]
@@ -46,7 +48,8 @@ def passees(sortie):
     """Combien d'épreuves ont passé, d'après l'exécuteur ; None s'il ne le dit pas (un essai)."""
     rust = re.findall(r"test result: ok\. (\d+) passed", sortie)
     node = re.findall(r"^\s*(?:#|ℹ) pass (\d+)", sortie, re.MULTILINE)
-    return sum(int(n) for n in rust + node) if rust or node else None
+    python = re.findall(r"^Ran (\d+) tests? in .*\n+OK\b", sortie, re.MULTILINE)
+    return sum(int(n) for n in rust + node + python) if rust or node or python else None
 
 
 def dire(noms):
