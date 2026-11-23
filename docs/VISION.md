@@ -398,6 +398,13 @@ plus jamais le lui demander.**
   leur importance, afin de capter la méta derrière un document »* — une flèche qu'il tire n'est ni
   éteinte ni jugée : elle est un signal dont l'IA apprend (§ 8 bis).
 
+* **La flèche qu'on ne choisit plus** (sa note du 23/11 au soir, `text-kpll-375`) : *« j'ai
+  l'impression que lorsqu'on sélectionne une flèche attachée à un bloc texte MAIS qui est sélectionnée
+  seule avec un autre bloc texte, eh bien on peut faire bouger une espèce de zone de clic invisible dans
+  le canva, et ensuite faire en sorte que la flèche soit impossible à sélectionner »* (fiche 135 :
+  ANCRE-1). Et (`text-kpll-370`) : *« tout simplement un texte, parfois on ne peut pas sélectionner à la
+  souris une partie du texte, car… ça quitte le bloc texte carrément »*.
+
 * **Choisir un texte pour l'écrire** (23/11 au soir, `text-kpll-356`) : *« j'ai eu beaucoup de mal à
   sélectionner ce bloc texte, car trop de zones de clic, et la gestion d'intention est trop mal faite ;
   du coup, pour éditer ce texte, j'ai dû vraiment galérer »*.
