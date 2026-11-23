@@ -262,3 +262,50 @@ fn test_trace_1_le_rectangle_ne_se_dessine_que_sous_la_grille() {
     bouger(&mut app, (600.0, 600.0));
     assert_eq!(app.rectangle_trace_a_l_ecran(), None);
 }
+
+/// L'appartenance de la photo `id` du tableau actif.
+fn membrane_de_la_photo(app: &GlucoseApp, id: &str) -> Option<String> {
+    app.store
+        .active_board()
+        .and_then(|b| b.images.iter().find(|i| i.id == id))
+        .and_then(|i| i.membrane_id.clone())
+}
+
+/// **MEMB-9 à la vraie souris** (fiche 134 § 12, sa note du 23/11 au soir) : la membrane qu'on
+/// trace autour d'une photo la prend — ses « Groupe » restaient vides, et les déplacer laissait
+/// leur contenu derrière ; celle d'à côté reste libre. Un seul `Ctrl+Z` défait la membrane et
+/// l'adoption.
+#[test]
+fn test_memb_9_tracer_une_membrane_autour_d_une_photo_la_prend() {
+    let (mut app, board) = app();
+    for (id, x) in [("dedans", 450.0), ("dehors", 900.0)] {
+        let photo = glucose_core::types::BoardImage::new(id, x, 420.0, 40.0, 30.0);
+        app.store.add_image(&board, photo);
+    }
+    app.store.journal.clear();
+    let avant = app.store.project.clone();
+    app.ui.active_tool = ActiveTool::Membrane;
+    appuyer(&mut app, (300.0, 300.0));
+    bouger(&mut app, (450.0, 420.0));
+    bouger(&mut app, (600.0, 550.0));
+    relacher(&mut app);
+    assert_eq!(membranes(&app), [(300.0, 300.0, 300.0, 250.0)]);
+    let groupe = app
+        .store
+        .active_board()
+        .and_then(|b| {
+            b.annotations
+                .iter()
+                .find(|a| matches!(a, Annotation::Membrane { .. }))
+        })
+        .map(|a| a.id().to_string());
+    assert!(groupe.is_some());
+    assert_eq!(
+        membrane_de_la_photo(&app, "dedans"),
+        groupe,
+        "elle la prend"
+    );
+    assert_eq!(membrane_de_la_photo(&app, "dehors"), None);
+    assert!(app.store.undo());
+    assert!(app.store.project == avant, "un seul Ctrl+Z rend tout");
+}

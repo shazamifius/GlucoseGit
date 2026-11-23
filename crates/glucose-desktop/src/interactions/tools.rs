@@ -268,14 +268,19 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
+    /// La membrane prend ce qu'elle entoure (MEMB-9, la loi du dépôt) : la pose et l'adoption
+    /// font **un** geste, comme le dossier.
     fn place_membrane(&mut self, (wx, wy, w, h): (f64, f64, f64, f64)) {
         let board = self.store.project.active_board_id.clone();
         let id = self.store.generate_id("membrane");
-        let mut membrane = Annotation::membrane(id, wx, wy, w, h);
+        let mut membrane = Annotation::membrane(&id, wx, wy, w, h);
         if let Annotation::Membrane { text, .. } = &mut membrane {
             *text = Some(NEW_MEMBRANE.to_string());
         }
+        self.store.begin_live_edit();
         self.store.add_annotation(&board, membrane);
+        self.store.adopter_ce_qu_elle_entoure(&board, &id);
+        self.store.end_live_edit();
     }
 
     /// Le dossier capture ce qui se trouve sous lui : `create_folder` le fait, crée le tableau

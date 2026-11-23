@@ -248,3 +248,161 @@ fn test_un_depot_ecrit_toujours_dans_le_meme_ordre() {
         "les huit libérées, dans l'ordre de leurs noms"
     );
 }
+
+/// Le geste de l'outil membrane (`place_membrane`, au bureau) : la pose et l'adoption, **un**
+/// geste.
+fn tracer(s: &mut Store, b: &str, id: &str, cadre: (f64, f64, f64, f64)) {
+    s.begin_live_edit();
+    membrane(s, b, id, cadre);
+    s.adopter_ce_qu_elle_entoure(b, id);
+    s.end_live_edit();
+}
+
+/// Trois photos de 40 × 30, posées par leur centre, autour du bord droit d'un cadre (0, 0, 320,
+/// 300) : l'une dedans, l'une qui déborde (de 290 à 330) mais dont le centre est dedans (310),
+/// l'une en partie dedans (de 310 à 350) mais dont le centre est dehors (330). Et une, loin.
+fn trois_photos_au_bord(s: &mut Store, b: &str) {
+    image(s, b, "dedans", 120.0, 115.0);
+    image(s, b, "deborde", 310.0, 115.0);
+    image(s, b, "centre-dehors", 330.0, 215.0);
+    image(s, b, "loin", 2000.0, 2000.0);
+}
+
+/// **MEMB-9 — une membrane tracée prend ce qu'elle entoure, par la loi du dépôt** (fiche 134
+/// § 12, sa note du 23/11 au soir) : ce dont le centre est dedans y entre, le reste reste libre ;
+/// un seul `Ctrl+Z` défait la pose et l'adoption. **Et l'envers** : la pose seule — l'outil
+/// d'avant — ne prenait rien, ses « Groupe » restaient vides.
+#[test]
+fn test_memb_9_une_membrane_tracee_prend_ce_dont_le_centre_est_dedans() {
+    let (mut s, b) = store();
+    trois_photos_au_bord(&mut s, &b);
+    let avant = s.project.clone();
+
+    tracer(&mut s, &b, "groupe", (0.0, 0.0, 320.0, 300.0));
+    assert_eq!(parent(&s, &b, "dedans").as_deref(), Some("groupe"));
+    assert_eq!(
+        parent(&s, &b, "deborde").as_deref(),
+        Some("groupe"),
+        "le centre est dedans : la loi du dépôt la range"
+    );
+    assert_eq!(
+        parent(&s, &b, "centre-dehors"),
+        None,
+        "le centre est dehors"
+    );
+    assert_eq!(parent(&s, &b, "loin"), None);
+    assert_eq!(parent(&s, &b, "groupe"), None, "elle-même à la racine");
+    assert!(s.undo(), "un geste");
+    assert!(s.project == avant, "un seul Ctrl+Z rend tout");
+
+    // L'envers : la pose seule, la loi d'avant.
+    membrane(&mut s, &b, "vide", (0.0, 0.0, 320.0, 300.0));
+    assert_eq!(
+        parent(&s, &b, "dedans"),
+        None,
+        "l'outil d'avant ne prenait rien"
+    );
+}
+
+/// **MEMB-9 dans une membrane** : tracée dans P, la neuve naît dans P et ne prend que les sœurs
+/// qu'elle entoure ; une sœur membrane entre avec ce qu'elle contient, qui garde son
+/// appartenance (on emballe un pays avec ses villes) ; ce qui reste dehors reste à P.
+#[test]
+fn test_memb_9_dans_une_membrane_elle_prend_ses_soeurs_et_leur_contenu_suit() {
+    let (mut s, b) = store();
+    membrane(&mut s, &b, "p", (0.0, 0.0, 1000.0, 800.0));
+    image(&mut s, &b, "a", 100.0, 100.0);
+    image(&mut s, &b, "b", 700.0, 600.0);
+    membrane(&mut s, &b, "soeur", (80.0, 300.0, 200.0, 150.0));
+    image(&mut s, &b, "dans-la-soeur", 100.0, 350.0);
+    assert_eq!(parent(&s, &b, "soeur").as_deref(), Some("p"));
+    assert_eq!(parent(&s, &b, "dans-la-soeur").as_deref(), Some("soeur"));
+
+    tracer(&mut s, &b, "neuve", (50.0, 50.0, 300.0, 450.0));
+    assert_eq!(parent(&s, &b, "neuve").as_deref(), Some("p"), "née dans P");
+    assert_eq!(parent(&s, &b, "a").as_deref(), Some("neuve"));
+    assert_eq!(parent(&s, &b, "soeur").as_deref(), Some("neuve"));
+    assert_eq!(
+        parent(&s, &b, "dans-la-soeur").as_deref(),
+        Some("soeur"),
+        "le contenu d'une sœur la suit sans changer d'appartenance"
+    );
+    assert_eq!(
+        parent(&s, &b, "b").as_deref(),
+        Some("p"),
+        "dehors, il reste à P"
+    );
+}
+
+/// **MEMB-9 et le dossier, une seule loi** : une membrane et un dossier tracés au même endroit
+/// prennent les mêmes nœuds (l'emprise du dossier juge aussi le centre).
+#[test]
+fn test_memb_9_une_membrane_et_un_dossier_au_meme_endroit_prennent_les_memes() {
+    let cadre = (0.0, 0.0, 320.0, 300.0);
+    let (mut s, b) = store();
+    trois_photos_au_bord(&mut s, &b);
+    tracer(&mut s, &b, "groupe", cadre);
+    let mut par_la_membrane: Vec<String> = ["dedans", "deborde", "centre-dehors", "loin"]
+        .into_iter()
+        .filter(|id| parent(&s, &b, id).as_deref() == Some("groupe"))
+        .map(str::to_string)
+        .collect();
+    par_la_membrane.sort();
+
+    let (mut d, bd) = store();
+    trois_photos_au_bord(&mut d, &bd);
+    let mut dossier = glucose_core::types::CanvasFolder::new("dossier", "Dossier", "");
+    (dossier.x, dossier.y, dossier.width, dossier.height) = cadre;
+    d.create_folder(&bd, dossier);
+    let enfant = d
+        .project
+        .boards
+        .iter()
+        .find(|x| x.id == bd)
+        .and_then(|x| x.folders.first())
+        .map(|f| f.child_board_id.clone())
+        .expect("le dossier");
+    let mut par_le_dossier: Vec<String> = d
+        .project
+        .boards
+        .iter()
+        .find(|x| x.id == enfant)
+        .expect("son tableau")
+        .images
+        .iter()
+        .map(|i| i.id.clone())
+        .collect();
+    par_le_dossier.sort();
+    assert_eq!(par_la_membrane, ["deborde", "dedans"]);
+    assert_eq!(par_la_membrane, par_le_dossier);
+}
+
+/// **MEMB-9 ne touche qu'à ce qu'elle entoure** : une appartenance écrite ailleurs ne se
+/// redéduit pas (MEMB-1). Une photo libre posée avant une membrane qui la couvre reste libre
+/// quand on trace ailleurs ; une photo d'une autre membrane, dont le centre tombe dans la neuve,
+/// reste à la sienne — la neuve ne prend que ses sœurs, et seulement pour elle.
+#[test]
+fn test_memb_9_elle_ne_prend_que_ses_soeurs_et_seulement_pour_elle() {
+    let (mut s, b) = store();
+    image(&mut s, &b, "libre", 1500.0, 1500.0);
+    membrane(&mut s, &b, "couvre", (1400.0, 1400.0, 300.0, 300.0));
+    membrane(&mut s, &b, "ailleurs", (3000.0, 0.0, 100.0, 100.0));
+    image(&mut s, &b, "d-ailleurs", 150.0, 150.0);
+    if let Some(board) = s.active_board_mut() {
+        let photo = board.images.iter_mut().find(|i| i.id == "d-ailleurs");
+        photo.expect("la photo").membrane_id = Some("ailleurs".into());
+    }
+    assert_eq!(
+        parent(&s, &b, "libre"),
+        None,
+        "posée avant, elle reste libre"
+    );
+
+    tracer(&mut s, &b, "neuve", (0.0, 0.0, 320.0, 300.0));
+    assert_eq!(parent(&s, &b, "libre"), None, "loin d'elle, rien ne change");
+    assert_eq!(
+        parent(&s, &b, "d-ailleurs").as_deref(),
+        Some("ailleurs"),
+        "pas une sœur : elle reste à la sienne"
+    );
+}

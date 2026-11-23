@@ -135,6 +135,52 @@ pub(super) fn membrane_d_accueil(board: &Board, id: &str) -> Option<String> {
 }
 
 impl Store {
+    /// **MEMB-9 — une membrane qu'on trace prend ce qu'elle entoure** (fiche 134 § 12 ; sa note
+    /// du 23/11 au soir, `text-kpll-356`). Ses sœurs — les nœuds de la membrane qui la contient,
+    /// ou libres comme elle — y passent quand **la loi du dépôt** les y range : la plus petite
+    /// membrane qui contient leur centre ([`reconcile_membership`]). C'est l'appartenance qu'ils
+    /// auraient si on les y lâchait, et celle du dossier tracé au même endroit (son emprise juge
+    /// le centre) : une seule loi pour les trois gestes. Avant, l'outil ne prenait rien, et ses
+    /// « Groupe » restaient vides — les déplacer laissait leur contenu derrière.
+    ///
+    /// Ce qu'une sœur membrane contient la suit sans changer d'appartenance ; aucune flèche ne
+    /// bouge. Un geste ouvert garde tout : l'appelant fait de la pose et de l'adoption **un**
+    /// geste.
+    pub fn adopter_ce_qu_elle_entoure(&mut self, board_id: &str, membrane: &str) {
+        let Some(b) = self.project.boards.iter().find(|b| b.id == board_id) else {
+            return;
+        };
+        let Some(parente) = b
+            .annotations
+            .iter()
+            .find(|a| a.id() == membrane && est_une_membrane(a))
+            .map(|a| a.membrane_id().map(str::to_string))
+        else {
+            return;
+        };
+        let soeurs: Vec<String> = b
+            .images
+            .iter()
+            .filter(|i| i.membrane_id == parente)
+            .map(|i| i.id.clone())
+            .chain(
+                b.annotations
+                    .iter()
+                    .filter(|a| a.id() != membrane && a.membrane_id() == parente.as_deref())
+                    .map(|a| a.id().to_string()),
+            )
+            .collect();
+        let items = items_of_board(b);
+        let vus = resolve_items(&items, ResolveOptions::default());
+        let mut adoptes: Vec<MembershipChange> = reconcile_membership(&items, &vus, &soeurs)
+            .into_iter()
+            .filter(|c| c.membrane_id.as_deref() == Some(membrane))
+            .collect();
+        // L'ordre des écritures ne doit rien au hasard d'un ensemble (le journal, l'histoire).
+        adoptes.sort_by(|a, b| a.id.cmp(&b.id));
+        self.poser_les_appartenances(board_id, &adoptes);
+    }
+
     /// Ce que déplacer la sélection emporte sur ce tableau.
     pub fn ce_qu_emporte_la_selection(&self, board_id: &str) -> Emport {
         self.project

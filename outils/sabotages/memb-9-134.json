@@ -1,0 +1,44 @@
+[
+ {
+  "nom": "MEMB-9 — la membrane tracée ne prend plus rien (la loi d'avant)",
+  "fichier": "crates/glucose-core/src/store/membranes.rs",
+  "avant": "        self.poser_les_appartenances(board_id, &adoptes);\n    }\n\n    /// Ce que déplacer la sélection emporte sur ce tableau.\n",
+  "apres": "        let _ = adoptes;\n    }\n\n    /// Ce que déplacer la sélection emporte sur ce tableau.\n",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--test", "appartenance_suite", "--", "memb_9"]
+ },
+ {
+  "nom": "MEMB-9 — elle prend aussi ce qui n'est pas sa sœur",
+  "fichier": "crates/glucose-core/src/store/membranes.rs",
+  "avant": "            .filter(|i| i.membrane_id == parente)\n",
+  "apres": "            .filter(|_| true)\n",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--test", "appartenance_suite", "--", "memb_9"]
+ },
+ {
+  "nom": "MEMB-9 — elle range ses sœurs ailleurs qu'en elle (le dépôt redéduit tout)",
+  "fichier": "crates/glucose-core/src/store/membranes.rs",
+  "avant": "            .filter(|c| c.membrane_id.as_deref() == Some(membrane))\n",
+  "apres": "            .filter(|_| true)\n",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--test", "appartenance_suite", "--", "memb_9"]
+ },
+ {
+  "nom": "MEMB-9 — le centre ne compte plus : seul ce qui est entièrement dedans entre",
+  "fichier": "crates/glucose-core/src/store/membranes.rs",
+  "avant": "        let vus = resolve_items(&items, ResolveOptions::default());\n        let mut adoptes",
+  "apres": "        let vus = resolve_items(&items, ResolveOptions::default());\n        let soeurs: Vec<String> = soeurs.into_iter().filter(|id| { let (Some(r), Some(m)) = (vus.get(id), vus.get(membrane)) else { return false }; r.x >= m.x && r.y >= m.y && r.x + r.width <= m.x + m.width && r.y + r.height <= m.y + m.height }).collect();\n        let mut adoptes",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--test", "appartenance_suite", "--", "memb_9"]
+ },
+ {
+  "nom": "MEMB-9 — l'outil membrane n'adopte plus",
+  "fichier": "crates/glucose-desktop/src/interactions/tools.rs",
+  "avant": "        self.store.adopter_ce_qu_elle_entoure(&board, &id);\n",
+  "apres": "",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memb_9"]
+ },
+ {
+  "nom": "MEMB-9 — la pose et l'adoption, deux gestes",
+  "fichier": "crates/glucose-desktop/src/interactions/tools.rs",
+  "avant": "        self.store.begin_live_edit();\n        self.store.add_annotation(&board, membrane);\n",
+  "apres": "        self.store.add_annotation(&board, membrane);\n",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "memb_9"]
+ }
+]

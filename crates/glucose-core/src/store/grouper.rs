@@ -153,7 +153,6 @@ fn ancetre_commun(board: &Board, racines: &[String]) -> Option<String> {
         .map(str::to_string)
 }
 
-/// La boîte d'un nœud de ce tableau — une flèche n'en a pas.
 /// **La boîte de ces racines** : l'union de celles qui en ont une, ou rien si aucune n'en a (une
 /// flèche seule, un dossier, rien) — la loi qui dit si un groupe se fait (APPLIQUE-1).
 fn boite_du_groupe(board: &Board, racines: &[String]) -> Option<Rect> {
@@ -163,6 +162,7 @@ fn boite_du_groupe(board: &Board, racines: &[String]) -> Option<Rect> {
         .reduce(|a, b| a.union(b))
 }
 
+/// La boîte d'un nœud de ce tableau — une flèche n'en a pas.
 fn boite_de(board: &Board, id: &str) -> Option<Rect> {
     if let Some(i) = board.images.iter().find(|i| i.id == id) {
         return Some(i.rect());
