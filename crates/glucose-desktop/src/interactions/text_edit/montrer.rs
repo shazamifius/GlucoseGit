@@ -96,8 +96,7 @@ impl GlucoseApp {
         let x = (boite.origin.0 + f64::from(TEXT_ORIGIN.0 + x_du_curseur)) * s + vue.x;
         let air = hauteur * s;
         let plafond = f64::from(self.ui.header_height());
-        // Ce qui se voit : la fenêtre, moins le clavier et les marges du système (BORD-1).
-        let (droite, plancher) = self.ui.ecran_visible(self.taille_de_la_fenetre());
+        let (droite, plancher) = self.ce_qui_se_voit();
         let dy = rapprocher((haut, haut + air), (plafond, f64::from(plancher)));
         let dx = rapprocher((x - air, x + air), (0.0, f64::from(droite)));
         if dx != 0.0 || dy != 0.0 {
@@ -106,6 +105,25 @@ impl GlucoseApp {
             self.store.set_viewport(&id, vue);
             self.mark_dirty();
         }
+    }
+}
+
+impl GlucoseApp {
+    /// **Ce qui se voit du canevas, à droite et en bas** : la fenêtre, moins le clavier et les
+    /// marges du système (BORD-1), et moins les barres que la sélection fait naître en bas —
+    /// pendant qu'on écrit, le nœud est choisi, et la barre de couleur, la plus haute, couvre le
+    /// bas de l'écran (vu au pilote : la dernière ligne s'arrêtait dessous, à demi cachée).
+    pub(crate) fn ce_qui_se_voit(&self) -> (f32, f32) {
+        let (l, h) = self.taille_de_la_fenetre();
+        let visible = self.ui.ecran_visible((l, h));
+        let echelle = self.screen_frame(l, h).scale;
+        let typo = &self.renderer.typography;
+        let barre =
+            crate::ui::couleurs::layout_barre_de_couleur(&self.store, typo, visible, echelle);
+        (
+            visible.0,
+            barre.map_or(visible.1, |b| visible.1.min(b.rect.1)),
+        )
     }
 }
 
@@ -299,6 +317,11 @@ mod tests {
         (haut, haut + h * v.scale, gauche)
     }
 
+    /// Une phrase qui, dans un texte de 240, descend de huit lignes.
+    const PHRASE: &str = " texte qui grandit, mot après mot, ligne après ligne, jusqu'à passer \
+                          sous la barre de couleur et le bas de l'écran : la vue doit suivre la \
+                          ligne où l'on écrit, sans changer d'échelle.";
+
     fn vue_de(app: &GlucoseApp) -> Viewport {
         app.store.active_board().expect("un tableau").viewport
     }
@@ -310,19 +333,20 @@ mod tests {
     #[test]
     fn suivre_1_ecrire_sous_le_bas_fait_monter_la_vue() {
         let avant = vue(0.0, 0.0, 1.0);
-        let mut app = en_saisie((100.0, 840.0), avant);
-        taper(
-            &mut app,
-            " texte qui grandit, mot après mot, jusqu'à passer sous le bas de \
-                         l'écran : la vue doit suivre la ligne où l'on écrit.",
-        );
-        let plancher = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).1);
+        let mut app = en_saisie((100.0, 700.0), avant);
+        taper(&mut app, PHRASE);
+        let plancher = f64::from(app.ce_qui_se_voit().1);
         let (_, bas_avant, _) = ligne_a_l_ecran(&app, avant);
         assert!(
             bas_avant > plancher,
             "l'envers : cachée sous la vue d'avant"
         );
-        let premiere = 840.0 + f64::from(crate::renderer::card::TEXT_ORIGIN.1);
+        let fenetre = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).1);
+        assert!(
+            plancher < fenetre,
+            "la barre de couleur couvre le bas pendant qu'on écrit"
+        );
+        let premiere = 700.0 + f64::from(crate::renderer::card::TEXT_ORIGIN.1);
         assert!(premiere < plancher, "on avait commencé à l'écran");
         let apres = vue_de(&app);
         assert_eq!(
@@ -345,7 +369,7 @@ mod tests {
         let avant = vue(-200.0, -900.0, 4.0);
         let mut app = en_saisie((300.0, 300.0), avant);
         taper(&mut app, " mot de plus");
-        let droite = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).0);
+        let droite = f64::from(app.ce_qui_se_voit().0);
         let air = f64::from(crate::renderer::card::text_box(240.0).line_height) * 4.0;
         let (_, _, x_avant) = ligne_a_l_ecran(&app, avant);
         assert!(
@@ -372,16 +396,12 @@ mod tests {
     fn suivre_1_ctrl_z_ramene_la_ligne_qu_on_ecrit() {
         use crate::interactions::text_edit::keys::Command;
         let avant = vue(0.0, 0.0, 1.0);
-        let mut app = en_saisie((100.0, 840.0), avant);
-        taper(
-            &mut app,
-            " texte qui grandit, mot après mot, jusqu'à passer sous le bas de l'écran : \
-             la vue doit suivre la ligne où l'on écrit.",
-        );
+        let mut app = en_saisie((100.0, 700.0), avant);
+        taper(&mut app, PHRASE);
         let tableau = app.store.project.active_board_id.clone();
         app.store.set_viewport(&tableau, avant);
         app.apply_text_command(Command::Undo, false);
-        let plancher = f64::from(app.ui.ecran_visible(app.taille_de_la_fenetre()).1);
+        let plancher = f64::from(app.ce_qui_se_voit().1);
         let (_, bas_avant, _) = ligne_a_l_ecran(&app, avant);
         assert!(
             bas_avant > plancher,

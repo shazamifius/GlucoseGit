@@ -73,5 +73,20 @@
    "--",
    "suivre_1"
   ]
+ },
+ {
+  "nom": "SUIVRE-1 — la barre de couleur ignorée (la ligne finit dessous)",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "            barre.map_or(visible.1, |b| visible.1.min(b.rect.1)),\n",
+  "apres": "            barre.map_or(visible.1, |_| visible.1),\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "suivre_1"
+  ]
  }
 ]

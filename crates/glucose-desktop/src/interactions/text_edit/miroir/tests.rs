@@ -223,7 +223,9 @@ fn test_clavier_3_la_ligne_ecrite_reste_au_dessus_du_bas() {
     let vue = app.store.active_board().unwrap().viewport;
     let hauteur = f64::from(text_box(400.0).line_height);
     let bas = 2000.0 + f64::from(TEXT_ORIGIN.1) + hauteur + vue.y;
-    let plancher = f64::from(app.taille_de_la_fenetre().1);
+    // Le bas de ce qui se voit : le haut de la barre de couleur, que la saisie fait naître
+    // (SUIVRE-1, fiche 134 § 15) — la fenêtre entière laissait la ligne sous elle.
+    let plancher = f64::from(app.ce_qui_se_voit().1);
     assert!(
         (bas - plancher).abs() < 1e-9,
         "le bas de la ligne au bas : {bas}"
