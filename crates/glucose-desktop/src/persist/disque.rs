@@ -62,6 +62,10 @@ pub struct Disque {
     pub porte_publique: PathBuf,
     /// **Son nom et sa couleur** dans un canevas partagé (fiche 117).
     pub identite: PathBuf,
+    /// **Les canevas partagés, retenus d'un lancement à l'autre** (PARTAGE-SURVIT, fiche 131) :
+    /// leur code et le numéro que leur fichier contient. Le vrai lancement seul y met le dossier
+    /// de l'utilisateur.
+    pub canevas: PathBuf,
     /// Ce que les autres fichiers disent de leurs domaines, lu sans y écrire (fiche 88).
     pub recenseur: crate::recensement::Recenseur,
 }
@@ -84,6 +88,8 @@ impl Disque {
                 .join(crate::agents::publique::accords::FICHIER),
             identite: crate::app::accueil::dossier_hors_lancement()
                 .join(crate::app::collaborer::identite::FICHIER),
+            canevas: crate::app::accueil::dossier_hors_lancement()
+                .join(crate::app::collaborer::reprise::FICHIER),
             recenseur: crate::recensement::Recenseur::default(),
         }
     }
@@ -229,12 +235,17 @@ impl GlucoseApp {
     pub fn fermer_le_document(&mut self) -> bool {
         self.terminer_les_gestes_en_cours();
         self.consigner();
+        // Le numéro que le fichier contient, lu avant que rien d'autre ne s'applique (PARTAGE-SURVIT).
+        let partage = self.souvenir_du_canevas();
         let Some(e) = self.disque.ecriture.take() else {
             return true;
         };
         e.vue(&self.store.project);
         match e.synchroniser() {
-            Ok(()) => true,
+            Ok(()) => {
+                self.retenir_le_canevas(partage);
+                true
+            }
             Err(err) => {
                 self.dire_l_echec(&err);
                 self.disque.ecriture = Some(e);

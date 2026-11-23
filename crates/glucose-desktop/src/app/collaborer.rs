@@ -9,6 +9,7 @@
 pub mod api;
 pub mod identite;
 pub mod photos;
+pub mod reprise;
 
 use crate::app::GlucoseApp;
 use crate::salle::lien::{self, Lien, Nouvelle, Ordre};
@@ -239,7 +240,10 @@ impl GlucoseApp {
                     self.montrer_collaborer_avec(Some(note));
                 }
             }
-            QUITTER => self.quitter_le_canevas_partage(),
+            QUITTER => {
+                self.oublier_le_canevas();
+                self.quitter_le_canevas_partage();
+            }
             _ => {}
         }
     }
@@ -292,6 +296,7 @@ impl GlucoseApp {
             objets,
         ));
         self.ui.porte_ouverte = true;
+        self.retenir_le_canevas_en_cours();
         let note = code.texte_ecrire().map(|t| self.copier_un_code(t));
         self.montrer_collaborer_avec(note);
     }
@@ -461,6 +466,7 @@ impl GlucoseApp {
         };
         if self.store.rejoindre(&cp.marque, cp.code.peut_ecrire(), n) {
             cp.entree = Entree::Dedans;
+            self.retenir_le_canevas_en_cours();
         }
     }
 

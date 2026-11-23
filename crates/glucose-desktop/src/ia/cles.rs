@@ -34,33 +34,21 @@ pub fn lire_depuis(chemin: &Path) -> Cles {
     }
 }
 
-/// Écrit les clés. Le fichier est créé à 0600 sous Unix : son seul utilisateur le lit.
+/// Écrit les clés, lisibles de leur seul utilisateur, d'un bloc (`persist::atomic`).
 pub fn ecrire_dans(chemin: &Path, cles: &Cles) -> Result<(), String> {
     let mut paires = Vec::new();
     if let Some(k) = &cles.google {
         paires.push(("google", Json::texte(k.clone())));
     }
-    let texte = Json::objet(paires).ecrire();
+    ecrire_secret(chemin, Json::objet(paires).ecrire().as_bytes())
+}
+
+/// **Écrit un secret** dans le dossier de Glucose : le dossier créé s'il manque, le fichier
+/// lisible de son seul utilisateur, posé d'un bloc. La clé des IA, le code d'un canevas partagé.
+pub fn ecrire_secret(chemin: &Path, octets: &[u8]) -> Result<(), String> {
     if let Some(dossier) = chemin.parent() {
         std::fs::create_dir_all(dossier).map_err(|e| format!("dossier : {e}"))?;
     }
-    ecrire_fichier(chemin, texte.as_bytes()).map_err(|e| format!("écriture : {e}"))
-}
-
-#[cfg(unix)]
-fn ecrire_fichier(chemin: &Path, octets: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    let mut f = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(chemin)?;
-    f.write_all(octets)
-}
-
-#[cfg(not(unix))]
-fn ecrire_fichier(chemin: &Path, octets: &[u8]) -> std::io::Result<()> {
-    std::fs::write(chemin, octets)
+    crate::persist::atomic::poser_un_secret_d_un_bloc(chemin, octets)
+        .map_err(|e| format!("écriture : {e}"))
 }

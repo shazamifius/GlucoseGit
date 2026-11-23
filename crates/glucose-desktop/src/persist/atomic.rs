@@ -131,6 +131,33 @@ pub fn poser_un_programme_d_un_bloc(path: &Path, bytes: &[u8]) -> std::io::Resul
     })
 }
 
+/// **Pose un secret** à `path` sous la même loi, **lisible de son seul utilisateur dès sa
+/// création** (0600 sous Unix ; sous Windows, le dossier de l'application l'est déjà) : une clé,
+/// le code d'une salle — jamais, fût-ce un instant, un fichier que les autres comptes de la machine
+/// pourraient lire, ni un secret à moitié écrit (fiche 131).
+pub fn poser_un_secret_d_un_bloc(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    poser_d_un_bloc(path, |temp| {
+        let mut file = ouvrir_en_prive(temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()
+    })
+}
+
+#[cfg(unix)]
+fn ouvrir_en_prive(temp: &Path) -> std::io::Result<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(temp)
+}
+
+#[cfg(not(unix))]
+fn ouvrir_en_prive(temp: &Path) -> std::io::Result<File> {
+    File::create(temp)
+}
+
 /// **Le seul endroit qui pose un fichier à la place d'un autre** (SAVE-1) : `remplir` écrit un
 /// voisin et le pousse jusqu'au disque, puis le voisin prend la place, puis le dossier suit.
 /// Un échec en chemin ne touche jamais la destination, et ne laisse pas de voisin.

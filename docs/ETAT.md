@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 22/11/2026, 23 h 40** (fiches 108-130). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 23/11/2026, 9 h 40** (fiches 108-131). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -39,7 +39,12 @@
   **LECTURE-1 et 2** (fiche 130) : une lecture d'agent n'attend plus jamais le geste de l'humain,
   aucune demande n'attend derrière une autre (le 22/11, son Glucose n'avait servi aucun agent
   treize minutes) ; `tools/list` dit quels outils ne font que lire. 3 481 épreuves, 11 sabotages,
-  l'avant et l'après au pilote.
+  l'avant et l'après au pilote. Puis **ACCÈS-H24** (fiche 131, le relais seul, après le
+  redémarrage du PC) : **« Toujours, dans ce document »** — tout programme de la machine y
+  travaille sans question, d'un lancement à l'autre (`c8a3350`) ; **`glucose --mcp` survit à
+  Glucose fermé et relancé** (`3d01ce3`) ; **un canevas partagé rejoint sa salle au lancement**,
+  au numéro exact que son fichier contient ; et le relais tient compte des deux jauges
+  (`6b0007b`). Chacun saboté et regardé au pilote, le binaire d'avant pour preuve à l'envers.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
@@ -89,8 +94,8 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Organiser** | membranes **en carte** (la plus petite région l'emporte), dossiers (renommés par `F2`), **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et la roue (Oklch) ; **dater** un nœud (`Maj+T`), la frise chronologique (`Maj+R`), regarder un domaine — deux lentilles qui estompent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), la page web |
 | **L'interface** | 116 commandes dans une table, la palette (`Ctrl+Maj+P`), les raccourcis comme donnée ; ses lettres et ses icônes sur la grille de l'écran ; **son échelle, au choix** ; **les tiroirs du côté de leur bouton**, qui défilent quand la place manque ; les trois modes de la fenêtre et le zen ; sous Windows, la bande ou la barre du système |
-| **Collaborer** | **le co-working** (fiches 117 et 119) : partager un canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré, ses photos comprises ; le conflit dit ; `Ctrl+Z` par main ; les curseurs |
-| **Les agents** | **une IA du nuage par Collaborer** — Claude.ai et Mistral, essayés depuis son compte : son accord devant un code, le document ouvert seulement, son nom vérifié qui signe, le témoin qui dit l'onglet ; `glucose --mcp` pour une IA de sa machine — chaque geste annulable, signé, rien sans son accord ; une lecture n'attend jamais son geste, aucun agent n'attend derrière un autre ; **une IA gratuite (Gemini) dans le tiroir DISCUSSION**, qui bascule d'un modèle à l'autre |
+| **Collaborer** | **le co-working** (fiches 117 et 119) : partager un canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré, ses photos comprises ; le conflit dit ; `Ctrl+Z` par main ; les curseurs ; **le partage survit au relancement** (le document rejoint sa salle au numéro que son fichier contient, fiche 131) |
+| **Les agents** | **une IA du nuage par Collaborer** — Claude.ai et Mistral, essayés depuis son compte : son accord devant un code, le document ouvert seulement, son nom vérifié qui signe, le témoin qui dit l'onglet ; `glucose --mcp` pour une IA de sa machine — chaque geste annulable, signé, rien sans son accord (**« Toujours, dans ce document »** : une fois pour toutes, tout programme de la machine) ; `glucose --mcp` survit à Glucose relancé ; une lecture n'attend jamais son geste, aucun agent n'attend derrière un autre ; **une IA gratuite (Gemini) dans le tiroir DISCUSSION**, qui bascule d'un modèle à l'autre |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
 
 ## 3. Ce qui ne va pas
@@ -140,7 +145,9 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   9 sur 9 ; **un échantillon de 24 anciens sabotages** tirés au hasard dans 18 fichiers : 24 sur 24
   (fiche 126 § 3) ; à la fiche 127, `tiroirs-126` **13 sur 13**, `tiroirs-127` **5 sur 5**,
   `veille-126` **2 sur 2**, `liste-123` **8 sur 8** — et `detourage-121`, le dernier jamais joué
-  (fiche 127 § 9) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11**. 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
+  (fiche 127 § 9) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
+  à la fiche 131, `relais-131` **12 sur 12**, `agents-toujours-131` **12 sur 12**,
+  `relais-2-131` **7 sur 7**, `partage-survit-131` **10 sur 10** (et `saboter.py` lit `unittest`). 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
   autres gardaient du code réécrit.
 * **Regarder** : le vrai Glucose au pilote, hors écran, sur une copie de ses documents
   (`outils/pilote/piloter.sh`) ; **le rythme ne se juge qu'à son écran** (`outils/pilote/essai_ecran.sh`,

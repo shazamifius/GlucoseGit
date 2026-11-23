@@ -97,6 +97,18 @@
   l'envoyeur décide) de la requête **partie** (la fermeture lui répond) : chaque requête reçoit une
   réponse, jamais deux, jamais aucune.
 
+* **PARTAGE-SURVIT** (`app/collaborer/reprise.rs`) : pour chaque document partagé (la clé : son
+  fichier, brouillon compris), Glucose retient dans son dossier **le code de la salle** (lisible
+  de lui seul : `persist::atomic::poser_un_secret_d_un_bloc`, une seule loi pour les secrets — la
+  clé des IA y passe aussi), « en cours » pendant le partage ; **à la fermeture du document**,
+  tout écrit et synchronisé, **le numéro du dernier geste de la salle que le fichier contient** —
+  seulement si aucun de mes gestes n'attend le sien. Au lancement, le document rouvert rejoint sa
+  salle à ce numéro, sous une marque neuve, et rattrape. Après un arrêt net, ou un geste parti
+  sans retour, il **ne reprend pas tout seul et le dit** (une fois). « Quitter le partage »
+  l'oublie. **Pourquoi exact** : un déplacement voyage comme un vecteur (`Deplacement::delta`) —
+  rejoué deux fois, il déplacerait deux fois ; le numéro se lit donc à la fermeture du document,
+  pas à la fin du programme (la boucle peut encore appliquer un geste entre les deux).
+
 ## 5. Vérifié
 
 * **Le relais** : 31 épreuves (dont un vrai dépôt Git jetable pour le ❤️, avec la preuve à
@@ -121,9 +133,40 @@
   Glucose ; ce Glucose fermé (SIGTERM, comme son service) puis relancé dans le même compositeur — le
   relais vit, la demande suivante passe **525 ms** après la relance, sans erreur. Le relais d'avant,
   même essai : il répond, puis **meurt avec Glucose**.
-* La suite entière : 3 493 épreuves, et les 16 cliquets après correction.
+* **PARTAGE-SURVIT** : 6 épreuves par la vraie application (enregistrer, partager, la croix,
+  relancer ; le fil vers une adresse morte, jamais le réseau ni son presse-papiers), **10
+  sabotages sur 10** (`partage-survit-131`). Le dixième passait d'abord : mon épreuve écrivait le
+  geste arrivé après la fermeture, ce qui faisait naître un brouillon — le sabotage écrivait sous
+  sa clé à lui. L'entrée juste : le geste appliqué sans être écrit, comme la boucle avant `finir`.
+  Le branchement au lancement (`ouvrir_la_porte_des_agents`) ouvre une vraie porte : seul l'essai
+  réel le garde. **L'essai réel, à travers la vraie salle en ligne** (deux Glucose hors écran,
+  `~/.cache/glucose-bancs/acces-h24-131/essai_partage.sh`, captures dans `partage-apres/`) : Alice
+  partage, Bob rejoint et voit « Alice avant » ; Alice fermée par le signal de fin retient le
+  numéro 3 ; Bob pose « Bob pendant » ; **Alice relancée dit « repris au geste n° 3 de sa salle »
+  et montre « Bob pendant »** ; son « Alice après » arrive chez Bob, avec son curseur. **Le binaire
+  d'avant**, même essai : Alice relancée n'a que « Alice avant », et n'est plus dans la salle.
+* La suite entière : 3 498 épreuves, et les 16 cliquets après correction.
 
-## 6. Choix pris seul, à contester
+## 6. Vu, pas réglé
+
+* **ARBITRE-DÉMARRAGE (le point 6 du nœud 🔑)** : ce matin, l'arbitre a condamné la RTX ; son
+  souvenir dit « économe », et le prochain lancement de son Glucose ouvrira la puce du Ryzen. La
+  session interactive y voyait la contention du démarrage. **Ma lecture, probable et à
+  confirmer** : pendant le mouvement, `present` vaut 5,8 ms en médiane et 13-14 ms au 99ᵉ centile,
+  sur un écran à **60 Hz** — avec deux images en vol, `present` attend que l'écran libère une
+  place ; or l'arbitre compte comme perdu tout ce qui dépasse le plancher de la charte (10 ms), pas
+  la période de l'écran. Sur un écran plus lent que 100 Hz, il pourrait condamner une carte saine
+  dès qu'on bouge la vue. **La mesure qui tranche** : `present` image par image
+  (`GLUCOSE_PERF=1`) sur son écran, pendant un zoom, puis rejouer la loi de l'arbitre dessus avec
+  le plancher et avec la période. Je n'ai pas touché à la loi, ni à son souvenir.
+* **Un geste vide de la salle salit le document** : il fait monter la version sans rien écrire, et
+  la croix demande alors d'enregistrer un document nommé. Vu dans une épreuve ; un vrai geste
+  s'écrit et laisse le document propre.
+* **Après la fermeture du document par la croix**, un geste de la salle écrit avant la fin du
+  programme ferait naître un brouillon (le document fermé n'a plus d'écriture). Une fenêtre de
+  quelques images ; pas réglé.
+
+## 7. Choix pris seul, à contester
 
 * **« Toujours » l'emporte sur un « Refuser » donné plus tôt dans la session** à un autre nom : le
   plus récent de ses choix gagne (sa règle), et « Retirer l'accord des agents… » reste le seul

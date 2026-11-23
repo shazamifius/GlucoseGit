@@ -1,0 +1,152 @@
+[
+ {
+  "nom": "PARTAGE-SURVIT — la fermeture du document ne retient rien",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "                self.retenir_le_canevas(partage);\n",
+  "apres": "                let _ = partage;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — un geste en attente laisse quand même un numéro",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "(p.en_attente() == 0).then_some(p.confirme)",
+  "apres": "Some(p.confirme)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — le numéro retenu à la fin du programme, pas à la fermeture du document",
+  "fichier": "crates/glucose-desktop/src/app/fin.rs",
+  "avant": "        self.chronique.clore_la_boite_noire();\n",
+  "apres": "        self.chronique.clore_la_boite_noire();\n        self.retenir_le_canevas(self.souvenir_du_canevas());\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — la reprise repart de zéro",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "if !self.store.rejoindre(&marque, code.peut_ecrire(), n) {",
+  "apres": "if !self.store.rejoindre(&marque, code.peut_ecrire(), 0) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — la reprise attend une base qui ne viendra pas",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "Entree::Dedans",
+  "apres": "Entree::AttendLaBase",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — un arrêt net se tait",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "                self.dire_ce_qui_arrive_au_canevas(ARRETE_NET.into());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — un arrêt net se redit à chaque lancement",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "            (Some(_), None) => {\n                let _ = retenir(&self.disque.canevas, &document, None);\n",
+  "apres": "            (Some(_), None) => {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — « Quitter le partage » ne l'oublie pas",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "                self.oublier_le_canevas();\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — le secret lisible des autres comptes",
+  "fichier": "crates/glucose-desktop/src/persist/atomic.rs",
+  "avant": ".mode(0o600)",
+  "apres": ".mode(0o644)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "PARTAGE-SURVIT — la reprise ne redit pas « en cours »",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "        self.ui.porte_ouverte = true;\n        self.retenir_le_canevas_en_cours();\n",
+  "apres": "        self.ui.porte_ouverte = true;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collaborer::reprise"
+  ]
+ }
+]

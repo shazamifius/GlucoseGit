@@ -195,6 +195,8 @@ impl GlucoseApp {
         // second, ouvert en même temps, prendrait l'adresse au premier (fiche 116).
         if tenue {
             self.rouvrir_la_porte_publique();
+            // Le document rouvert était partagé : il rejoint sa salle (PARTAGE-SURVIT, fiche 131).
+            self.reprendre_le_canevas_partage();
         }
     }
 

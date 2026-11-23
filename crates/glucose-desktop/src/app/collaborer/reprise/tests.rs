@@ -1,0 +1,224 @@
+//! **PARTAGE-SURVIT** (fiche 131), par la vraie application : partager, fermer par la croix,
+//! relancer. Le fil vers la salle part vers une adresse morte — jamais le réseau, jamais le
+//! presse-papiers de l'utilisateur.
+
+use super::super::{lien, CanevasPartage, Entree, QUITTER};
+use super::*;
+use crate::persist::close::tests::fermer;
+use crate::persist::disque::tests::{application, dossier, image_suivante, noter};
+use glucose_core::store::journal::partage::GestePartage;
+use glucose_core::store::journal::Main;
+use glucose_core::store::Arrivee;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+const MORTE: &str = "http://127.0.0.1:9";
+
+/// Une application de ce dossier, son souvenir des canevas dans ce dossier, sa porte branchée sur
+/// une salle morte.
+fn lancer(d: &Path) -> GlucoseApp {
+    let mut app = application(d);
+    app.disque.canevas = d.join(FICHIER);
+    app.lancement.agents.boite = Some(crate::agents::Boite::nouvelle(Arc::new(|| {})));
+    app.lancement.agents.relais = Some(MORTE.into());
+    app
+}
+
+/// Un document enregistré dans ce dossier, puis partagé — sa base revenue numérotée (n° 1) : il
+/// est dans la salle.
+fn document_partage(d: &Path) -> (GlucoseApp, PathBuf, Code) {
+    let chemin = d.join("partagé.glucose");
+    let mut app = lancer(d);
+    noter(&mut app, "c1", "à plusieurs");
+    app.save_to(chemin.clone());
+    image_suivante(&mut app);
+    let code = Code::neuf([7; 32]);
+    let lien = lien::lancer(
+        MORTE,
+        code.clone(),
+        0,
+        app.lancement.agents.boite.clone().unwrap(),
+    );
+    assert!(app.store.partager_ce_canevas("a1b2"));
+    let qui = ("a1b2".into(), "Alice".into(), 0);
+    let objets = Arc::clone(&app.disque.objets);
+    app.lancement.agents.partage = Some(CanevasPartage::neuf(
+        lien,
+        code.clone(),
+        qui,
+        Entree::Partage,
+        objets,
+    ));
+    app.retenir_le_canevas_en_cours();
+    arrive(&mut app, 1, "a1b2-1");
+    image_suivante(&mut app);
+    (app, chemin, code)
+}
+
+/// Un geste de la salle arrive au numéro `n`, sous ce nom, et s'applique — sans s'écrire encore
+/// (l'image suivante l'écrira) : vide (le retour de ma base), ou un vrai geste de Bob.
+fn arrive(app: &mut GlucoseApp, n: u64, id: &str) {
+    let main = Main::Participant {
+        marque: "b0b".into(),
+        nom: "Bob".into(),
+    };
+    let geste = if id.starts_with("b0b") {
+        geste_de_bob(&app.store.project, id)
+    } else {
+        GestePartage::default()
+    };
+    app.store.recevoir(Arrivee {
+        n,
+        id: id.into(),
+        main,
+        geste,
+    });
+    app.store.appliquer_les_arrivees();
+}
+
+/// Le geste que Bob fait chez lui, dans le même canevas : il pose un texte.
+fn geste_de_bob(projet: &glucose_core::types::Project, id: &str) -> GestePartage {
+    let mut bob = glucose_core::store::Store::new("bob");
+    bob.load_project(projet.clone());
+    assert!(bob.rejoindre("b0b", true, 1));
+    let t = bob.project.active_board_id.clone();
+    let texte = glucose_core::types::Annotation::text(id, 0.0, 300.0, "posé de loin");
+    bob.add_annotation(&t, texte);
+    bob.partager_les_gestes();
+    match bob.prendre_les_sortants().pop().map(|s| s.envoi) {
+        Some(glucose_core::store::Envoi::Geste(g)) => g,
+        _ => panic!("le geste de Bob"),
+    }
+}
+
+fn souvenir(d: &Path, chemin: &Path) -> Option<Souvenir> {
+    lire(&d.join(FICHIER), &chemin.display().to_string())
+}
+
+/// **Fermé proprement, relancé : il rejoint sa salle au numéro que son fichier contient** — et
+/// le souvenir redit « en cours ».
+#[test]
+fn partage_survit_ferme_proprement_il_rejoint_sa_salle_au_bon_numero() {
+    let d = dossier("canevas-survit");
+    let (mut app, chemin, code) = document_partage(&d);
+    arrive(&mut app, 2, "b0b-1");
+    image_suivante(&mut app);
+    assert_eq!(
+        souvenir(&d, &chemin).and_then(|s| s.confirme),
+        None,
+        "en cours"
+    );
+    assert!(fermer(&mut app), "une fermeture propre");
+    let attendu = Souvenir {
+        code: code.texte_ecrire().unwrap(),
+        confirme: Some(2),
+    };
+    assert_eq!(souvenir(&d, &chemin), Some(attendu));
+    drop(app);
+
+    let mut relance = lancer(&d);
+    relance.retrouver_le_travail(None);
+    relance.reprendre_le_canevas_partage();
+    let cp = relance
+        .lancement
+        .agents
+        .partage
+        .as_ref()
+        .expect("le partage reprend");
+    assert_eq!(cp.entree, Entree::Dedans);
+    assert!(cp.code.peut_ecrire());
+    assert_ne!(cp.marque, "a1b2", "une marque neuve");
+    assert_eq!(relance.store.partage.as_ref().map(|p| p.confirme), Some(2));
+    assert_eq!(
+        souvenir(&d, &chemin).and_then(|s| s.confirme),
+        None,
+        "de nouveau en cours"
+    );
+}
+
+/// **Le numéro est celui du fichier** : ce qui s'applique après la fermeture du document — la
+/// boucle tourne encore jusqu'à `finir` — ne s'écrit nulle part, et ne doit pas compter.
+#[test]
+fn partage_survit_le_numero_retenu_est_celui_du_fichier() {
+    let d = dossier("canevas-exact");
+    let (mut app, chemin, _) = document_partage(&d);
+    assert!(fermer(&mut app));
+    arrive(&mut app, 2, "b0b-1");
+    app.finir();
+    assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), Some(1));
+}
+
+/// **Un de mes gestes attend encore son numéro** à la fermeture : il est dans le fichier, pas
+/// dans la salle — rien n'est retenu d'exact, et le lancement suivant ne reprend pas tout seul.
+/// Il le dit.
+#[test]
+fn partage_survit_un_geste_en_attente_ne_laisse_pas_de_numero() {
+    let d = dossier("canevas-attente");
+    let (mut app, chemin, _) = document_partage(&d);
+    noter(&mut app, "c2", "parti, pas revenu");
+    image_suivante(&mut app);
+    assert_eq!(app.store.partage.as_ref().map(|p| p.en_attente()), Some(1));
+    assert!(fermer(&mut app));
+    assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), None);
+    drop(app);
+
+    let mut relance = lancer(&d);
+    relance.retrouver_le_travail(None);
+    relance.reprendre_le_canevas_partage();
+    assert!(
+        relance.lancement.agents.partage.is_none(),
+        "pas de reprise à l'aveugle"
+    );
+    let dit = relance.ui.current_toast.as_ref().map(|t| t.message.clone());
+    assert_eq!(dit.as_deref(), Some(ARRETE_NET));
+    assert_eq!(souvenir(&d, &chemin), None, "dit une fois");
+}
+
+/// **Un arrêt net** (aucune fermeture) : le souvenir est resté « en cours » — pas de reprise.
+#[test]
+fn partage_survit_un_arret_net_ne_reprend_pas() {
+    let d = dossier("canevas-net");
+    let (app, _chemin, _) = document_partage(&d);
+    drop(app);
+    let mut relance = lancer(&d);
+    relance.retrouver_le_travail(None);
+    relance.reprendre_le_canevas_partage();
+    assert!(relance.lancement.agents.partage.is_none());
+}
+
+/// **« Quitter le partage » l'oublie** : relancé, le document reste à soi seul.
+#[test]
+fn partage_survit_quitter_le_partage_l_oublie() {
+    let d = dossier("canevas-quitter");
+    let (mut app, chemin, _) = document_partage(&d);
+    app.repondre_a_collaborer(QUITTER);
+    assert!(app.lancement.agents.partage.is_none());
+    assert!(fermer(&mut app));
+    assert_eq!(souvenir(&d, &chemin), None);
+}
+
+/// **Le code « écrire » est un secret** : dans le dossier de Glucose, lisible de lui seul — jamais
+/// dans le `.glucose`, qu'on envoie.
+#[test]
+fn partage_survit_le_code_reste_un_secret_hors_du_document() {
+    let d = dossier("canevas-secret");
+    let (mut app, chemin, code) = document_partage(&d);
+    assert!(fermer(&mut app));
+    let secret = code.texte_ecrire().unwrap();
+    let document = std::fs::read(&chemin).expect("le document");
+    assert!(
+        !document
+            .windows(secret.len())
+            .any(|w| w == secret.as_bytes()),
+        "pas dans le .glucose"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(d.join(FICHIER))
+            .expect("le souvenir")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600, "lisible de lui seul");
+    }
+}
