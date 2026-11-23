@@ -80,5 +80,7 @@ de l'écran, à 5 %, la souris est à 7 px du trait de `f-z3` — les liens de �
 que la copie factice `(0,0)-(1,1)` de leurs bouts ; depuis ANCRE-1, il voit la flèche où elle se
 dessine, et l'allumer au survol est juste (le commentaire de l'épreuve le dit). **La prémisse était
 fausse, pas Glucose** : le point va à 41,5°, entre les liens de « a » et à 51 px des coudés de « z »
-(`bd38703`). Rien de relâché. C'est la deuxième scène, après LIEN-4, qui reposait sur la copie : les
-autres épreuves qui posent des flèches à `(0,0)-(1,1)` accrochées méritent le même regard.
+(`bd38703`). Rien de relâché. C'est la deuxième scène, après LIEN-4, qui reposait sur la copie. Les vingt
+autres fichiers d'épreuves qui posent des flèches accrochées n'ont rien à revoir : depuis ANCRE-1,
+toutes lisent le tracé dessiné, et une prémisse fausse les ferait tomber comme celle-ci — la suite
+entière passe.
