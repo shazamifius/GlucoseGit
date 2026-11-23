@@ -171,3 +171,34 @@ fn test_edit_prise_la_poignee_se_prend_du_dehors() {
         "la poignée ne se prend plus du dehors"
     );
 }
+
+/// **La boîte d'un texte quitté ne prête pas l'appui au suivant** : entre deux images, la boîte
+/// vivante est encore celle du texte qu'on vient de quitter ; un appui sur lui va à lui (la saisie
+/// du second se valide), jamais au texte qu'on vient d'ouvrir ailleurs.
+#[test]
+fn test_edit_prise_la_boite_d_un_texte_quitte_ne_prete_pas_l_appui() {
+    let mut app = qui_ecrit(None);
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::text("autre", 400.0, 700.0, "loin"));
+    let (_, montree) = boites(&app);
+    app.commit_editing();
+    app.start_text_edit("autre".to_string(), "loin".to_string());
+    // Aucune image : la boîte vivante est encore celle de « carte ».
+    let vivante = app
+        .renderer
+        .boite_vivante
+        .as_ref()
+        .map(|(id, _)| id.as_str());
+    assert_eq!(vivante, Some("carte"), "l'épreuve ne distinguerait rien");
+
+    appuyer(&mut app, (montree.left + 30.0, montree.top + 20.0));
+    assert!(
+        app.editing_session.is_none(),
+        "l'appui sur le texte quitté est allé au texte qu'on écrit ailleurs"
+    );
+    assert!(app
+        .store
+        .selected_annotation_ids
+        .contains(&"carte".to_string()));
+}
