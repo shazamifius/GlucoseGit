@@ -27,13 +27,20 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
 3. **Ce qu'il écrit est lu.** Chaque nœud qu'il pose ou change, de n'importe quel appareil, est
    donné à la session qui travaille (tapé quand il a fini d'écrire) ou à la suivante (dans son
    premier message). **Elle lui répond dans son Glucose avant toute autre tâche.**
-4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou 95 % sur la
-   semaine passe la main **si l'autre peut la prendre** ; sinon il continue jusqu'au mur (100 %),
-   prévenu une fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close.
+4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou sur la semaine
+   passe la main **si l'autre peut la prendre** ; sinon il continue jusqu'au mur (100 %), prévenu une
+   fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close. **La mémoire
+   du modèle** (le contexte de la conversation) à 90 % : la passation, puis une conversation neuve.
 5. **La relance** : le crochet « Stop » (`relais.py fin-de-tour`) relance une fois ; la suivante est
    tapée par le veilleur — Claude Code coupe au 8ᵉ blocage de suite (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`).
 6. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, l'écran part dans
-   `relais-bloque` ; ce qu'il écrit dans `relais-reponse` est tapé dans la session.
+   `relais-bloque`, et le ❤️ dit « figée » ; ce qu'il écrit dans `relais-reponse` est tapé dans la session.
+7. **Jamais bloqué** (sa réponse du 23/11) : les sessions se lancent en **bypass** (jamais le mode
+   auto) et avec `--no-chrome` — toute question que Claude Code pose au démarrage fige une session que
+   personne ne regarde : la régler par une option à chaque lancement (fiche 134).
+8. **Ses textes** : ce que le relais envoie au démarrage, à la passation et à la relance vit dans trois
+   nœuds de sa membrane (`relais-texte-depart`, `-passation`, `-relance`) ; sa version part dès que sa
+   main l'a écrite en dernier, jamais celle d'une IA.
 
 ## Pour une session du relais (RELAIS=1)
 

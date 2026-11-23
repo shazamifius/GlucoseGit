@@ -72,7 +72,8 @@ choisi = min(2a + 1, 255), un second curseur dans la roue. Relu contre le code :
 ## 4. Vérifié
 
 * **16 épreuves neuves** (noyau 4, dessin 5, roue 6, MCP 1), chacune lancée sur le code intact.
-* **27 sabotages** (`outils/sabotages/opacite-133.json`) : RÉSULTAT À VENIR.
+* **27 sabotages** (`outils/sabotages/opacite-133.json`) : **27 sur 27, aucun aveugle** — le 27ᵉ, tué en
+  plein jeu par la fin du compte (le fichier resté saboté), rejoué par la session suivante (fiche 134).
 * **Regardé au pilote** (`~/.cache/glucose-bancs/opacite-133/`) : un dossier posé par la palette,
   coloré en bleu, la roue ouverte — deux curseurs —, l'opacité à 60 % : le corps bleu, **le nom
   lisible** dans le bandeau ; choisi, plus dense ; `Ctrl+Z` défait l'opacité en un geste (la couleur,
@@ -81,7 +82,8 @@ choisi = min(2a + 1, 255), un second curseur dans la roue. Relu contre le code :
   `present::scene_gpu::tests::test_queue_1_la_cascade_compte_la_fin_de_l_image`, est tombée pendant
   que le Glucose d'essai du pilote tournait sur la même carte graphique ; seule, elle passe trois fois
   sur trois (§ 6).
-* La vérification de GitHub (dix tâches) : run 45197129987, lancée à 15 h 42.
+* La vérification de GitHub (dix tâches) : run 45197129987, lancée à 15 h 42 — **verte sur les dix**
+  (lue par la session suivante, fiche 134).
 
 ## 5. La sélection (Q12) — commencée
 

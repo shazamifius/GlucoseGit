@@ -389,6 +389,8 @@ plus jamais le lui demander.**
   qu'elle relie, et beaucoup deviennent grises — *« si c'est temporaire qu'elles soient grises, ça me
   va ; seulement si c'est temporaire »*. Le gris d'une flèche n'est accepté qu'en attendant que les
   flèches disent quelque chose.
+* **Une flèche vers une membrane** (sa note du 23/11, avec sa capture) : *« pour relier un texte à une
+  membrane, la flèche fait absolument n'importe quoi »* (fiche 134 : FLECHE-7).
 * **L'IA et les flèches** (12/11) : *« il ne faut pas que l'IA juge les flèches, mais qu'elle comprenne
   leur importance, afin de capter la méta derrière un document »* — une flèche qu'il tire n'est ni
   éteinte ni jugée : elle est un signal dont l'IA apprend (§ 8 bis).
@@ -516,3 +518,17 @@ et de sa construction ; les trois IA répondant à la même question.
 * **Les documents** (11/11) : *« trop de choses qui se contredisent, d'autres qui se répètent »* ; les
   sessions suivantes *« se retrouvent vite perdues »*.
 * **Le relais, H24, une session à la fois** (23/11) : *« tout le système autonome de Glucose qu'on a créé, qui a pour but de tourner H24, eh bien là, il ne fonctionne tout simplement PAS… c'est vraiment quelque chose à expressément corriger — attention aussi à ne jamais avoir de double session !!!! »* ; puis, en partant en cours : *« ton rôle, c'est pas de coder, c'est de réparer les sessions Claude, qui doivent avoir un lancement automatique et du code H24 dans les limites des sessions, et de jamais avoir 2 sessions de code en même temps »*. Et, depuis son autre appareil, au relais : *« sois actif sur le Glucose, car j'ai besoin de toi »* (fiche 132).
+* **Le relais jamais bloqué** (23/11, sa réponse à la question des permissions) : *« bah non, on fait tout
+  en mode bypass, jamais de mode auto !!!!! Il faut que Claude ne soit JAMAIS bloqué, et qu'on code H24
+  sans problème »*. **Ses textes** (sa note du même soir) : *« j'aimerais bien un système qui me permet de
+  voir le script de passation envoyé DIRECTEMENT à l'ouverture d'une session Claude, car j'ai réussi à
+  accéder au script actuel et il ne me convient pas du tout du tout ; de même pour le script de
+  stop »*. **La mémoire du modèle** : *« on regarde le nombre de tokens restants avant les 5 heures, puis
+  la semaine, MAIS ON NE REGARDE JAMAIS la limite de tokens d'un modèle, c'est extrêmement important ;
+  objectif : on vise toujours 90 %, que ce soit la session de la semaine, celle de 5 heures, ou 90 %
+  d'utilisation des tokens […] et on switch, ou on recrée un nouveau chat »* (fiche 134).
+* **Archiver, jamais supprimer** (ses notes du 23/11 au soir) : *« archive les bugs une fois qu'ils sont
+  corrigés »* ; *« archive les textes ainsi que les réponses une fois que c'est testé et déjà approuvé
+  sur la dernière version de Glucose, afin de faire de la place visuellement dans le canva »* ; *« idée :
+  ce serait d'éviter de supprimer, mais plutôt archiver — je reviens sur ma décision »*. L'archive, c'est
+  le dossier qu'il renommera « archive » le 24/11.
