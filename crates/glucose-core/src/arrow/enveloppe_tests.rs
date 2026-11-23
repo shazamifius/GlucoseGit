@@ -199,10 +199,16 @@ fn test_ancre_1_une_fleche_qui_vise_un_dossier_se_trouve_sur_son_trait() {
 }
 
 /// **SPAT-1 et SPAT-3 tenus** : une passe sur un tableau qui n'a pas changé n'écrit aucune cellule
-/// et ne hache aucun nom — flèches accrochées comprises ; un nœud déplacé loin recale sa flèche.
+/// et ne hache aucun nom — une flèche accrochée dont la copie est loin comprise ; un nœud déplacé
+/// loin recale sa flèche.
 #[test]
 fn test_ancre_1_l_index_ne_paie_rien_quand_rien_ne_change() {
     let (mut store, board) = scene();
+    // La copie d'abord envoyée loin du trait (son geste) : une passe qui la relirait écrirait.
+    store.select_annotation("f".into(), true);
+    store.select_annotation("c".into(), true);
+    store.move_selected(&board, 9000.0, 7000.0);
+    store.clear_selection();
     let mut index = SpatialHash::new(1000.0);
     index.index_board(store.active_board().expect("un tableau"));
     let (ecritures, hachages) = (index.cell_write_count(), index.hash_count());
