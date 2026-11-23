@@ -413,7 +413,9 @@ plus jamais le lui demander.**
 
 ## 8. Ce qui reste à définir — à sa parole
 
-* **Le dossier**, à retravailler (15/10) ; **le dessin de la sélection** (E, pour l'instant).
+* **Le dossier**, à retravailler (15/10) ; **le dessin de la sélection** (E, pour l'instant) — sa
+  réponse du 23/11 (Q12, voir trois façons en vraies images) : *« ah oui carrément, envoie les photos
+  sur Glucose aussi, je choisirai »*.
 * **Trans-domaines** (R&D).
 * **Les rideaux** (un tableau dans une membrane), **les membranes de Mary** (étirées, minimisées),
   « optimiser » dans la Time Machine.
