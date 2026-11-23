@@ -1,6 +1,6 @@
 # La suite
 
-> **Au 23/11/2026** (fiches 108-131). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
+> **Au 23/11/2026** (fiches 108-133). **Ce qu'on fait ensuite, dans l'ordre** — une ligne par chantier ouvert ;
 > le détail d'un chantier vit dans sa fiche du [carnet](carnet/00-INDEX.md), pas ici. Ce qui est fini
 > sort de ce document (il est dans sa fiche et dans [ÉTAT](ETAT.md)). Ses paroles : [VISION](VISION.md).
 >
@@ -33,6 +33,8 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 | | chantier | fini quand |
 |---|---|---|
+| [~] | **La 2.0.4-beta.5** (son « oui », lu le 23/11 : *« yep, complètement ; mais on peut ajouter aussi le système d'IA gratuite par API […] si celui-ci est testé et fiable »* ; et sa note : **avant ce soir**) : `378239d` porte tout ce qui est fait depuis la beta.4, l'IA gratuite et l'opacité des dossiers comprises ; les notes sont écrites (`outils/publication/notes.md`). **Reste** : la CI verte (run 45197129987), puis `gh release view v2.0.4-beta.4 --json isDraft` et `gh workflow run publier.yml -f version=2.0.4-beta.5 -f brouillon=true` ; le lui dire dans son Glucose | le brouillon prêt ; **le clic « Publish » est le sien** |
+| [~] | **Le dessin de la sélection** (Q12 ; sa réponse du 23/11 : *« ah oui carrément, envoie les photos sur Glucose aussi, je choisirai »* ; fiche 133 § 5) : la scène et la « 0 » d'aujourd'hui capturées dans le vrai Glucose (`~/.cache/glucose-bancs/selection-q12/`) — quatre langages pour une idée. **Reste** : A, B, C dans le vrai Glucose (un prototype hors du dépôt), posés dans sa membrane `relais-rep-rapides` ; un outil du MCP qui pose une photo manque | ses images dans son Glucose ; son choix |
 | [~] | **RELAIS-H24** (sa parole du 23/11 : *« ton rôle, c'est de réparer les sessions Claude, qui doivent avoir un lancement automatique et du code H24 dans les limites des sessions, et de jamais avoir 2 sessions de code en même temps »* ; fiche 132) : **réparé et relancé** — une seule session (sa session prend la main, `rendre` la rend, un verrou), sa consigne signée de n'importe quel appareil à lui (jamais une IA), ses notes données à la session, jusqu'au mur faute de relais, la relance sous le plafond de Claude Code ; 47 sabotages. **Reste** : regarder la première nuit entière (passation a → b à 16 h, quand la semaine de b se remet) | une nuit H24 sans un trou, une seule session à la fois |
 | [~] | **ACCÈS-H24** (sa demande du 22/11 : *« rendre tout ça vraiment H24 »* ; le nœud 🔑 de son Glucose, membrane du relais ; fiche 131) : **faits** — les deux jauges du relais (passation en plein tour, session refusée fermée, plus lointaine remise), le ❤️ compté contre GitHub, **« Toujours, dans ce document »**, **`glucose --mcp` qui survit à Glucose**, **le partage qui rejoint sa salle au lancement** ; chacun saboté et regardé au pilote. **Reste** : (1) **son geste** — fermer son Glucose une fois, puis « Toujours, dans ce document » (le nœud ✅) ; (2) **ARBITRE-DÉMARRAGE** (point 6) : mesuré sur son écran — la RTX ne gèle pas (`present` 0,09 ms en médiane), c'est le démarrage du PC (tout dix à vingt fois plus lent) que l'arbitre a pris pour un défaut ; une loi sans constante à choisir (deux témoins, ou `present` jugé contre le travail de l'image ; fiche 131 § 6) — son souvenir dit « économe » depuis ce matin, sans y toucher ; (3) le partage : la reprise après un arrêt net (repartir de la salle, dans le même fichier) ; (4) DOSSIER-2 **fait** (`d86f52f`), sauf l'épreuve de Maj+clic sur un dossier (son sabotage passe) | son clic, puis une nuit H24 sans clic ; l'arbitre mesuré |
 | [~] | **La discussion avec une IA gratuite** (sa demande du 21/11, VISION § 3 : *« de manière très rapide »* ; fiches 128-129) : **écrite, commitée (`48094df`), 25 sabotages sur 25** — Collaborer → « L'API publique… » (discuter, tester les modèles gratuits, la clé Google AI Studio), le tiroir DISCUSSION, les outils de la porte par la boîte des agents (DISCUSSION-1 et 2), **la bascule** qui dort le temps que Google dit et qui le dit (BASCULE-1 et 2), `plateforme::echanger` sur les deux voies. **Regardée au pilote avec sa clé** (fiche 130 § 6 : Gemini lit, pose un nœud signé de son nom, répond). **Reste** : (1) **son écran** ; (2) **la CI** — la voie WinHTTP ne se compile pas ici ; (3) **un second fournisseur** au format d'OpenAI (Groq, OpenRouter, Mistral, Cerebras : un seul branchement), à la place de GitHub Models, fermé le 30/07/2026 ; (4) la réponse au fil de l'eau (`streamGenerateContent` : le délai d'attente de deux minutes disparaît au profit de celui de la porte) ; (5) ce que la bascule apprend, gardé d'un lancement à l'autre — au pilote, le tiroir a nommé « Gemini 4 Hydrogen » puis « 3.6 Flash » a répondu sans un mot (fiche 130 § 6) : garder ce qu'elle sait efface la surprise ; (6) la discussion **sur le canevas** — un graphe de questions et de réponses (VISION § 1, objectif 3 ; tldraw *Branching chat*) | à son écran : une question qui pose un nœud, une bascule dite ; sous Windows, par une version publiée |
@@ -57,7 +59,7 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
-**Avec la prochaine version** (sur `main`, `596e783`, vert sur GitHub — une beta.5, à sa parole) :
+**Avec la prochaine version** (la beta.5, sur `378239d`) : **un dossier choisi, la roue de couleur, le curseur de droite** — son opacité ; le nom reste-t-il lisible, le bandeau léger lui va-t-il (fiche 133 § 7) ? Puis :
 ouvrir les sept tiroirs, puis « Agrandir l'interface » au menu du vide jusqu'à ce qu'un tiroir déborde
 (le Mood board à 125 % en 1440 × 900) ; la molette dessus — son contenu défile sous ses bords, et le
 filet de son bord intérieur dit la part montrée (**assez visible ?**) ; à 110 %, la Time Machine et
@@ -191,7 +193,7 @@ Restent, de [l'ancienne fiche de questions](https://claude.ai/artifact/KwCMGG6Ke
   l'IA de similarité du halo, qui peut aussi dire la proximité des régions.
 * **« Créer un sous-dossier »** (fiche 98 § 7) : ranger la sélection dans un dossier neuf — que deviennent
   les flèches qui traversent ? avec le dossier « à retravailler ».
-* **Ordonner « très très grandement »** ; **sa liste PureRef** ; **le dessin de la sélection** ; **le
+* **Ordonner « très très grandement »** ; **sa liste PureRef** ; **le
   défilement au bord** (« moche, pas fluide », plus tard) ; **les rideaux**, **les membranes de Mary**, « optimiser » dans la Time Machine.
 * **Ses clés et ses appareils** : une copie de la clé de mise à jour sur une clé USB à lui ;
   `sauvegarde-profil-2026-10-31.7z` (ses clés de serveur, son identité web3), introuvable ici ; sa clé

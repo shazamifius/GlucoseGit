@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 23/11/2026, 14 h 30** (fiches 108-132). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 23/11/2026, 15 h 50** (fiches 108-133). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -44,7 +44,7 @@
   travaille sans question, d'un lancement à l'autre (`c8a3350`) ; **`glucose --mcp` survit à
   Glucose fermé et relancé** (`3d01ce3`) ; **un canevas partagé rejoint sa salle au lancement**,
   au numéro exact que son fichier contient ; et le relais tient compte des deux jauges
-  (`6b0007b`). Chacun saboté et regardé au pilote, le binaire d'avant pour preuve à l'envers. Et **DOSSIER-2** (`d86f52f`) : le rectangle de sélection prend les dossiers, plusieurs dossiers se choisissent.
+  (`6b0007b`). Chacun saboté et regardé au pilote, le binaire d'avant pour preuve à l'envers. Et **DOSSIER-2** (`d86f52f`) : le rectangle de sélection prend les dossiers, plusieurs dossiers se choisissent. Puis, le 23/11 (fiche 133) : **MCP-DOSSIER** (`9accdfe`) — une IA voit les dossiers, les renomme, sait où elle lit ; renommer un dossier nomme son tableau — et **OPACITE-1** (`378239d`) — **l'opacité d'un dossier dans la roue de couleur**, le nom toujours lisible ; regardé au pilote. **La vérification de GitHub de `378239d` est lancée** (le 23/11 à 15 h 42, run 45197129987) : la beta.5 se prépare dessus — son « oui » est donné, le clic « Publish » reste le sien.
 * **Le relais** (fiche 132, sa parole du 23/11 : *« il ne fonctionne tout simplement PAS »*) : il s'était tu de 10 h 08 à 13 h 44 — sa consigne retouchée depuis son autre appareil (« Aigle Émeraude ») passait pour celle d'une IA, la passation fermait la session pour un compte plein, et rien ne lisait ses notes. **Réparé et relancé** : une seule session à la fois (la sienne prend la main, `rendre` la rend), toute main humaine signe sa consigne, jamais une IA, ses notes sont données à la session, jusqu'au mur quand personne ne peut reprendre, la relance sous le plafond de Claude Code (8). Mode d'emploi : `outils/relais/MODE-EMPLOI.md`. **Borné par les quotas** des deux comptes.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
