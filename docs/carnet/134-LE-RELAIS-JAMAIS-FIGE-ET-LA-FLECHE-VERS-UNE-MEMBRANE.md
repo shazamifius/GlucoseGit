@@ -214,3 +214,13 @@ d'épreuve.
 **Prouvé** : `renderer/arrow/edition_tests.rs` (huit lignes tapées : la flèche garde son écart de
 naissance au bas qu'on voit ; validée, elle ne saute pas) ; trois sabotages
 (`outils/sabotages/fleche-edition-134.json`).
+
+**Fini par le relais** (compte a, 20 h 20-20 h 25) : la suite entière (3 547 épreuves) a fait tomber
+**deux cliquets** — `peindre_ce_qui_a_change` à 82 lignes, et un accès direct aux annotations du
+tableau (39 contre 38). Réparés (`f8d1043`) : le suivi d'avant l'image (le panneau Storyboard, la
+palette, la date, la boîte vivante) devient `suivre_avant_l_image` ; la boîte vivante trouve son texte
+par `Project::annotation`. Cliquets 16 sur 16, Clippy strict, **les trois sabotages rejoués dans
+l'arbre détaché : 3 sur 3 tombent**. **Regardé au pilote** (`~/.cache/glucose-bancs/fleche-edition-134/`) :
+deux textes reliés, huit lignes tapées dans celui d'où part la flèche — elle part du bas qu'on voit
+(`2-pendant.png`), et ne saute pas à la validation (`3-apres.png`) ; **le binaire d'avant (19 h 31),
+même saisie : la flèche traverse le texte** (`0-avant-pendant.png`) — sa capture, reproduite.
