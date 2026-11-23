@@ -1,0 +1,50 @@
+[
+ {
+  "nom": "PICK-3 — le bord recouvert garde son rang (la loi d'avant)",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "    le_bord_cache_passe_apres(&mut out);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite",
+   "--test",
+   "hit_priority_suite"
+  ]
+ },
+ {
+  "nom": "PICK-3 — le bord passe après tout, même découvert",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "    if couvert {\n",
+  "apres": "    if couvert || !couvert {\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite",
+   "--test",
+   "hit_priority_suite"
+  ]
+ },
+ {
+  "nom": "PICK-3 — un texte ne couvre plus le bord (seules les photos)",
+  "fichier": "crates/glucose-core/src/hit_priority/candidates.rs",
+  "avant": "        .any(|c| matches!(c.kind, PickKind::Image | PickKind::Text | PickKind::Sticky));\n",
+  "apres": "        .any(|c| matches!(c.kind, PickKind::Image));\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "hit_priority_pick_suite",
+   "--test",
+   "hit_priority_suite"
+  ]
+ }
+]

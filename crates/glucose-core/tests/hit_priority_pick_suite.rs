@@ -95,9 +95,72 @@ fn test_pick_membrane_edge() {
         noeuds: None,
     };
 
+    // La photo recouvre les pointillés : on la voit, on la prend ; le bord vient après
+    // (PICK-3). Dans le vide, à la même distance du bord, le bord gagne.
     let cands = collect_candidates(&input);
-    assert_eq!(cands[0].id, "M1");
-    assert_eq!(cands[0].kind, PickKind::MembraneEdge);
+    assert_eq!(cands[0].id, "I1");
+    assert_eq!(cands[1].id, "M1");
+    assert_eq!(cands[1].kind, PickKind::MembraneEdge);
+    let dans_le_vide = PickInput { wy: 100.0, ..input };
+    assert_eq!(
+        collect_candidates(&dans_le_vide)[0].kind,
+        PickKind::MembraneEdge
+    );
+}
+
+/// **PICK-3 — son texte dans un « Groupe », dézoomé** (sa note du 23/11 au soir,
+/// `text-kpll-356`, sa géométrie exacte) : un texte de 240 × 150 à 27 unités du haut d'une
+/// membrane de 935 × 217. À 0,15, la bande du bord (93 unités) couvrait les quatre cinquièmes
+/// du texte ; à 0,12, la membrane n'était plus qu'un bord. Partout sur le texte, le texte gagne
+/// désormais ; à côté de lui, sur les pointillés, la membrane. **L'envers** : la loi d'avant —
+/// le bord à son rang quoi qu'il couvre — prenait la membrane sur le texte.
+#[test]
+fn test_pick_3_un_texte_pres_du_bord_d_un_groupe_se_prend_meme_dezoome() {
+    let groupe = membrane("groupe", -4196.3, 5302.8, 935.2, 216.8, Some("Groupe"));
+    let texte = text_ann("texte", -3553.5, 5330.1, 240.0, 149.6);
+    let annotations = [groupe, texte];
+    let (images, folders): ([BoardImage; 0], [glucose_core::types::CanvasFolder; 0]) = ([], []);
+    let rien: [String; 0] = [];
+    let premier = |wx: f64, wy: f64, scale: f64| {
+        let input = PickInput {
+            wx,
+            wy,
+            scale,
+            images: &images,
+            annotations: &annotations,
+            folders: &folders,
+            selected_image_ids: &glucose_core::store::choix::Choix::from(rien.to_vec()),
+            selected_annotation_ids: &glucose_core::store::choix::Choix::from(rien.to_vec()),
+            selected_folder_ids: &glucose_core::store::choix::Choix::default(),
+            noeuds: None,
+        };
+        let cands = collect_candidates(&input);
+        let ancienne_loi = cands
+            .iter()
+            .min_by_key(|c| match c.kind {
+                PickKind::MembraneEdge => PICK_RANK_MEMBRANE_EDGE,
+                _ => c.rank,
+            })
+            .map(|c| c.id.clone());
+        (cands.first().map(|c| c.id.clone()), ancienne_loi)
+    };
+    for scale in [1.0, 0.3, 0.15, 0.12] {
+        for (wx, wy) in [(-3540.0, 5340.0), (-3433.0, 5405.0), (-3320.0, 5475.0)] {
+            let (pris, avant) = premier(wx, wy, scale);
+            assert_eq!(pris.as_deref(), Some("texte"), "à {scale}, en ({wx}, {wy})");
+            // L'envers : à 0,15, la bande prenait le haut et le bas du texte ; à 0,12, tout.
+            let pres_du_bord = wy != 5405.0;
+            if scale <= 0.12 || (scale <= 0.15 && pres_du_bord) {
+                assert_eq!(avant.as_deref(), Some("groupe"), "l'envers, à {scale}");
+            }
+        }
+        let (pris, _) = premier(-4190.0, 5400.0, scale);
+        assert_eq!(
+            pris.as_deref(),
+            Some("groupe"),
+            "sur ses pointillés, à {scale}"
+        );
+    }
 }
 
 #[test]

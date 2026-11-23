@@ -49,8 +49,28 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
         });
     }
 
+    le_bord_cache_passe_apres(&mut out);
     sort_candidates(&mut out);
     out
+}
+
+/// **PICK-3 — le bord d'une membrane ne se prend que là où il se voit** (fiche 134 § 12 ; sa
+/// note du 23/11 au soir, `text-kpll-356` : *« trop de click box »*). Sa bande de saisie, 14 px
+/// de l'écran, passait devant tout : dézoomé, elle couvrait les petits textes posés près du bord,
+/// et une membrane de moins de 28 px n'était plus qu'un bord — ce qu'elle porte ne se choisissait
+/// plus. Une membrane se peint **sous** ce qu'elle porte : là où une photo, un texte ou une note
+/// couvre le point, c'est eux qu'on voit, et le bord passe après eux, avec le corps des
+/// conteneurs (PICK-2, ce qu'on voit sous la souris). Le re-clic y descend toujours ; là où rien
+/// ne le couvre, le bord garde son rang.
+fn le_bord_cache_passe_apres(out: &mut [PickCandidate]) {
+    let couvert = out
+        .iter()
+        .any(|c| matches!(c.kind, PickKind::Image | PickKind::Text | PickKind::Sticky));
+    if couvert {
+        for bord in out.iter_mut().filter(|c| c.kind == PickKind::MembraneEdge) {
+            bord.rank = PICK_RANK_MEMBRANE_BODY;
+        }
+    }
 }
 
 /// Une image sous le curseur.

@@ -224,3 +224,49 @@ l'arbre détaché : 3 sur 3 tombent**. **Regardé au pilote** (`~/.cache/glucose
 deux textes reliés, huit lignes tapées dans celui d'où part la flèche — elle part du bas qu'on voit
 (`2-pendant.png`), et ne saute pas à la validation (`3-apres.png`) ; **le binaire d'avant (19 h 31),
 même saisie : la flèche traverse le texte** (`0-avant-pendant.png`) — sa capture, reproduite.
+
+## 12. SELECTION-MEMBRANES — une membrane tracée prend ce qu'elle entoure (MEMB-9), et son bord ne se prend que là où il se voit (PICK-3) (23/11, 20 h 30)
+
+**Sa note** (`text-kpll-356`, sa capture dans `membrane-299`) : *« j'ai eu beaucoup de mal à
+sélectionner ce bloc texte, car trop de zones de clic, et la gestion d'intention est trop mal
+faite ; du coup, pour éditer ce texte, j'ai dû vraiment galérer »*.
+
+**Ce que son document montre** : le texte est entièrement dans un « Groupe » qu'il a tracé
+(`membrane-kpll-362`, 935 × 217), mais n'en fait pas partie — comme les quatre autres « Groupe »
+de sa membrane des bogues, tous vides.
+
+**MEMB-9 — l'outil membrane prend ce qu'il entoure** (`3f54241`). `place_membrane` n'appelait
+qu'`add_annotation`, qui donne à la neuve sa membrane d'accueil et rien d'autre ; « Grouper »
+(GROUPER-1) et le dossier (FOLD-1) prenaient. Désormais `Store::adopter_ce_qu_elle_entoure` : les
+sœurs de la neuve (les nœuds de sa membrane, ou libres comme elle) y passent quand **la loi du
+dépôt** (MEMB-1, la plus petite membrane qui contient leur centre) les y range ; une sœur membrane
+entre avec son contenu ; une appartenance écrite ailleurs ne se redéduit pas ; la pose et
+l'adoption font un geste. Quatre épreuves (`appartenance_suite`, `memb_9`), une à la vraie souris
+(`trace/tests.rs`) ; **six sabotages sur six** (`memb-9-134.json`).
+
+**Choix pris seul, à contester** : le centre, et non « entièrement dedans ». tldraw (« the frame
+tool reparents any sibling shapes that fall fully inside the frame's bounds »,
+[Frame shape](https://tldraw.dev/sdk-features/frame-shape)) et Sketch
+([Frames](https://go.sketch.com/docs/designing/frames/) : « if you draw a new frame around existing
+layers, these will be reparented ») prennent ce qui est entièrement dedans. Glucose a déjà **une**
+loi pour « être dans » : le centre — le dépôt d'un nœud (MEMB-1) et l'emprise d'un dossier
+(`capture_content_under`). Trois gestes, une loi : l'appartenance qu'un nœud aurait si on l'y
+lâchait (`test_memb_9_une_membrane_et_un_dossier_au_meme_endroit_prennent_les_memes`). Le prix : un
+nœud qui déborde de moitié entre et dépasse du cadre.
+
+**PICK-3 — le bord d'une membrane ne se prend que là où il se voit** (la cause probable de son clic
+difficile, vérifiée sur sa géométrie). Le bord d'une membrane se saisit dans une bande de 14 px de
+l'écran, au rang 10 — devant un texte (40). Son texte est à 27 unités du haut du « Groupe » : à
+0,25, la bande en couvrait un tiers ; à 0,15, les quatre cinquièmes ; à 0,12, la membrane mesurait
+moins de 28 px et n'était plus qu'un bord (`on_rect_edge`). Le clic prenait la membrane, le
+double-clic aussi. **La loi** (`le_bord_cache_passe_apres`, `hit_priority/candidates.rs`) : une
+membrane se peint **sous** ce qu'elle porte ; là où une photo, un texte ou une note couvre le point,
+c'est eux qu'on voit (PICK-2), et le bord passe après eux, au rang du corps ; découvert, il garde son
+rang. Le re-clic y descend toujours. C'est la règle de Figma et de tldraw (on prend l'enfant ; le
+cadre, par son nom ou son vide). Épreuve neuve sur **sa géométrie exacte**, à 1, 0,3, 0,15 et 0,12,
+avec l'envers (`test_pick_3_un_texte_pres_du_bord_d_un_groupe_se_prend_meme_dezoome`) ; deux
+épreuves anciennes réécrites, parce que la loi neuve les contredit (MÉTHODE § 4.7) : les pointillés
+couverts par deux photos, et le cycle des re-clics (texte, photo, puis le bord). Trois sabotages
+(`pick-3-134.json`). **Pas touché** : le bord d'un **dossier**, qui n'est pas peint sous ce qui le
+recouvre de la même façon ; et le rang exact du bord couvert (le corps, 60, plutôt qu'un rang
+entre la photo et le corps) n'a pas d'épreuve qui le distingue.

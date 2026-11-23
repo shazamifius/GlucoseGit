@@ -119,7 +119,8 @@ fn test_hit_priority_rules() {
     assert_eq!(cands[1].id, "M1");
     assert_eq!(cands[1].kind, PickKind::MembraneBody);
 
-    // Clic pointillés membrane -> membrane-edge gagne
+    // Clic sur les pointillés d'une membrane, que deux photos recouvrent -> les photos d'abord,
+    // la plus haute devant ; le bord après elles (PICK-3 : il ne se prend que là où il se voit).
     let images2 = [
         img("I1", 5.0, 400.0, 200.0, 150.0, false),
         img("I2", 40.0, 400.0, 200.0, 150.0, false),
@@ -130,9 +131,18 @@ fn test_hit_priority_rules() {
         images: &images2,
         ..input
     };
-    let cands2 = collect_candidates(&input2);
-    assert_eq!(cands2[0].kind, PickKind::MembraneEdge);
-    assert_eq!(cands2[0].id, "M1");
+    assert_eq!(
+        order(&input2),
+        vec!["image:I2", "image:I1", "membrane-edge:M1"]
+    );
+    // Les mêmes pointillés, découverts -> le bord gagne.
+    let input2b = PickInput {
+        wx: 5.0,
+        wy: 100.0,
+        images: &images2,
+        ..input
+    };
+    assert_eq!(order(&input2b), vec!["membrane-edge:M1"]);
 
     // Bord depuis l'extérieur de la membrane
     let input3 = PickInput {
@@ -350,16 +360,17 @@ fn test_click_cycle_chain() {
         time += 500; // pause au-delà du double-clic
     }
 
-    // Chaque re-clic descend d'un cran — le bord de la membrane, le texte peint au-dessus de
-    // l'image, l'image — puis la pile recommence (PICK-2 : le texte n'en est plus le fond).
+    // Chaque re-clic descend d'un cran — le texte peint au-dessus de l'image, l'image, puis le
+    // bord de la membrane qu'ils recouvrent (PICK-3) — puis la pile recommence (PICK-2 : le
+    // texte n'en est plus le fond).
     assert_eq!(
         seen,
         vec![
-            "membrane-edge:M1",
             "text:T1",
             "image:I1",
             "membrane-edge:M1",
             "text:T1",
+            "image:I1",
         ]
     );
 }
