@@ -95,7 +95,7 @@ fn scenes() -> Vec<(&'static str, GlucoseApp)> {
 #[derive(Debug, PartialEq)]
 struct Etat {
     document: Project,
-    choix: (Vec<String>, Vec<String>, Option<String>),
+    choix: (Vec<String>, Vec<String>, Vec<String>),
     vue: (String, Viewport, Option<Viewport>),
     fenetre: Option<String>,
     ouvert: (bool, bool, Option<String>, bool, bool),
@@ -116,7 +116,7 @@ fn etat(app: &GlucoseApp) -> Etat {
         choix: (
             app.store.selected_image_ids.to_vec(),
             app.store.selected_annotation_ids.to_vec(),
-            app.store.selected_folder_id.clone(),
+            app.store.selected_folder_ids.to_vec(),
         ),
         vue: (
             app.store.project.active_board_id.clone(),

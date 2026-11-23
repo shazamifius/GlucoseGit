@@ -211,7 +211,7 @@ fn test_un_dossier_selectionne_se_distingue() {
     let (_, au_repos) = encre(&store);
 
     let mut choisi = store.clone();
-    choisi.selected_folder_id = Some("fold-1".into());
+    choisi.selected_folder_ids = vec!["fold-1".to_string()].into();
     let (_, selectionne) = encre(&choisi);
     assert!(
         selectionne > au_repos,
@@ -269,7 +269,7 @@ fn test_gris_2_de_loin_un_dossier_choisi_garde_sa_lueur() {
             };
         }
         if choisi {
-            store.selected_folder_id = Some("fold-1".into());
+            store.selected_folder_ids = vec!["fold-1".to_string()].into();
         }
         let (p, _) = encre(&store);
         (250..420)

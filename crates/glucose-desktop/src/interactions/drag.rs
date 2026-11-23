@@ -33,12 +33,14 @@ impl GlucoseApp {
             let mut exclude: HashSet<String> = emport.ids().cloned().collect();
             let mut rects = emport.boites(board);
             let mut encre = emport.encre(board);
-            if let Some(fid) = &self.store.selected_folder_id {
-                exclude.insert(fid.clone());
-                if let Some(f) = board.folders.iter().find(|f| &f.id == fid) {
-                    rects.push(f.rect());
-                    encre = Some(encre.map_or(f.rect(), |e| e.union(f.rect())));
-                }
+            for f in board
+                .folders
+                .iter()
+                .filter(|f| self.store.selected_folder_ids.contains(&f.id))
+            {
+                exclude.insert(f.id.clone());
+                rects.push(f.rect());
+                encre = Some(encre.map_or(f.rect(), |e| e.union(f.rect())));
             }
             self.drag_selection_base = union_rect(&rects)
                 .zip(encre)

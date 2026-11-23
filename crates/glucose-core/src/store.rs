@@ -84,7 +84,10 @@ pub struct Store {
     pub assets: AssetStore,
     pub selected_image_ids: choix::Choix,
     pub selected_annotation_ids: choix::Choix,
-    pub selected_folder_id: Option<String>,
+    /// **Les dossiers choisis** (DOSSIER-2, fiche 130) : une liste, comme les photos et les
+    /// annotations — un seul dossier, qui effaçait le reste, laissait le rectangle de sélection les
+    /// oublier.
+    pub selected_folder_ids: choix::Choix,
     pub folder_stack: Vec<(String, String)>,
     /// **La plage que la frise chronologique garde** (ESTOMPE-1, fiche 114) : une lentille sur ce
     /// qu'on regarde, jamais dans le document ni dans le journal — comme la caméra.
@@ -144,7 +147,7 @@ impl Store {
             assets: AssetStore::new(),
             selected_image_ids: choix::Choix::default(),
             selected_annotation_ids: choix::Choix::default(),
-            selected_folder_id: None,
+            selected_folder_ids: choix::Choix::default(),
             folder_stack: Vec::new(),
             temporal_filter: None,
             domaine_regarde: None,

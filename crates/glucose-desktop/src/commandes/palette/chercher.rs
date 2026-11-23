@@ -95,7 +95,7 @@ impl GlucoseApp {
         self.store.clear_selection();
         match t.genre {
             Genre::Noeud(Sorte::Photo) => self.store.select_image(id.clone(), false),
-            Genre::Dossier => self.store.select_folder(id.clone()),
+            Genre::Dossier => self.store.select_folder(id.clone(), false),
             _ => self.store.select_annotation(id.clone(), false),
         }
         self.voler_vers_le_noeud(id);

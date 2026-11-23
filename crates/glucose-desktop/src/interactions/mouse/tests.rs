@@ -466,8 +466,8 @@ fn test_double_clicking_a_folder_enters_it() {
     // Un premier clic au milieu du dossier sélectionne, il n'entre pas.
     click_world(&mut app, 700.0, 500.0);
     assert_eq!(
-        app.store.selected_folder_id.as_deref(),
-        Some(folder_id.as_str())
+        app.store.selected_folder_ids.to_vec(),
+        std::slice::from_ref(&folder_id)
     );
     assert_eq!(
         app.store.project.active_board_id, racine,
@@ -873,4 +873,50 @@ fn test_tiroir_4_chaque_tiroir_s_ouvre_du_cote_de_son_bouton() {
             bouton.x, tiroir.x
         );
     }
+}
+
+/// **DOSSIER-2 — le rectangle de sélection prend aussi les dossiers** (sa note 🐞 du 22/11 : *« le
+/// rectangle de sélection oublie les dossiers »*), par la vraie souris : presser sur le vide,
+/// glisser par-dessus un dossier et un texte, relâcher — les deux sont choisis.
+#[test]
+fn test_dossier_2_le_rectangle_prend_le_dossier_par_la_vraie_souris() {
+    let mut app = canvas_app();
+    app.ui.active_tool = ActiveTool::Folder;
+    click_world(&mut app, 600.0, 400.0);
+    let dossier = app
+        .store
+        .active_board()
+        .and_then(|b| b.folders.last())
+        .map(|f| f.id.clone())
+        .expect("le dossier");
+    let board = app.store.project.active_board_id.clone();
+    app.store.add_annotation(
+        &board,
+        glucose_core::types::Annotation::text("t", 650.0 + NEW_CONTAINER_SIZE.0, 420.0, "à côté"),
+    );
+    app.ui.active_tool = ActiveTool::Select;
+    app.store.clear_selection();
+
+    let (x1, y1) = screen_of(&app, 500.0, 300.0);
+    let (x2, y2) = screen_of(
+        &app,
+        900.0 + NEW_CONTAINER_SIZE.0,
+        500.0 + NEW_CONTAINER_SIZE.1,
+    );
+    app.handle_cursor_moved(PhysicalPosition::new(x1, y1));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    app.handle_cursor_moved(PhysicalPosition::new((x1 + x2) / 2.0, (y1 + y2) / 2.0));
+    app.handle_cursor_moved(PhysicalPosition::new(x2, y2));
+    app.handle_mouse_up(MouseButton::Left);
+
+    assert_eq!(
+        app.store.selected_folder_ids.to_vec(),
+        vec![dossier],
+        "le dossier est pris"
+    );
+    assert_eq!(
+        app.store.selected_annotation_ids.to_vec(),
+        vec!["t".to_string()],
+        "et le texte"
+    );
 }

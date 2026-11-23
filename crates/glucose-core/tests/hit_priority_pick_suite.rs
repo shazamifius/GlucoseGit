@@ -63,7 +63,7 @@ fn test_pick_priority_image_in_membrane() {
         folders: &folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -91,7 +91,7 @@ fn test_pick_membrane_edge() {
         folders: &folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -118,7 +118,7 @@ fn test_nested_membranes_smallest_wins() {
         folders: &empty_folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -148,7 +148,7 @@ fn test_pick_2_un_texte_dans_une_membrane_se_prend_et_le_reclic_descend() {
         folders: &empty_folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -209,7 +209,7 @@ fn test_collect_candidates_indexed_matches_naive() {
         folders: &empty_folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -233,7 +233,7 @@ fn test_collect_candidates_indexed_matches_naive() {
         folders: &empty_folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
     let empty_indexed = collect_candidates_indexed(&empty_input, &hash);
@@ -260,7 +260,7 @@ fn test_titre_1_la_bande_du_titre_grandit_avec_lui() {
             folders: &folders,
             selected_image_ids: &glucose_core::store::choix::Choix::from(rien.to_vec()),
             selected_annotation_ids: &glucose_core::store::choix::Choix::from(rien.to_vec()),
-            selected_folder_id: None,
+            selected_folder_ids: &glucose_core::store::choix::Choix::default(),
             noeuds: None,
         };
         collect_candidates(&input).first().map(|c| c.kind)
@@ -389,7 +389,7 @@ fn test_survol_1_viser_par_les_rangs_rend_ce_que_rend_la_visee_naive() {
                 folders: &dossiers,
                 selected_image_ids: &aucun,
                 selected_annotation_ids: &aucun,
-                selected_folder_id: None,
+                selected_folder_ids: &glucose_core::store::choix::Choix::default(),
                 noeuds: None,
             };
             // Le tableau indexé : la visée naïve, sur tout le tableau. D'autres tranches :

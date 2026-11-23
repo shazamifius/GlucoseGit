@@ -110,6 +110,27 @@ impl Board {
             .filter(|a| matches!(a, Annotation::Arrow { .. }))
     }
 
+    /// **Ce que ce rectangle prend** — la sélection élastique : les images, les annotations
+    /// (par leur encre ; une flèche, par l'enveloppe de son tracé) et **les dossiers** (DOSSIER-2,
+    /// sa note du 22/11) qu'il croise, et que `voir` laisse voir. Une seule question au noyau,
+    /// sans ouvrir ses listes (le cliquet du couplage, règle S de la fiche 12 § 3).
+    pub fn pris_par(&self, lasso: crate::geometry::Rect, voir: impl Fn(&str) -> bool) -> Pris {
+        Pris {
+            images: (self.images.iter())
+                .filter(|i| lasso.overlaps(i.rect()) && voir(&i.id))
+                .map(|i| i.id.clone())
+                .collect(),
+            annotations: (self.annotations.iter())
+                .filter(|a| lasso.overlaps(a.encre()) && voir(a.id()))
+                .map(|a| a.id().to_string())
+                .collect(),
+            dossiers: (self.folders.iter())
+                .filter(|f| lasso.overlaps(f.rect()) && voir(&f.id))
+                .map(|f| f.id.clone())
+                .collect(),
+        }
+    }
+
     pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -126,6 +147,14 @@ impl Board {
             updated_at: 0,
         }
     }
+}
+
+/// **Ce qu'un rectangle prend dans un tableau**, par genre de nœud.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Pris {
+    pub images: Vec<String>,
+    pub annotations: Vec<String>,
+    pub dossiers: Vec<String>,
 }
 
 impl Default for Board {

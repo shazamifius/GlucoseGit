@@ -20,7 +20,7 @@ use std::collections::HashSet;
 struct SelectionSets<'a> {
     images: HashSet<&'a str>,
     annotations: HashSet<&'a str>,
-    folder: Option<&'a str>,
+    folders: HashSet<&'a str>,
 }
 
 /// Les ensembles de la sélection, construits à partir des **champs** et non du `Store`.
@@ -31,12 +31,12 @@ struct SelectionSets<'a> {
 fn selection_sets_de<'a>(
     images: &'a [String],
     annotations: &'a [String],
-    folder: Option<&'a str>,
+    folders: &'a [String],
 ) -> SelectionSets<'a> {
     SelectionSets {
         images: images.iter().map(String::as_str).collect(),
         annotations: annotations.iter().map(String::as_str).collect(),
-        folder,
+        folders: folders.iter().map(String::as_str).collect(),
     }
 }
 
@@ -267,7 +267,11 @@ impl Store {
         let sel = SelectionSets {
             images: emport.images.iter().map(String::as_str).collect(),
             annotations: emport.annotations.iter().map(String::as_str).collect(),
-            folder: self.selected_folder_id.as_deref(),
+            folders: self
+                .selected_folder_ids
+                .iter()
+                .map(String::as_str)
+                .collect(),
         };
         let b = self.project.boards.iter().find(|b| b.id == board_id)?;
         let rangs = |oui: &dyn Fn(usize) -> bool, n: usize| -> Vec<u32> {
@@ -290,7 +294,7 @@ impl Store {
             }
         }
         let folders = rangs(
-            &|i| sel.folder == Some(b.folders[i].id.as_str()),
+            &|i| sel.folders.contains(b.folders[i].id.as_str()),
             b.folders.len(),
         );
         Some(Edit::Translation {
@@ -401,7 +405,7 @@ impl Store {
         let sel = selection_sets_de(
             &self.selected_image_ids,
             &self.selected_annotation_ids,
-            self.selected_folder_id.as_deref(),
+            &self.selected_folder_ids,
         );
         if sel.images.is_empty() {
             return None;
@@ -459,7 +463,7 @@ impl Store {
     fn supprimer_la_selection(&mut self, board_id: &str) {
         let imgs = self.selected_image_ids.clone();
         let anns = self.selected_annotation_ids.clone();
-        let f_opt = self.selected_folder_id.clone();
+        let dossiers = self.selected_folder_ids.clone();
 
         if !imgs.is_empty() {
             let refs: Vec<&str> = imgs.iter().map(|s| s.as_str()).collect();
@@ -469,8 +473,9 @@ impl Store {
             let refs: Vec<&str> = anns.iter().map(|s| s.as_str()).collect();
             self.remove_annotations(board_id, &refs);
         }
-        if let Some(ref fid) = f_opt {
-            self.remove_folders(board_id, &[fid]);
+        if !dossiers.is_empty() {
+            let refs: Vec<&str> = dossiers.iter().map(|s| s.as_str()).collect();
+            self.remove_folders(board_id, &refs);
         }
     }
 }

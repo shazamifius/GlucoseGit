@@ -72,13 +72,9 @@ pub(super) fn oublier_les_retires(store: &mut Store, geste: &Transaction) {
     store
         .selected_annotation_ids
         .retain(|id| !retires.contains(id.as_str()));
-    if store
-        .selected_folder_id
-        .as_deref()
-        .is_some_and(|f| retires.contains(f))
-    {
-        store.selected_folder_id = None;
-    }
+    store
+        .selected_folder_ids
+        .retain(|id| !retires.contains(id.as_str()));
 }
 
 impl Store {

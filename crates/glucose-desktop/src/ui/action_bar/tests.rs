@@ -267,7 +267,7 @@ fn test_dossier_1_un_dossier_seul_a_sa_barre_et_son_bouton_supprimer() {
         &board,
         glucose_core::types::CanvasFolder::new("d", "Dossier", ""),
     );
-    store.select_folder("d".into());
+    store.select_folder("d".into(), false);
     let barre = bar(&store, &typo).expect("une barre");
     assert_eq!(barre.count_label, "1 sélectionné");
     let clics: Vec<ActionBarClick> = barre.buttons.iter().map(|b| b.click).collect();

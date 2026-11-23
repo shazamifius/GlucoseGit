@@ -178,7 +178,7 @@ impl Store {
         let selection = (
             self.selected_image_ids.clone(),
             self.selected_annotation_ids.clone(),
-            self.selected_folder_id.clone(),
+            self.selected_folder_ids.clone(),
         );
         self.begin_live_edit();
         let resultat = f(self);
@@ -187,13 +187,13 @@ impl Store {
         } else {
             self.cancel_live_edit();
         }
-        let (images, annotations, dossier) = selection;
+        let (images, annotations, dossiers) = selection;
         self.selected_image_ids = images.into_iter().filter(|i| self.id_exists(i)).collect();
         self.selected_annotation_ids = annotations
             .into_iter()
             .filter(|a| self.id_exists(a))
             .collect();
-        self.selected_folder_id = dossier.filter(|d| self.id_exists(d));
+        self.selected_folder_ids = dossiers.into_iter().filter(|d| self.id_exists(d)).collect();
         resultat
     }
 

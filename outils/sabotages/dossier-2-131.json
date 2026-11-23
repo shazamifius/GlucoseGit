@@ -1,0 +1,77 @@
+[
+ {
+  "nom": "DOSSIER-2 — le rectangle oublie les dossiers (comme avant)",
+  "fichier": "crates/glucose-desktop/src/interactions/selection.rs",
+  "avant": "        for id in pris.dossiers {\n            self.store.select_folder(id, true);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::mouse"
+  ]
+ },
+ {
+  "nom": "DOSSIER-2 — le rectangle ne regarde pas où sont les dossiers",
+  "fichier": "crates/glucose-core/src/types/board.rs",
+  "avant": ".filter(|f| lasso.overlaps(f.rect()) && voir(&f.id))",
+  "apres": ".filter(|_| false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::mouse"
+  ]
+ },
+ {
+  "nom": "DOSSIER-2 — Maj+clic remplace le dossier choisi au lieu de l'ajouter",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "PickOwner::Folder => self.store.select_folder(top.id.clone(), additive),",
+  "apres": "PickOwner::Folder => self.store.select_folder(top.id.clone(), false),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "interactions::mouse"
+  ]
+ },
+ {
+  "nom": "DOSSIER-2 — renommer avec plusieurs dossiers choisis",
+  "fichier": "crates/glucose-core/src/store/folders.rs",
+  "avant": "let [f] = self.dossiers_choisis()[..] else {",
+  "apres": "let [f, ..] = self.dossiers_choisis()[..] else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::"
+  ]
+ },
+ {
+  "nom": "DOSSIER-2 — choisir un dossier n'efface pas la sélection d'avant",
+  "fichier": "crates/glucose-core/src/store/selection.rs",
+  "avant": "        if !multi {\n            self.clear_selection();\n        }\n        self.selected_folder_ids.push(id);",
+  "apres": "        self.selected_folder_ids.push(id);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "store::"
+  ]
+ }
+]

@@ -295,7 +295,7 @@ fn test_dossier_1_un_dossier_seul_offre_renommer_supprimer_et_rien_d_autre() {
         &board,
         glucose_core::types::CanvasFolder::new("d", "Dossier", ""),
     );
-    store.select_folder("d".into());
+    store.select_folder("d".into(), false);
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
         vec![

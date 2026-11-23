@@ -23,7 +23,9 @@ impl GlucoseApp {
     }
 
     /// Applique la sélection élastique : tout élément dont la boîte croise le rectangle est
-    /// sélectionné — et pour une flèche, la boîte est l'enveloppe de son tracé.
+    /// sélectionné — et pour une flèche, la boîte est l'enveloppe de son tracé. **Les dossiers
+    /// aussi** (DOSSIER-2, fiche 130) : sa note du 22/11, *« lorsqu'on maintient l'outil
+    /// sélectionner, certains nœuds ne sont pas compris dedans, comme les dossiers »*.
     pub fn finish_selection_box(&mut self) {
         let Some((x1, y1, x2, y2)) = self.selection_box.take() else {
             return;
@@ -41,29 +43,20 @@ impl GlucoseApp {
         let Some(board) = self.store.active_board() else {
             return;
         };
-        let images: Vec<String> = board
-            .images
-            .iter()
-            .filter(|img| lasso.overlaps(img.rect()))
-            .filter(|img| self.renderer.focus.laisse_voir(&img.id))
-            .map(|img| img.id.clone())
-            .collect();
-        let annotations: Vec<String> = board
-            .annotations
-            .iter()
-            .filter(|ann| lasso.overlaps(ann.encre()))
-            .filter(|ann| self.renderer.focus.laisse_voir(ann.id()))
-            .map(|ann| ann.id().to_string())
-            .collect();
+        let focus = &self.renderer.focus;
+        let pris = board.pris_par(lasso, |id| focus.laisse_voir(id));
 
         if !self.modifiers.shift_key() {
             self.store.clear_selection();
         }
-        for id in images {
+        for id in pris.images {
             self.store.select_image(id, true);
         }
-        for id in annotations {
+        for id in pris.annotations {
             self.store.select_annotation(id, true);
+        }
+        for id in pris.dossiers {
+            self.store.select_folder(id, true);
         }
     }
 
@@ -83,7 +76,7 @@ impl GlucoseApp {
             folders: &board.folders,
             selected_image_ids: &self.store.selected_image_ids,
             selected_annotation_ids: &self.store.selected_annotation_ids,
-            selected_folder_id: self.store.selected_folder_id.as_deref(),
+            selected_folder_ids: &self.store.selected_folder_ids,
             noeuds,
         }
     }

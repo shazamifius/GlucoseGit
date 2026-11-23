@@ -546,8 +546,8 @@ fn test_dossier_1_l_appui_long_sur_un_dossier_le_supprime_et_s_annule() {
     app.attente_de_l_appui();
     doigt(&mut app, 1, TouchPhase::Ended, ici);
     assert_eq!(
-        app.store.selected_folder_id.as_deref(),
-        Some("d"),
+        app.store.selected_folder_ids.to_vec(),
+        ["d"],
         "le dossier est choisi"
     );
     let at = app.ui.context_menu_at.expect("son menu s'ouvre");

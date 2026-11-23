@@ -319,10 +319,11 @@ impl Store {
     }
 
     /// **Le dossier choisi sur le tableau actif, et son nom** (RENOMMER-1, fiche 120) : ce que
-    /// « Renommer le dossier » propose.
+    /// « Renommer le dossier » propose — quand un seul dossier est choisi : à deux, lequel ?
     pub fn dossier_choisi_et_son_nom(&self) -> Option<(&str, &str)> {
-        let id = self.selected_folder_id.as_deref()?;
-        let f = self.active_board()?.folders.iter().find(|f| f.id == id)?;
+        let [f] = self.dossiers_choisis()[..] else {
+            return None;
+        };
         Some((f.id.as_str(), f.name.as_str()))
     }
 

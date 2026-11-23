@@ -299,7 +299,7 @@ impl GlucoseApp {
             PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {
                 self.store.select_annotation(top.id.clone(), additive);
             }
-            PickOwner::Folder => self.store.select_folder(top.id.clone()),
+            PickOwner::Folder => self.store.select_folder(top.id.clone(), additive),
             // Les poignées du groupe sont la sélection elle-même : rien à choisir.
             PickOwner::Groupe => {}
         }
@@ -312,7 +312,7 @@ impl GlucoseApp {
             PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {
                 self.store.selected_annotation_ids.contains(&top.id)
             }
-            PickOwner::Folder => self.store.selected_folder_id.as_ref() == Some(&top.id),
+            PickOwner::Folder => self.store.selected_folder_ids.contains(&top.id),
             PickOwner::Groupe => true,
         }
     }

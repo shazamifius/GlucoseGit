@@ -70,7 +70,7 @@ pub use annotation::{
     Annotation, ArrowPredicate, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
     MembraneMode, Point2D, TextAnchor, TextSelection,
 };
-pub use board::{Board, FolderTreeNode, Viewport};
+pub use board::{Board, FolderTreeNode, Pris, Viewport};
 pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode, COULEUR_DE_NAISSANCE};
 pub use image::{AssetRef, BoardImage, Retournement};
 pub use operateur::{StickyOperator, DEFAULT_OPERATOR_HEIGHT};

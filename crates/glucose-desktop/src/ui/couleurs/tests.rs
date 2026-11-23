@@ -56,7 +56,7 @@ fn test_couleur_1_la_barre_n_existe_que_pour_ce_qui_se_colore() {
     dossier.x = 5000.0;
     store.create_folder(&board, dossier);
     store.clear_selection();
-    store.select_folder("d".into());
+    store.select_folder("d".into(), false);
     assert!(barre(&store).is_some(), "un dossier se colore");
     for id in ["p", "t", "m"] {
         choisir(&mut store, &[id]);

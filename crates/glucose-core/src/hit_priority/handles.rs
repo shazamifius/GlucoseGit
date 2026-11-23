@@ -124,7 +124,7 @@ pub fn emprise_du_groupe(input: &PickInput) -> Option<AlignRect> {
     let dossier = input
         .folders
         .iter()
-        .filter(|f| input.selected_folder_id == Some(f.id.as_str()))
+        .filter(|f| input.selected_folder_ids.contains(&f.id))
         .map(|f| f.rect());
     let boites: Vec<AlignRect> = images.chain(annotations).chain(dossier).collect();
     if boites.len() < 2 {
@@ -180,9 +180,9 @@ pub(super) fn collect_handles(input: &PickInput, out: &mut Vec<PickCandidate>) {
         }
     }
 
-    if let Some(sel_folder_id) = input.selected_folder_id {
+    if !input.selected_folder_ids.is_empty() {
         for (z, f) in input.folders.iter().enumerate() {
-            if f.id != sel_folder_id {
+            if !input.selected_folder_ids.contains(&f.id) {
                 continue;
             }
             let rect = AlignRect::new(f.x, f.y, f.width, f.height);

@@ -258,7 +258,7 @@ pub(crate) fn en_lumiere(store: &Store, survole: Option<&str>, ann: &Annotation)
         survole == Some(n)
             || store.selected_annotation_ids.contains(n)
             || store.selected_image_ids.contains(n)
-            || store.selected_folder_id.as_deref() == Some(n)
+            || store.selected_folder_ids.contains(n)
     };
     regarde(id)
         || [source_id, target_id]

@@ -14,7 +14,7 @@ fn app() -> GlucoseApp {
     let board = app.store.project.active_board_id.clone();
     app.store
         .create_folder(&board, CanvasFolder::new("d", "Dossier", ""));
-    app.store.select_folder("d".into());
+    app.store.select_folder("d".into(), false);
     app
 }
 
@@ -78,7 +78,7 @@ fn test_renommer_1_echap_sans_dossier_le_menu_et_la_palette() {
         Some(Commande::RenommerLeDossier)
     );
     assert!(app.s_applique(Commande::RenommerLeDossier));
-    app.store.selected_folder_id = None;
+    app.store.selected_folder_ids.clear();
     assert!(
         !app.s_applique(Commande::RenommerLeDossier),
         "rien à renommer"

@@ -178,7 +178,7 @@ fn test_couleur_1_le_dossier_choisi_se_colore_avec_la_selection() {
     let mut dossier = CanvasFolder::new("d", "Dossier", "");
     dossier.x = 5000.0;
     store.create_folder(&board, dossier);
-    store.select_folder("d".into());
+    store.select_folder("d".into(), false);
     store.set_selected_annotation_ids(vec!["c".into()]);
     assert_eq!(
         store.couleurs_choisies(),
@@ -218,7 +218,7 @@ fn roue_1_la_couleur_que_porte_un_noeud() {
         None,
         "un post-it sans couleur choisie"
     );
-    store.select_folder("d".into());
+    store.select_folder("d".into(), false);
     store.set_selected_annotation_ids(vec!["c".into()]);
     store.colorer_la_selection(Some("#34d399"));
     assert_eq!(store.couleur_du_noeud("d"), Some("#34d399"));

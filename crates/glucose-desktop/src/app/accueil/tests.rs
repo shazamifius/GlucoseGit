@@ -55,7 +55,7 @@ fn test_le_document_d_accueil_ne_choisit_rien() {
         app.store.selected_annotation_ids
     );
     assert!(app.store.selected_image_ids.is_empty());
-    assert!(app.store.selected_folder_id.is_none());
+    assert!(app.store.selected_folder_ids.is_empty());
 }
 
 /// **Le vrai lancement, lui, y habite tout entier** : un seul appel, trois chemins.

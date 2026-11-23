@@ -249,7 +249,7 @@ pub fn collect_candidates_indexed(
         folders: input.folders,
         selected_image_ids: input.selected_image_ids,
         selected_annotation_ids: input.selected_annotation_ids,
-        selected_folder_id: input.selected_folder_id,
+        selected_folder_ids: input.selected_folder_ids,
         noeuds: input.noeuds,
     };
 

@@ -337,7 +337,6 @@ impl Store {
     pub fn selection_bounds(&self, board_id: &str) -> Option<crate::geometry::Rect> {
         let board = self.project.boards.iter().find(|b| b.id == board_id)?;
         let choisi = |ids: &[String], id: &str| ids.iter().any(|s| s == id);
-        let dossier = self.selected_folder_id.as_deref();
         board
             .images
             .iter()
@@ -347,7 +346,7 @@ impl Store {
                 board
                     .folders
                     .iter()
-                    .filter(|f| Some(f.id.as_str()) == dossier)
+                    .filter(|f| self.selected_folder_ids.contains(&f.id))
                     .map(|f| f.rect()),
             )
             .chain(

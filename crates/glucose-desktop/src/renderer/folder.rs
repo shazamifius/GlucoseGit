@@ -145,7 +145,7 @@ fn visibles<'a>(
         }
         let etat = Etat {
             tint: parse_hex_color(&f.color, 136, 136, 136),
-            selected: store.selected_folder_id.as_deref() == Some(f.id.as_str()),
+            selected: store.selected_folder_ids.contains(&f.id),
             scale,
             compte: store.folder_child_count(&f.child_board_id),
         };

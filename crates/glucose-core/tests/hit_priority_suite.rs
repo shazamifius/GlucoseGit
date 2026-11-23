@@ -110,7 +110,7 @@ fn test_hit_priority_rules() {
         folders: &empty_folders,
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
     let cands = collect_candidates(&input);
@@ -187,7 +187,7 @@ fn test_nested_containers_smallest_wins() {
         folders: &[],
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
     assert_eq!(order(&input1)[0], "membrane-body:PETITE");
@@ -232,7 +232,7 @@ fn test_pick_2_ce_qui_est_peint_dessus_gagne() {
         folders: &[],
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -270,7 +270,7 @@ fn test_handles_absolute_priority() {
         folders: &[],
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(sel_m.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -319,7 +319,7 @@ fn test_click_cycle_chain() {
         folders: &[],
         selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
 
@@ -430,7 +430,7 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         // Sélectionnée : c'est la seule situation où des poignées pourraient naître.
         selected_image_ids: &glucose_core::store::choix::Choix::from(selected.to_vec()),
         selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-        selected_folder_id: None,
+        selected_folder_ids: &glucose_core::store::choix::Choix::default(),
         noeuds: None,
     };
     let cands = collect_candidates(&input);
@@ -473,7 +473,7 @@ fn test_poignee_1_une_vignette_se_deplace_au_lieu_de_se_redimensionner() {
         folders: &folders,
         selected_image_ids: &choisies,
         selected_annotation_ids: &aucune,
-        selected_folder_id: None,
+        selected_folder_ids: &aucune,
         noeuds: None,
     };
 
@@ -545,7 +545,7 @@ fn test_deux_noeuds_choisis_n_ont_que_les_poignees_du_groupe() {
             folders: &[],
             selected_image_ids: &glucose_core::store::choix::Choix::from(sel.to_vec()),
             selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-            selected_folder_id: None,
+            selected_folder_ids: &glucose_core::store::choix::Choix::default(),
             noeuds: None,
         };
         collect_candidates(&input)

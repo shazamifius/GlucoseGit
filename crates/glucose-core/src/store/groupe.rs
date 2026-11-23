@@ -112,7 +112,7 @@ impl Store {
         (
             self.selected_image_ids.marque(),
             self.selected_annotation_ids.marque(),
-            &self.selected_folder_id,
+            self.selected_folder_ids.marque(),
         )
             .hash(&mut h);
         let geste = self.journal.en_cours().map(|(n, ecrits)| (n, ecrits.len()));
@@ -129,7 +129,7 @@ impl Store {
                 folders: &b.folders,
                 selected_image_ids: &self.selected_image_ids,
                 selected_annotation_ids: &self.selected_annotation_ids,
-                selected_folder_id: self.selected_folder_id.as_deref(),
+                selected_folder_ids: &self.selected_folder_ids,
                 noeuds: None,
             };
             garde.valeur = crate::hit_priority::emprise_du_groupe(&entree);
@@ -160,7 +160,7 @@ impl Store {
         departs.extend(
             b.folders
                 .iter()
-                .filter(|f| self.selected_folder_id.as_deref() == Some(f.id.as_str()))
+                .filter(|f| self.selected_folder_ids.contains(&f.id))
                 .map(|f| Depart::Dossier {
                     id: f.id.clone(),
                     pose: pose_de(f.rect()),

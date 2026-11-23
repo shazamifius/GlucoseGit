@@ -7,7 +7,7 @@ impl Store {
     pub fn clear_selection(&mut self) {
         self.selected_image_ids.clear();
         self.selected_annotation_ids.clear();
-        self.selected_folder_id = None;
+        self.selected_folder_ids.clear();
     }
 
     pub fn set_selected_image_ids(&mut self, ids: Vec<String>) {
@@ -36,9 +36,11 @@ impl Store {
         }
     }
 
-    pub fn select_folder(&mut self, id: String) {
-        self.clear_selection();
-        self.selected_folder_id = Some(id);
+    pub fn select_folder(&mut self, id: String, multi: bool) {
+        if !multi {
+            self.clear_selection();
+        }
+        self.selected_folder_ids.push(id);
     }
 
     /// **Combien de nœuds la sélection compte**, dossier compris. Le menu, la barre d'action
@@ -48,7 +50,7 @@ impl Store {
     pub fn compte_de_la_selection(&self) -> usize {
         self.selected_image_ids.len()
             + self.selected_annotation_ids.len()
-            + usize::from(self.selected_folder_id.is_some())
+            + self.selected_folder_ids.len()
     }
 }
 
@@ -111,7 +113,7 @@ impl Store {
             .iter()
             .map(|a| a.couleur_propre())
             .collect();
-        if let Some(f) = self.dossier_choisi() {
+        for f in self.dossiers_choisis() {
             let propre = f.color != crate::types::COULEUR_DE_NAISSANCE;
             couleurs.push(propre.then_some(f.color.as_str()));
         }
@@ -132,10 +134,14 @@ impl Store {
         (f.color != crate::types::COULEUR_DE_NAISSANCE).then_some(f.color.as_str())
     }
 
-    /// Le dossier choisi, s'il est sur le tableau actif.
-    fn dossier_choisi(&self) -> Option<&crate::types::CanvasFolder> {
-        let id = self.selected_folder_id.as_deref()?;
-        self.active_board()?.folders.iter().find(|f| f.id == id)
+    /// Les dossiers choisis sur le tableau actif, dans l'ordre du tableau.
+    pub fn dossiers_choisis(&self) -> Vec<&crate::types::CanvasFolder> {
+        self.active_board().map_or_else(Vec::new, |b| {
+            b.folders
+                .iter()
+                .filter(|f| self.selected_folder_ids.contains(&f.id))
+                .collect()
+        })
     }
 
     /// Les annotations choisies de cette sorte, dans l'ordre du document.
@@ -170,7 +176,7 @@ impl Store {
                 b.annotations
                     .retain(|a| choisie(&self.selected_annotation_ids, a.id()));
                 b.folders
-                    .retain(|f| self.selected_folder_id.as_deref() == Some(f.id.as_str()));
+                    .retain(|f| self.selected_folder_ids.contains(&f.id));
                 // Les cases d'un storyboard et les zones d'un gabarit ne se choisissent pas :
                 // elles ne sont pas de la sélection, et leurs cadres n'ont rien à faire autour
                 // des images choisies (fiche 68).

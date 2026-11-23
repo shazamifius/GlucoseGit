@@ -175,7 +175,7 @@ pub struct PickInput<'a> {
     pub folders: &'a [CanvasFolder],
     pub selected_image_ids: &'a crate::store::choix::Choix,
     pub selected_annotation_ids: &'a crate::store::choix::Choix,
-    pub selected_folder_id: Option<&'a str>,
+    pub selected_folder_ids: &'a crate::store::choix::Choix,
     /// **Ce qui mesure les nœuds pour les flèches** (FLECHE-4) : la boîte d'un nœud et la
     /// hauteur d'un passage de texte. Sans lui, une flèche ancrée à un passage se vise depuis
     /// le milieu de la carte ; avec lui, là où le dessin la pose — le même interlocuteur pour

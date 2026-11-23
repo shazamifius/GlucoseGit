@@ -284,12 +284,13 @@ impl Store {
             .collect();
         let mut changes = self.colorer(&board, &ids, couleur);
         let voulue = couleur.unwrap_or(crate::types::COULEUR_DE_NAISSANCE);
-        let dossier = self.selected_folder_id.clone().filter(|id| {
-            self.active_board()
-                .and_then(|b| b.folders.iter().find(|f| &f.id == id))
-                .is_some_and(|f| f.color != voulue)
-        });
-        if let Some(id) = dossier {
+        let dossiers: Vec<String> = self
+            .dossiers_choisis()
+            .into_iter()
+            .filter(|f| f.color != voulue)
+            .map(|f| f.id.clone())
+            .collect();
+        for id in dossiers {
             self.update_folder(&board, &id, |f| f.color = voulue.to_string());
             changes += 1;
         }

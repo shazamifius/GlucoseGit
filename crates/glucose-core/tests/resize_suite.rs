@@ -309,7 +309,7 @@ fn test_pick_1_a_selected_node_exposes_its_eight_handles() {
             folders: &[],
             selected_image_ids: &glucose_core::store::choix::Choix::from(selected.to_vec()),
             selected_annotation_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
-            selected_folder_id: None,
+            selected_folder_ids: &glucose_core::store::choix::Choix::default(),
             noeuds: None,
         };
         let top = collect_candidates(&input)
@@ -359,7 +359,7 @@ fn test_pick_1_a_text_card_offers_all_eight_handles() {
             folders: &[],
             selected_image_ids: &glucose_core::store::choix::Choix::from(empty.to_vec()),
             selected_annotation_ids: &glucose_core::store::choix::Choix::from(selected.to_vec()),
-            selected_folder_id: None,
+            selected_folder_ids: &glucose_core::store::choix::Choix::default(),
             noeuds: None,
         };
         collect_candidates(&input)
