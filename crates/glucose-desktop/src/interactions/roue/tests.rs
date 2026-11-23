@@ -474,22 +474,7 @@ fn roue_1_le_disque_ne_se_refait_qu_au_dela_d_une_demi_difference_visible() {
 /// loi d'avant, n'y trouvait que le vide.
 #[test]
 fn pipette_1_viser_la_lueur_d_un_texte_prend_sa_couleur() {
-    let mut app = avec_une_source("#20c0ff");
-    let tableau = app.store.project.active_board_id.clone();
-    let mut bleu = Annotation::text("bleu", 1000.0, 300.0, "Un texte bleu.");
-    if let Annotation::Text {
-        width,
-        height,
-        color,
-        ..
-    } = &mut bleu
-    {
-        (*width, *height, *color) = (Some(300.0), Some(60.0), Some("#2a8cf9".into()));
-    }
-    app.store.add_annotation(&tableau, bleu);
-    app.store.clear_selection();
-    app.store.select_annotation("m".into(), false);
-    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    let mut app = avec_un_texte_bleu();
     assert!(
         app.pick_candidate_at(1150.0, 410.0).is_none(),
         "l'envers : sous la lueur, l'arbitre ne voit que le vide"
@@ -507,4 +492,56 @@ fn pipette_1_viser_la_lueur_d_un_texte_prend_sa_couleur() {
         Some("#2a8cf9"),
         "sa lueur, son bleu"
     );
+}
+
+/// La source de la roue, et un texte bleu de 300 × 60 en (1000, 300) ; la membrane « m » choisie.
+fn avec_un_texte_bleu() -> GlucoseApp {
+    let mut app = avec_une_source("#20c0ff");
+    let tableau = app.store.project.active_board_id.clone();
+    let mut bleu = Annotation::text("bleu", 1000.0, 300.0, "Un texte bleu.");
+    if let Annotation::Text {
+        width,
+        height,
+        color,
+        ..
+    } = &mut bleu
+    {
+        (*width, *height, *color) = (Some(300.0), Some(60.0), Some("#2a8cf9".into()));
+    }
+    app.store.add_annotation(&tableau, bleu);
+    app.store.clear_selection();
+    app.store.select_annotation("m".into(), false);
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    app
+}
+
+/// Ce que la pipette armée viserait, selon la roue.
+fn vise(app: &GlucoseApp) -> Option<Option<(u8, u8, u8)>> {
+    app.ui.roue.as_ref().and_then(|r| r.vise)
+}
+
+/// **PIPETTE-2 — armée, la roue montre ce qu'elle prendrait** (sa note du 23/11 : *« pour que ce
+/// soit visible »*) : sur la lueur du texte bleu, son bleu ; dans le vide, rien à prendre ; un
+/// clic la désarme, et la roue cesse de viser. **L'envers** : désarmée, la souris ne vise rien.
+#[test]
+fn pipette_2_armee_la_roue_montre_ce_qu_elle_prendrait() {
+    let mut app = avec_un_texte_bleu();
+    assert!(app.ouvrir_la_roue());
+    let bouger = |app: &mut GlucoseApp, (x, y): (f64, f64)| {
+        app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(x, y));
+    };
+    bouger(&mut app, (1150.0, 410.0));
+    assert_eq!(vise(&app), None, "désarmée, elle ne vise rien");
+    armer(&mut app);
+    bouger(&mut app, (1150.0, 410.0));
+    assert_eq!(
+        vise(&app),
+        Some(Some((0x2a, 0x8c, 0xf9))),
+        "sa lueur, son bleu"
+    );
+    bouger(&mut app, (1150.0, 600.0));
+    assert_eq!(vise(&app), Some(None), "dans le vide, rien à prendre — dit");
+    presser(&mut app, (1150.0, 600.0));
+    lacher(&mut app);
+    assert_eq!(vise(&app), None, "le clic la désarme");
 }

@@ -174,7 +174,8 @@ pub fn draw_roue(
         dessiner_l_opacite(pixmap, rect, (couleur, opacite), theme.bg_canvas, s);
     }
     apercu(pixmap, plat.avant, roue.avant, theme);
-    apercu(pixmap, plat.apres, roue.apres, theme);
+    // Armée, la case « après » montre ce que la pipette prendrait (PIPETTE-2).
+    apercu(pixmap, plat.apres, roue.vise.unwrap_or(roue.apres), theme);
     dessiner_le_code(pixmap, roue, plat.code, (typography, theme, s));
     super::action_bar::bouton(pixmap, plat.pipette, (s, roue.pipette), theme);
     let encre = if roue.pipette {
@@ -184,6 +185,9 @@ pub fn draw_roue(
     };
     dessiner_la_pipette(pixmap, plat.pipette, encre, s);
 }
+
+/// Ce que le code dit quand la pipette armée ne vise aucune couleur (PIPETTE-2).
+pub const RIEN_A_PRENDRE: &str = "rien à prendre";
 
 /// Le champ du code : la couleur posée en `#rrggbb` (ou « Par défaut ») ; à la frappe, ce qu'on
 /// tape, dans un bouton allumé, et son curseur.
@@ -197,10 +201,14 @@ fn dessiner_le_code(
     let corps = 12.0 * s;
     let texte = match &roue.code {
         Some(saisie) => format!("#{}", saisie.text()),
-        None => roue.apres.map_or_else(
-            || super::couleurs::PAR_DEFAUT.to_string(),
-            glucose_core::couleur::roue::hex,
-        ),
+        None => match roue.vise {
+            Some(None) => RIEN_A_PRENDRE.to_string(),
+            Some(Some(couleur)) => glucose_core::couleur::roue::hex(couleur),
+            None => roue.apres.map_or_else(
+                || super::couleurs::PAR_DEFAUT.to_string(),
+                glucose_core::couleur::roue::hex,
+            ),
+        },
     };
     if roue.code.is_some() {
         super::action_bar::bouton(pixmap, rect, (s, true), theme);

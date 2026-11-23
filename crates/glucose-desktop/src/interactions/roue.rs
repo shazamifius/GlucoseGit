@@ -39,6 +39,9 @@ pub struct RoueOuverte {
     pub code: Option<crate::interactions::text_entry::TextEntry>,
     /// La pipette est armée : le prochain clic sur le canevas prend la couleur d'un nœud.
     pub pipette: bool,
+    /// **Ce que la pipette armée prendrait sous la souris** (PIPETTE-2) : une couleur, ou rien à
+    /// prendre (`Some(None)`) ; `None` quand elle ne vise pas.
+    pub vise: Option<Option<(u8, u8, u8)>>,
     /// L'opacité du corps des dossiers choisis, sur 255 — `None` sans dossier choisi (OPACITE-1).
     pub opacite: Option<u8>,
     /// Ce que la roue a touché : chaque mouvement repart des couleurs d'avant et repose les deux
@@ -93,6 +96,7 @@ impl GlucoseApp {
             clarte_du_disque: place.clarte,
             code: None,
             pipette: false,
+            vise: None,
             opacite,
             couleur_touchee: false,
             opacite_touchee: false,

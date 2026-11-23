@@ -25,6 +25,7 @@ impl GlucoseApp {
         if let Some(roue) = self.ui.roue.as_mut() {
             roue.code = Some(TextEntry::new(""));
             roue.pipette = false;
+            roue.vise = None;
         }
         self.mark_dirty();
     }
@@ -33,6 +34,7 @@ impl GlucoseApp {
     pub(super) fn armer_la_pipette(&mut self) {
         if let Some(roue) = self.ui.roue.as_mut() {
             roue.pipette = !roue.pipette;
+            roue.vise = None;
             roue.code = None;
         }
         self.mark_dirty();
@@ -77,6 +79,7 @@ impl GlucoseApp {
     pub(super) fn prendre_a_la_pipette(&mut self, (px, py): (f32, f32)) {
         if let Some(roue) = self.ui.roue.as_mut() {
             roue.pipette = false;
+            roue.vise = None;
         }
         let vue = self.store.viewport();
         let (wx, wy) = crate::canvas::screen_to_world(f64::from(px), f64::from(py), &vue);
@@ -84,6 +87,35 @@ impl GlucoseApp {
             self.poser_la_couleur(octets);
         }
         self.mark_dirty();
+    }
+
+    /// **PIPETTE-2 — ce qu'elle prendrait, sous la souris** (sa note du 23/11 : *« pour que ce soit
+    /// visible qu'on vient bien de prendre la même couleur »*) : armée, chaque mouvement vise comme
+    /// le clic viserait, et la roue le montre — sa case « après » et son code —, ou dit qu'il n'y a
+    /// rien à prendre : rien ne se tait. Sur la roue elle-même, elle ne vise rien.
+    pub(crate) fn viser_a_la_pipette(&mut self, ici: (f32, f32)) {
+        if !self.ui.roue.as_ref().is_some_and(|r| r.pipette) {
+            return;
+        }
+        let (l, h) = self.taille_de_la_fenetre();
+        let vise = if self
+            .endroit_de_la_roue(ici, self.screen_frame(l, h))
+            .is_some()
+        {
+            None
+        } else {
+            let vue = self.store.viewport();
+            let (wx, wy) = crate::canvas::screen_to_world(f64::from(ici.0), f64::from(ici.1), &vue);
+            Some(self.couleur_du_noeud_sous(wx, wy))
+        };
+        let change = self.ui.roue.as_mut().is_some_and(|roue| {
+            let change = roue.vise != vise;
+            roue.vise = vise;
+            change
+        });
+        if change {
+            self.mark_dirty();
+        }
     }
 
     /// La couleur que porte le nœud du dessus en `(wx, wy)`, s'il en porte une. **Hors d'un contenu**

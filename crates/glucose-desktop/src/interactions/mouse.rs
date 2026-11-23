@@ -59,6 +59,8 @@ impl GlucoseApp {
         if self.glisser_la_roue((position.x as f32, position.y as f32)) {
             return;
         }
+        // La pipette armée montre ce qu'elle prendrait (PIPETTE-2).
+        self.viser_a_la_pipette((position.x as f32, position.y as f32));
         // Une poignée ou la fenêtre de la frise chronologique, tenue (FRISE-1).
         if self.glisser_la_frise(position.x as f32) {
             return;
