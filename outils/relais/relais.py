@@ -33,7 +33,7 @@ from pathlib import Path
 # Lancé par `python3 -I`, le dossier du programme n'est pas dans le chemin : `loi` y est. À la fin,
 # pour que la bibliothèque standard passe toujours devant.
 sys.path.append(str(Path(__file__).resolve().parent))
-from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, PASSATION, REGLES,  # noqa: E402
+from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
                  REPONSE, SILENCE, decider, depart, dernier_geste, en_pause, heure, humaine,
                  raison_continuer, raison_entendre, raison_passation, raison_prevenir, ses_paroles,
                  signee)
@@ -221,6 +221,8 @@ def parole():
         entree = json.load(sys.stdin)
     except ValueError:
         return 0
+    if (entree.get("prompt") or "").lstrip().startswith(NOTIFICATIONS):
+        return 0  # réveillée par sa propre commande, une session ne prend pas la main : il n'a rien écrit
     ici = Path(entree.get("cwd") or "/").resolve()
     if DEPOT.resolve() not in (ici, *ici.parents):
         return 0

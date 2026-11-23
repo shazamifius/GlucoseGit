@@ -322,8 +322,8 @@
  {
   "nom": "SES-NOTES — le départ ne donne pas ses notes",
   "fichier": "outils/relais/loi.py",
-  "avant": "\"par une flèche — avant toute autre tâche.\" if paroles else \"\")",
-  "apres": "\"par une flèche — avant toute autre tâche.\" if False else \"\")",
+  "avant": "tableau=….\" if paroles else \"\")",
+  "apres": "tableau=….\" if False else \"\")",
   "cmd": [
    "python3",
    "-m",
@@ -500,6 +500,22 @@
   "fichier": "outils/relais/loi.py",
   "avant": "\"%H:%M\" if meme_jour else \"%d/%m %H:%M\"",
   "apres": "\"%H:%M\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — une notification de tâche prend la main (sa vérification interrompait le relais)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if (entree.get(\"prompt\") or \"\").lstrip().startswith(NOTIFICATIONS):\n        return 0  # réveillée",
+  "apres": "    if False:\n        return 0  # réveillée",
   "cmd": [
    "python3",
    "-m",

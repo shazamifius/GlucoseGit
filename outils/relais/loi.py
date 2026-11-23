@@ -13,6 +13,10 @@ INVITE_REPONSE = "✍️ Ta réponse :"
 # son écran, ou écrit sa conversation, au moins aussi souvent. 35 minutes sans un signe : elle ne
 # travaille plus.
 SILENCE = 35 * 60
+# Ce qui réveille une session sans qu'il ait rien écrit : la fin d'une commande en arrière-plan (le
+# 23/11 à 14 h 41, la vérification de Claude, réveillée ainsi, a pris la main au relais). Une session
+# à lui qui travaille garde la main par son journal ; une session qui ne fait que veiller ne la prend plus.
+NOTIFICATIONS = ("<task-notification>",)
 
 REGLES = (
     "Tu es une session du RELAIS de Glucose : personne ne lit ce terminal en direct. Une question "

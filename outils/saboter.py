@@ -13,14 +13,20 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 # La racine du dépôt : le dossier parent de celui-ci.
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def jouer(cmd):
-    r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    """Joue la commande. **Python compile dans un dossier vierge à chaque essai** : il croit sa copie
+    compilée tant que la date (à la seconde) et la taille du source n'ont pas bougé — « min » pour
+    « max », rétabli dans la même seconde, rejouait le sabotage sur le code intact, et le code intact
+    à la place du sabotage (le 23/11, fiche 132 : une garde prise pour aveugle)."""
+    with tempfile.TemporaryDirectory() as vierge:
+        r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", env={**os.environ, "PYTHONPYCACHEPREFIX": vierge})
     return r.returncode, r.stdout + r.stderr
 
 

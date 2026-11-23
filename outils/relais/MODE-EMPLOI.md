@@ -69,3 +69,7 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   chaque appel — un `relais.py` cassé casse aussi la barre d'état.
 - Une fenêtre de jauge pleine se vide à sa remise ; une jauge jamais lue compte pour libre : le
   lancement la lit (la barre d'état ne la donne qu'après la première réponse).
+- La fin d'une commande en arrière-plan réveille une session par « UserPromptSubmit » : elle ne prend
+  pas la main (`NOTIFICATIONS`) — sinon une session qui ne fait que veiller interromprait le relais.
+- `saboter.py` compile Python dans un dossier vierge : une copie compilée périmée jouait le
+  sabotage sur le code intact quand le remplacement avait la même taille.

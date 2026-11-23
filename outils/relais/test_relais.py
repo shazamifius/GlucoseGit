@@ -509,8 +509,8 @@ class Parole(unittest.TestCase):
             retouche.stop()
         self.dossier.cleanup()
 
-    def parler(self, cwd, relais="0"):
-        entree = json.dumps({"session_id": "s1", "transcript_path": None, "cwd": str(cwd), "prompt": "x"})
+    def parler(self, cwd, relais="0", prompt="x"):
+        entree = json.dumps({"session_id": "s1", "transcript_path": None, "cwd": str(cwd), "prompt": prompt})
         with mock.patch("sys.stdin") as stdin, mock.patch("builtins.print") as dire, \
                 mock.patch.dict("os.environ", {"RELAIS": relais}):
             stdin.read.return_value = entree
@@ -526,6 +526,12 @@ class Parole(unittest.TestCase):
     def test_ailleurs_ou_session_du_relais_rien(self):
         self.assertEqual(self.parler(Path(self.dossier.name))[1], {})
         self.assertEqual(self.parler(self.depot, relais="1")[1], {})
+
+    def test_une_notification_de_tache_ne_prend_pas_la_main(self):
+        """Le 23/11, 14 h 41 : réveillée par sa propre commande, la vérification de Claude la prenait."""
+        notification = "<task-notification>\n<task-id>bxicvo6es</task-id>\n<status>completed</status>"
+        self.assertEqual(self.parler(self.depot, prompt=notification)[1], {})
+        self.assertIn("s1", self.parler(self.depot, prompt="<b>ma</b> question")[1])
 
     def test_elle_apprend_qu_une_session_du_relais_vit_encore(self):
         with mock.patch.object(r, "session_tmux", lambda: "relais-a"):

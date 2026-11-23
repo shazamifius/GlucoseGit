@@ -107,3 +107,23 @@
   document peut diriger le relais. Le ❤️ dit toujours de qui vient la consigne suivie.
 * **Une session à lui prend la main dès son premier message**, même pour une simple question.
 * **35 minutes de silence** avant que le relais reprenne, sauf `rendre`.
+
+## 8. Après le commit — la première session, regardée
+
+* **14 h 15**, la main rendue : la session est lancée sur le compte a avec ses 31 nœuds. **De 14 h 23 à
+  14 h 38, elle lui répond dans son Glucose**, une réponse et une flèche par note (`relais-rep-…`),
+  puis reprend le plan : MCP-DOSSIER (fiche 133, `9accdfe`), dont `ses_paroles()` qui ne prend plus le
+  nom d'un dossier (« Dossier ») pour un identifiant.
+* **14 h 41, un défaut vu en vrai** : ma vérification, réveillée par la fin de sa propre commande en
+  arrière-plan, est passée par « UserPromptSubmit » — **une notification de tâche prenait la main** et
+  aurait fait s'effacer le relais à chaque vérification. Rendue à 14 h 41 min 26 s, avant le tour du
+  veilleur. **Corrigé** (`NOTIFICATIONS`, `loi.py`) : seul ce qu'il écrit prend la main ; une session à
+  lui qui travaille la garde par son journal. Épreuve et sabotage (33 sur 33).
+* **Corrigé sans double session** : la main reprise exprès à 14 h 44, **la passation demandée,
+  écrite, la session close à 14 h 50** — elle avait commité son travail d'abord, copie de travail
+  propre. Le passage de main d'une session à l'autre, regardé de bout en bout.
+* **Un piège de `saboter.py`** : Python croit sa copie compilée tant que la date (à la seconde) et la
+  taille du source n'ont pas changé ; « min » pour « max », rétabli dans la même seconde, jouait le
+  sabotage sur le code intact (le « libre à la plus proche remise » passait pour aveugle, puis le
+  témoin tombait). `jouer()` compile désormais dans un dossier vierge (`PYTHONPYCACHEPREFIX`) :
+  **les 50 sabotages du relais (132, 131, relais, 133) tombent, trois fois de suite**.
