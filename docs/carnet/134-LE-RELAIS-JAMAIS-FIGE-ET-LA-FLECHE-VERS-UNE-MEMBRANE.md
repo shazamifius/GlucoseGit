@@ -287,3 +287,31 @@ sa scène vue à 0,17 (le texte fait 41 × 12 px), un clic le prend, un double-c
 vaut que pour une membrane neuve ; la question est dans son Glucose. **Pas touché** : le bord d'un **dossier**, qui n'est pas peint sous ce qui le
 recouvre de la même façon ; et le rang exact du bord couvert (le corps, 60, plutôt qu'un rang
 entre la photo et le corps) n'a pas d'épreuve qui le distingue.
+
+## 13. La pipette — ce qui « fonctionne super mal », vu au pilote (23/11, 20 h 44)
+
+**Sa note** (`text-f5fn-368`) : *« le logo de l'outil pipette présent dans les couleurs, ainsi que l'outil
+lui-même, fonctionnent SUPER mal ; il faudrait qu'on puisse avoir la couleur exacte d'un bloc de texte
+directement avec sa sélection, pour que ce soit visible qu'on vient bien de prendre la même couleur que
+le bloc sélectionné »*.
+
+**Regardé** (`~/.cache/glucose-bancs/pipette-134/`, trois textes : bleu, rouge, un sans couleur) : la
+pipette **prend juste** quand on clique **dans la boîte** d'un texte coloré (`5-prise.png` : le texte
+choisi devient `#2a8cf9`, la roue le dit). Mais :
+
+1. **La lueur ne se prend pas** (`6-lueur.png`) : la couleur d'un texte se voit dans sa **lueur**, autour
+   de sa boîte (son papier est toujours gris) ; viser la lueur rouge ne prend rien, **en silence**, et
+   la pipette se désarme. On vise ce qu'on voit — et l'on rate.
+2. **Rien ne dit ce qu'elle va prendre** (`4-armee.png`) : armée, le curseur reste la flèche, aucun
+   aperçu sous la souris ; seul le bouton s'éclaire un peu.
+3. **Un nœud sans couleur choisie ne donne rien, en silence** (la loi « tout a une signification ») —
+   alors que sa lueur de parenté, elle, a une couleur à l'écran.
+4. **L'icône** est un trait oblique, méconnaissable.
+
+**Le plan** (à faire) : (a) la pipette vise **le nœud dont la lueur couvre le point** — sa boîte, puis le
+plus proche dont la lueur atteint le point, par la même loi que le dessin de la lueur ; (b) **armée,
+l'aperçu** : le curseur en pipette et, sous lui, la pastille de la couleur qu'elle prendrait (ou « pas
+de couleur choisie ») — la case « après » de la roue suit la souris ; (c) **rien ne se tait** : un nœud
+sans couleur le dit ; (d) l'icône redessinée (une vraie pipette : la poire et le tube). Recherche à
+faire avant : la pipette de Blender (l'aperçu sous le curseur, `Échap`), celle de Figma (la loupe).
+
