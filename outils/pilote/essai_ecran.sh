@@ -41,8 +41,17 @@ S=$B/sortie.txt
   echo "CODE $?" >> "$S") &
 for _ in $(seq 90); do sleep 1; grep -q "frame #" "$S" 2>/dev/null && break; done
 sleep 8
-# Ce Glucose-ci, par son numéro : `pkill -x glucose-desktop` tuerait aussi le sien.
-pid=$(pgrep -f "^$exe( |\$)" | head -1)
+# **Ce Glucose-ci**, par son binaire ET son dossier personnel — jamais par son nom seul : depuis le
+# 22/11, son Glucose à lui (un service) et les relais des agents tournent le même binaire, et le
+# premier trouvé par son nom était le sien (fiche 131).
+le_glucose_de() {
+  local p
+  for p in $(pgrep -u "$(id -u)"); do
+    [ "$(readlink "/proc/$p/exe" 2>/dev/null)" = "$(readlink -f "$exe")" ] || continue
+    tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -qx "HOME=$1" && echo "$p"
+  done | head -1
+}
+pid=$(le_glucose_de "$B/maison")
 fermer() { [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null; }
 arreter() { echo "ARRET : $1" | tee -a "$B/fenetre.txt"; [ -p "$B/pointeur" ] && printf 'fin\n' > "$B/pointeur"; fermer; exit 1; }
 [ -n "$pid" ] || arreter "ce Glucose ne s'est pas lancé"

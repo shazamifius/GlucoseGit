@@ -13,6 +13,16 @@ racine=$(cd "$(dirname "$0")/.." && pwd)
 secondes=${1:?usage : console_disparue.sh <secondes> [programme]}
 exe=${2:-$racine/target/release/glucose-desktop}
 maison=$(mktemp -d)
+# **Ce Glucose-ci**, par son binaire ET son dossier personnel — jamais par son nom seul : depuis le
+# 22/11, son Glucose à lui (un service) et les relais des agents tournent le même binaire, et le
+# premier trouvé par son nom était le sien (fiche 131).
+le_glucose_de() {
+  local p
+  for p in $(pgrep -u "$(id -u)"); do
+    [ "$(readlink "/proc/$p/exe" 2>/dev/null)" = "$(readlink -f "$exe")" ] || continue
+    tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -qx "HOME=$1" && echo "$p"
+  done | head -1
+}
 mkdir -p "$maison/state/glucose"
 printf 'envoyer=non\nvue=oui\ninstallation=%032x\n' 4 > "$maison/state/glucose/telemetrie.txt"
 compo=$(mktemp -d /tmp/gw.XXXXXX)
@@ -40,7 +50,7 @@ if [ -z "$journal" ]; then
   verdict="JAMAIS LANCÉ"
 else
   sleep "$secondes"
-  pid=$(pgrep -f -x "$exe" | head -1)
+  pid=$(le_glucose_de "$maison")
   if [ -n "$pid" ]; then verdict=VIVANT; kill -TERM "$pid"; sleep 2; else verdict=MORT; fi
 fi
 echo "$verdict"

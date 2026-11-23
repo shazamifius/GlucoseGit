@@ -150,15 +150,27 @@
 ## 6. Vu, pas réglé
 
 * **ARBITRE-DÉMARRAGE (le point 6 du nœud 🔑)** : ce matin, l'arbitre a condamné la RTX ; son
-  souvenir dit « économe », et le prochain lancement de son Glucose ouvrira la puce du Ryzen. La
-  session interactive y voyait la contention du démarrage. **Ma lecture, probable et à
-  confirmer** : pendant le mouvement, `present` vaut 5,8 ms en médiane et 13-14 ms au 99ᵉ centile,
-  sur un écran à **60 Hz** — avec deux images en vol, `present` attend que l'écran libère une
-  place ; or l'arbitre compte comme perdu tout ce qui dépasse le plancher de la charte (10 ms), pas
-  la période de l'écran. Sur un écran plus lent que 100 Hz, il pourrait condamner une carte saine
-  dès qu'on bouge la vue. **La mesure qui tranche** : `present` image par image
-  (`GLUCOSE_PERF=1`) sur son écran, pendant un zoom, puis rejouer la loi de l'arbitre dessus avec
-  le plancher et avec la période. Je n'ai pas touché à la loi, ni à son souvenir.
+  souvenir dit « économe », et le prochain lancement de son Glucose ouvrira la puce du Ryzen.
+  **Ma première lecture était fausse, et la mesure l'a démentie** : je croyais que `present`
+  attendait la place que l'écran à 60 Hz libère (13-14 ms au 99ᵉ centile ce matin), et que
+  l'arbitre comptait ce temps comme perdu. **Mesuré sur son écran** (une fenêtre d'essai de 22 s,
+  la caméra qui vole par le scénario, la RTX, 60 Hz, mailbox ; `arbitre-ecran/` dans le banc) :
+  `present` **0,09 ms** en médiane, 0,36 au p90, 1,54 au p99, aucune image au-dessus de 10 ms ;
+  l'arbitre garde la carte. Au pilote (sway sans écran) : 0,03 ms — la sortie sans écran ne retient
+  rien, et ne peut pas servir. **Ce matin, tout était dix à vingt fois plus lent** (l'image au repos
+  3,4 ms en médiane, contre 0,46 maintenant) : c'est le moment — le PC qui démarre — que l'arbitre
+  a pris pour un défaut de la carte, comme la session interactive le pensait. **Pas réglé** : il
+  faut une loi qui distingue une carte qui gèle d'une machine qui démarre, sans constante. Pistes
+  à peser : (a) deux témoins — une carte n'est condamnée que si elle gèle dans deux sessions (le
+  prix : une session de plus sur une vraie mauvaise carte) ; (b) juger `present` contre le travail
+  de l'image elle-même (au démarrage, tout s'allonge ; une carte qui gèle n'allonge que `present`) ;
+  (c) mesurer le prochain démarrage image par image avant de choisir. Je n'ai touché ni à la loi,
+  ni à son souvenir.
+* **Trois outils d'essai à son écran visaient son Glucose** (`essai_isole.sh` : `pkill -f
+  "^$exe"` ; `essai_ecran.sh` et `console_disparue.sh` : le premier processus du binaire, le plus
+  ancien — le sien) : depuis le 22/11, son Glucose (un service) et les relais des agents tournent
+  ce même binaire. Corrigés : le Glucose d'essai se retrouve par son binaire **et** son dossier
+  personnel (`le_glucose_de`).
 * **Un geste vide de la salle salit le document** : il fait monter la version sans rien écrire, et
   la croix demande alors d'enregistrer un document nommé. Vu dans une épreuve ; un vrai geste
   s'écrit et laisse le document propre.

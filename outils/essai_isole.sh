@@ -24,7 +24,11 @@ nix develop "$racine" --no-write-lock-file -c env HOME="$ici" XDG_DATA_HOME="$ic
 pere=$!
 sleep "$secondes"
 [ -n "$capture" ] && grim "$capture"
-pkill -TERM -P "$pere" 2>/dev/null
-pkill -TERM -f "^$exe" 2>/dev/null
+# Le Glucose de l'essai se retrouve par son dossier personnel, JAMAIS par son nom de programme :
+# depuis le 22/11, son Glucose à lui (un service) et les relais des agents tournent ce même binaire
+# — `pkill -f "^$exe"` les fermait tous (fiche 131).
+for p in $(pgrep -x "$(basename "$exe" | cut -c1-15)"); do
+  tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -qx "HOME=$ici" && kill -TERM "$p"
+done
 wait "$pere"
 echo "code=$? dossier=$ici sortie=$sortie"
