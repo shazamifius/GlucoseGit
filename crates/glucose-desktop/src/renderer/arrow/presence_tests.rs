@@ -474,10 +474,14 @@ fn test_survol_2_de_loin_la_souris_ne_redessine_rien() {
     app.une_image_sans_fenetre((1200, 800));
     salit(&mut app, (1150.0, 780.0));
     app.une_image_sans_fenetre((1200, 800));
-    // Entre les liens de « a », qui partent tous les 28° : à soixante et cent pixels de lui
-    // (douze cents et deux mille unités du monde : à la taille réelle, la souris les relèverait),
-    // puis de nouveau loin. Sur un lien, la main l'allumerait — et redessiner serait juste.
-    for ecran in [(645.0, 440.0), (697.0, 424.0), (1150.0, 780.0)] {
+    // Entre les liens de « a », qui partent tous les 28° : à soixante et cent pixels de lui, à
+    // 41,5° (douze cents et deux mille unités du monde : à la taille réelle, la souris les
+    // relèverait), puis de nouveau loin. Sur un lien, la main l'allumerait — et redessiner serait
+    // juste. **Loin aussi des liens coudés de « z »**, qui passent par (300, 300) : leur long
+    // segment longe y ≈ 300 du monde, 415 de l'écran. Le second point était en (697, 424), à
+    // 7 px de `f-z3` : l'index ne voyait que la copie factice de ses bouts, et l'épreuve passait
+    // sur une prémisse fausse ; depuis ANCRE-1 (fiche 135), il voit la flèche où elle se dessine.
+    for ecran in [(645.0, 440.0), (675.0, 466.0), (1150.0, 780.0)] {
         assert!(
             !salit(&mut app, ecran),
             "de loin, la souris en {ecran:?} salit l'image"
