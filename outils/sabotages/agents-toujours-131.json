@@ -1,0 +1,194 @@
+[
+ {
+  "nom": "AGENTS-TOUJOURS — l'accord du document ne vaut pas pour les agents de la machine",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "let accord = if !d.appel.portee.machine || toujours {",
+  "apres": "let accord = if !d.appel.portee.machine {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — la boucle ne regarde pas le document ouvert",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "let toujours = agents.toujours.vaut(&self.store.identite);",
+  "apres": "let toujours = false;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — « Toujours » n'accorde qu'à ce nom-là",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "                let identite = self.store.identite.clone();\n                self.lancement.agents.toujours.retenir(&identite);\n",
+  "apres": "                self.lancement.agents.accords.insert(client, true);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — la question l'offre à un document sans fichier",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "    if durable {",
+  "apres": "    if true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — « Retirer l'accord » ne le reprend pas",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "        agents.toujours.oublier(&identite);\n",
+  "apres": "        let _ = identite;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — la question qui retire ne le dit pas",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "            noms.insert(0, toujours_dit(agents.toujours.rate.as_deref()));\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — l'écriture ratée ne se dit pas",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "        Some(e) => {\n            format!(\"{dit} (pour cette session seulement : Glucose n'a pas pu le retenir — {e})\")",
+  "apres": "        Some(_) => {\n            dit",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — rien ne s'écrit sur le disque",
+  "fichier": "crates/glucose-desktop/src/agents/toujours.rs",
+  "avant": "        self.rate = ecrire(fichier, &self.documents)\n            .err()",
+  "apres": "        self.rate = Ok::<(), std::io::Error>(())\n            .err()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — rien ne se relit au lancement",
+  "fichier": "crates/glucose-desktop/src/agents/toujours.rs",
+  "avant": "    std::fs::read_to_string(chemin)\n",
+  "apres": "    std::fs::read_to_string(chemin.with_extension(\"rien\"))\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — offert pour un document qui n'est pas sur le disque",
+  "fichier": "crates/glucose-desktop/src/agents/toujours.rs",
+  "avant": "&& Path::new(identite).is_file()",
+  "apres": "&& !identite.is_empty()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — offert sans fichier où le retenir",
+  "fichier": "crates/glucose-desktop/src/agents/toujours.rs",
+  "avant": "        self.fichier.is_some() && !identite.contains('\\n')",
+  "apres": "        !identite.contains('\\n')",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ },
+ {
+  "nom": "AGENTS-TOUJOURS — oublier ne s'écrit pas",
+  "fichier": "crates/glucose-desktop/src/agents/toujours.rs",
+  "avant": "        if self.documents.remove(identite) {\n            self.garder();\n        }",
+  "apres": "        self.documents.remove(identite);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::agents",
+   "agents::toujours"
+  ]
+ }
+]

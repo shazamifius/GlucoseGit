@@ -27,8 +27,10 @@
 //! # AGENTS-1 — rien sans son accord
 //!
 //! La première fois qu'un agent appelle un outil, Glucose demande à l'utilisateur s'il
-//! l'autorise (une question dessinée, QUESTION-1) ; l'appel attend sa réponse. Le choix vaut
-//! jusqu'à la fermeture de Glucose. Lire le tableau compte : son contenu est à lui.
+//! l'autorise (une question dessinée, QUESTION-1) ; l'appel attend sa réponse. « Autoriser » vaut
+//! jusqu'à la fermeture de Glucose ; **« Toujours, dans ce document »** ([`toujours`], fiche 131)
+//! vaut pour tout programme de la machine, dans ce document, même après un redémarrage. Lire le
+//! tableau compte : son contenu est à lui.
 //!
 //! # AGENTS-2 — la porte n'est qu'à lui
 //!
@@ -48,6 +50,7 @@ pub mod publique;
 pub mod relais;
 #[cfg(not(target_os = "android"))]
 pub mod terminal;
+pub mod toujours;
 
 use crate::plateforme::Reveil;
 use std::collections::VecDeque;

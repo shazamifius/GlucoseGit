@@ -1,12 +1,14 @@
 //! AGENTS-1 — rien sans son accord : la question, puis l'appel ; et rien pendant son geste.
 
-use super::Agents;
+use super::{Agents, TOUJOURS};
 use crate::agents::json::Json;
 use crate::agents::protocole::Appel;
+use crate::agents::toujours::Toujours;
 use crate::agents::{Boite, Demande};
 use crate::app::GlucoseApp;
 use crate::interactions::question::tests::repondre;
 use crate::ui::question::{Reponse, Suite};
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 
@@ -358,4 +360,165 @@ fn lecture_1_plus_tard_refuse_l_appel_de_cet_agent_et_pas_un_autre() {
     app.store.end_live_edit();
     app.suivre_les_agents();
     assert!(!en_erreur(&ecriture.try_recv().expect("répondu")));
+}
+
+/// Un document qui vit dans un fichier, et le fichier où Glucose retient l'accord durable — dans
+/// un dossier d'épreuve, jamais celui de l'utilisateur.
+fn document_et_toujours(nom: &str) -> (PathBuf, PathBuf) {
+    let d = std::env::temp_dir().join(format!(
+        "glucose-agents-toujours-{nom}-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).expect("dossier");
+    let document = d.join("GLUCOSE PROJET.glucose");
+    std::fs::write(&document, "{}").expect("document");
+    (document, d.join("agents-toujours.txt"))
+}
+
+/// Un Glucose lancé sur ce document, son accord durable lu dans ce fichier — comme au vrai
+/// lancement (`ouvrir_la_porte_des_agents`).
+fn lancer(document: &Path, toujours: &Path) -> (GlucoseApp, Boite) {
+    let (mut app, boite) = app_et_boite();
+    app.lancement.agents.toujours = Toujours::depuis(toujours.to_path_buf());
+    app.store.identite = document.display().to_string();
+    (app, boite)
+}
+
+/// Sa réponse « Toujours, dans ce document » à la question posée pour cet agent.
+fn toujours(app: &mut GlucoseApp, boite: &Boite, client: &str) -> Receiver<String> {
+    let reponse = appeler(boite, client, "glucose_lire", "{}");
+    app.suivre_les_agents();
+    let Some((question, Suite::Agent(_))) = &app.ui.question else {
+        panic!("la question d'accord");
+    };
+    let offert = question
+        .choix
+        .iter()
+        .any(|(l, r)| l == "Toujours, dans ce document" && *r == TOUJOURS);
+    assert!(offert, "le choix s'offre : {:?}", question.choix);
+    repondre(app, TOUJOURS);
+    reponse
+}
+
+/// **AGENTS-TOUJOURS — une fois choisi, tout programme de la machine passe, quel que soit son nom,
+/// et Glucose relancé ne repose pas la question** (fiche 131). Le 23/11 au matin, le PC redémarré,
+/// il a dû autoriser trois fois à la main : « le terminal », « claude-code »…
+#[test]
+fn agents_toujours_vaut_pour_tout_agent_de_la_machine_et_survit_au_relancement() {
+    let (document, fichier) = document_et_toujours("relance");
+    let (mut app, boite) = lancer(&document, &fichier);
+    let premiere = toujours(&mut app, &boite, "le terminal");
+    assert!(!en_erreur(&premiere.try_recv().expect("répondu")));
+    let autre = appeler(
+        &boite,
+        "claude-code",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    app.suivre_les_agents();
+    assert!(
+        app.ui.question.is_none(),
+        "aucune question pour un autre nom"
+    );
+    assert!(!en_erreur(&autre.try_recv().expect("répondu")));
+
+    let (mut relance, boite) = lancer(&document, &fichier);
+    let apres = appeler(
+        &boite,
+        "un nom jamais vu",
+        "glucose_poser_texte",
+        r#"{"id":"b","texte":"y"}"#,
+    );
+    relance.suivre_les_agents();
+    assert!(relance.ui.question.is_none(), "relancé, aucune question");
+    assert!(!en_erreur(&apres.try_recv().expect("répondu")));
+    assert!(existe(&relance, "b"));
+}
+
+/// La preuve à l'envers : « Autoriser » ne vaut que jusqu'à la fermeture — relancé, on redemande.
+#[test]
+fn agents_toujours_autoriser_seul_ne_survit_pas_au_relancement() {
+    let (document, fichier) = document_et_toujours("autoriser");
+    let (mut app, boite) = lancer(&document, &fichier);
+    autoriser(&mut app, &boite, "le terminal");
+    let (mut relance, boite) = lancer(&document, &fichier);
+    let attente = appeler(&boite, "le terminal", "glucose_lire", "{}");
+    relance.suivre_les_agents();
+    assert!(matches!(&relance.ui.question, Some((_, Suite::Agent(_)))));
+    assert!(attente.try_recv().is_err());
+}
+
+/// **Dans ce document seulement** : un autre document ouvert, la question revient.
+#[test]
+fn agents_toujours_ne_vaut_que_pour_ce_document() {
+    let (document, fichier) = document_et_toujours("autre");
+    let (mut app, boite) = lancer(&document, &fichier);
+    let _ = toujours(&mut app, &boite, "le terminal");
+    let ailleurs = document.with_file_name("autre.glucose");
+    std::fs::write(&ailleurs, "{}").expect("document");
+    let (mut app, boite) = lancer(&ailleurs, &fichier);
+    let attente = appeler(&boite, "le terminal", "glucose_lire", "{}");
+    app.suivre_les_agents();
+    assert!(matches!(&app.ui.question, Some((_, Suite::Agent(_)))));
+    assert!(attente.try_recv().is_err());
+}
+
+/// Un document jamais enregistré n'a pas d'identité qui survive : le choix ne s'offre pas (il
+/// mentirait), la question le tait.
+#[test]
+fn agents_toujours_ne_s_offre_pas_a_un_document_jamais_enregistre() {
+    let (_document, fichier) = document_et_toujours("vierge");
+    let (mut app, boite) = app_et_boite();
+    app.lancement.agents.toujours = Toujours::depuis(fichier);
+    let _ = appeler(&boite, "le terminal", "glucose_lire", "{}");
+    app.suivre_les_agents();
+    let Some((question, Suite::Agent(_))) = &app.ui.question else {
+        panic!("la question d'accord");
+    };
+    assert!(!question.choix.iter().any(|(_, r)| *r == TOUJOURS));
+    assert!(!question.texte.contains("Toujours"));
+}
+
+/// **« Retirer l'accord des agents… » le dit, et le reprend** — d'un lancement à l'autre.
+#[test]
+fn agents_toujours_retirer_l_accord_le_reprend_d_un_lancement_a_l_autre() {
+    let (document, fichier) = document_et_toujours("retirer");
+    let (mut app, boite) = lancer(&document, &fichier);
+    let _ = toujours(&mut app, &boite, "le terminal");
+    assert!(app.executer(crate::commandes::Commande::OublierLesAgents));
+    let Some((question, Suite::OublierLesAgents)) = &app.ui.question else {
+        panic!("la question qui dit qui a son accord");
+    };
+    assert!(
+        question.texte.contains("tout programme de cette machine"),
+        "{}",
+        question.texte
+    );
+    repondre(&mut app, Reponse::Oui);
+    let (mut relance, boite) = lancer(&document, &fichier);
+    let _ = appeler(&boite, "le terminal", "glucose_lire", "{}");
+    relance.suivre_les_agents();
+    assert!(
+        matches!(&relance.ui.question, Some((_, Suite::Agent(_)))),
+        "on lui redemande"
+    );
+}
+
+/// Le disque refuse l'écriture : l'accord vaut pour la session, et la question qui le retire le dit.
+#[test]
+fn agents_toujours_pas_retenu_sur_le_disque_se_dit() {
+    let (document, fichier) = document_et_toujours("disque");
+    std::fs::write(&fichier, "").expect("un fichier là où il faudrait un dossier");
+    let (mut app, boite) = lancer(&document, &fichier.join("agents-toujours.txt"));
+    let _ = toujours(&mut app, &boite, "le terminal");
+    assert!(app.executer(crate::commandes::Commande::OublierLesAgents));
+    let Some((question, Suite::OublierLesAgents)) = &app.ui.question else {
+        panic!("la question qui dit qui a son accord");
+    };
+    assert!(
+        question.texte.contains("pour cette session seulement"),
+        "{}",
+        question.texte
+    );
 }

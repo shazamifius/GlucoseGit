@@ -38,6 +38,10 @@ pub struct Agents {
     _porte: Option<Porte>,
     /// L'accord de l'utilisateur, par agent, jusqu'à la fermeture de Glucose.
     accords: HashMap<String, bool>,
+    /// **« Toujours, dans ce document »** (AGENTS-TOUJOURS, fiche 131) : les documents où tout
+    /// programme de la machine travaille sans question — lus au vrai lancement seulement ; une
+    /// épreuve qui n'en pose pas ne lit ni n'écrit jamais le dossier de l'utilisateur.
+    pub(crate) toujours: crate::agents::toujours::Toujours,
     attente: VecDeque<Demande>,
     /// **La discussion avec une IA gratuite** (fiche 129) : la question en route, s'il y en a une…
     pub(crate) discussion: Option<crate::ia::discussion::EnRoute>,
@@ -91,16 +95,18 @@ impl Agents {
     }
 
     /// **La première demande qui peut passer** (LECTURE-1, fiche 130) : aucune n'attend derrière
-    /// une autre ; pendant le geste de l'humain, seule une lecture passe (AGENT-1).
-    fn prochaine(&self, geste_ouvert: bool) -> Prochaine {
+    /// une autre ; pendant le geste de l'humain, seule une lecture passe (AGENT-1). `toujours` :
+    /// le document a l'accord durable — tout programme de la machine y passe, quel que soit le
+    /// nom qu'il se donne (AGENTS-TOUJOURS).
+    fn prochaine(&self, geste_ouvert: bool, toujours: bool) -> Prochaine {
         let mut a_demander = None;
         for (i, d) in self.attente.iter().enumerate() {
             // Une IA du nuage a déjà son accord : la clé que Glucose lui a donnée après son clic
             // (PUBLIQUE-1, fiche 116).
-            let accord = if d.appel.portee.machine {
-                self.accords.get(&d.appel.client).copied()
-            } else {
+            let accord = if !d.appel.portee.machine || toujours {
                 Some(true)
+            } else {
+                self.accords.get(&d.appel.client).copied()
             };
             match accord {
                 Some(false) => return Prochaine::Refuser(i),
@@ -130,19 +136,33 @@ enum Prochaine {
 /// Le titre de la question d'accord.
 const TITRE: &str = "Un agent veut travailler ici";
 
-fn question(client: &str) -> Question {
+/// « Toujours, dans ce document » (AGENTS-TOUJOURS, fiche 131).
+const TOUJOURS: Reponse = Reponse::Choix(0);
+
+/// La question d'accord ; `durable` : le document vit dans un fichier, et le choix « Toujours »
+/// peut s'y retenir.
+fn question(client: &str, durable: bool) -> Question {
+    let mut choix = vec![("Autoriser".into(), Reponse::Oui)];
+    let mut texte = format!(
+        "Un programme qui se présente comme « {client} » demande à lire ce tableau et à y \
+         travailler sous tes yeux : poser des textes, des pages web, des flèches. Chacun de ses \
+         gestes s'annule par Ctrl+Z.\n\n« Autoriser » vaut pour lui jusqu'à la fermeture de \
+         Glucose."
+    );
+    if durable {
+        choix.push(("Toujours, dans ce document".into(), TOUJOURS));
+        texte.push_str(
+            " « Toujours, dans ce document » : tout programme de cette machine y travaillera, \
+             même après un redémarrage, sans te le redemander — « Retirer l'accord des \
+             agents… » le reprend.",
+        );
+    }
+    choix.push(("Refuser".into(), Reponse::Non));
+    choix.push(("Plus tard".into(), Reponse::Annuler));
     Question {
         titre: TITRE.into(),
-        texte: format!(
-            "Un programme qui se présente comme « {client} » demande à lire ce tableau et à y \
-             travailler sous tes yeux : poser des textes, des pages web, des flèches. Chacun de \
-             ses gestes s'annule par Ctrl+Z.\n\nTon choix vaut jusqu'à la fermeture de Glucose."
-        ),
-        choix: vec![
-            ("Autoriser".into(), Reponse::Oui),
-            ("Refuser".into(), Reponse::Non),
-            ("Plus tard".into(), Reponse::Annuler),
-        ],
+        texte,
+        choix,
         ..Default::default()
     }
 }
@@ -168,6 +188,7 @@ impl GlucoseApp {
             boite: Some(boite),
             _porte: porte,
             cles: Some(crate::ia::cles::chemin()),
+            toujours: crate::agents::toujours::Toujours::depuis(crate::agents::toujours::chemin()),
             ..Agents::default()
         };
         // La porte publique ne se rouvre que chez le Glucose qui tient la porte locale : un
@@ -187,7 +208,9 @@ impl GlucoseApp {
             agents.attente.extend(boite.relever());
         }
         loop {
-            match self.lancement.agents.prochaine(self.store.in_live_edit()) {
+            let agents = &self.lancement.agents;
+            let toujours = agents.toujours.vaut(&self.store.identite);
+            match agents.prochaine(self.store.in_live_edit(), toujours) {
                 Prochaine::Servir(i) => self.servir(i),
                 Prochaine::Refuser(i) => {
                     if let Some(d) = self.lancement.agents.attente.remove(i) {
@@ -197,7 +220,8 @@ impl GlucoseApp {
                 }
                 Prochaine::Rien { a_demander } => {
                     if let Some(client) = a_demander.filter(|_| self.ui.question.is_none()) {
-                        self.demander(question(&client), Suite::Agent(client));
+                        let durable = agents_durable(self);
+                        self.demander(question(&client, durable), Suite::Agent(client));
                     }
                     return;
                 }
@@ -235,12 +259,17 @@ impl GlucoseApp {
         issue
     }
 
-    /// **Sa réponse** : oui ou non vaut jusqu'à la fermeture ; « Plus tard » refuse ce seul
-    /// appel, et la question reviendra au suivant.
+    /// **Sa réponse** : oui ou non vaut jusqu'à la fermeture ; « Toujours, dans ce document »
+    /// vaut pour tout agent de la machine, ici, d'un lancement à l'autre ; « Plus tard » refuse ce
+    /// seul appel, et la question reviendra au suivant.
     pub(crate) fn repondre_a_l_agent(&mut self, client: String, reponse: Reponse) {
         match reponse {
             Reponse::Oui => {
                 self.lancement.agents.accords.insert(client, true);
+            }
+            TOUJOURS => {
+                let identite = self.store.identite.clone();
+                self.lancement.agents.toujours.retenir(&identite);
             }
             Reponse::Non => {
                 self.lancement.agents.accords.insert(client, false);
@@ -252,14 +281,21 @@ impl GlucoseApp {
 
     /// **« Retirer l'accord des agents… »** : la question dit qui l'a, et le retire sur sa parole.
     pub(crate) fn demander_a_oublier_les_agents(&mut self) {
-        let autorises = self.lancement.agents.autorises();
-        let (texte, choix) = if autorises.is_empty() {
+        let agents = &self.lancement.agents;
+        let mut noms: Vec<String> = agents
+            .autorises()
+            .iter()
+            .map(|c| format!("« {c} »"))
+            .collect();
+        if agents.toujours.vaut(&self.store.identite) {
+            noms.insert(0, toujours_dit(agents.toujours.rate.as_deref()));
+        }
+        let (texte, choix) = if noms.is_empty() {
             (
                 "Aucun agent ne travaille dans Glucose avec ton accord.".to_string(),
                 vec![("Fermer".into(), Reponse::Annuler)],
             )
         } else {
-            let noms: Vec<String> = autorises.iter().map(|c| format!("« {c} »")).collect();
             (
                 format!(
                     "Ont ton accord : {}.\n\nLe retirer ? Leur prochaine demande te sera reposée.",
@@ -280,6 +316,15 @@ impl GlucoseApp {
         self.demander(question, Suite::OublierLesAgents);
     }
 
+    /// **Retire l'accord** : celui de chaque agent pour cette session, et l'accord durable de ce
+    /// document.
+    pub(crate) fn oublier_les_agents(&mut self) {
+        let identite = self.store.identite.clone();
+        let agents = &mut self.lancement.agents;
+        agents.oublier();
+        agents.toujours.oublier(&identite);
+    }
+
     /// Refuse **la première demande de cet agent** — pas la première de la file : un autre agent
     /// peut attendre devant lui (LECTURE-1).
     fn refuser_le_premier(&mut self, client: &str, pourquoi: &str) {
@@ -288,6 +333,25 @@ impl GlucoseApp {
         if let Some(d) = rang.and_then(|r| attente.remove(r)) {
             refuser(d, client, pourquoi);
         }
+    }
+}
+
+/// Le choix « Toujours » peut-il s'offrir pour le document ouvert ?
+fn agents_durable(app: &GlucoseApp) -> bool {
+    app.lancement
+        .agents
+        .toujours
+        .peut_retenir(&app.store.identite)
+}
+
+/// L'accord durable, dit dans la question qui le retire — et s'il n'a pas pu se retenir.
+fn toujours_dit(rate: Option<&str>) -> String {
+    let dit = "tout programme de cette machine, toujours, dans ce document".to_string();
+    match rate {
+        Some(e) => {
+            format!("{dit} (pour cette session seulement : Glucose n'a pas pu le retenir — {e})")
+        }
+        None => dit,
     }
 }
 

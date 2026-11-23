@@ -435,7 +435,9 @@ réseau : un tuyau nommé sous Windows, réservé au compte (AGENTS-2), dont le 
 E/S superposée (`porte/tuyau.rs`, TUYAU-1) ; une prise Unix ailleurs ; aucune au téléphone. Le
 **protocole** (`agents/protocole.rs`, MCP du 28/07/2026 et les versions d'avant) est pur ; le JSON
 est écrit ici (`agents/json.rs`, JSON-1). Un appel d'outil arrive à la boucle par une boîte aux
-lettres (`agents::Boite`) ; la boucle demande l'accord (AGENTS-1, `app/agents.rs`), puis
+lettres (`agents::Boite`) ; la boucle demande l'accord (AGENTS-1, `app/agents.rs` ; l'accord durable d'un
+document, pour tout agent de la machine, dans le dossier de Glucose : `agents/toujours.rs`,
+`agents-toujours.txt`, AGENTS-TOUJOURS, fiche 131), puis
 l'exécute (`agents/executer.rs`) — quatorze outils (`glucose_disposer`, fiche 92 ; `glucose_grouper`, fiche 98), dont la recherche de `Ctrl+F` (`executer/chercher.rs`, AGENT-7, fiche 90) et les domaines (`executer/domaines.rs`, fiche 88 :
 `glucose_poser_domaine`, `glucose_domaines`, AGENT-5 et 6) — en **un geste du journal** : le noyau
 (`core/store/agents.rs`) tient AGENT-1 à 4 (un geste atomique, la sélection rendue, le passage mot

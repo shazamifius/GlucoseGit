@@ -164,7 +164,7 @@ impl GlucoseApp {
             Suite::NouveauDocument if oui => self.laisser_puis(Ensuite::Vierge),
             Suite::Telemetrie => self.repondre_a_la_telemetrie(oui),
             Suite::Agent(client) => self.repondre_a_l_agent(client, reponse),
-            Suite::OublierLesAgents if oui => self.lancement.agents.oublier(),
+            Suite::OublierLesAgents if oui => self.oublier_les_agents(),
             Suite::Collaborer => self.repondre_a_collaborer(reponse),
             Suite::ApiPublique => self.repondre_a_l_api_publique(reponse),
             Suite::ClefIa(fournisseur) => self.enregistrer_la_cle(fournisseur, reponse, champ),
