@@ -75,6 +75,7 @@ impl Renderer {
             contournement: Some(super::arrow::Contournement::de(
                 &itineraires,
                 &self.suivi_du_geste,
+                None,
             )),
             header_h: 0.0,
             densite,

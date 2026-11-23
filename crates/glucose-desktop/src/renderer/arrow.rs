@@ -416,6 +416,10 @@ mod tests;
 mod ancres_tests;
 
 #[cfg(test)]
+#[path = "arrow/edition_tests.rs"]
+mod edition_tests;
+
+#[cfg(test)]
 #[path = "arrow/lecture_tests.rs"]
 mod lecture_tests;
 

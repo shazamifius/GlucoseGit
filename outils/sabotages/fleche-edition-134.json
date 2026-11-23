@@ -1,0 +1,47 @@
+[
+ {
+  "nom": "FLECHE-EDITION — les flèches ne lisent plus la boîte vivante (l'ancien bord)",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/noeuds.rs",
+  "avant": "        (qui == id).then_some(*boite)\n",
+  "apres": "        let _ = (qui, boite, id);\n        None\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "fleche_edition"
+  ]
+ },
+ {
+  "nom": "FLECHE-EDITION — l'image ne pose plus la boîte du texte qu'on écrit",
+  "fichier": "crates/glucose-desktop/src/app/peinture.rs",
+  "avant": "        self.renderer\n            .poser_la_boite_vivante(&self.store, self.editing_session.as_ref());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "fleche_edition"
+  ]
+ },
+ {
+  "nom": "FLECHE-EDITION — la boîte posée est celle du document, pas celle qu'on voit",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/noeuds.rs",
+  "avant": "crate::renderer::card::boite_montree(mesure, ann, Some(e))?",
+  "apres": "{ let _ = mesure; ann.rect()? }",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "fleche_edition"
+  ]
+ }
+]

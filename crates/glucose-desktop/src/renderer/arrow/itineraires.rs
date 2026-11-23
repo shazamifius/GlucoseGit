@@ -253,6 +253,7 @@ impl crate::renderer::Renderer {
             contournement: Some(super::Contournement::de(
                 &self.itineraires,
                 &self.suivi_du_geste,
+                self.boite_vivante.as_ref(),
             )),
         };
         for id in self.itineraires.prendre_les_dettes() {

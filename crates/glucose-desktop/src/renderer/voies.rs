@@ -404,7 +404,11 @@ impl Renderer {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
-            contournement: Some(Contournement::de(&self.itineraires, &self.suivi_du_geste)),
+            contournement: Some(Contournement::de(
+                &self.itineraires,
+                &self.suivi_du_geste,
+                self.boite_vivante.as_ref(),
+            )),
             header_h,
             densite,
         };

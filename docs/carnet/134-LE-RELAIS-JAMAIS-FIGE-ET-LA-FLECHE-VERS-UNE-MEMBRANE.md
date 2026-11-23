@@ -187,3 +187,30 @@ le lui donne (« Toujours, dans ce document » à donner alors, ⚡ Gestes).
 tirées exprès ; `Ctrl+Z` les rend, mais un geste plus doux serait de la garder dans le dossier, libre.
 La boîte du dépôt est discrète (1 pixel, le fantôme) : sa force est à son ressenti.
 
+
+## 11. FLECHE-EDITION — les flèches d'un texte qu'on écrit partent du bord qu'on voit (23/11, 20 h)
+
+**Sa note** (`text-kpll-364`, sa capture dans `membrane-299`) : *« toujours et encore le même problème :
+les flèches déjà assignées à un texte qui est en mode édition, et donc en train de grandir, ne se
+mettent pas à jour et passent par-dessus le texte »*.
+
+**La cause, lue dans le code** : la hauteur d'un texte n'entre au document qu'à la validation
+(`commit_editing` → `fit_text_card_height`) — un seul geste annulable pour toute la saisie. Le dessin
+de la carte et sa lueur lisaient déjà la boîte **montrée** (`card::boite_montree`, fiche 100) ; les
+flèches lisaient le document, donc l'ancien bord.
+
+**La correction** : la boîte montrée du texte qu'on écrit est posée avant chaque image
+(`Renderer::boite_vivante`, par `poser_la_boite_vivante`) et passe par `Contournement` — ce que le
+rendu sait du geste en cours, la même porte qu'un glisser (GESTE-1). `NoeudsDuRendu::boite` la rend
+pour ce texte : le dessin, le clic et les poignées lisent le même départ. Le cache des itinéraires
+dépend déjà des bouts (FLECHE-5) : un bout qui bouge refait son chemin, rien d'autre.
+
+**Écarté** : écrire la hauteur au document à chaque touche. C'est la loi d'un glisser, mais une saisie
+dure des minutes : son geste ouvert engloberait ce qu'une IA écrit pendant ce temps (le relais écrit
+dans son Glucose pendant qu'il tape), et chaque touche partirait au canevas partagé. `bloc()` (la
+présence d'un lien près de la souris) garde la boîte du document : retouchée, elle n'avait pas
+d'épreuve.
+
+**Prouvé** : `renderer/arrow/edition_tests.rs` (huit lignes tapées : la flèche garde son écart de
+naissance au bas qu'on voit ; validée, elle ne saute pas) ; trois sabotages
+(`outils/sabotages/fleche-edition-134.json`).

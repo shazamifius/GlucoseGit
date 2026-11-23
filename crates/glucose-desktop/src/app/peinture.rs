@@ -189,6 +189,8 @@ impl GlucoseApp {
         let mut reduit = self.tampons.reduit.take();
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
         let dessus = self.ce_qui_se_pose_dessus();
+        self.renderer
+            .poser_la_boite_vivante(&self.store, self.editing_session.as_ref());
         let overlay = SceneOverlay {
             // Le rectangle que la main trace sous la grille armée se dessine comme lui (TRACE-1).
             selection_box: self.selection_box.or(self.rectangle_trace_a_l_ecran()),

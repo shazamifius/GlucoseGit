@@ -24,13 +24,46 @@ use glucose_core::types::{Annotation, Board, TextAnchor};
 pub struct Contournement<'a> {
     pub itineraires: &'a Itineraires,
     pub geste: &'a SuiviDuGeste,
+    /// **La boîte du texte qu'on écrit** (FLECHE-EDITION) : il grandit à chaque ligne, et le
+    /// document ne l'apprend qu'à la fin de la saisie. Ses flèches partent du bord qu'on voit
+    /// ([`crate::renderer::card::boite_montree`]), pas de l'ancien — sa note du 23/11.
+    pub vivante: Option<&'a (String, Rect)>,
 }
 
 impl<'a> Contournement<'a> {
     /// Pris champ par champ : les passes qui le lisent empruntent d'autres champs du rendu en
     /// écriture.
-    pub fn de(itineraires: &'a Itineraires, geste: &'a SuiviDuGeste) -> Self {
-        Self { itineraires, geste }
+    pub fn de(
+        itineraires: &'a Itineraires,
+        geste: &'a SuiviDuGeste,
+        vivante: Option<&'a (String, Rect)>,
+    ) -> Self {
+        Self {
+            itineraires,
+            geste,
+            vivante,
+        }
+    }
+}
+
+impl crate::renderer::Renderer {
+    /// **Pose la boîte du texte qu'on écrit** (FLECHE-EDITION), avant chaque image : celle que
+    /// sa carte montre, que les flèches liront ([`Contournement::vivante`]). Rien hors saisie.
+    pub fn poser_la_boite_vivante(
+        &mut self,
+        store: &glucose_core::store::Store,
+        edition: Option<&crate::renderer::TextEditSession>,
+    ) {
+        let mesure = (&self.typography, &self.math, &self.mises_en_page);
+        self.boite_vivante = edition.and_then(|e| {
+            let ann = store
+                .active_board()?
+                .annotations
+                .iter()
+                .find(|a| a.id() == e.ann_id)?;
+            let boite = crate::renderer::card::boite_montree(mesure, ann, Some(e))?;
+            Some((e.ann_id.clone(), boite))
+        });
     }
 }
 
@@ -49,6 +82,12 @@ pub(crate) struct NoeudsDuRendu<'a> {
 }
 
 impl NoeudsDuRendu<'_> {
+    /// La boîte que montre le texte `id` s'il est celui qu'on écrit (FLECHE-EDITION).
+    fn vivante(&self, id: &str) -> Option<Rect> {
+        let (qui, boite) = self.contournement?.vivante?;
+        (qui == id).then_some(*boite)
+    }
+
     /// L'annotation `id`, par l'index quand on l'a.
     fn annotation(&self, id: &str) -> Option<&Annotation> {
         let par_l_index = self
@@ -97,6 +136,9 @@ fn ligne_qui_porte(mise_en_page: &TextLayout, b: usize) -> usize {
 
 impl Noeuds for NoeudsDuRendu<'_> {
     fn boite(&self, id: &str) -> Option<Rect> {
+        if let Some(boite) = self.vivante(id) {
+            return Some(boite);
+        }
         match self.index {
             Some(index) => node_rect_indexe(self.board, index, id),
             None => node_rect(self.board, id),

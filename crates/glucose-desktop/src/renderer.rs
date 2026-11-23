@@ -194,6 +194,8 @@ pub struct Renderer {
     pub focus: focus::FocusDuRendu,
     /// Ce que le geste en cours a touché, que l'index ne connaîtra qu'à sa fin (GESTE-1).
     suivi_du_geste: glucose_core::quadtree::SuiviDuGeste,
+    /// Le texte qu'on écrit et la boîte qu'il montre, posés à chaque image (FLECHE-EDITION).
+    pub boite_vivante: Option<(String, glucose_core::geometry::Rect)>,
     /// Combien de pixels physiques font un pixel logique sur l'écran de cette image (DPI-1) :
     /// l'échelle de l'interface, relue à chaque image — une fenêtre qui change d'écran change
     /// de densité.
@@ -237,6 +239,7 @@ impl Renderer {
             carte: Default::default(),
             focus: Default::default(),
             suivi_du_geste: Default::default(),
+            boite_vivante: None,
             densite: 1.0,
         }
     }
@@ -266,7 +269,11 @@ impl Renderer {
     /// **Ce qu'une flèche lit pour contourner** (FLECHE-5) : les itinéraires retenus et le geste
     /// en cours.
     pub fn contournement(&self) -> Contournement<'_> {
-        Contournement::de(&self.itineraires, &self.suivi_du_geste)
+        Contournement::de(
+            &self.itineraires,
+            &self.suivi_du_geste,
+            self.boite_vivante.as_ref(),
+        )
     }
 
     /// Remet les caches du rendu d'accord avec le document, avant de dessiner quoi que ce soit.
@@ -456,7 +463,11 @@ impl Renderer {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
-            contournement: Some(Contournement::de(&self.itineraires, &self.suivi_du_geste)),
+            contournement: Some(Contournement::de(
+                &self.itineraires,
+                &self.suivi_du_geste,
+                self.boite_vivante.as_ref(),
+            )),
             header_h,
             densite,
         };
