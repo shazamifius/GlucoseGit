@@ -3,20 +3,25 @@
 
 Sa demande du 22/11/2026 : Claude travaille en autonomie ; une question s'écrit dans Glucose et
 Claude passe à autre chose ; quand un compte arrive à sa limite, la passation s'écrit dans Glucose
-et l'autre compte reprend. Un seul programme, la bibliothèque standard seulement :
+et l'autre compte reprend. La bibliothèque standard seulement ; la loi sans effet de bord est dans
+`loi.py`, le mode d'emploi dans `MODE-EMPLOI.md`.
 
   relais.py jauges       la barre d'état de Claude Code : garde les deux jauges du compte
   relais.py fin-de-tour  le crochet « Stop » : continuer selon SA consigne, ou écrire la passation
-  relais.py veiller      le service : lance, relaie, réveille, bat le cœur dans Glucose
+  relais.py parole       le crochet « UserPromptSubmit » : une session à lui prend la main
+  relais.py rendre       une session à lui rend la main en partant
+  relais.py veiller      le service : lance, relaie, réveille, lui répond, bat le cœur dans Glucose
   relais.py installer    une fois : Glucose, les réglages de Claude Code, le second compte, le service
   relais.py etat         ce que le relais sait, en clair
 
-Trois règles. **Seules les sessions lancées par le relais** (RELAIS=1) sont concernées : les siennes,
-dans VS Code, ne voient rien changer. **Sa consigne n'est suivie que si c'est LUI qui l'a écrite en
-dernier** (la Time Machine le dit) : une IA ne réécrit pas sa propre consigne ; dans le doute, on
-s'arrête. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, et l'écran part
-dans Glucose, où il répond.
+Quatre règles. **Une seule session travaille à la fois** (sa parole du 23/11) : dès qu'il écrit à
+une session à lui, celle du relais écrit sa passation et s'efface ; un seul veilleur. **Sa consigne
+n'est suivie que si c'est LUI qui l'a écrite en dernier** — de ce Glucose ou d'un autre appareil du
+canevas partagé —, jamais une IA. **Ce qu'il écrit est lu** : donné à la session qui travaille, ou
+à la suivante. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, et l'écran
+part dans Glucose, où il répond.
 """
+import fcntl
 import hashlib
 import json
 import os
@@ -25,9 +30,17 @@ import sys
 import time
 from pathlib import Path
 
-MAISON = Path.home()
+# Lancé par `python3 -I`, le dossier du programme n'est pas dans le chemin : `loi` y est. À la fin,
+# pour que la bibliothèque standard passe toujours devant.
+sys.path.append(str(Path(__file__).resolve().parent))
+from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, PASSATION, REGLES,  # noqa: E402
+                 REPONSE, SILENCE, decider, depart, dernier_geste, en_pause, heure, humaine,
+                 raison_continuer, raison_entendre, raison_passation, raison_prevenir, ses_paroles,
+                 signee)
+from loi import MODE_EMPLOI, RAISON_PASSATION, lire_ids  # noqa: E402,F401  (pour les épreuves)
+from machine import DEPOT, MAISON, claude_binaire, jeton_github, travail  # noqa: E402
+
 ETAT = MAISON / ".local/state/relais"
-DEPOT = MAISON / "Projets/GlucoseGit"
 # a : le dossier par défaut de Claude Code (~/.claude) ; b : son propre dossier — sa connexion à lui,
 # les mémoires et les journaux partagés par liens (installer).
 COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
@@ -35,45 +48,11 @@ COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
 SEUILS = {"five_hour": 90.0, "seven_day": 95.0}
 # Le mur : une fenêtre pleine, et le serveur refuse le compte (« You've hit your … limit »).
 MUR = {"five_hour": 100.0, "seven_day": 100.0}
-SILENCE = 35 * 60
-EXTENSIONS = MAISON / ".vscode/extensions"
 
 
 def nom_tmux(compte):
     """Une session tmux par compte : le VS Code de ce compte l'affiche (.vscode/tasks.json)."""
     return f"relais-{compte}"
-
-
-def version(dossier):
-    morceaux = dossier.name.split("-")[2] if dossier.name.count("-") >= 2 else "0"
-    return tuple(int(x) if x.isdigit() else 0 for x in morceaux.split("."))
-
-
-def claude_binaire():
-    """**Le Claude de la dernière extension VS Code**, jamais celui de la ligne de commande : sa
-    parole du 22/11 — le Claude en ligne de commande était en 2.1.223 quand l'extension était en
-    2.1.330. L'extension embarque le sien et le met à jour seule : le relais suit VS Code."""
-    candidats = sorted(EXTENSIONS.glob("anthropic.claude-code-*/resources/native-binary/claude"),
-                       key=lambda p: version(p.parents[2]))
-    return str(candidats[-1]) if candidats else "claude"
-CONSIGNE, PASSATION, BATTEMENT, BLOQUE, REPONSE = (
-    "relais-consigne", "relais-passation", "relais-battement", "relais-bloque", "relais-reponse")
-MODE_EMPLOI = "relais-mode-emploi"  # ce qui est automatique, pour lui et pour toute session de Claude
-INVITE_REPONSE = "✍️ Ta réponse :"
-
-REGLES = (
-    "Tu es une session du RELAIS de Glucose : personne ne lit ce terminal en direct. Une question "
-    "pour lui s'écrit dans son Glucose (tableau=main, dans la membrane « relais »), un texte par "
-    "question, et tu passes à une autre tâche du plan : ne t'arrête jamais pour attendre. "
-    "N'écris jamais dans le nœud relais-consigne : c'est le sien. Jamais de publication de version. "
-    "Aucune commande de plus de 30 minutes.")
-
-
-def depart(compte):
-    return (f"Session du relais (compte {compte}). Lis ~/.claude/CLAUDE.md, ~/Projets/LISEZ-MOI.md et "
-            "toutes tes mémoires en entier, puis dans son Glucose (glucose lire tableau=main "
-            f"ids={CONSIGNE} ids={PASSATION} ids={MODE_EMPLOI}) sa consigne, la passation et le mode d'emploi "
-            "du relais. Puis travaille selon la consigne.")
 
 
 # ── Petits outils ─────────────────────────────────────────────────────────────────────────────
@@ -109,10 +88,6 @@ def compte_courant():
     return "a"
 
 
-def heure(t):
-    return time.strftime("%H:%M", time.localtime(t))
-
-
 # ── Les jauges ────────────────────────────────────────────────────────────────────────────────
 
 def charge(compte, maintenant):
@@ -141,6 +116,21 @@ def plein(compte, maintenant, seuils=SEUILS):
     murs = [remise for nom, (pct, remise) in charge(compte, maintenant).items()
             if pct >= seuils.get(nom, 100.0)]
     return (True, max(murs)) if murs else (False, None)
+
+
+def ailleurs(compte, maintenant):
+    """Un autre compte peut-il reprendre maintenant ? (oui, None) — ou (non, l'heure où le premier
+    se libère). Sans lui, la passation fermerait la session pour rien : le 23/11 à 10 h 08, la session
+    a quitté le compte a à 91 % quand b était plein jusqu'à 16 h — trois heures sans personne."""
+    murs = []
+    for autre_compte in COMPTES:
+        if autre_compte == compte or not connecte(autre_compte):
+            continue
+        au_seuil, libre_a = plein(autre_compte, maintenant)
+        if not au_seuil:
+            return True, None
+        murs.append(libre_a)
+    return False, min(murs, default=None)
 
 
 def jauges():
@@ -187,74 +177,91 @@ def ecrire(ident, texte, **place):
     return glucose("poser-texte", "tableau=main", f"id={ident}", *reglages, "texte=-", entree=texte)
 
 
-def auteur_recent(ident, histoire):
-    """L'auteur du dernier geste de l'histoire qui nomme ce nœud (« humain », « agent … »)."""
-    for geste in reversed((histoire or {}).get("gestes", [])):
-        if any(f"« {ident} »" in fait for fait in geste.get("fait", [])):
-            return geste.get("auteur")
-    return None
+def gestes_neufs(memoire):
+    """Les gestes du document que le veilleur n'a pas encore vus (ceux d'après `vu`), **tous** —
+    le 23/11, 127 gestes en une heure depuis son autre appareil, quand le relais n'en relisait que
+    les 200 derniers. Deux lectures : combien il y en a, puis ceux-là. Rend {"gestes", "total"} ;
+    None si Glucose ne répond pas. La première fois, rien d'ancien."""
+    tete = glucose("histoire", "nombre=1")
+    if tete is None:
+        return None
+    total = int(tete.get("total") or 0)
+    vu = min(int(memoire.get("vu", total)), total)
+    if vu == total:
+        return {"gestes": [], "total": total}
+    lu = glucose("histoire", f"nombre={total - vu}")
+    return None if lu is None else {"gestes": lu.get("gestes", []), "total": total}
 
 
-def signee(n, memoire, histoire):
-    """La consigne est la sienne : son empreinte est celle qu'il a écrite en dernier. Une fois vue
-    de lui, l'empreinte est gardée ; un geste d'agent la change, et elle ne vaut plus rien."""
-    if not n or not n.get("empreinte"):
-        return False
-    if memoire.get("consigne_signee") == n["empreinte"]:
-        return True
-    if auteur_recent(CONSIGNE, histoire) == "humain":
-        memoire["consigne_signee"] = n["empreinte"]
-        return True
-    return False
+# ── Une seule session ─────────────────────────────────────────────────────────────────────────
+
+def dernier_signe(bail):
+    """Le dernier signe de vie d'une session à lui : son dernier message, ou la dernière ligne de sa
+    conversation, que Claude Code écrit à chaque réponse et à chaque outil."""
+    try:
+        ecrit = Path(bail["transcript"]).stat().st_mtime if bail.get("transcript") else 0.0
+    except OSError:
+        ecrit = 0.0
+    return max(float(bail.get("depuis") or 0), ecrit)
 
 
-def en_pause(texte):
-    premiere = (texte or "").strip().splitlines()[:1]
-    return bool(premiere) and (premiere[0].startswith("⏸") or "PAUSE" in premiere[0].upper())
+def main_humaine(maintenant):
+    """Une session à lui tient-elle le dépôt ? Son dernier signe, ou None après SILENCE sans un."""
+    dernier = max(map(dernier_signe, lire_json(ETAT / "baux.json", {}).values()), default=0.0)
+    return dernier if maintenant - dernier < SILENCE else None
+
+
+def parole():
+    """Le crochet « UserPromptSubmit » : il écrit à une session à lui (VS Code, un terminal) dans ce
+    dépôt — **elle prend la main**, et le relais s'efface : une seule session à la fois (sa parole du
+    23/11). Si une session du relais vit encore, elle l'apprend (le texte imprimé lui est donné)."""
+    if os.environ.get("RELAIS") == "1":
+        return 0  # le relais se parle à lui-même : ses propres sessions ne prennent pas la main
+    try:
+        entree = json.load(sys.stdin)
+    except ValueError:
+        return 0
+    ici = Path(entree.get("cwd") or "/").resolve()
+    if DEPOT.resolve() not in (ici, *ici.parents):
+        return 0
+    maintenant = time.time()
+    baux = {s: b for s, b in lire_json(ETAT / "baux.json", {}).items()
+            if maintenant - dernier_signe(b) < SILENCE}
+    baux[entree.get("session_id") or "?"] = {"transcript": entree.get("transcript_path"), "depuis": maintenant}
+    ecrire_json(ETAT / "baux.json", baux)
+    if session_tmux():
+        print(AVERTIR)
+    return 0
+
+
+def rendre():
+    """Une session à lui rend la main en partant : le relais reprend au tour suivant."""
+    ecrire_json(ETAT / "baux.json", {})
+    journal("la main rendue au relais")
+    return 0
+
+
+def un_seul_veilleur():
+    """Le verrou du veilleur : deux veilleurs lanceraient deux sessions. Un second attend que le
+    premier s'arrête — le système rend le verrou avec le processus, même tué."""
+    ETAT.mkdir(parents=True, exist_ok=True)
+    verrou = open(ETAT / "veilleur.lock", "w")
+    try:
+        fcntl.flock(verrou, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        journal("un veilleur tourne déjà : celui-ci attend qu'il s'arrête")
+        fcntl.flock(verrou, fcntl.LOCK_EX)
+    return verrou
 
 
 # ── Le crochet « Stop » ───────────────────────────────────────────────────────────────────────
 
-def decider(session, consigne_texte, pause, a_signee, au_seuil, maintenant, ecrite=False):
-    """(action, raison) — action : « laisser » (Claude s'arrête), « continuer » ou « passation ».
-
-    Une passation demandée ne laisse partir la session qu'**écrite** (`ecrite` : le nœud a changé
-    depuis la demande). La demande peut arriver du veilleur en plein tour, tapée dans la session :
-    le tour qui finit alors ne l'a peut-être pas encore lue, et la redemander ne coûte rien. Trois
-    arrêts en deux minutes sans elle : la session ne peut plus l'écrire, on relaie quand même."""
-    recents = [t for t in session.get("arrets", []) if maintenant - t < 120]
-    if session.get("passation_demandee"):
-        return ("laisser", "relayer") if ecrite or len(recents) >= 3 else ("passation", "")
-    if au_seuil:
-        return "passation", ""
-    if pause:
-        return "laisser", "pause"
-    if not a_signee or not (consigne_texte or "").strip():
-        return "laisser", "consigne non signée"
-    if len(recents) >= 3:
-        return "laisser", "à vide"
-    return "continuer", ""
-
-
-def raison_continuer(consigne_texte):
-    return ("[Relais] Ne t'arrête pas : continue selon sa consigne et le plan (SUITE § 2, la passation). "
-            "Si tu attends une réponse de lui, écris la question dans son Glucose et prends une autre "
-            f"tâche. Sa consigne :\n{consigne_texte.strip()}")
-
-
-RAISON_PASSATION = (
-    "[Relais] Ce compte arrive à sa limite. Écris MAINTENANT la passation dans son Glucose : remplace "
-    f"le texte du nœud {PASSATION} (glucose poser-texte tableau=main id={PASSATION} texte=-) par "
-    "l'état exact — fait, en cours, non commité, prochaine étape, pièges payés. Si tu n'as rien "
-    "changé depuis celle qui y est, garde-la et ajoute seulement en tête une ligne qui la confirme, "
-    "avec l'heure. Puis termine ton tour.")
-
-
-def demander_passation(session, maintenant):
-    """Retient la demande et l'empreinte de la passation d'avant (la première fois seulement) :
-    c'est à elle qu'on saura si la session l'a récrite."""
+def demander_passation(session, maintenant, motif="limite"):
+    """Retient la demande, son motif et l'empreinte de la passation d'avant (la première fois
+    seulement) : c'est à elle qu'on saura si la session l'a récrite."""
     if not session.get("passation_demandee"):
         session["passation_demandee"] = maintenant
+        session["passation_pourquoi"] = motif
         session["passation_avant"] = (noeud(PASSATION) or {}).get("empreinte")
 
 
@@ -270,22 +277,25 @@ def fin_de_tour():
     if os.environ.get("RELAIS") != "1":
         return 0  # une session à lui : le relais n'y touche pas
     try:
-        json.load(sys.stdin)
+        entree = json.load(sys.stdin)
     except ValueError:
-        pass
+        entree = {}
     maintenant = time.time()
     session = lire_json(ETAT / "session.json", {})
     memoire = lire_json(ETAT / "veilleur.json", {})
     n = noeud(CONSIGNE)
     texte = (n or {}).get("texte", "")
-    action, pourquoi = decider(session, texte, en_pause(texte),
-                               signee(n, memoire, glucose("histoire", "nombre=200")),
-                               plein(compte_courant(), maintenant)[0], maintenant,
-                               passation_ecrite(session))
+    compte = compte_courant()
+    motif = "retrait" if main_humaine(maintenant) else (
+        "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else None)
+    action, pourquoi = decider(session, texte, en_pause(texte), signee(n, memoire, gestes_neufs(memoire)),
+                               motif, maintenant, passation_ecrite(session),
+                               bool((entree or {}).get("stop_hook_active")))
     session["arrets"] = [t for t in session.get("arrets", []) if maintenant - t < 120] + [maintenant]
     if action == "passation":
-        demander_passation(session, maintenant)
-        print(json.dumps({"decision": "block", "reason": RAISON_PASSATION}, ensure_ascii=False))
+        demander_passation(session, maintenant, motif or "limite")
+        print(json.dumps({"decision": "block", "reason": raison_passation(session.get("passation_pourquoi"))},
+                         ensure_ascii=False))
     elif action == "continuer":
         session.pop("laissee", None)
         print(json.dumps({"decision": "block", "reason": raison_continuer(texte)}, ensure_ascii=False))
@@ -308,30 +318,21 @@ def connecte(compte):
 
 
 def choisir(courant, maintenant):
-    """Le compte qui travaille : le courant s'il le peut, sinon un autre ; aucun : (None, l'heure)."""
+    """Le compte qui travaille : le courant s'il est sous ses seuils, sinon un autre ; faute de
+    mieux, un compte encore sous le mur — mieux vaut finir sa jauge que dormir (le 23/11, trois
+    heures perdues à 91 %). Aucun : (None, l'heure où le premier se libère)."""
     ordre = [courant] + [c for c in COMPTES if c != courant]
     murs = []
-    for compte in ordre:
-        if not connecte(compte):
-            continue
-        au_seuil, libre_a = plein(compte, maintenant)
-        if not au_seuil:
-            return compte, None
-        murs.append(libre_a)
+    for seuils in (SEUILS, MUR):
+        murs = []
+        for compte in ordre:
+            if not connecte(compte):
+                continue
+            au_seuil, libre_a = plein(compte, maintenant, seuils)
+            if not au_seuil:
+                return compte, None
+            murs.append(libre_a)
     return None, (min(murs) if murs else None)
-
-
-def lancer(compte):
-    reglages = ["RELAIS=1", f"RELAIS_COMPTE={compte}"]
-    if COMPTES[compte]:
-        reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
-    binaire = claude_binaire()
-    # --ide : branché sur le VS Code de ce compte (ses outils, ses différences affichées).
-    tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
-         "env", *reglages, binaire, "--ide", "--remote-control", f"relais-{compte}",
-         "--append-system-prompt", REGLES, depart(compte))
-    ecrire_json(ETAT / "session.json", {"compte": compte, "depuis": time.time()})
-    journal(f"session lancée sur le compte {compte} ({binaire})")
 
 
 def session_tmux():
@@ -340,6 +341,28 @@ def session_tmux():
         if tmux("has-session", "-t", nom_tmux(compte)).returncode == 0:
             return nom_tmux(compte)
     return None
+
+
+def lancer(compte, paroles=()):
+    """Lance la session du relais sur ce compte — **jamais une seconde** : s'il en vit une, rien."""
+    if session_tmux():
+        journal("une session du relais vit déjà : pas de seconde")
+        return False
+    reglages = ["RELAIS=1", f"RELAIS_COMPTE={compte}"]
+    if COMPTES[compte]:
+        reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
+    binaire = claude_binaire()
+    # --ide : branché sur le VS Code de ce compte (ses outils, ses différences affichées).
+    fait = tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
+                "env", *reglages, binaire, "--ide", "--remote-control", f"relais-{compte}",
+                "--append-system-prompt", REGLES, depart(compte, paroles))
+    if fait.returncode != 0:
+        journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
+        return False
+    ecrire_json(ETAT / "session.json", {"compte": compte, "depuis": time.time()})
+    notes = f", avec {len(paroles)} nœud(s) qu'il a écrits" if paroles else ""
+    journal(f"session lancée sur le compte {compte}{notes} ({binaire})")
+    return True
 
 
 def taper(texte):
@@ -356,23 +379,33 @@ def ecran():
     return r.stdout if r and r.returncode == 0 else None
 
 
-def garder(session, maintenant):
-    """Ce que le veilleur fait d'une session vivante, d'après les jauges de son compte, à chaque tour :
+def garder(session, maintenant, humaine_la=None):
+    """Ce que le veilleur fait d'une session vivante, à chaque tour :
 
     * « fermer » — **le mur** : une fenêtre pleine, le serveur la refuse. Elle ne peut plus rien
       écrire, et tmux la tiendrait ouverte sur son message de limite, prise pour vivante (le 23/11,
       la session b, lancée sur une semaine pleine que personne n'avait lue, a figé le relais) ;
-    * « passation » — un seuil passé, et rien encore demandé : **la passation n'attend pas la fin
-      du tour** (le 23/11 à 0 h 15, un tour durait depuis 48 minutes, le compte à 97 %) ;
+    * « retrait » — une session à lui tient le dépôt (`humaine_la`) : une seule à la fois ;
+    * « passation » — un seuil passé quand un autre compte peut reprendre, et rien encore demandé :
+      **la passation n'attend pas la fin du tour** (le 23/11 à 0 h 15, un tour durait depuis 48
+      minutes, le compte à 97 %) ;
+    * « prevenir » — un seuil passé et personne pour reprendre : elle continue jusqu'au mur, prévenue
+      une fois ;
     * None : rien à faire."""
     compte = session.get("compte")
     if not compte:
         return None
     if plein(compte, maintenant, MUR)[0]:
         return "fermer"
-    if plein(compte, maintenant)[0] and not session.get("passation_demandee"):
+    if session.get("passation_demandee"):
+        return None
+    if humaine_la:
+        return "retrait"
+    if not plein(compte, maintenant)[0]:
+        return None
+    if ailleurs(compte, maintenant)[0]:
         return "passation"
-    return None
+    return None if session.get("prevenue") else "prevenir"
 
 
 def fermer(session, raison):
@@ -386,6 +419,30 @@ def fermer(session, raison):
 
 def autre(compte):
     return next((c for c in COMPTES if c != compte), compte)
+
+
+def tenir(session, memoire, humaine_la, maintenant):
+    """Ce que le veilleur fait de la session du relais qui vit (`garder`) ; False s'il l'a close."""
+    geste = garder(session, maintenant, humaine_la)
+    if geste == "fermer" or (session.get("passation_demandee") and session.get("laissee") == "relayer"):
+        retrait = geste != "fermer" and session.get("passation_pourquoi") == "retrait"
+        fermer(session, "compte à sa limite" if geste == "fermer" else
+               "en retrait devant sa session" if retrait else "passation demandée")
+        if not retrait:
+            memoire["compte"] = autre(session.get("compte"))
+        return False
+    if geste in ("passation", "retrait"):
+        demander_passation(session, maintenant, "retrait" if geste == "retrait" else "limite")
+        taper(raison_passation(session["passation_pourquoi"]))
+        journal(("une session à lui prend la main" if geste == "retrait" else "seuil passé en plein tour")
+                + f" : passation demandée au compte {session.get('compte')}")
+    elif geste == "prevenir":
+        session["prevenue"] = maintenant
+        taper(raison_prevenir(ailleurs(session["compte"], maintenant)[1]))
+        journal(f"seuil passé, aucun compte pour reprendre : le compte {session['compte']} va jusqu'au mur")
+    if geste:
+        ecrire_json(ETAT / "session.json", session)
+    return True
 
 
 def surveiller(memoire, histoire, maintenant):
@@ -405,113 +462,112 @@ def surveiller(memoire, histoire, maintenant):
     r = noeud(REPONSE)
     if not r or r.get("empreinte") == memoire.get("reponse_vue"):
         return
+    geste = dernier_geste(REPONSE, histoire)
+    if geste is None:
+        return  # son geste n'est pas encore dans l'histoire lue : il le sera au tour suivant
     memoire["reponse_vue"] = r.get("empreinte")
     texte = r.get("texte", "").replace(INVITE_REPONSE, "").strip()
-    if texte and auteur_recent(REPONSE, histoire) == "humain":
+    if texte and humaine(geste.get("auteur")):
         taper(texte)
         ecrire(REPONSE, INVITE_REPONSE)
         memoire["reponse_vue"] = (noeud(REPONSE) or {}).get("empreinte")
         journal("sa réponse tapée dans la session")
 
 
-JETON = MAISON / "Projets/github.md"
+def entendre(memoire, histoire):
+    """Ce qu'il écrit pendant qu'une session travaille lui est tapé **une fois qu'il a fini
+    d'écrire** — un tour du veilleur sans un geste de lui —, en un seul message."""
+    if memoire.get("paroles") and not any(humaine(g.get("auteur")) for g in histoire.get("gestes", [])):
+        taper(raison_entendre(memoire.pop("paroles")))
+        journal("ses notes tapées dans la session")
 
 
-def jeton_github(maintenant):
-    """Le jeton est-il là, et de quand (il le renouvelle tous les 3 jours) — jamais sa valeur."""
-    try:
-        present = any(l.strip() and not l.lstrip().startswith("#") for l in JETON.read_text().splitlines())
-    except OSError:
-        present = False
-    if not present:
-        return "absent — colle-le dans ~/Projets/github.md"
-    jours = (maintenant - JETON.stat().st_mtime) / 86400
-    return f"présent (posé il y a {jours:.0f} j)" + (" — à renouveler" if jours >= 3 else "")
+def relancer(session, texte, ok, pause):
+    """Une session laissée à l'arrêt repart quand rien ne l'arrête plus : la pause levée, la
+    consigne de nouveau la sienne, ou une relance que le crochet ne pouvait plus faire (`decider`).
+    Une fois : la demande tapée, l'arrêt est oublié (avant, il se retapait à chaque tour)."""
+    if session.get("laissee") in ("pause", "consigne non signée", "relancer") and ok and not pause:
+        taper(raison_continuer(texte))
+        session.pop("laissee")
+        ecrire_json(ETAT / "session.json", session)
+        journal("session relancée selon sa consigne")
 
 
-def git(*arguments):
-    """Une lecture de Git, jamais une écriture ; vide si elle échoue ou tarde (le réseau)."""
-    try:
-        r = subprocess.run(["git", "-C", str(DEPOT), *arguments], capture_output=True, text=True,
-                           timeout=30, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
-    except (OSError, subprocess.TimeoutExpired):
-        return ""
-    return r.stdout.strip() if r.returncode == 0 else ""
-
-
-def travail(depuis):
-    """Ce que la session a produit : ses commits depuis son début, et ce que GitHub n'a pas encore.
-    Lu dans Git, sans dépenser un jeton d'usage — de quoi juger ce que coûte chaque pour-cent.
-
-    **Ce que GitHub a, demandé à GitHub** (`ls-remote`) : les envois passent par l'adresse qui porte
-    le jeton, qui ne met jamais `origin/main` à jour ; compter contre lui comptait ce qui était déjà
-    parti (le 23/11, « 1 pas encore sur GitHub » quand `c0d093a` y était)."""
-    faits = git("log", f"--since=@{int(depuis)}", "--format=%h %s").splitlines()
-    distant = git("ls-remote", "origin", "refs/heads/main").split()[:1]
-    attente = (git("rev-list", "--count", f"{distant[0]}..main") if distant else "") or "?"
-    liste = "".join(f"\n  - {c[:90]}" for c in faits[:5])
-    return f"{len(faits)} commit(s) depuis {heure(depuis)} · {attente} pas encore sur GitHub{liste}"
-
-
-def battre(memoire, etat, maintenant):
-    compte = etat.get("compte") or memoire.get("compte") or "a"
+def jauge_en_mots(compte, maintenant):
     f = charge(compte, maintenant)
-    jauge = " · ".join(f"{t} : {round(f[n][0])} %" for n, t in (("five_hour", "5 h"), ("seven_day", "semaine"))
-                       if n in f) or "jauges pas encore lues"
+    mots = [f"{t} {round(f[n][0])} %" for n, t in (("five_hour", "5 h"), ("seven_day", "semaine")) if n in f]
+    au_seuil, libre_a = plein(compte, maintenant)
+    if au_seuil and libre_a:
+        mots.append(f"libre à {heure(libre_a)}")
+    return ", ".join(mots) or "jauges pas encore lues"
+
+
+def battre(memoire, compte, dit, maintenant):
+    """Le ❤️ : ce que fait le relais, les deux comptes, de qui vient la consigne suivie, le travail."""
+    comptes = " · ".join(f"{c}{' (au travail)' if c == compte else ''} : {jauge_en_mots(c, maintenant)}"
+                         for c in COMPTES if connecte(c))
+    par = f"\n- consigne suivie : écrite par {memoire['consigne_par']}" if memoire.get("consigne_par") else ""
     depuis = lire_json(ETAT / "session.json", {}).get("depuis") or maintenant
-    ecrire(BATTEMENT, f"❤️ **Relais** · {heure(maintenant)}\n- compte {compte} · {jauge}\n- {etat['dit']}"
+    ecrire(BATTEMENT, f"❤️ **Relais** · {heure(maintenant)}\n- {dit}\n- comptes — {comptes}{par}"
                       f"\n- travail : {travail(depuis)}\n- jeton GitHub : {jeton_github(maintenant)}")
     memoire["battu"] = maintenant
+
+
+def attendre(memoire, ok, pause, humaine_la, maintenant):
+    """Aucune session du relais ne vit : en lancer une, ou dire pourquoi pas."""
+    if humaine_la:
+        return (f"en retrait : une session de Claude à toi travaille sur le dépôt (son dernier signe : "
+                f"{heure(humaine_la)}) — je reprends {SILENCE // 60} minutes après, ou dès qu'elle me rend "
+                "la main")
+    if not ok:
+        return "en attente : une IA a changé la consigne après toi — retouche-la pour qu'elle reparte"
+    if pause:
+        return "en pause (première ligne de la consigne)"
+    compte, libre_a = choisir(memoire.get("compte", "a"), maintenant)
+    if not compte:
+        return "les comptes sont à leur limite : reprise vers " + (heure(libre_a) if libre_a else "?")
+    if not lancer(compte, memoire.get("paroles", [])):
+        return "une session du relais vit déjà : jamais une seconde"
+    memoire["compte"], memoire["paroles"] = compte, []
+    return f"session lancée sur le compte {compte}"
 
 
 def un_tour():
     maintenant = time.time()
     memoire = lire_json(ETAT / "veilleur.json", {})
     session = lire_json(ETAT / "session.json", {})
+    # L'histoire avant les nœuds : un geste qui tombe entre les deux attend le tour suivant, au lieu
+    # d'être pris pour l'auteur d'une empreinte qu'il n'a pas écrite.
+    neufs = gestes_neufs(memoire)
     n = noeud(CONSIGNE)
     if n is None:
         journal("Glucose ne répond pas, ou la consigne manque")
         return
-    histoire = glucose("histoire", "nombre=200")
+    histoire = neufs or {"gestes": []}
     ok, pause = signee(n, memoire, histoire), en_pause(n.get("texte"))
-    vivante = ecran() is not None
-    geste = garder(session, maintenant) if vivante else None
-    if vivante and (geste == "fermer" or (session.get("passation_demandee")
-                                         and session.get("laissee") == "relayer")):
-        fermer(session, "compte à sa limite" if geste == "fermer" else "passation demandée")
-        memoire["compte"] = autre(session.get("compte"))
-        vivante = False
-    elif geste == "passation":
-        demander_passation(session, maintenant)
-        ecrire_json(ETAT / "session.json", session)
-        taper(RAISON_PASSATION)
-        journal(f"seuil passé en plein tour : passation demandée au compte {session.get('compte')}")
+    memoire["paroles"] = ses_paroles(histoire, memoire.get("paroles", []))
+    humaine_la = main_humaine(maintenant)
+    vivante = ecran() is not None and tenir(session, memoire, humaine_la, maintenant)
     if vivante:
         surveiller(memoire, histoire, maintenant)
-        if session.get("laissee") in ("pause", "consigne non signée") and ok and not pause:
-            taper("[Relais] Reprends selon sa consigne.")
-        dit = f"session en cours depuis {heure(session.get('depuis', maintenant))}" + (
+        if not humaine_la and not session.get("passation_demandee"):
+            entendre(memoire, histoire)
+            relancer(session, n.get("texte", ""), ok, pause)
+        dit = f"session du compte {session.get('compte')} au travail depuis {heure(session.get('depuis', maintenant))}" + (
             f" — arrêtée : {session['laissee']}" if session.get("laissee") else "")
-    elif not ok:
-        dit = "en attente : la consigne n'est pas signée par toi (écris-la ou retouche-la)"
-    elif pause:
-        dit = "en pause (première ligne de la consigne)"
     else:
-        compte, libre_a = choisir(memoire.get("compte", "a"), maintenant)
-        if compte:
-            lancer(compte)
-            memoire["compte"] = compte
-            dit = f"session lancée sur le compte {compte}"
-        else:
-            dit = "les comptes sont à leur limite : reprise vers " + (heure(libre_a) if libre_a else "?")
+        dit = attendre(memoire, ok, pause, humaine_la, maintenant)
+    if neufs is not None:
+        memoire["vu"] = neufs["total"]
     if maintenant - memoire.get("battu", 0) >= 600 or dit != memoire.get("dit"):
         memoire["dit"] = dit
-        battre(memoire, {"compte": memoire.get("compte"), "dit": dit}, maintenant)
+        battre(memoire, session.get("compte") if vivante else None, dit, maintenant)
     ecrire_json(ETAT / "veilleur.json", memoire)
 
 
 def veiller():
-    journal("veilleur démarré")
+    verrou = un_seul_veilleur()  # gardé ouvert tant qu'il vit : le verrou meurt avec lui
+    journal(f"veilleur démarré (verrou {verrou.name})")
     while True:
         try:
             un_tour()
@@ -525,14 +581,18 @@ def etat():
     for compte in COMPTES:
         print(f"compte {compte} : connecté={connecte(compte)} plein={plein(compte, maintenant)} "
               f"jauges={charge(compte, maintenant)}")
-    print("session :", lire_json(ETAT / "session.json", {}))
+    humaine_la = main_humaine(maintenant)
+    print("session du relais :", session_tmux() or "aucune", lire_json(ETAT / "session.json", {}))
+    print("session à lui :", f"dernier signe à {heure(humaine_la)}" if humaine_la else "aucune",
+          lire_json(ETAT / "baux.json", {}))
     print("veilleur :", {k: v for k, v in lire_json(ETAT / "veilleur.json", {}).items() if k != "ecran"})
+    return 0
 
 
 if __name__ == "__main__":
     geste = sys.argv[1] if len(sys.argv) > 1 else "etat"
     if geste == "installer":
-        sys.path.insert(0, str(Path(__file__).parent))
         import installer
         sys.exit(installer.installer())
-    sys.exit({"jauges": jauges, "fin-de-tour": fin_de_tour, "veiller": veiller, "etat": etat}[geste]() or 0)
+    sys.exit({"jauges": jauges, "fin-de-tour": fin_de_tour, "parole": parole, "rendre": rendre,
+              "veiller": veiller, "etat": etat}[geste]() or 0)

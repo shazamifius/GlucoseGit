@@ -1,0 +1,514 @@
+[
+ {
+  "nom": "RELAIS-MAINS — seul « humain » signe (comme avant : sa consigne de l'autre appareil ne vaut rien)",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return bool(auteur) and not auteur.startswith(\"agent \") and auteur != \"l'IA de Glucose\"",
+  "apres": "return auteur == \"humain\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-MAINS — une IA signe aussi",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return bool(auteur) and not auteur.startswith(\"agent \") and auteur != \"l'IA de Glucose\"",
+  "apres": "return bool(auteur)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-MAINS — l'IA de Glucose signe",
+  "fichier": "outils/relais/loi.py",
+  "avant": "and not auteur.startswith(\"agent \") and auteur != \"l'IA de Glucose\"",
+  "apres": "and not auteur.startswith(\"agent \")",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-PLAFOND — le crochet relance sans fin (Claude Code coupe au 8e, le relais se tait)",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return (\"laisser\", \"relancer\") if suite else (\"continuer\", \"\")",
+  "apres": "return \"continuer\", \"\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-PLAFOND — le crochet ne lit pas stop_hook_active",
+  "fichier": "outils/relais/relais.py",
+  "avant": "bool((entree or {}).get(\"stop_hook_active\"))",
+  "apres": "False",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-PLAFOND — la relance se retape à chaque tour",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        session.pop(\"laissee\")\n        ecrire_json(ETAT / \"session.json\", session)\n        journal(\"session relancée",
+  "apres": "        ecrire_json(ETAT / \"session.json\", session)\n        journal(\"session relancée",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — la session du relais ne s'efface pas devant la sienne",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if humaine_la:\n        return \"retrait\"\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — sans session du relais, il en lance une malgré la sienne",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if humaine_la:\n        return (f\"en retrait",
+  "apres": "    if False:\n        return (f\"en retrait",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — en retrait, il change de compte",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        if not retrait:\n            memoire[\"compte\"] = autre(",
+  "apres": "        if True:\n            memoire[\"compte\"] = autre(",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — le journal de sa conversation n'est pas un signe de vie",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        ecrit = Path(bail[\"transcript\"]).stat().st_mtime if bail.get(\"transcript\") else 0.0",
+  "apres": "        ecrit = 0.0",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — le crochet Stop ne cède pas à sa session",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    motif = \"retrait\" if main_humaine(maintenant) else (",
+  "apres": "    motif = \"retrait\" if False else (",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — une session d'un autre dossier prend la main",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if DEPOT.resolve() not in (ici, *ici.parents):\n        return 0\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — les sessions du relais prennent la main sur elles-mêmes",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if os.environ.get(\"RELAIS\") == \"1\":\n        return 0  # le relais se parle",
+  "apres": "    if False:\n        return 0  # le relais se parle",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — sa session n'apprend pas que le relais vit encore",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if session_tmux():\n        print(AVERTIR)",
+  "apres": "    if False:\n        print(AVERTIR)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — lancer ne regarde pas s'il en vit une",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if session_tmux():\n        journal(\"une session du relais vit déjà : pas de seconde\")\n        return False\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "UNE-SEULE — pas de verrou : deux veilleurs",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        fcntl.flock(verrou, fcntl.LOCK_EX | fcntl.LOCK_NB)",
+  "apres": "        pass",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — l'histoire n'en relit que 200 (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    lu = glucose(\"histoire\", f\"nombre={total - vu}\")",
+  "apres": "    lu = glucose(\"histoire\", \"nombre=200\")",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — la première fois, toute l'histoire",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    vu = min(int(memoire.get(\"vu\", total)), total)",
+  "apres": "    vu = min(int(memoire.get(\"vu\", 0)), total)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — le battement compte pour une note",
+  "fichier": "outils/relais/loi.py",
+  "avant": "                elif ident not in ids and ident not in (BATTEMENT, REPONSE):",
+  "apres": "                elif ident not in ids:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — un nœud retiré reste à lire",
+  "fichier": "outils/relais/loi.py",
+  "avant": "                if fait.startswith(\"retire\"):\n                    ids = [i for i in ids if i != ident]\n                elif",
+  "apres": "                if False:\n                    pass\n                elif",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — le départ ne donne pas ses notes",
+  "fichier": "outils/relais/loi.py",
+  "avant": "\"par une flèche — avant toute autre tâche.\" if paroles else \"\")",
+  "apres": "\"par une flèche — avant toute autre tâche.\" if False else \"\")",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — le lancement oublie ses notes",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if not lancer(compte, memoire.get(\"paroles\", [])):",
+  "apres": "    if not lancer(compte, []):",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — ses notes restent après le lancement",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    memoire[\"compte\"], memoire[\"paroles\"] = compte, []",
+  "apres": "    memoire[\"compte\"] = compte",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — tapées pendant qu'il écrit encore",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if memoire.get(\"paroles\") and not any(humaine(g.get(\"auteur\")) for g in histoire.get(\"gestes\", [])):",
+  "apres": "    if memoire.get(\"paroles\"):",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SES-NOTES — tapées à chaque tour",
+  "fichier": "outils/relais/relais.py",
+  "avant": "taper(raison_entendre(memoire.pop(\"paroles\")))",
+  "apres": "taper(raison_entendre(memoire.get(\"paroles\")))",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SA-REPONSE — de l'autre appareil, elle n'est pas tapée",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if texte and humaine(geste.get(\"auteur\")):",
+  "apres": "    if texte and geste.get(\"auteur\") == \"humain\":",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SA-REPONSE — son geste pas encore lu, la réponse est perdue",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if geste is None:\n        return  # son geste",
+  "apres": "    if False:\n        return  # son geste",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "JUSQU-AU-MUR — au seuil, la passation même sans personne pour reprendre (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if ailleurs(compte, maintenant)[0]:\n        return \"passation\"",
+  "apres": "    if True:\n        return \"passation\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "JUSQU-AU-MUR — prévenue à chaque tour",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    return None if session.get(\"prevenue\") else \"prevenir\"",
+  "apres": "    return \"prevenir\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "JUSQU-AU-MUR — un compte au seuil dort même quand personne d'autre ne peut",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    for seuils in (SEUILS, MUR):",
+  "apres": "    for seuils in (SEUILS,):",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "JUSQU-AU-MUR — le crochet demande la passation sans personne pour reprendre",
+  "fichier": "outils/relais/relais.py",
+  "avant": "\"limite\" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else None)",
+  "apres": "\"limite\" if plein(compte, maintenant)[0] else None)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "HEURE — le jour d'une remise lointaine disparaît",
+  "fichier": "outils/relais/loi.py",
+  "avant": "\"%H:%M\" if meme_jour else \"%d/%m %H:%M\"",
+  "apres": "\"%H:%M\"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

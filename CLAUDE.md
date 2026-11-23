@@ -12,9 +12,11 @@ sont celles de cette petite machine, plus la nôtre. Celles d'avant le 6/11 parl
 cassé : ce qui y parle de `C:\`, de PowerShell, de WSL ou de `.exe` ne vaut plus ici.
 
 **Un relais autonome travaille sur Glucose** (22/11) : des sessions de Claude qui continuent seules, d'un
-compte à l'autre. Son mode d'emploi est dans son Glucose (`glucose lire tableau=main ids=relais-mode-emploi`,
-membrane « 🤖 Relais ») : à lire avant de toucher au dépôt. Tout ce qu'on a à lui dire s'écrit dans son
-Glucose ; il ne lit pas les conversations.
+compte à l'autre. Son mode d'emploi : [`outils/relais/MODE-EMPLOI.md`](outils/relais/MODE-EMPLOI.md), à lire
+avant de toucher au dépôt. **Une seule session à la fois** (sa parole du 23/11) : ton premier message prend
+la main, et une session du relais qui vivait écrit sa passation et s'arrête — s'il en vivait une, ton contexte
+le dit (« [Relais] … ») : attends-la. **En partant, rends-lui la main** : `python3 -I outils/relais/relais.py
+rendre`. Tout ce qu'on a à dire au relais s'écrit dans son Glucose ; il ne lit pas les conversations.
 
 ## Lire, dans cet ordre — environ 10 000 mots
 
@@ -38,7 +40,7 @@ Puis : prendre le premier chantier ouvert de SUITE § 2, **tout remettre en ques
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 132.**
+fiche. **La prochaine porte le numéro 133.**
 
 ## Avec lui
 
@@ -105,4 +107,5 @@ arrête une publication qui l'oublierait.
 ## En fin de session
 
 [MÉTHODE § 6](docs/METHODE.md) : ÉTAT réécrit au présent, SUITE sans ce qui est fini, une fiche datée et
-sa ligne à l'index, ses paroles nouvelles dans VISION, une seule liste courte d'essais à son écran.
+sa ligne à l'index, ses paroles nouvelles dans VISION, une seule liste courte d'essais à son écran. Puis rendre la main
+au relais (`python3 -I outils/relais/relais.py rendre`).

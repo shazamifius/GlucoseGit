@@ -61,17 +61,20 @@ def membrane_dans_glucose():
 
 
 def reglages_claude():
+    """La barre d'état (les jauges), le crochet « Stop » (continuer, passer la main) et le crochet
+    « UserPromptSubmit » (une session à lui prend la main : une seule session à la fois, 23/11)."""
     chemin = r.MAISON / ".claude/settings.json"
     reglages = json.loads(chemin.read_text())
     reglages["statusLine"] = {"type": "command", "command": f"{COMMANDE} jauges"}
-    crochets = reglages.setdefault("hooks", {}).setdefault("Stop", [])
-    voulu = f"{COMMANDE} fin-de-tour"
-    if not any(h.get("command") == voulu for g in crochets for h in g.get("hooks", [])):
-        crochets.append({"hooks": [{"type": "command", "command": voulu, "timeout": 300}]})
+    for moment, geste, delai in (("Stop", "fin-de-tour", 300), ("UserPromptSubmit", "parole", 10)):
+        crochets = reglages.setdefault("hooks", {}).setdefault(moment, [])
+        voulu = f"{COMMANDE} {geste}"
+        if not any(h.get("command") == voulu for g in crochets for h in g.get("hooks", [])):
+            crochets.append({"hooks": [{"type": "command", "command": voulu, "timeout": delai}]})
     provisoire = chemin.with_suffix(".relais.tmp")
     provisoire.write_text(json.dumps(reglages, ensure_ascii=False, indent=2) + "\n")
     os.replace(provisoire, chemin)
-    return "Claude Code : barre d'état et crochet Stop"
+    return "Claude Code : barre d'état, crochets Stop et UserPromptSubmit"
 
 
 def second_compte():

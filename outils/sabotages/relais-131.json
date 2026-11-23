@@ -17,7 +17,7 @@
  },
  {
   "nom": "RELAIS-JAUGES — la passation demandée laisse partir sans être écrite (comme avant)",
-  "fichier": "outils/relais/relais.py",
+  "fichier": "outils/relais/loi.py",
   "avant": "return (\"laisser\", \"relayer\") if ecrite or len(recents) >= 3 else (\"passation\", \"\")",
   "apres": "return \"laisser\", \"relayer\"",
   "cmd": [
@@ -33,7 +33,7 @@
  },
  {
   "nom": "RELAIS-JAUGES — sans passation, la session est redemandée sans fin",
-  "fichier": "outils/relais/relais.py",
+  "fichier": "outils/relais/loi.py",
   "avant": "if ecrite or len(recents) >= 3 else",
   "apres": "if ecrite else",
   "cmd": [
@@ -66,8 +66,8 @@
  {
   "nom": "RELAIS-JAUGES — la passation se redemande à chaque tour",
   "fichier": "outils/relais/relais.py",
-  "avant": "if plein(compte, maintenant)[0] and not session.get(\"passation_demandee\"):",
-  "apres": "if plein(compte, maintenant)[0]:",
+  "avant": "    if session.get(\"passation_demandee\"):\n        return None\n    if humaine_la:",
+  "apres": "    if humaine_la:",
   "cmd": [
    "python3",
    "-m",
@@ -82,8 +82,8 @@
  {
   "nom": "RELAIS-JAUGES — le veilleur ne ferme pas au mur",
   "fichier": "outils/relais/relais.py",
-  "avant": "if vivante and (geste == \"fermer\" or (",
-  "apres": "if vivante and (False or (",
+  "avant": "    if geste == \"fermer\" or (session.get(\"passation_demandee\")",
+  "apres": "    if False or (session.get(\"passation_demandee\")",
   "cmd": [
    "python3",
    "-m",
@@ -98,8 +98,8 @@
  {
   "nom": "RELAIS-JAUGES — le seuil passé en plein tour attend la fin du tour (comme avant)",
   "fichier": "outils/relais/relais.py",
-  "avant": "    elif geste == \"passation\":\n",
-  "apres": "    elif False:\n",
+  "avant": "    if geste in (\"passation\", \"retrait\"):\n",
+  "apres": "    if geste in (\"retrait\",):\n",
   "cmd": [
    "python3",
    "-m",
@@ -146,8 +146,8 @@
  {
   "nom": "RELAIS-JAUGES — le crochet ne regarde pas si la passation est écrite",
   "fichier": "outils/relais/relais.py",
-  "avant": "                               passation_ecrite(session))",
-  "apres": "                               False)",
+  "avant": "                               motif, maintenant, passation_ecrite(session),",
+  "apres": "                               motif, maintenant, False,",
   "cmd": [
    "python3",
    "-m",
@@ -177,7 +177,7 @@
  },
  {
   "nom": "RELAIS-5 — compter contre origin/main (comme avant)",
-  "fichier": "outils/relais/relais.py",
+  "fichier": "outils/relais/machine.py",
   "avant": "distant = git(\"ls-remote\", \"origin\", \"refs/heads/main\").split()[:1]",
   "apres": "distant = [\"origin/main\"]",
   "cmd": [

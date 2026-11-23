@@ -444,3 +444,4 @@ et de sa construction ; les trois IA répondant à la même question.
   on les lit, et on y répond, par la porte (fiche 122).
 * **Les documents** (11/11) : *« trop de choses qui se contredisent, d'autres qui se répètent »* ; les
   sessions suivantes *« se retrouvent vite perdues »*.
+* **Le relais, H24, une session à la fois** (23/11) : *« tout le système autonome de Glucose qu'on a créé, qui a pour but de tourner H24, eh bien là, il ne fonctionne tout simplement PAS… c'est vraiment quelque chose à expressément corriger — attention aussi à ne jamais avoir de double session !!!! »* ; puis, en partant en cours : *« ton rôle, c'est pas de coder, c'est de réparer les sessions Claude, qui doivent avoir un lancement automatique et du code H24 dans les limites des sessions, et de jamais avoir 2 sessions de code en même temps »*. Et, depuis son autre appareil, au relais : *« sois actif sur le Glucose, car j'ai besoin de toi »* (fiche 132).
