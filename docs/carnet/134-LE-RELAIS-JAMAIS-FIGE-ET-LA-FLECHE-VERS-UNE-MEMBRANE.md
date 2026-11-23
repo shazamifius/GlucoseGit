@@ -121,10 +121,11 @@ relais d'aujourd'hui n'y sont pas : la version d'après.
 
 ## 8. Vu, pas réglé
 
-* **Ranger des nœuds dans un dossier existant n'existe pas** — ni pour lui (glisser sur un dossier), ni
-  pour une IA. Seul « créer un dossier avec ce qu'il couvre » existe (`create_folder`,
-  `capture_content_under`). Ses notes d'archive le demandent (RANGER-1, SUITE § 2) ; la question des
-  flèches qui relient un nœud rangé à un nœud resté dehors est à trancher d'abord.
+* ~~Ranger des nœuds dans un dossier existant n'existe pas~~ — fait plus tard dans la session (§ 10).
+* **Entrer dans un dossier ne cadre pas ce qu'il contient** : la caméra de son tableau est la sienne,
+  et le texte rangé n'est pas à l'écran (vu au pilote, la mini-carte le montrait ; `Alt+F` le cadre).
+  Pour l'archive, qui se remplit par la droite, c'est un piège : cadrer à l'entrée quand rien de ce
+  qu'il porte n'est visible.
 * **Son Glucose ouvert tourne sur un binaire d'avant MCP-DOSSIER** : la porte ne montre pas ses dossiers
   (`folder-wiov-332`, son futur « archive », est invisible au relais). Le relancer couperait l'accès tant
   que « Toujours, dans ce document » n'est pas donné (ACCÈS-H24).
@@ -140,3 +141,49 @@ relais d'aujourd'hui n'y sont pas : la version d'après.
   membrane autour. Il peut ainsi tout récrire sans casser une forme.
 * FLECHE-7 ne compte plus comme obstacle ce qu'une **photo** porte quand une flèche la vise : le trait
   s'arrête à son bord, rien de dedans ne se voit.
+
+## 10. RANGER-1 et 2 — ranger dans un dossier, l'archive
+
+Ses notes du soir : *« archive les bugs une fois qu'ils sont corrigés »*, *« archive les textes ainsi
+que les réponses une fois que c'est testé et déjà approuvé »*, *« éviter de supprimer, mais plutôt
+archiver »* — ses flèches pointaient le dossier qu'il renommera « archive » le 24/11.
+
+**La recherche** (consultée le 23/11/2026) : tldraw retire le lien d'une flèche dont un bout change de
+page — elle devient libre, son sens perdu ([bindings](https://tldraw.dev/sdk-features/bindings),
+[pages](https://tldraw.dev/sdk-features/pages)) ; Figma n'en dit rien d'officiel (des rapports de
+connecteurs détachés sur son forum).
+
+**La loi** (`store/ranger.rs`, RANGER-1, `662da67`) : ce qui part quitte le tableau pour celui que le
+dossier ouvre, **à droite de ce qu'il porte déjà** (`place_pour_un_agent` : une seule loi de
+placement), sa disposition gardée ; une membrane emporte ses membres, et les leurs ; un membre dont la
+membrane reste arrive sans membrane. **Les flèches** : tous les bouts partent, elle part ; **un seul
+bout part, elle reste dehors et vise le dossier** — le dossier tient lieu de ce qu'il contient, rien
+ne pend, le lien garde son sens ; d'un nœud rangé vers le dossier, elle est arrivée et part avec le
+geste. Un seul geste, que `Ctrl+Z` défait (les cases du journal du dernier au premier, JRN-2).
+`glucose_ranger` (et `glucose ranger`) pour les IA, ouvert au nuage qui écrit ; il rend le tableau du
+dossier (`ouvre`) — par l'API du noyau : la première version lisait les dossiers du modèle en direct,
+et le cliquet du couplage l'a arrêtée (40 accès contre 38).
+
+**Le geste à sa main** (RANGER-2, `f7c7420`) : pendant un glisser, le dossier sous le pointeur — celui
+qu'un clic y prendrait, le même arbitre, jamais un dossier emporté — se dessine comme **le fantôme d'un
+nœud à naître** (« ça arrivera ici », le langage de PLACEMENT-1) ; au lâcher, la sélection y entre dans
+le même geste que le déplacement. `Échap` n'y range rien. L'état d'un glisser devient un seul champ,
+`Glisser`, remis à zéro d'un coup (les deux fonctions qui passaient 80 lignes d'une ligne chacune ont
+ainsi rendu la leur). **Aucun message** : j'en avais écrit un ; le cliquet des toasts (46) l'a refusé,
+et il avait raison — la boîte annonce le rangement, le badge du dossier le compte.
+
+**Regardé au pilote** (`~/.cache/glucose-bancs/ranger-134/`, une cible à part) : la boîte sur le
+dossier pendant le glisser ; au lâcher, le texte parti, le badge à 1 ; `Ctrl+Z` le rend à (0, 0) ; dans
+le dossier, le texte (après `Alt+F`, § 8).
+
+**Vérifié** : 7 épreuves du noyau, 3 par la porte, 6 par la souris et la peinture — dont une qui a
+d'abord mesuré son bruit : la barre du bas se redessine seule d'une image à l'autre, d'où deux épreuves
+(la vraie peinture : la boîte apparaît sur le dossier ; un rendu direct : rien d'autre ne change) ;
+`ranger-134` **13 sabotages sur 13**, `ranger2-134` **9 sur 9** ; Clippy strict, la suite entière :
+**3 548 épreuves, aucune tombée**. Son Glucose (`target/release`) recompilé sur `f7c7420` : la relance
+le lui donne (« Toujours, dans ce document » à donner alors, ⚡ Gestes).
+
+**À contester** : une flèche vers le dossier depuis un nœud rangé disparaît (arrivée) — il les avait
+tirées exprès ; `Ctrl+Z` les rend, mais un geste plus doux serait de la garder dans le dossier, libre.
+La boîte du dépôt est discrète (1 pixel, le fantôme) : sa force est à son ressenti.
+
