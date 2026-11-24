@@ -373,10 +373,21 @@ pub fn meler(
             let i = (y * largeur + x) * 4;
             for c in 0..4 {
                 let v = f32::from(net[i + c]) * m + f[c] * (1.0 - m);
-                net[i + c] = v.round() as u8;
+                net[i + c] = octet(v);
             }
         }
     }
+}
+
+/// **L'octet le plus proche de `v`, la moitié loin de zéro** : `v.round() as u8`, au bit près pour
+/// toute valeur (négative, au-delà de 255 ou NaN, que la conversion sature). Sur la base x86-64, sans
+/// instruction d'arrondi, `round` est un appel de fonction ; la troncature est une instruction, et
+/// la partie qu'elle retire, `v − ⌊v⌋`, se calcule exactement (lemme de Sterbenz) — fiche 140 § 5.
+#[inline]
+fn octet(v: f32) -> u8 {
+    let tronque = v as i32;
+    let arrondi = tronque.saturating_add(i32::from(v - tronque as f32 >= 0.5));
+    arrondi.clamp(0, 255) as u8
 }
 
 /// **Deux rangées d'une grille, lissées le long de x, gardées** : la moitié d'une lecture

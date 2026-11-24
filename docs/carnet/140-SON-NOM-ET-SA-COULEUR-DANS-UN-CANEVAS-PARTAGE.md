@@ -150,3 +150,21 @@ le mélange **19,6 → 17,5 ms** en 1080p (35,8 → 31,9 en 1440p), le tout **30
 aucun sabotage ne visait la ligne. Le `round` reste : `round_ties_even` (qui se vectorise) ne
 donnerait pas les mêmes nombres sur un demi exact — c'est déjà la loi en entiers.
 
+**L'arrondi sans appel de fonction** (le relais, 9 h 25) : sur la base x86-64 (SSE2, aucune cible
+fixée), `f32::round` n'a pas d'instruction — quatre appels à `roundf` par pixel. `octet` tronque
+(`as i32`, une instruction), puis ajoute 1 si ce qu'il a retiré vaut au moins un demi : cette partie
+se calcule exactement (lemme de Sterbenz), et l'octet est celui de `v.round() as u8` pour toute
+valeur. `test_flou_octet_arrondit_comme_round` l'éprouve à chaque entier et chaque demi de −4 à
+300, à un ulp de part et d'autre, tous les 1/1024, à l'infini et à NaN — elle a trouvé d'emblée un
+débordement à l'infini (`i32::MAX + 1`), d'où `saturating_add`. `meler-140.json` **9 sur 9** (trois
+sabotages neufs), `voies_suite` 34, cliquets, Clippy du noyau :
+
+```text
+                     tout (médiane)            mélange
+1920 x 1080, ×1      30,1 → 28,0 → 24,6 ms     19,6 → 17,5 → 14,1
+2560 x 1440, ×1      55,8 → 51,8 → 45,6 ms     35,8 → 31,9 → 25,7
+```
+
+**Reste** deux fois et demie le plancher ; la gaussienne (10,5 ms) pèse désormais presque autant que
+le mélange.
+

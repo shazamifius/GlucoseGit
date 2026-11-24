@@ -309,3 +309,26 @@ fn test_flou_reduire_rend_au_bit_pres_la_lecture_voisin_par_voisin() {
         assert_eq!(reduire(&img).pixels, attendu, "{l} x {h}, image");
     }
 }
+
+/// **`octet` rend `v.round() as u8`, au bit près** (fiche 140 § 5) : à chaque entier et chaque demi
+/// de −4 à 300, et à un ulp de part et d'autre — là où une troncature mal arrondie se tromperait —,
+/// tous les 1/1024 entre eux, puis l'infini, NaN, et les très grands.
+#[test]
+fn test_flou_octet_arrondit_comme_round() {
+    let mut valeurs = vec![
+        f32::NAN,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        1e9,
+        -1e9,
+        0.0,
+        -0.0,
+    ];
+    for k in -4 * 1024..=300 * 1024 {
+        let v = k as f32 / 1024.0;
+        valeurs.extend([v, v.next_up(), v.next_down()]);
+    }
+    for v in valeurs {
+        assert_eq!(octet(v), v.round() as u8, "v = {v:?}");
+    }
+}
