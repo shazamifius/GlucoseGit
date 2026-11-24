@@ -36,6 +36,7 @@
 //! ne le garantit pas, et ses écritures retentées dupliquent les formes.
 
 mod decrit;
+mod deplacer;
 pub mod domaines;
 mod rattacher;
 
@@ -128,6 +129,8 @@ pub enum Refus {
     PasUnDossier(String),
     /// Un dossier ne se range pas en lui-même (RANGER-1).
     DansSoiMeme(String),
+    /// Une photo verrouillée ne bouge pas, sous la main comme sous une IA (DEPLACER-1).
+    Verrouillee(String),
 }
 
 impl std::fmt::Display for Refus {
@@ -158,6 +161,10 @@ impl std::fmt::Display for Refus {
             Self::NomVide => f.write_str("un nom vide ne nomme rien"),
             Self::PasUnDossier(d) => write!(f, "« {d} » n'est pas un dossier de ce tableau"),
             Self::DansSoiMeme(d) => write!(f, "le dossier « {d} » ne se range pas en lui-même"),
+            Self::Verrouillee(i) => write!(
+                f,
+                "la photo « {i} » est verrouillée : elle ne bouge pas tant que l'utilisateur ne l'a pas déverrouillée"
+            ),
         }
     }
 }
@@ -349,35 +356,6 @@ impl Store {
             *text = lien.texte.map(str::to_string);
         }
         self.poser_pour_un_agent(board_id, fleche, None)
-    }
-
-    /// **Déplace un nœud** pour que le coin haut gauche de sa boîte soit en `(x, y)` ; il
-    /// appartient ensuite à la membrane où il tombe (MEMB-1).
-    pub fn deplacer_pour_un_agent(
-        &mut self,
-        board_id: &str,
-        id: &str,
-        (x, y): (f64, f64),
-    ) -> Result<(), Refus> {
-        let boite = self.boite_d_un_noeud(board_id, id)?;
-        let (dx, dy) = (x - boite.left, y - boite.top);
-        if self.image(board_id, id).is_some() {
-            self.update_image(board_id, id, |i| {
-                i.x += dx;
-                i.y += dy;
-            });
-        } else {
-            self.update_annotation(board_id, id, |a| a.translate(dx, dy));
-        }
-        // Le rattachement lit la sélection : elle désigne le nœud le temps de le rattacher, et
-        // `geste_d_agent` rend celle de l'utilisateur ensuite (AGENT-2).
-        if self.image(board_id, id).is_some() {
-            self.select_image(id.to_string(), false);
-        } else {
-            self.select_annotation(id.to_string(), false);
-        }
-        self.rattacher_la_selection(board_id);
-        Ok(())
     }
 
     /// **Retire des nœuds**, et avec eux les flèches qui n'ont plus de bout. Rend combien de

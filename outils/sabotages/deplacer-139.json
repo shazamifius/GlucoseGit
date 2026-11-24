@@ -1,0 +1,23 @@
+[
+ {
+  "nom": "DEPLACER-1 — la loi d'avant : seul le nœud nommé se translate",
+  "fichier": "crates/glucose-core/src/store/agents/deplacer.rs",
+  "avant": "        self.move_selected(board_id, x - boite.left, y - boite.top);",
+  "apres": "        self.update_annotation(board_id, id, |a| a.translate(x - boite.left, y - boite.top));",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "store::agents::tests::deplacer_1"]
+ },
+ {
+  "nom": "DEPLACER-1 — une photo verrouillée répond « fait » sans bouger",
+  "fichier": "crates/glucose-core/src/store/agents/deplacer.rs",
+  "avant": "            (Some((true, _)), _) => return Err(Refus::Verrouillee(id.to_string())),",
+  "apres": "            (Some((true, b)), _) => { self.select_image(id.to_string(), false); b }",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "store::agents::tests::deplacer_1"]
+ },
+ {
+  "nom": "DEPLACER-1 — un dossier est inconnu de l'agent qui le déplace",
+  "fichier": "crates/glucose-core/src/store/agents/deplacer.rs",
+  "avant": "        let boite = match (photo, self.boite_d_un_dossier(board_id, id)) {",
+  "apres": "        let boite = match (photo, self.boite_d_un_dossier(board_id, id).filter(|_| false)) {",
+  "cmd": ["cargo", "test", "-p", "glucose-core", "--lib", "--", "store::agents::tests::deplacer_1"]
+ }
+]

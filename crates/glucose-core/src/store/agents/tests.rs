@@ -428,6 +428,92 @@ fn deplacer_dans_une_membrane_l_y_rattache() {
     assert_eq!(store.selected_annotation_ids, vec!["sien".to_string()]);
 }
 
+/// **DEPLACER-1 — une membrane déplacée par une IA emporte ce qu'elle porte** (fiche 139), comme
+/// sous la main : le 24/11, en rangeant son archive, les nœuds d'un « Groupe » sont restés à
+/// 4 000 unités de leur membrane. Une flèche d'un membre vers un nœud resté dehors garde son
+/// bout sur le membre. Un seul `Ctrl+Z` remet tout. **À l'envers** : la loi d'avant ne bougeait
+/// que la membrane, et son membre restait où il était.
+#[test]
+fn deplacer_1_une_membrane_emporte_ce_qu_elle_porte() {
+    let (mut store, board) = son_tableau();
+    let bulle = Annotation::membrane("bulle", 1000.0, 0.0, 600.0, 600.0);
+    poser(&mut store, &board, bulle).expect("posée");
+    store
+        .geste_d_agent(|s| s.deplacer_pour_un_agent(&board, "sien", (1100.0, 100.0)))
+        .expect("dedans");
+    let dehors = Annotation::text("dehors", -900.0, 0.0, "resté");
+    poser(&mut store, &board, dehors).expect("posé");
+    let lien = Lien {
+        id: "lien",
+        source: "sien",
+        cible: "dehors",
+        ..Lien::default()
+    };
+    store
+        .geste_d_agent(|s| s.relier_pour_un_agent(&board, lien))
+        .expect("relié");
+    let avant = store.undo_depth();
+    store
+        .geste_d_agent(|s| s.deplacer_pour_un_agent(&board, "bulle", (2000.0, 500.0)))
+        .expect("déplacée");
+    let sien = store.project.annotation(&board, "sien").expect("sien");
+    assert_eq!((sien.x(), sien.y()), (2100.0, 600.0), "le membre a suivi");
+    assert_eq!(
+        sien.membrane_id(),
+        Some("bulle"),
+        "il y appartient toujours"
+    );
+    let dehors = store.project.annotation(&board, "dehors").expect("dehors");
+    assert_eq!(
+        (dehors.x(), dehors.y()),
+        (-900.0, 0.0),
+        "ce qui est dehors reste"
+    );
+    assert_eq!(store.undo_depth(), avant + 1, "un seul geste");
+    store.undo();
+    let sien = store.project.annotation(&board, "sien").expect("sien");
+    assert_eq!(
+        (sien.x(), sien.y()),
+        (1100.0, 100.0),
+        "un Ctrl+Z remet tout"
+    );
+    store.update_annotation(&board, "bulle", |a| a.translate(1000.0, 500.0));
+    let sien = store.project.annotation(&board, "sien").expect("sien");
+    assert_eq!(
+        (sien.x(), sien.y()),
+        (1100.0, 100.0),
+        "la loi d'avant ne bougeait que la membrane : son membre restait là"
+    );
+}
+
+/// **DEPLACER-1 : un dossier se déplace** (une IA le voit depuis MCP-DOSSIER, et ne pouvait pas le
+/// bouger : « aucun nœud ne porte l'identifiant ») ; **une photo verrouillée, non** — la main ne
+/// la déplace pas, une IA non plus, et le refus le dit au lieu de répondre « fait ».
+#[test]
+fn deplacer_1_un_dossier_bouge_une_photo_verrouillee_non() {
+    let (mut store, board) = son_tableau();
+    store.create_folder(
+        &board,
+        crate::types::CanvasFolder::new("archive", "archive", ""),
+    );
+    store
+        .geste_d_agent(|s| s.deplacer_pour_un_agent(&board, "archive", (300.0, 400.0)))
+        .expect("le dossier se déplace");
+    let dossier = &store.active_board().expect("le tableau").folders[0];
+    assert_eq!((dossier.x, dossier.y), (300.0, 400.0));
+    let mut img = BoardImage::new("fixe", 0.0, 0.0, 320.0, 200.0);
+    img.locked = true;
+    store
+        .geste_d_agent(|s| s.poser_une_photo_pour_un_agent(&board, img, None))
+        .expect("posée");
+    let avant = store.image(&board, "fixe").expect("fixe").rect();
+    assert_eq!(
+        store.geste_d_agent(|s| s.deplacer_pour_un_agent(&board, "fixe", (900.0, 900.0))),
+        Err(Refus::Verrouillee("fixe".to_string()))
+    );
+    assert_eq!(store.image(&board, "fixe").expect("fixe").rect(), avant);
+}
+
 #[test]
 fn une_photo_dit_la_page_d_ou_elle_vient() {
     let (mut store, board) = son_tableau();

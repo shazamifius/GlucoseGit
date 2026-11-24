@@ -90,8 +90,10 @@ const OUTILS: &[(&str, &str, &str)] = &[
     ),
     (
         "glucose_deplacer",
-        "Déplace un nœud : le coin haut gauche de sa boîte va en (x, y). Il appartient ensuite à la \
-         membrane où il tombe.",
+        "Déplace un nœud comme la main de l'utilisateur : le coin haut gauche de sa boîte va en \
+         (x, y) ; une membrane emporte ce qu'elle contient, les flèches accrochées suivent, un \
+         dossier se déplace aussi. Il appartient ensuite à la membrane où il tombe. Une photo \
+         verrouillée ne bouge pas.",
         r##"{"type":"object","properties":{"id":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"tableau":{"type":"string"}},"required":["id","x","y"]}"##,
     ),
     (
