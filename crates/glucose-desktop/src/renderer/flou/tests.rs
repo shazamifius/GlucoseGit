@@ -169,3 +169,66 @@ fn test_q12_le_flou_vaut_quarante_pour_cent_de_celui_de_l_image_d() {
         "40 % : {SIGMA}"
     );
 }
+
+/// **Le banc du flou sur la voie du processeur** (fiche 137 § 7, mesuré à la fiche 140) : le
+/// masque d'un nœud choisi au milieu de l'écran, puis le reste flouté et mêlé — ce que chaque image
+/// coûte tant que le flou vit et que la scène change. Trente passages après trois d'échauffement, à
+/// la densité 1 puis 2 ; la médiane et le pire. Ignoré : il mesure, il ne garde rien.
+/// `cargo test --release -p glucose-desktop --lib -- banc_flou --ignored --nocapture`
+#[test]
+#[ignore]
+fn banc_flou_au_processeur() {
+    for (largeur, hauteur, densite) in [
+        (1920u32, 1080u32, 1.0f32),
+        (2560, 1440, 1.0),
+        (2560, 1440, 2.0),
+    ] {
+        let mut pixmap = Pixmap::new(largeur, hauteur).expect("un tampon");
+        let (cx, cy) = (largeur as f32 / 2.0, hauteur as f32 / 2.0);
+        let quad = Forme::Quad([
+            (cx - 200.0, cy - 120.0),
+            (cx + 200.0, cy - 120.0),
+            (cx + 200.0, cy + 120.0),
+            (cx - 200.0, cy + 120.0),
+        ]);
+        let mut durees = Vec::new();
+        let mut etapes = [Vec::new(), Vec::new(), Vec::new()];
+        for passage in 0..33 {
+            let debut = std::time::Instant::now();
+            let f = flou(
+                std::slice::from_ref(&quad),
+                (largeur, hauteur),
+                WorldScale::new(1.0, densite),
+            )
+            .expect("un flou");
+            let masque = debut.elapsed();
+            let (l, h) = (largeur as usize, hauteur as usize);
+            let demi = loi::flouter(pixmap.data(), (l, h), &f.plan);
+            let flou_fait = debut.elapsed();
+            loi::meler(pixmap.data_mut(), (l, h), (&demi, &f.plan), &f.masque);
+            if passage >= 3 {
+                let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
+                let tout = debut.elapsed();
+                durees.push(ms(tout));
+                etapes[0].push(ms(masque));
+                etapes[1].push(ms(flou_fait - masque));
+                etapes[2].push(ms(tout - flou_fait));
+            }
+        }
+        for e in &mut etapes {
+            e.sort_by(f64::total_cmp);
+        }
+        crate::dire!(
+            "[banc]   dont le masque {:.2} ms, la gaussienne {:.2} ms, le mélange {:.2} ms (médianes)",
+            etapes[0][15],
+            etapes[1][15],
+            etapes[2][15]
+        );
+        durees.sort_by(f64::total_cmp);
+        crate::dire!(
+            "[banc] flou au processeur {largeur} x {hauteur}, densité {densite} : médiane {:.2} ms, pire {:.2} ms",
+            durees[durees.len() / 2],
+            durees[durees.len() - 1]
+        );
+    }
+}

@@ -58,3 +58,26 @@ publiées ne liraient pas. À contester s'il veut la roue : elle viendrait avec 
   très dense.
 * Deux personnes de la même couleur restent possibles : Glucose le dit et laisse faire, comme
   promis.
+
+## 5. Le coût du flou sur la voie du processeur, mesuré (fiche 137 § 7)
+
+`banc_flou_au_processeur` (ignoré par défaut ; `cargo test --release -p glucose-desktop --lib --
+banc_flou --ignored --nocapture`) : le masque d'un nœud choisi au milieu de l'écran, la gaussienne
+en pyramide (`glucose_core::flou::flouter`), le mélange de l'écran entier (`meler`) — les fonctions
+mêmes de la voie du processeur, trente passages après trois d'échauffement. **Sur ce poste** (Ryzen 5
+7600X, un seul fil) :
+
+```text
+                     tout (médiane, pire)   masque   gaussienne   mélange
+1920 x 1080, ×1      65,6 ms   67,2 ms      0,02     15,0         50,6
+2560 x 1440, ×1     118,0 ms  119,6 ms      0,03     26,8         91,1
+2560 x 1440, ×2     114,9 ms  116,0 ms      0,02     24,0         90,9
+```
+
+**Six à douze fois le plancher de la charte** (10 ms), sur une machine rapide ; son VivoBook serait
+plusieurs fois plus lent. Sans effet sur ses appareils (tous passent par la carte graphique), mais
+une machine sans carte — une machine virtuelle, un bureau distant — attend un dixième de seconde
+chaque image où le flou vit et que la scène change. **Le mélange pèse les trois quarts** : 24 ns par
+pixel, là où une lecture bilinéaire incrémentale par rangée et des entiers devraient en coûter une
+fraction (à prouver). Le chantier est ouvert dans SUITE, avec ces nombres pour point de départ.
+
