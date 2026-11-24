@@ -212,6 +212,7 @@ mod effets;
 mod en_mots;
 pub use effets::{Effet, Touche};
 mod fondre;
+pub mod fusion;
 mod mains;
 pub mod partage;
 mod partir;

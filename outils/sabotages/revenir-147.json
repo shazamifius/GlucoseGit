@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "REVENIR — le même changement des deux côtés devient un conflit",
+  "fichier": "crates/glucose-core/src/store/journal/fusion.rs",
+  "avant": "    if ici == la_bas || ici == ancetre {",
+  "apres": "    if ici == ancetre {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — inchangé ici, on ne prend plus la salle",
+  "fichier": "crates/glucose-core/src/store/journal/fusion.rs",
+  "avant": "    if ici == la_bas || ici == ancetre {",
+  "apres": "    if ici == la_bas {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — un conflit impose la version d'ici",
+  "fichier": "crates/glucose-core/src/store/journal/fusion.rs",
+  "avant": "    } else if la_bas == ancetre {",
+  "apres": "    } else if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — posé ici, devant son voisin au lieu de derrière",
+  "fichier": "crates/glucose-core/src/store/journal/fusion.rs",
+  "avant": "let index = voisin.map_or(0, |v| v + 1);",
+  "apres": "let index = voisin.map_or(0, |v| v);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — ce qu'ici a retiré n'est jamais revu",
+  "fichier": "crates/glucose-core/src/store/journal/fusion.rs",
+  "avant": "let retires = ancetre.iter().filter(|e| !l.contains_key(e.nom()));",
+  "apres": "let retires = ancetre.iter().filter(|_| false);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — un nom en double posé deux fois",
+  "fichier": "crates/glucose-core/src/store/journal/fusion.rs",
+  "avant": "noms.filter(|n| vus.insert(n.clone()))",
+  "apres": "noms.filter(|n| { vus.insert(n.clone()); true })",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ }
+]
