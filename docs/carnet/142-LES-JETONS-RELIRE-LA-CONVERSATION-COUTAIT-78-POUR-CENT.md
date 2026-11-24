@@ -1,6 +1,6 @@
 # 142 — Les jetons : relire la conversation coûtait 78 %
 
-> Le 24/11/2026, de 12 h à 12 h 30, compte b (le relais). Sa consigne pointe d'une flèche sur
+> Le 24/11/2026, de 12 h à 12 h 20, compte b (le relais). Sa consigne pointe d'une flèche sur
 > `relais-q-h24-quotas`, où il répond : *« ces URGENT, la perte de token es ma prioriter actuel !!! vraiment
 > je ne shouaite pas switch sur sonnet »*, *« relire la converssation ces vraiment a ne jamais faire »*, et
 > *« ce serai aussi interressant que claude arret de parler dans le vide […] moi je ne vois QUE les
@@ -77,7 +77,7 @@ neuve doit relire 150 000 jetons de code. Une fenêtre plus petite (200 000) gar
    fichier deux fois, la partie visible, les onglets, les domaines.
 3. Ne relire à chaque démarrage que ce qui a changé de son bloc important (la proposition 6).
 
-## 5. Le flou et les équerres retirés (12 h 40 - 13 h)
+## 5. Le flou et les équerres retirés (12 h 13 - 12 h 18)
 
 Ses paroles du 24/11 (`text-2231`, `text-g420-2313`, `relais-q-beta6`) : *« je reviens sur ma décision, c'est
 définitivement une très mauvaise idée le flou […] terriblement nul, accumulation de problèmes »*, *« ne pas
