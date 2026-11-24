@@ -36,6 +36,17 @@ Force Scan, vers le bas seulement, suffit et garde l'ordre par construction ; au
   d'origine ; aucune dérive ; le Ctrl+Z unique de la saisie rend l'état de départ.
 * Les flèches suivent leurs bouts comme pour tout déplacement.
 
+**Le balayage, précisé** (14 h 22) : à un niveau (les nœuds de même `membrane_id`, flèches
+exclues), les candidats sont ceux dont la boîte de départ est entièrement sous le bas de départ du
+nœud qui grandit ; triés par haut de départ croissant, chacun prend
+`haut = max(haut_départ, max(p.bas_neuf + min(ECART, haut_départ − p.bas_départ)))` sur les pousseurs
+`p` déjà vus qui le chevauchent horizontalement — l'écart d'origine gardé s'il était plus petit que
+`ECART` : il ne bouge qu'au contact, du strict nécessaire —, puis devient pousseur à son tour. **Puis
+l'étage du dessus** : la membrane grandit jusqu'au plus bas de ce qu'elle contient (le texte, les
+voisins poussés) + `ECART` (la loi de `membranes_poussees`, élargie aux poussés), et le même balayage
+pousse ses voisins à elle. Une membrane poussée emporte son contenu (le déplacement d'une membrane
+qu'on tire, déjà là). Pas de branche horizontale : la saisie ne grandit que vers le bas.
+
 À faire : l'état de départ gardé dans la session d'édition, la loi dans `store/pousser.rs` (le
 noyau, sans dépendance), branchée à côté de `pousser_les_membranes` ; épreuves (pousser,
 cascade, remonter, ordre gardé, un seul Ctrl+Z, les pairs du partage reçoivent les déplacements),
