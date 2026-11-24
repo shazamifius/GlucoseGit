@@ -71,9 +71,15 @@ bouton voulu. **Doute** : avec plusieurs flèches choisies, le bouton écrit sur
 
 ## 5. Ce qui reste
 
-1. **Trancher le poids de la relecture** (`mesurer_jetons.py`, quand l'histoire tient une dizaine
-   d'intervalles, dont des débuts et des fins de conversation) ; s'il est sous 0,03, **remonter le seuil**
-   (`loi.SEUIL_JETONS`) en rejouant la simulation de la fiche 142 avec ce poids.
+1. **Le poids de la relecture, tranché le 24/11 à 19 h 20** : `mesurer_jetons.py` sur 11 intervalles
+   (17 h 30 - 19 h 10, tous en heure de pointe — qui change l'échelle, pas le rapport des poids) : la
+   dispersion est la plus basse à **w = 0,02** (14,4 %), plate de 0,01 à 0,03 (15,7 et 15,3 %) ; un point de
+   jauge ≈ 65 000 jetons-équivalents. **La relecture compte donc, cinq fois moins qu'au prix de l'API** ; § 1
+   se trompait d'un ordre. Dans un intervalle à ~265 000 de contexte : relire ~40 % de la jauge, écrire ~36 %,
+   ajouter ~24 %. **Le seuil reste à 300 000** : coût par requête ≈ w·(S+T)/2 + 2·R·g/(T−S) (S ≈ 27 000 de
+   socle, R ≈ 120 000 à réapprendre, g ≈ 2 600 par requête) ; à w = 0,02 le creux est à ~370 000, plat de
+   300 à 450 000 (moins de 3 % de gain) ; à 0,05, à ~280 000. Le « vers 700 000 » de plus haut ne valait
+   qu'à w = 0. Les leviers réels : moins de requêtes (appels groupés) et l'effort de pensée (le 2).
 2. **Ce que le modèle écrit** pèse alors autant que ce qui entre (la session de 17 h : 47 % pour l'écrit, la
    pensée surtout) : l'effort de pensée (`--effort`) est le levier suivant — sa parole « Opus reste » ne dit
    rien de l'effort, à lui proposer chiffré.

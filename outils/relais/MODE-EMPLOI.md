@@ -32,8 +32,8 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close. **La mémoire
    du modèle** (le contexte de la conversation) passé **300 000 jetons** (90 % d'une fenêtre plus
    petite) : la passation, puis une conversation neuve. Chaque réponse relit la conversation entière :
-   78 % des jetons au prix de l'API (fiche 142) — mais **la jauge ne compte probablement pas la relecture**
-   (fiche 147) : `mesurer_jetons.py` le tranche sur l'histoire des jauges (`jauges-histoire.jsonl`).
+   78 % des jetons au prix de l'API (fiche 142) — mais **la jauge la compte cinq fois moins** (~0,02 d'un jeton neuf, mesuré le 24/11 :
+   fiche 147 § 5) : relire ~40 % de la jauge, écrire ~36 %, ajouter ~24 % ; le seuil reste.
 5. **La relance** : le crochet « Stop » (`relais.py fin-de-tour`) relance une fois ; la suivante est
    tapée par le veilleur — Claude Code coupe au 8ᵉ blocage de suite (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`).
 6. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, l'écran part dans
