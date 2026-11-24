@@ -235,10 +235,9 @@ impl GlucoseApp {
     pub fn fermer_le_document(&mut self) -> bool {
         self.terminer_les_gestes_en_cours();
         self.consigner();
-        // Un geste parti juste avant attend son numéro : la salle le rend, puis on écrit (fiche 144).
-        self.attendre_le_retour_de_mes_gestes();
-        self.consigner();
-        // Le numéro que le fichier contient, lu avant que rien d'autre ne s'applique (PARTAGE-SURVIT).
+        // Le dernier numéro que le fichier contient, lu avant que rien d'autre ne s'applique : une
+        // borne, jamais plus haut (REVENIR-2). Mes gestes en attente sont dans le fichier, et le
+        // retour dans la salle les rejoint : rien ne les attend plus ici.
         let partage = self.souvenir_du_canevas();
         let Some(e) = self.disque.ecriture.take() else {
             return true;

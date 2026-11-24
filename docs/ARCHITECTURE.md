@@ -485,8 +485,10 @@ les morceaux scellés (SCELLE-1, ChaCha20-Poly1305 de `core/chiffre.rs`) ; `core
 (NOMMER-1) ; `Main::Participant` signe un autre humain. **L'application ne fait que relier** :
 `salle/lien.rs` (le fil : ping, reprise, lettres gardées jusqu'à leur numéro, trous redemandés),
 `app/collaborer.rs` (la question de Collaborer, le tour de boucle, l'identité, les curseurs qui
-partent ; `collaborer/reprise.rs` : le document partagé retient son code et, à sa fermeture, le
-numéro que son fichier contient, et rejoint sa salle au lancement — PARTAGE-SURVIT, fiche 131),
+partent ; `collaborer/reprise.rs` : le document partagé retient son code, une borne basse — un
+numéro que son fichier contient à coup sûr, montée par une synchronisation qu'on n'attend pas — et
+s'il est dedans ; `collaborer/revenir.rs` : il revient dans sa salle au lancement, ou par
+« Partager », par la fusion à trois du noyau — REVENIR-2, fiche 148),
 `renderer/curseurs.rs`. La règle d'ordre : appliquer ce qui arrive, défaire et écrire au
 disque **commencent par faire partir ce qui part**. Les photos d'un participant à l'autre (B1) : à faire.
 

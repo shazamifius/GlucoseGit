@@ -12,6 +12,7 @@ pub mod nommer;
 pub mod photos;
 mod rejoindre;
 pub mod reprise;
+mod revenir;
 
 use crate::app::GlucoseApp;
 use crate::salle::lien::{self, Lien, Nouvelle, Ordre};
@@ -44,8 +45,17 @@ pub enum Entree {
     Partage,
     /// On la rejoint : rien ne s'applique avant la base.
     AttendLaBase,
+    /// On y revient (REVENIR-2) : la salle arrive depuis sa base, puis la fusion.
+    Revient,
     /// On y est.
     Dedans,
+}
+
+impl Entree {
+    /// Pas encore dedans : la salle arrive, rien n'en part.
+    pub fn attend(self) -> bool {
+        matches!(self, Entree::AttendLaBase | Entree::Revient)
+    }
 }
 
 /// **Un autre participant**, tel qu'on le voit.
@@ -71,6 +81,10 @@ pub struct CanevasPartage {
     curseur_parti: Option<(Instant, String, f64, f64)>,
     /// Le facteur des photos, et ce qu'il faut demander au prochain tour (B1).
     pub photos: photos::Photos,
+    /// Le numéro que le fichier contient à coup sûr (REVENIR-2).
+    pub borne: reprise::Borne,
+    /// Ce que la salle a donné, pendant qu'on y revient.
+    retour: Option<Box<revenir::Retour>>,
 }
 
 impl CanevasPartage {
@@ -95,6 +109,8 @@ impl CanevasPartage {
             pairs: BTreeMap::new(),
             curseur_parti: None,
             photos,
+            borne: reprise::Borne::default(),
+            retour: None,
         }
     }
 
@@ -204,9 +220,7 @@ impl GlucoseApp {
     fn etat_du_partage(&self, cp: &CanevasPartage) -> String {
         use crate::agents::publique::lien::EtatDuLien;
         let lien = match cp.lien.etat() {
-            EtatDuLien::Relie if cp.entree == Entree::AttendLaBase => {
-                "Relié ; le canevas arrive…".into()
-            }
+            EtatDuLien::Relie if cp.entree.attend() => "Relié ; le canevas arrive…".into(),
             EtatDuLien::Relie => "Relié.".to_string(),
             EtatDuLien::EnRoute => "Il se relie…".to_string(),
             EtatDuLien::Hors(r) => format!("Pas relié ({r}) : il réessaie."),
@@ -248,7 +262,7 @@ impl GlucoseApp {
                 }
             }
             QUITTER => {
-                self.oublier_le_canevas();
+                self.laisser_le_canevas();
                 self.quitter_le_canevas_partage();
             }
             _ => {}
@@ -280,6 +294,9 @@ impl GlucoseApp {
 
     /// **Partage ce canevas** : un code neuf, la base qui part la première, le code copié.
     fn partager_ce_canevas(&mut self) {
+        if self.revenir_dans_sa_salle() {
+            return;
+        }
         let prepare = nouvelle_marque()
             .and_then(|m| crate::plateforme::hasard::octets::<32>().map(|h| (m, Code::neuf(h))));
         let (marque, code) = match prepare {
@@ -351,7 +368,7 @@ impl GlucoseApp {
             return;
         }
         // Un autre document s'est ouvert (le chargement quitte le partage) : le fil s'arrête aussi.
-        if cp.entree != Entree::AttendLaBase && self.store.partage.is_none() {
+        if !cp.entree.attend() && self.store.partage.is_none() {
             self.lancement.agents.partage = None;
             self.ui.porte_ouverte = self.lancement.agents.publique.is_some();
             return;
@@ -369,6 +386,7 @@ impl GlucoseApp {
         let croises = !self.store.appliquer_les_arrivees().is_empty();
         let defaits = self.faire_partir();
         self.demander_ce_qui_manque();
+        self.tenir_la_borne();
         if let Some(phrase) = ce_qui_n_a_pas_tenu(croises, defaits) {
             self.dire_ce_qui_arrive_au_canevas(phrase);
         }
@@ -402,6 +420,9 @@ impl GlucoseApp {
             return;
         };
         cp.photos.dire_bonjour();
+        if cp.entree == Entree::Revient {
+            return self.revenir_quand_la_salle_est_la(n);
+        }
         let attend = cp.entree == Entree::AttendLaBase;
         // Jamais par-dessus une autre question (une IA qui demande la porte, un travail à garder).
         let libre = matches!(self.ui.question, None | Some((_, Suite::Collaborer)));
@@ -438,6 +459,7 @@ impl GlucoseApp {
         match (entree, lettre.corps) {
             (Entree::AttendLaBase, Corps::Base(base)) => self.entrer_par_la_base(n, *base),
             (Entree::AttendLaBase, _) => {}
+            (Entree::Revient, corps) => self.recueillir(n, corps),
             (_, Corps::Geste(geste)) => self.store.recevoir(Arrivee { n, id, main, geste }),
             // Sa propre base revient numérotée : elle se confirme, comme un geste.
             (_, Corps::Base(_)) => self.store.recevoir(Arrivee {
@@ -552,7 +574,7 @@ impl GlucoseApp {
     /// Sa souris dans le monde, si elle a bougé depuis le dernier curseur parti et qu'il est temps.
     fn curseur_a_partir(&self) -> Option<(String, f64, f64)> {
         let cp = self.lancement.agents.partage.as_ref()?;
-        if cp.entree == Entree::AttendLaBase || !self.curseur_vu {
+        if cp.entree.attend() || !self.curseur_vu {
             return None;
         }
         let vp = self.store.viewport();

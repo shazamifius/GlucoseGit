@@ -20,7 +20,6 @@
 //! son geste avant d'être encodée. **Il ne lit que le registre** : jamais un chemin qu'une clé
 //! nommerait, sans quoi n'importe qui demanderait `~/.ssh/…` et le recevrait.
 
-use super::Entree;
 use crate::app::GlucoseApp;
 use crate::persist::objets::{Objets, Source};
 use crate::salle::lien::Passe;
@@ -171,7 +170,7 @@ impl GlucoseApp {
         let Some(cp) = self.lancement.agents.partage.as_mut() else {
             return;
         };
-        if cp.photos.a_demander == Demander::Rien || cp.entree == Entree::AttendLaBase {
+        if cp.photos.a_demander == Demander::Rien || cp.entree.attend() {
             return;
         }
         let bonjour = cp.photos.a_demander == Demander::Bonjour;

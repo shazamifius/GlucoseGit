@@ -1,6 +1,6 @@
 //! Les photos d'un participant à l'autre (B1) : le facteur, le bonjour, la relance, la réponse.
 
-use super::super::{lien, CanevasPartage};
+use super::super::{lien, CanevasPartage, Entree};
 use super::*;
 use crate::persist::objets::Promesse;
 use glucose_core::salle::code::Code;

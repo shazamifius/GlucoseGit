@@ -402,6 +402,11 @@ impl Ecriture {
         self.scribe.synchroniser()
     }
 
+    /// Le même, sans l'attendre : la réponse viendra par là.
+    pub fn synchroniser_plus_tard(&self) -> std::sync::mpsc::Receiver<Result<(), String>> {
+        self.scribe.synchroniser_plus_tard()
+    }
+
     /// **Les épreuves seules** : retient le scribe jusqu'à ce que le rendu parte.
     #[cfg(test)]
     pub fn retenir(&self) -> std::sync::mpsc::Sender<()> {

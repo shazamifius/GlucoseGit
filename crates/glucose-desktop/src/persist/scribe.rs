@@ -170,11 +170,17 @@ impl Scribe {
 
     /// Attend que tout ce qui a été confié soit sur le disque.
     pub fn synchroniser(&self) -> Result<(), String> {
+        self.synchroniser_plus_tard()
+            .recv()
+            .map_err(|_| "le fil d'écriture s'est arrêté".to_string())?
+    }
+
+    /// **Le demande sans l'attendre** : la réponse viendra par là, quand tout ce qui a été confié
+    /// jusqu'ici sera sur le disque (REVENIR-2, la borne du partage).
+    pub fn synchroniser_plus_tard(&self) -> Receiver<Result<(), String>> {
         let (r, attente) = channel();
         self.envoyer(Ordre::Synchroniser(r));
         attente
-            .recv()
-            .map_err(|_| "le fil d'écriture s'est arrêté".to_string())?
     }
 
     /// Continue l'écriture dans `vers`, copie exacte du fichier courant.

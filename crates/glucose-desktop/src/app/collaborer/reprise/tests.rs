@@ -1,4 +1,4 @@
-//! **PARTAGE-SURVIT** (fiche 131), par la vraie application : partager, fermer par la croix,
+//! **PARTAGE-SURVIT** (fiche 131) et **REVENIR-2** (fiche 148), par la vraie application : partager, fermer par la croix,
 //! relancer. Le fil vers la salle part vers une adresse morte — jamais le réseau, jamais le
 //! presse-papiers de l'utilisateur.
 
@@ -95,45 +95,49 @@ fn souvenir(d: &Path, chemin: &Path) -> Option<Souvenir> {
     lire(&d.join(FICHIER), &chemin.display().to_string())
 }
 
-/// **Fermé proprement, relancé : il rejoint sa salle au numéro que son fichier contient** — et
-/// le souvenir redit « en cours ».
+/// Le document de ce dossier, relancé : il revient dans sa salle, s'il y était.
+fn relancer(d: &Path) -> GlucoseApp {
+    let mut relance = lancer(d);
+    relance.retrouver_le_travail(None);
+    relance.reprendre_le_canevas_partage();
+    relance
+}
+
+/// Où en est l'entrée du partage, s'il y en a un.
+fn entree(app: &GlucoseApp) -> Option<Entree> {
+    app.lancement.agents.partage.as_ref().map(|cp| cp.entree)
+}
+
+/// **Fermé proprement, relancé : il revient dans sa salle**, depuis le dernier numéro que son
+/// fichier contient — la borne, retenue telle quelle.
 #[test]
-fn partage_survit_ferme_proprement_il_rejoint_sa_salle_au_bon_numero() {
+fn revenir_ferme_proprement_il_revient_depuis_sa_borne() {
     let d = dossier("canevas-survit");
     let (mut app, chemin, code) = document_partage(&d);
     arrive(&mut app, 2, "b0b-1");
     image_suivante(&mut app);
-    assert_eq!(
-        souvenir(&d, &chemin).and_then(|s| s.confirme),
-        None,
-        "en cours"
-    );
     assert!(fermer(&mut app), "une fermeture propre");
     let attendu = Souvenir {
         code: code.texte_ecrire().unwrap(),
-        confirme: Some(2),
+        retenu: 2,
+        dedans: true,
     };
-    assert_eq!(souvenir(&d, &chemin), Some(attendu));
+    assert_eq!(souvenir(&d, &chemin), Some(attendu.clone()));
     drop(app);
 
-    let mut relance = lancer(&d);
-    relance.retrouver_le_travail(None);
-    relance.reprendre_le_canevas_partage();
+    let relance = relancer(&d);
     let cp = relance
         .lancement
         .agents
         .partage
         .as_ref()
-        .expect("le partage reprend");
-    assert_eq!(cp.entree, Entree::Dedans);
+        .expect("il revient");
+    assert_eq!(cp.entree, Entree::Revient);
     assert!(cp.code.peut_ecrire());
     assert_ne!(cp.marque, "a1b2", "une marque neuve");
-    assert_eq!(relance.store.partage.as_ref().map(|p| p.confirme), Some(2));
-    assert_eq!(
-        souvenir(&d, &chemin).and_then(|s| s.confirme),
-        None,
-        "de nouveau en cours"
-    );
+    assert_eq!(cp.borne.retenue, 2);
+    assert!(relance.store.partage.is_none(), "pas avant la salle");
+    assert_eq!(souvenir(&d, &chemin), Some(attendu));
 }
 
 /// **Le partage suit son document** : après la croix, plus rien de la salle ne s'y applique, et
@@ -159,56 +163,179 @@ fn partage_survit_apres_la_croix_rien_de_la_salle_ne_s_applique() {
         })
         .unwrap_or(0);
     assert_eq!(brouillons, 0, "aucun brouillon parasite");
-    assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), Some(1));
+    assert_eq!(souvenir(&d, &chemin).map(|s| s.retenu), Some(1));
 }
 
-/// **Un de mes gestes attend encore son numéro** à la fermeture : il est dans le fichier, pas
-/// dans la salle — rien n'est retenu d'exact, et le lancement suivant ne reprend pas tout seul.
-/// Il le dit.
+/// **Un de mes gestes attend encore son numéro** à la fermeture : il est dans le fichier — la
+/// borne reste au dernier numéro confirmé, et le document revient quand même (la fusion le rejoint).
 #[test]
-fn partage_survit_un_geste_en_attente_ne_laisse_pas_de_numero() {
+fn revenir_un_geste_en_attente_n_empeche_rien() {
     let d = dossier("canevas-attente");
     let (mut app, chemin, _) = document_partage(&d);
     noter(&mut app, "c2", "parti, pas revenu");
     image_suivante(&mut app);
     assert_eq!(app.store.partage.as_ref().map(|p| p.en_attente()), Some(1));
     assert!(fermer(&mut app));
-    assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), None);
+    assert_eq!(souvenir(&d, &chemin).map(|s| s.retenu), Some(1));
     drop(app);
-
-    let mut relance = lancer(&d);
-    relance.retrouver_le_travail(None);
-    relance.reprendre_le_canevas_partage();
-    assert!(
-        relance.lancement.agents.partage.is_none(),
-        "pas de reprise à l'aveugle"
-    );
-    let dit = relance.ui.current_toast.as_ref().map(|t| t.message.clone());
-    assert_eq!(dit.as_deref(), Some(ARRETE_NET));
-    assert_eq!(souvenir(&d, &chemin), None, "dit une fois");
+    assert_eq!(entree(&relancer(&d)), Some(Entree::Revient));
 }
 
-/// **Un arrêt net** (aucune fermeture) : le souvenir est resté « en cours » — pas de reprise.
+/// **Un arrêt net** (aucune fermeture) : dedans, à la borne que le disque a rendue sûre — il
+/// revient aussi.
 #[test]
-fn partage_survit_un_arret_net_ne_reprend_pas() {
+fn revenir_un_arret_net_revient_aussi() {
     let d = dossier("canevas-net");
-    let (app, _chemin, _) = document_partage(&d);
+    let (app, chemin, _) = document_partage(&d);
     drop(app);
-    let mut relance = lancer(&d);
-    relance.retrouver_le_travail(None);
-    relance.reprendre_le_canevas_partage();
-    assert!(relance.lancement.agents.partage.is_none());
+    assert_eq!(
+        souvenir(&d, &chemin).map(|s| (s.retenu, s.dedans)),
+        Some((0, true))
+    );
+    assert_eq!(entree(&relancer(&d)), Some(Entree::Revient));
 }
 
-/// **« Quitter le partage » l'oublie** : relancé, le document reste à soi seul.
+/// **« Quitter le partage » garde le code, dehors** (fiche 146 § 4, le 1) : relancé, le document
+/// reste à soi seul ; son « Partager » revient dans la même salle, au lieu d'en ouvrir une seconde.
 #[test]
-fn partage_survit_quitter_le_partage_l_oublie() {
+fn revenir_quitter_garde_le_code_et_partager_y_revient() {
     let d = dossier("canevas-quitter");
-    let (mut app, chemin, _) = document_partage(&d);
+    let (mut app, chemin, code) = document_partage(&d);
+    arrive(&mut app, 2, "b0b-1");
     app.repondre_a_collaborer(QUITTER);
     assert!(app.lancement.agents.partage.is_none());
+    let dehors = Souvenir {
+        code: code.texte_ecrire().unwrap(),
+        retenu: 2,
+        dedans: false,
+    };
+    assert_eq!(
+        souvenir(&d, &chemin),
+        Some(dehors.clone()),
+        "écrit, synchronisé, retenu"
+    );
     assert!(fermer(&mut app));
-    assert_eq!(souvenir(&d, &chemin), None);
+    assert_eq!(
+        souvenir(&d, &chemin),
+        Some(dehors),
+        "la croix ne le remet pas dedans"
+    );
+    drop(app);
+
+    let mut relance = relancer(&d);
+    assert!(
+        relance.lancement.agents.partage.is_none(),
+        "dehors : il ne revient pas seul"
+    );
+    relance.partager_ce_canevas();
+    let cp = relance
+        .lancement
+        .agents
+        .partage
+        .as_ref()
+        .expect("il revient");
+    assert_eq!(cp.entree, Entree::Revient);
+    assert_eq!(cp.code.texte_ecrire(), code.texte_ecrire(), "la même salle");
+    assert_eq!(souvenir(&d, &chemin).map(|s| s.dedans), Some(true));
+}
+
+/// **Revenir, jusqu'au bout** : fermé au n° 1 ; Bob pose un texte (n° 2) ; relancé, Alice écrit
+/// pendant que la salle arrive. La salle donnée, les deux se rejoignent : le texte de Bob est là, le
+/// sien aussi — et part comme son geste.
+#[test]
+fn revenir_la_salle_arrive_et_les_deux_se_rejoignent() {
+    let d = dossier("canevas-revenir");
+    let (mut app, _chemin, code) = document_partage(&d);
+    let base = app.store.project.clone();
+    assert!(fermer(&mut app));
+    drop(app);
+
+    let mut relance = relancer(&d);
+    let (fil, salle) = lien::d_epreuve();
+    relance
+        .lancement
+        .agents
+        .partage
+        .as_mut()
+        .expect("il revient")
+        .lien = fil;
+    noter(&mut relance, "c2", "écrit pendant le retour");
+    image_suivante(&mut relance);
+    let lettre = |corps| {
+        Box::new(glucose_core::salle::lettre::Lettre {
+            marque: "b0b".into(),
+            nom: "Bob".into(),
+            couleur: 0,
+            main: Main::Humain,
+            corps,
+        })
+    };
+    use glucose_core::salle::lettre::Corps;
+    let de_bob = geste_de_bob(&base, "b0b-1");
+    let nouvelles = [
+        lien::Nouvelle::Lettre {
+            n: 1,
+            id: "a1b2-1".into(),
+            lettre: lettre(Corps::Base(Box::new(base))),
+        },
+        lien::Nouvelle::Lettre {
+            n: 2,
+            id: "b0b-1".into(),
+            lettre: lettre(Corps::Geste(de_bob)),
+        },
+        lien::Nouvelle::AJour(2),
+    ];
+    for nouvelle in nouvelles {
+        salle.send(nouvelle).expect("la file");
+    }
+    relance.suivre_le_canevas_partage();
+
+    assert_eq!(entree(&relance), Some(Entree::Dedans));
+    let p = relance.store.partage.as_ref().expect("il participe");
+    assert_eq!(
+        (p.confirme, p.en_attente()),
+        (2, 1),
+        "au n° 2, son texte en attente"
+    );
+    let board = relance.store.project.active_board_id.clone();
+    assert!(
+        relance.store.project.annotation(&board, "b0b-1").is_some(),
+        "le texte de Bob"
+    );
+    assert!(
+        relance.store.project.annotation(&board, "c2").is_some(),
+        "le sien"
+    );
+    assert!(code.peut_ecrire());
+}
+
+/// **La borne ne dépasse jamais le disque** : la salle confirme le n° 2, mais tant que le scribe
+/// ne l'a pas écrit, le souvenir reste à 0 ; relâché, la synchronisation revient, la borne monte.
+#[test]
+fn revenir_la_borne_attend_le_disque() {
+    let d = dossier("canevas-borne");
+    let (mut app, chemin, _) = document_partage(&d);
+    let relacher = app.disque.ecriture.as_ref().expect("le scribe").retenir();
+    arrive(&mut app, 2, "b0b-1");
+    for _ in 0..3 {
+        app.tenir_la_borne();
+    }
+    assert_eq!(
+        souvenir(&d, &chemin).map(|s| s.retenu),
+        Some(0),
+        "pas avant le disque"
+    );
+    relacher.send(()).expect("le scribe attend");
+    let mut monte = false;
+    for _ in 0..200 {
+        app.tenir_la_borne();
+        monte = souvenir(&d, &chemin).is_some_and(|s| s.retenu == 2);
+        if monte {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(monte, "la borne monte une fois le disque sûr");
 }
 
 /// **Le code « écrire » est un secret** : dans le dossier de Glucose, lisible de lui seul — jamais
@@ -273,69 +400,6 @@ fn partage_survit_la_base_recue_ne_coupe_pas_le_partage_qu_on_rejoint() {
     assert_eq!(app.store.partage.as_ref().map(|p| p.confirme), Some(1));
 }
 
-/// **Fermer attend le retour de mes gestes** (fiche 144 § 2) : un geste parti juste avant la
-/// fermeture revient numéroté pendant qu'elle attend, derrière un geste de Bob — le numéro est
-/// retenu, le geste de Bob est dans le fichier, et le document relancé rejoindra sa salle au lieu
-/// de s'arrêter « net ».
-#[test]
-fn partage_survit_fermer_attend_le_retour_de_mes_gestes() {
-    let d = dossier("canevas-retour");
-    let (fil, salle) = lien::d_epreuve();
-    let (mut app, chemin, _) = document_partage_par(&d, fil, Code::neuf([7; 32]));
-    noter(&mut app, "c2", "parti juste avant la fermeture");
-    image_suivante(&mut app);
-    assert_eq!(app.store.partage.as_ref().map(|p| p.en_attente()), Some(1));
-    let lettre = |marque: &str, nom: &str, geste| {
-        Box::new(glucose_core::salle::lettre::Lettre {
-            marque: marque.into(),
-            nom: nom.into(),
-            couleur: 0,
-            main: Main::Humain,
-            corps: glucose_core::salle::lettre::Corps::Geste(geste),
-        })
-    };
-    let de_bob = geste_de_bob(&app.store.project, "b0b-1");
-    let arrivees = [
-        (2, "b0b-1", lettre("b0b", "Bob", de_bob)),
-        (
-            3,
-            "a1b2-2",
-            lettre("a1b2", "Alice", GestePartage::default()),
-        ),
-    ];
-    for (n, id, lettre) in arrivees {
-        let nouvelle = lien::Nouvelle::Lettre {
-            n,
-            id: id.into(),
-            lettre,
-        };
-        salle.send(nouvelle).expect("la file");
-    }
-    assert!(fermer(&mut app));
-    assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), Some(3));
-    drop(app);
-
-    let mut relance = lancer(&d);
-    relance.retrouver_le_travail(None);
-    let board = relance.store.project.active_board_id.clone();
-    assert!(
-        relance.store.project.annotation(&board, "b0b-1").is_some(),
-        "le geste de Bob, écrit avant le numéro"
-    );
-}
-
-/// **La loi de l'attente** : seulement des gestes en attente, une salle reliée, au présent, et
-/// pas au-delà du silence.
-#[test]
-fn partage_survit_l_attente_s_arrete_quand_rien_ne_peut_revenir() {
-    let tot = Duration::from_millis(1);
-    assert!(attendre(1, true, false, tot));
-    assert!(!attendre(0, true, false, tot), "rien n'attend");
-    assert!(!attendre(1, false, false, tot), "pas reliée");
-    assert!(!attendre(1, true, true, tot), "dans le passé");
-    assert!(!attendre(1, true, false, SILENCE), "silencieuse");
-}
-
 /// **Seul le scribe reprend le partage** (fiche 144 § 2) : une fenêtre ouvre le document sans
 /// pouvoir l'écrire — le verrou pris entre sa vérification et son ouverture (deux lancements à la
 /// même seconde, 14 h 02), ou le fichier en lecture seule, ce qu'on fait ici. Elle ne rejoint pas
@@ -347,7 +411,7 @@ fn partage_survit_une_seconde_fenetre_ne_reprend_pas_la_salle() {
     assert!(fermer(&mut app));
     drop(app);
     let retenu = souvenir(&d, &chemin);
-    assert_eq!(retenu.as_ref().and_then(|s| s.confirme), Some(1));
+    assert_eq!(retenu.as_ref().map(|s| s.retenu), Some(1));
 
     let droits = std::fs::metadata(&chemin).unwrap().permissions();
     let mut lecture_seule = droits.clone();

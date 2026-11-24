@@ -49,8 +49,9 @@
   pourrait remonter — l'histoire des jauges (`jauges-histoire.jsonl`, `mesurer_jetons.py`) le tranchera.
 * **La 2.0.4-beta.6 : son brouillon est prêt** (24/11, 18 h 06, sur `725411b`, la vérification GitHub verte
   sur les dix tâches) ; le clic « Publish » est le sien.
-* **Un document, une salle** (fiche 146 § 4) : le noyau est fait — la fusion à trois par le nom et
-  `Store::revenir_dans_la_salle` (REVENIR-1, fiche 147 § 6) ; le branchement dans Collaborer reste.
+* **Un document, une salle** (fiche 146 § 4) : fait, sur `main` (pas encore dans une version) —
+  « Quitter » garde le code, « Partager » revient dans la même salle, un arrêt net revient aussi, par la
+  fusion à trois (REVENIR-1 et 2, fiches 147 § 6 et 148) ; reste la version d'ici d'un conflit gardée à côté.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
