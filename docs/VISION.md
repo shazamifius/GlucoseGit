@@ -439,6 +439,26 @@ plus jamais le lui demander.**
   le coup, le flou c'est super intéressant — réponse finale : les carrés avec le flou, mais alors au
   moins 60 % moins que ce qu'il y a actuellement »* — B, les équerres, et un flou réduit d'au moins
   60 %.
+  **Puis il revient dessus, le 24/11 au matin — c'est la parole qui vaut** : *« je reviens sur ma décision,
+  c'est définitivement une très mauvaise idée, le flou ; j'aimerais l'enlever tout de suite, car
+  terriblement nul — accumulation de problèmes — et retourner sur l'interface de la beta 5 sur le système
+  de sélection, qui n'était pas trop mal »* ; *« ne pas toucher au système de sélection actuel de Glucose
+  beta 5, car c'est celui qui me plaît le plus pour l'instant »* ; *« je ne suis vraiment pas motivé par
+  la nouvelle interface de sélection »*. Retirés le jour même (fiche 142 § 5).
+* **Écrire sans tout recouvrir** (24/11, sur la proposition des trois aperçus) : *« non, ça ne colle pas
+  avec ce que j'ai relevé comme problème ; le truc dérangeant, c'est justement qu'il n'y ait pas de mise
+  à jour LORSQU'on écrit »* — les voisins s'écartent pendant l'écriture, pas après.
+* **Sélectionner dans une membrane** (24/11) : *« si l'utilisateur maintient le clic et ne bouge pas
+  pendant suffisamment longtemps, ça sélectionne la membrane ; mais s'il bouge, l'outil de sélection se
+  met instantanément »* ; *« c'est bien mieux de sélectionner en plus un seul élément plutôt que de devoir
+  sélectionner manuellement des dizaines d'éléments indépendants »*.
+* **Les codes de partage** (24/11) : *« l'objectif est de ne JAMAIS avoir de doublon ; si quelqu'un veut
+  partager un code pour écrire ou lire, si c'est le même document Glucose, il n'aura jamais besoin de plus
+  de 2 codes : 1 pour juste lire, 1 pour lire et écrire »* ; *« un lien ne périt jamais, sauf si
+  l'utilisateur le remet à jour avec le bouton générer un nouveau code et supprimer l'ancien, ou s'il
+  crée manuellement une limite de temps »* ; *« je perds la sync […] c'est plutôt énervant, cette partie
+  de Glucose, super mal faite »*. Pas de beta.6 avant : *« certaines fonctionnalités ne sont pas assez
+  robustes »*.
 * **Trans-domaines** (R&D).
 * **Les rideaux** (un tableau dans une membrane), **les membranes de Mary** (étirées, minimisées),
   « optimiser » dans la Time Machine.
@@ -562,3 +582,16 @@ et de sa construction ; les trois IA répondant à la même question.
   sur la dernière version de Glucose, afin de faire de la place visuellement dans le canva »* ; *« idée :
   ce serait d'éviter de supprimer, mais plutôt archiver — je reviens sur ma décision »*. L'archive, c'est
   le dossier qu'il renommera « archive » le 24/11.
+* **Les jetons, sa priorité** (24/11, sa réponse sur `relais-q-h24-quotas`, que sa consigne désigne d'une
+  flèche) : *« c'est URGENT, la perte de tokens est ma priorité actuelle !!! Vraiment, je ne souhaite pas
+  switch sur Sonnet au lieu d'Opus »* ; *« relire la conversation, c'est vraiment à ne jamais faire »* ;
+  *« ce serait aussi intéressant que Claude arrête de parler dans le vide, par écrit, à l'utilisateur […]
+  moi je ne vois absolument jamais ce qu'il raconte, ni ce qu'il pense ; je vois QUE les interactions avec
+  Glucose »*. Elle l'emporte sur les 90 % du 23/11 : une conversation neuve à 300 000 jetons (fiche 142).
+  **Son bloc important** : *« je ne saurais pas comment modifier le script de démarrage pour qu'il regarde
+  le bloc important — un petit bloc qui oriente sur plein de trucs super importants »*.
+* **Le MCP** (24/11) : *« bien que ce soit une proposition à la volée, je trouve qu'il est EXTRÊMEMENT
+  important pour la suite de Glucose de pouvoir avoir déjà toutes ces options MCP pour toi, car elles te
+  sont essentielles et permettront d'améliorer drastiquement notre workflow ; hésite pas à proposer plein
+  de nouvelles propositions »* ; et la sienne : *« un système qui voit aussi les derniers éléments
+  sélectionnés par les utilisateurs, même à distance, pour savoir sur quoi ils se sont focalisés »*.
