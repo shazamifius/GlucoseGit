@@ -23,7 +23,7 @@
 //! de hauteur qui bouge toute seule. Le choix est nommé pour ne pas être un mélange silencieux.
 
 use super::handles::draw_resize_handles;
-use super::pass::{Pass, SELECTION_RING};
+use super::pass::Pass;
 use super::scale::WorldScale;
 use super::wrap::wrap_paragraph;
 use super::{parse_hex_rgb, push_rounded_rect, TextEditSession};
@@ -122,13 +122,13 @@ pub(super) fn draw_sticky(
         return;
     }
 
-    let highlighted = selected || editing.is_some();
     // ESTOMPE-1 : ce que la frise chronologique écarte s'estompe — sauf ce qu'on écrit, qui se
-    // voit entier. L'anneau et les poignées d'un post-it choisi restent entiers.
+    // voit entier. Les poignées d'un post-it choisi restent entières ; sa sélection, ce sont les
+    // équerres (Q12, fiche 137).
     let presence = if editing.is_some() { 1.0 } else { presence };
     let estomper = |c| super::estompe::estomper(c, presence);
     match operator {
-        Some(op) => draw_pill(ctx, pixmap, (at, &layout), (*op, presence), highlighted),
+        Some(op) => draw_pill(ctx, pixmap, (at, &layout), (*op, presence)),
         None => {
             let paper = Paper {
                 bg: estomper(
@@ -145,7 +145,7 @@ pub(super) fn draw_sticky(
                     .filter(|s| s.curseur_visible)
                     .map(|s| s.selection.head),
             };
-            draw_paper(ctx, pixmap, at, &layout, &paper, highlighted);
+            draw_paper(ctx, pixmap, at, &layout, &paper);
         }
     }
 
@@ -173,14 +173,13 @@ struct Paper<'a> {
     cursor: Option<usize>,
 }
 
-/// Le papier : son ombre, son fond, son anneau s'il est sélectionné, puis son texte.
+/// Le papier : son ombre, son fond, puis son texte.
 fn draw_paper(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     layout: &StickyLayout,
     paper: &Paper<'_>,
-    highlighted: bool,
 ) {
     let Some(path) = rounded_path(at, layout.width, layout.height, layout.radius) else {
         return;
@@ -196,9 +195,6 @@ fn draw_paper(
         fill(pixmap, &shadow, ombre);
     }
     fill(pixmap, &path, paper.bg);
-    if highlighted {
-        ring(ctx, pixmap, &path, (layout.width, layout.height));
-    }
 
     // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
     let lines = sticky_lines(ctx.typography, paper.text, paper.world_width);
@@ -250,7 +246,6 @@ fn draw_pill(
     pixmap: &mut PixmapMut,
     (at, layout): ((f32, f32), &StickyLayout),
     (op, presence): (StickyOperator, f32),
-    highlighted: bool,
 ) {
     let color = super::estompe::estomper(operator_color(op), presence);
     let radius = layout.height / 2.0;
@@ -267,9 +262,6 @@ fn draw_pill(
         ),
     );
     stroke(pixmap, &path, color, ctx.scale.world(PILL_BORDER));
-    if highlighted {
-        ring(ctx, pixmap, &path, (layout.width, layout.height));
-    }
     // Le mot, à toute distance : de loin, le gris de son encre (GRIS-2, fiche 96).
     let font = ctx.scale.world(PILL_FONT);
     let label = op.label();
@@ -326,18 +318,6 @@ fn stroke(pixmap: &mut PixmapMut, path: &tiny_skia::Path, color: Color, width: f
         ..Default::default()
     };
     pixmap.stroke_path(path, &paint, &stroke, Transform::identity(), None);
-}
-
-/// L'anneau de sélection : une affordance, qui garde sa taille écran (exception SCALE-1) tant
-/// que le nœud a la place de la porter, et la suit ensuite, comme ses poignées (POIGNEE-1).
-fn ring(ctx: &Pass, pixmap: &mut PixmapMut, path: &tiny_skia::Path, boite: (f32, f32)) {
-    let part = crate::renderer::handles::part_des_ornements(ctx.scale, boite);
-    stroke(
-        pixmap,
-        path,
-        ctx.theme.selection_frame,
-        ctx.scale.screen(SELECTION_RING) * part,
-    );
 }
 
 /// WRAP-1 — les lignes visuelles d'un pense-bête de `width` unités monde, en tranches
@@ -452,53 +432,5 @@ mod tests {
         assert_eq!(StickyOperator::And.default_width(), 80.0);
         assert_eq!(StickyOperator::Because.default_width(), 130.0);
         assert_eq!(PILL_BORDER, 1.5);
-    }
-
-    /// Ce que la sélection change au plus sur le bord haut d'un post-it posé en `(40, 40)` de
-    /// l'écran, vu à ce zoom.
-    fn ecart_de_l_anneau(zoom: f64) -> u8 {
-        use crate::renderer::pass::Clip;
-        let renderer = crate::renderer::Renderer::new();
-        let kit = renderer.kit();
-        let ctx = Pass {
-            typography: kit.typography,
-            math: kit.math,
-            mises_en_page: kit.mises_en_page,
-            tints: kit.tints,
-            theme: kit.theme,
-            vp: glucose_core::types::Viewport {
-                scale: zoom,
-                x: 40.0,
-                y: 40.0,
-            },
-            scale: WorldScale::new(zoom, 1.0),
-            clip: Clip {
-                width: 300.0,
-                height: 300.0,
-                top: 0.0,
-            },
-            poignees: true,
-        };
-        let note = Annotation::sticky("n", 0.0, 0.0, "");
-        let peindre = |choisi: bool| {
-            let mut p = tiny_skia::Pixmap::new(300, 300).expect("pixmap");
-            draw_sticky(&ctx, &mut p.as_mut(), &note, choisi, (None, 1.0));
-            p
-        };
-        let (avec, sans) = (peindre(true), peindre(false));
-        (38..=41)
-            .flat_map(|y| (40..60).map(move |x| (y * 300 + x) as usize))
-            .map(|i| avec.pixels()[i].red().abs_diff(sans.pixels()[i].red()))
-            .max()
-            .unwrap_or(0)
-    }
-
-    /// **POIGNEE-1 — l'anneau d'un post-it suit sa place à l'écran** : plein de près, une trace
-    /// sur un post-it de quelques pixels.
-    #[test]
-    fn test_poignee_1_l_anneau_d_un_post_it_minuscule_s_estompe() {
-        let (pres, loin) = (ecart_de_l_anneau(1.0), ecart_de_l_anneau(0.06));
-        assert!(pres >= 100, "l'anneau d'un post-it de pres : {pres}");
-        assert!(loin < pres / 3, "de loin il garde {loin} contre {pres}");
     }
 }

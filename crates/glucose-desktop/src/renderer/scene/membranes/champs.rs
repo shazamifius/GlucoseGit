@@ -20,7 +20,6 @@
 //! ait une signification »*).
 
 use super::{MembraneVue, MEMBRANE_GLOW};
-use crate::renderer::pass::SELECTION_RING;
 use glucose_core::couleur::Oklch;
 use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
 
@@ -30,10 +29,9 @@ pub(crate) const BLEU_DE_TAURI: (u8, u8, u8) = (96, 165, 250);
 /// L'opacité du fond translucide d'une membrane chez Glucose Tauri, sur 255 : avec ses deux halos,
 /// ce qui fait le voile d'une membrane seule.
 const MEMBRANE_FILL_ALPHA: u8 = 8;
-/// L'opacité de son contour au repos, sur 255.
+/// L'opacité de son contour, sur 255 — choisie ou non : les équerres disent qu'elle l'est (Q12,
+/// fiche 137).
 const MEMBRANE_BORDER_ALPHA: u8 = 115;
-/// L'opacité de son contour quand elle est sélectionnée, sur 255.
-const MEMBRANE_SELECTED_ALPHA: u8 = 235;
 
 /// **La teinte d'une membrane** : sa couleur, ou le gris neutre d'une membrane qui n'en a pas — ou
 /// dont la couleur ne se lit pas.
@@ -141,7 +139,7 @@ impl MembraneVue<'_> {
         (forme, f32::from(alpha) / 255.0 * self.presence)
     }
 
-    /// Le contour d'une membrane : pointillé au repos, plein quand elle est prise.
+    /// Le contour d'une membrane : pointillé, choisie ou non (Q12, fiche 137).
     ///
     /// # Le pointillé s'arrête où le pixel s'arrête
     ///
@@ -151,25 +149,17 @@ impl MembraneVue<'_> {
     /// le pixel, la plus petite chose qu'un écran sache montrer.
     fn bord(&self, forme: Arrondi) -> Bord {
         let dash = self.layout.dash;
-        let pointille = !self.selectionnee && dash >= 1.0;
-        let (largeur, opacite) = if self.selectionnee {
-            (self.scale.screen(SELECTION_RING), MEMBRANE_SELECTED_ALPHA)
-        } else if pointille {
-            (self.layout.border, MEMBRANE_BORDER_ALPHA)
+        let pointille = dash >= 1.0;
+        let opacite = if pointille {
+            MEMBRANE_BORDER_ALPHA
         } else {
-            (self.layout.border, MEMBRANE_BORDER_ALPHA / 2)
+            MEMBRANE_BORDER_ALPHA / 2
         };
         Bord {
             forme,
-            demi_largeur: largeur / 2.0,
+            demi_largeur: self.layout.border / 2.0,
             pointille: pointille.then(|| forme.pointille(dash)),
-            // L'anneau d'une membrane choisie reste entier : on la voit pour la prendre.
-            alpha: f32::from(opacite) / 255.0
-                * if self.selectionnee {
-                    1.0
-                } else {
-                    self.presence
-                },
+            alpha: f32::from(opacite) / 255.0 * self.presence,
         }
     }
 }

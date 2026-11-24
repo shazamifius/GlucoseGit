@@ -1,0 +1,161 @@
+[
+ {
+  "nom": "Q12 — les équerres d'un nœud droit sans leurs bras horizontaux",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "            filet(pixmap, cx - sx * bras, cy - sy * trait_, bras, trait_);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_chaque_sorte"
+  ]
+ },
+ {
+  "nom": "Q12 — les dossiers choisis ne sont pas visés",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "            vises.push(Vise::droit((x as f32, y as f32, w, h), false));\n",
+  "apres": "            let _ = (x, y, w, h);\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_chaque_sorte"
+  ]
+ },
+ {
+  "nom": "Q12 — une flèche visée par sa boîte",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "            Annotation::Arrow { .. } => continue,",
+  "apres": "            Annotation::Arrow { .. } => Some(ann.bounds()),",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_une_fleche"
+  ]
+ },
+ {
+  "nom": "Q12 — le texte qu'on écrit n'est pas visé",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "            && editing.is_some_and(|e| e.ann_id == ann.id())",
+  "apres": "            && editing.is_some_and(|e| e.ann_id == ann.id() && false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_le_texte_qu_on_ecrit"
+  ]
+ },
+ {
+  "nom": "POIGNEE-1 — le trait d'une équerre de vignette ne s'estompe plus",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "            encre.apply_opacity(trait_);",
+  "apres": "            let _ = trait_;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_poignee_1"
+  ]
+ },
+ {
+  "nom": "Q12 — une photo verrouillée à l'encre de la sélection",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "        let mut encre = if v.verrouille {",
+  "apres": "        let mut encre = if v.verrouille && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_une_photo_verrouillee"
+  ]
+ },
+ {
+  "nom": "Q12 — une photo penchée visée droite",
+  "fichier": "crates/glucose-desktop/src/renderer/equerres.rs",
+  "avant": "    if img.rotation == 0.0 {\n        return Vise::droit((x, y, w, h), img.locked);",
+  "apres": "    if img.rotation == 0.0 || true {\n        return Vise::droit((x, y, w, h), img.locked);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_une_photo_penchee"
+  ]
+ },
+ {
+  "nom": "Q12 — les équerres avant les poignées, qui les recouvrent",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+    "avant": "        grille::dessiner_les_ornements(kit, pixmap, store, pass);\n        super::handles::dessiner_le_cadre_du_groupe(kit.theme, pixmap, store, pass);\n",
+    "apres": ""
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/renderer/voies.rs",
+    "avant": "        super::equerres::poser(pixmap, kit.theme, pass.echelle(), &vises);\n",
+    "apres": "        super::equerres::poser(pixmap, kit.theme, pass.echelle(), &vises);\n        grille::dessiner_les_ornements(kit, pixmap, store, pass);\n        super::handles::dessiner_le_cadre_du_groupe(kit.theme, pixmap, store, pass);\n"
+   }
+  ],
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_la_poignee"
+  ]
+ },
+ {
+  "nom": "Q12 — choisie, la membrane retrouve son trait plein",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/membranes/champs.rs",
+  "avant": "        let pointille = dash >= 1.0;",
+  "apres": "        let pointille = !self.selectionnee && dash >= 1.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::equerres::tests::test_q12_chaque_sorte"
+  ]
+ },
+ {
+  "nom": "Q12 — choisi, le dossier épaissit son voile",
+  "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
+  "avant": "    p.remplir(&cadre, voile(etat.tint, opacites(opacite).0));",
+  "apres": "    p.remplir(&cadre, voile(etat.tint, opacites(opacite.saturating_add(if etat.selected { 60 } else { 0 })).0));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::folder::tests::test_q12_un_dossier_choisi"
+  ]
+ }
+]

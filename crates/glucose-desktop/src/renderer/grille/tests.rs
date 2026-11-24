@@ -215,7 +215,7 @@ fn test_selectionner_une_image_change_l_ecran_sans_repeindre_sa_tuile() {
     assert_ne!(
         avant.data(),
         apres.data(),
-        "le cadre de selection doit apparaitre"
+        "les equerres et les poignees doivent apparaitre"
     );
     assert_eq!(
         renderer.tuiles.peintes(),

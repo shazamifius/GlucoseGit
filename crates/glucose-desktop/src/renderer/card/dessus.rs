@@ -10,7 +10,6 @@
 use super::{CardLayout, Pass, TextCard};
 use crate::params::Pen;
 use crate::renderer::handles::draw_resize_handles;
-use crate::renderer::pass::SELECTION_RING;
 use crate::renderer::richtext::hit::{line_of_offset, offset_to_x};
 use crate::renderer::richtext::{font_of, indent_of, ink_of, mode_of, TextLayout, VisualLine};
 use crate::theme::Theme;
@@ -29,10 +28,7 @@ pub(super) fn dessiner_les_ornements(
     // SCALE-2 : sous le seuil de détail, la carte n'est plus que son cadre — pas de texte, donc
     // ni curseur ni formule à suivre. Les poignées, elles, restent : on redimensionne une carte
     // qu'on ne lit plus. Elles passent sur la pastille (une affordance n'est jamais cachée,
-    // ORNEMENTS-1), le curseur sur tout.
-    if card.selected || card.editing.is_some() {
-        draw_card_ring(ctx, pixmap, at, layout);
-    }
+    // ORNEMENTS-1), le curseur sur tout. Sa sélection, ce sont les équerres (Q12, fiche 137).
     let detail = ctx.scale.draws_detail();
     if detail {
         draw_formula_preview(ctx, pixmap, at, layout, text, card);
@@ -44,43 +40,6 @@ pub(super) fn dessiner_les_ornements(
     if detail {
         draw_card_caret(ctx, pixmap, at, layout, text, card);
     }
-}
-
-/// **L'anneau qui désigne une carte** sélectionnée ou éditée : une affordance, qui garde sa
-/// taille écran (exception SCALE-1).
-///
-/// Il était dans la texture de la carte (COMPOSANT-4) : sélectionner une carte la refaisait
-/// entière — 12,35 ms de `textures` au p99 du geste « sélectionner », dans sa session du
-/// 25/09 à 22 h 19. Et c'était le seul trait de `tiny-skia` qu'une texture portait : la même
-/// forme translatée d'un nombre entier de pixels n'y donnait pas toujours la même couverture,
-/// d'où une tolérance de vingt-six niveaux dans l'accord des deux voies, qui part avec lui.
-fn draw_card_ring(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout) {
-    let mut pb = PathBuilder::new();
-    crate::renderer::push_rounded_rect(
-        &mut pb,
-        at.0,
-        at.1,
-        layout.width,
-        layout.height,
-        layout.radius,
-    );
-    let Some(path) = pb.finish() else {
-        return;
-    };
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    paint.set_color(ctx.theme.selection_frame);
-    // L'anneau suit la place de la carte à l'écran, comme ses poignées (POIGNEE-1) ; plus fin
-    // qu'un pixel, l'anti-crénelage l'estompe.
-    let part =
-        crate::renderer::handles::part_des_ornements(ctx.scale, (layout.width, layout.height));
-    let stroke = Stroke {
-        width: ctx.scale.screen(SELECTION_RING) * part,
-        ..Default::default()
-    };
-    pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
 }
 
 /// Le curseur d'édition, sur la ligne qui le porte.

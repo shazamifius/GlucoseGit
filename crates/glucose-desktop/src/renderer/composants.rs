@@ -412,7 +412,7 @@ impl Regime {
         let mesure = |echelle: f64| {
             let a_cette_echelle = WorldScale::new(echelle, self.densite);
             let rendu = CardLayout::text_card(w, h, lignes).scaled(a_cette_echelle);
-            let marge = super::card::marge_de_la_texture(rendu.border, a_cette_echelle);
+            let marge = super::card::marge_de_la_texture(rendu.border);
             (rendu.width, rendu.height, marge)
         };
         Some(

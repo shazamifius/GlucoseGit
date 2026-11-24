@@ -31,6 +31,7 @@ pub mod curseurs;
 mod date;
 mod decision;
 pub mod domain;
+pub(crate) mod equerres;
 pub(crate) mod estompe;
 pub mod export;
 mod fenetre_d_ancrage;

@@ -1,6 +1,6 @@
 //! OPACITE-1 — l'opacité d'un dossier, au dessin (fiche 133) : le corps prend celle que le
-//! dossier porte, le bandeau jamais plus que celle de sa naissance, et choisi, le cadre est peint
-//! deux fois.
+//! dossier porte, le bandeau jamais plus que celle de sa naissance ; choisi, rien ne change (Q12,
+//! fiche 137 : il était peint deux fois).
 
 use super::*;
 
@@ -34,20 +34,9 @@ const BANDEAU: (u32, u32) = (300, 120);
 #[test]
 fn opacite_1_la_loi_du_bandeau_et_du_corps() {
     let n = f32::from(OPACITE_DE_NAISSANCE) / 255.0;
-    assert_eq!(
-        opacites(OPACITE_DE_NAISSANCE, false),
-        (n, n),
-        "la naissance"
-    );
-    assert_eq!(opacites(255, false), (n, 1.0), "le bandeau ne monte pas");
-    assert_eq!(opacites(0, false), (0.0, 0.0), "il descend avec le corps");
-    // Choisi, peint deux fois : les 5 % de la fiche 06 § 8 à 1/255 près.
-    let (_, choisi) = opacites(OPACITE_DE_NAISSANCE, true);
-    assert!(((choisi * 255.0) - 0.05 * 255.0).abs() <= 1.0, "{choisi}");
-    // Au-delà de 50 %, le choisi se distingue encore — doubler y aurait tout rendu opaque.
-    let (_, a_moitie) = opacites(160, true);
-    assert!(a_moitie < 1.0 && a_moitie > 160.0 / 255.0, "{a_moitie}");
-    assert_eq!(opacites(255, true).1, 1.0);
+    assert_eq!(opacites(OPACITE_DE_NAISSANCE), (n, n), "la naissance");
+    assert_eq!(opacites(255), (n, 1.0), "le bandeau ne monte pas");
+    assert_eq!(opacites(0), (0.0, 0.0), "il descend avec le corps");
 }
 
 /// **Opaque, le corps est la teinte ; le bandeau garde son voile** — sans quoi le titre, écrit
@@ -61,7 +50,7 @@ fn opacite_1_opaque_le_corps_est_la_teinte_le_bandeau_reste_voile() {
 }
 
 /// **Le corps se compose exactement** : sur le noir, son bleu est celui de la teinte fois son
-/// opacité, au demi-octet près — choisi ou non.
+/// opacité, au demi-octet près — choisi ou non, la même (Q12, fiche 137).
 #[test]
 fn opacite_1_le_corps_a_l_opacite_que_le_dossier_porte() {
     for (opacite, choisi) in [
@@ -70,7 +59,7 @@ fn opacite_1_le_corps_a_l_opacite_que_le_dossier_porte() {
         (40, false),
         (OPACITE_DE_NAISSANCE, true),
     ] {
-        let attendu = 250.0 * opacites(opacite, choisi).1;
+        let attendu = 250.0 * opacites(opacite).1;
         let lu = f32::from(bleu(&dossier_a(opacite, choisi), CORPS));
         assert!(
             (lu - attendu).abs() <= 1.5,

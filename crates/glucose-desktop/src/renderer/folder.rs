@@ -55,23 +55,23 @@ pub(super) const CORNER_RADIUS: f32 = 10.0;
 pub(super) const MIN_WIDTH: f32 = 180.0;
 /// Hauteur minimale d'un dossier, en unités monde.
 pub(super) const MIN_HEIGHT: f32 = 120.0;
-/// Opacité de la bordure : 14 % au repos, 45 % sélectionnée.
-const BORDER_ALPHA: (u8, u8) = (36, 115);
-/// Épaisseur de la bordure, en unités monde : 1 px au repos, 1,4 px sélectionnée.
-const BORDER_WIDTH: (f32, f32) = (1.0, 1.4);
-/// Le pointillé de la bordure au repos : trois unités de trait, cinq de vide.
+/// Opacité de la bordure : 14 % (fiche 06 § 8). **Choisi, le dossier se dessine pareil** :
+/// les équerres de la sélection le disent (Q12, fiche 137) ; le halo, la bordure pleine et
+/// épaissie, l'icône et le titre plus opaques de Tauri sont partis avec les autres langages.
+const BORDER_ALPHA: u8 = 36;
+/// Épaisseur de la bordure, en unités monde.
+const BORDER_WIDTH: f32 = 1.0;
+/// Le pointillé de la bordure : trois unités de trait, cinq de vide.
 const BORDER_DASH: (f32, f32) = (3.0, 5.0);
-/// Le halo de sélection : débord, rayon supplémentaire, épaisseur, opacité.
-const GLOW: (f32, f32, f32, u8) = (3.0, 13.0, 1.5, 89);
 
 /// Le coin de l'icône d'explorateur, en unités monde — le `translate(12, 11)` de Tauri.
 const ICON: (f32, f32) = (12.0, 11.0);
-/// Opacité de l'icône : 45 % au repos, 70 % sélectionnée.
-const ICON_ALPHA: (u8, u8) = (115, 179);
+/// Opacité de l'icône : 45 %.
+const ICON_ALPHA: u8 = 115;
 /// Le titre dans le bandeau : son abscisse, **sa ligne de base**, son corps — en unités monde.
 const TITLE: (f32, f32, f32) = (34.0, 23.0, 14.0);
-/// Opacité du titre : 55 % au repos, 85 % sélectionné (Tauri, `fillOpacity`).
-const TITLE_ALPHA: (u8, u8) = (140, 217);
+/// Opacité du titre : 55 % (Tauri, `fillOpacity`).
+const TITLE_ALPHA: u8 = 140;
 /// Longueur au-delà de laquelle le titre est tronqué.
 const TITLE_MAX_CHARS: usize = 28;
 /// Le badge compteur : retrait depuis le bord droit, ordonnée, largeur, hauteur, rayon.
@@ -109,6 +109,13 @@ impl Layout {
             header: scale.world(pick_consts::FOLDER_HEADER as f32),
         }
     }
+}
+
+/// **La taille d'un dossier à l'écran**, telle qu'il se dessine — son minimum compris : celle
+/// que ses équerres entourent (Q12, fiche 137).
+pub(super) fn taille_a_l_ecran(f: &CanvasFolder, scale: WorldScale) -> (f32, f32) {
+    let layout = Layout::new(f, scale);
+    (layout.width, layout.height)
 }
 
 /// Ce qu'un dossier sait de lui-même pour se dessiner : sa teinte, l'opacité de son corps, s'il
@@ -229,18 +236,9 @@ fn arrondi((x, y, w, h): (f32, f32, f32, f32), rayon: f32) -> Option<Path> {
 ///   naissance** : son titre, son icône et son compteur s'écrivent dans la teinte même du dossier,
 ///   et un bandeau opaque de cette teinte les effacerait (à 100 %, couleur sur couleur). Le
 ///   bandeau suit l'opacité vers le bas, jamais vers le haut — aucun seuil à régler.
-/// * **Choisi, le cadre est peint deux fois** : 1 − (1 − α)². La sélection doublait l'opacité
-///   (2,5 → 5 %, fiche 06 § 8) ; doubler ne veut plus rien dire au-delà de 50 %, peindre deux
-///   fois se voit à toute opacité sous 100 %, et redonne les 5 % de la fiche à 1/255 près.
-fn opacites(opacite: u8, choisi: bool) -> (f32, f32) {
-    let peint = |a: u8| {
-        let a = f32::from(a) / 255.0;
-        if choisi {
-            1.0 - (1.0 - a) * (1.0 - a)
-        } else {
-            a
-        }
-    };
+/// * Choisi, il ne change pas (Q12, fiche 137) : il était peint deux fois, 1 − (1 − α)².
+fn opacites(opacite: u8) -> (f32, f32) {
+    let peint = |a: u8| f32::from(a) / 255.0;
     (peint(opacite.min(OPACITE_DE_NAISSANCE)), peint(opacite))
 }
 
@@ -254,7 +252,7 @@ fn voile((r, g, b): (u8, u8, u8), alpha: f32) -> Color {
 /// manque, par la composition « par-dessus » de Porter et Duff, retournée —
 /// `1 − (1 − corps) / (1 − bandeau)`. Le bandeau n'atteint jamais 1 ([`opacites`]).
 fn remplir_le_corps(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat) {
-    let (bandeau, corps) = opacites(etat.opacite, etat.selected);
+    let (bandeau, corps) = opacites(etat.opacite);
     if corps <= bandeau {
         return;
     }
@@ -272,47 +270,26 @@ fn remplir_le_corps(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat:
     }
 }
 
-/// Le cadre : halo de sélection, voile, corps, bordure, séparation du bandeau.
+/// Le cadre : voile, corps, bordure, séparation du bandeau.
 fn draw_frame(p: &mut impl Surface, at: (f32, f32), layout: &Layout, etat: &Etat) {
     let Etat {
         tint: (r, g, b),
-        selected,
         scale,
         opacite,
         ..
     } = *etat;
-    let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
-
-    if selected {
-        let pad = scale.world(GLOW.0);
-        let boite = (
-            at.0 - pad,
-            at.1 - pad,
-            layout.width + pad * 2.0,
-            layout.height + pad * 2.0,
-        );
-        if let Some(halo) = arrondi(boite, scale.world(GLOW.1)) {
-            let trait_ = Trait::plein(scale.world(GLOW.2));
-            p.tracer(&halo, Color::from_rgba8(r, g, b, GLOW.3), trait_);
-        }
-    }
-
     let boite = (at.0, at.1, layout.width, layout.height);
     let Some(cadre) = arrondi(boite, layout.radius) else {
         return;
     };
-    p.remplir(&cadre, voile(etat.tint, opacites(opacite, selected).0));
+    p.remplir(&cadre, voile(etat.tint, opacites(opacite).0));
     remplir_le_corps(p, at, layout, etat);
     let trait_ = Trait {
-        largeur: scale.world(if selected {
-            BORDER_WIDTH.1
-        } else {
-            BORDER_WIDTH.0
-        }),
-        tirets: (!selected).then(|| (scale.world(BORDER_DASH.0), scale.world(BORDER_DASH.1))),
+        largeur: scale.world(BORDER_WIDTH),
+        tirets: Some((scale.world(BORDER_DASH.0), scale.world(BORDER_DASH.1))),
         bout: LineCap::Butt,
     };
-    let bord = Color::from_rgba8(r, g, b, pick(BORDER_ALPHA));
+    let bord = Color::from_rgba8(r, g, b, BORDER_ALPHA);
     p.tracer(&cadre, bord, trait_);
 
     // Le trait qui sépare le bandeau du corps : il rend le portail lisible comme une fenêtre.
@@ -362,20 +339,18 @@ fn draw_header(
 ) {
     let Etat {
         tint: (r, g, b),
-        selected,
         scale,
         compte,
         ..
     } = *etat;
-    let pick = |paire: (u8, u8)| if selected { paire.1 } else { paire.0 };
     let coin = (at.0 + scale.world(ICON.0), at.1 + scale.world(ICON.1));
     if let Some(forme) = icone(coin, scale) {
-        p.remplir(&forme, Color::from_rgba8(r, g, b, pick(ICON_ALPHA)));
+        p.remplir(&forme, Color::from_rgba8(r, g, b, ICON_ALPHA));
     }
     let corps = scale.world(TITLE.2);
     let titre = TextStyle {
         size: corps,
-        color: Color::from_rgba8(r, g, b, pick(TITLE_ALPHA)),
+        color: Color::from_rgba8(r, g, b, TITLE_ALPHA),
         face: Face::Bold,
     };
     let haut = at.1 + scale.world(TITLE.1) - corps;
