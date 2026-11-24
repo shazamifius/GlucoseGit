@@ -109,7 +109,7 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 **Vu par nous, pas encore réglé** :
 
-* **l'arbitre condamne une carte à tort** (ARBITRE-DÉMARRAGE) : il compte comme perdu tout `present` au-delà de 10 ms, or à 60 Hz `present` attend le battement suivant de l'écran (12 à 16 ms dans sa session du 23/11 au soir). Sans effet sur son poste — Vulkan n'y voit qu'une carte, la RTX, que « économe » et « rapide » ouvrent toutes deux —, mais un balancier sur une machine à deux cartes ;
+* **l'arbitre** (ARBITRE-DÉMARRAGE) : il comptait comme perdue l'attente du battement de l'écran — **ARBITRE-5** (fiche 138, `02bbf51`) la retire ; restent l'arbitre inutile d'une machine à une seule carte (la sienne, qui dit encore « cette carte gèle » sans effet) et ECRAN-1 sous Linux ;
 * **une famille d'émojis se décompose, un drapeau devient deux lettres** : sans moteur de mise en
   forme, Glucose dessine un caractère à la fois (`decisions/10` et `18`) ;
 * **la télémétrie des versions publiées compte une mise en veille comme une image** (415 s chez un
@@ -147,7 +147,8 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   9 sur 9 ; **un échantillon de 24 anciens sabotages** tirés au hasard dans 18 fichiers : 24 sur 24
   (fiche 126 § 3) ; à la fiche 127, `tiroirs-126` **13 sur 13**, `tiroirs-127` **5 sur 5**,
   `veille-126` **2 sur 2**, `liste-123` **8 sur 8** ; `detourage-121`, le dernier jamais joué,
-  **25 sur 25** (le 24/11, fiche 137 : son modèle sous `opt-level = 1`) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
+  **25 sur 25** (le 24/11, fiche 137 : son modèle sous `opt-level = 1`) ; à la fiche 137, `equerres-137`
+  **10 sur 10** et `flou-137` **16 sur 16** (après quatre épreuves aveugles réécrites) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
   à la fiche 131, `relais-131` **12 sur 12**, `agents-toujours-131` **12 sur 12**,
   `relais-2-131` **7 sur 7**, `partage-survit-131` **10 sur 10** (et `saboter.py` lit `unittest`). 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
   autres gardaient du code réécrit.
