@@ -144,10 +144,10 @@
   ]
  },
  {
-  "nom": "Q12 — choisi, le dossier épaissit son voile",
+  "nom": "Q12 — choisi, le dossier épaissit son corps",
   "fichier": "crates/glucose-desktop/src/renderer/folder.rs",
-  "avant": "    p.remplir(&cadre, voile(etat.tint, opacites(opacite).0));",
-  "apres": "    p.remplir(&cadre, voile(etat.tint, opacites(opacite.saturating_add(if etat.selected { 60 } else { 0 })).0));",
+  "avant": "    let (bandeau, corps) = opacites(etat.opacite);",
+  "apres": "    let (bandeau, corps) = opacites(etat.opacite.saturating_add(if etat.selected { 60 } else { 0 }));",
   "cmd": [
    "cargo",
    "test",

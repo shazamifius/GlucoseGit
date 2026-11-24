@@ -164,23 +164,40 @@ fn test_q12_la_poignee_d_un_coin_se_loge_dans_l_angle_de_son_equerre() {
     }
 }
 
-/// **Une flèche ne porte pas d'équerres** : ses deux bouts sont déjà ses prises.
+/// **Une flèche ne porte pas d'équerres** : ses deux bouts sont déjà ses prises. Celle-ci descend
+/// à peine, de (320, 500) à (620, 520) : les coins de sa boîte opposés à son trait — en bas à
+/// gauche, en haut à droite — sont loin de lui ; choisie, rien n'y change. Une équerre, même
+/// réduite par la minceur de la boîte (POIGNEE-1), y poserait de l'encre.
 #[test]
 fn test_q12_une_fleche_n_est_pas_visee() {
-    let mut store = tableau("texte");
-    let fleche = Annotation::arrow("f", 320.0, 500.0, 620.0, 520.0);
-    store
-        .project
-        .boards
-        .first_mut()
-        .expect("un tableau")
-        .annotations
-        .push(fleche);
-    choisir(&mut store, &["f"]);
-    let choisie = rendre(&store, None);
-    // Le coin haut-gauche de sa boîte, écarté : rien de blanc.
-    let p = pixel(&choisie, (320 - ECART as i32, 500 - ECART as i32));
-    assert!(p[..3].iter().any(|&c| c < 150), "une flèche visée : {p:?}");
+    let avec_fleche = |choisie: bool| {
+        let mut store = tableau("texte");
+        store
+            .project
+            .boards
+            .first_mut()
+            .expect("un tableau")
+            .annotations
+            .push(Annotation::arrow("f", 320.0, 500.0, 620.0, 520.0));
+        if choisie {
+            choisir(&mut store, &["f"]);
+        }
+        rendre(&store, None)
+    };
+    let (choisie, repos) = (avec_fleche(true), avec_fleche(false));
+    for (cx, cy, sx, sy) in [(320, 520, 1, -1), (620, 500, -1, 1)] {
+        for d in 0..12 {
+            for e in 0..12 {
+                // Du coin vers le dehors de la boîte, d'abord en x puis en y.
+                let p = (cx - sx * d, cy - sy * e);
+                assert_eq!(
+                    pixel(&choisie, p),
+                    pixel(&repos, p),
+                    "choisie, la flèche pose de l'encre au coin de sa boîte, en {p:?}"
+                );
+            }
+        }
+    }
 }
 
 /// **Le texte qu'on écrit est visé**, choisi ou non : son anneau le montrait.
