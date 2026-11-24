@@ -1,0 +1,97 @@
+[
+ {
+  "nom": "PARITE-19 — un outil sans sa ligne",
+  "fichier": "crates/glucose-desktop/src/agents/outils/parite.rs",
+  "avant": "    (\"glucose_retirer\", Main::Par(&[\"supprimer\"], \"\")),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19_chaque"
+  ]
+ },
+ {
+  "nom": "PARITE-19 — une ligne en double",
+  "fichier": "crates/glucose-desktop/src/agents/outils/parite.rs",
+  "avant": "    (\"glucose_dater\", Main::Par(&[\"dater\"], \"\")),\n",
+  "apres": "    (\"glucose_dater\", Main::Par(&[\"dater\"], \"\")),\n    (\"glucose_dater\", Main::Par(&[\"dater\"], \"\")),\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19_chaque"
+  ]
+ },
+ {
+  "nom": "PARITE-19 — une ligne pour un outil qui n'existe pas",
+  "fichier": "crates/glucose-desktop/src/agents/outils/parite.rs",
+  "avant": "    (\"glucose_grouper\", Main::Par(&[\"grouper\"], \"\")),\n",
+  "apres": "    (\"glucose_grouper\", Main::Par(&[\"grouper\"], \"\")),\n    (\"glucose_fantome\", Main::Par(&[\"grouper\"], \"\")),\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19_chaque"
+  ]
+ },
+ {
+  "nom": "PARITE-19 — une commande renommée",
+  "fichier": "crates/glucose-desktop/src/agents/outils/parite.rs",
+  "avant": "Main::Par(&[\"grouper\"], \"\")",
+  "apres": "Main::Par(&[\"grouper-x\"], \"\")",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19_chaque"
+  ]
+ },
+ {
+  "nom": "PARITE-19 — ni commande ni geste",
+  "fichier": "crates/glucose-desktop/src/agents/outils/parite.rs",
+  "avant": "(\"glucose_domaines\", Main::Par(&[], \"le bouton Domaines\"))",
+  "apres": "(\"glucose_domaines\", Main::Par(&[], \"\"))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19_chaque"
+  ]
+ }
+]

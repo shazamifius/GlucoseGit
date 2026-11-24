@@ -15,8 +15,7 @@ flèche choisie porte maintenant **« Écrire sur la flèche »** (`ui/options_d
 `Action::Ecrire` ; `interactions/chrome.rs`, `ecrire_sur_la_fleche`) : la même saisie que le
 double-clic. Épreuve `test_geste_19_ecrire_sur_la_fleche_depuis_sa_barre` ; regardé au pilote sur une
 copie de son document (le bouton à côté de « Éditer le texte lié », un clic, « essai » tapé dans la
-pastille). **Reste** : la table de chaque outil `glucose_*` avec son geste en face (🔍 Revue du code
-dans son Glucose).
+pastille). **La table de chaque outil `glucose_*` avec son geste en face** : faite (fiche 150 § 1).
 
 **Vu au passage, au pilote** : un clic sur la pastille d'une flèche **très courte** (deux nœuds
 presque collés, la flèche « réponse ») choisit la membrane qui la contient, pas la flèche — la

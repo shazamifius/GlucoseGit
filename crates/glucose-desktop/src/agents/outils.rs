@@ -363,3 +363,6 @@ pub fn liste_pour(portee: Portee) -> Json {
         .collect();
     Json::objet([("tools", Json::Liste(outils))])
 }
+
+#[cfg(test)]
+mod parite;
