@@ -168,3 +168,12 @@ entier vert. **Reste**, dans l'ordre : la pile par main d'un canevas partagé (`
 l'application — `origines` et un numéro de saisie à côté de `TextEditSession`, à chaque frappe la hauteur
 du tampon (`boite_montree` la calcule déjà) écrite et poussée **si elle change**, sous l'étiquette de la
 saisie, la validation sous la même ; Échap ; puis l'essai au pilote.
+
+**Le partage, repéré (20 h 15), pas codé** : un geste partagé entre dans sa pile à
+`Store::partager_les_gestes` (`participation.rs`, l. 219 : `p.defaire.push(geste.inverse())`), lu de
+`journal.nommer_ce_qui_part`, qui ne connaît pas l'étiquette. Voie proposée : l'`Ecrit` publié porte
+l'étiquette (prise dans `commit`, branche partagée, comme `empiler` la prend) ; `Participation` garde
+l'étiquette de son sommet ; même étiquette → l'inverse neuf se place **devant** les éditions du sommet
+(défaire B puis A), sinon on empile ; `pas_partage` (défaire, refaire) l'efface. Les gestes reçus entre deux
+pas ne coupent pas la fusion : défaire rebase déjà sur eux (`rebaser`). Épreuve à écrire sur deux
+participants (comme `participation_tests.rs`), puis ses sabotages.
