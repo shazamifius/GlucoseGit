@@ -219,5 +219,10 @@ translation d'un ulp — vraie, invisible.
 Épreuves : 7 `test_pousser_145_*` (`poussee/tests.rs`) ; 4 dans `fondre_tests.rs` (dont
 `test_fondre_1_seules_des_voisines…`, réécrite : des cases entrelacées se fondent désormais) ;
 `outils/sabotages/pousser-145-lettre.json`, 15 sabotages. Toutes les épreuves de l'espace de travail
-vertes (3 651), clippy vert ; 15 sabotages sur 15. Piège : après des sabotages coupés, le cache incrémental a donné trois pannes du compilateur (éditeur de liens, « dep graph », un SIGSEGV dans LLVM) — `rm -rf target/debug/incremental/glucose_{core,desktop}-*` les a toutes réglées. **Reste** : l'essai au pilote, à son écran ensuite (« Entrée dans un texte
+vertes (3 651), clippy vert ; 15 sabotages sur 15. Piège : après des sabotages coupés, le cache incrémental a donné trois pannes du compilateur (éditeur de liens, « dep graph », un SIGSEGV dans LLVM) — `rm -rf target/debug/incremental/glucose_{core,desktop}-*` les a toutes réglées. **Essayé au pilote (22 h 35)**, le texte d'accueil et un
+voisin posé dessous : trois lignes tapées, le voisin descend pendant la saisie, l'écart gardé ; effacées,
+il remonte — d'une ligne de moins qu'à l'origine tant qu'on édite, car la source (`- Double-cliquez pour
+éditer`) coupe une ligne de plus que le texte lu : le document suit ce que le dessin montre ; validée, la
+capture est identique, pixel pour pixel, à celle d'avant la saisie. Deux lignes gardées puis **un seul
+Ctrl+Z** : texte, hauteur et voisin reviennent ensemble. **Reste** : à son écran (« Entrée dans un texte
 au-dessus d'un autre : l'autre descend pendant qu'on tape »).
