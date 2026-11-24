@@ -76,3 +76,23 @@ neuve doit relire 150 000 jetons de code. Une fenêtre plus petite (200 000) gar
 2. **Le MCP plus court** (sa proposition 1, `relais-rep-mcp`) : chaque lecture répète le chemin de son
    fichier deux fois, la partie visible, les onglets, les domaines.
 3. Ne relire à chaque démarrage que ce qui a changé de son bloc important (la proposition 6).
+
+## 5. Le flou et les équerres retirés (12 h 40 - 13 h)
+
+Ses paroles du 24/11 (`text-2231`, `text-g420-2313`, `relais-q-beta6`) : *« je reviens sur ma décision, c'est
+définitivement une très mauvaise idée le flou […] terriblement nul, accumulation de problèmes »*, *« ne pas
+toucher au système de sélection actuel de Glucose beta 5, c'est celui qui me plaît le plus »*, et pas de
+beta.6.
+
+**Défaits, du plus récent au plus ancien, le code seul** (`git show <c> -- . ':!docs' | git apply -R
+--3way`, la documentation gardée comme journal) : MELER-1 (`7007ea3 4c1f0b3 6487cac 8dd48ee 0499e7b b5268f7
+b2a8a75`), le flou (`92e0816 e25ea44 6348f20 ffce09a`), les équerres (`8e018fc 927c809`). Aucun conflit :
+rien d'autre, depuis la beta.5, ne s'appuyait sur eux. `glucose-core/src/flou.rs` était né avec Q12 et ne
+servait qu'à lui : il part aussi. Les corrections d'après la beta.5 restent (PICK-3, EDIT-PRISE, la flèche
+qui se choisit là où elle se dessine…).
+
+Preuves : `clippy -D warnings` propre, `fmt` propre, **3 585 épreuves, 0 échec** (cliquets compris). Les
+sabotages `flou-137`, `equerres-137` et `meler-140` partent avec leur code.
+
+**Ce qui se perd, à dire** : le travail de MELER-1 (le flou au processeur de 65,6 à 24,6 ms) n'a plus d'objet.
+Ses leçons restent à la fiche 140 § 5.

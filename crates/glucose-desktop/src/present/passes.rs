@@ -12,8 +12,8 @@
 //! deux copies. Une seule définition : ce que les épreuves composent est ce que l'écran reçoit.
 
 use super::{
-    couches, fleches_gpu, flou_gpu, fond_gpu, formes_gpu, lisere_gpu, lueurs_gpu, membranes_gpu,
-    scene_gpu, zones_gpu,
+    couches, fleches_gpu, fond_gpu, formes_gpu, lisere_gpu, lueurs_gpu, membranes_gpu, scene_gpu,
+    zones_gpu,
 };
 use crate::renderer::Confie;
 
@@ -31,17 +31,10 @@ pub struct Passes {
     lisere: lisere_gpu::LisereGpu,
     /// Ce qui est plus grand que l'écran, dessiné en formes (fiche 73).
     formes: formes_gpu::FormesGpu,
-    /// Le flou du reste, autour de ce qu'on a choisi (Q12, fiche 137).
-    flou: flou_gpu::FlouGpu,
 }
 
 impl Passes {
-    /// `grille` : le format des grilles du flou que la carte sait porter
-    /// ([`flou_gpu::grille_pour`]).
-    pub fn nouvelles(
-        peripherique: &wgpu::Device,
-        (format, grille): (wgpu::TextureFormat, wgpu::TextureFormat),
-    ) -> Self {
+    pub fn nouvelles(peripherique: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         Self {
             fond: fond_gpu::FondGpu::nouveau(peripherique, format),
             lueurs: lueurs_gpu::Lueurs::nouvelles(peripherique, format),
@@ -51,7 +44,6 @@ impl Passes {
             fleches: fleches_gpu::FlechesGpu::nouvelles(peripherique, format),
             lisere: lisere_gpu::LisereGpu::nouveau(peripherique, format),
             formes: formes_gpu::FormesGpu::nouvelles(peripherique, format),
-            flou: flou_gpu::FlouGpu::nouveau(peripherique, (format, grille)),
         }
     }
 
@@ -81,9 +73,6 @@ impl Passes {
         self.lisere.preparer(file, ecran, confie.lisere);
         self.formes
             .preparer((peripherique, file), ecran, &confie.formes);
-        let pixels = (ecran.0 as u32, ecran.1 as u32);
-        self.flou
-            .preparer((peripherique, file), pixels, confie.flou.as_ref());
     }
 
     /// **Les cinq temps de cette image**, avec les photos et les couches du processeur, et les
@@ -114,7 +103,6 @@ impl Passes {
             titres: confie.rangs_des_titres(),
             sous_le_dessus: confie.sous_le_dessus(),
             sous_le_cadre: confie.sous_le_cadre(),
-            flou: &self.flou,
         }
     }
 }

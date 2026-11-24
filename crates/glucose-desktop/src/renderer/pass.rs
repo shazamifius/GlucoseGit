@@ -19,6 +19,12 @@ use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Board, DomainAssignment, Viewport};
 use tiny_skia::PixmapMut;
 
+/// Épaisseur de l'anneau de sélection, **en pixels écran**.
+///
+/// Exception SCALE-1 : c'est une affordance, pas du contenu. Mis à l'échelle, il
+/// disparaîtrait en dézoomant au moment précis où l'on cherche ce qu'on a sélectionné.
+pub(super) const SELECTION_RING: f32 = 2.0;
+
 // ── Ce qu'une passe d'annotations garde constant ────────────────────────────
 
 /// Le bord de l'écran utile. Tout ce qui en sort est écarté avant d'être dessiné (loi L1).

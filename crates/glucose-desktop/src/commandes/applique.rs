@@ -88,7 +88,6 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::VoirCeQuiPart
         | C::NePlusRegarder => selon_le_document(store, commande),
         C::Echelle(vers) => cran_vers(ui, vers).is_some(),
-        C::Flou(oui) => ui.flou_de_la_selection != oui,
         C::NouveauDocument
         | C::OuvrirUnDocument
         | C::Enregistrer

@@ -189,8 +189,7 @@ impl GpuPresenter {
         // les photos dans le format de la SURFACE, celui ou tout se compose (fiche 21).
         let scene = super::scene_gpu::SceneGpu::nouvelle(&device, config.format);
         let couches = super::couches::Couches::nouvelles(&device, config.format);
-        let grille = super::flou_gpu::grille_pour(&adapter);
-        let passes = super::passes::Passes::nouvelles(&device, (config.format, grille));
+        let passes = super::passes::Passes::nouvelles(&device, config.format);
         let envoi = super::envoi::Envoi::nouveau(&device, &queue);
         Ok(Self {
             scene,

@@ -74,8 +74,6 @@ impl MenuAction {
             MenuAction::RenommerLeDossier => Commande::RenommerLeDossier,
             MenuAction::ModeZen => Commande::ModeZen,
             MenuAction::AgrandirLInterface => Commande::Echelle(Vers::PlusGrand),
-            MenuAction::FlouterLeReste => Commande::Flou(true),
-            MenuAction::NePlusFlouterLeReste => Commande::Flou(false),
             MenuAction::ReduireLInterface => Commande::Echelle(Vers::PlusPetit),
             MenuAction::Couper => Commande::Couper,
             MenuAction::Duplicate => Commande::Dupliquer,
@@ -175,9 +173,6 @@ pub enum MenuAction {
     /// L'interface d'un cran plus grande, ou plus petite (ECHELLE-1, fiche 121).
     AgrandirLInterface,
     ReduireLInterface,
-    /// Le reste se floute autour de la sélection, ou plus (Q12, fiche 137).
-    FlouterLeReste,
-    NePlusFlouterLeReste,
     /// La même, puis retirée une fois copiée.
     Couper,
     Duplicate,

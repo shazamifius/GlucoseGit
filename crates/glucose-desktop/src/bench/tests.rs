@@ -408,11 +408,7 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
 /// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
 /// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
-/// **Puis, le 24/11** (Q12, fiche 137) : la sélection en équerres — le fil du groupe, l'anneau du
-/// texte et les cadres des photos (la claire, la verrouillée à l'encre de l'alerte, la penchée)
-/// deviennent quatre coins de viseur, les poignées logées dans leurs angles ; 8 017 pixels, tous
-/// autour des nœuds choisis (195-1077 × 409-892) ; regardé avant/après.
-const EMPREINTE_TEMOIN_SELECTION: &str = "43d87671a8a8abb7";
+const EMPREINTE_TEMOIN_SELECTION: &str = "ac234fa294118bef";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -524,11 +520,7 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
 /// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
 /// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
-/// **Puis, le 24/11** (Q12, fiche 137) : la sélection en équerres sous le menu — 7 057 pixels, les
-/// mêmes nœuds (195-1077 × 409-892), le menu intact ; regardé avant/après. Puis « Ne plus
-/// flouter le reste » dans le groupe de l'édition, le menu plus haut d'une rangée — tout dans le
-/// menu (639-897 × 428-741) ; regardé avant/après.
-const EMPREINTE_TEMOIN_MENU: &str = "20484a5008548b6a";
+const EMPREINTE_TEMOIN_MENU: &str = "7fdd71dbe57c3482";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -212,9 +212,6 @@ pub struct UiState {
     /// **L'échelle que l'utilisateur a choisie**, en pour cent — un cran de
     /// [`crate::interactions::echelle::CRANS`].
     pub echelle_choisie: u16,
-    /// **Le reste se floute autour de ce qu'on a choisi** (Q12, fiche 137) : son choix, retenu
-    /// d'une session à l'autre — oui, tant qu'il n'a rien dit.
-    pub flou_de_la_selection: bool,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
     /// La barre et les onglets, déjà dessinés (voir [`bande::BandeCache`]).
@@ -306,7 +303,6 @@ impl UiState {
             fermer_la_fenetre: false,
             scale_factor: 1.0,
             echelle_choisie: 100,
-            flou_de_la_selection: true,
             minimap_cache: None,
             bande_cache: None,
             ariane_cache: None,

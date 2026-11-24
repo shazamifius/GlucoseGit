@@ -343,20 +343,58 @@ fn carte_de_taille(selectionnee: bool, taille: (f32, f32)) -> Pixmap {
     pixmap
 }
 
-/// **Q12 — choisie, une carte ne change qu'à ses poignées** (fiche 137) : l'anneau qui se posait
-/// sur son bord (COMPOSANT-4) est devenu les équerres de tous les nœuds, posées au-dessus de tout
-/// (`renderer/equerres.rs`). Lu au quart du bord haut, là où aucune poignée ne se pose — l'anneau
-/// y passait — et dedans.
+/// **L'anneau d'une carte sélectionnée se pose sur son bord** (COMPOSANT-4), et nulle part
+/// ailleurs dans la carte.
+///
+/// Il a quitté la texture pour les ornements : les deux voies le peignent par la même fonction,
+/// donc leur épreuve d'accord ne dirait rien s'il disparaissait. Lu au quart du bord haut, là
+/// où aucune poignée ne se pose.
 #[test]
-fn test_q12_choisie_une_carte_ne_change_qu_a_ses_poignees() {
+fn test_composant_4_l_anneau_d_une_carte_selectionnee_se_pose_sur_son_bord() {
     let (avec, sans) = (carte_posee(true), carte_posee(false));
     let pixel = |p: &Pixmap, x: u32, y: u32| p.pixels()[(y * ECRAN.0 + x) as usize];
     let x = 40 + (LARGEUR / 4.0) as u32;
-    for y in [37, 38, 39, 40, 41, 70] {
-        assert_eq!(
-            pixel(&avec, x, y),
-            pixel(&sans, x, y),
-            "choisie, la carte change en ({x}, {y}) : rien ne court le long de son bord"
+    assert!(
+        (39..=40).any(|y| pixel(&avec, x, y) != pixel(&sans, x, y)),
+        "l'anneau doit passer sur le bord haut de la carte"
+    );
+    assert_eq!(
+        pixel(&avec, x, 70),
+        pixel(&sans, x, 70),
+        "dedans, la selection ne change rien : la carte reste la meme"
+    );
+}
+
+/// Ce que la sélection change au plus sur un pixel du bord haut, entre `x0` et `x1`.
+fn ecart_au_bord_haut(taille: (f32, f32), (x0, x1): (u32, u32)) -> u8 {
+    let (avec, sans) = (
+        carte_de_taille(true, taille),
+        carte_de_taille(false, taille),
+    );
+    let ecart = |y: u32, x: u32| {
+        let (a, b) = (
+            avec.pixels()[(y * ECRAN.0 + x) as usize],
+            sans.pixels()[(y * ECRAN.0 + x) as usize],
         );
-    }
+        a.red().abs_diff(b.red()).max(a.green().abs_diff(b.green()))
+    };
+    (38..=41)
+        .flat_map(|y| (x0..x1).map(move |x| (y, x)))
+        .map(|(y, x)| ecart(y, x))
+        .max()
+        .unwrap_or(0)
+}
+
+/// **POIGNEE-1 — l'anneau suit la place de la carte à l'écran** : plein autour d'une carte qu'on
+/// lit, une trace autour d'une carte de dix pixels — où il faisait la même grille blanche que
+/// le cadre des photos.
+#[test]
+fn test_poignee_1_l_anneau_d_une_carte_minuscule_s_estompe() {
+    let grande = ecart_au_bord_haut((LARGEUR, 60.0), (60, 200));
+    let minuscule = ecart_au_bord_haut((12.0, 10.0), (41, 51));
+    assert!(grande >= 100, "l'anneau d'une grande carte : {grande}");
+    assert!(
+        minuscule < grande / 3,
+        "l'anneau d'une carte de 12 px garde {minuscule} contre {grande}"
+    );
 }

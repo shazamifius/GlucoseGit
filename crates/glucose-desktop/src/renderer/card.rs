@@ -294,12 +294,12 @@ pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCa
     dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
 }
 
-/// **La marge d'une carte autour de sa boîte** — sa bordure, et un pixel d'anticrénelage : celle
-/// de sa texture sur la carte graphique (`composants`), et celle de sa couche quand le processeur
-/// l'estompe. Une seule mesure pour les deux. (L'anneau de sélection qu'elle réservait est parti :
-/// la sélection se dit par les équerres, au-dessus de tout — Q12, fiche 137.)
-pub(crate) fn marge_de_la_texture(bordure: f32) -> f32 {
-    (bordure / 2.0).ceil() + 1.0
+/// **La marge d'une carte autour de sa boîte** — sa bordure ou l'anneau de sélection, et un pixel
+/// d'anticrénelage : celle de sa texture sur la carte graphique (`composants`), et celle de sa
+/// couche quand le processeur l'estompe. Une seule mesure pour les deux.
+pub(crate) fn marge_de_la_texture(bordure: f32, scale: WorldScale) -> f32 {
+    let anneau = scale.screen(super::pass::SELECTION_RING);
+    (bordure.max(anneau) / 2.0).ceil() + 1.0
 }
 
 /// **Le contenu d'une carte, à sa présence** (ESTOMPE-1) : estompée, il se dessine à part, dans
@@ -317,7 +317,7 @@ pub(super) fn draw_card_contenu_a(
     let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
     };
-    let marge = marge_de_la_texture(layout.border);
+    let marge = marge_de_la_texture(layout.border, ctx.scale);
     let boite = (
         at.0 - marge,
         at.1 - marge,

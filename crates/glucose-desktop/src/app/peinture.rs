@@ -107,7 +107,7 @@ impl GlucoseApp {
     /// plus laisser voir la decision -- et c'est elle qui dit, dans la trace, qu'une image a
     /// ete EVITEE. Un compteur de plus pour le meme fait n'aurait servi qu'a diverger.
     fn ce_quil_faut_repeindre(&mut self, tampon_neuf: bool) -> Option<crate::salissure::Salissure> {
-        let sale = self.salissure_sous_le_flou(crate::salissure::Salissure::Rien);
+        let sale = self.salissure.replace(crate::salissure::Salissure::Rien);
         // Un tampon neuf ne contient rien : il n'y a aucune image precedente a menager.
         let sale = if tampon_neuf {
             crate::salissure::Salissure::Tout
@@ -198,7 +198,6 @@ impl GlucoseApp {
             selection_box: self.selection_box.or(self.rectangle_trace_a_l_ecran()),
             editing: self.editing_session.as_ref(),
             arrivages: &self.depot.en_chemin,
-            flou: self.le_flou_vit(),
             ..dessus.scene(&self.active_guides)
         };
         let pointer = self.pointeur();

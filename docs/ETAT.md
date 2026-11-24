@@ -34,7 +34,7 @@
   **PIPETTE-1 à 3** — viser la lueur d'un texte prend sa couleur, la roue montre ce qu'elle prendrait ;
   **REJOINDRE-1** — « Rejoindre… » ouvre un champ où coller le code (le téléphone) ; **ANCRE-1** — une
   flèche accrochée se choisit là où elle se dessine ; **EDIT-PRISE** — sélectionner dans un texte qu'on
-  écrit ne quitte plus le bloc ; **Q12** — la sélection en équerres, le reste flouté (fiche 137) ;
+  écrit ne quitte plus le bloc ; **Q12** — les équerres et le flou, essayés puis **retirés à sa demande** le 24/11 (fiche 142 § 5) ;
   **ARBITRE-5 et 6** — l'arbitre ne condamne plus une carte qui attend l'écran, et ne s'installe plus
   sur une machine à une seule carte (la sienne) (fiches 138-139) ; **DEPLACER-1** — une membrane
   déplacée par une IA emporte ce qu'elle porte, un dossier se déplace, une photo verrouillée non
@@ -91,7 +91,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 | **Flèches** | droites ou courbes, six relations, coudes (« Retirer ce coude », « Redresser la flèche »), bouts qu'on prend, contournement, ancres de texte ; la couleur des lueurs qu'elles relient ; de loin, une trace ; leur présence suit leur nombre et la souris (PARENTE-4) ; `Ctrl`+clic suit un lien ; la fenêtre des liens (`B`) |
 | **Organiser** | membranes **en carte** (la plus petite région l'emporte), dossiers (renommés par `F2`, **on y range en lâchant dessus**), **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et la roue (Oklch) ; **dater** un nœud (`Maj+T`), la frise chronologique (`Maj+R`), regarder un domaine — deux lentilles qui estompent, jamais ne cachent |
 | **Exporter** | Markdown, SVG complet, PNG, planches de storyboard (PDF), la page web |
-| **L'interface** | **la sélection en équerres, le reste flouté** (Q12) ; 118 commandes dans une table, la palette (`Ctrl+Maj+P`), les raccourcis comme donnée ; ses lettres et ses icônes sur la grille de l'écran ; **son échelle, au choix** ; **les tiroirs du côté de leur bouton**, qui défilent quand la place manque ; les trois modes de la fenêtre et le zen ; sous Windows, la bande ou la barre du système |
+| **L'interface** | **la sélection de la beta.5** (les équerres et le flou de Q12 retirés le 24/11, à sa demande) ; 118 commandes dans une table, la palette (`Ctrl+Maj+P`), les raccourcis comme donnée ; ses lettres et ses icônes sur la grille de l'écran ; **son échelle, au choix** ; **les tiroirs du côté de leur bouton**, qui défilent quand la place manque ; les trois modes de la fenêtre et le zen ; sous Windows, la bande ou la barre du système |
 | **Collaborer** | **le co-working** (fiches 117 et 119) : partager un canevas, le rejoindre par le code ; chaque geste vu chez les autres, chiffré, ses photos comprises ; le conflit dit ; `Ctrl+Z` par main ; les curseurs ; **le partage survit au relancement** (le document rejoint sa salle au numéro que son fichier contient, fiche 131) |
 | **Les agents** | **une IA du nuage par Collaborer** — Claude.ai et Mistral, essayés depuis son compte : son accord devant un code, le document ouvert seulement, son nom vérifié qui signe, le témoin qui dit l'onglet ; `glucose --mcp` pour une IA de sa machine — chaque geste annulable, signé, rien sans son accord (**« Toujours, dans ce document »** : une fois pour toutes, tout programme de la machine) ; `glucose --mcp` survit à Glucose relancé ; une lecture n'attend jamais son geste, aucun agent n'attend derrière un autre ; **une IA gratuite (Gemini) dans le tiroir DISCUSSION**, qui bascule d'un modèle à l'autre |
 | **Mise à jour** | automatique et signée sous Windows et Linux ; sous Android, à prouver |
@@ -143,7 +143,7 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   (fiche 126 § 3) ; à la fiche 127, `tiroirs-126` **13 sur 13**, `tiroirs-127` **5 sur 5**,
   `veille-126` **2 sur 2**, `liste-123` **8 sur 8** ; `detourage-121`, le dernier jamais joué,
   **25 sur 25** (le 24/11, fiche 137 : son modèle sous `opt-level = 1`) ; à la fiche 137, `equerres-137`
-  **10 sur 10** et `flou-137` **16 sur 16** (après quatre épreuves aveugles réécrites) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
+  **10 sur 10** ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
   à la fiche 131, `relais-131` **12 sur 12**, `agents-toujours-131` **12 sur 12**,
   `relais-2-131` **7 sur 7**, `partage-survit-131` **10 sur 10** (et `saboter.py` lit `unittest`). 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
   autres gardaient du code réécrit.

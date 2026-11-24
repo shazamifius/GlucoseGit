@@ -140,8 +140,9 @@ fn test_le_bandeau_partage_la_constante_du_picking() {
 fn test_les_metriques_sont_celles_de_la_fiche() {
     assert_eq!(CORNER_RADIUS, 10.0);
     assert_eq!((MIN_WIDTH, MIN_HEIGHT), (180.0, 120.0));
-    assert_eq!(BORDER_WIDTH, 1.0);
+    assert_eq!(BORDER_WIDTH, (1.0, 1.4));
     assert_eq!(BORDER_DASH, (3.0, 5.0));
+    assert_eq!(GLOW, (3.0, 13.0, 1.5, 89));
     assert_eq!(ICON, (12.0, 11.0));
     assert_eq!((TITLE, TITLE_MAX_CHARS), ((34.0, 23.0, 14.0), 28));
     assert_eq!(BADGE, (38.0, 11.0, 30.0, 16.0, 8.0));
@@ -153,14 +154,13 @@ fn test_les_metriques_sont_celles_de_la_fiche() {
     // Les opacités de la fiche sont en pourcentage ; le rendu les veut sur 255. La conversion
     // est vérifiée ici plutôt que recopiée de tête.
     let pourcent = |p: f64| (p * 255.0).round() as u8;
-    // Le corps : 2,5 % à la naissance (OPACITE-1) — `tests/opacite.rs`. Choisi, rien ne change :
-    // les valeurs « sélectionnées » de la fiche 06 § 8 sont parties avec les autres langages de la
-    // sélection (Q12, fiche 137).
+    // Le corps : 2,5 % à la naissance ; choisi, sa loi (OPACITE-1) — `tests/opacite.rs`.
     assert_eq!(OPACITE_DE_NAISSANCE, pourcent(0.025));
-    assert_eq!(BORDER_ALPHA, pourcent(0.14));
-    assert_eq!(ICON_ALPHA, pourcent(0.45));
+    assert_eq!(BORDER_ALPHA, (pourcent(0.14), pourcent(0.45)));
+    assert_eq!(ICON_ALPHA, (pourcent(0.45), pourcent(0.70)));
     assert_eq!(BADGE_ALPHA, (pourcent(0.18), pourcent(0.40)));
-    assert_eq!(TITLE_ALPHA, pourcent(0.55));
+    assert_eq!(GLOW.3, pourcent(0.35));
+    assert_eq!(TITLE_ALPHA, (pourcent(0.55), pourcent(0.85)));
     assert_eq!(BADGE_TEXT_ALPHA, pourcent(0.95));
 }
 
@@ -205,24 +205,19 @@ fn test_un_dossier_hors_champ_n_est_pas_dessine() {
     assert_eq!(encres, 0);
 }
 
-/// **Q12 — choisi, un dossier se dessine pareil, ses poignées en plus** (fiche 137) : ses équerres
-/// disent qu'il est choisi. Le halo à trois unités du bord, le trait plein et épaissi, le voile
-/// peint deux fois, l'icône et le titre plus opaques de Tauri changeaient ces points-là.
+/// Un dossier sélectionné se distingue : plus d'encre qu'au repos, halo et trait plein compris.
 #[test]
-fn test_q12_un_dossier_choisi_se_dessine_pareil() {
+fn test_un_dossier_selectionne_se_distingue() {
     let store = store_avec_dossier(100.0, 100.0, 300.0, 200.0);
-    let (repos, _) = encre(&store);
+    let (_, au_repos) = encre(&store);
+
     let mut choisi = store.clone();
     choisi.selected_folder_ids = vec!["fold-1".to_string()].into();
-    let (choisi, _) = encre(&choisi);
-    // Le corps, le bandeau, le bord haut au quart (loin des poignées), et sa lueur au-dessus.
-    for point in [(250, 250), (300, 120), (175, 100), (175, 97), (175, 98)] {
-        assert_eq!(
-            repos.pixel(point.0, point.1),
-            choisi.pixel(point.0, point.1),
-            "choisi, le dossier change en {point:?}"
-        );
-    }
+    let (_, selectionne) = encre(&choisi);
+    assert!(
+        selectionne > au_repos,
+        "{selectionne} pixels sélectionné contre {au_repos} au repos"
+    );
 }
 
 /// **Très dézoomé, rien ne se tait** (GRIS-2, fiche 96) : le cadre reste, et le nom montre le gris de
@@ -256,14 +251,13 @@ fn test_gris_2_tres_dezoome_rien_ne_se_tait() {
     );
 }
 
-/// **De loin, un dossier choisi ne pose rien au-dessus de son cadre** (GRIS-2, fiche 96 ; Q12,
-/// fiche 137). Juste sous le seuil (0,19), son bord haut posé au milieu d'un pixel (100,5) : le
-/// trait du cadre reste dans la rangée 100 ; la lueur de la sélection d'avant — trois unités
-/// au-dessus — atteignait seule la rangée 99, entre les poignées (le cadre va de 190 à 760, la
-/// poignée du milieu est en 475). De loin, ce sont ses équerres qui le disent choisi, entières
-/// autour d'un dossier de 570 pixels (POIGNEE-1).
+/// **De loin, un dossier choisi garde sa lueur** (GRIS-2, fiche 96). Juste sous le seuil (0,19), son
+/// bord haut posé au milieu d'un pixel (100,5) : le trait du cadre reste dans la rangée 100, la
+/// lueur — trois unités au-dessus, d'une épaisseur et demie — atteint seule la rangée 99, entre les
+/// poignées (le cadre va de 190 à 760, la poignée du milieu est en 475). Compter les pixels encrés
+/// ne suffisait pas : un dossier choisi en a plus par son seul trait.
 #[test]
-fn test_gris_2_de_loin_un_dossier_choisi_ne_pose_rien_au_dessus() {
+fn test_gris_2_de_loin_un_dossier_choisi_garde_sa_lueur() {
     let zoom = 0.19;
     assert!(!WorldScale::new(zoom, 1.0).draws_detail());
     let rangee_99 = |choisi: bool| {
@@ -285,10 +279,9 @@ fn test_gris_2_de_loin_un_dossier_choisi_ne_pose_rien_au_dessus() {
             .unwrap_or(0)
     };
     assert_eq!(rangee_99(false), 0, "au repos, rien au-dessus du cadre");
-    assert_eq!(
-        rangee_99(true),
-        0,
-        "choisi non plus : ses équerres le disent"
+    assert!(
+        rangee_99(true) > 0,
+        "de loin, la lueur d'un dossier choisi se voit au-dessus de son cadre"
     );
 }
 

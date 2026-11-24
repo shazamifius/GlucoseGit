@@ -155,7 +155,7 @@ pub(super) fn dessiner_sur_les_photos(
     // 6 ter. La date des nœuds, au-dessus de ce qu'elle date, sur les deux voies (DATE-1, fiche
     // 113) : du sens, jamais une prise — elle se pose même pendant une lecture, sous son voile.
     super::date::poser_les_dates(pixmap, (store, pass, kit));
-    // 6 bis. Les ornements des photos -- poignees, reglette -- et les equerres passent
+    // 6 bis. Les ornements des photos -- cadre de selection, poignees, reglette -- passent
     // au-dessus de TOUT, sur les deux voies (ORNEMENTS-1). Ils vivaient au bout de la pose de
     // chaque photo, donc sous les cartes qui la recouvraient : une poignee cachee par une
     // carte ne s'attrape pas, et les deux voies ne pouvaient pas se ressembler tant que l'une
@@ -164,11 +164,6 @@ pub(super) fn dessiner_sur_les_photos(
     if ui.lecture.is_none() {
         grille::dessiner_les_ornements(kit, pixmap, store, pass);
         super::handles::dessiner_le_cadre_du_groupe(kit.theme, pixmap, store, pass);
-        // Les équerres de la sélection, un seul langage pour tous les nœuds (Q12, fiche 137),
-        // **après toutes les poignées** : une poignée de coin se pose dans l'angle de son
-        // équerre, qui l'entoure ; posée après, elle la recouvrait presque entière.
-        let vises = super::equerres::les_vises(kit, store, &pass, overlay.editing);
-        super::equerres::poser(pixmap, kit.theme, pass.echelle(), &vises);
         // La zone de gabarit choisie : ses prises, comme celles d'un nœud choisi (PRESET-1).
         let choisie = ui.zones.choisie.as_deref();
         super::zone::orner_la_zone_choisie(pixmap, kit.theme, (store, pass), choisie);
@@ -378,7 +373,6 @@ impl Renderer {
             ..plein
         };
         self.rendre_la_region(dessus, store, ui, overlay, header_h, sur);
-        confie.flou = self.flou_de_l_image(taille, 1);
         self.garder_le_cadrage = false;
         self.cadrage_de_l_image = None;
         noter_le_cout_de_la_scene(debut);

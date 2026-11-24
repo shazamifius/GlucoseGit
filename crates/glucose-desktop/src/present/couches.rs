@@ -380,9 +380,6 @@ pub struct Temps<'a> {
     /// Combien passent sous le rectangle de la vue : jusqu'au fond de la minimap. Le rail, les
     /// panneaux et ce qui attend une décision viennent après (CHROME-1).
     pub sous_le_cadre: usize,
-    /// **Le flou du reste, autour de ce qu'on a choisi** (Q12, fiche 137) : quand il vit, la scène
-    /// se compose à part, se floute, et se mêle à l'écran avant la chrome.
-    pub flou: &'a super::flou_gpu::FlouGpu,
 }
 
 /// **Encode la passe des cinq temps** : le fond, le dessous, les photos, les lueurs et les
@@ -433,39 +430,16 @@ fn poser_une_tranche(
 }
 
 pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, temps: Temps<'_>) {
-    // Rien a effacer : le fond couvre tout, qu'il vienne de la carte ou de la couche du dessous.
-    let Some(nette) = temps.flou.nette() else {
-        let mut passe = ouvrir(encodeur, cible, wgpu::LoadOp::Load);
-        poser_la_scene(&mut passe, &temps);
-        poser_la_chrome(&mut passe, &temps);
-        return;
-    };
-    // **Le flou vit** (Q12, fiche 137) : la scène à part, son flou, puis l'écran — la scène nette
-    // et floue mêlées, la chrome par-dessus, nette.
-    poser_la_scene(&mut ouvrir(encodeur, nette, CLAIRE), &temps);
-    temps.flou.flouter(encodeur);
-    let mut passe = ouvrir(encodeur, cible, CLAIRE);
-    temps.flou.meler(&mut passe);
-    poser_la_chrome(&mut passe, &temps);
-}
-
-/// Une texture qui naît sans contenu se vide d'abord.
-const CLAIRE: wgpu::LoadOp<wgpu::Color> = wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT);
-
-/// Une passe sur `cible`.
-fn ouvrir<'e>(
-    encodeur: &'e mut wgpu::CommandEncoder,
-    cible: &wgpu::TextureView,
-    load: wgpu::LoadOp<wgpu::Color>,
-) -> wgpu::RenderPass<'e> {
-    encodeur.begin_render_pass(&wgpu::RenderPassDescriptor {
+    let mut passe = encodeur.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("glucose-couches"),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: cible,
             resolve_target: None,
             depth_slice: None,
             ops: wgpu::Operations {
-                load,
+                // Rien a effacer : le fond couvre tout, qu'il vienne de la carte ou de la
+                // couche du dessous.
+                load: wgpu::LoadOp::Load,
                 store: wgpu::StoreOp::Store,
             },
         })],
@@ -473,55 +447,49 @@ fn ouvrir<'e>(
         timestamp_writes: None,
         occlusion_query_set: None,
         multiview_mask: None,
-    })
-}
-
-/// **La scène** : tout ce qui suit la vue, jusqu'à la couche du dessus.
-fn poser_la_scene(passe: &mut wgpu::RenderPass<'_>, temps: &Temps<'_>) {
-    temps.fond.poser(passe);
+    });
+    temps.fond.poser(&mut passe);
     // Le sol des régions, puis ce qui doit rester visible dans une membrane -- la grille, le
     // corps des zones d'un gabarit et des cases (PRESET-1) --, puis les frontières (REGION-1) :
     // l'ordre du processeur.
-    temps.membranes.poser_le_sol(passe);
-    temps.fond.poser_la_grille(passe);
-    temps.zones.poser(passe);
-    temps.membranes.poser_les_frontieres(passe);
+    temps.membranes.poser_le_sol(&mut passe);
+    temps.fond.poser_la_grille(&mut passe);
+    temps.zones.poser(&mut passe);
+    temps.membranes.poser_les_frontieres(&mut passe);
     // Les titres des régions au-dessus de toutes leurs formes, comme le processeur les écrit ;
     // puis la couche du dessous — les poignées, les réglettes, les titres qu'elle seule porte
     // (TITRE-3).
     let retenues = temps.retenues;
     let titres = &temps.titres;
     temps.scene.poser(
-        passe,
+        &mut passe,
         retenues,
         retenues.avant(titres.start)..retenues.avant(titres.end),
     );
     temps
         .couches
-        .poser_le_dessous(passe, !temps.fond.a_peindre());
-    poser_une_tranche(passe, temps, (Tranche::Photos, 0..temps.photos));
-    temps.lueurs.poser(passe);
+        .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
+    let cartes = retenues.avant(temps.sous_le_dessus);
+    poser_une_tranche(&mut passe, &temps, (Tranche::Photos, 0..temps.photos));
+    temps.lueurs.poser(&mut passe);
     poser_une_tranche(
-        passe,
-        temps,
+        &mut passe,
+        &temps,
         (Tranche::Cartes, temps.photos..temps.titres.start),
     );
     // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
     // poignées qui sont dans la couche du dessus (FLECHE-2).
-    temps.fleches.poser(passe);
-    temps.couches.poser_le_dessus(passe);
-}
-
-/// **La chrome**, après tout ce que la couche du dessus porte — la bande, le fil, le fond de la
-/// minimap, puis le rectangle de la vue, puis le rail (CHROME-1) —, et les panneaux après elle,
-/// comme la voie processeur les compose (PANNEAUX-1). Jamais floutée.
-fn poser_la_chrome(passe: &mut wgpu::RenderPass<'_>, temps: &Temps<'_>) {
-    let retenues = temps.retenues;
-    let cartes = retenues.avant(temps.sous_le_dessus);
+    temps.fleches.poser(&mut passe);
+    temps.couches.poser_le_dessus(&mut passe);
+    // La chrome, après tout ce que la couche du dessus porte — la bande, le fil, le fond de la
+    // minimap, puis le rectangle de la vue, puis le rail (CHROME-1) —, et les panneaux après
+    // elle, comme la voie processeur les compose (PANNEAUX-1).
     let cadre = retenues.avant(temps.sous_le_cadre);
-    temps.scene.poser(passe, retenues, cartes..cadre);
-    temps.cadre.poser(passe);
-    temps.scene.poser(passe, retenues, cadre..retenues.len());
+    temps.scene.poser(&mut passe, retenues, cartes..cadre);
+    temps.cadre.poser(&mut passe);
+    temps
+        .scene
+        .poser(&mut passe, retenues, cadre..retenues.len());
     // Le liseré du passé, par-dessus tout : il borde la fenêtre entière, chrome comprise.
-    temps.lisere.poser(passe);
+    temps.lisere.poser(&mut passe);
 }
