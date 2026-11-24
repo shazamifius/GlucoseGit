@@ -95,3 +95,14 @@ le pilote.
 * La saisie ne fait jamais rapetisser la carte (`resize.rs` : la hauteur est un plancher) : « effacer
   fait remonter » ne jouera que le jour où elle rapetissera. Sans un `départ` (une mise en page hors
   saisie), garder `pousser_les_membranes`.
+
+**Une voie sans copie (24/11, 19 h 02, compte b — à éprouver par la session qui branchera)** : le
+départ n'a pas besoin d'être copié à l'ouverture de la saisie. Un nœud que cette écriture n'a pas encore
+touché est **à sa place de départ** (ou là où une autre main l'a mis pendant l'écriture — et le pousser
+depuis là est plus juste que depuis une copie périmée). Il suffit donc de garder **les boîtes d'origine
+des seuls nœuds que l'écriture a touchés** — le texte lui-même dès l'ouverture, chaque voisin poussé et
+chaque membrane grandie à son premier déplacement — : `origines : id → boîte`, qui remplace aussi `déjà`.
+Le départ se lit alors comme « le tableau, chaque touché ramené à son origine ». Coût à l'ouverture :
+une boîte ; à chaque changement de hauteur : le balayage du niveau, que `pousser_les_membranes` fait
+déjà. Pour cela, `pousser_en_ecrivant` lirait des boîtes `(id, boîte, membrane)` plutôt qu'un
+`&[Annotation]` (une annotation pèse ~512 octets : jamais la cloner pour lire sa boîte).
