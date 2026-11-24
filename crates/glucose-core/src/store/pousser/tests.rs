@@ -220,30 +220,33 @@ fn test_pousser_pendant_l_ecriture_par_le_journal() {
     let board = store.project.active_board_id.clone();
     store.add_annotation(&board, texte("t", (0.0, 0.0, 200.0, 100.0), None));
     store.add_annotation(&board, texte("dessous", (0.0, 130.0, 200.0, 60.0), None));
-    let depart = store
-        .active_board()
-        .expect("le tableau")
-        .annotations
-        .clone();
     let haut = |s: &Store| {
         let b = s.active_board().expect("le tableau");
         bas_de(&b.annotations, "dessous") - 60.0
     };
-    let mut deja = Vec::new();
+    let mut origines = vec![("t".to_string(), Rect::new(0.0, 0.0, 200.0, 100.0))];
     store.begin_live_edit();
     for bas in [150.0, 200.0] {
         store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, bas));
-        store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", bas);
+        store.pousser_en_ecrivant(&board, &mut origines, "t", bas);
     }
     assert_eq!(haut(&store), 230.0, "au contact, l'écart gardé");
+    let bas_du_texte = bas_de(&store.active_board().expect("le tableau").annotations, "t");
+    assert_eq!(bas_du_texte, 200.0, "le texte écrit garde sa hauteur");
     store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 120.0));
-    store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 120.0);
+    store.pousser_en_ecrivant(&board, &mut origines, "t", 120.0);
     assert_eq!(haut(&store), 150.0, "effacer le fait remonter");
     store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 100.0));
-    store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 100.0);
+    store.pousser_en_ecrivant(&board, &mut origines, "t", 100.0);
     assert_eq!(haut(&store), 130.0, "jusqu'à sa place de départ");
+    // Revenu, il est oublié : une autre main le bouge, l'écriture ne le ramène pas.
+    store.set_annotation_rect(&board, "dessous", Rect::new(0.0, 400.0, 200.0, 60.0));
+    store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 110.0));
+    store.pousser_en_ecrivant(&board, &mut origines, "t", 110.0);
+    assert_eq!(haut(&store), 400.0, "là où l'autre main l'a mis");
+    store.set_annotation_rect(&board, "dessous", Rect::new(0.0, 130.0, 200.0, 60.0));
     store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 180.0));
-    store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 180.0);
+    store.pousser_en_ecrivant(&board, &mut origines, "t", 180.0);
     store.end_live_edit();
     assert_eq!(haut(&store), 210.0);
     assert!(store.undo());

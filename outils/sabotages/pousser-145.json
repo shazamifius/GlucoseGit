@@ -135,8 +135,8 @@
  {
   "nom": "POUSSER-145 — ce qu'elle a poussé ne revient pas",
   "fichier": "crates/glucose-core/src/store/pousser.rs",
-  "avant": "|| deja.iter().any(|d| d == a.id())",
-  "apres": "",
+  "avant": "faits.iter().any(|f| f.0 == *r) || origines.iter().any(|o| o.0 == a.id())",
+  "apres": "faits.iter().any(|f| f.0 == *r)",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -156,6 +156,82 @@
   "fichier": "crates/glucose-core/src/store/pousser.rs",
   "avant": "let dy = cible.top - actuel.top;",
   "apres": "let dy = 0.0;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — l'origine du premier déplacement pas gardée",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "                origines.push((qui, c));",
+  "apres": "                let _ = (qui, c);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — ce qui revient n'est pas oublié",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "origines.retain(|o| o.0 == id || poussees.iter().any(|p| p.0 == o.0));",
+  "apres": "origines.retain(|_| true);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — le texte écrit ramené à son origine",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "            .filter(|(_, a)| a.id() != id)\n",
+  "apres": "            .filter(|_| true)\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — le départ lu au présent",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "                cadre: origine.or_else(|| noeud.rect()),",
+  "apres": "                cadre: noeud.rect().or(origine),",
   "cmd": [
    "bash",
    "outils/borne.sh",

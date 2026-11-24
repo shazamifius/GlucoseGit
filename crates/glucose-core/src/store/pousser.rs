@@ -21,6 +21,63 @@ use super::Store;
 use crate::geometry::Rect;
 use crate::types::{Annotation, Board};
 
+/// **Ce que la loi de la fiche 145 lit d'un nœud** : son nom, sa boîte, sa membrane — un nœud, ou un
+/// nœud vu à sa place d'origine ([`AOrigine`]), jamais une copie du tableau (une annotation pèse
+/// ~512 octets : la cloner pour lire sa boîte coûterait, sur un grand tableau, à chaque saisie).
+pub trait Boite {
+    fn id(&self) -> &str;
+    fn rect(&self) -> Option<Rect>;
+    fn membrane_id(&self) -> Option<&str>;
+}
+
+impl Boite for Annotation {
+    fn id(&self) -> &str {
+        Annotation::id(self)
+    }
+    fn rect(&self) -> Option<Rect> {
+        Annotation::rect(self)
+    }
+    fn membrane_id(&self) -> Option<&str> {
+        Annotation::membrane_id(self)
+    }
+}
+
+/// **Un nœud à sa place d'origine** (fiche 145, la voie sans copie) : la boîte qu'il avait quand
+/// l'écriture l'a touché la première fois ; sa boîte d'aujourd'hui s'il n'a pas été touché — il est
+/// alors à sa place de départ, ou là où une autre main l'a mis.
+pub struct AOrigine<'a> {
+    noeud: &'a Annotation,
+    cadre: Option<Rect>,
+}
+
+impl Boite for AOrigine<'_> {
+    fn id(&self) -> &str {
+        self.noeud.id()
+    }
+    fn rect(&self) -> Option<Rect> {
+        self.cadre
+    }
+    fn membrane_id(&self) -> Option<&str> {
+        self.noeud.membrane_id()
+    }
+}
+
+/// Le tableau vu à son départ : chaque nœud touché ramené à son origine.
+fn a_l_origine<'a>(
+    annotations: &'a [Annotation],
+    origines: &[(String, Rect)],
+) -> Vec<AOrigine<'a>> {
+    (annotations.iter())
+        .map(|noeud| {
+            let origine = origines.iter().find(|o| o.0 == noeud.id()).map(|o| o.1);
+            AOrigine {
+                noeud,
+                cadre: origine.or_else(|| noeud.rect()),
+            }
+        })
+        .collect()
+}
+
 /// **Les membranes que pousse le nœud `id`, son bas descendu à `bas`**, et le bas neuf de chacune :
 /// la sienne d'abord, puis chaque membrane qui la contient, jusqu'à la première qui le contient
 /// déjà. Le rang est celui de la membrane dans `annotations`.
@@ -63,7 +120,7 @@ fn membranes_poussees(annotations: &[Annotation], id: &str, bas: f64) -> Vec<(us
 /// balayage par haut croissant (Force Scan, vers le bas seulement), qui garde l'ordre. Une
 /// fonction de l'état de départ, jamais une suite de poussées : effacer fait remonter, sans dérive.
 /// Rend le rang de chaque voisin qui descend et son haut neuf.
-pub fn voisins_pousses(depart: &[Annotation], id: &str, bas: f64) -> Vec<(usize, f64)> {
+pub fn voisins_pousses<B: Boite>(depart: &[B], id: &str, bas: f64) -> Vec<(usize, f64)> {
     let Some((cadre, niveau)) =
         (depart.iter().find(|a| a.id() == id)).and_then(|a| Some((a.rect()?, a.membrane_id())))
     else {
@@ -94,7 +151,7 @@ pub fn voisins_pousses(depart: &[Annotation], id: &str, bas: f64) -> Vec<(usize,
 /// ([`voisins_pousses`]), puis sa membrane, qui grandit jusqu'au plus bas de ce qu'elle contient
 /// désormais (+ `ECART`) et pousse à son tour les siens — jusqu'à la première qui le contient déjà.
 /// Rend le haut neuf de chaque voisin poussé et le bas neuf de chaque membrane qui grandit, par rang.
-pub fn pousser_en_ecrivant(depart: &[Annotation], id: &str, bas: f64) -> Vec<(usize, Bord, f64)> {
+pub fn pousser_en_ecrivant<B: Boite>(depart: &[B], id: &str, bas: f64) -> Vec<(usize, Bord, f64)> {
     let mut faits: Vec<(usize, Bord, f64)> = Vec::new();
     let (mut qui, mut bas) = (id.to_string(), bas);
     while faits.len() <= depart.len() {
@@ -104,7 +161,7 @@ pub fn pousser_en_ecrivant(depart: &[Annotation], id: &str, bas: f64) -> Vec<(us
             .fold(bas, f64::max);
         faits.extend(pousses.into_iter().map(|(r, haut)| (r, Bord::Haut, haut)));
         let Some((rang, cadre)) = (depart.iter().find(|a| a.id() == qui))
-            .and_then(Annotation::membrane_id)
+            .and_then(|a| a.membrane_id())
             .and_then(|m| depart.iter().position(|a| a.id() == m))
             .and_then(|r| Some((r, depart[r].rect()?)))
         else {
@@ -169,20 +226,24 @@ impl Store {
 }
 
 impl Store {
-    /// **POUSSER-145, par le journal** : le nœud `id` qu'on écrit a son bas à `bas` ; `depart` est
-    /// son tableau au début de l'écriture, `deja` ce que cette écriture a déjà poussé. Chaque
-    /// voisin prend le haut que la loi lui donne, en emportant son contenu — ou revient à son haut
-    /// de départ (effacer fait remonter) ; chaque membrane, son bas. Dans le geste ouvert : le
-    /// même `Ctrl+Z` défait la saisie et tout ce qu'elle a poussé.
+    /// **POUSSER-145, par le journal** : le nœud `id` qu'on écrit a son bas à `bas` ; `origines`
+    /// garde la boîte d'origine de ce que cette écriture a touché — le nœud écrit dès l'ouverture de
+    /// la saisie, chaque voisin et chaque membrane à leur premier déplacement. Chaque voisin prend le
+    /// haut que la loi lui donne, en emportant son contenu — ou revient à son origine (effacer fait
+    /// remonter), puis est oublié : une autre main peut le bouger. Chaque membrane, son bas. Dans le
+    /// geste ouvert : le même `Ctrl+Z` défait la saisie et tout ce qu'elle a poussé.
     pub fn pousser_en_ecrivant(
         &mut self,
         board_id: &str,
-        depart: &[Annotation],
-        deja: &mut Vec<String>,
+        origines: &mut Vec<(String, Rect)>,
         id: &str,
         bas: f64,
     ) {
-        let faits = pousser_en_ecrivant(depart, id, bas);
+        let Some(b) = self.project.boards.iter().find(|b| b.id == board_id) else {
+            return;
+        };
+        let depart = a_l_origine(&b.annotations, origines);
+        let faits = pousser_en_ecrivant(&depart, id, bas);
         let voulu = |rang: usize, cadre: Rect| {
             let fait = faits.iter().find(|f| f.0 == rang);
             match fait {
@@ -196,12 +257,22 @@ impl Store {
             }
         };
         let touches: Vec<(String, Rect)> = (depart.iter().enumerate())
-            .filter(|(r, a)| faits.iter().any(|f| f.0 == *r) || deja.iter().any(|d| d == a.id()))
+            .filter(|(_, a)| a.id() != id)
+            .filter(|(r, a)| {
+                faits.iter().any(|f| f.0 == *r) || origines.iter().any(|o| o.0 == a.id())
+            })
             .filter_map(|(r, a)| Some((a.id().to_string(), voulu(r, a.rect()?))))
             .collect();
-        *deja = (faits.iter())
-            .map(|f| depart[f.0].id().to_string())
+        // Ce qui revient à son origine est oublié ; ce que la loi touche la première fois, retenu.
+        let poussees: Vec<(String, Option<Rect>)> = (faits.iter())
+            .map(|f| (depart[f.0].id().to_string(), depart[f.0].rect()))
             .collect();
+        origines.retain(|o| o.0 == id || poussees.iter().any(|p| p.0 == o.0));
+        for (qui, cadre) in poussees {
+            if let Some(c) = cadre.filter(|_| !origines.iter().any(|o| o.0 == qui)) {
+                origines.push((qui, c));
+            }
+        }
         for (qui, cible) in touches {
             let Some(actuel) = (self.project.boards.iter().find(|b| b.id == board_id))
                 .and_then(|b| b.annotations.iter().find(|a| a.id() == qui))

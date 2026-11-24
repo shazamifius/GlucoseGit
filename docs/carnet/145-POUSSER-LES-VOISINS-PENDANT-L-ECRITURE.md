@@ -106,3 +106,11 @@ Le départ se lit alors comme « le tableau, chaque touché ramené à son origi
 une boîte ; à chaque changement de hauteur : le balayage du niveau, que `pousser_les_membranes` fait
 déjà. Pour cela, `pousser_en_ecrivant` lirait des boîtes `(id, boîte, membrane)` plutôt qu'un
 `&[Annotation]` (une annotation pèse ~512 octets : jamais la cloner pour lire sa boîte).
+
+**Fait (19 h 07)** : la voie sans copie, dans le noyau — le trait `Boite` (id, boîte, membrane) que
+la loi lit, `AOrigine` (un nœud vu à son origine) ; `Store::pousser_en_ecrivant(tableau, origines, id,
+bas)` remplace `départ` et `déjà` : ce qui revient à son origine est oublié (une autre main peut le
+bouger, l'épreuve le vérifie), le texte écrit n'est jamais ramené. 13 sabotages sur 13. **Reste** : à
+l'ouverture de la saisie (`start_text_edit_at`), garder `origines = [(le texte, sa boîte)]` à côté de
+`TextEditSession`, l'oublier à la validation, et appeler la méthode au lieu de `pousser_les_membranes`
+(`interactions/resize.rs`, l. 531) ; l'essai au pilote.
