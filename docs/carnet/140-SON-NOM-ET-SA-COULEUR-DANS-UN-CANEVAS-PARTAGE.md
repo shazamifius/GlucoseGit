@@ -81,3 +81,20 @@ chaque image où le flou vit et que la scène change. **Le mélange pèse les tr
 pixel, là où une lecture bilinéaire incrémentale par rangée et des entiers devraient en coûter une
 fraction (à prouver). Le chantier est ouvert dans SUITE, avec ces nombres pour point de départ.
 
+**Un premier pas, au bit près** (MELER-1, le 24/11 vers 8 h 15) : `meler` calcule les voisins et les
+poids de chaque colonne et de chaque rangée une fois (`Pas`), et lit le masque avant le flou — un
+pixel que le masque garde net ne lit plus le flou. Les mêmes opérations, dans le même ordre :
+`test_flou_meler_rend_au_bit_pres_la_lecture_pixel_par_pixel` rejoue l'ancienne loi pixel par pixel
+(sans étage et avec deux) et exige des octets identiques ; `meler-140.json` **2 sur 2**,
+`flou-137.json` toujours **16 sur 16**, l'accord des deux voies (`voies_suite`, 34) inchangé.
+
+```text
+                     tout (médiane)   mélange
+1920 x 1080, ×1      65,6 → 41,9 ms   50,6 → 27,0
+2560 x 1440, ×1     118,0 → 75,7 ms   91,1 → 49,0
+```
+
+**Reste** quatre fois le plancher : le mélange en virgule flottante (un `round` et deux `clamp` par
+canal), et la gaussienne (`agrandir` lit encore pixel par pixel). La suite : la même chose pour
+`agrandir`, puis des entiers — en gardant l'accord des deux voies à 4 niveaux.
+

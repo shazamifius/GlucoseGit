@@ -307,6 +307,11 @@ pub fn grille(plan: &Plan, (largeur, hauteur): (usize, usize)) -> (usize, usize)
 /// étage (la dernière montée de [`flouter`]), le masque dans la grille la plus grossière — la même
 /// lecture bilinéaire, les bords prolongés. `net` : des octets RVBA prémultipliés, que le mélange
 /// remplace — l'image entière : la chrome, posée ensuite, couvre la bande.
+///
+/// **Les mêmes nombres, au bit près, que [`lire`] et [`Masque::lire`] pixel par pixel** — les
+/// mêmes opérations, dans le même ordre —, mais leurs voisins et leurs poids se calculent une fois
+/// par colonne et par rangée, et le flou ne se lit pas là où le masque garde tout net. Lus pixel par
+/// pixel, ils coûtaient 50,6 ms par image en 1080p sur son Ryzen (fiche 140 § 5).
 pub fn meler(
     net: &mut [u8],
     (largeur, hauteur): (usize, usize),
@@ -314,23 +319,69 @@ pub fn meler(
     masque: &Masque,
 ) {
     let maille = plan.maille() as f32;
+    let centre = |j: usize| (j as f32 + 0.5) / maille - 0.5;
+    let colonnes_du_masque: Vec<Pas> = (0..largeur)
+        .map(|x| Pas::de(centre(x), masque.largeur))
+        .collect();
+    let colonnes_du_flou: Vec<Pas> = (0..largeur)
+        .map(|x| Pas::de(sous(x), flou.largeur))
+        .collect();
     for y in 0..hauteur {
+        let (rm, rf) = (
+            Pas::de(centre(y), masque.hauteur),
+            Pas::de(sous(y), flou.hauteur),
+        );
+        let rangee = |pas: &Pas, l: usize| (pas.avant * l, pas.apres * l);
+        let (m0, m1) = rangee(&rm, masque.largeur);
+        let (f0, f1) = rangee(&rf, flou.largeur);
         for x in 0..largeur {
-            let f = if plan.etages == 0 {
-                flou.a(x as isize, y as isize)
-            } else {
-                lire(flou, (sous(x), sous(y)))
-            };
-            let centre = |j: usize| (j as f32 + 0.5) / maille - 0.5;
-            let m = masque.lire((centre(x), centre(y))).clamp(0.0, 1.0);
+            let cm = &colonnes_du_masque[x];
+            let o = |k: usize| f32::from(masque.octets[k]) / 255.0;
+            let haut = o(m0 + cm.avant) + (o(m0 + cm.apres) - o(m0 + cm.avant)) * cm.t;
+            let bas = o(m1 + cm.avant) + (o(m1 + cm.apres) - o(m1 + cm.avant)) * cm.t;
+            let m = (haut + (bas - haut) * rm.t).clamp(0.0, 1.0);
             if m >= 1.0 {
                 continue;
             }
+            let f = if plan.etages == 0 {
+                flou.a(x as isize, y as isize)
+            } else {
+                let cf = &colonnes_du_flou[x];
+                let p = |k: usize| flou.pixels[k];
+                let (a, b) = (p(f0 + cf.avant), p(f0 + cf.apres));
+                let (c, d) = (p(f1 + cf.avant), p(f1 + cf.apres));
+                std::array::from_fn(|k| {
+                    let haut = a[k] + (b[k] - a[k]) * cf.t;
+                    let bas = c[k] + (d[k] - c[k]) * cf.t;
+                    haut + (bas - haut) * rf.t
+                })
+            };
             let i = (y * largeur + x) * 4;
             for c in 0..4 {
                 let v = f32::from(net[i + c]) * m + f[c] * (1.0 - m);
                 net[i + c] = v.round().clamp(0.0, 255.0) as u8;
             }
+        }
+    }
+}
+
+/// **Un pas de lecture bilinéaire** le long d'un axe : les deux voisins du point `c` dans une grille
+/// de `n` cases, les bords prolongés, et le poids du second — ce que [`lire`] calcule à chaque
+/// pixel, calculé une fois par colonne ou par rangée.
+struct Pas {
+    avant: usize,
+    apres: usize,
+    t: f32,
+}
+
+impl Pas {
+    fn de(c: f32, n: usize) -> Self {
+        let c0 = c.floor();
+        let borne = |i: isize| i.clamp(0, n as isize - 1) as usize;
+        Self {
+            avant: borne(c0 as isize),
+            apres: borne(c0 as isize + 1),
+            t: c - c0,
         }
     }
 }

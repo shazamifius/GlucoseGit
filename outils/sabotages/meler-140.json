@@ -1,0 +1,32 @@
+[
+ {
+  "nom": "MELER-1 — le masque oublie le poids de sa rangée",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "            let m = (haut + (bas - haut) * rm.t).clamp(0.0, 1.0);",
+  "apres": "            let m = (haut + (bas - haut) * rm.t * 0.0).clamp(0.0, 1.0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou"
+  ]
+ },
+ {
+  "nom": "MELER-1 — le flou oublie le poids de sa rangée",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "                    haut + (bas - haut) * rf.t",
+  "apres": "                    haut + (bas - haut) * rf.t.round()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou"
+  ]
+ }
+]

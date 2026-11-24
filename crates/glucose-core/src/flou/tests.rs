@@ -201,3 +201,48 @@ fn test_flou_1_le_masque_dit_ce_qui_reste_net() {
         vide[milieu]
     );
 }
+
+/// **Le mélange rend au bit près la lecture pixel par pixel** (fiche 140 § 5) : ses pas, calculés
+/// une fois par colonne et par rangée, donnent les nombres mêmes de [`lire`] et [`Masque::lire`] à
+/// chaque pixel — l'ancienne loi, rejouée ici sur des tailles impaires, un masque en dégradé (net,
+/// flou et entre les deux), et sans étage comme avec deux.
+#[test]
+fn test_flou_meler_rend_au_bit_pres_la_lecture_pixel_par_pixel() {
+    for sigma in [0.6, 5.6] {
+        let plan = Plan::de(sigma);
+        let (l, h) = (37usize, 23usize);
+        let net: Vec<u8> = (0..l * h * 4).map(|i| (i * 37 % 251) as u8).collect();
+        let flou = flouter(&net, (l, h), &plan);
+        let (gl, gh) = grille(&plan, (l, h));
+        let masque = Masque {
+            largeur: gl,
+            hauteur: gh,
+            octets: (0..gl * gh).map(|i| (i * 97 % 256) as u8).collect(),
+        };
+        let mut nouveau = net.clone();
+        meler(&mut nouveau, (l, h), (&flou, &plan), &masque);
+        let mut ancien = net.clone();
+        let maille = plan.maille() as f32;
+        let centre = |j: usize| (j as f32 + 0.5) / maille - 0.5;
+        for y in 0..h {
+            for x in 0..l {
+                let f = if plan.etages == 0 {
+                    flou.pixels[y * l + x]
+                } else {
+                    lire(&flou, (sous(x), sous(y)))
+                };
+                let m = masque.lire((centre(x), centre(y))).clamp(0.0, 1.0);
+                if m >= 1.0 {
+                    continue;
+                }
+                let i = (y * l + x) * 4;
+                for c in 0..4 {
+                    let v = f32::from(ancien[i + c]) * m + f[c] * (1.0 - m);
+                    ancien[i + c] = v.round().clamp(0.0, 255.0) as u8;
+                }
+            }
+        }
+        assert_eq!(nouveau, ancien, "σ = {sigma}, {} étage(s)", plan.etages);
+        assert_ne!(nouveau, net, "le mélange a bien changé l'image");
+    }
+}
