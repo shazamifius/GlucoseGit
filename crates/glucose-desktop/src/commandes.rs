@@ -124,6 +124,9 @@ pub enum Commande {
     PleinEcran,
     /// **L'échelle de l'interface** (ECHELLE-1, fiche 121) : un cran de plus, un de moins, 100 %.
     Echelle(Vers),
+    /// **Le reste se floute autour de ce qu'on a choisi** — `Flou(false)` : plus (Q12, fiche
+    /// 137). Les deux ne s'appliquent jamais ensemble : le menu montre l'autre (APPLIQUE-1).
+    Flou(bool),
     /// **Le mode zen** (`Maj+F11`) : plus aucune interface, la fenêtre telle qu'elle est (ZEN-1).
     ModeZen,
     /// `Espace` : la navigation, qui lâche ce qu'on tenait — pas l'outil Main seul.
@@ -411,6 +414,7 @@ impl Commande {
                 .flat_map(|&s| [Commande::Pousser(s, false), Commande::Pousser(s, true)]),
         );
         v.extend(Vers::TOUS.map(Commande::Echelle));
+        v.extend([true, false].map(Commande::Flou));
         v.extend(OUTILS.iter().map(|(o, _, _)| Commande::Outil(*o)));
         v.extend((1..=9).map(Commande::AllerAuSignet));
         v.extend((1..=9).map(Commande::PoserLeSignet));
@@ -430,6 +434,8 @@ impl Commande {
                 format!("pousser.{}{}", s.nom(), if dix { ".dix" } else { "" })
             }
             Commande::Echelle(vers) => format!("interface.{}", vers.id()),
+            Commande::Flou(true) => "selection.flouter-le-reste".to_string(),
+            Commande::Flou(false) => "selection.ne-plus-flouter-le-reste".to_string(),
             Commande::Outil(o) => format!("outil.{}", Self::outil(o).1),
             Commande::AllerAuSignet(n) => format!("signet.aller.{n}"),
             Commande::PoserLeSignet(n) => format!("signet.poser.{n}"),
@@ -458,6 +464,8 @@ impl Commande {
                 if dix { "dix pas" } else { "un pas" }
             ),
             Commande::Echelle(vers) => vers.nom().to_string(),
+            Commande::Flou(true) => "Flouter le reste autour de la sélection".to_string(),
+            Commande::Flou(false) => "Ne plus flouter le reste autour de la sélection".to_string(),
             Commande::Outil(o) => Self::outil(o).2.to_string(),
             Commande::AllerAuSignet(n) => format!("Aller au signet {n}"),
             Commande::PoserLeSignet(n) => format!("Poser le signet {n}"),

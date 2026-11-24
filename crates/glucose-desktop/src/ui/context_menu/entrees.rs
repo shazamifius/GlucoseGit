@@ -100,6 +100,15 @@ fn entrees_de_l_historique() -> Vec<Def> {
 }
 
 /// Les entrées d'un menu ouvert sur une sélection : ce qu'on fait de ce qu'on a choisi.
+/// **Le flou du reste autour de la sélection, ou plus** (Q12, fiche 137) : une seule des deux
+/// s'applique, l'autre se retire (APPLIQUE-1) — l'entrée dit ce qu'elle va faire.
+const FLOUTER: (MenuAction, &str, &str) = (MenuAction::FlouterLeReste, "Flouter le reste", "");
+const NE_PLUS_FLOUTER: (MenuAction, &str, &str) = (
+    MenuAction::NePlusFlouterLeReste,
+    "Ne plus flouter le reste",
+    "",
+);
+
 fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     // **Un dossier seul** (DOSSIER-1) : copier, dupliquer et l'ordre ne portent pas encore les
     // dossiers — les proposer mentirait. Le renommer (RENOMMER-1) et le supprimer, si.
@@ -107,6 +116,9 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         return Some(vec![
             Some((MenuAction::RenommerLeDossier, "Renommer…", "")),
             Some((MenuAction::Delete, "Supprimer", "")),
+            None,
+            Some(FLOUTER),
+            Some(NE_PLUS_FLOUTER),
         ]);
     }
     // « Copier » emporte tout : le lot, le texte, les images elles-mêmes — « Copier l'image »
@@ -116,6 +128,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         Some((MenuAction::Couper, "Couper", "")),
         Some((MenuAction::Duplicate, "Dupliquer", "")),
         Some((MenuAction::CadrerLaSelection, "Cadrer la sélection", "")),
+        Some(FLOUTER),
+        Some(NE_PLUS_FLOUTER),
         // Une date, une plage, une ère : la temporalité de Tauri (DATE-1, fiche 113).
         Some((MenuAction::Dater, "Dater…", "")),
         // Ce qui a des liens les montre, amenés près de lui (LIEN-3).

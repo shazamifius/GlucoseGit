@@ -175,6 +175,78 @@ fn test_les_deux_voies_rendent_la_meme_scene() {
     );
 }
 
+/// **Q12 — le flou du reste se rend pareil sur les deux voies** (fiche 137) : la loi du noyau, ses
+/// réductions, sa gaussienne et son mélange transcrits sur la carte aux mêmes poids. Les bornes
+/// sont celles de la scène sans flou ; et le flou a bien eu lieu des deux côtés — sans lui, la
+/// scène nette serait la même partout, et l'épreuve ne dirait rien.
+#[test]
+fn test_q12_le_flou_se_rend_pareil_sur_les_deux_voies() {
+    let taille = synth::WITNESS_SIZE;
+    let store = synth::witness_selected();
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let flou = SceneOverlay {
+        flou: true,
+        ..SceneOverlay::sans_rien(&guides)
+    };
+    let mut processeur = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    Renderer::new().render(
+        &mut processeur.as_mut(),
+        &store,
+        &mut UiState::new(),
+        flou,
+        Pointer { x: 0.0, y: 0.0 },
+        Regard::immobile(),
+    );
+    let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    let mut renderer = Renderer::new();
+    let confie = renderer.rendre_les_couches(
+        &mut dessous.as_mut(),
+        &mut dessus.as_mut(),
+        &store,
+        (&mut UiState::new(), Pointer { x: 0.0, y: 0.0 }),
+        flou,
+        Regard::immobile(),
+    );
+    assert!(
+        confie.flou.is_some(),
+        "la scène choisie confie son flou à la carte"
+    );
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let Some(carte) = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.pixels(&renderer, cle),
+    ) else {
+        return;
+    };
+    let nette = par_le_processeur(taille, &store);
+    let floutes = banc_gpu::canaux_hors_tolerance(&nette, &processeur, ECART_COURANT);
+    assert!(
+        floutes > 10_000,
+        "le processeur a flouté : {floutes} canaux"
+    );
+    let floutes = banc_gpu::canaux_hors_tolerance(&nette, &carte, ECART_COURANT);
+    assert!(floutes > 10_000, "la carte a flouté : {floutes} canaux");
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    eprintln!("flou : pire écart {pire}, {larges} canaux au-delà de {ECART_COURANT}");
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies floutent à {pire} niveaux l'une de l'autre"
+    );
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'écart dépasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+}
+
 /// **Une photo en chemin se pose à son rang, comme un composant.**
 ///
 /// La scène témoin porte trois images sans octets. Sur la voie processeur elles se dessinent

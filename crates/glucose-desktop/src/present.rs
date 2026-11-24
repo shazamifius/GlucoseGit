@@ -67,6 +67,7 @@ pub mod couches;
 pub mod echelle;
 pub mod envoi;
 pub mod fleches_gpu;
+pub mod flou_gpu;
 pub mod fond_gpu;
 pub mod formes_gpu;
 pub mod gpu;

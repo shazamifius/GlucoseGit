@@ -525,8 +525,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
 /// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
 /// **Puis, le 24/11** (Q12, fiche 137) : la sélection en équerres sous le menu — 7 057 pixels, les
-/// mêmes nœuds (195-1077 × 409-892), le menu intact ; regardé avant/après.
-const EMPREINTE_TEMOIN_MENU: &str = "3a8577b662bd5e33";
+/// mêmes nœuds (195-1077 × 409-892), le menu intact ; regardé avant/après. Puis « Ne plus
+/// flouter le reste » dans le groupe de l'édition, le menu plus haut d'une rangée — tout dans le
+/// menu (639-897 × 428-741) ; regardé avant/après.
+const EMPREINTE_TEMOIN_MENU: &str = "20484a5008548b6a";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

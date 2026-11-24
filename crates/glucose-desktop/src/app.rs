@@ -9,6 +9,7 @@ mod discussion;
 mod evenements;
 mod fenetre;
 mod fin;
+mod flou;
 pub mod focus;
 pub mod lancement;
 mod memoire;
@@ -287,6 +288,9 @@ pub struct GlucoseApp {
     /// Le zoom n'a pas de session : c'est un evenement de molette. Le deduire du document
     /// evite d'inventer une duree d'attente apres laquelle on cesserait de "zoomer".
     echelle_precedente: f64,
+    /// **Le reste était-il flouté à l'image précédente ?** (Q12, fiche 137) Un flou couvre tout
+    /// l'écran : l'image qui le pose comme celle qui le retire se repeignent entières.
+    flou_vivait: bool,
     /// Ce qui a changé depuis la dernière image, et doit donc être redessiné (A.1).
     ///
     /// Dans une `Cell` pour que [`GlucoseApp::mark_dirty`] reste en `&self` : soixante-deux
@@ -419,6 +423,7 @@ impl GlucoseApp {
             window_title_cache: String::new(),
             chronique: crate::chronique::Chronique::nouvelle(),
             echelle_precedente: 1.0,
+            flou_vivait: false,
             salissure: std::cell::Cell::new(crate::salissure::Salissure::Tout),
             image_due: std::cell::Cell::new(None),
         };

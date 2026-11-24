@@ -239,6 +239,7 @@ impl GlucoseApp {
         // écran, plein. Sous Wayland, la référence se pose devant au premier focus (DEVANT-1).
         self.ui.fenetre = self.mode_de_fenetre_retenu();
         self.ui.echelle_choisie = self.echelle_retenue();
+        self.ui.flou_de_la_selection = self.flou_retenu();
         self.fenetre_de_reference.devant_au_focus = self.ui.en_reference();
         let attrs = match self.ui.fenetre {
             ModeDeFenetre::Reference => attrs

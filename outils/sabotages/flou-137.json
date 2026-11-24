@@ -1,0 +1,245 @@
+[
+ {
+  "nom": "FLOU-1 — la réduction est une boîte, pas le binomial",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "(p[0][c] + 3.0 * p[1][c] + 3.0 * p[2][c] + p[3][c]) / 8.0",
+  "apres": "(p[1][c] + p[2][c]) / 2.0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou::tests::test_flou_1_la_reduction"
+  ]
+ },
+ {
+  "nom": "FLOU-1 — le seuil de Vello au lieu de la loi de Nyquist",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "        while (variance - 1.5) / 4.0 >= seuil {",
+  "apres": "        while variance > 4.0 && seuil > 0.0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou::tests::test_flou_1_le_nombre"
+  ]
+ },
+ {
+  "nom": "FLOU-1 — un étage ne compte pas sa variance",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "            variance = (variance - 1.5) / 4.0;",
+  "apres": "            variance /= 4.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou::tests::test_flou_1_la_reponse"
+  ]
+ },
+ {
+  "nom": "FLOU-1 — l'agrandissement lit au coin, pas au centre",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "    (j as f32 + 0.5) / 2.0 - 0.5",
+  "apres": "    j as f32 / 2.0",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou::tests::test_flou_1_l_agrandissement"
+  ]
+ },
+ {
+  "nom": "FLOU-1 — le masque ne garde rien de net",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "                let v = f32::from(net[i + c]) * m + f[c] * (1.0 - m);",
+  "apres": "                let v = f[c] + 0.0 * m;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou::tests::test_flou_1_le_masque"
+  ]
+ },
+ {
+  "nom": "FLOU-1 — le mélange touche la bande",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "    for y in haut.min(hauteur)..hauteur {",
+  "apres": "    for y in 0..hauteur.max(haut) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou::tests::test_flou_1_le_masque"
+  ]
+ },
+ {
+  "nom": "Q12 — le flou de l'image D, entier",
+  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
+  "avant": "pub(crate) const SIGMA: f32 = 5.6;",
+  "apres": "pub(crate) const SIGMA: f32 = 14.0;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_le_flou_vaut"
+  ]
+ },
+ {
+  "nom": "Q12 — la marge sans la maille et demie du masque",
+  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
+  "avant": "    scale.screen(ECART) + 1.5 * plan.maille() as f32",
+  "apres": "    scale.screen(ECART) + 0.0 * plan.maille() as f32",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_ce_qu_on_a_choisi"
+  ]
+ },
+ {
+  "nom": "Q12 — les flèches choisies se floutent",
+  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
+  "avant": "    formes.extend(",
+  "apres": "    std::mem::drop(",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_ce_qu_on_a_choisi"
+  ]
+ },
+ {
+  "nom": "Q12 — rien de visé floute tout l'écran",
+  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
+  "avant": "    if formes.is_empty() || largeur == 0 || hauteur == 0 {",
+  "apres": "    if largeur == 0 || hauteur == 0 {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_rien"
+  ]
+ },
+ {
+  "nom": "Q12 — le processeur floute la bande",
+  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
+  "avant": "    let haut = (flou.haut - 0.5).max(0.0).ceil() as usize;",
+  "apres": "    let haut = 0 * flou.haut as usize;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_ce_qu_on_a_choisi"
+  ]
+ },
+ {
+  "nom": "Q12 — la carte ne mêle plus : tout flou",
+  "fichier": "crates/glucose-desktop/src/present/flou_gpu/flou.wgsl",
+  "avant": "    return net * m + flou * (1.0 - m);",
+  "apres": "    return flou + 0.0 * net * m;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_q12_le_flou"
+  ]
+ },
+ {
+  "nom": "Q12 — la carte réduit à mi-texel",
+  "fichier": "crates/glucose-desktop/src/present/flou_gpu/flou.wgsl",
+  "avant": "        let d = vec2<f32>(select(-0.75, 0.75, (j & 1) == 1), select(-0.75, 0.75, (j & 2) == 2));",
+  "apres": "        let d = vec2<f32>(select(-0.5, 0.5, (j & 1) == 1), select(-0.5, 0.5, (j & 2) == 2));",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_q12_le_flou"
+  ]
+ },
+ {
+  "nom": "Q12 — la carte floute deux fois en hauteur",
+  "fichier": "crates/glucose-desktop/src/present/flou_gpu.rs",
+  "avant": "                Sorte::Gauss if p.cible + 1 == etat.grilles.len() => [1.0, 0.0],",
+  "apres": "                Sorte::Gauss if p.cible + 1 == etat.grilles.len() => [0.0, 1.0],",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--test",
+   "voies_suite",
+   "--",
+   "test_q12_le_flou"
+  ]
+ },
+ {
+  "nom": "Q12 — le flou vit pendant un glisser",
+  "fichier": "crates/glucose-desktop/src/app/flou.rs",
+  "avant": "            && !self.is_dragging_item",
+  "apres": "            && !self.is_dragging_item.then_some(false).unwrap_or(false)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::flou::tests::test_q12_le_flou_s_efface"
+  ]
+ },
+ {
+  "nom": "Q12 — une région se repeint seule sous le flou",
+  "fichier": "crates/glucose-desktop/src/app/flou.rs",
+  "avant": "        if entiere && !sale.est_propre() {",
+  "apres": "        if entiere && !sale.est_propre() && false {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "app::flou::tests::test_q12_tant_que"
+  ]
+ }
+]

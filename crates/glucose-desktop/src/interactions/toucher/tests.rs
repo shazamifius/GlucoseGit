@@ -574,9 +574,11 @@ fn test_dossier_1_l_appui_long_sur_un_dossier_le_supprime_et_s_annule() {
         vec![
             MenuAction::Annuler,
             MenuAction::RenommerLeDossier,
-            MenuAction::Delete
+            MenuAction::Delete,
+            MenuAction::NePlusFlouterLeReste,
         ],
-        "« Renommer… », « Supprimer » — et « Annuler », le geste d'avant — : rien qui mentirait"
+        "« Renommer… », « Supprimer », le flou du reste (Q12) — et « Annuler », le geste d'avant — : \
+         rien qui mentirait"
     );
     app.delete_selection();
     let dossiers = |app: &GlucoseApp| app.store.active_board().map_or(0, |b| b.folders.len());

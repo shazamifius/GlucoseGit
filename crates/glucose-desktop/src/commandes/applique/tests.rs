@@ -106,8 +106,9 @@ struct Etat {
         Option<glucose_core::timeline::TemporalFilter>,
         Option<String>,
     ),
-    /// L'échelle de l'interface choisie, en pour cent (ECHELLE-1, fiche 121).
-    interface: u16,
+    /// L'échelle de l'interface choisie, en pour cent (ECHELLE-1, fiche 121), et le flou du
+    /// reste autour de la sélection (Q12, fiche 137).
+    interface: (u16, bool),
 }
 
 fn etat(app: &GlucoseApp) -> Etat {
@@ -136,7 +137,7 @@ fn etat(app: &GlucoseApp) -> Etat {
             app.store.temporal_filter,
             app.store.domaine_regarde.clone(),
         ),
-        interface: app.ui.echelle_choisie,
+        interface: (app.ui.echelle_choisie, app.ui.flou_de_la_selection),
     }
 }
 

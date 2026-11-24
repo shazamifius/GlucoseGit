@@ -25,6 +25,7 @@ pub mod error;
 pub mod export;
 pub mod file_kind;
 pub mod fixed;
+pub mod flou;
 pub mod gabarits;
 pub mod geometry;
 pub mod groupe;

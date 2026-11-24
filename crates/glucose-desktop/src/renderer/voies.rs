@@ -378,6 +378,7 @@ impl Renderer {
             ..plein
         };
         self.rendre_la_region(dessus, store, ui, overlay, header_h, sur);
+        confie.flou = self.flou_de_l_image(taille, 1, header_h);
         self.garder_le_cadrage = false;
         self.cadrage_de_l_image = None;
         noter_le_cout_de_la_scene(debut);

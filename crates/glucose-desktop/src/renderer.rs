@@ -36,6 +36,7 @@ pub(crate) mod estompe;
 pub mod export;
 mod fenetre_d_ancrage;
 mod fils;
+pub mod flou;
 pub mod focus;
 pub mod folder;
 pub mod grille;
@@ -197,6 +198,9 @@ pub struct Renderer {
     suivi_du_geste: glucose_core::quadtree::SuiviDuGeste,
     /// Le texte qu'on écrit et la boîte qu'il montre, posés à chaque image (FLECHE-EDITION).
     pub boite_vivante: Option<(String, glucose_core::geometry::Rect)>,
+    /// **Ce qui reste net quand le reste se floute** (Q12, fiche 137), relevé par la couche du
+    /// dessus de cette image ; vide quand le flou ne vit pas.
+    formes_du_flou: Vec<flou::Forme>,
     /// Combien de pixels physiques font un pixel logique sur l'écran de cette image (DPI-1) :
     /// l'échelle de l'interface, relue à chaque image — une fenêtre qui change d'écran change
     /// de densité.
@@ -241,6 +245,7 @@ impl Renderer {
             focus: Default::default(),
             suivi_du_geste: Default::default(),
             boite_vivante: None,
+            formes_du_flou: Vec::new(),
             densite: 1.0,
         }
     }
@@ -330,6 +335,7 @@ impl Renderer {
         self.synchroniser_les_caches(store, ui, (pixmap.width(), pixmap.height()));
         let debut = std::time::Instant::now();
         self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height(), regard);
+        self.flouter_le_reste(pixmap, 1, ui.header_height());
         noter_le_cout_de_la_scene(debut);
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
@@ -377,6 +383,7 @@ impl Renderer {
         noter_le_cout_de_la_scene(debut);
         agrandir(plein, scene.tampon, f);
         crate::perf::stage("agrandir");
+        self.flouter_le_reste(plein, f, ui.header_height());
 
         render_ui(plein, store, ui, &self.typo_ecran, &self.theme, pointer);
         self.magasin.fermer();
@@ -516,6 +523,7 @@ impl Renderer {
 
         if cadrage.couche.porte_le_dessus() {
             dessiner_sur_les_photos(pixmap, (store, pass, kit), (ui, overlay), cadrage);
+            self.formes_du_flou = flou::formes(overlay.flou, kit, store, (&pass, overlay.editing));
             // Le dessus porte toujours la chrome, donc toujours de l'encre.
             encre = true;
         }

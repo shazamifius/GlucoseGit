@@ -14,6 +14,9 @@ use crate::present::scene_gpu::{Cle, Pose};
 /// à des instants différents.
 #[derive(Debug, Default, Clone)]
 pub struct Confie {
+    /// **Le flou du reste, autour de ce qu'on a choisi** (Q12, fiche 137) : la carte le pose après
+    /// la couche du dessus, avant la chrome.
+    pub flou: Option<crate::renderer::flou::Flou>,
     /// Le fond, ou `None` quand la couche du dessous le porte encore.
     pub fond: Option<crate::present::fond_gpu::Fond>,
     /// Les lueurs des cartes visibles, dans l'ordre où le processeur les peindrait.

@@ -67,14 +67,13 @@ impl GlucoseApp {
             Commande::AllerAuNoeud => return self.aller_au_noeud_montre(),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
             Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),
-            Commande::SortirDeLaMembrane => {
-                self.sortir_de_la_membrane();
-            }
+            Commande::SortirDeLaMembrane => _ = self.sortir_de_la_membrane(),
             Commande::ModeReference => self.basculer_le_mode_reference(),
             Commande::PleinEcran => self.basculer_le_plein_ecran(),
             Commande::BarreDuSysteme => self.basculer_la_barre_du_systeme(),
             Commande::RenommerLeDossier => self.renommer_le_dossier(),
             Commande::ModeZen => self.basculer_le_mode_zen(),
+            Commande::Flou(oui) => self.choisir_le_flou(oui),
             Commande::Naviguer => self.enter_pan_mode(),
             Commande::Echap => self.escape_gesture(),
             Commande::PoserLeSignet(n) => self.geste_du_signet(n, true),

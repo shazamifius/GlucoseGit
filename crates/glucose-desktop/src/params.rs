@@ -114,6 +114,9 @@ pub struct SceneOverlay<'a> {
     /// **Le dossier où lâcher range ce qu'on glisse**, en unités monde (RANGER-2) : il se dessine
     /// comme le fantôme d'un nœud à naître — « ça arrivera ici ».
     pub depot: Option<glucose_core::geometry::Rect>,
+    /// **Le reste se floute autour de ce qu'on a choisi** (Q12, fiche 137) : le réglage allumé, et
+    /// la main au repos — ni glisser, ni redimensionnement, ni tracé, ni rectangle, ni écriture.
+    pub flou: bool,
 }
 
 /// **Le curseur d'un autre participant** : où est sa souris dans le monde, sa couleur, son nom.
@@ -144,6 +147,7 @@ impl<'a> SceneOverlay<'a> {
             souris: None,
             curseurs: &[],
             depot: None,
+            flou: false,
         }
     }
 }

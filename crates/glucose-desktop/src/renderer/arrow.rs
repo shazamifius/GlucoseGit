@@ -322,6 +322,50 @@ pub(super) fn fleches_a_poser(
         .collect()
 }
 
+/// **Le tracé à l'écran de chaque flèche choisie et visible**, et sa demi-épaisseur — son halo, ou
+/// ses disques s'ils sont plus larges : ce que le flou de la sélection garde net (Q12, fiche 137).
+/// Le tracé ancré, celui que le dessin et le clic lisent (ANCRE-1).
+pub(crate) fn traces_des_choisies(
+    store: &Store,
+    pass: ViewPass<'_>,
+    (typographie, math): (&Typography, &MathRenderer),
+) -> Vec<(Vec<(f32, f32)>, f32)> {
+    let Some(board) = store.active_board() else {
+        return Vec::new();
+    };
+    let noeuds = NoeudsDuRendu {
+        board,
+        index: Some(pass.index),
+        typographie,
+        math,
+        contournement: pass.contournement,
+    };
+    let scale = pass.echelle();
+    // Un quart de pixel, comme le champ : la ligne brisée ne se distingue pas de la courbe.
+    let tolerance = 0.25 / pass.vp.scale.max(1e-12);
+    Visibles::nouvelles(pass.visibles, board)
+        .annotations()
+        .filter(|a| store.selected_annotation_ids.contains(a.id()))
+        .filter_map(|ann| {
+            let Annotation::Arrow { stroke_width, .. } = ann else {
+                return None;
+            };
+            let sw = stroke_width.unwrap_or(aspect::EPAISSEUR);
+            let morceaux = noyau::morceaux_with(ann, noeuds)?;
+            let points = trace::aplatir(&morceaux, tolerance)
+                .into_iter()
+                .map(|(x, y)| {
+                    let (sx, sy) = world_to_screen(x, y, &pass.vp);
+                    (sx as f32, sy as f32)
+                })
+                .collect();
+            let halo = scale.screen(aspect::halo(sw, true).0 as f32) / 2.0;
+            let disque = scale.world((sw * aspect::BOUT_SELECTIONNE) as f32);
+            Some((points, halo.max(disque)))
+        })
+        .collect()
+}
+
 /// **Une flèche en SVG** (P5, fiche 69) : la sœur de [`draw_arrow`] — le tracé même que le
 /// clic vise, morceau par morceau (`L`, `C`) ; le dégradé de ses trois teintes le long de son
 /// axe ; le halo et l'âme aux épaisseurs et opacités de [`aspect`] ; les disques de ses bouts.

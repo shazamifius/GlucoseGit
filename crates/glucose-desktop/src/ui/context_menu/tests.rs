@@ -94,6 +94,8 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
             MenuAction::Couper,
             MenuAction::Duplicate,
             MenuAction::CadrerLaSelection,
+            // Le reste se floute autour de la sélection — l'entrée dit l'autre geste (Q12).
+            MenuAction::NePlusFlouterLeReste,
             // Ce qui est choisi se date (DATE-1, fiche 113).
             MenuAction::Dater,
             MenuAction::Grouper,
@@ -301,7 +303,9 @@ fn test_dossier_1_un_dossier_seul_offre_renommer_supprimer_et_rien_d_autre() {
         vec![
             MenuAction::Annuler,
             MenuAction::RenommerLeDossier,
-            MenuAction::Delete
+            MenuAction::Delete,
+            // Un dossier choisi porte ses équerres, et le reste se floute autour de lui (Q12).
+            MenuAction::NePlusFlouterLeReste,
         ]
     );
 }
