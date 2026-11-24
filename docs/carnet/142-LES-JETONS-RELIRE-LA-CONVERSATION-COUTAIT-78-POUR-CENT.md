@@ -73,8 +73,9 @@ neuve doit relire 150 000 jetons de code. Une fenêtre plus petite (200 000) gar
 ## 4. Ce qui reste
 
 1. **Mesurer le gain à la jauge** : le pourcentage de la fenêtre de 5 h par heure de travail, avant et après.
-2. **Le MCP plus court** (sa proposition 1, `relais-rep-mcp`) : chaque lecture répète le chemin de son
-   fichier deux fois, la partie visible, les onglets, les domaines.
+2. ~~Le MCP plus court~~ : **fait à 12 h 24** — une lecture par `ids` ou `cherche` ne redit plus le
+   document (deux fois), la partie visible, les onglets ni les domaines ; le sommaire, qui oriente, les
+   garde (`executer/tests/courte.rs`, `mcp-court-142.json` 3 sur 3 ; 3 586 épreuves).
 3. Ne relire à chaque démarrage que ce qui a changé de son bloc important (la proposition 6).
 
 ## 5. Le flou et les équerres retirés (12 h 13 - 12 h 18)

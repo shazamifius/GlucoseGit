@@ -40,26 +40,34 @@ impl GlucoseApp {
             niveau: Niveau::lire(a.texte("niveau"))?,
         };
         let noeuds = self.noeuds_en_json(board, &decrits, &demande);
-        let mut champs = vec![
+        // **Une lecture ciblée ne répète pas le paysage** (fiche 142, sa priorité du 24/11 : les
+        // jetons) : qui demande des nœuds par leur identifiant, ou une phrase, s'est déjà orienté ;
+        // le document, la partie visible, les onglets et les domaines ne viennent qu'avec un
+        // sommaire, un plan, une membrane ou un domaine.
+        let cible = demande.ids.is_some() || demande.cherche.is_some();
+        let mut champs = Vec::new();
+        if !cible {
             // Pour une IA du nuage, aucun chemin, ni ici ni là (C1, fiches 116 et 122 : deux
             // essais réels l'ont montré, chacun pour un champ).
-            ("document", Json::from(self.document_vu())),
-            ("fichier", Json::from(self.fichier_vu())),
-            ("tableau", Json::from(board)),
-            (
-                "ou",
-                Json::from(self.store.chemin_du_tableau(board).join(FIL)),
-            ),
-            ("visible", boite_en_json(self.ce_qu_il_voit())),
-            ("selection", self.ce_qu_il_designe(board)),
-            ("noeuds", Json::Liste(noeuds)),
-        ];
+            champs.push(("document", Json::from(self.document_vu())));
+            champs.push(("fichier", Json::from(self.fichier_vu())));
+        }
+        champs.push(("tableau", Json::from(board)));
+        let ou = self.store.chemin_du_tableau(board).join(FIL);
+        champs.push(("ou", Json::from(ou)));
+        if !cible {
+            champs.push(("visible", boite_en_json(self.ce_qu_il_voit())));
+        }
+        champs.push(("selection", self.ce_qu_il_designe(board)));
+        champs.push(("noeuds", Json::Liste(noeuds)));
         let absents = introuvables(&decrits, demande.ids.as_deref().unwrap_or_default());
         if !absents.is_empty() {
             champs.push(("introuvables", Json::Liste(absents)));
         }
-        champs.push(("tableaux", self.tableaux_en_json()));
-        champs.push(("domaines", self.catalogue_pour_un_agent()));
+        if !cible {
+            champs.push(("tableaux", self.tableaux_en_json()));
+            champs.push(("domaines", self.catalogue_pour_un_agent()));
+        }
         Ok(Json::objet(champs))
     }
 

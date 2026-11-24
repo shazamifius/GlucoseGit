@@ -1,0 +1,59 @@
+[
+ {
+  "nom": "MCP-COURT — une lecture ciblée redit tout",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "let cible = demande.ids.is_some() || demande.cherche.is_some();",
+  "apres": "let cible = false;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests"
+  ]
+ },
+ {
+  "nom": "MCP-COURT — la phrase cherchée redit tout",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "let cible = demande.ids.is_some() || demande.cherche.is_some();",
+  "apres": "let cible = demande.ids.is_some();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests"
+  ]
+ },
+ {
+  "nom": "MCP-COURT — le sommaire perd le paysage",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "let cible = demande.ids.is_some() || demande.cherche.is_some();",
+  "apres": "let cible = true;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests"
+  ]
+ }
+]
