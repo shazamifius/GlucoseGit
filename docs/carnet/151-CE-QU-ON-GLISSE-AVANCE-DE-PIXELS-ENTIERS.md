@@ -73,3 +73,11 @@ l'intérieur — c'est donc le contournement de l'application (`Noeuds::obstacle
 une première étape dans la boîte de la source, ou `perimeter_exit` qui rend l'ancre elle-même (t < 0).
 **La suite** : une épreuve qui rejoue cette géométrie avec les `Noeuds` du rendu (`renderer/arrow`), lire
 les étapes rendues, puis corriger à la source.
+
+**Essayé ensuite (0 h 58)** : la même géométrie en épreuve (`renderer/arrow/ancres_tests.rs`, sa carte
+de 451 × 188,8, un nœud 30 unités dessous, une cible loin en bas à gauche, le passage « surtout »), par
+`path_with` et les `NoeudsDuRendu` **sans mémoire d'itinéraires** (`contournement: None`) : le départ est
+**au bord gauche**, à la hauteur du passage, puis le coin du nœud du dessous — juste. Le défaut vu au
+pilote vient donc de ce qui diffère dans l'application : la mémoire des itinéraires
+(`contournement: Some`, une route retenue d'avant ?), la flèche **courbe** (`est_courbe`, `resserrer`),
+ou la boîte vivante (`NoeudsDuRendu::vivante`). L'épreuve, qui ne reproduisait rien, n'est pas gardée.
