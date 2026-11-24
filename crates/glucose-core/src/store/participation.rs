@@ -76,6 +76,8 @@ pub struct Participation {
     /// Ce qui défait mes gestes, et ce qui refait ce que j'ai défait — par le nom.
     defaire: Vec<GestePartage>,
     refaire: Vec<GestePartage>,
+    /// L'étiquette du sommet de `defaire` (FONDRE-145).
+    sommet: Option<u64>,
     arrivees: VecDeque<Arrivee>,
     /// Les gestes d'un lecteur, défaits aussitôt depuis la dernière lecture : ce qu'on lui dit.
     pub defaits_au_lecteur: usize,
@@ -89,6 +91,23 @@ impl Participation {
             confirme,
             ..Self::default()
         }
+    }
+
+    /// Ce qui défait mon geste entre dans la pile — fondu dans le sommet s'il est un pas de la même
+    /// saisie (FONDRE-145, fiche 145) : on défait alors le dernier pas d'abord, son inverse devant.
+    fn empiler(&mut self, inverse: GestePartage, etiquette: Option<u64>) {
+        let meme = etiquette.is_some() && etiquette == self.sommet;
+        match self.defaire.last_mut().filter(|_| meme) {
+            Some(sommet) => {
+                let anciens = std::mem::replace(&mut sommet.editions, inverse.editions);
+                sommet.editions.extend(anciens);
+            }
+            None => {
+                self.defaire.push(inverse);
+                self.sommet = etiquette;
+            }
+        }
+        self.refaire.clear();
     }
 
     /// Le nom d'une lettre neuve : la marque, et un compteur qui ne revient jamais en arrière.
@@ -205,7 +224,7 @@ impl Store {
             return;
         };
         let mut refuses = 0;
-        for (geste, main) in journal.nommer_ce_qui_part(project) {
+        for (geste, main, etiquette) in journal.nommer_ce_qui_part(project) {
             if geste.editions.is_empty() {
                 continue;
             }
@@ -216,8 +235,7 @@ impl Store {
                 refuses += 1;
                 continue;
             }
-            p.defaire.push(geste.inverse());
-            p.refaire.clear();
+            p.empiler(geste.inverse(), etiquette);
             p.envoyer(main, geste);
         }
         if refuses > 0 {
@@ -309,6 +327,7 @@ impl Store {
         let Some(geste) = pris else {
             return false;
         };
+        p.sommet = None;
         let realisee = geste.appliquer(project).realisee;
         if realisee.is_empty() {
             return false;

@@ -402,6 +402,7 @@ impl Journal {
             main,
             repris,
             part,
+            etiquette: None,
         });
     }
 
@@ -526,6 +527,7 @@ impl Journal {
         if self.partage {
             // Partagé : le geste part, nommé par la participation ; la pile est la sienne.
             self.publier(tx, self.main.clone(), true);
+            self.etiqueter_le_dernier_ecrit();
             return;
         }
         self.publier(tx.clone(), self.main.clone(), false);

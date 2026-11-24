@@ -17,7 +17,10 @@ use crate::types::Project;
 impl Journal {
     /// **Ce qui part aux autres** depuis la dernière fois : chaque geste de ce Glucose, dans
     /// l'ordre, nommé dans l'état qui le suivait, avec sa main. Chacun n'est nommé qu'une fois.
-    pub(crate) fn nommer_ce_qui_part(&mut self, projet: &mut Project) -> Vec<(GestePartage, Main)> {
+    pub(crate) fn nommer_ce_qui_part(
+        &mut self,
+        projet: &mut Project,
+    ) -> Vec<(GestePartage, Main, Option<u64>)> {
         let deplace = |e: &super::Ecrit| {
             e.part
                 && e.transaction
@@ -32,7 +35,11 @@ impl Journal {
             let e = &mut self.ecrits[j];
             if e.part {
                 e.part = false;
-                noms.push((e.transaction.a_partager(projet), e.main.clone()));
+                noms.push((
+                    e.transaction.a_partager(projet),
+                    e.main.clone(),
+                    e.etiquette,
+                ));
             }
             if plus_ancien.is_some_and(|k| j > k) {
                 let defait = e.transaction.clone().inverse().apply(projet);

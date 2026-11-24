@@ -564,3 +564,36 @@ fn revenir_2_la_version_d_ici_d_une_note_gardee_a_cote() {
     );
     assert_eq!(vues[2].1, 7.0 + largeur + ECART_D_UNE_COPIE);
 }
+
+/// FONDRE-145 : les pas d'une saisie partagée se défont ensemble, du dernier au premier.
+#[test]
+fn fondre_145_les_pas_d_une_saisie_se_defont_ensemble() {
+    let (_salle, mut alice, _bob) = depart();
+    alice.select_image("a".into(), false);
+    alice.begin_live_edit();
+    alice.move_selected(T, 5.0, 0.0);
+    alice.end_live_edit_etiquete(7);
+    alice.begin_live_edit();
+    alice.remove_images(T, &["a"]);
+    alice.end_live_edit_etiquete(7);
+    alice.remove_images(T, &["c"]);
+    assert!(
+        alice.undo() && alice.undo(),
+        "le geste d'après, puis la saisie"
+    );
+    assert_eq!(x_de(&alice, "a"), Some(0.0), "du dernier pas au premier");
+}
+
+/// FONDRE-145 : un pas défait efface l'étiquette du sommet.
+#[test]
+fn fondre_145_un_geste_defait_ne_se_refond_pas() {
+    let (_salle, mut alice, _bob) = depart();
+    alice.remove_images(T, &["c"]);
+    for id in ["a", "b"] {
+        alice.begin_live_edit();
+        alice.remove_images(T, &[id]);
+        alice.end_live_edit_etiquete(7);
+        assert!(alice.undo());
+    }
+    assert_eq!(xs(&alice).len(), 2, "seul le pas b s'est défait");
+}

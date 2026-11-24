@@ -93,5 +93,81 @@
    "--lib",
    "journal::pas"
   ]
+ },
+ {
+  "nom": "FONDRE-145 partagé — rien ne fond",
+  "fichier": "crates/glucose-core/src/store/participation.rs",
+  "avant": "let meme = etiquette.is_some() && etiquette == self.sommet;",
+  "apres": "let meme = false;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "fondre_145"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 partagé — l'étiquette ne suit pas le geste publié",
+  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "avant": "            self.etiqueter_le_dernier_ecrit();\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "fondre_145"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 partagé — défaire garde l'étiquette du sommet",
+  "fichier": "crates/glucose-core/src/store/participation.rs",
+  "avant": "        p.sommet = None;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "fondre_145"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 partagé — l'inverse neuf derrière",
+  "fichier": "crates/glucose-core/src/store/participation.rs",
+  "avant": "sommet.editions.extend(anciens);",
+  "apres": "sommet.editions.splice(0..0, anciens);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "fondre_145"
+  ]
  }
 ]

@@ -78,4 +78,6 @@ pub struct Ecrit {
     /// **Ce que ce geste de l'humain a repris aux agents** ([`suivre_les_mains`]) : là où le
     /// journal des rectifications regarde ce que l'IA en pensait (RECTIF-1).
     pub repris: Vec<String>,
+    /// L'étiquette de la saisie dont il est un pas (FONDRE-145) : la pile partagée les fond.
+    pub etiquette: Option<u64>,
 }

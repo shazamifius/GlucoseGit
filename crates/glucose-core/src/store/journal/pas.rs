@@ -52,6 +52,14 @@ impl Journal {
         self.undone.clear();
     }
 
+    /// Un canevas partagé n'empile pas ici : l'étiquette suit le geste publié jusqu'à sa pile
+    /// (`Participation::empiler`).
+    pub(super) fn etiqueter_le_dernier_ecrit(&mut self) {
+        if let Some(ecrit) = self.ecrits.last_mut() {
+            ecrit.etiquette = self.etiquettes.prochaine.take();
+        }
+    }
+
     /// La pile a bougé sans geste (défaire, refaire) : son sommet n'a plus d'étiquette.
     pub(super) fn oublier_le_sommet(&mut self) {
         self.etiquettes.sommet = None;
