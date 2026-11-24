@@ -131,5 +131,24 @@
    "--lib",
    "app::collaborer::reprise"
   ]
+ },
+ {
+  "nom": "SCRIBE — une fenêtre sans le verrou reprend la salle",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "scribe.then(|| document.display().to_string())",
+  "apres": "Some(document.display().to_string())",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
  }
 ]

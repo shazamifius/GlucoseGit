@@ -82,11 +82,14 @@ pub fn retenir(fichier: &Path, document: &str, souvenir: Option<&Souvenir>) -> R
 
 impl GlucoseApp {
     /// Le fichier du document ouvert, s'il en a un : la clé de son souvenir.
+    /// Le document dont cette fenêtre tient le partage — **seulement si elle l'écrit** (fiche 144
+    /// § 2) : une seconde fenêtre qui le lit sans le verrou (il est tenu ailleurs) ne reprend pas
+    /// sa salle, et ne retient rien — elle retiendrait un numéro que le fichier ne contient pas.
     fn document_du_canevas(&self) -> Option<String> {
-        self.disque
-            .objets
-            .document()
-            .map(|d| d.display().to_string())
+        let document = self.disque.objets.document()?;
+        let scribe = (self.disque.ecriture.as_ref())
+            .is_some_and(|e| crate::persist::verrou::meme_fichier(&e.chemin, &document));
+        scribe.then(|| document.display().to_string())
     }
 
     /// **Ce que le document partagé laisse en se fermant** : son code, et le numéro exact que son

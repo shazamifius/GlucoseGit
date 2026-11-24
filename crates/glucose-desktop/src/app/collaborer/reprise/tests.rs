@@ -335,3 +335,32 @@ fn partage_survit_l_attente_s_arrete_quand_rien_ne_peut_revenir() {
     assert!(!attendre(1, true, true, tot), "dans le passé");
     assert!(!attendre(1, true, false, SILENCE), "silencieuse");
 }
+
+/// **Seul le scribe reprend le partage** (fiche 144 § 2) : une seconde fenêtre ouvre le document
+/// que la première écrit — elle le lit sans le verrou, ne rejoint pas la salle, et laisse le
+/// numéro retenu tel quel.
+#[test]
+fn partage_survit_une_seconde_fenetre_ne_reprend_pas_la_salle() {
+    let d = dossier("canevas-seconde");
+    let (mut app, chemin, _) = document_partage(&d);
+    assert!(fermer(&mut app));
+    drop(app);
+    let retenu = souvenir(&d, &chemin);
+    assert_eq!(retenu.as_ref().and_then(|s| s.confirme), Some(1));
+
+    let mut scribe = lancer(&d);
+    scribe.retrouver_le_travail(None);
+    let mut seconde = lancer(&d);
+    seconde.retrouver_le_travail(None);
+    seconde.reprendre_le_canevas_partage();
+    assert!(
+        seconde.lancement.agents.partage.is_none(),
+        "la seconde fenêtre a rejoint la salle"
+    );
+    assert_eq!(souvenir(&d, &chemin), retenu, "le numéro du scribe, intact");
+    scribe.reprendre_le_canevas_partage();
+    assert!(
+        scribe.lancement.agents.partage.is_some(),
+        "le scribe, lui, reprend"
+    );
+}
