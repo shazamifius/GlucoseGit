@@ -23,6 +23,13 @@ presque collés, la flèche « réponse ») choisit la membrane qui la contient,
 pastille n'est pas une prise. Et deux flèches du bloc « URGENT IMPORTANT » sortent de leur propre
 texte par l'intérieur (le contournement ne s'écarte pas du nœud de départ). Les deux sont dans 🔍.
 
+**La pastille, faite le 24/11 au soir** : `Noeuds::pastille` (le noyau la demande, le rendu la mesure
+par `arrow_label::pastille_au_monde`, aux mesures du dessin, levée avec le prédicat) ; `arrow::at`
+passe par `viser`, à distance nulle dans la pastille. 2 épreuves (`selection/tests.rs`), 4 sabotages
+sur 4 (`outils/sabotages/pastille-146.json`). Le doute de la fiche 147 § 3 (« Écrire sur la flèche » avec
+plusieurs flèches) était déjà tranché par la barre — le bouton ne vient qu'à une flèche seule ; une
+épreuve le garde maintenant (`ancrage/tests.rs`, 5ᵉ sabotage).
+
 ## 2. PLEIN-1 — F11 sous Windows
 
 `winit` 0.30.13 (`platform_impl/windows/window.rs`, `set_fullscreen`) garde `WS_MAXIMIZE` et ne

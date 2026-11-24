@@ -456,3 +456,30 @@ fn test_geste_19_ecrire_sur_la_fleche_depuis_sa_barre() {
     assert_eq!(saisie.ann_id, "f", "sur la flèche choisie");
     assert!(app.ui.ancrage.is_none(), "pas l'éditeur du texte lié");
 }
+
+/// **Deux flèches choisies : pas d'« Écrire sur la flèche »** (fiche 147 § 3). Une saisie n'écrit
+/// que sur une flèche ; le bouton, sur la première d'une sélection, écrirait sur une flèche que rien
+/// ne désigne. Le double-clic, lui, vise celle qu'on touche.
+#[test]
+fn test_parite_19_deux_fleches_choisies_pas_d_ecrire() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::arrow("g", 220.0, 600.0, 820.0, 600.0));
+    app.store.clear_selection();
+    app.store.select_annotation("f".into(), false);
+    app.store.select_annotation("g".into(), true);
+    assert_eq!(app.store.selected_arrows().len(), 2);
+    let barre = crate::ui::options_de_fleche::layout_options_de_fleche(
+        &app.store,
+        &app.renderer.typography,
+        ECRAN,
+        app.ui.scale_factor,
+    )
+    .expect("la barre, pour régler les deux");
+    assert!(!barre.boutons.iter().any(|b| matches!(
+        b.contenu,
+        crate::ui::options_de_fleche::Contenu::Action(_, texte)
+            if texte == crate::ui::options_de_fleche::ECRIRE_SUR_LA_FLECHE
+    )));
+}

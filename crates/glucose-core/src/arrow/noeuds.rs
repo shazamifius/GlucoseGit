@@ -2,7 +2,7 @@
 //! passage (FLECHE-4), les obstacles d'une zone et la mémoire de ses itinéraires (FLECHE-5).
 
 use crate::geometry::Rect;
-use crate::types::TextAnchor;
+use crate::types::{Annotation, TextAnchor};
 
 /// **Ce qu'une flèche demande à ce qu'elle relie** (FLECHE-4) : la boîte d'un nœud — et, si
 /// l'on sait mesurer son texte, la hauteur d'un passage dans ce nœud.
@@ -32,6 +32,13 @@ pub trait Noeuds {
     /// obstacle qui contient un bout ne se contourne pas. Aucun par défaut : sans index pour
     /// les trouver, une flèche va droit.
     fn obstacles(&self, _zone: Rect, _sortie: &mut Vec<Rect>) {}
+
+    /// **La pastille que cette flèche porte à `milieu`** — son étiquette, en unités du monde —,
+    /// ou `None` si elle n'en montre pas, ou qu'on ne sait pas mesurer son texte. Un clic dedans
+    /// vise la flèche : sur une flèche très courte, la pastille déborde du trait (fiche 146).
+    fn pastille(&self, _fleche: &Annotation, _milieu: (f64, f64)) -> Option<Rect> {
+        None
+    }
 
     /// **Un itinéraire retenu d'un appel à l'autre** : `calcul` ne se fait que si cet
     /// itinéraire n'est pas déjà connu. Le dessin, le clic, les poignées et l'étiquette lisent
@@ -82,6 +89,10 @@ impl Noeuds for &dyn Noeuds {
 
     fn obstacles(&self, zone: Rect, sortie: &mut Vec<Rect>) {
         (**self).obstacles(zone, sortie);
+    }
+
+    fn pastille(&self, fleche: &Annotation, milieu: (f64, f64)) -> Option<Rect> {
+        (**self).pastille(fleche, milieu)
     }
 
     fn itineraire(

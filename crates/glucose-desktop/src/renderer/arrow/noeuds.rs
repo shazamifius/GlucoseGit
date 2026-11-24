@@ -132,6 +132,10 @@ fn ligne_qui_porte(mise_en_page: &TextLayout, b: usize) -> usize {
 }
 
 impl Noeuds for NoeudsDuRendu<'_> {
+    fn pastille(&self, fleche: &Annotation, milieu: (f64, f64)) -> Option<Rect> {
+        crate::renderer::arrow_label::pastille_au_monde(self.typographie, fleche, milieu)
+    }
+
     fn boite(&self, id: &str) -> Option<Rect> {
         if let Some(boite) = self.vivante(id) {
             return Some(boite);

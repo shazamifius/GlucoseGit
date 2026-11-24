@@ -73,3 +73,42 @@ fn test_memb_sel_1_un_clic_la_choisit_puis_son_vide_la_deplace() {
     glisser(&mut app, (350.0, 350.0), (450.0, 350.0));
     assert_eq!(x_de_la_membrane(&app), 100.0, "choisie, son vide la glisse");
 }
+
+/// **La pastille d'une flèche très courte la choisit** (fiche 146) : deux nœuds presque collés,
+/// la flèche « réponse » entre eux — le trait se cache sous son étiquette, et un clic sur
+/// l'étiquette, loin du trait, choisissait la membrane.
+#[test]
+fn test_parite_19_la_pastille_d_une_fleche_courte_la_choisit() {
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    let mut fleche = Annotation::arrow("f", 300.0, 300.0, 300.0, 304.0);
+    if let Annotation::Arrow { text, .. } = &mut fleche {
+        *text = Some("une réponse bien courte".into());
+    }
+    app.store.add_annotation(&board, fleche);
+    app.store.clear_selection();
+    // À 40 px du trait : hors de sa bande (12 px), dans sa pastille.
+    glisser(&mut app, (340.0, 302.0), (340.0, 302.0));
+    assert_eq!(choisis(&app), vec!["f".to_string()]);
+}
+
+/// **Levée par son prédicat, la pastille reste visée** : le badge prend le milieu du trait, la
+/// pastille monte de `LABEL_LIFT` — un clic sur elle, au-dessus de sa place d'origine, la choisit.
+#[test]
+fn test_parite_19_la_pastille_levee_par_le_predicat_la_choisit() {
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    let mut fleche = Annotation::arrow("f", 300.0, 300.0, 300.0, 304.0);
+    if let Annotation::Arrow {
+        text, predicate, ..
+    } = &mut fleche
+    {
+        *text = Some("une réponse bien courte".into());
+        *predicate = Some(glucose_core::types::ArrowPredicate::Contredit);
+    }
+    app.store.add_annotation(&board, fleche);
+    app.store.clear_selection();
+    // 14 px plus haut que le milieu : dans la pastille levée, hors de celle qui ne l'est pas.
+    glisser(&mut app, (340.0, 286.0), (340.0, 286.0));
+    assert_eq!(choisis(&app), vec!["f".to_string()]);
+}

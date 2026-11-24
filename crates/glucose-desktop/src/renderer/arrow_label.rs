@@ -86,6 +86,36 @@ pub(crate) fn montre_une_etiquette(arrow: &Annotation, editing: Option<&TextEdit
     shown_text(arrow, editing).is_some()
 }
 
+/// **La pastille d'une flèche, en unités du monde** : ce que le clic vise autant que son trait
+/// (fiche 146 — sur une flèche très courte, le trait se cache sous elle). Les mesures de
+/// [`draw_arrow_label`], au corps du monde ; levée comme elle quand le badge de prédicat la suit.
+pub(crate) fn pastille_au_monde(
+    typographie: &crate::typography::Typography,
+    arrow: &Annotation,
+    (wx, wy): (f64, f64),
+) -> Option<glucose_core::geometry::Rect> {
+    let (text, _) = shown_text(arrow, None)?;
+    let (text_w, _) = typographie.measure_text(text, LABEL_CORPS, Face::Regular);
+    let (half_w, half_h) = (
+        f64::from(text_w / 2.0 + LABEL_PAD_X),
+        f64::from(LABEL_HALF_H),
+    );
+    let levee = matches!(
+        arrow,
+        Annotation::Arrow {
+            predicate: Some(_),
+            ..
+        }
+    );
+    let cy = wy - if levee { LABEL_LIFT } else { 0.0 };
+    Some(glucose_core::geometry::Rect::new(
+        wx - half_w,
+        cy - half_h,
+        2.0 * half_w,
+        2.0 * half_h,
+    ))
+}
+
 /// Pose l'étiquette d'une flèche sur son tracé, si elle en a une ou qu'on en écrit une.
 ///
 /// `lifted` monte la pastille pour laisser la place au badge de prédicat, qui vise le même

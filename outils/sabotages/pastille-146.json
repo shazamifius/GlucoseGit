@@ -1,0 +1,97 @@
+[
+ {
+  "nom": "PASTILLE-146 — viser ignore la pastille",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "if pastille.is_some_and(",
+  "apres": "if false && pastille.is_some_and(",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19"
+  ]
+ },
+ {
+  "nom": "PASTILLE-146 — &dyn Noeuds ne transmet pas la pastille",
+  "fichier": "crates/glucose-core/src/arrow/noeuds.rs",
+  "avant": "(**self).pastille(fleche, milieu)",
+  "apres": "{ let _ = (fleche, milieu); None }",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19"
+  ]
+ },
+ {
+  "nom": "PASTILLE-146 — le rendu ne mesure pas la pastille",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/noeuds.rs",
+  "avant": "crate::renderer::arrow_label::pastille_au_monde(self.typographie, fleche, milieu)",
+  "apres": "{ let _ = (fleche, milieu); None }",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19"
+  ]
+ },
+ {
+  "nom": "PASTILLE-146 — la pastille ne monte pas avec le prédicat",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow_label.rs",
+  "avant": "let cy = wy - if levee { LABEL_LIFT } else { 0.0 };",
+  "apres": "let cy = wy - if false && levee { LABEL_LIFT } else { 0.0 };",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19"
+  ]
+ },
+ {
+  "nom": "PARITÉ-19 — « Écrire » sur la première de plusieurs flèches",
+  "fichier": "crates/glucose-desktop/src/ui/options_de_fleche.rs",
+  "avant": "if let [fleche] = fleches[..] {",
+  "apres": "if let Some(&fleche) = fleches.first() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "parite_19"
+  ]
+ }
+]

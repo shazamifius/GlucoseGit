@@ -359,7 +359,7 @@ pub fn at(
     let tolerance = 0.25 / scale.max(1e-6);
     annotations
         .iter()
-        .filter_map(|a| distance_to_with(a, noeuds, point, tolerance).map(|d| (a, d)))
+        .filter_map(|a| viser(a, noeuds, point, tolerance).map(|d| (a, d)))
         .filter(|(_, d)| *d <= portee)
         .reduce(|meilleur, courant| {
             if courant.1 <= meilleur.1 {
@@ -368,6 +368,22 @@ pub fn at(
                 meilleur
             }
         })
+}
+
+/// La distance du point à la flèche — nulle dans sa pastille, qui la vise autant que son trait
+/// (fiche 146 : sur une flèche très courte, le clic sur l'étiquette choisissait la membrane).
+fn viser(
+    arrow: &Annotation,
+    noeuds: impl Noeuds,
+    point: (f64, f64),
+    tolerance: f64,
+) -> Option<f64> {
+    let morceaux = morceaux_with(arrow, &noeuds as &dyn Noeuds)?;
+    let pastille = milieu_du_trace(&morceaux).and_then(|m| noeuds.pastille(arrow, m));
+    if pastille.is_some_and(|p| p.contains_point(crate::geometry::Point::new(point.0, point.1))) {
+        return Some(0.0);
+    }
+    distance_along(&trace::aplatir(&morceaux, tolerance), point)
 }
 
 /// Rayon d'une poignée de flèche, en pixels **écran** (Glucose Tauri : `6 / vpScale`).
