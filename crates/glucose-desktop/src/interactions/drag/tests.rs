@@ -517,3 +517,41 @@ fn test_titre_1_glisser_une_grande_membrane_redessine_son_titre() {
         autre => panic!("une zone attendue : {autre:?}"),
     }
 }
+
+/// **GLISSER-2 — une main fractionnaire déplace de pixels entiers** (fiche 151) : sous Wayland,
+/// la souris donne 10,37 pixels ; ce qu'on glisse garde la phase sous-pixel de son départ, donc
+/// la texture qu'il avait — une membrane et tous ses textes ne se refont plus à chaque image.
+#[test]
+fn test_glisser_2_une_main_fractionnaire_avance_de_pixels_entiers() {
+    let mut app = app();
+    app.ui.smart_align = false;
+    if let Some(b) = app.store.active_board_mut() {
+        b.viewport.scale = 1.37;
+        b.viewport.x = 400.55;
+    }
+    with_image(&mut app, "I1", 10.0, 0.0);
+    app.store.clear_selection();
+    app.store.select_image("I1".into(), false);
+    let vp = app.store.viewport();
+    let x0 = image_x(&app, "I1");
+    let phase = |x: f64| world_to_screen(x, 0.0, &vp).0.rem_euclid(1.0);
+    let (sx, sy) = world_to_screen(10.0, 0.0, &vp);
+    app.init_item_drag(10.0, 0.0);
+    for pas in [0.37, 10.37, 25.81, 40.5, 77.123] {
+        app.handle_item_drag_move(sx + pas, sy + 0.61);
+        let ecart = (image_x(&app, "I1") - x0) * vp.scale;
+        assert!(
+            (ecart - ecart.round()).abs() < 1e-9,
+            "à {pas} pixels de la main, {ecart} pixels : pas un entier"
+        );
+        assert!(
+            (phase(image_x(&app, "I1")) - phase(x0)).abs() < 1e-6,
+            "la phase sous-pixel a changé à {pas}"
+        );
+    }
+    assert!(
+        ((image_x(&app, "I1") - x0) * vp.scale - 77.0).abs() < 1e-9,
+        "la main au plus près, à un demi-pixel"
+    );
+    app.finish_item_drag();
+}

@@ -79,3 +79,18 @@ floue, quand la nouvelle coûte trop), Windows qui étire une fenêtre dont il c
 comprise (125 %, 150 %), les réglages du pilote NVIDIA (profil de base appliqué aux programmes
 inconnus). **Question posée** (`relais-rep-nvidia-flou`) : une capture de tout l'écran — la barre
 d'outils nette et le canevas flou désigne Glucose, tout flou désigne Windows ou le pilote.
+
+**Cherché (25/11, 0 h 55, compte a).** Le suspect n° 1 : **« Antialiasing – FXAA » activé dans les
+réglages globaux** du panneau NVIDIA, un filtre posé sur toute l'image qui floute le texte des
+logiciels ([PC Gamer](https://www.pcgamer.com/nvidia-control-panel-a-beginners-guide), [NZXT
+CAM](https://support.nzxt.com/hc/en-us/articles/17117530844315-Why-is-NZXT-CAM-blurry), [Vivaldi](https://forum.vivaldi.net/post/128703)).
+Doute : FXAA forcé vaut sûrement pour DirectX 9 à 11 et OpenGL (`__GL_ALLOW_FXAA_USAGE`, [README
+NVIDIA](https://download.nvidia.com/XFree86/Linux-x86_64/460.56/README/openglenvvariables.html)) ; pour
+Vulkan, le premier moteur de Glucose (`present/moteurs.rs`), aucune source — il ne le toucherait que si
+sa machine retombe sur OpenGL. Autres pistes : « Let Windows try to fix apps so they're not blurry »
+(mais winit déclare l'échelle par écran ; l'installeur dit `ManifestDPIAware`, le programme n'a pas de
+manifeste), « Vulkan/OpenGL present method ». Glucose n'a pas de mipmaps : le biais de LOD forcé par le
+pilote ne le touche pas ; sa queue d'image soustrait déjà l'attente de la synchronisation
+(`noter_la_fin_de_l_image`). **L'essai de 30 secondes proposé** dans `relais-rep-nvidia-flou` (FXAA
+désactivé). Si c'est lui : un profil NVIDIA au nom de `glucose.exe` (NVAPI DRS), posé par l'installeur —
+pas avant sa réponse.

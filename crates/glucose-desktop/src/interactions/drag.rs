@@ -16,6 +16,22 @@ pub struct BaseDuGlisser {
     pub encre: Rect,
 }
 
+/// **GLISSER-2 — ce qu'on glisse avance de pixels entiers.** Le déplacement du geste, en unités
+/// monde, arrondi au pixel entier de l'écran où il se fait (`echelle` : pixels par unité).
+///
+/// Sous Wayland, la souris donne des positions fractionnaires (l'accélération de libinput, une
+/// échelle de 125 ou 150 %) : chaque pas posait ce qu'on glisse à une autre phase sous-pixel, et
+/// chaque composant emporté — une membrane et tous ses textes — se rendait de nouveau, à chaque
+/// image (fiche 151 : 3,4 ms de textures par image en 4K à 150 %, 0,03 ms par pas entiers). Par
+/// pixels entiers, la phase reste celle du départ, et la texture celle qu'on avait. Un demi-pixel
+/// de retard au plus sur la main : rien ne se voit, rien ne se refait.
+fn au_pixel_entier((dx, dy): (f64, f64), echelle: f64) -> (f64, f64) {
+    (
+        (dx * echelle).round() / echelle,
+        (dy * echelle).round() / echelle,
+    )
+}
+
 /// **Ce qu'un glisser porte**, de l'appui au lâcher — un seul état, remis à zéro d'un coup.
 #[derive(Debug, Clone, Default)]
 pub struct Glisser {
@@ -70,8 +86,10 @@ impl GlucoseApp {
         let active_bid = self.store.project.active_board_id.clone();
         let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(screen_x, screen_y, &vp);
-        let raw_dx = wx - self.glisser.depart.0;
-        let raw_dy = wy - self.glisser.depart.1;
+        let (raw_dx, raw_dy) = au_pixel_entier(
+            (wx - self.glisser.depart.0, wy - self.glisser.depart.1),
+            vp.scale,
+        );
 
         let mut target_dx = raw_dx;
         let mut target_dy = raw_dy;

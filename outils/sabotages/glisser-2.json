@@ -1,0 +1,40 @@
+[
+ {
+  "nom": "GLISSER-2 — le glisser suit la main au sous-pixel (plus d'arrondi)",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "        (dx * echelle).round() / echelle,\n        (dy * echelle).round() / echelle,",
+  "apres": "        (dx * echelle) / echelle,\n        (dy * echelle) / echelle,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "glisser_"
+  ]
+ },
+ {
+  "nom": "GLISSER-2 — l'arrondi oublié au glisser",
+  "fichier": "crates/glucose-desktop/src/interactions/drag.rs",
+  "avant": "        let (raw_dx, raw_dy) = au_pixel_entier(\n            (wx - self.glisser.depart.0, wy - self.glisser.depart.1),\n            vp.scale,\n        );",
+  "apres": "        let _ = au_pixel_entier((0.0, 0.0), vp.scale);\n        let (raw_dx, raw_dy) = (wx - self.glisser.depart.0, wy - self.glisser.depart.1);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "glisser_"
+  ]
+ }
+]

@@ -1,0 +1,48 @@
+# 151 — Ce qu'on glisse avance de pixels entiers (25/11 vers 1 h, le relais, compte a)
+
+## 1. Sa note : la lenteur quand on déplace une membrane
+
+*« beaucoup de fois j'ai de gros gros problème de perf même sur des très bons PC juste parce que je
+[…] modifie de place une membrane »* (`text-w89o-2380`, 24/11 ; la bulle 🔍 `revue-code-1`). Son écran
+ici : LG 2560 × 1440 à 165 Hz, échelle 1, sous niri — 6 ms par image.
+
+## 2. Mesuré au pilote, sur une copie de son document
+
+Une copie de `GLUCOSE PROJET.glucose` (`~/.cache/glucose-bancs/membrane-lente`), le vrai Glucose
+optimisé, la membrane « 4 · Les codes de partage » glissée par son titre, de près, 3 s aller, 3 s retour :
+
+| écran | la main | glisser : médiane / p90 / p99 / pire | dont textures (médiane) |
+|---|---|---|---|
+| 1920 × 1080, échelle 1 | positions entières | 2,44 / 5,79 / 8,19 / 10,0 ms | 0,01 ms |
+| 3840 × 2160, échelle 1,5 | positions fractionnaires | 6,89 / 9,74 / 11,59 / 19,8 ms | **3,44 ms** |
+| 3840 × 2160, échelle 1,5 | pas entiers en points (3 pixels) | — | 0,03 ms |
+
+**La cause** : une position fractionnaire de la main pose ce qu'on glisse à une autre phase
+sous-pixel à chaque pas ; la phase entre dans l'empreinte d'un composant (`renderer/composants.rs`,
+au bit près), donc chaque texte emporté par la membrane se rendait de nouveau, à chaque image. Sous
+Wayland, la main est fractionnaire même à 100 % (l'accélération de libinput, `wl_fixed`) : c'est son
+cas ici. Le pilote, lui, pose sa main sur des pixels entiers — c'est pourquoi rien ne se voyait au
+banc à l'échelle 1. Sous Windows, le curseur donne des pixels entiers : probablement pas cette cause
+là-bas (à confirmer par la télémétrie, qui attend Cloudflare).
+
+## 3. GLISSER-2 — le geste avance de pixels entiers
+
+Le déplacement du geste est arrondi au pixel entier de l'écran où il se fait, avant l'aimant
+(`interactions/drag.rs`, `au_pixel_entier`) : la phase reste celle du départ, la texture celle qu'on
+avait, et la main n'a jamais plus d'un demi-pixel d'avance. **Écarté** : traiter ce qu'on glisse
+« en mouvement » (phase nulle, posé en bilinéaire, comme la caméra) — un demi-pixel de flou sur le
+texte pendant tout le geste, et l'ensemble de ce qui bouge à porter dans le `Regime` ; l'arrondi à la
+source ne refait rien et reste net.
+
+**Après**, même geste fractionnaire en 4K à 150 % : **4,10 / 6,89 / 11,59 / 14,5 ms, textures 0,02 ms**
+(au lieu de 6,89 / 9,74 / 11,59 / 19,8 et 3,44). Épreuve
+`test_glisser_2_une_main_fractionnaire_avance_de_pixels_entiers` (zoom 1,37, cinq pas fractionnaires :
+écart entier, phase gardée) ; 2 sabotages sur 2 (`outils/sabotages/glisser-2.json`).
+
+## 4. Reste
+
+* **Le p99 à 11,6 ms en 4K** : quelques images refont encore des textures (p99 5,75 ms) — l'aimant qui
+  pose la sélection sur une nouvelle phase, ou le passage de 1 024 pixels (fiche 109) ; et `relever`,
+  1,7 ms de médiane, à lire.
+* **Pas vu à son écran**, avec sa vraie souris : la ligne à essayer est dans ÉTAT.
+* Sous Windows, la cause de sa lenteur reste inconnue si elle y est.
