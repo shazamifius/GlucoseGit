@@ -219,18 +219,11 @@ fn draw_row(pixmap: &mut PixmapMut, brush: &Brush, ligne: &Ligne, case: &(String
     brush.text_centered(pixmap, ligne.retirer, "×", 13.0, croix, Face::Regular);
 }
 
-/// **Le texte, coupé à `largeur`** avec « … » quand il ne tient pas — une description longue
-/// ne déborde pas sur la croix de sa case.
+/// **Le texte, coupé à `largeur`** avec « … » quand il ne tient pas (TRONQUER-1) — une
+/// description longue ne déborde pas sur la croix de sa case.
 fn tronquer(brush: &Brush, texte: &str, largeur: f32, corps: f32) -> String {
-    let mesure = |t: &str| brush.typo.measure_text(t, brush.px(corps), Face::Regular).0;
-    if mesure(texte) <= largeur {
-        return texte.to_string();
-    }
-    let mut court: String = texte.to_string();
-    while !court.is_empty() && mesure(&format!("{court}…")) > largeur {
-        court.pop();
-    }
-    format!("{}…", court.trim_end())
+    let avance = |c| brush.typo.advance(c, brush.px(corps), Face::Regular);
+    crate::renderer::wrap::tronquer(texte, largeur, avance)
 }
 
 fn gris(v: u8) -> Color {

@@ -1,0 +1,59 @@
+[
+ {
+  "nom": "TRONQUER-1 — la réponse de la question n'est plus coupée",
+  "fichier": "crates/glucose-desktop/src/ui/question.rs",
+  "avant": "            let libelle = crate::renderer::wrap::tronquer(libelle, interieur, avance);",
+  "apres": "            let _ = avance;\n            let libelle = libelle.clone();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "tronquer_1"
+  ]
+ },
+ {
+  "nom": "TRONQUER-1 — les points de suspension oubliés dans la place",
+  "fichier": "crates/glucose-desktop/src/renderer/wrap.rs",
+  "avant": "    let place = largeur - avance('…');",
+  "apres": "    let place = largeur;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "tronquer_1"
+  ]
+ },
+ {
+  "nom": "TRONQUER-1 — l'espace d'avant les points reste",
+  "fichier": "crates/glucose-desktop/src/renderer/wrap.rs",
+  "avant": "    format!(\"{}…\", texte[..fin].trim_end())",
+  "apres": "    format!(\"{}…\", &texte[..fin])",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "tronquer_1"
+  ]
+ }
+]

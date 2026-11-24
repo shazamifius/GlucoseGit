@@ -46,3 +46,14 @@ source ne refait rien et reste net.
   1,7 ms de médiane, à lire.
 * **Pas vu à son écran**, avec sa vraie souris : la ligne à essayer est dans ÉTAT.
 * Sous Windows, la cause de sa lenteur reste inconnue si elle y est.
+
+## 5. TRONQUER-1 — un long résultat de Ctrl+F tient dans sa case
+
+Vu au pilote le 24/11 (`revue-code-1`) : dans Ctrl+F, la ligne d'un long résultat sortait de sa case
+des deux côtés. Une réponse de la question (`ui/question.rs`) se centre dans sa rangée ; plus large
+qu'elle, son bord gauche passait sous celui de la carte. **Une seule loi** : `renderer/wrap.rs`,
+`tronquer` — la ligne s'arrête au dernier caractère qui laisse place à « … », linéaire comme le
+découpage (chaque caractère mesuré une fois). Le Storyboard en avait une copie à lui, qui mesurait la
+chaîne entière à chaque caractère retiré (quadratique) : elle appelle désormais la même. Épreuves
+`test_tronquer_1_…` (la loi ; une réponse de 400 caractères au téléphone tient dans sa case, « Annuler »
+reste entier) ; 3 sabotages sur 3 (`outils/sabotages/tronquer-1.json`). Pas regardé au pilote.

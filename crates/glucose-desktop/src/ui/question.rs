@@ -289,7 +289,9 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
         .map(|(libelle, reponse)| {
             let rangee = (x, haut, largeur, BOUTON * s);
             haut += BOUTON * s;
-            (rangee, libelle.clone(), *reponse)
+            let avance = |c| typo.advance(c, corps_texte, Face::Regular);
+            let libelle = crate::renderer::wrap::tronquer(libelle, interieur, avance);
+            (rangee, libelle, *reponse)
         })
         .collect();
     Placee {

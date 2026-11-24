@@ -207,3 +207,26 @@ fn test_pastilles_1_sous_le_champ_au_dessus_des_reponses() {
         "une case n'est pas une réponse"
     );
 }
+
+/// **TRONQUER-1 — une réponse trop longue tient dans sa case** : un long résultat de Ctrl+F,
+/// centré, sortait des deux côtés de la carte (vu au pilote sur une copie de son document, 24/11).
+#[test]
+fn test_tronquer_1_une_reponse_trop_longue_tient_dans_sa_case() {
+    let typo = Typography::new();
+    let mut q = question("Chercher");
+    let long = "toujours et encore le même problème d'édition de bloc de texte ".repeat(6);
+    q.choix[0].0 = long.clone();
+    let p = placer(&q, &typo, TELEPHONE, 2.0);
+    let (rangee, libelle, _) = &p.boutons[0];
+    assert!(
+        libelle.ends_with('…') && libelle.len() < long.len(),
+        "{libelle}"
+    );
+    let (lw, _) = typo.measure_text(libelle, p.corps.1, Face::Regular);
+    assert!(
+        lw <= rangee.2 - 2.0 * PAD * 2.0 + 0.01,
+        "{lw} pixels dans une case de {} : {libelle}",
+        rangee.2
+    );
+    assert_eq!(p.boutons[1].1, "Annuler", "ce qui tient reste entier");
+}

@@ -71,8 +71,45 @@ pub(crate) fn wrap_paragraph(
     lines
 }
 
+/// **TRONQUER-1 — une ligne coupée à `largeur`, avec « … » si elle ne tient pas.** Une ligne
+/// qui déborde de sa case — un long résultat de Ctrl+F (centré, il sortait des deux côtés), la
+/// description d'un plan du Storyboard — s'arrête au dernier caractère qui laisse place aux points
+/// de suspension. Linéaire, comme le découpage : chaque caractère se mesure une fois.
+pub(crate) fn tronquer(texte: &str, largeur: f32, avance: impl Fn(char) -> f32) -> String {
+    if texte.chars().map(&avance).sum::<f32>() <= largeur {
+        return texte.to_string();
+    }
+    let place = largeur - avance('…');
+    let mut cumul = 0.0;
+    let fin = texte
+        .char_indices()
+        .find(|&(_, c)| {
+            cumul += avance(c);
+            cumul > place
+        })
+        .map_or(texte.len(), |(i, _)| i);
+    format!("{}…", texte[..fin].trim_end())
+}
+
 #[cfg(test)]
 mod tests {
+
+    /// TRONQUER-1 : ce qui tient reste entier ; ce qui déborde s'arrête avant, avec « … », sans
+    /// jamais dépasser la largeur ni couper un caractère de plusieurs octets.
+    #[test]
+    fn test_tronquer_1_une_ligne_trop_longue_finit_par_des_points() {
+        let avance = |c: char| if c == '…' { 3.0 } else { 10.0 };
+        assert_eq!(super::tronquer("abc", 30.0, avance), "abc");
+        let court = super::tronquer("éléphant rose", 53.0, avance);
+        assert_eq!(court, "éléph…");
+        let largeur: f32 = court.chars().map(avance).sum();
+        assert!(largeur <= 53.0, "{court} : {largeur}");
+        assert_eq!(
+            super::tronquer("ab cd", 33.0, avance),
+            "ab…",
+            "l'espace d'avant ne reste pas"
+        );
+    }
     use super::*;
 
     /// Une police de test : chaque caractère avance de 10, quel qu'il soit et où qu'il tombe.
