@@ -57,3 +57,19 @@ découpage (chaque caractère mesuré une fois). Le Storyboard en avait une copi
 chaîne entière à chaque caractère retiré (quadratique) : elle appelle désormais la même. Épreuves
 `test_tronquer_1_…` (la loi ; une réponse de 400 caractères au téléphone tient dans sa case, « Annuler »
 reste entier) ; 3 sabotages sur 3 (`outils/sabotages/tronquer-1.json`). Pas regardé au pilote.
+
+## 6. Les flèches qui traversent leur propre texte — reproduites, pas comprises
+
+Sur une copie de son document du 25/11 (pilote, `voler 2176 1700 0.9` dans un scénario passé par
+`GLUCOSE_SCENARIO=` à `piloter.sh demarrer`) : du nœud « URGENT IMPORTANT » (`text-f5fn-345`), les deux
+flèches qui partent vers le bas à gauche (`arrow-g420-2318`, `arrow-w89o-2376`) **commencent dans le
+texte**, à la hauteur de la deuxième ligne (probablement un passage : `glucose lire` ne montre pas les
+passages d'une flèche), et en sortent par le coin bas-gauche avec un coude ; celles qui partent à gauche,
+ancrées à un passage, sortent bien par le côté gauche à sa hauteur (FLECHE-6 : le côté qui fait face, à
+la hauteur du passage, **seulement si la cible est à côté** — vers le bas à gauche, la règle ne joue pas
+et l'ancre, au milieu de la carte à la hauteur du passage, est dedans). **Indice** : `glucose lire` (le noyau, sans obstacles ni polices) donne
+leur enveloppe à partir du bas du nœud (y = −1 246, son bas est à −1 258) ; l'application, elle, part de
+l'intérieur — c'est donc le contournement de l'application (`Noeuds::obstacles`, `itineraire`) qui pose
+une première étape dans la boîte de la source, ou `perimeter_exit` qui rend l'ancre elle-même (t < 0).
+**La suite** : une épreuve qui rejoue cette géométrie avec les `Noeuds` du rendu (`renderer/arrow`), lire
+les étapes rendues, puis corriger à la source.
