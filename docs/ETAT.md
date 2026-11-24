@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 24/11/2026, 8 h** (fiches 108-139). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 24/11/2026, 8 h** (fiches 108-140). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -38,7 +38,9 @@
   **ARBITRE-5 et 6** — l'arbitre ne condamne plus une carte qui attend l'écran, et ne s'installe plus
   sur une machine à une seule carte (la sienne) (fiches 138-139) ; **DEPLACER-1** — une membrane
   déplacée par une IA emporte ce qu'elle porte, un dossier se déplace, une photo verrouillée non
-  (fiche 139). Chacun saboté et regardé au pilote. **Son Glucose** a tout cela : le relais l'a relancé
+  (fiche 139) ; **IDENTITE-2** — son nom et sa couleur, demandés la première fois qu'il partage
+  ou rejoint un canevas, « Ton nom et ta couleur… » dans Collaborer, dix pastilles (fiche 140, sa
+  réponse à Q19). Chacun saboté et regardé au pilote. **Son Glucose** a tout cela : le relais l'a relancé
   le 24/11 à 7 h 30 sur `dc86ff2` (fermé proprement, la RTX, son document, la porte qui répond).
 * **Le relais** (fiche 132, sa parole du 23/11 : *« il ne fonctionne tout simplement PAS »*) : il s'était tu de 10 h 08 à 13 h 44 — sa consigne retouchée depuis son autre appareil (« Aigle Émeraude ») passait pour celle d'une IA, la passation fermait la session pour un compte plein, et rien ne lisait ses notes. **Réparé et relancé** : une seule session à la fois (la sienne prend la main, `rendre` la rend), toute main humaine signe sa consigne, jamais une IA, ses notes sont données à la session, jusqu'au mur quand personne ne peut reprendre, la relance sous le plafond de Claude Code (8). Mode d'emploi : `outils/relais/MODE-EMPLOI.md`. **Borné par les quotas** des deux comptes. **Le 23/11 au soir** (fiche 134), deux gels de plus, réglés : la question de Chrome au démarrage (1 h 48) et une permission du mode auto — désormais **`--no-chrome` et le bypass** (sa réponse : *« jamais de mode auto »*) ; le ❤️ dit « figée » ; **la mémoire du modèle à 90 %** relance une conversation neuve, la semaine passe la main à 90 % ; **ses textes** (départ, passation, relance) vivent dans son Glucose, et sa version part dès qu'il l'a écrite.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :

@@ -1,6 +1,6 @@
 # 139 — L'arbitre sans rival, et l'IA qui déplace comme la main
 
-> Le 24/11/2026, de 7 h à midi, session du relais (compte b, sa fenêtre de 5 h entière). Sa consigne :
+> Le 24/11/2026, de 7 h à 8 h, session du relais (compte b). Sa consigne :
 > *« fixer TOUS les problèmes de Glucose […] rendre moins brouillon toute la carte Glucose […]
 > archiver le plus possible »*. La passation donnait : la suite de l'arbitre (fiche 138 § 3), puis
 > ses réponses sous l'image E (aucune encore), puis l'archive.
@@ -109,3 +109,18 @@ reste, un seul `Ctrl+Z` ; à l'envers, la loi d'avant laissait le membre) et
 * `glucose_ranger` garde les écarts d'origine des nœuds rangés : venus de coins éloignés du tableau,
   ils arrivent éparpillés dans le dossier (le 24/11 : sur 5 700 unités). Les rapprocher en arrivant,
   en gardant la disposition de chaque groupe, serait plus propre.
+* **ARROW-4 n'est raconté nulle part** (`c0d093a`, le 23/11 à 0 h 11, dans la beta.5) : son code
+  cite la fiche 130, qui n'en dit rien. C'est la réponse à sa note `text-312` (*« impossible de placer
+  une flèche […] à l'intérieur d'une membrane »*) : une membrane ne se vise plus que par sa frontière.
+  Réponse posée dans son Glucose le 24/11 (`relais-rep-312`). **Reste** : à moins de 120 unités du
+  bord, la frontière attire encore — dans un petit « Groupe », presque partout.
+
+## 7. Ses deux autres notes sans réponse (24/11)
+
+`text-321` (*« une IA peut écrire des trucs DANS la Time Machine, endroit que l'utilisateur ne peut
+tout simplement pas accéder […] ça peut être dangereux »*) et `demande-codes-actifs` (voir et
+supprimer les codes de salle et les accès) n'avaient ni réponse ni trace dans les documents. Une
+proposition chacune dans son Glucose (`relais-rep-321`, `relais-rep-codes`), en attente de sa
+parole : la première touche au format de l'histoire, que sa beta.5 doit pouvoir relire ; la
+seconde, à ce qu'il veut voir réuni.
+
