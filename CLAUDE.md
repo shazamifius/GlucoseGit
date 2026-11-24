@@ -40,11 +40,12 @@ message le dit. Une session à lui lit tout, dans cet ordre :
 de travailler dans MÉTHODE, le détail d'un chantier dans sa fiche. Ce qui se répète ailleurs finit par se
 contredire (sa parole du 11/11). Les mémoires de Claude ne gardent que des préférences de travail.
 
-Puis : prendre le premier chantier ouvert de SUITE § 2, **tout remettre en question** — ses paroles
+Puis : prendre le premier chantier ouvert du plan — **son ordre vit dans son Glucose, le nœud
+`relais-plan`** (sa demande du 24/11) ; le détail de chaque chantier, dans SUITE § 2 —, **tout remettre en question** — ses paroles
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 146.**
+fiche. **La prochaine porte le numéro 147.**
 
 ## Avec lui
 

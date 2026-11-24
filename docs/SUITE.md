@@ -25,7 +25,11 @@ vraies (la ligne d'arrivée proposée le 25/10, à remettre en question) :
 5. l'ergonomie : le preset de Glucose et l'interface du téléphone, jugés par lui ;
 6. toutes les machines qu'on peut servir sans argent.
 
-## 2. Maintenant, dans l'ordre — ses paroles du 12 et du 19/11
+## 2. Maintenant — ses paroles du 12 et du 19/11
+
+**L'ordre du travail vit dans son Glucose, le nœud 🧭 `relais-plan`** (sa demande du 24/11 : *« un
+nœud organisateur […] la prochaine IA a juste à check uniquement les nouveautés »*) : chaque session le
+suit ou le conteste, et le tient à jour. Ce tableau garde le détail de chaque chantier, sans ordre.
 
 **Sa parole du 12/11 au soir** (VISION § 3) : des versions qu'il teste en conditions réelles, puis
 **les boutons qui manquent — d'abord le co-working et les connexions MCP avec des IA publiques**. Les
