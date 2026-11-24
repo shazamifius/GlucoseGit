@@ -75,6 +75,11 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   les 20 secondes par `.vscode/tasks.json`) : jusqu'au 24/11, chaque VS Code ne suivait que la session de
   son compte, et celui du compte a, vide toute une nuit (sa semaine pleine), lui a fait croire le relais
   en panne (fiche 141).
+- **Les cinq nœuds du relais ne s'archivent jamais** (`relais-consigne`, `-passation`, `-battement`,
+  `-bloque`, `-reponse` : `loi.py`, ligne 9). Un rangement de sa carte a mis `relais-bloque` dans une
+  archive (`board-f5fn-356`) et effacé `relais-reponse` : le 24/11 à 10 h 00, l'alerte d'une session figée
+  n'a pas pu se poser (« l'identifiant est déjà pris ailleurs », journal). Remis dans sa membrane le
+  24/11 à 10 h 33 ; l'ancienne alerte reste à l'archive sous `relais-bloque-archive-2311`.
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à
