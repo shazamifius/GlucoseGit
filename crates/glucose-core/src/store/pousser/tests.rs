@@ -134,3 +134,55 @@ fn test_text_fit_2_par_le_journal_un_seul_ctrl_z_defait_les_deux() {
     assert_eq!(lire(&store, "m"), 400.0);
     assert_eq!(lire(&store, "t"), 342.0);
 }
+
+/// Les voisins poussés de `id`, son bas à `bas` : (id, haut neuf).
+fn pousses(annotations: &[Annotation], id: &str, bas: f64) -> Vec<(String, f64)> {
+    (voisins_pousses(annotations, id, bas).into_iter())
+        .map(|(rang, haut)| (annotations[rang].id().to_string(), haut))
+        .collect()
+}
+
+/// **Fiche 145** : le voisin dessous ne bouge qu'au contact, du strict nécessaire, et le suivant
+/// à son tour — l'ordre gardé ; à côté ou déjà chevauché, rien ne bouge.
+#[test]
+fn test_pousser_pendant_l_ecriture_le_voisin_dessous_s_ecarte_et_pousse_le_suivant() {
+    let a = [
+        texte("t", (0.0, 0.0, 200.0, 100.0), None),
+        texte("dessous", (50.0, 140.0, 200.0, 60.0), None),
+        texte("encore", (100.0, 240.0, 100.0, 50.0), None),
+        texte("a-cote", (300.0, 120.0, 100.0, 50.0), None),
+        texte("deja", (0.0, 80.0, 100.0, 50.0), None),
+    ];
+    assert!(pousses(&a, "t", 100.0).is_empty(), "rien n'a grandi");
+    assert!(
+        pousses(&a, "t", 110.0).is_empty(),
+        "l'écart de 30 tient encore"
+    );
+    assert_eq!(
+        pousses(&a, "t", 150.0),
+        vec![("dessous".into(), 180.0), ("encore".into(), 270.0)]
+    );
+}
+
+/// **Effacer fait remonter** : une fonction de l'état de départ, sans dérive.
+#[test]
+fn test_pousser_pendant_l_ecriture_effacer_fait_remonter() {
+    let a = [
+        texte("t", (0.0, 0.0, 200.0, 100.0), None),
+        texte("dessous", (0.0, 110.0, 200.0, 60.0), None),
+    ];
+    assert_eq!(pousses(&a, "t", 200.0), vec![("dessous".into(), 210.0)]);
+    assert_eq!(pousses(&a, "t", 120.0), vec![("dessous".into(), 130.0)]);
+    assert!(pousses(&a, "t", 100.0).is_empty(), "revenu à sa place");
+}
+
+/// **Seul son niveau** : ce qui est dans une autre membrane ne bouge pas avec lui.
+#[test]
+fn test_pousser_pendant_l_ecriture_seul_son_niveau() {
+    let a = [
+        texte("t", (0.0, 0.0, 200.0, 100.0), Some("m")),
+        texte("ailleurs", (0.0, 120.0, 200.0, 60.0), None),
+        texte("frere", (0.0, 130.0, 200.0, 60.0), Some("m")),
+    ];
+    assert_eq!(pousses(&a, "t", 150.0), vec![("frere".into(), 180.0)]);
+}

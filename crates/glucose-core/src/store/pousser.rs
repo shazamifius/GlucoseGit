@@ -56,6 +56,40 @@ fn membranes_poussees(annotations: &[Annotation], id: &str, bas: f64) -> Vec<(us
     poussees
 }
 
+/// **Les voisins que pousse le nœud `id` pendant qu'on l'écrit** (fiche 145 ; sa réponse sur
+/// `relais-rep-327`) : `depart` est son tableau au début de l'écriture, `bas` son bas courant. À son
+/// niveau (même membrane), ce qui était entièrement dessous et que le bas neuf atteint descend du
+/// strict nécessaire — l'écart d'origine gardé, au plus `ECART` —, et pousse à son tour : un
+/// balayage par haut croissant (Force Scan, vers le bas seulement), qui garde l'ordre. Une
+/// fonction de l'état de départ, jamais une suite de poussées : effacer fait remonter, sans dérive.
+/// Rend le rang de chaque voisin qui descend et son haut neuf.
+pub fn voisins_pousses(depart: &[Annotation], id: &str, bas: f64) -> Vec<(usize, f64)> {
+    let Some((cadre, niveau)) =
+        (depart.iter().find(|a| a.id() == id)).and_then(|a| Some((a.rect()?, a.membrane_id())))
+    else {
+        return Vec::new();
+    };
+    let mut dessous: Vec<(usize, Rect)> = (depart.iter().enumerate())
+        .filter(|(_, a)| a.id() != id && a.membrane_id() == niveau)
+        .filter_map(|(rang, a)| Some((rang, a.rect()?)))
+        .collect();
+    dessous.sort_by(|a, b| a.1.top.total_cmp(&b.1.top));
+    // Chaque pousseur : sa boîte de départ, et son bas neuf.
+    let mut pousseurs: Vec<(Rect, f64)> = vec![(cadre, bas)];
+    let mut pousses = Vec::new();
+    for (rang, c) in dessous {
+        let haut = (pousseurs.iter())
+            .filter(|(p, _)| p.left < c.right() && c.left < p.right() && p.bottom() <= c.top)
+            .map(|(p, bas_neuf)| bas_neuf + ECART.min(c.top - p.bottom()))
+            .fold(c.top, f64::max);
+        if haut > c.top {
+            pousses.push((rang, haut));
+        }
+        pousseurs.push((c, haut + c.height));
+    }
+    pousses
+}
+
 /// Le bas d'une membrane posé à `bas`, son haut gardé.
 fn poser_le_bas(membrane: &mut Annotation, bas: f64) {
     if let Annotation::Membrane { y, height, .. } = membrane {

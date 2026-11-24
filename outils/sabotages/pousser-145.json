@@ -1,0 +1,97 @@
+[
+ {
+  "nom": "POUSSER-145 — le poussé ne pousse pas à son tour",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "pousseurs.push((c, haut + c.height));",
+  "apres": "pousseurs.push((c, c.bottom()));",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — tous les niveaux poussés",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": ".filter(|(_, a)| a.id() != id && a.membrane_id() == niveau)",
+  "apres": ".filter(|(_, a)| a.id() != id)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — l'écart d'origine oublié",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "bas_neuf + ECART.min(c.top - p.bottom())",
+  "apres": "bas_neuf + ECART",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — ce qui est à côté poussé aussi",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": ".filter(|(p, _)| p.left < c.right() && c.left < p.right() && p.bottom() <= c.top)",
+  "apres": ".filter(|(p, _)| p.bottom() <= c.top)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — ce qui chevauchait déjà poussé",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "&& p.bottom() <= c.top)",
+  "apres": ")",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ }
+]
