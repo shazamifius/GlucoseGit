@@ -24,6 +24,8 @@ use super::PaintKit;
 use crate::params::ViewPass;
 use crate::renderer::TextEditSession;
 use glucose_core::flou::{self as loi, Masque, Plan};
+use glucose_core::hit_priority::{pick_consts, POIGNEES_DU_GROUPE};
+use glucose_core::smart_align::AlignRect;
 use glucose_core::store::Store;
 use tiny_skia::{FillRule, LineCap, LineJoin, PathBuilder, PixmapMut, Stroke, Transform};
 
@@ -77,12 +79,38 @@ pub(crate) fn formes(
         .into_iter()
         .map(|v| Forme::Quad(v.coins))
         .collect();
+    formes.extend(poignees_du_groupe(store, pass));
     formes.extend(
         super::arrow::traces_des_choisies(store, *pass, (kit.typography, kit.math))
             .into_iter()
             .map(|(points, demi)| Forme::Trait { points, demi }),
     );
     formes
+}
+
+/// **Les poignées du groupe**, chacune un carré de son côté : celles qui ne tombent sur aucun nœud
+/// choisi se floutaient — des taches blanches aux coins vides de l'emprise (vu au pilote).
+fn poignees_du_groupe(store: &Store, pass: &ViewPass<'_>) -> Vec<Forme> {
+    let Some((x, y, w, h)) = super::handles::boite_du_groupe_a_l_ecran(store, pass) else {
+        return Vec::new();
+    };
+    let boite = AlignRect::new(f64::from(x), f64::from(y), f64::from(w), f64::from(h));
+    let demi = pass
+        .echelle()
+        .screen(pick_consts::HANDLE_SIDE_PX as f32 / 2.0);
+    POIGNEES_DU_GROUPE
+        .iter()
+        .map(|p| {
+            let (cx, cy) = p.position_on(boite);
+            let (cx, cy) = (cx as f32, cy as f32);
+            Forme::Quad([
+                (cx - demi, cy - demi),
+                (cx + demi, cy - demi),
+                (cx + demi, cy + demi),
+                (cx - demi, cy + demi),
+            ])
+        })
+        .collect()
 }
 
 /// **La marge autour de ce qui reste net**, en pixels du tampon : l'écart des équerres, plus une

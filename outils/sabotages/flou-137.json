@@ -122,8 +122,8 @@
  {
   "nom": "Q12 — les flèches choisies se floutent",
   "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
-  "avant": "    formes.extend(",
-  "apres": "    std::mem::drop(",
+  "avant": "        super::arrow::traces_des_choisies(store, *pass, (kit.typography, kit.math))",
+  "apres": "        Vec::<(Vec<(f32, f32)>, f32)>::new()",
   "cmd": [
    "cargo",
    "test",
@@ -240,6 +240,21 @@
    "--lib",
    "--",
    "app::flou::tests::test_q12_tant_que"
+  ]
+ },
+ {
+  "nom": "Q12 — les poignées du groupe se floutent",
+  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
+  "avant": "    formes.extend(poignees_du_groupe(store, pass));",
+  "apres": "    let _ = poignees_du_groupe(store, pass);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_ce_qu_on_a_choisi"
   ]
  }
 ]

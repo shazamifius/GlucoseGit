@@ -97,6 +97,13 @@ fn test_q12_ce_qu_on_a_choisi_reste_net_le_reste_se_floute() {
         let (fort, _) = ecart(&net, &flou, (x, y - 6, x + 1, y + 7));
         assert_eq!(fort, 0, "la flèche reste nette en x = {x}");
     }
+    // Les poignées du groupe (le texte et la flèche choisis ensemble) : celle du coin haut-droit
+    // de l'emprise, en (820, 260), ne tombe sur aucun nœud.
+    assert_eq!(
+        ecart(&net, &flou, (812, 252, 829, 269)).0,
+        0,
+        "la poignée du groupe reste nette"
+    );
     // La bande de l'interface.
     let bande = UiState::new().header_height() as u32;
     assert_eq!(

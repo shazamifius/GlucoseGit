@@ -258,6 +258,22 @@ fn source_de(etat: &Etat, p: &Passe) -> (u32, u32) {
     }
 }
 
+/// **Les tailles des grilles** : la moitié prise `etages` fois — la grille entière seule sans
+/// étage —, puis le tampon de la gaussienne, à la taille de la plus grossière.
+fn tailles_des_grilles(ecran: (u32, u32), etages: u32) -> Vec<(u32, u32)> {
+    let mut tailles: Vec<(u32, u32)> = (0..etages)
+        .scan(ecran, |t, _| {
+            *t = (t.0.div_ceil(2), t.1.div_ceil(2));
+            Some(*t)
+        })
+        .collect();
+    if tailles.is_empty() {
+        tailles.push(ecran);
+    }
+    tailles.push(tailles[tailles.len() - 1]);
+    tailles
+}
+
 /// Les octets d'un réglage (`flou.wgsl`).
 fn reglage(source: (u32, u32), pas: [f32; 2], flou: &Flou, divers: [f32; 3]) -> Vec<u8> {
     let noyau = &flou.plan.noyau;
@@ -280,18 +296,8 @@ impl FlouGpu {
         let tex = |taille: (u32, u32), format, usage| texture(peripherique, taille, format, usage);
         let dessin = wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
         let nette = tex(ecran, self.format, dessin);
-        let moitie = |(l, h): (u32, u32)| (l.div_ceil(2), h.div_ceil(2));
-        let mut tailles: Vec<(u32, u32)> = (0..etages)
-            .scan(ecran, |t, _| {
-                *t = moitie(*t);
-                Some(*t)
-            })
-            .collect();
-        if tailles.is_empty() {
-            tailles.push(ecran);
-        }
+        let tailles = tailles_des_grilles(ecran, etages);
         let grossiere = tailles[tailles.len() - 1];
-        tailles.push(grossiere);
         let grilles: Vec<Tex> = tailles
             .iter()
             .map(|&t| tex(t, self.grille, dessin))
