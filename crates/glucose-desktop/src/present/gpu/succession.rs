@@ -165,15 +165,17 @@ pub fn carte_de_depart(
         .unwrap_or(crate::present::arbitre::Preference::Econome)
 }
 
-/// **Faut-il un arbitre ?** Seulement quand personne n'a tranché : ni l'environnement
-/// (ARBITRE-1), ni l'écran (ECRAN-1). Quitter la carte de l'écran ajoute une copie par image
-/// sans jamais éviter sa charge ; l'arbitre qui le faisait sur un hoquet alternait d'une
-/// session à l'autre.
+/// **Faut-il un arbitre ?** Seulement quand il y a deux cartes à choisir (ARBITRE-6), et que
+/// personne n'a tranché : ni l'environnement (ARBITRE-1), ni l'écran (ECRAN-1). Quitter la
+/// carte de l'écran ajoute une copie par image sans jamais éviter sa charge ; l'arbitre qui le
+/// faisait sur un hoquet alternait d'une session à l'autre. Et sur une machine à une seule
+/// carte, il n'avait rien à juger, et condamnait pourtant celle qu'il avait (fiche 139).
 pub fn faut_il_un_arbitre(
+    deux_cartes: bool,
     imposee: Option<crate::present::arbitre::Preference>,
     ecran: Option<crate::present::arbitre::Preference>,
 ) -> bool {
-    imposee.is_none() && ecran.is_none()
+    deux_cartes && imposee.is_none() && ecran.is_none()
 }
 
 /// La carte que l'environnement impose, s'il en impose une (ARBITRE-1).

@@ -62,6 +62,35 @@ pub(super) fn par_le_premier_moteur(
     )))
 }
 
+/// **ARBITRE-6 — l'autre préférence ouvrirait-elle une autre carte ?** Sinon, il n'y a rien à
+/// arbitrer (fiche 139).
+///
+/// Son poste n'a qu'une carte visible sous Vulkan, la RTX : « économe » et « rapide » ouvrent
+/// la même, et l'arbitre y écrivait pourtant « cette carte gèle — l'autre s'ouvrira au prochain
+/// lancement ». Les téléphones, les Mac et la plupart des PC de bureau sont dans ce cas.
+///
+/// La question se pose **à `wgpu`**, qui choisit la carte, sur la même instance et pour la même
+/// surface : on appelle sa loi au lieu de la récrire. Deux cartes identiques se distinguent par
+/// leur place sur le bus, que `AdapterInfo` porte. Aucune carte pour l'autre préférence : il
+/// n'y en a qu'une.
+pub(super) fn deux_cartes(
+    instance: &wgpu::Instance,
+    surface: &wgpu::Surface<'static>,
+    ouverte: &wgpu::Adapter,
+    carte: wgpu::PowerPreference,
+) -> bool {
+    let autre = match carte {
+        wgpu::PowerPreference::HighPerformance => wgpu::PowerPreference::LowPower,
+        _ => wgpu::PowerPreference::HighPerformance,
+    };
+    pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: autre,
+        compatible_surface: Some(surface),
+        ..Default::default()
+    }))
+    .is_ok_and(|a| a.get_info() != ouverte.get_info())
+}
+
 /// Choisit un adaptateur, ouvre un périphérique, et refuse proprement ce qu'il ne peut pas.
 ///
 /// Le garde-fou de taille n'est pas décoratif : demander une surface plus grande que la

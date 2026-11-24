@@ -1,0 +1,16 @@
+[
+ {
+  "nom": "ARBITRE-6 — la loi oublie qu'il n'y a qu'une carte",
+  "fichier": "crates/glucose-desktop/src/present/gpu/succession.rs",
+  "avant": "    deux_cartes && imposee.is_none() && ecran.is_none()",
+  "apres": "    (deux_cartes || true) && imposee.is_none() && ecran.is_none()",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "plateforme::ecran::tests::test_arbitre_6"]
+ },
+ {
+  "nom": "ARBITRE-5 — l'application ne dit plus le battement de son écran à l'arbitre",
+  "fichier": "crates/glucose-desktop/src/app/terrain.rs",
+  "avant": "        arbitre.battre(self.cadence.periode());",
+  "apres": "        let _ = self.cadence.periode();",
+  "cmd": ["cargo", "test", "-p", "glucose-desktop", "--lib", "--", "app::terrain::tests::test_arbitre_5"]
+ }
+]

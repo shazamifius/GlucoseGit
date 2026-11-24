@@ -222,9 +222,22 @@ mod tests {
     #[test]
     fn test_ecran_1_l_ecran_connu_ne_laisse_rien_a_arbitrer() {
         use crate::present::gpu::succession::faut_il_un_arbitre;
-        assert!(!faut_il_un_arbitre(None, Some(Preference::Rapide)));
-        assert!(!faut_il_un_arbitre(Some(Preference::Econome), None));
-        assert!(faut_il_un_arbitre(None, None));
+        assert!(!faut_il_un_arbitre(true, None, Some(Preference::Rapide)));
+        assert!(!faut_il_un_arbitre(true, Some(Preference::Econome), None));
+        assert!(faut_il_un_arbitre(true, None, None));
+    }
+
+    /// **ARBITRE-6 : une seule carte, pas d'arbitre** (fiche 139) — son poste, où Vulkan ne voit
+    /// que la RTX, disait « cette carte gèle » et retenait « l'autre », qui était la même. À
+    /// l'envers, la loi d'avant (sans la question) l'installait sur les mêmes faits.
+    #[test]
+    fn test_arbitre_6_une_seule_carte_ne_laisse_rien_a_arbitrer() {
+        use crate::present::gpu::succession::faut_il_un_arbitre;
+        assert!(!faut_il_un_arbitre(false, None, None));
+        let loi_d_avant = |imposee: Option<Preference>, ecran: Option<Preference>| {
+            imposee.is_none() && ecran.is_none()
+        };
+        assert!(loi_d_avant(None, None), "la loi d'avant l'installait");
     }
 
     /// Une seule carte : les deux préférences la désignent, et l'économe suffit.

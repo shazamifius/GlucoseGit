@@ -241,6 +241,13 @@ pub trait Presenter {
         None
     }
 
+    /// **Y a-t-il une autre carte à essayer ?** (ARBITRE-6, fiche 139) Seulement quand l'autre
+    /// préférence en ouvrirait une autre ; une présentation sans carte graphique n'en a aucune.
+    /// Sans elle, l'arbitre n'a rien à arbitrer, et ne s'installe pas.
+    fn deux_cartes(&self) -> bool {
+        false
+    }
+
     /// Combien d'images la chaîne garde en vol, quand elle en a une.
     ///
     /// Zéro veut dire « pas de chaîne » : la voie système remet son tampon au gestionnaire

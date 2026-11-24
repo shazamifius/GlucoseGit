@@ -988,10 +988,16 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
 }
 
 /// **QUEUE-1 — la cascade compte la fin de l'image** (fiche 110) : sur une machine où une texture
-/// coûte une microseconde, mais où la fin d'une image qui en a fait deux coûte huit millisecondes,
+/// coûte une microseconde, mais où la fin d'une image qui en a fait deux coûte huit secondes,
 /// la seconde n'entre pas dans un budget de cinq — l'image entière ne tiendrait pas. **La preuve à
 /// l'envers** : sans la fin apprise, la même scène les fait toutes deux. Et l'image posée apprend
 /// ce que sa fin a coûté, l'attente de l'écran retirée.
+///
+/// **En secondes, pas en millisecondes** (fiche 139) : la cascade lit la vraie horloge, et sous la
+/// suite entière le premier téléversement dépassait parfois à lui seul un budget de 5 ms — la
+/// seconde attendait alors aussi « sans la fin apprise », et l'épreuve tombait sans défaut. La loi
+/// ne dépend pas de l'échelle des durées : la même scène, mille fois plus lente, garde son sens,
+/// et le bruit de la machine n'y pèse plus rien.
 #[test]
 fn test_queue_1_la_cascade_compte_la_fin_de_l_image() {
     let Some((peripherique, file)) = carte() else {
@@ -999,6 +1005,7 @@ fn test_queue_1_la_cascade_compte_la_fin_de_l_image() {
         return;
     };
     let ms = std::time::Duration::from_millis;
+    let s = std::time::Duration::from_secs;
     let faire = |fin_apprise: bool| {
         let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
         let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
@@ -1006,8 +1013,8 @@ fn test_queue_1_la_cascade_compte_la_fin_de_l_image() {
             scene.debit.noter(16, std::time::Duration::from_micros(1));
         }
         if fin_apprise {
-            scene.queue.noter(1, ms(4));
-            scene.queue.noter(2, ms(8));
+            scene.queue.noter(1, s(4));
+            scene.queue.noter(2, s(8));
         }
         scene.ouvrir();
         let a_poser = |cle: &str| APoser {
@@ -1028,7 +1035,7 @@ fn test_queue_1_la_cascade_compte_la_fin_de_l_image() {
         scene.assurer(
             &peripherique,
             &mut envoi,
-            (&[a_poser("premiere"), a_poser("seconde")], &[], ms(5)),
+            (&[a_poser("premiere"), a_poser("seconde")], &[], s(5)),
             &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
         );
         scene

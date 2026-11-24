@@ -62,6 +62,8 @@ pub struct GpuPresenter {
     /// Ce que le journal technique dit de lui (fiche 60), et ses identifiants matériels, pour
     /// savoir si c'est lui qui tient l'écran (ECRAN-1).
     carte: crate::boite_noire::enregistrement::Carte,
+    /// **L'autre préférence ouvrirait une autre carte** (ARBITRE-6) : sinon, rien à arbitrer.
+    deux_cartes: bool,
     /// Ce que le système accorde à Glucose sur cette carte, relu à chaque image (VRAM-1) —
     /// `None` là où la plateforme ne sait pas le dire.
     sonde: Option<crate::plateforme::graphique::Sonde>,
@@ -163,6 +165,7 @@ impl GpuPresenter {
             ouverture::par_le_premier_moteur(&window, width, height, carte)?;
 
         let config = ouverture::accorder_la_surface(&surface, &adapter, (width, height), cadence)?;
+        let deux_cartes = ouverture::deux_cartes(&instance, &surface, &adapter, carte);
         let sonde = crate::plateforme::graphique::Sonde::pour(numeros.fabricant, numeros.modele);
         // **La surface se configure ICI, a la naissance.**
         //
@@ -208,6 +211,7 @@ impl GpuPresenter {
             bandes_du_dessous_envoyees: super::bandes::Bandes::default(),
             adaptateur,
             carte: numeros,
+            deux_cartes,
             sonde,
             format_image,
             a_reaccorder: false,
@@ -535,5 +539,9 @@ impl Presenter for GpuPresenter {
 
     fn carte(&self) -> Option<(String, crate::boite_noire::enregistrement::Carte)> {
         Some((self.adaptateur.clone(), self.carte))
+    }
+
+    fn deux_cartes(&self) -> bool {
+        self.deux_cartes
     }
 }

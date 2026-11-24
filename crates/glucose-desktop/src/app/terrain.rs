@@ -636,4 +636,28 @@ mod tests {
         );
         std::fs::remove_dir_all(&dossier).ok();
     }
+
+    /// **ARBITRE-5, par l'application** (fiche 139) : c'est elle qui dit le battement de son
+    /// écran à l'arbitre, à chaque image. Sur un écran à 60 Hz, six cents présentations qui
+    /// attendent le battement (15 ms, sa session du 23/11 au soir) ne condamnent rien ; sans
+    /// l'appel, l'arbitre ne connaîtrait que le plancher de 10 ms, et retiendrait l'autre carte.
+    #[test]
+    fn test_arbitre_5_l_application_dit_le_battement_de_son_ecran() {
+        use crate::present::arbitre::{Arbitre, Preference};
+        let dossier = std::env::temp_dir().join(format!("glucose-arbitre5-{}", std::process::id()));
+        let mut app = GlucoseApp::new();
+        app.souvenir_de_la_carte = dossier.join("carte.txt");
+        app.cadence = crate::cadence::Cadence::depuis_millihertz(60_000);
+        app.arbitre = Some(Arbitre::nouveau(Preference::Econome));
+        for _ in 0..crate::cadence::ECHANTILLON {
+            app.arbitrer_la_carte(1_000);
+        }
+        for _ in 0..600 {
+            app.arbitrer_la_carte(15_000);
+        }
+        let retenue = crate::present::souvenir::lire(&app.souvenir_de_la_carte);
+        std::fs::remove_dir_all(&dossier).ok();
+        assert_eq!(retenue, None, "attendre l'ecran n'est pas geler");
+        assert!(app.arbitre.is_some(), "l'arbitre veille toujours");
+    }
 }

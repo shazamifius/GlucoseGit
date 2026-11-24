@@ -119,7 +119,11 @@ impl GlucoseApp {
     /// laisser dans `init_window` lui a fait passer les quatre-vingts lignes -- le cliquet a
     /// raison, et la coupure tombe la ou la nature du travail change : au-dessus on cree, ici
     /// on accroche.
-    fn accrocher_les_mecanismes(&mut self, window: &Arc<winit::window::Window>) {
+    fn accrocher_les_mecanismes(
+        &mut self,
+        window: &Arc<winit::window::Window>,
+        presenter: &dyn crate::present::Presenter,
+    ) {
         // **L'arbitre ne s'installe que si personne n'a tranche a sa place** (ARBITRE-1). Son
         // echantillon se compte en IMAGES, pas en secondes, et c'est celui du tempo : la
         // premiere version s'en etait invente un autre -- une seconde de l'ecran -- et cette
@@ -130,12 +134,16 @@ impl GlucoseApp {
         //
         // **Et il n'a rien a arbitrer quand la carte de l'ecran est connue** (ECRAN-1) : la
         // quitter ajoute une copie par image sans jamais eviter sa charge. C'est ce qui arrete
-        // le balancier d'une session sur deux.
+        // le balancier d'une session sur deux. **Ni quand il n'y a qu'une carte** (ARBITRE-6).
         use crate::present::gpu::succession;
         let ecran = succession::carte_de_l_ecran(window);
         let depart = succession::carte_de_depart(&self.souvenir_de_la_carte, ecran);
-        self.arbitre = succession::faut_il_un_arbitre(succession::carte_imposee(), ecran)
+        let deux = presenter.deux_cartes();
+        self.arbitre = succession::faut_il_un_arbitre(deux, succession::carte_imposee(), ecran)
             .then(|| crate::present::arbitre::Arbitre::nouveau(depart));
+        if !deux && presenter.carte().is_some() {
+            crate::dire!("[Glucose] arbitre : une seule carte graphique, rien a arbitrer");
+        }
         if crate::present::souvenir::lire(&self.souvenir_de_la_carte).is_some()
             && self.arbitre.is_some()
         {
@@ -309,7 +317,7 @@ impl GlucoseApp {
             .rythme
             .observer_la_machine(self.cadence.periode(), presenter.rythme());
         self.nommer_la_carte(presenter.as_ref(), &window);
-        self.accrocher_les_mecanismes(&window);
+        self.accrocher_les_mecanismes(&window, presenter.as_ref());
         self.annoncer_la_machine(presenter.as_ref(), (width, height), scale_factor);
 
         self.pixmap = Pixmap::new(width, height);
