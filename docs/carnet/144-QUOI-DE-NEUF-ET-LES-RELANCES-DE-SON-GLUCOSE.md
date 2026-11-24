@@ -119,7 +119,7 @@ d'écriture). Payé en chemin : un cache incrémental de rustc corrompu (« unde
 Son Glucose relancé sur `0f9ec0b` : la première réponse posée par `glucose repondre` (`relais-rep-mcp-4`)
 est à droite de sa note (x = 3 242 + 700 + 30), même hauteur, dans la membrane « relais », avec sa flèche.
 
-## 4. MCP 9, « sur quoi il se concentre » : cadré, sa parole attendue (14 h 25)
+## 4. MCP 9, « sur quoi il se concentre » : cadré, sa parole attendue (14 h 19)
 
 Ce qui existe : chaque appareil d'une salle a son identité propre (`app/collaborer/identite.rs` :
 un nom tiré au sort et gardé, une couleur) — **rien ne relie ses appareils entre eux** ; les pairs
