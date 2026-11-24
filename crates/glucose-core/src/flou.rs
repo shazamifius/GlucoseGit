@@ -203,12 +203,17 @@ fn sous(j: usize) -> f32 {
 
 /// **Agrandit au double**, jusqu'à `(largeur, hauteur)`, par l'interpolation linéaire : chaque
 /// pixel fin lit la grille grossière sous son centre — les poids `¾` et `¼`.
+///
+/// Ses voisins et ses poids se calculent une fois par colonne et par rangée ([`Pas`]) : les nombres
+/// mêmes de [`lire`], au bit près (fiche 140 § 5).
 pub fn agrandir(img: &Image, (largeur, hauteur): (usize, usize)) -> Image {
+    let colonnes: Vec<Pas> = (0..largeur)
+        .map(|x| Pas::de(sous(x), img.largeur))
+        .collect();
     let mut pixels = Vec::with_capacity(largeur * hauteur);
     for y in 0..hauteur {
-        for x in 0..largeur {
-            pixels.push(lire(img, (sous(x), sous(y))));
-        }
+        let rangee = Pas::de(sous(y), img.hauteur);
+        pixels.extend(colonnes.iter().map(|c| bilineaire(img, (c, &rangee))));
     }
     Image {
         largeur,
@@ -333,7 +338,6 @@ pub fn meler(
         );
         let rangee = |pas: &Pas, l: usize| (pas.avant * l, pas.apres * l);
         let (m0, m1) = rangee(&rm, masque.largeur);
-        let (f0, f1) = rangee(&rf, flou.largeur);
         for x in 0..largeur {
             let cm = &colonnes_du_masque[x];
             let o = |k: usize| f32::from(masque.octets[k]) / 255.0;
@@ -346,15 +350,7 @@ pub fn meler(
             let f = if plan.etages == 0 {
                 flou.a(x as isize, y as isize)
             } else {
-                let cf = &colonnes_du_flou[x];
-                let p = |k: usize| flou.pixels[k];
-                let (a, b) = (p(f0 + cf.avant), p(f0 + cf.apres));
-                let (c, d) = (p(f1 + cf.avant), p(f1 + cf.apres));
-                std::array::from_fn(|k| {
-                    let haut = a[k] + (b[k] - a[k]) * cf.t;
-                    let bas = c[k] + (d[k] - c[k]) * cf.t;
-                    haut + (bas - haut) * rf.t
-                })
+                bilineaire(flou, (&colonnes_du_flou[x], &rf))
             };
             let i = (y * largeur + x) * 4;
             for c in 0..4 {
@@ -363,6 +359,25 @@ pub fn meler(
             }
         }
     }
+}
+
+/// **La lecture bilinéaire d'une image, ses pas déjà faits** : le même calcul que [`lire`], dans le
+/// même ordre — le long de la rangée, puis entre les deux rangées.
+fn bilineaire(img: &Image, (colonne, rangee): (&Pas, &Pas)) -> Pixel {
+    let p = |r: usize, c: usize| img.pixels[r * img.largeur + c];
+    let (a, b) = (
+        p(rangee.avant, colonne.avant),
+        p(rangee.avant, colonne.apres),
+    );
+    let (c, d) = (
+        p(rangee.apres, colonne.avant),
+        p(rangee.apres, colonne.apres),
+    );
+    std::array::from_fn(|k| {
+        let haut = a[k] + (b[k] - a[k]) * colonne.t;
+        let bas = c[k] + (d[k] - c[k]) * colonne.t;
+        haut + (bas - haut) * rangee.t
+    })
 }
 
 /// **Un pas de lecture bilinéaire** le long d'un axe : les deux voisins du point `c` dans une grille

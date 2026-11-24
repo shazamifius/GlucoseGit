@@ -15,10 +15,25 @@
   ]
  },
  {
-  "nom": "MELER-1 — le flou oublie le poids de sa rangée",
+  "nom": "MELER-1 — la lecture bilinéaire oublie le poids de sa rangée",
   "fichier": "crates/glucose-core/src/flou.rs",
-  "avant": "                    haut + (bas - haut) * rf.t",
-  "apres": "                    haut + (bas - haut) * rf.t.round()",
+  "avant": "        haut + (bas - haut) * rangee.t",
+  "apres": "        haut + (bas - haut) * rangee.t.round()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou"
+  ]
+ },
+ {
+  "nom": "MELER-1 — la lecture bilinéaire oublie le poids de sa colonne",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "        let haut = a[k] + (b[k] - a[k]) * colonne.t;",
+  "apres": "        let haut = a[k] + (b[k] - a[k]) * colonne.t.round();",
   "cmd": [
    "cargo",
    "test",

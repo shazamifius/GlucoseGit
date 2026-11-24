@@ -246,3 +246,19 @@ fn test_flou_meler_rend_au_bit_pres_la_lecture_pixel_par_pixel() {
         assert_ne!(nouveau, net, "le mélange a bien changé l'image");
     }
 }
+
+/// **L'agrandissement rend au bit près la lecture pixel par pixel** (fiche 140 § 5) : ses pas,
+/// calculés une fois par colonne et par rangée, donnent les nombres mêmes de [`lire`] sous le centre
+/// de chaque pixel — l'ancienne loi, rejouée sur des tailles impaires, les bords compris.
+#[test]
+fn test_flou_agrandir_rend_au_bit_pres_la_lecture_pixel_par_pixel() {
+    let (l, h) = (19usize, 11usize);
+    let octets: Vec<u8> = (0..l * h * 4).map(|i| (i * 53 % 253) as u8).collect();
+    let img = Image::d_octets(&octets, l, h);
+    let (gl, gh) = (2 * l - 1, 2 * h);
+    let ancien: Vec<Pixel> = (0..gh)
+        .flat_map(|y| (0..gl).map(move |x| (x, y)))
+        .map(|(x, y)| lire(&img, (sous(x), sous(y))))
+        .collect();
+    assert_eq!(agrandir(&img, (gl, gh)).pixels, ancien);
+}

@@ -98,3 +98,10 @@ pixel que le masque garde net ne lit plus le flou. Les mêmes opérations, dans 
 canal), et la gaussienne (`agrandir` lit encore pixel par pixel). La suite : la même chose pour
 `agrandir`, puis des entiers — en gardant l'accord des deux voies à 4 niveaux.
 
+**`agrandir`, la même lecture** (vers 8 h 25) : une seule fonction bilinéaire (`bilineaire`, ses pas
+déjà faits) sert désormais au mélange et à l'agrandissement, au bit près
+(`test_flou_agrandir_rend_au_bit_pres_la_lecture_pixel_par_pixel`) ; `meler-140.json` **3 sur 3**,
+`flou-137.json` **16 sur 16**, `voies_suite` 34. Le gain est petit — la gaussienne 15,0 → 13,5 ms,
+le tout **40,5 ms** en 1080p (73,2 en 1440p) — : dans cette étape, c'est la réduction à pleine
+taille (`reduire_des_octets`, quatre lectures bornées par pixel) qui pèse, à mesurer à part ensuite.
+
