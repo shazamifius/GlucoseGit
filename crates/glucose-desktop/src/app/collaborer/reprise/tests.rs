@@ -227,6 +227,17 @@ fn revenir_quitter_garde_le_code_et_partager_y_revient() {
         relance.lancement.agents.partage.is_none(),
         "dehors : il ne revient pas seul"
     );
+    relance.montrer_collaborer();
+    let premier = relance
+        .ui
+        .question
+        .as_ref()
+        .map(|(q, _)| q.choix[0].0.clone());
+    assert_eq!(
+        premier.as_deref(),
+        Some("Revenir dans sa salle"),
+        "le bouton dit ce qu'il fera (fiche 148 § 3, le 1)"
+    );
     relance.partager_ce_canevas();
     let cp = relance
         .lancement

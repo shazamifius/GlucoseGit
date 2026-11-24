@@ -59,8 +59,10 @@ vrai arrêt net (la borne seule) n'est éprouvé que par `revenir_la_borne_atten
 
 ## 3. Ce qui reste
 
-1. Dans Collaborer, un document dehors qui a sa salle pourrait dire « Revenir dans sa salle » plutôt que
-   « Partager ».
+1. ~~Dans Collaborer, un document dehors qui a sa salle pourrait dire « Revenir dans sa salle » plutôt que
+   « Partager ».~~ **Fait le 24/11** : le bouton et son texte le disent (`revenir.rs`, `question_seul`) ;
+   gardé par l'épreuve du « Quitter » et celle du bouton Collaborer, 2 sabotages sur 2
+   (`outils/sabotages/revenir-148.json`).
 2. « Changer les codes » (la salle qui se ferme) attend la connexion Cloudflare ; la liste des accès
    (Collaborer en trois portes).
 3. **À voir chez lui**, une fois son Glucose recompilé : relancer son Glucose pendant un partage — le

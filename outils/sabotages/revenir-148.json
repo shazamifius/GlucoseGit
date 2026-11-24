@@ -1,166 +1,10 @@
 [
  {
-  "nom": "REVENIR-2 — la borne retenue avant que le disque réponde",
-  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
-  "avant": "                Err(TryRecvError::Empty) => return,",
-  "apres": "                Err(TryRecvError::Empty) => {\n                    cp.borne.retenue = *n;\n                    self.retenir_le_canevas_en_cours();\n                    return;\n                }",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — la borne ne monte jamais",
-  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
-  "avant": "cp.borne.retenue = cp.borne.retenue.max(*n);",
-  "apres": "cp.borne.retenue = cp.borne.retenue.max(0);",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — « Quitter » laisse le document dedans",
-  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
-  "avant": "let dehors = Souvenir { dedans: false, ..s };",
-  "apres": "let dehors = Souvenir { dedans: true, ..s };",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — le lancement fait revenir un document dehors",
-  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
-  "avant": "Some(code) if souvenir.dedans => {",
-  "apres": "Some(code) if souvenir.dedans || true => {",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — « Partager » ouvre une seconde salle",
-  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
-  "avant": "        if self.revenir_dans_sa_salle() {",
-  "apres": "        if false && self.revenir_dans_sa_salle() {",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — la fermeture retient « dehors »",
-  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
-  "avant": "            retenu,\n            dedans: true,\n        };\n        Some((self.document_du_canevas()?, s))",
-  "apres": "            retenu,\n            dedans: false,\n        };\n        Some((self.document_du_canevas()?, s))",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — à jour, la salle ne fusionne pas",
-  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
-  "avant": "            return self.revenir_quand_la_salle_est_la(n);",
-  "apres": "            return;",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — les gestes de la salle pas recueillis",
+  "nom": "REVENIR-148 — le bouton dit toujours « Partager »",
   "fichier": "crates/glucose-desktop/src/app/collaborer/revenir.rs",
-  "avant": "            Corps::Geste(g) => r.gestes.push((n, g)),",
-  "apres": "            Corps::Geste(_) => {}",
+  "avant": "let (bouton, partager) = if dehors {",
+  "apres": "let (bouton, partager) = if false && dehors {",
   "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -171,18 +15,15 @@
    "-p",
    "glucose-desktop",
    "--lib",
-   "--",
-   "collaborer::reprise"
+   "revenir_quitter_garde"
   ]
  },
  {
-  "nom": "REVENIR-2 — revenu, on reste à attendre",
+  "nom": "REVENIR-148 — le bouton dit toujours « Revenir »",
   "fichier": "crates/glucose-desktop/src/app/collaborer/revenir.rs",
-  "avant": "            cp.entree = Entree::Dedans;",
-  "apres": "            cp.entree = Entree::Revient;",
+  "avant": "let (bouton, partager) = if dehors {",
+  "apres": "let (bouton, partager) = if true || dehors {",
   "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -193,30 +34,7 @@
    "-p",
    "glucose-desktop",
    "--lib",
-   "--",
-   "collaborer::reprise"
-  ]
- },
- {
-  "nom": "REVENIR-2 — le fil coupé pendant le retour",
-  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
-  "avant": "if !cp.entree.attend() && self.store.partage.is_none() {",
-  "apres": "if cp.entree != Entree::AttendLaBase && self.store.partage.is_none() {",
-  "cmd": [
-   "env",
-   "CARGO_INCREMENTAL=0",
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "collaborer::reprise"
+   "test_the_collab_button_opens"
   ]
  }
 ]

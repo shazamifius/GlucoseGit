@@ -7,13 +7,17 @@
 //! d'un document resté dedans, et « Partager » un document qui a sa salle, passent par là.
 
 use super::{identite, nouvelle_marque, reprise, CanevasPartage, Entree};
-use super::{PAS_DE_RESEAU, SALLE_VIDE};
+use super::{PARTAGER, PAS_DE_RESEAU, REJOINDRE, SALLE_VIDE};
 use crate::app::GlucoseApp;
+use crate::ui::question::{Question, Reponse};
 use glucose_core::salle::code::Code;
 use glucose_core::salle::lettre::Corps;
 use glucose_core::store::journal::partage::GestePartage;
 use glucose_core::store::CeQueLaSalleGarde;
 use glucose_core::types::Project;
+
+/// Un bouton de la question : son libellé, sa réponse.
+type Choix = (String, Reponse);
 
 /// **Ce que la salle a donné** depuis sa base, et la borne d'où l'on revient.
 pub struct Retour {
@@ -47,6 +51,43 @@ impl GlucoseApp {
         self.retenir_le_canevas_en_cours();
         crate::dire!("[Glucose] canevas partagé : revient dans sa salle (au moins au n° {retenu})");
         true
+    }
+
+    /// **« Collaborer », seul** : partager ce canevas — ou, s'il a gardé sa salle en la quittant,
+    /// **y revenir** (fiche 148 § 3, le 1) : le bouton dit ce qu'il fera, sous les mêmes codes.
+    pub(super) fn question_seul(&self, nommer: Choix, porte: Choix) -> Question {
+        let dehors = (self.document_du_canevas())
+            .and_then(|d| reprise::lire(&self.disque.canevas, &d))
+            .is_some();
+        let (bouton, partager) = if dehors {
+            (
+                "Revenir dans sa salle",
+                "Revenir dans sa salle : ce canevas a gardé ses codes quand tu l'as quitté ; tu y \
+                 retrouves ceux qui y travaillent.",
+            )
+        } else {
+            (
+                "Partager ce canevas",
+                "Partager ce canevas : d'autres y travaillent avec toi, chacun dans son Glucose ; \
+                 tu leur donnes un code.",
+            )
+        };
+        Question {
+            titre: "Collaborer".into(),
+            texte: format!(
+                "{partager} Rejoindre : avec le code qu'on t'a donné.\n\nLa porte aux IA \
+                 publiques : Claude.ai, depuis le nuage."
+            ),
+            choix: vec![
+                (bouton.into(), PARTAGER),
+                ("Rejoindre…".into(), REJOINDRE),
+                nommer,
+                porte,
+                ("L'API publique…".into(), super::api::MENU),
+                ("Fermer".into(), Reponse::Annuler),
+            ],
+            ..Default::default()
+        }
     }
 
     /// **« Partager » un document qui a sa salle** (fiche 146 § 4, le 1) : il y revient, sous les

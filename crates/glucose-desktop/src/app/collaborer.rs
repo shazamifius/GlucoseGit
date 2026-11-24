@@ -175,22 +175,7 @@ impl GlucoseApp {
         let porte = ("La porte aux IA publiques…".to_string(), PORTE);
         let nommer = ("Ton nom et ta couleur…".to_string(), NOMMER);
         let question = match &self.lancement.agents.partage {
-            None => Question {
-                titre: "Collaborer".into(),
-                texte: "Partager ce canevas : d'autres y travaillent avec toi, chacun dans son \
-                        Glucose ; tu leur donnes un code. Rejoindre : avec le code qu'on t'a \
-                        donné.\n\nLa porte aux IA publiques : Claude.ai, depuis le nuage."
-                    .into(),
-                choix: vec![
-                    ("Partager ce canevas".into(), PARTAGER),
-                    ("Rejoindre…".into(), REJOINDRE),
-                    nommer,
-                    porte,
-                    ("L'API publique…".into(), crate::app::collaborer::api::MENU),
-                    ("Fermer".into(), Reponse::Annuler),
-                ],
-                ..Default::default()
-            },
+            None => self.question_seul(nommer, porte),
             Some(cp) => {
                 let mut choix = Vec::new();
                 if cp.code.peut_ecrire() {
