@@ -183,7 +183,9 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 
 **Ses questions vivent dans son Glucose** depuis le 19/11 (sa parole, VISION § 9) : son document
 « ce qui attend ma parole » (`~/Downloads/ce qui attend ma parole.glucose`), lu et écrit par sa porte
-(`outils/porte/claude_code.mjs`) ; ses réponses vont dans VISION, et sortent d'ici. **Ouvertes** : **ce qu'une IA écrit
+(`outils/porte/claude_code.mjs`) ; ses réponses vont dans VISION, et sortent d'ici. **Ouvertes** : **une 2.0.4-beta.6** (posée le 24/11 à 8 h, `relais-q-beta6` : les onze corrections
+depuis la beta.5 sur tous ses appareils ; à son oui, la CI puis le brouillon, le clic reste le sien ;
+TEXT-FIT-3 après) ; **ce qu'une IA écrit
 dans la Time Machine** (sa note `text-321`, notre proposition `relais-rep-321` : « Retirer » un écrit,
 des notes jamais des ordres pour les IA suivantes, la liste de tous les écrits — fiche 139 § 7) ;
 **les accès à ce document en un seul endroit** (sa demande `demande-codes-actifs`, notre proposition
