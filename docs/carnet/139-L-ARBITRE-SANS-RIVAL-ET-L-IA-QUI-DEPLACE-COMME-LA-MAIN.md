@@ -124,3 +124,12 @@ proposition chacune dans son Glucose (`relais-rep-321`, `relais-rep-codes`), en 
 parole : la première touche au format de l'histoire, que sa beta.5 doit pouvoir relire ; la
 seconde, à ce qu'il veut voir réuni.
 
+## 8. Les GitHub Pages, retirées
+
+Sa réponse sous `q-pages` (lue le 23/11, VISION § 3) : *« ah oui à 100 %, il faudrait faire ça »* — à
+la question « enlever l'ancienne version web de Tauri ? ». Le 24/11 vers 8 h :
+`gh api -X DELETE repos/shazamifius/GlucoseGit/pages` ; `https://shazamifius.github.io/GlucoseGit/`
+répond 404, et aucun workflow de `main` ne la redéploie. **L'environnement `github-pages` est gardé**
+(son historique) : réactiver les Pages rendrait le site, et ce qu'un visiteur gardait dans son
+navigateur (la même origine). Dit dans son Glucose (`relais-ou-on-en-est`).
+

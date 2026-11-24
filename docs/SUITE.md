@@ -191,10 +191,7 @@ des notes jamais des ordres pour les IA suivantes, la liste de tous les écrits 
 **les accès à ce document en un seul endroit** (sa demande `demande-codes-actifs`, notre proposition
 `relais-rep-codes`) ; le
 compte Cloudflare de Glucose (son clic, et le nom — posée le 19/11 à 14 h, à droite de la porte) ;
-**les GitHub Pages** (sa note du 19 ou du 20/11 : l'ancienne version web de Tauri encore en ligne, *« je
-propose de enlever »* — notre réponse `claude-code-pages` : rien n'en dépend, sauf peut-être quelqu'un
-qui s'en sert dans son navigateur ; à son « enlève », `gh api -X DELETE repos/shazamifius/GlucoseGit/pages`
-puis l'environnement `github-pages`, fiche 127 § 5). **Il a recopié toute l'ancienne page de questions**
+~~les GitHub Pages~~ — **retirées le 24/11** (sa réponse : *« ah oui à 100 % »* ; fiche 139 § 8). **Il a recopié toute l'ancienne page de questions**
 (1 à 19) dans une membrane « en attente », à droite de son document : ses réponses y viendront.
 Restent, de [l'ancienne fiche de questions](https://claude.ai/artifact/KwCMGG6Keymuzr5V4DJ4gN) (fiche
 118 § 5), ces questions — désormais aussi dans sa membrane « en attente » :
