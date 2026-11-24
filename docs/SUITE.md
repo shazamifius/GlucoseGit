@@ -64,6 +64,11 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
+**Son nom et sa couleur** (Q19, fiche 140 ; son Glucose relancé le 24/11 à 7 h 58) : Collaborer →
+« Ton nom et ta couleur… » — taper un nom, toucher une pastille, « Garder » ; puis Collaborer →
+« Partager ce canevas » ne redemande rien. **Avec un autre appareil dans le même canevas** : son nom
+neuf apparaît chez l'autre au premier mouvement de souris.
+
 **La sélection en équerres, le reste flouté** (Q12, fiche 137 ; `main` depuis le 24/11 à 3 h, à sa
 relance) : choisir un texte d'un clic — ses quatre équerres, le reste flouté ; le déplacer — le flou
 s'efface pendant le glisser et revient au lâcher ; choisir plusieurs nœuds au rectangle ; clic droit
