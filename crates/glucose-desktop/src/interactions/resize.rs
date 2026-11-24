@@ -526,9 +526,10 @@ impl GlucoseApp {
         if (height - rect.height).abs() > 1e-6 {
             self.store
                 .set_annotation_rect(&board, ann_id, AlignRect { height, ..rect });
-            // TEXT-FIT-2 : sa membrane le suit, dans le même geste.
-            self.store
-                .pousser_les_membranes(&board, ann_id, rect.top + height);
+            // TEXT-FIT-2 et POUSSER-145 : ses membranes le suivent, ce qui était dessous s'écarte
+            // — dans le même geste. Son origine : sa boîte d'avant (la voie sans copie).
+            let mut origines = vec![(ann_id.to_string(), rect)];
+            (self.store).pousser_en_ecrivant(&board, &mut origines, ann_id, rect.top + height);
         }
     }
 }

@@ -114,3 +114,14 @@ bouger, l'épreuve le vérifie), le texte écrit n'est jamais ramené. 13 sabota
 l'ouverture de la saisie (`start_text_edit_at`), garder `origines = [(le texte, sa boîte)]` à côté de
 `TextEditSession`, l'oublier à la validation, et appeler la méthode au lieu de `pousser_les_membranes`
 (`interactions/resize.rs`, l. 531) ; l'essai au pilote.
+
+**Branché (19 h 15)** : la hauteur d'un texte ne s'écrit dans le document qu'à la validation de la saisie
+(et quand on change sa largeur) — `fit_text_card_height` (`interactions/resize.rs`). La loi s'y branche
+**sans aucun état de session** : l'origine du texte, c'est sa boîte d'avant l'ajustement ;
+`pousser_en_ecrivant` y remplace `pousser_les_membranes` (retiré, sans autre appelant). Épreuve
+`test_pousser_145_une_saisie_ecarte_le_voisin_dessous` (l'écart d'origine gardé, un seul Ctrl+Z) ; son
+sabotage dans `texte-fit-124.json` (dont les commandes, d'avant NixOS, passent désormais par `nix
+develop` et `borne.sh`). **Ce qui reste, honnêtement** : les voisins s'écartent à la validation, pas lettre
+à lettre — pendant qu'on tape, la carte du document ne grandit pas encore ; le faire lettre à lettre, c'est
+écrire la hauteur pendant la saisie (et alors seulement « effacer fait remonter » jouera). L'essai au
+pilote reste à faire.

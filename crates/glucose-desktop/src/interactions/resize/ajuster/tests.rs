@@ -124,3 +124,34 @@ fn test_text_fit_2_une_saisie_pousse_sa_membrane_et_un_ctrl_z_la_rend() {
     assert!((boite(&app, "m").bottom() - cadre.bottom()).abs() < 1e-6);
     assert!((boite(&app, "t").bottom() - ligne.bottom()).abs() < 1e-6);
 }
+
+/// **POUSSER-145** (fiche 145) : un texte qu'on allonge écarte ce qui était dessous, l'écart d'origine
+/// gardé, dans le même geste — un seul `Ctrl+Z` le remet à sa place.
+#[test]
+fn test_pousser_145_une_saisie_ecarte_le_voisin_dessous() {
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, text_card("t", 30.0, 42.0, 240.0, "une ligne"));
+    app.fit_text_card_height("t");
+    let ligne = boite(&app, "t");
+    let dessous = text_card("dessous", 30.0, ligne.bottom() + 10.0, 240.0, "à côté");
+    app.store.add_annotation(&board, dessous);
+    let avant = boite(&app, "dessous");
+    let entrees = app.store.undo_depth();
+    let long = (1..=12)
+        .map(|i| format!("ligne {i}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    app.start_text_edit("t".into(), long);
+    app.commit_editing();
+    let (t, d) = (boite(&app, "t"), boite(&app, "dessous"));
+    assert!(t.bottom() > avant.top, "le cas n'est pas exercé");
+    assert!(
+        (d.top - (t.bottom() + 10.0)).abs() < 1e-6,
+        "{d:?} sous {t:?}"
+    );
+    assert_eq!(app.store.undo_depth(), entrees + 1, "une saisie = un geste");
+    assert!(app.store.undo());
+    assert!((boite(&app, "dessous").top - avant.top).abs() < 1e-6);
+}

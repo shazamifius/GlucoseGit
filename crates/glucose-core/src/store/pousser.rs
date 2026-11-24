@@ -14,7 +14,7 @@
 //! tire hors de sa membrane n'en est plus membre (MEMB-1, au dépôt), il ne l'étire donc jamais.
 //!
 //! Une loi, deux appelants : le chargement, qui ajuste chaque carte à son texte hors du journal
-//! (`ajuster_les_cartes`), et la saisie, dans le geste qu'elle a ouvert ([`Store::pousser_les_membranes`]).
+//! (`ajuster_les_cartes`), et la saisie, dans le geste qu'elle a ouvert ([`Store::pousser_en_ecrivant`], qui pousse aussi les voisins (fiche 145)).
 
 use super::zones::ECART;
 use super::Store;
@@ -198,30 +198,6 @@ fn poser_le_bas(membrane: &mut Annotation, bas: f64) {
 pub fn pousser_dans_le_tableau(board: &mut Board, id: &str, bas: f64) {
     for (rang, bas) in membranes_poussees(&board.annotations, id, bas) {
         poser_le_bas(&mut board.annotations[rang], bas);
-    }
-}
-
-impl Store {
-    /// **TEXT-FIT-2, par le journal** : le nœud `id` vient de descendre son bas à `bas` — ses
-    /// membranes le suivent, dans le geste ouvert, et le même `Ctrl+Z` les défait avec lui.
-    pub fn pousser_les_membranes(&mut self, board_id: &str, id: &str, bas: f64) {
-        let Some(b) = self.project.boards.iter().find(|b| b.id == board_id) else {
-            return;
-        };
-        let poussees: Vec<(String, Rect)> = membranes_poussees(&b.annotations, id, bas)
-            .into_iter()
-            .filter_map(|(rang, bas)| {
-                let m = &b.annotations[rang];
-                let cadre = m.rect()?;
-                Some((
-                    m.id().to_string(),
-                    Rect::new(cadre.left, cadre.top, cadre.width, bas - cadre.top),
-                ))
-            })
-            .collect();
-        for (m, cadre) in poussees {
-            self.set_annotation_rect(board_id, &m, cadre);
-        }
     }
 }
 

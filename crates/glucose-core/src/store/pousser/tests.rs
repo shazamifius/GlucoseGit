@@ -127,7 +127,8 @@ fn test_text_fit_2_par_le_journal_un_seul_ctrl_z_defait_les_deux() {
     );
     store.begin_live_edit();
     store.set_annotation_rect(&board, "t", Rect::new(30.0, 42.0, 440.0, 600.0));
-    store.pousser_les_membranes(&board, "t", 642.0);
+    let mut origines = vec![("t".to_string(), Rect::new(30.0, 42.0, 440.0, 300.0))];
+    store.pousser_en_ecrivant(&board, &mut origines, "t", 642.0);
     store.end_live_edit();
     assert_eq!(lire(&store, "m"), 642.0 + ECART);
     assert!(store.undo());
