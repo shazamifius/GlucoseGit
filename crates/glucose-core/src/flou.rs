@@ -328,26 +328,47 @@ pub fn meler(
     let colonnes_du_flou: Vec<Pas> = (0..largeur)
         .map(|x| Pas::de(sous(x), flou.largeur))
         .collect();
+    // Une rangée du masque sert à `maille` rangées de l'écran, une du flou à quatre : chacune se
+    // lisse le long de x une fois, et se garde tant qu'on la relit.
+    let ligne_du_masque = |r: usize, sortie: &mut Vec<f32>| {
+        let o = |k: usize| f32::from(masque.octets[r * masque.largeur + k]) / 255.0;
+        sortie.clear();
+        sortie.extend(
+            colonnes_du_masque
+                .iter()
+                .map(|c| o(c.avant) + (o(c.apres) - o(c.avant)) * c.t),
+        );
+    };
+    let ligne_du_flou = |r: usize, sortie: &mut Vec<Pixel>| {
+        let p = |k: usize| flou.pixels[r * flou.largeur + k];
+        sortie.clear();
+        sortie.extend(colonnes_du_flou.iter().map(|c| {
+            let (a, b) = (p(c.avant), p(c.apres));
+            std::array::from_fn(|k| a[k] + (b[k] - a[k]) * c.t)
+        }));
+    };
+    let (mut masques, mut flous) = (Lissees::default(), Lissees::default());
     for y in 0..hauteur {
         let (rm, rf) = (
             Pas::de(centre(y), masque.hauteur),
             Pas::de(sous(y), flou.hauteur),
         );
-        let rangee = |pas: &Pas, l: usize| (pas.avant * l, pas.apres * l);
-        let (m0, m1) = rangee(&rm, masque.largeur);
+        let (ma, mb) = masques.deux((rm.avant, rm.apres), &ligne_du_masque);
+        let (fa, fb) = if plan.etages == 0 {
+            (&[][..], &[][..])
+        } else {
+            flous.deux((rf.avant, rf.apres), &ligne_du_flou)
+        };
         for x in 0..largeur {
-            let cm = &colonnes_du_masque[x];
-            let o = |k: usize| f32::from(masque.octets[k]) / 255.0;
-            let haut = o(m0 + cm.avant) + (o(m0 + cm.apres) - o(m0 + cm.avant)) * cm.t;
-            let bas = o(m1 + cm.avant) + (o(m1 + cm.apres) - o(m1 + cm.avant)) * cm.t;
-            let m = (haut + (bas - haut) * rm.t).clamp(0.0, 1.0);
+            let m = (ma[x] + (mb[x] - ma[x]) * rm.t).clamp(0.0, 1.0);
             if m >= 1.0 {
                 continue;
             }
             let f = if plan.etages == 0 {
                 flou.a(x as isize, y as isize)
             } else {
-                bilineaire(flou, (&colonnes_du_flou[x], &rf))
+                let (haut, bas) = (fa[x], fb[x]);
+                std::array::from_fn(|k| haut[k] + (bas[k] - haut[k]) * rf.t)
             };
             let i = (y * largeur + x) * 4;
             for c in 0..4 {
@@ -355,6 +376,44 @@ pub fn meler(
                 net[i + c] = v.round().clamp(0.0, 255.0) as u8;
             }
         }
+    }
+}
+
+/// **Deux rangées d'une grille, lissées le long de x, gardées** : la moitié d'une lecture
+/// bilinéaire que les rangées voisines de l'écran relisent — calculée une fois, au lieu d'une fois
+/// par pixel.
+struct Lissees<T> {
+    rangs: [Option<usize>; 2],
+    rangees: [Vec<T>; 2],
+}
+
+impl<T> Default for Lissees<T> {
+    fn default() -> Self {
+        Self {
+            rangs: [None, None],
+            rangees: [Vec::new(), Vec::new()],
+        }
+    }
+}
+
+impl<T> Lissees<T> {
+    /// Les rangées `avant` et `apres`, lissées par `lisser` si elles ne sont pas déjà gardées.
+    fn deux(
+        &mut self,
+        (avant, apres): (usize, usize),
+        lisser: &impl Fn(usize, &mut Vec<T>),
+    ) -> (&[T], &[T]) {
+        for r in [avant, apres] {
+            if !self.rangs.contains(&Some(r)) {
+                let libre = (0..2)
+                    .find(|&i| self.rangs[i] != Some(avant) && self.rangs[i] != Some(apres))
+                    .unwrap_or(0);
+                lisser(r, &mut self.rangees[libre]);
+                self.rangs[libre] = Some(r);
+            }
+        }
+        let place = |r: usize| (0..2).find(|&i| self.rangs[i] == Some(r)).unwrap_or(0);
+        (&self.rangees[place(avant)], &self.rangees[place(apres)])
     }
 }
 

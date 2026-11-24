@@ -2,8 +2,8 @@
  {
   "nom": "MELER-1 — le masque oublie le poids de sa rangée",
   "fichier": "crates/glucose-core/src/flou.rs",
-  "avant": "            let m = (haut + (bas - haut) * rm.t).clamp(0.0, 1.0);",
-  "apres": "            let m = (haut + (bas - haut) * rm.t * 0.0).clamp(0.0, 1.0);",
+  "avant": "            let m = (ma[x] + (mb[x] - ma[x]) * rm.t).clamp(0.0, 1.0);",
+  "apres": "            let m = (ma[x] + (mb[x] - ma[x]) * rm.t * 0.0).clamp(0.0, 1.0);",
   "cmd": [
    "cargo",
    "test",
@@ -49,6 +49,36 @@
   "fichier": "crates/glucose-core/src/flou.rs",
   "avant": "    [x - 1, x, x + 1, x + 2].map(|k| k.clamp(0, n as isize - 1) as usize)",
   "apres": "    [x, x, x + 1, x + 2].map(|k| k.clamp(0, n as isize - 1) as usize)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou"
+  ]
+ },
+ {
+  "nom": "MELER-1 — le mélange oublie le poids de la rangée du flou",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "                std::array::from_fn(|k| haut[k] + (bas[k] - haut[k]) * rf.t)",
+  "apres": "                std::array::from_fn(|k| haut[k] + (bas[k] - haut[k]) * rf.t.round())",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou"
+  ]
+ },
+ {
+  "nom": "MELER-1 — une rangée gardée n'est jamais relissée",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "            if !self.rangs.contains(&Some(r)) {",
+  "apres": "            if self.rangs[0].is_none() || self.rangs[1].is_none() {",
   "cmd": [
    "cargo",
    "test",
