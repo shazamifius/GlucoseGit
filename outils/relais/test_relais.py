@@ -65,6 +65,8 @@ class Signature(unittest.TestCase):
     def test_la_pause_se_lit_en_premiere_ligne(self):
         self.assertTrue(r.en_pause("⏸ PAUSE\nla suite"))
         self.assertTrue(r.en_pause("pause ce soir"))
+        self.assertTrue(r.en_pause("stop\n📜 **Ta consigne au relais**"))
+        self.assertFalse(r.en_pause("continue\nstop plus bas ne compte pas"))
         self.assertFalse(r.en_pause("continue\n⏸ PAUSE plus bas ne compte pas"))
 
 

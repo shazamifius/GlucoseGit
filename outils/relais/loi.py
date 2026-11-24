@@ -113,8 +113,10 @@ def signee(n, memoire, histoire, ident=CONSIGNE):
 
 
 def en_pause(texte):
+    """⏸, « pause » ou « stop » en première ligne : son « stop » du 24/11 n'arrêtait rien."""
     premiere = (texte or "").strip().splitlines()[:1]
-    return bool(premiere) and (premiere[0].startswith("⏸") or "PAUSE" in premiere[0].upper())
+    return bool(premiere) and (premiere[0].startswith("⏸")
+                               or any(mot in premiere[0].upper() for mot in ("PAUSE", "STOP")))
 
 
 def ses_paroles(histoire, avant=()):
