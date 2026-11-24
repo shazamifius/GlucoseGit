@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 24/11/2026, 3 h 20** (fiches 108-137). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 24/11/2026, 8 h** (fiches 108-139). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -10,41 +10,36 @@
 
 ## 1. En bref
 
-* **Publiée** : la **2.0.4-beta.4** (son clic, le 19/11 à 19 h 15, construite sur `9255281`, vérifiée
-  par GitHub sur les dix tâches) — les émojis en couleur et les signes d'encre lisibles, les tableaux
-  qui tiennent dans leur nœud, les listes imbriquées, les tiroirs du côté de leur bouton, l'échelle
-  de l'interface, le détourage, un texte qui pousse sa membrane. Avant elle, la **2.0.4-beta.3** (son clic, le 19/11 à 16 h 20, construite sur `15beb94`) — sa
-  capture du 17/11 en partie : le texte et les icônes de l'interface nets (GRILLE-1 et 2), les trois
-  modes de la fenêtre (`F11`, `Ctrl+Maj+A`, le zen à `Maj+F11`), toujours devant sous Wayland
-  (DEVANT-1), la barre de Windows au choix, renommer un dossier (`F2`) (fiches 120-121). **Son PC de
-  l'école s'y est mis à jour tout seul** le jour même. Avant elle, la 2.0.4-beta.2 (18/11 : le
-  co-working et ses photos, la porte aux IA publiques, la frise, le miroir des images). Installeur
-  Windows, AppImage, `.deb`, `.rpm`, APK Android, `nix run github:shazamifius/GlucoseGit`.
-* **Sur `main` depuis la beta.4** (`596e783`, **vert sur les dix tâches de GitHub**, le 20/11 à
-  23 h 55 ; **pas encore publié** — la question d'une beta.5 est dans son Glucose) :
-  * **les tiroirs qui se rangent dans l'écran et défilent** (TIROIR-5 et 6) — quand la hauteur
-    manque, une colonne partage sa place et chaque tiroir fait défiler ce qu'il ne montre plus, à la
-    molette ; regardés au pilote, 13 sabotages sur 13 ;
-  * **la loi de l'écart** (TIROIR-2) — **deux défauts de la beta.4 publiée**, vus au pilote : à 110 %
-    d'interface la Time Machine perdait un jalon, et le Storyboard montrait une case de moins, sur
-    deux pages, dès deux cases ;
-  * **VEILLE-1** — sous Windows, une image qui contient une mise en veille garde ce qu'elle a coûté
-    (la télémétrie ne prend plus une veille pour un gel).
-* **Commité depuis, pas encore éprouvé par GitHub** : `f9a8557` (DETOURER-2), `87dfb5a` (IA-1, le
-  menu « L'API publique », fiche 128) et `48094df` — **la discussion avec une IA gratuite** (fiche
-  129) : le tiroir DISCUSSION, Gemini par sa clé, les outils de la porte, la bascule qui dort le
-  temps que Google dit et qui le dit, `plateforme::echanger` sous Windows et Linux. Toute la suite
-  du dépôt passe, **25 sabotages sur 25**, **regardée au pilote avec sa clé** (Gemini a posé un
-  nœud signé de son nom, fiche 130 § 6) ; la voie WinHTTP jamais compilée (la CI). Puis
-  **LECTURE-1 et 2** (fiche 130) : une lecture d'agent n'attend plus jamais le geste de l'humain,
-  aucune demande n'attend derrière une autre (le 22/11, son Glucose n'avait servi aucun agent
-  treize minutes) ; `tools/list` dit quels outils ne font que lire. 3 481 épreuves, 11 sabotages,
-  l'avant et l'après au pilote. Puis **ACCÈS-H24** (fiche 131, le relais seul, après le
-  redémarrage du PC) : **« Toujours, dans ce document »** — tout programme de la machine y
-  travaille sans question, d'un lancement à l'autre (`c8a3350`) ; **`glucose --mcp` survit à
-  Glucose fermé et relancé** (`3d01ce3`) ; **un canevas partagé rejoint sa salle au lancement**,
-  au numéro exact que son fichier contient ; et le relais tient compte des deux jauges
-  (`6b0007b`). Chacun saboté et regardé au pilote, le binaire d'avant pour preuve à l'envers. Et **DOSSIER-2** (`d86f52f`) : le rectangle de sélection prend les dossiers, plusieurs dossiers se choisissent. Puis, le 23/11 (fiche 133) : **MCP-DOSSIER** (`9accdfe`) — une IA voit les dossiers, les renomme, sait où elle lit ; renommer un dossier nomme son tableau — et **OPACITE-1** (`378239d`) — **l'opacité d'un dossier dans la roue de couleur**, le nom toujours lisible ; regardé au pilote. **`378239d` est vert sur les dix tâches de GitHub** (run 45197129987), et **le brouillon de la 2.0.4-beta.5 est prêt** (le 23/11 à 18 h 03, run 45221747706) — son « oui » est donné, **le clic « Publish » reste le sien**. Depuis, sur `main` seulement (fiche 134) : **FLECHE-7** — une flèche vers une membrane va droit à son bord, au lieu de contourner les nœuds qu'elle porte (sa capture du 23/11) ; **RANGER-1 et 2** — ranger des nœuds dans un dossier (l'archive qu'il demande) : une IA par `glucose_ranger`, sa main en les lâchant sur un dossier ; un seul `Ctrl+Z` ; **FLECHE-EDITION** — les flèches d'un texte qu'on écrit partent du bas qu'on voit pendant qu'il grandit (sa note du 23/11 au soir), regardé au pilote avec l'avant et l'après ; **MEMB-9** — une membrane qu'on trace prend ce qu'elle entoure (ses « Groupe » restaient vides) ; **PICK-3** — le bord d'une membrane ne passe plus devant le texte qu'elle porte près de lui (dézoomé, il le couvrait presque entier : sa note « trop de zones de clic ») ; **PIPETTE-1 à 3** — viser la lueur d'un texte coloré prend sa couleur (elle ne prenait rien, en silence) ; armée, la croix au curseur, et la roue montre ce qu'elle prendrait (« Aucune » quand il n'y a rien) ; un texte sans couleur choisie donne celle de sa famille, jamais le gris ; son icône est une vraie pipette — 13 sabotages sur 13, regardée au pilote. Et **REJOINDRE-1** — « Rejoindre… » ouvre un champ où l'on colle ou tape le code (sous Android, Glucose ne lisait que son propre presse-papiers : un code copié d'un message n'y arrivait jamais, le co-working du téléphone était fermé) ; 9 sabotages sur 9, regardé au pilote à la taille de son téléphone. Et **ANCRE-1** (fiche 135, sa note `text-kpll-375` : *« une espèce de zone de clic invisible »*) — une flèche accrochée se trouve là où elle se dessine : l'index, le cadre du groupe, l'élastique, `F`, `Alt+F` et la boîte dite aux IA lisaient la copie de ses bouts, qu'un glisser ou un rangement dans un dossier laissait loin du dessin (la flèche ne se choisissait plus) ; tout se lit désormais sur le tracé ancré ; 10 sabotages sur 10, regardé au pilote. Et **EDIT-PRISE** (fiche 136, sa note `text-kpll-370` : *« ça quitte le bloc texte carrément »*) — en écriture, un appui dans ce que le texte montre est au texte : les lignes neuves, que l'arbitre ignorait jusqu'à la validation, une poignée du bord, une flèche qui y arrive ne le volent plus ; 4 sabotages sur 4, l'avant et l'après au pilote. **La suite entière sur `58fcc1b`** : 3 572 sur 3 573 ; la tombée (SURVOL-2) reposait sur la copie des bouts qu'ANCRE-1 a retirée — son point touchait un lien coudé ; déplacé, saboté (fiche 136 § 5). Et **Q12, la sélection** (fiche 137, sa réponse finale : *« les carrés avec le flou, mais alors au moins 60 % moins »*) — **les équerres**, un seul langage pour toutes les sortes de nœuds (l'anneau, les cadres, le halo du dossier et le trait plein de la membrane retirés), les poignées logées dans leurs angles ; **le reste du canevas flouté** autour de ce qu'on a choisi, une gaussienne exacte en pyramide (`glucose_core::flou`), σ = 5,6 px, la même sur les deux voies (accord à 4 niveaux), la main au repos, éteignable au menu de la sélection ; regardé au pilote. **Son Glucose a été relancé par le relais le 24/11 à 3 h 26** sur le binaire de `e25ea44` (fermé proprement, la RTX, son document, la porte des IA qui répond).
+* **Publiée** : la **2.0.4-beta.5** (son clic, le 23/11 à 19 h 39, construite sur `fcdd59f` — le
+  code de `378239d`, **vert sur les dix tâches de GitHub**, run 45197129987) : les tiroirs qui se
+  rangent dans l'écran et défilent (TIROIR-5 et 6) ; la loi de l'écart (TIROIR-2 — deux défauts de la
+  beta.4 : un jalon perdu dans la Time Machine à 110 %, une case de moins dans le Storyboard) ;
+  VEILLE-1 (sous Windows, une veille n'est plus un gel) ; DETOURER-2 ; **la discussion avec une IA
+  gratuite** (Collaborer → « L'API publique… », le tiroir DISCUSSION, Gemini par sa clé, la bascule
+  d'un modèle à l'autre, fiches 128-130) ; LECTURE-1 et 2 (une lecture d'agent n'attend plus son
+  geste) ; ACCÈS-H24 (« Toujours, dans ce document », `glucose --mcp` qui survit à Glucose relancé, le
+  partage qui rejoint sa salle au lancement, fiche 131) ; DOSSIER-2 (le rectangle prend les
+  dossiers) ; MCP-DOSSIER (une IA voit et renomme les dossiers) ; l'opacité d'un dossier (OPACITE-1,
+  fiche 133) ; le relais qui ne se fige plus sur « Claude in Chrome ». Avant elle, la **2.0.4-beta.4**
+  (19/11, 19 h 15 ; ce qu'elle a apporté, plus bas) et la **2.0.4-beta.3** (19/11, 16 h 20 : le texte
+  et les icônes nets, les trois modes de la fenêtre, `F2` sur un dossier). **Son PC de l'école** se
+  met à jour tout seul. Installeur Windows, AppImage, `.deb`, `.rpm`, APK Android, `nix run
+  github:shazamifius/GlucoseGit`.
+* **Sur `main` depuis la beta.5, pas encore publié** (fiches 134-139 ; vérifié ici, sans la CI) :
+  **FLECHE-7** — une flèche vers une membrane va droit à son bord (sa capture du 23/11) ;
+  **RANGER-1 et 2** — ranger des nœuds dans un dossier, l'archive : une IA par `glucose_ranger`, sa
+  main en les lâchant sur un dossier, un seul `Ctrl+Z` ; **FLECHE-EDITION** — les flèches d'un texte
+  qu'on écrit partent du bas qu'on voit ; **MEMB-9** — une membrane qu'on trace prend ce qu'elle
+  entoure ; **PICK-3** — le bord d'une membrane ne passe plus devant le texte qu'elle porte ;
+  **PIPETTE-1 à 3** — viser la lueur d'un texte prend sa couleur, la roue montre ce qu'elle prendrait ;
+  **REJOINDRE-1** — « Rejoindre… » ouvre un champ où coller le code (le téléphone) ; **ANCRE-1** — une
+  flèche accrochée se choisit là où elle se dessine ; **EDIT-PRISE** — sélectionner dans un texte qu'on
+  écrit ne quitte plus le bloc ; **Q12** — la sélection en équerres, le reste flouté (fiche 137) ;
+  **ARBITRE-5 et 6** — l'arbitre ne condamne plus une carte qui attend l'écran, et ne s'installe plus
+  sur une machine à une seule carte (la sienne) (fiches 138-139) ; **DEPLACER-1** — une membrane
+  déplacée par une IA emporte ce qu'elle porte, un dossier se déplace, une photo verrouillée non
+  (fiche 139). Chacun saboté et regardé au pilote. **Son Glucose** a tout cela : le relais l'a relancé
+  le 24/11 à 7 h 30 sur `dc86ff2` (fermé proprement, la RTX, son document, la porte qui répond).
 * **Le relais** (fiche 132, sa parole du 23/11 : *« il ne fonctionne tout simplement PAS »*) : il s'était tu de 10 h 08 à 13 h 44 — sa consigne retouchée depuis son autre appareil (« Aigle Émeraude ») passait pour celle d'une IA, la passation fermait la session pour un compte plein, et rien ne lisait ses notes. **Réparé et relancé** : une seule session à la fois (la sienne prend la main, `rendre` la rend), toute main humaine signe sa consigne, jamais une IA, ses notes sont données à la session, jusqu'au mur quand personne ne peut reprendre, la relance sous le plafond de Claude Code (8). Mode d'emploi : `outils/relais/MODE-EMPLOI.md`. **Borné par les quotas** des deux comptes. **Le 23/11 au soir** (fiche 134), deux gels de plus, réglés : la question de Chrome au démarrage (1 h 48) et une permission du mode auto — désormais **`--no-chrome` et le bypass** (sa réponse : *« jamais de mode auto »*) ; le ❤️ dit « figée » ; **la mémoire du modèle à 90 %** relance une conversation neuve, la semaine passe la main à 90 % ; **ses textes** (départ, passation, relance) vivent dans son Glucose, et sa version part dès qu'il l'a écrite.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
@@ -109,15 +104,13 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 **Vu par nous, pas encore réglé** :
 
-* **l'arbitre** (ARBITRE-DÉMARRAGE) : il comptait comme perdue l'attente du battement de l'écran — **ARBITRE-5** (fiche 138, `02bbf51`) la retire ; restent l'arbitre inutile d'une machine à une seule carte (la sienne, qui dit encore « cette carte gèle » sans effet) et ECRAN-1 sous Linux ;
+* **ECRAN-1 sous Linux** : la carte qui tient l'écran ne s'y lit pas ; sur un portable hybride, l'arbitre garde la main. Laissé faute d'une telle machine chez ses utilisateurs (fiche 139 § 1) — l'arbitre ne s'installe plus sur une machine à une seule carte (ARBITRE-6) ;
 * **une famille d'émojis se décompose, un drapeau devient deux lettres** : sans moteur de mise en
   forme, Glucose dessine un caractère à la fois (`decisions/10` et `18`) ;
 * **la télémétrie des versions publiées compte une mise en veille comme une image** (415 s chez un
-  utilisateur Windows à carte AMD) : VEILLE-1, sur `main`, le règle — pas encore publié ;
+  utilisateur Windows à carte AMD) : VEILLE-1 le règle dans la beta.5 ; les versions d'avant le gardent ;
 * **le détourage laisse un liseré clair** au bord d'une photo prise sur fond blanc : le reflet du
   fond sur le sujet, que le masque garde à 0,99 — diagnostiqué, pas corrigé (fiche 127 § 5) ;
-* **deux défauts de la beta.4**, réglés sur `main` mais pas publiés : un jalon perdu dans la Time
-  Machine à 110 %, une case de moins dans le Storyboard ;
 * **ses deux serveurs vivent sur le compte Cloudflare d'un autre projet** (`ferme-nilslamber`, celui de
   `ferme-tiles`) : leur nom est dans l'adresse que chaque utilisateur colle dans Claude.ai, et les
   quotas gratuits sont partagés — le déménagement attend son clic (§ 6) ;
@@ -132,10 +125,10 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
 
 ## 4. La qualité
 
-* **Les épreuves** : sur GitHub, **`596e783` vert sur les dix tâches**, les deux Mac compris (le
-  20/11 à 23 h 55 : VEILLE-1 compilé et éprouvé sous Windows pour la première fois, les tiroirs, la
-  loi de l'écart — `gh run view 44830190971`). Ici, la bibliothèque du bureau (2 176) et ses huit
-  suites d'intégration passent. Clippy strict et `cargo fmt` à zéro ; les
+* **Les épreuves** : sur GitHub, **`378239d` vert sur les dix tâches** (le 23/11, run 45197129987 :
+  la beta.5 ; l'IA gratuite et sa voie WinHTTP compilées sous Windows pour la première fois). Ici,
+  **la suite entière, 3 593 épreuves, passe** (le 24/11, fiche 139 ; `test_queue_1`, qui tombait
+  parfois sous la charge, ne lit plus l'horloge). Clippy strict et `cargo fmt` à zéro ; les
   **cliquets** (80 lignes par fonction, 600 par fichier, le couplage au modèle — 38 lignes, au
   plafond) ne se relèvent jamais : ce qui déborde s'extrait.
 * **Les sabotages** : chaque garde est cassée exprès et doit faire tomber une épreuve
@@ -157,7 +150,7 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   la section PARU-1 de la chronique).
 * **Sur GitHub, dix tâches** (Windows, Linux, les deux Mac, le noyau pour Android et le web, l'APK,
   NixOS, l'installeur et la mise à jour, la répétition de la bascule depuis Tauri, les paquets Linux) :
-  la dernière verte est `596e783` (20/11, 23 h 55 ; ci-dessus). Elle se lance avant une
+  la dernière verte est `378239d` (23/11 ; ci-dessus). Elle se lance avant une
   publication, ou comme voie de vérification quand sa machine est pleine.
 
 ## 5. Ses utilisateurs, et ce qu'on en sait
