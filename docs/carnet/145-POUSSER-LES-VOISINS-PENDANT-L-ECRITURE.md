@@ -62,3 +62,17 @@ saisie, qu'il contient (un texte sans voisin ne fait que pousser ses membranes).
 de départ gardé dans la session d'édition, la loi branchée à côté de `pousser_les_membranes` ; épreuves (pousser,
 cascade, remonter, ordre gardé, un seul Ctrl+Z, les pairs du partage reçoivent les déplacements),
 leurs sabotages, et l'essai au pilote.
+
+**Le branchement, repéré (14 h 31)** — pour la session qui le fera :
+* **L'état de départ** : la saisie s'ouvre dans `start_text_edit_at` (`interactions/text_edit.rs`) ;
+  y garder les annotations du tableau (à côté de `TextEditSession`, `renderer.rs`, plutôt que dedans :
+  ses constructions littérales sont nombreuses), et l'oublier à la validation.
+* **Déplacer un poussé avec ce qu'il emporte** : `translation_de_la_selection`
+  (`glucose-core/src/store/images.rs`) sait déjà emporter le contenu d'une membrane et les bouts des
+  flèches (`Emport::de(tableau, images, annotations)`, `store/membranes.rs`) — mais pour la
+  sélection ; en extraire `translation_de(tableau, ids, delta)` et la partager. Le delta de chacun :
+  son haut voulu (celui de `pousser_en_ecrivant`, ou son haut de départ s'il n'y est plus) moins son
+  haut courant.
+* **Dans le geste ouvert** : `pousser_les_membranes` écrit par `set_annotation_rect` dans la saisie
+  ouverte (`begin_live_edit`) ; vérifier qu'une `Edit::Translation` y entre aussi (sinon
+  `record_as_one_gesture` ouvrirait une seconde entrée d'annulation) — l'épreuve « un seul Ctrl+Z ».
