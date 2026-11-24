@@ -264,14 +264,23 @@ impl Store {
         delta: (f64, f64),
     ) -> Option<Edit> {
         let emport = self.ce_qu_emporte_la_selection(board_id);
+        self.translation_de(board_id, &emport, &self.selected_folder_ids, delta)
+    }
+
+    /// **La translation de ce qu'emporte `emport`** (et de ces dossiers) : celle de la sélection,
+    /// et celle d'un voisin que pousse un texte qu'on écrit (fiche 145) — une membrane poussée
+    /// emporte son contenu et les bouts de ses flèches, comme une membrane qu'on tire.
+    pub(super) fn translation_de(
+        &self,
+        board_id: &str,
+        emport: &super::membranes::Emport,
+        dossiers: &super::choix::Choix,
+        delta: (f64, f64),
+    ) -> Option<Edit> {
         let sel = SelectionSets {
             images: emport.images.iter().map(String::as_str).collect(),
             annotations: emport.annotations.iter().map(String::as_str).collect(),
-            folders: self
-                .selected_folder_ids
-                .iter()
-                .map(String::as_str)
-                .collect(),
+            folders: dossiers.iter().map(String::as_str).collect(),
         };
         let b = self.project.boards.iter().find(|b| b.id == board_id)?;
         let rangs = |oui: &dyn Fn(usize) -> bool, n: usize| -> Vec<u32> {
