@@ -20,6 +20,10 @@ rendre`. Tout ce qu'on a à dire au relais s'écrit dans son Glucose ; il ne lit
 
 ## Lire, dans cet ordre — environ 10 000 mots
 
+**Une session du relais lit moins** (les jetons, sa priorité du 24/11 ; fiche 142) : sa consigne, la
+passation et ses notes d'abord, puis seulement la section dont son travail a besoin ; son premier
+message le dit. Une session à lui lit tout, dans cet ordre :
+
 1. **[`docs/VISION.md`](docs/VISION.md), en entier** : ses paroles, datées, et **la charte** (100 images
    par seconde, aucune machine exclue, deux voies, l'élégance, tout a une signification). C'est le seul
    endroit où elles vivent.
@@ -40,7 +44,7 @@ Puis : prendre le premier chantier ouvert de SUITE § 2, **tout remettre en ques
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 142.**
+fiche. **La prochaine porte le numéro 143.**
 
 ## Avec lui
 

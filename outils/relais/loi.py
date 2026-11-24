@@ -13,9 +13,14 @@ INVITE_REPONSE = "✍️ Ta réponse :"
 # son écran, ou écrit sa conversation, au moins aussi souvent. 35 minutes sans un signe : elle ne
 # travaille plus.
 SILENCE = 35 * 60
-# **La mémoire du modèle** (son contexte) : à 90 %, la session écrit sa passation et une conversation
-# neuve reprend — sa règle du 23/11 (text-kpll-351) : *« on vise toujours 90 %, que ce soit la
-# semaine, les 5 heures ou l'utilisation de tokens […] et on switch ou on recrée un nouveau chat »*.
+# **La mémoire du modèle** (son contexte) : passé SEUIL_JETONS, la session écrit sa passation et une
+# conversation neuve reprend. Sa règle du 23/11 visait 90 % (text-kpll-351) ; mais la fenêtre d'Opus
+# est d'un million de jetons, et chaque réponse relit la conversation entière : mesuré le 24/11 sur
+# 3 191 requêtes du relais, relire coûtait 78 % des jetons, à 318 000 jetons de contexte en moyenne
+# (784 000 au plus). Sa réponse du 24/11 (relais-q-h24-quotas) : *« relire la conversation, c'est
+# vraiment à ne jamais faire »*. Simulé sur ces sessions, le coût est au plus bas vers 300 000
+# (fiche 142). Une fenêtre plus petite garde l'ancien seuil, en pourcentage.
+SEUIL_JETONS = 300_000
 SEUIL_CONTEXTE = 90.0
 # Ce qui réveille une session sans qu'il ait rien écrit : la fin d'une commande en arrière-plan (le
 # 23/11 à 14 h 41, la vérification de Claude, réveillée ainsi, a pris la main au relais). Une session
@@ -27,7 +32,10 @@ REGLES = (
     "pour lui s'écrit dans son Glucose (tableau=main, dans la membrane « relais »), un texte par "
     "question, et tu passes à une autre tâche du plan : ne t'arrête jamais pour attendre. "
     "N'écris jamais dans le nœud relais-consigne : c'est le sien. Jamais de publication de version. "
-    "Aucune commande de plus de 30 minutes.")
+    "Aucune commande de plus de 30 minutes. Les jetons sont sa priorité (24/11) : personne ne lit tes "
+    "messages, n'y écris aucun compte rendu (une ligne au plus quand Claude Code en demande une) — ce "
+    "qui compte va dans son Glucose et dans le dépôt ; lis au plus juste (une section plutôt qu'un "
+    "fichier, grep avant cat, jamais deux fois la même chose).")
 
 
 def heure(t):
@@ -49,10 +57,14 @@ def lire_ids(ids):
 TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE = (
     "relais-texte-depart", "relais-texte-passation", "relais-texte-relance")
 TEXTES = {
+    # Sans relire ce que Claude Code charge déjà (ses règles, celles du dépôt, l'index des mémoires) :
+    # le démarrage d'une conversation lisait 110 000 jetons, et chaque réponse les relisait (fiche 142).
     TEXTE_DEPART: (
-        f"Lis ~/.claude/CLAUDE.md, ~/Projets/LISEZ-MOI.md, toutes tes mémoires et le mode d'emploi du "
-        f"relais ({MODE_EMPLOI}) en entier, puis dans son Glucose (glucose lire tableau=main "
-        f"ids={CONSIGNE} ids={PASSATION}) sa consigne et la passation. Puis travaille selon la consigne."),
+        f"Lis dans son Glucose sa consigne et la passation (glucose lire tableau=main ids={CONSIGNE} "
+        f"ids={PASSATION}), puis le mode d'emploi du relais ({MODE_EMPLOI}). Tes règles et l'index de "
+        "tes mémoires sont déjà chargés : de ~/Projets/LISEZ-MOI.md, d'une mémoire, de VISION, ÉTAT, "
+        "SUITE ou MÉTHODE, ne lis que la section dont ton travail a besoin — les jetons sont sa "
+        "priorité (24/11). Puis travaille selon la consigne."),
     TEXTE_PASSATION: (
         f"Écris MAINTENANT la passation dans son Glucose : remplace le texte du nœud {PASSATION} "
         f"(glucose poser-texte tableau=main id={PASSATION} texte=-) par l'état exact — fait, en cours, "
@@ -65,7 +77,7 @@ TEXTES = {
 }
 
 
-def depart(compte, paroles=(), texte=None):
+def depart(compte, paroles=(), texte=None, importants=()):
     """Le premier message d'une session du relais : son texte, et **d'abord ce qu'il a écrit
     depuis la dernière** — elle lui répond avant tout (sa parole du 23/11 : « soit actif sur le
     Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait)."""
@@ -74,7 +86,25 @@ def depart(compte, paroles=(), texte=None):
              "par une flèche — avant toute autre tâche. Une note que cette lecture dit introuvable est "
              "dans un dossier : chaque dossier dit le tableau qu'il ouvre (ouvre), lis-le avec "
              "tableau=…." if paroles else "")
-    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{ecrit}"
+    designe = (f" Sa consigne désigne par ses flèches ce qu'il juge le plus important "
+               f"({lire_ids(importants)}) : lis-le juste après elle." if importants else "")
+    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}"
+
+
+def ses_fleches(noeuds, gestes, depuis=CONSIGNE, profondeur=2):
+    """**Ce que sa consigne désigne** : les nœuds où mènent les flèches que sa main a tirées depuis
+    elle, puis depuis ceux-là. Sa note du 24/11 (text-g420-2321) : que le démarrage « regarde le
+    block important » — un bloc d'où partent ses flèches vers tout ce qui presse. Une flèche tirée
+    par une IA ne compte pas : la consigne ne s'étend que de sa main. `gestes` : toute l'histoire."""
+    siennes = {i for g in gestes if humaine(g.get("auteur")) for fait in g.get("fait", [])
+               if fait.startswith("pose la flèche") for i in re.findall(r"«\s*([^»]+?)\s*»", fait)}
+    fleches = [n for n in noeuds if n.get("sorte") == "fleche" and n.get("id") in siennes]
+    vus, front = [], [depuis]
+    for _ in range(profondeur):
+        front = [f["cible"] for f in fleches if f.get("source") in front
+                 and f.get("cible") not in vus and f.get("cible") != depuis]
+        vus += [c for i, c in enumerate(front) if c not in front[:i]]
+    return vus
 
 
 # ── Qui écrit, et ce qu'il a écrit ────────────────────────────────────────────────────────────
@@ -173,8 +203,10 @@ def decider(session, consigne_texte, pause, a_signee, relayer, maintenant, ecrit
 def contexte_plein(contexte, session):
     """La mémoire du modèle de **cette** session a-t-elle passé le seuil ? La barre d'état l'écrit à
     chaque réponse (`contexte.json`) ; une lecture d'avant son lancement est celle d'une autre."""
-    return (float(contexte.get("lu") or 0) >= float(session.get("depuis") or float("inf"))
-            and float(contexte.get("pct") or 0) >= SEUIL_CONTEXTE)
+    if float(contexte.get("lu") or 0) < float(session.get("depuis") or float("inf")):
+        return False
+    pct, taille = float(contexte.get("pct") or 0), float(contexte.get("taille") or 0)
+    return pct >= SEUIL_CONTEXTE or pct * taille / 100 >= SEUIL_JETONS
 
 
 def dire_session(session, memoire, maintenant):
@@ -197,8 +229,9 @@ POURQUOI = {
     "limite": "Ce compte arrive à sa limite.",
     "retrait": "Il travaille dans une session de Claude à lui, sur ce dépôt : une seule session à la "
                "fois (sa parole du 23/11), le relais s'efface et reprendra quand elle se taira.",
-    "contexte": f"Ta conversation a rempli {SEUIL_CONTEXTE:.0f} % de la mémoire du modèle : une "
-                "conversation neuve reprendra, avec ta passation (sa règle du 23/11).",
+    "contexte": f"Ta conversation a passé {SEUIL_JETONS // 1000} 000 jetons : chaque réponse la relit "
+                "entière, et c'est ce qui use ses comptes. Une conversation neuve reprendra, avec ta "
+                "passation (sa réponse du 24/11).",
 }
 
 

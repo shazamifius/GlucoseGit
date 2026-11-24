@@ -30,7 +30,9 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
 4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou sur la semaine
    passe la main **si l'autre peut la prendre** ; sinon il continue jusqu'au mur (100 %), prévenu une
    fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close. **La mémoire
-   du modèle** (le contexte de la conversation) à 90 % : la passation, puis une conversation neuve.
+   du modèle** (le contexte de la conversation) passé **300 000 jetons** (90 % d'une fenêtre plus
+   petite) : la passation, puis une conversation neuve. Chaque réponse relit la conversation entière :
+   c'était 78 % des jetons dépensés, à 318 000 jetons de contexte en moyenne (fiche 142).
 5. **La relance** : le crochet « Stop » (`relais.py fin-de-tour`) relance une fois ; la suivante est
    tapée par le veilleur — Claude Code coupe au 8ᵉ blocage de suite (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`).
 6. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, l'écran part dans
@@ -48,6 +50,11 @@ Lire sa consigne, la passation (`relais-passation`), puis ses notes si le premie
 Une question pour lui : un texte dans son Glucose, et passer à autre chose. Quand le relais demande
 la passation, la récrire (ou la confirmer d'une ligne datée), puis finir le tour. Ne jamais écrire
 dans `relais-consigne`.
+
+**Sobre en jetons** (sa priorité du 24/11) : ne relire ni ses règles ni l'index des mémoires (Claude
+Code les charge), seulement la section qu'un travail demande ; aucun compte rendu dans le terminal,
+que personne ne lit. **Ce que sa consigne désigne** : les flèches que sa main tire depuis `relais-consigne`,
+puis depuis leurs cibles, sont données au démarrage (`loi.ses_fleches`) — son bloc important s'y lit.
 
 ## Pour une session à lui
 

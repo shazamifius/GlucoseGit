@@ -216,7 +216,7 @@ class Veilleur(unittest.TestCase):
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
         r.un_tour()
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
-        self.lancer.assert_called_once_with("a", [], None)
+        self.lancer.assert_called_once_with("a", [], None, [])
         self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), "compte à sa limite")
 
     def test_au_mur_des_deux_comptes_il_attend_la_plus_lointaine_remise(self):
@@ -246,7 +246,7 @@ class Veilleur(unittest.TestCase):
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
         dits = [appel.args[0] for appel in r.journal.call_args_list]
         self.assertTrue(any("passation écrite" in dit for dit in dits), dits)
-        self.lancer.assert_called_once_with("a", [], None)
+        self.lancer.assert_called_once_with("a", [], None, [])
 
     def test_relayee_sans_passation_neuve_il_le_dit(self):
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": 0, "passation_demandee": 1,
@@ -343,7 +343,7 @@ class Veilleur(unittest.TestCase):
                  {"rang": 4, "auteur": "agent claude-code", "fait": ["pose le texte « sa-reponse »"]}]
         with self.histoire(*notes, total=5), mock.patch.object(r, "ecran", lambda: None):
             r.un_tour()
-        self.lancer.assert_called_once_with("a", ["note-1"], None)
+        self.lancer.assert_called_once_with("a", ["note-1"], None, [])
         memoire = r.lire_json(r.ETAT / "veilleur.json", {})
         self.assertEqual((memoire["vu"], memoire["paroles"]), (5, []))
 
@@ -411,7 +411,7 @@ class Veilleur(unittest.TestCase):
         with mock.patch.object(r, "ses_textes", lambda memoire, histoire: siens), \
                 mock.patch.object(r, "ecran", lambda: None):
             r.un_tour()
-        self.lancer.assert_called_once_with("b", [], "Mon départ.")
+        self.lancer.assert_called_once_with("b", [], "Mon départ.", [])
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant, "laissee": "relancer"})
         with mock.patch.object(r, "ses_textes", lambda memoire, histoire: siens):
             r.un_tour()
@@ -586,6 +586,43 @@ class Mains(unittest.TestCase):
         self.assertIn("avant toute autre tâche", r.depart("a", ["note-1"]))
         self.assertNotIn("Depuis la dernière session", r.depart("a"))
         self.assertIn(r.MODE_EMPLOI, r.depart("a"))
+
+    def test_la_conversation_neuve_vient_au_seuil_en_jetons(self):
+        """Fiche 142 : à 90 % d'un million de jetons, chaque réponse relisait 900 000 jetons."""
+        s = {"depuis": 100}
+        self.assertFalse(r.contexte_plein({"lu": 200, "pct": 29, "taille": 1_000_000}, s))
+        self.assertTrue(r.contexte_plein({"lu": 200, "pct": 30, "taille": 1_000_000}, s))
+        # Une fenêtre de 200 000 jetons n'atteint jamais 300 000 : l'ancien seuil, en pourcentage.
+        self.assertFalse(r.contexte_plein({"lu": 200, "pct": 89, "taille": 200_000}, s))
+        self.assertTrue(r.contexte_plein({"lu": 200, "pct": 90, "taille": 200_000}, s))
+        self.assertTrue(r.contexte_plein({"lu": 200, "pct": 90}, s))
+        # Une lecture d'avant son lancement est celle d'une autre session.
+        self.assertFalse(r.contexte_plein({"lu": 50, "pct": 95, "taille": 1_000_000}, s))
+
+    def test_sa_consigne_designe_par_ses_fleches(self):
+        """Sa note du 24/11 (text-g420-2321) : que le démarrage regarde son bloc important."""
+        noeuds = [
+            {"id": "f1", "sorte": "fleche", "source": "relais-consigne", "cible": "urgent"},
+            {"id": "f2", "sorte": "fleche", "source": "urgent", "cible": "note-a"},
+            {"id": "f3", "sorte": "fleche", "source": "urgent", "cible": "relais-consigne"},
+            {"id": "f4", "sorte": "fleche", "source": "note-a", "cible": "trop-loin"},
+            {"id": "f5", "sorte": "fleche", "source": "relais-consigne", "cible": "piege"},
+            {"id": "f6", "sorte": "fleche", "source": "relais-consigne", "cible": "urgent"},
+        ]
+        gestes = [{"auteur": a, "fait": [f"pose la flèche « {i} »"]} for a, i in (
+            ("Aigle Émeraude", "f1"), ("humain", "f2"), ("humain", "f3"), ("humain", "f4"),
+            ("agent claude-code", "f5"), ("humain", "f6"))]
+        self.assertEqual(r.ses_fleches(noeuds, gestes), ["urgent", "note-a"])
+        self.assertEqual(r.ses_fleches(noeuds, []), [])
+        self.assertIn("ids=urgent ids=note-a", r.depart("a", [], None, ["urgent", "note-a"]))
+        self.assertNotIn("par ses flèches", r.depart("a"))
+
+    def test_le_depart_ne_relit_pas_ce_qui_est_charge(self):
+        """Ses règles et l'index des mémoires sont chargés par Claude Code : les relire coûtait des
+        jetons à chaque réponse (fiche 142)."""
+        self.assertNotIn("toutes tes mémoires", r.TEXTES[r.TEXTE_DEPART])
+        self.assertNotIn("~/.claude/CLAUDE.md", r.TEXTES[r.TEXTE_DEPART])
+        self.assertIn("aucun compte rendu", r.REGLES)
 
     def test_une_relance_du_crochet_passe_par_le_veilleur(self):
         self.assertEqual(r.decider({}, "x", False, True, None, 0, suite=True), ("laisser", "relancer"))

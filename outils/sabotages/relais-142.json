@@ -1,0 +1,130 @@
+[
+ {
+  "nom": "JETONS — le seuil en jetons oublié (90 % d'un million)",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return pct >= SEUIL_CONTEXTE or pct * taille / 100 >= SEUIL_JETONS",
+  "apres": "return pct >= SEUIL_CONTEXTE",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "JETONS — la fenêtre plus petite sans seuil",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return pct >= SEUIL_CONTEXTE or pct * taille / 100 >= SEUIL_JETONS",
+  "apres": "return pct * taille / 100 >= SEUIL_JETONS",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "JETONS — une lecture d'une autre session compte",
+  "fichier": "outils/relais/loi.py",
+  "avant": "if float(contexte.get(\"lu\") or 0) < float(session.get(\"depuis\") or float(\"inf\")):",
+  "apres": "if False:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "FLECHES — la flèche d'une IA étend sa consigne",
+  "fichier": "outils/relais/loi.py",
+  "avant": "siennes = {i for g in gestes if humaine(g.get(\"auteur\")) for fait in g.get(\"fait\", [])",
+  "apres": "siennes = {i for g in gestes if True for fait in g.get(\"fait\", [])",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "FLECHES — une seule profondeur",
+  "fichier": "outils/relais/loi.py",
+  "avant": "def ses_fleches(noeuds, gestes, depuis=CONSIGNE, profondeur=2):",
+  "apres": "def ses_fleches(noeuds, gestes, depuis=CONSIGNE, profondeur=1):",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "FLECHES — un nœud désigné deux fois",
+  "fichier": "outils/relais/loi.py",
+  "avant": "vus += [c for i, c in enumerate(front) if c not in front[:i]]",
+  "apres": "vus += front",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "FLECHES — le départ ne les donne pas",
+  "fichier": "outils/relais/loi.py",
+  "avant": "{texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}",
+  "apres": "{texte or TEXTES[TEXTE_DEPART]}{ecrit}",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SILENCE — les règles sans la sobriété",
+  "fichier": "outils/relais/loi.py",
+  "avant": "messages, n'y écris aucun compte rendu",
+  "apres": "messages, n'y écris aucun rapport",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

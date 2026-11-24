@@ -36,8 +36,8 @@ sys.path.append(str(Path(__file__).resolve().parent))
 from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
                  REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES, contexte_plein,
                  decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, raison_continuer,
-                 raison_entendre, raison_passation, raison_prevenir, ses_paroles, signee)
-from loi import MODE_EMPLOI, RAISON_PASSATION, lire_ids  # noqa: E402,F401  (pour les épreuves)
+                 raison_entendre, raison_passation, raison_prevenir, ses_fleches, ses_paroles, signee)
+from loi import MODE_EMPLOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (pour les épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
 
@@ -127,9 +127,10 @@ def jauges():
     limites = entree.get("rate_limits") or {}
     if limites:
         ecrire_json(ETAT / f"jauges-{compte_courant()}.json", {"lu": time.time(), "rate_limits": limites})
-    contexte = (entree.get("context_window") or {}).get("used_percentage")
-    if os.environ.get("RELAIS") == "1" and contexte is not None:
-        ecrire_json(ETAT / "contexte.json", {"lu": time.time(), "pct": contexte})
+    fenetre = entree.get("context_window") or {}
+    if os.environ.get("RELAIS") == "1" and fenetre.get("used_percentage") is not None:
+        ecrire_json(ETAT / "contexte.json", {"lu": time.time(), "pct": fenetre["used_percentage"],
+                                             "taille": fenetre.get("context_window_size")})
     morceaux = [(entree.get("model") or {}).get("display_name", "")]
     for nom, titre in (("five_hour", "5 h"), ("seven_day", "semaine")):
         f = limites.get(nom) or {}
@@ -335,7 +336,17 @@ def session_tmux():
     return None
 
 
-def lancer(compte, paroles=(), texte=None):
+def importants():
+    """Ce que sa consigne désigne par ses flèches (`ses_fleches`), lu de toute l'histoire."""
+    tete = glucose("histoire", "nombre=1")
+    lu = glucose("lire", "tableau=main")
+    if not tete or not lu:
+        return []
+    histoire = glucose("histoire", f"nombre={int(tete.get('total') or 1)}") or {}
+    return ses_fleches(lu.get("noeuds", []), histoire.get("gestes", []))
+
+
+def lancer(compte, paroles=(), texte=None, designes=()):
     """Lance la session du relais sur ce compte — **jamais une seconde** : s'il en vit une, rien."""
     if session_tmux():
         journal("une session du relais vit déjà : pas de seconde")
@@ -352,7 +363,7 @@ def lancer(compte, paroles=(), texte=None):
     fait = tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
                 "env", *reglages, binaire, "--ide", "--no-chrome", "--permission-mode", "bypassPermissions",
                 "--allow-dangerously-skip-permissions", "--remote-control", f"relais-{compte}",
-                "--append-system-prompt", REGLES, depart(compte, paroles, texte))
+                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
         return False
@@ -527,7 +538,8 @@ def attendre(memoire, ok, pause, humaine_la, maintenant):
     compte, libre_a = choisir(memoire.get("compte", "a"), maintenant)
     if not compte:
         return "les comptes sont à leur limite : reprise vers " + (heure(libre_a) if libre_a else "?")
-    if not lancer(compte, memoire.get("paroles", []), memoire.get("textes", {}).get(TEXTE_DEPART)):
+    if not lancer(compte, memoire.get("paroles", []), memoire.get("textes", {}).get(TEXTE_DEPART),
+                  importants()):
         return "une session du relais vit déjà : jamais une seconde"
     memoire["compte"], memoire["paroles"] = compte, []
     return f"session lancée sur le compte {compte}"
