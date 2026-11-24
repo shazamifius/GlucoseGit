@@ -39,6 +39,11 @@ pub(super) fn parente_en_json(avis: Option<&crate::parente::AvisDUnNoeud>, noeud
     let (Some(a), Json::Objet(champs)) = (avis, noeud) else {
         return;
     };
+    // Seul et sans lien, il n'y a rien à dire : ne pas le dire à chaque nœud d'un sommaire (fiche
+    // 142, sa priorité du 24/11 : les jetons).
+    if a.famille.is_none() && a.surete <= 0.0 {
+        return;
+    }
     let famille = a.famille.map_or(Json::Nul, |f| Json::Nombre(f as f64));
     let surete = Json::Nombre((f64::from(a.surete) * 100.0).round() / 100.0);
     let parente = Json::objet([("famille", famille), ("surete", surete)]);

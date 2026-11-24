@@ -100,3 +100,8 @@ sabotages `flou-137`, `equerres-137` et `meler-140` partent avec leur code.
 
 **Ce qui se perd, à dire** : le travail de MELER-1 (le flou au processeur de 65,6 à 24,6 ms) n'a plus d'objet.
 Ses leçons restent à la fiche 140 § 5.
+4. **La parenté tue quand elle est vide** (12 h 35) : un texte seul et sans lien ne dit plus
+   `"parente":{"famille":null,"surete":0}` — dans son document, presque chaque nœud du sommaire le disait.
+   Gardé par `parente_3` (sabotage 4 de `mcp-court-142.json`). **Une épreuve manque** : une flèche entre deux
+   textes de musique sûrs lit une sûreté de 0 dans l'épreuve, et aucune flèche de son document ne dit de
+   parenté — la sûreté des flèches que promet la description du MCP est peut-être morte. À creuser.

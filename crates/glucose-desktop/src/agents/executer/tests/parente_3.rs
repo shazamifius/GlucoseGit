@@ -21,7 +21,7 @@ const TEXTES: [&str; 11] = [
     "Le vaccin entraîne le système immunitaire.",
 ];
 
-/// La parenté d'un nœud lu : sa famille et sa sûreté.
+/// La parenté d'un nœud lu : sa famille et sa sûreté ; aucune famille et 0 s'il ne la dit pas.
 fn parente(lu: &Json, id: &str) -> (Option<f64>, f64) {
     let noeud = lu
         .get("noeuds")
@@ -31,9 +31,10 @@ fn parente(lu: &Json, id: &str) -> (Option<f64>, f64) {
                 .find(|n| n.get("id").and_then(Json::as_str) == Some(id))
         })
         .unwrap_or_else(|| panic!("{id} est lu"));
-    let p = noeud
-        .get("parente")
-        .unwrap_or_else(|| panic!("{id} dit sa parenté : {}", noeud.ecrire()));
+    // Seul et sans lien, il ne dit rien (fiche 142, les jetons).
+    let Some(p) = noeud.get("parente") else {
+        return (None, 0.0);
+    };
     let famille = p.get("famille").and_then(Json::as_f64);
     let surete = p.get("surete").and_then(Json::as_f64).expect("une sûreté");
     (famille, surete)
@@ -79,6 +80,9 @@ fn parente_3_un_agent_lit_la_parente() {
     );
     let seuls = (5..11).filter(|k| parente(&lu, &format!("t{k}")).0.is_none());
     assert!(seuls.count() >= 4, "{}", lu.ecrire());
+    // Seuls et sans lien, ils ne disent pas une parenté vide (fiche 142, les jetons).
+    let vide = lu.ecrire().contains(r#""famille":null,"surete":0"#);
+    assert!(!vide, "{}", lu.ecrire());
     let autre = appeler(&mut app, "glucose_ouvrir_tableau", r#"{"nom":"autre"}"#);
     let autre = autre
         .get("tableau")

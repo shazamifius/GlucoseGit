@@ -55,5 +55,24 @@
    "--lib",
    "agents::executer::tests"
   ]
+ },
+ {
+  "nom": "MCP-COURT — la parenté vide redite à chaque nœud",
+  "fichier": "crates/glucose-desktop/src/agents/executer/decrit.rs",
+  "avant": "if a.famille.is_none() && a.surete <= 0.0 {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests"
+  ]
  }
 ]
