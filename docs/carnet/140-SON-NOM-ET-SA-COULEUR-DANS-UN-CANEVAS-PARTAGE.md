@@ -142,3 +142,11 @@ le 24/11 à 9 h 10 :
 il n'a plus rien à pré-calculer, ce sont ses flottants — par canal, deux produits, un `round`, deux
 `clamp`. La suite est la loi en entiers, telle que dite ci-dessus.
 
+**Un `clamp` de trop** (le relais, 9 h 15) : la dernière ligne du mélange bornait `v.round()` entre 0
+et 255 avant de le convertir en octet — mais en Rust, `as u8` sur un flottant sature déjà (et NaN
+donne 0) : le `clamp` ne changeait aucun résultat, au bit près, quelle que soit la valeur. Retiré :
+le mélange **19,6 → 17,5 ms** en 1080p (35,8 → 31,9 en 1440p), le tout **30,1 → 28,0 ms** (55,8 →
+51,8). Les épreuves au bit près du flou (9 au noyau, 7 au bureau) et `voies_suite` (34) passent ;
+aucun sabotage ne visait la ligne. Le `round` reste : `round_ties_even` (qui se vectorise) ne
+donnerait pas les mêmes nombres sur un demi exact — c'est déjà la loi en entiers.
+

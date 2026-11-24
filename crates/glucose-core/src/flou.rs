@@ -373,7 +373,7 @@ pub fn meler(
             let i = (y * largeur + x) * 4;
             for c in 0..4 {
                 let v = f32::from(net[i + c]) * m + f[c] * (1.0 - m);
-                net[i + c] = v.round().clamp(0.0, 255.0) as u8;
+                net[i + c] = v.round() as u8;
             }
         }
     }
