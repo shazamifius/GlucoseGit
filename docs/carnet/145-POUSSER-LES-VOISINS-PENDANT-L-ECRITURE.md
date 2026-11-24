@@ -157,3 +157,14 @@ qu'`undone` est vide, ses éditions s'y ajoutent, puis `fondre` ; sinon on empil
 change pas** (`publier` : l'histoire et les pairs reçoivent chaque pas, dans l'ordre) — seule la pile
 d'annulation fond. **Un canevas partagé** n'empile pas dans `done` (« la pile est la sienne ») : la pile
 par main de `participation.rs` doit fondre de la même façon, sans quoi Ctrl+Z y défait la saisie pas à pas.
+
+**Fait (20 h 05) : la fusion par étiquette, dans le noyau** (FONDRE-145) — `journal/pas.rs` :
+`Journal::end_etiquete` ferme un geste sous une étiquette ; `empiler` le fond dans le sommet s'il porte la
+même (puis `fondre` ; revenu à son départ, il disparaît de la pile) ; défaire ou refaire efface l'étiquette
+du sommet ; l'étiquette d'un geste vide ne reste jamais en attente. `remplacer_dans_le_geste` (GLISSER-1)
+y a déménagé (`journal.rs` : 598 → 581 lignes). `Store::end_live_edit_etiquete` (`undo.rs`) l'expose. Six
+épreuves (`journal/pas_tests.rs`), **5 sabotages sur 5** (`outils/sabotages/fondre-145.json`) ; le noyau
+entier vert. **Reste**, dans l'ordre : la pile par main d'un canevas partagé (`participation.rs`) ;
+l'application — `origines` et un numéro de saisie à côté de `TextEditSession`, à chaque frappe la hauteur
+du tampon (`boite_montree` la calcule déjà) écrite et poussée **si elle change**, sous l'étiquette de la
+saisie, la validation sous la même ; Échap ; puis l'essai au pilote.

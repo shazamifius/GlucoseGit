@@ -1,0 +1,97 @@
+[
+ {
+  "nom": "FONDRE-145 — rien ne fond",
+  "fichier": "crates/glucose-core/src/store/journal/pas.rs",
+  "avant": "let meme = etiquette.is_some() && etiquette == self.etiquettes.sommet;",
+  "apres": "let meme = false;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::pas"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 — deux gestes sans étiquette fondus",
+  "fichier": "crates/glucose-core/src/store/journal/pas.rs",
+  "avant": "let meme = etiquette.is_some() && etiquette == self.etiquettes.sommet;",
+  "apres": "let meme = etiquette == self.etiquettes.sommet;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::pas"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 — défaire garde l'étiquette du sommet",
+  "fichier": "crates/glucose-core/src/store/journal.rs",
+  "avant": "        self.oublier_le_sommet();\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::pas"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 — une saisie revenue laisse un geste vide",
+  "fichier": "crates/glucose-core/src/store/journal/pas.rs",
+  "avant": "if sommet.is_empty() {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::pas"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 — l'étiquette d'un geste vide reste en attente",
+  "fichier": "crates/glucose-core/src/store/journal/pas.rs",
+  "avant": "        self.etiquettes.prochaine = None;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::pas"
+  ]
+ }
+]
