@@ -105,6 +105,14 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"nom":{"type":"string"}},"required":["nom"]}"##,
     ),
     (
+        "glucose_repondre",
+        "Répond à un nœud en un seul geste : pose ton texte à la place libre la plus proche de ce \
+         nœud (à sa droite, ou dessous), sans rien chevaucher, dans sa membrane, et tend la flèche \
+         « réponse » de ton texte vers lui. L'utilisateur défait les deux d'un Ctrl+Z. Redonner le \
+         même id récrit ta réponse là où elle est. Rend son id, sa boîte et sa flèche.",
+        r##"{"type":"object","properties":{"a":{"type":"string","description":"le nœud auquel tu réponds"},"texte":{"type":"string"},"id":{"type":"string"},"largeur":{"type":"number"},"tableau":{"type":"string"}},"required":["a","texte"]}"##,
+    ),
+    (
         "glucose_renommer",
         "Renomme un dossier (son id, sur ce tableau) ou un onglet (son id de tableau), en un geste \
          que l'utilisateur peut annuler. Un dossier et le tableau qu'il ouvre portent le même nom : \
@@ -281,8 +289,9 @@ const LECTEURS: [&str; 4] = [
 /// **Les outils ouverts à une IA du nuage** : ceux qui ne regardent que le document ouvert.
 /// `glucose_domaines` lit les autres fichiers et dit leurs chemins : il reste à cette machine.
 /// Un outil neuf n'est ouvert au nuage que quand on l'ajoute ici, exprès.
-const DU_DOCUMENT: [&str; 18] = [
+const DU_DOCUMENT: [&str; 19] = [
     "glucose_lire",
+    "glucose_repondre",
     "glucose_renommer",
     "glucose_ranger",
     "glucose_poser_texte",

@@ -211,6 +211,7 @@ pub fn geste_en_mots(outil: &str, echec: Option<String>) -> String {
         "glucose_poser_membrane" => "a posé une membrane",
         "glucose_ecrire" => "a écrit dans un nœud",
         "glucose_relier" => "a tendu une flèche",
+        "glucose_repondre" => "a répondu à un nœud",
         "glucose_poser_page" => "a posé une page web",
         "glucose_deplacer" => "a déplacé un nœud",
         "glucose_ouvrir_tableau" => "a ouvert un onglet",

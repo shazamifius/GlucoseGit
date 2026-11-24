@@ -13,6 +13,7 @@ mod domaines;
 mod grouper;
 mod lire;
 mod partir;
+mod repondre;
 mod temps;
 
 use super::json::Json;
@@ -83,6 +84,7 @@ impl GlucoseApp {
             "glucose_poser_membrane" => self.agent_poser_membrane(&board, &a),
             "glucose_ecrire" => self.agent_ecrire(&board, &a),
             "glucose_relier" => self.agent_relier(&board, &a),
+            "glucose_repondre" => self.agent_repondre(&board, &a),
             "glucose_poser_page" => self.agent_poser_page(&board, &a),
             "glucose_deplacer" => self.agent_deplacer(&board, &a),
             "glucose_retirer" => self.agent_retirer(&board, &a),
