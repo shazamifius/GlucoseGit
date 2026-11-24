@@ -85,3 +85,13 @@ qu'une autre main a bougé. Épreuve `test_pousser_pendant_l_ecriture_par_le_jou
 effacer fait remonter jusqu’à sa place, un seul Ctrl+Z) ; 9 sabotages sur 9 (14 h 34). **Reste** : garder `départ` et `déjà` à l'ouverture de la saisie
 et appeler la méthode à la place de `pousser_les_membranes` (`interactions/resize.rs`), ses sabotages,
 le pilote.
+
+**Deux points avant de brancher (14 h 37)** :
+* **La charte** (100 images par seconde) : copier toutes les annotations du tableau à chaque ouverture
+  de saisie coûterait cher sur un tableau de 750 000 nœuds (le banc de JRN-4). Ne garder que les
+  boîtes (id, boîte, membrane) **des niveaux concernés** — la membrane du texte et ses ancêtres —, et
+  pour le niveau du canevas, seulement ce qui est sous le texte dans sa bande horizontale (un index
+  spatial s'il existe). À mesurer au banc avant de choisir.
+* La saisie ne fait jamais rapetisser la carte (`resize.rs` : la hauteur est un plancher) : « effacer
+  fait remonter » ne jouera que le jour où elle rapetissera. Sans un `départ` (une mise en page hors
+  saisie), garder `pousser_les_membranes`.
