@@ -129,7 +129,7 @@ restait à pré-calculer : une rangée du masque sert à une maille
 entière de rangées de l'écran, une rangée du flou à quatre ; chacune se lisse désormais le long de x
 une seule fois (`Lissees`), au lieu d'une fois par rangée de l'écran. Au bit près ;
 `meler-140.json` **6 sur 6**, `flou-137.json` **16 sur 16**, `voies_suite` 34. Remesuré par le relais
-le 24/11 à 9 h 10 :
+le 24/11 à 9 h 05 :
 
 ```text
                      tout (médiane)     mélange
@@ -142,7 +142,7 @@ le 24/11 à 9 h 10 :
 il n'a plus rien à pré-calculer, ce sont ses flottants — par canal, deux produits, un `round`, deux
 `clamp`. La suite est la loi en entiers, telle que dite ci-dessus.
 
-**Un `clamp` de trop** (le relais, 9 h 15) : la dernière ligne du mélange bornait `v.round()` entre 0
+**Un `clamp` de trop** (le relais, 9 h 10) : la dernière ligne du mélange bornait `v.round()` entre 0
 et 255 avant de le convertir en octet — mais en Rust, `as u8` sur un flottant sature déjà (et NaN
 donne 0) : le `clamp` ne changeait aucun résultat, au bit près, quelle que soit la valeur. Retiré :
 le mélange **19,6 → 17,5 ms** en 1080p (35,8 → 31,9 en 1440p), le tout **30,1 → 28,0 ms** (55,8 →
@@ -150,7 +150,7 @@ le mélange **19,6 → 17,5 ms** en 1080p (35,8 → 31,9 en 1440p), le tout **30
 aucun sabotage ne visait la ligne. Le `round` reste : `round_ties_even` (qui se vectorise) ne
 donnerait pas les mêmes nombres sur un demi exact — c'est déjà la loi en entiers.
 
-**L'arrondi sans appel de fonction** (le relais, 9 h 25) : sur la base x86-64 (SSE2, aucune cible
+**L'arrondi sans appel de fonction** (le relais, 9 h 15) : sur la base x86-64 (SSE2, aucune cible
 fixée), `f32::round` n'a pas d'instruction — quatre appels à `roundf` par pixel. `octet` tronque
 (`as i32`, une instruction), puis ajoute 1 si ce qu'il a retiré vaut au moins un demi : cette partie
 se calcule exactement (lemme de Sterbenz), et l'octet est celui de `v.round() as u8` pour toute
