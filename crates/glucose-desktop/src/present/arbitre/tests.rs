@@ -106,7 +106,7 @@ fn test_l_ancienne_grandeur_concluait_l_inverse_sur_les_memes_images() {
 
     let mut bilan = Bilan::default();
     for i in 0..IMAGES {
-        bilan.noter(terrain(i));
+        bilan.noter(terrain(i), 0);
     }
     let part = bilan.part_perdue();
     assert!(
@@ -322,4 +322,44 @@ fn test_l_essai_force_attend_l_echauffement_puis_bascule_une_seule_fois() {
     // Et il ne se redéclenche pas : la carte suivante fait ses preuves normalement.
     assert_eq!(saines(&mut a, 10_000), Verdict::Continuer);
     assert_eq!(a.courante(), Preference::Rapide);
+}
+
+/// **ARBITRE-5 — attendre le battement de l'écran n'est pas geler** (fiche 138) : sa session du
+/// 23/11 au soir, `present` à 15 ms à chaque image sur un écran à 60 Hz (la chaîne pleine quand
+/// Glucose dessine plus vite qu'il n'affiche). Au battement, l'arbitre ne bouge pas ; la loi
+/// d'avant — le plancher de 10 ms seul — condamnait la carte sur les mêmes images. Un vrai gel,
+/// lui, passe le battement et fait toujours essayer l'autre.
+#[test]
+fn test_arbitre_5_attendre_le_battement_n_est_pas_geler() {
+    let soixante = std::time::Duration::from_micros(16_667);
+    let attente = 15_000;
+    let mut au_battement = chauffe(Preference::Rapide);
+    au_battement.battre(soixante);
+    let mut sans = chauffe(Preference::Rapide);
+    let (mut a, mut b) = (Verdict::Continuer, Verdict::Continuer);
+    for _ in 0..ECHANTILLON * 3 {
+        a = match au_battement.observer(attente) {
+            Verdict::Continuer => a,
+            v => v,
+        };
+        b = match sans.observer(attente) {
+            Verdict::Continuer => b,
+            v => v,
+        };
+    }
+    assert_eq!(
+        a,
+        Verdict::Continuer,
+        "au battement, l'attente n'est pas un gel"
+    );
+    assert_eq!(
+        b,
+        Verdict::Essayer(Preference::Econome),
+        "à l'envers : le plancher seul condamnait la carte"
+    );
+    assert_eq!(
+        au_battement.observer(194_210),
+        Verdict::Essayer(Preference::Econome),
+        "un vrai gel passe le battement et fait essayer l'autre"
+    );
 }

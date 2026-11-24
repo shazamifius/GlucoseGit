@@ -354,6 +354,7 @@ impl GlucoseApp {
         let Some(arbitre) = self.arbitre.as_mut() else {
             return;
         };
+        arbitre.battre(self.cadence.periode());
         match arbitre.observer(present_us) {
             Verdict::Continuer => {}
             Verdict::Essayer(p) | Verdict::Revenir(p) => self.retenir_la_carte(p),

@@ -145,10 +145,12 @@ impl Bilan {
         self.part_perdue() < autre.part_perdue()
     }
 
-    /// Note ce que cette présentation a coûté de trop.
-    fn noter(&mut self, present_us: u32) {
+    /// Note ce que cette présentation a coûté de trop : au-delà du plancher — ou du battement de
+    /// l'écran, s'il est plus long (ARBITRE-5).
+    fn noter(&mut self, present_us: u32, battement_us: u64) {
         self.observees += 1;
-        self.perdu_us += u64::from(present_us).saturating_sub(Self::plancher_us() as u64);
+        let seuil = (Self::plancher_us() as u64).max(battement_us);
+        self.perdu_us += u64::from(present_us).saturating_sub(seuil);
     }
 }
 
@@ -229,6 +231,12 @@ pub struct Arbitre {
     /// instruments et non des choix de production : *« il a tranché une question en une
     /// session, et une autre machine pourra la reposer »*.
     essai_force: bool,
+    /// **Le battement de l'écran**, en microsecondes (ARBITRE-5, fiche 138) : une présentation qui
+    /// attend le battement suivant n'a rien perdu — c'est l'écran qui la fait attendre, pas la
+    /// carte. Sa session du 23/11 au soir : `present` à 12-16 ms sur un écran à 60 Hz, chaîne
+    /// pleine quand Glucose dessine plus vite qu'il n'affiche, et l'arbitre condamnait la carte
+    /// sur le plancher de 10 ms. Nul tant que l'écran ne l'a pas dit : le plancher seul.
+    battement_us: u64,
 }
 
 impl Arbitre {
@@ -245,7 +253,14 @@ impl Arbitre {
             tranche: false,
             essai_force: std::env::var_os("GLUCOSE_ARBITRE")
                 .is_some_and(|v| v.eq_ignore_ascii_case("essaie")),
+            battement_us: 0,
         }
+    }
+
+    /// **L'écran bat à cette période** (ARBITRE-5) : une présentation qui tient dans un battement
+    /// n'a rien fait perdre.
+    pub fn battre(&mut self, periode: std::time::Duration) {
+        self.battement_us = periode.as_micros().min(u128::from(u64::MAX)) as u64;
     }
 
     /// La carte en place.
@@ -283,8 +298,8 @@ impl Arbitre {
             crate::dire!("[Glucose] arbitre : essai force par GLUCOSE_ARBITRE");
             return self.juger();
         }
-        self.courante.1.noter(present_us);
-        self.echantillon.noter(present_us);
+        self.courante.1.noter(present_us, self.battement_us);
+        self.echantillon.noter(present_us, self.battement_us);
         // Conclure n'attend pas la fin de l'échantillon : dès que les images perdues dépassent
         // ce que la tolérance permet sur l'échantillon entier, la conclusion est acquise, et
         // attendre ne ferait que prolonger les gels. C'est la règle du tempo, mot pour mot.

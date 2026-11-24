@@ -175,6 +175,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 135 | [La flèche qu'on ne choisit plus](135-LA-FLECHE-QU-ON-NE-CHOISIT-PLUS.md) | sa note du 23/11 au soir (`text-kpll-375`) : *« une espèce de zone de clic invisible »*, une flèche qu'on ne choisit plus — reproduit au pilote (le pilote sait `maj-clic`) ; la copie des bouts d'une flèche accrochée lue par sept lecteurs (l'index, le cadre du groupe, l'élastique, F, Alt+F, la zone redessinée, la boîte dite aux IA) et laissée loin du dessin par trois gestes (la flèche glissée avec un autre nœud, le rangement dans un dossier, un dossier déplacé) ; **ANCRE-1** — une seule source : tout se lit sur le tracé ancré, l'index recale chaque flèche accrochée sur ses nœuds sans hachage ni écriture quand rien ne change (tldraw déduit, Excalidraw tient une copie) ; la scène de LIEN-4 reposait sur la copie |
 | 136 | [L'appui dans le texte qu'on écrit](136-L-APPUI-DANS-LE-TEXTE-QU-ON-ECRIT.md) | sa note du 23/11 au soir (`text-kpll-370`) : *« ça quitte le bloc texte carrément »* — en écriture, l'arbitre ne connaissait que la boîte du document : un appui dans les lignes neuves (ou la source d'un texte mis en forme, plus longue que son rendu) validait la saisie ; une poignée du bord et une flèche qui arrive dans le texte volaient aussi l'appui ; **EDIT-PRISE** — dans la boîte vivante, rien ne passe devant le texte ; l'avant et l'après au pilote ; commencé par le compte b, repris par le compte a |
 | 137 | [La sélection en équerres, et le flou](137-LA-SELECTION-EN-EQUERRES-ET-LE-FLOU.md) | sa réponse finale à Q12 (23/11) : *« les carrés avec le flou, mais au moins 60 % moins »* ; et `detourage-121`, le dernier fichier de sabotages jamais joué : 25 sur 25 |
+| 138 | [L'arbitre et le battement de l'écran](138-L-ARBITRE-ET-LE-BATTEMENT-DE-L-ECRAN.md) | sa sortie du 23/11 à 21 h 50 : *« cette carte gèle »* — `present` attendait le battement de l'écran (12-16 ms à 60 Hz) ; **ARBITRE-5** : rien n'est perdu en deçà d'un battement ; sans effet sur son poste (une seule carte vue) |
 
 ## Les décisions — **foi**
 
@@ -198,7 +199,7 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [17](decisions/17-LE-DETOURAGE-PAR-U2NETP.md) le détourage, par u2netp lu par un moteur à nous (une donnée embarquée, pas une caisse) ·
 [18](decisions/18-LES-EMOJIS-EN-COULEUR-PAR-TWEMOJI.md) les émojis en couleur, par Twemoji 17 construit par nous en COLRv0, lu par `ttf-parser` (une donnée embarquée, pas une caisse ; [10](decisions/10-LES-EMOJIS-PAR-NOTO-EMOJI.md) n'en garde que le reste).
 
-La prochaine fiche porte le numéro **138**.
+La prochaine fiche porte le numéro **139**.
 
 ## Hors série — des archives, à consulter
 

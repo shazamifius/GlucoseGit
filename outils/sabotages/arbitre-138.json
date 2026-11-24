@@ -1,0 +1,17 @@
+[
+ {
+  "nom": "ARBITRE-5 — le seuil oublie le battement de l'écran",
+  "fichier": "crates/glucose-desktop/src/present/arbitre.rs",
+  "avant": "        let seuil = (Self::plancher_us() as u64).max(battement_us);",
+  "apres": "        let seuil = (Self::plancher_us() as u64).max(battement_us * 0);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "present::arbitre::tests::test_arbitre_5"
+  ]
+ }
+]
