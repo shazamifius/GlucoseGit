@@ -73,6 +73,9 @@ neuve doit relire 150 000 jetons de code. Une fenêtre plus petite (200 000) gar
 ## 4. Ce qui reste
 
 1. **Mesurer le gain à la jauge** : le pourcentage de la fenêtre de 5 h par heure de travail, avant et après.
+   Premier relevé : la fenêtre du compte b ouverte à 12 h, **2 % à 12 h 00, 19 % à 12 h 25** — cette
+   conversation, partie sous l'ancien démarrage, à 260 000 jetons de contexte à 12 h 25. La suivante sera la
+   première sous les règles neuves : relever la jauge à son début et à sa fin.
 2. ~~Le MCP plus court~~ : **fait à 12 h 24** — une lecture par `ids` ou `cherche` ne redit plus le
    document (deux fois), la partie visible, les onglets ni les domaines ; le sommaire, qui oriente, les
    garde (`executer/tests/courte.rs`, `mcp-court-142.json` 3 sur 3 ; 3 586 épreuves).
