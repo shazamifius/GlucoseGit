@@ -124,3 +124,21 @@ sont ses flottants — par canal, deux produits, un `round`, deux `clamp`. La su
 entiers, qui ne sera plus au bit près de l'ancienne : elle devra garder l'accord des deux voies à 4
 niveaux, et se juger au banc.
 
+**Les rangées lissées, gardées** (vers 8 h 55, `6487cac`) — le paragraphe d'au-dessus se trompait, il
+restait à pré-calculer : une rangée du masque sert à une maille
+entière de rangées de l'écran, une rangée du flou à quatre ; chacune se lisse désormais le long de x
+une seule fois (`Lissees`), au lieu d'une fois par rangée de l'écran. Au bit près ;
+`meler-140.json` **6 sur 6**, `flou-137.json` **16 sur 16**, `voies_suite` 34. Remesuré par le relais
+le 24/11 à 9 h 10 :
+
+```text
+                     tout (médiane)     mélange
+1920 x 1080, ×1      37,5 → 30,1 ms     26,9 → 19,6
+2560 x 1440, ×1      68,7 → 55,8 ms     48,8 → 35,8
+2560 x 1440, ×2             51,9 ms            35,3
+```
+
+**Reste** trois fois le plancher (10 ms en 1080p), et le mélange en pèse encore les deux tiers :
+il n'a plus rien à pré-calculer, ce sont ses flottants — par canal, deux produits, un `round`, deux
+`clamp`. La suite est la loi en entiers, telle que dite ci-dessus.
+
