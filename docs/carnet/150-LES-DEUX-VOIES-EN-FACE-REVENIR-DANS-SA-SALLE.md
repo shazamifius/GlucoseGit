@@ -32,3 +32,19 @@ codes. `collaborer.rs` était à 594 lignes : la question « seul » est passée
 `collaborer/revenir.rs` (`question_seul`). Gardé par l'épreuve du « Quitter »
 (`revenir_quitter_garde_le_code_et_partager_y_revient`) et par celle du bouton Collaborer (un
 document neuf dit toujours « Partager ce canevas ») ; 2 sabotages sur 2. `470ad40`.
+
+## 3. Q18 — les photos qui attendent quelqu'un qui les a (le compte)
+
+Sa réponse à Q18 (`q-18`) : *« oui clairement, ce serait une fonctionnalité super intéressante et
+visible »*. La salle ne garde aucune photo : tant que personne qui l'a n'est là, son cadre reste
+gris. **Le compte est fait** : Collaborer dit « 3 photos attendent quelqu'un qui les a : elles
+viendront dès qu'il sera là » (`collaborer/photos.rs`, `en_attente`, sur `cles_qui_manquent`), et
+ne le dit plus quand les octets sont là. Épreuve `q18_collaborer_compte_les_photos_qui_attendent`,
+2 sabotages sur 2 (`outils/sabotages/q18-photos.json`), 3 669 épreuves vertes.
+
+**Reste** : sur chaque cadre gris, la ligne qui dit qui l'a (« la photo de Loup Émeraude, pas
+connecté »). Une photo n'a pas de champ « auteur » (`types/image.rs`) et ne doit pas en gagner (le
+format changerait) : qui l'a posée se lit dans la main du geste (`Main::Participant`,
+`store/journal/mains.rs`) — en mémoire à l'arrivée d'un geste de la salle, dans l'histoire après une
+relance (`Auteur::d_une_main`, `persist/histoire.rs`). Le cadre gris : `renderer/scene/image.rs`,
+`poser_ou_demander` rend `None` quand `magasin.echecs` tient la photo.

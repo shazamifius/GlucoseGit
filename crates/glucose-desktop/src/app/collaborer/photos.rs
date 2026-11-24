@@ -162,6 +162,19 @@ pub(super) fn cles_qui_manquent(projet: &Project, objets: &Objets) -> Vec<String
     cles
 }
 
+/// **Q18 — les photos qui attendent quelqu'un qui les a** (sa réponse : *« une fonctionnalité
+/// super intéressante et visible »*) : la salle ne garde aucune photo ; tant que personne qui l'a
+/// n'est là, son cadre reste gris. Collaborer le dit, avec ce qui la fera venir.
+pub(super) fn en_attente(projet: &Project, objets: &Objets) -> Option<String> {
+    match cles_qui_manquent(projet, objets).len() {
+        0 => None,
+        1 => Some("1 photo attend quelqu'un qui l'a : elle viendra dès qu'il sera là.".into()),
+        n => Some(format!(
+            "{n} photos attendent quelqu'un qui les a : elles viendront dès qu'il sera là."
+        )),
+    }
+}
+
 impl GlucoseApp {
     /// **Ce qui manque ici se demande**, si quelqu'un vient d'entrer — sauf à qui attend la base :
     /// il n'a rien à demander, son bonjour attend avec lui. Celui qui a ouvert le partage dit

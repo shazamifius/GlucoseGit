@@ -307,3 +307,24 @@ fn b1_ma_photo_part_avec_mon_geste() {
         ))
     );
 }
+
+/// **Q18 — Collaborer dit combien de photos attendent quelqu'un qui les a**, et ne le dit plus
+/// quand leurs octets sont là.
+#[test]
+fn q18_collaborer_compte_les_photos_qui_attendent() {
+    let mut app = app_sans_les_octets();
+    let _ordres = partage(&mut app, ecrivain(), Entree::Dedans);
+    let texte = |app: &mut GlucoseApp| {
+        app.montrer_collaborer();
+        let question = app.ui.question.take().map(|(q, _)| q.texte);
+        question.expect("la question de Collaborer")
+    };
+    assert!(
+        texte(&mut app).contains("1 photo attend quelqu'un qui l'a"),
+        "le cadre gris se dit"
+    );
+    app.disque
+        .objets
+        .poser(CLE, Source::Memoire(Arc::new(vec![1, 2, 3])));
+    assert!(!texte(&mut app).contains("attend"), "ses octets sont là");
+}

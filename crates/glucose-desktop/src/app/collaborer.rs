@@ -221,7 +221,9 @@ impl GlucoseApp {
         } else {
             "\n\nTon code ne fait que regarder : tes gestes ne partent pas."
         };
-        format!("{lien} Tu es « {} ».\n\n{avec}{pouvoir}", cp.nom)
+        let photos = photos::en_attente(&self.store.project, &self.disque.objets)
+            .map_or_else(String::new, |p| format!("\n\n{p}"));
+        format!("{lien} Tu es « {} ».\n\n{avec}{photos}{pouvoir}", cp.nom)
     }
 
     /// Sa réponse à la question de Collaborer.

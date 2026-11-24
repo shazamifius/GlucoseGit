@@ -1,0 +1,40 @@
+[
+ {
+  "nom": "Q18 — Collaborer ne dit pas les photos qui attendent",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "{avec}{photos}{pouvoir}",
+  "apres": "{avec}{pouvoir}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — le compte ne voit pas que les octets sont arrivés",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+  "avant": "    match cles_qui_manquent(projet, objets).len() {",
+  "apres": "    match projet.toutes_les_images().filter(|i| i.src.is_some()).count() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ }
+]
