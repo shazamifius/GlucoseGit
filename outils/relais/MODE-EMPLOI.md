@@ -96,6 +96,9 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   archive (`board-f5fn-356`) et effacé `relais-reponse` : le 24/11 à 10 h 00, l'alerte d'une session figée
   n'a pas pu se poser (« l'identifiant est déjà pris ailleurs », journal). Remis dans sa membrane le
   24/11 à 10 h 33 ; l'ancienne alerte reste à l'archive sous `relais-bloque-archive-2311`.
+- **`glucose_quoi_de_neuf` sans `depuis`, dans une session neuve, rend 200 gestes** (≈ 8 000 jetons,
+  24/11 à 14 h 12) : son agent n'a encore rien fait. Lui donner le rang `jusqu_a` que la passation
+  écrit ; les notes de sa main, le relais les donne déjà au premier message.
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à

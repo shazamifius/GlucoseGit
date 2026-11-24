@@ -98,9 +98,21 @@ proprement, `glucose lire` a rouvert Glucose **par son service** (sa portée : `
 seule fenêtre, partage repris au geste n° 435. Pas d'épreuve automatique : systemd n'existe pas dans
 la CI ; l'essai réel en tient lieu.
 
-**Vu, pas réglé** : une fenêtre qui n'a pas le document en écriture (le verrou pris ailleurs) rejoint
-quand même la salle et, fermée proprement, peut retenir un numéro que le fichier ne contient pas. Ne
-reprendre le partage que si l'on est le scribe du document — au prochain passage.
+### Seule la fenêtre qui écrit le document reprend son partage (SCRIBE-1)
+
+Vu pendant SERVICE-1 : une fenêtre qui n'a pas le document en écriture (le verrou tenu ailleurs)
+rejoignait quand même la salle et, fermée proprement, pouvait retenir un numéro que le fichier ne
+contient pas. **Fait** (`11b108e`) : `document_du_canevas` (`app/collaborer/reprise.rs`) ne rend le
+document que si cette fenêtre tient son verrou d'écriture (`verrou::meme_fichier`) ; une seconde
+fenêtre ne reprend pas la salle et ne retient rien. Épreuve
+`partage_survit_une_seconde_fenetre_ne_reprend_pas_la_salle` ; sabotage `retour-144.json` (8 sur 8).
+**Sa première version était aveugle** (le sabotage passait) : sa seconde fenêtre n'ouvrait aucun
+document, car un document qu'une autre fenêtre écrit ne s'ouvre pas ici (`DejaOuvertAilleurs`). La
+garde ne sert donc qu'aux fenêtres qui ont le document sans l'écrire : la course de deux lancements à
+la même seconde (14 h 02 : le verrou pris entre la vérification et l'ouverture), ou un fichier en
+lecture seule — ce que l'épreuve fait désormais, la prémisse affirmée (document ouvert, pas
+d'écriture). Payé en chemin : un cache incrémental de rustc corrompu (« undefined reference to
+`anon.…llvm…` » à la liaison, puis une panique de rustc) — `rm -rf target/debug/incremental/glucose_desktop-*`.
 
 ## 3. MCP-REPONDRE, vérifié chez lui
 

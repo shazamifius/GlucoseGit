@@ -336,9 +336,10 @@ fn partage_survit_l_attente_s_arrete_quand_rien_ne_peut_revenir() {
     assert!(!attendre(1, true, false, SILENCE), "silencieuse");
 }
 
-/// **Seul le scribe reprend le partage** (fiche 144 § 2) : une seconde fenêtre ouvre le document
-/// que la première écrit — elle le lit sans le verrou, ne rejoint pas la salle, et laisse le
-/// numéro retenu tel quel.
+/// **Seul le scribe reprend le partage** (fiche 144 § 2) : une fenêtre ouvre le document sans
+/// pouvoir l'écrire — le verrou pris entre sa vérification et son ouverture (deux lancements à la
+/// même seconde, 14 h 02), ou le fichier en lecture seule, ce qu'on fait ici. Elle ne rejoint pas
+/// la salle et laisse le numéro retenu tel quel ; celle qui l'écrit, ensuite, la rejoint.
 #[test]
 fn partage_survit_une_seconde_fenetre_ne_reprend_pas_la_salle() {
     let d = dossier("canevas-seconde");
@@ -348,16 +349,30 @@ fn partage_survit_une_seconde_fenetre_ne_reprend_pas_la_salle() {
     let retenu = souvenir(&d, &chemin);
     assert_eq!(retenu.as_ref().and_then(|s| s.confirme), Some(1));
 
-    let mut scribe = lancer(&d);
-    scribe.retrouver_le_travail(None);
+    let droits = std::fs::metadata(&chemin).unwrap().permissions();
+    let mut lecture_seule = droits.clone();
+    lecture_seule.set_readonly(true);
+    std::fs::set_permissions(&chemin, lecture_seule).unwrap();
     let mut seconde = lancer(&d);
-    seconde.retrouver_le_travail(None);
+    seconde.retrouver_le_travail(Some(chemin.clone()));
+    // La prémisse, dite : elle a le document, sans pouvoir l'écrire.
+    assert!(
+        seconde.disque.objets.document().is_some(),
+        "elle l'a ouvert"
+    );
+    assert!(seconde.disque.ecriture.is_none(), "sans l'écrire");
     seconde.reprendre_le_canevas_partage();
     assert!(
         seconde.lancement.agents.partage.is_none(),
-        "la seconde fenêtre a rejoint la salle"
+        "la fenêtre qui n'écrit pas a rejoint la salle"
     );
-    assert_eq!(souvenir(&d, &chemin), retenu, "le numéro du scribe, intact");
+    assert_eq!(souvenir(&d, &chemin), retenu, "le numéro retenu, intact");
+    drop(seconde);
+
+    std::fs::set_permissions(&chemin, droits).unwrap();
+    let mut scribe = lancer(&d);
+    scribe.retrouver_le_travail(Some(chemin.clone()));
+    assert!(scribe.disque.ecriture.is_some(), "le scribe l'écrit");
     scribe.reprendre_le_canevas_partage();
     assert!(
         scribe.lancement.agents.partage.is_some(),
