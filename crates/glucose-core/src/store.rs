@@ -62,6 +62,7 @@ mod ranger;
 pub use ranger::Rangement;
 mod resize;
 pub mod retour;
+mod revenir;
 mod selection;
 pub mod storyboard;
 mod textes;
@@ -77,6 +78,7 @@ pub use membranes::Emport;
 pub use navigation::build_folder_stack;
 pub use order::StackMove;
 pub use participation::{Arrivee, Envoi, Participation, Sortant};
+pub use revenir::CeQueLaSalleGarde;
 
 use crate::types::{AssetStore, Project};
 

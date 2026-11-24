@@ -222,8 +222,8 @@
  {
   "nom": "REVENIR — l'ancêtre s'arrête avant le numéro retenu",
   "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
-  "avant": "        if *n <= retenu {",
-  "apres": "        if *n < retenu {",
+  "avant": "filter(|(n, _)| *n <= jusqu_a)",
+  "apres": "filter(|(n, _)| *n < jusqu_a)",
   "cmd": [
    "env",
    "CARGO_INCREMENTAL=0",
@@ -244,8 +244,8 @@
  {
   "nom": "REVENIR — la salle d'aujourd'hui sans ses gestes",
   "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
-  "avant": "        geste.appliquer(&mut la_bas);\n",
-  "apres": "",
+  "avant": "let la_bas = rebatir(base, gestes, u64::MAX);",
+  "apres": "let la_bas = rebatir(base, gestes, retenu);",
   "cmd": [
    "env",
    "CARGO_INCREMENTAL=0",
@@ -261,6 +261,94 @@
    "--lib",
    "--",
    "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — le document d'ici ne devient pas la salle",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "        self.appliquer_comme_un_geste(Transaction {\n            edits: vers_la_salle,\n        });\n",
+  "apres": "",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir_1"
+  ]
+ },
+ {
+  "nom": "REVENIR — rejoindre au numéro retenu, les gestes de loin rejoués deux fois",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "self.rejoindre(marque, ecrivain, salle.n)",
+  "apres": "self.rejoindre(marque, ecrivain, retenu)",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir_1"
+  ]
+ },
+ {
+  "nom": "REVENIR — le travail d'ici ne part pas",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "        self.appliquer_comme_un_geste(Transaction {\n            edits: fusion.a_envoyer,\n        });\n",
+  "apres": "",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir_1"
+  ]
+ },
+ {
+  "nom": "REVENIR — l'ancêtre pris à la salle d'aujourd'hui",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "let ancetre = rebatir(salle.base, salle.gestes, retenu);",
+  "apres": "let ancetre = rebatir(salle.base, salle.gestes, salle.n);",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir_1"
   ]
  }
 ]

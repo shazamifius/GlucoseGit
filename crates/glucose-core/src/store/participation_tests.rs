@@ -5,6 +5,7 @@
 use super::*;
 use crate::store::journal::partage::{EditionPartagee, Rencontre};
 use crate::store::journal::Edit;
+use crate::store::CeQueLaSalleGarde;
 use crate::types::{Annotation, BoardImage};
 
 const T: &str = "main";
@@ -463,4 +464,43 @@ fn b1_un_geste_qui_pose_une_photo_la_nomme() {
         let n = salle.lettres.len() as u64 + 1;
         salle.lettres.push((n, s));
     }
+}
+
+/// **REVENIR-1** (fiche 147 § 6) : Alice sort de la salle (un arrêt net, un « Quitter ») ; Bob y
+/// travaille pendant son absence ; Alice travaille hors ligne, sur un autre nœud et sur le même.
+/// Elle revient : les deux canevas sont les mêmes, rien ne s'est perdu, et seul le nœud changé des
+/// deux côtés est un conflit — la salle l'emporte.
+#[test]
+fn revenir_1_revenir_dans_sa_salle_converge_sans_rien_perdre() {
+    let (mut salle, mut alice, mut bob) = depart();
+    let retenu = salle.lettres.len() as u64;
+    alice.quitter_le_partage();
+    // Un déplacement voyage comme un pas : rejoué deux fois, il déplacerait deux fois.
+    bob.select_image("b".into(), false);
+    bob.move_selected(T, 69.0, 0.0);
+    bob.update_image(T, "c", |i| i.x = 80.0);
+    salle.poster(&mut bob);
+    alice.update_image(T, "a", |i| i.x = 40.0);
+    alice.update_image(T, "c", |i| i.x = 41.0);
+    let Envoi::Base(base) = &salle.lettres[0].1.envoi else {
+        panic!("la base d'abord");
+    };
+    let gestes: Vec<(u64, GestePartage)> = (salle.lettres[1..].iter())
+        .filter_map(|(n, s)| match &s.envoi {
+            Envoi::Geste(g) => Some((*n, g.clone())),
+            Envoi::Base(_) => None,
+        })
+        .collect();
+    let n = salle.lettres.len() as u64;
+    let ce_qu_elle_garde = CeQueLaSalleGarde {
+        base,
+        gestes: &gestes,
+        n,
+    };
+    let conflits = alice.revenir_dans_la_salle(ce_qu_elle_garde, retenu, "a7", true);
+    assert_eq!(conflits, Some(vec!["c".to_string()]));
+    salle.poster(&mut alice);
+    tous(&salle, [&mut alice, &mut bob]);
+    assert_eq!(xs(&alice), xs(&bob), "les deux canevas convergent");
+    assert_eq!(xs(&bob), [("a", 40.0), ("b", 70.0), ("c", 80.0)]);
 }

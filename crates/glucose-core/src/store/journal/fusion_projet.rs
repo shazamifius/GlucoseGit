@@ -43,24 +43,27 @@ pub fn fondre_le_document(ancetre: &Project, ici: &Project, la_bas: &Project) ->
     f
 }
 
-/// **Revenir dans sa salle** (fiche 146 § 4, le 2) : la salle rebâtie depuis sa base — au numéro
-/// `retenu`, le dernier que le fichier d'ici contient (au moins : un numéro trop bas ne gêne pas), et
-/// maintenant —, puis fusionnée avec le document d'ici. `gestes` : ce que la salle garde après sa base,
-/// avec leur numéro, dans son ordre.
+/// **La salle à un numéro** : sa base, puis ses gestes jusqu'à `jusqu_a` compris. `gestes` : ce que
+/// la salle garde après sa base, avec leur numéro, dans son ordre.
+pub fn rebatir(base: &Project, gestes: &[(u64, GestePartage)], jusqu_a: u64) -> Project {
+    let mut projet = base.clone();
+    for (_, geste) in gestes.iter().filter(|(n, _)| *n <= jusqu_a) {
+        geste.appliquer(&mut projet);
+    }
+    projet
+}
+
+/// **Revenir dans sa salle** (fiche 146 § 4, le 2) : la salle rebâtie au numéro `retenu`, le dernier
+/// que le fichier d'ici contient (au moins : un numéro trop bas ne gêne pas), et maintenant, puis
+/// fusionnée avec le document d'ici.
 pub fn revenir(
     ici: &Project,
     base: &Project,
     gestes: &[(u64, GestePartage)],
     retenu: u64,
 ) -> FusionDuDocument {
-    let mut ancetre = base.clone();
-    let mut la_bas = base.clone();
-    for (n, geste) in gestes {
-        if *n <= retenu {
-            geste.appliquer(&mut ancetre);
-        }
-        geste.appliquer(&mut la_bas);
-    }
+    let ancetre = rebatir(base, gestes, retenu);
+    let la_bas = rebatir(base, gestes, u64::MAX);
     fondre_le_document(&ancetre, ici, &la_bas)
 }
 

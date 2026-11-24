@@ -97,13 +97,23 @@ Fait, pur, dans `core/store/journal/fusion.rs` et `fusion_projet.rs` (20 épreuv
   revenir après un arrêt net. Et comme on compare des états, aucun déplacement n'est rejoué deux fois —
   la raison pour laquelle la reprise exigeait le numéro exact (`collaborer/reprise.rs`) disparaît.
 
+* **`Store::revenir_dans_la_salle`** (`core/store/revenir.rs`) : les trois temps — le document d'ici
+  devient la salle **hors partage** (la fusion prise comme un diff : `fondre_le_document(ici, la_bas,
+  ici)`), on participe au numéro où la salle en est, puis ce qui n'a changé qu'ici devient **mon geste**
+  (`appliquer_comme_un_geste`, atomique) et part en attente. L'épreuve `revenir_1_…` : Alice sort, Bob
+  déplace un nœud (un pas, qui doublerait s'il était rejoué) et en change un autre, Alice travaille hors
+  ligne sur un autre nœud et sur le même ; elle revient — **les deux canevas convergent**, rien ne se perd,
+  un seul conflit. 16 sabotages sur 16 dans `revenir-147.json`.
+
 **Ce qui reste, côté application** (la prochaine session) :
 1. Le souvenir garde le code à « Quitter » (le 1 de la fiche 146) et, pendant le partage, **une borne
    basse** du numéro (celui que la salle a confirmé au dernier écrit du disque) au lieu de « en cours ».
 2. Une entrée `Revient` (à côté de `AttendLaBase`) : le fil part de 0, on garde la base et les gestes
-   jusqu'à « salle à jour » (`salle_a_jour`), puis `revenir`, on adopte le document fusionné,
-   `store.rejoindre(…, N)`, et ce qui part devient **mon** geste (annulable). « Partager » un document
+   jusqu'à « salle à jour » (`salle_a_jour`), puis `store.revenir_dans_la_salle` (fait) — après
+   `terminer_les_gestes_en_cours` (elle ne fait rien pendant un geste ouvert). « Partager » un document
    qui a son code, et le lancement après un arrêt net, passent par là.
+   Attention : `suivre_le_canevas_partage` coupe le
+   fil d'une entrée sans participation (`!= AttendLaBase`) — `Revient` doit y être.
 3. **La version d'ici d'un conflit, gardée à côté** : aujourd'hui seulement son nom est rendu ; poser une
    copie du nœud d'ici (un nom neuf) à côté de celui de la salle, et le dire dans Collaborer.
 4. Le 3 de la fiche 146 (« Changer les codes », la salle qui se ferme) attend la connexion Cloudflare.
