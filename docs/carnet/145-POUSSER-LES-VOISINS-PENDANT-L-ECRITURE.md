@@ -125,3 +125,26 @@ develop` et `borne.sh`). **Ce qui reste, honnêtement** : les voisins s'écarten
 à lettre — pendant qu'on tape, la carte du document ne grandit pas encore ; le faire lettre à lettre, c'est
 écrire la hauteur pendant la saisie (et alors seulement « effacer fait remonter » jouera). L'essai au
 pilote reste à faire.
+
+**Lettre à lettre, conçu (24/11, 19 h 40 ; pas codé, la fenêtre du compte b au mur)**. Trois voies pesées :
+
+* **Un geste ouvert de l'ouverture à la validation** (`begin_live_edit` à `start_text_edit_at`) : écarté.
+  Tant qu'un geste est ouvert, **toute écriture d'un agent est refusée** (`Store::agir`,
+  `glucose-core/src/store/agents.rs` l. 197 : `Refus::GesteEnCours`) — le relais et ses IA ne pourraient
+  plus rien poser pendant qu'il tape, parfois des minutes ; et la version n'avançant qu'à la fin, ni le
+  partage ni la sauvegarde ne verraient rien.
+* **Déplacer les voisins au seul dessin** (comme `boite_montree`, `renderer/card.rs`, qui fait déjà grandir
+  la carte en saisie sans écrire le document) : écarté. Il faudrait que flèches, membranes, sélection et clic
+  lisent tous le même décalage — chaque voie du dessin à reprendre, « rien à moitié » impossible.
+* **Retenu : écrire quand la hauteur change, et fondre les pas d'une même saisie en un seul geste.** La
+  hauteur ne change qu'à une ligne gagnée ou perdue, pas à chaque lettre : à ce moment seulement, un geste
+  court (hauteur + `pousser_en_ecrivant`, avec `origines` gardé à côté de `TextEditSession` depuis
+  l'ouverture). Le journal fond un geste dans le précédent **s'ils portent la même étiquette et que rien
+  n'a été publié entre eux** — la saisie (son numéro) en est une ; la validation (texte + dernier
+  ajustement) aussi : un seul Ctrl+Z. Si un agent écrit entre deux pas, la saisie fait deux gestes, dans
+  l'ordre vrai : honnête. C'est le regroupement des éditeurs (l'historique de ProseMirror et de CodeMirror
+  fond les changements voisins, `newGroupDelay` ; de mémoire, à relire avant de coder), ici par étiquette
+  et non par délai — aucune constante. **Échap** (si la saisie s'annule) : la loi étant une fonction pure du
+  bas, `pousser_en_ecrivant(…, bas d'origine)` ramène tout ; le geste fondu s'annule de lui-même.
+  À vérifier avant de coder : ce que fait un pas reçu du partage (`collaborer`) entre deux pas ; que
+  `fondre` (FONDRE-1) sache réunir deux transactions et non seulement les éditions d'une seule.
