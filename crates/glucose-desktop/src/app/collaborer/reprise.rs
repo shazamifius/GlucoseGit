@@ -27,11 +27,13 @@
 //! **Dans le dossier de Glucose, lisible de lui seul — jamais dans le `.glucose`** : le code
 //! « écrire » est un secret ; un fichier envoyé à quelqu'un ne l'emporte pas.
 
-use super::{identite, nouvelle_marque, CanevasPartage, Entree};
+use super::{identite, nouvelle_marque, CanevasPartage, Entree, CURSEUR, SILENCE};
 use crate::agents::json::Json;
+use crate::agents::publique::lien::EtatDuLien;
 use crate::app::GlucoseApp;
 use glucose_core::salle::code::Code;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 /// Le fichier, dans le dossier de Glucose.
 pub const FICHIER: &str = "canevas-partages.json";
@@ -137,6 +139,27 @@ impl GlucoseApp {
         }
     }
 
+    /// **Avant de fermer, le retour de mes gestes** (fiche 144 § 2 ; sa note du 24/11 : la
+    /// synchronisation coupée à une relance de son Glucose). Un geste parti juste avant — un
+    /// battement du relais, la réponse d'une IA, ce que la fermeture vient d'écrire — attend son
+    /// numéro ; sans lui, rien d'exact n'est retenu, et relancé, le document ne rejoindrait pas sa
+    /// salle. Tant qu'elle est reliée, on la laisse les rendre — au plus le temps au bout duquel
+    /// un pair silencieux passe pour parti.
+    pub(crate) fn attendre_le_retour_de_mes_gestes(&mut self) {
+        let debut = Instant::now();
+        loop {
+            let relie = (self.lancement.agents.partage.as_ref())
+                .is_some_and(|cp| cp.lien.etat() == EtatDuLien::Relie);
+            let en_attente = self.store.partage.as_ref().map_or(0, |p| p.en_attente());
+            let voyage = self.disque.voyage.is_some();
+            if !attendre(en_attente, relie, voyage, debut.elapsed()) {
+                return;
+            }
+            self.suivre_le_canevas_partage();
+            std::thread::sleep(CURSEUR);
+        }
+    }
+
     /// **Au lancement** : le document rouvert était-il partagé ? Il rejoint sa salle au numéro que
     /// son fichier contient — ou le dit, s'il s'était arrêté net.
     pub(crate) fn reprendre_le_canevas_partage(&mut self) {
@@ -151,6 +174,7 @@ impl GlucoseApp {
             (Some(code), Some(n)) => self.rejoindre_au_numero(code, n),
             (Some(_), None) => {
                 let _ = retenir(&self.disque.canevas, &document, None);
+                crate::dire!("[Glucose] canevas partagé : pas repris, arrêté net");
                 self.dire_ce_qui_arrive_au_canevas(ARRETE_NET.into());
             }
             (None, _) => {
@@ -184,6 +208,13 @@ impl GlucoseApp {
         self.retenir_le_canevas_en_cours();
         crate::dire!("[Glucose] canevas partagé : repris au geste n° {n} de sa salle");
     }
+}
+
+/// **Attendre encore ?** Des gestes attendent leur numéro, la salle est reliée (sinon rien ne
+/// reviendra), on est au présent (dans le passé, rien n'entre), et elle n'a pas encore passé pour
+/// silencieuse.
+fn attendre(en_attente: usize, relie: bool, voyage: bool, ecoule: Duration) -> bool {
+    en_attente > 0 && relie && !voyage && ecoule < SILENCE
 }
 
 /// Ce que dit un document partagé qui s'était arrêté net.

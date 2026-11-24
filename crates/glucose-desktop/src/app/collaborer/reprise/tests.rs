@@ -27,18 +27,18 @@ fn lancer(d: &Path) -> GlucoseApp {
 /// Un document enregistré dans ce dossier, puis partagé — sa base revenue numérotée (n° 1) : il
 /// est dans la salle.
 fn document_partage(d: &Path) -> (GlucoseApp, PathBuf, Code) {
+    let code = Code::neuf([7; 32]);
+    let boite = crate::agents::Boite::nouvelle(Arc::new(|| {}));
+    document_partage_par(d, lien::lancer(MORTE, code.clone(), 0, boite), code)
+}
+
+/// Le même, par ce fil.
+fn document_partage_par(d: &Path, lien: lien::Lien, code: Code) -> (GlucoseApp, PathBuf, Code) {
     let chemin = d.join("partagé.glucose");
     let mut app = lancer(d);
     noter(&mut app, "c1", "à plusieurs");
     app.save_to(chemin.clone());
     image_suivante(&mut app);
-    let code = Code::neuf([7; 32]);
-    let lien = lien::lancer(
-        MORTE,
-        code.clone(),
-        0,
-        app.lancement.agents.boite.clone().unwrap(),
-    );
     assert!(app.store.partager_ce_canevas("a1b2"));
     let qui = ("a1b2".into(), "Alice".into(), 0);
     let objets = Arc::clone(&app.disque.objets);
@@ -271,4 +271,67 @@ fn partage_survit_la_base_recue_ne_coupe_pas_le_partage_qu_on_rejoint() {
         .expect("le partage reste");
     assert_eq!(cp.entree, Entree::Dedans);
     assert_eq!(app.store.partage.as_ref().map(|p| p.confirme), Some(1));
+}
+
+/// **Fermer attend le retour de mes gestes** (fiche 144 § 2) : un geste parti juste avant la
+/// fermeture revient numéroté pendant qu'elle attend, derrière un geste de Bob — le numéro est
+/// retenu, le geste de Bob est dans le fichier, et le document relancé rejoindra sa salle au lieu
+/// de s'arrêter « net ».
+#[test]
+fn partage_survit_fermer_attend_le_retour_de_mes_gestes() {
+    let d = dossier("canevas-retour");
+    let (fil, salle) = lien::d_epreuve();
+    let (mut app, chemin, _) = document_partage_par(&d, fil, Code::neuf([7; 32]));
+    noter(&mut app, "c2", "parti juste avant la fermeture");
+    image_suivante(&mut app);
+    assert_eq!(app.store.partage.as_ref().map(|p| p.en_attente()), Some(1));
+    let lettre = |marque: &str, nom: &str, geste| {
+        Box::new(glucose_core::salle::lettre::Lettre {
+            marque: marque.into(),
+            nom: nom.into(),
+            couleur: 0,
+            main: Main::Humain,
+            corps: glucose_core::salle::lettre::Corps::Geste(geste),
+        })
+    };
+    let de_bob = geste_de_bob(&app.store.project, "b0b-1");
+    let arrivees = [
+        (2, "b0b-1", lettre("b0b", "Bob", de_bob)),
+        (
+            3,
+            "a1b2-2",
+            lettre("a1b2", "Alice", GestePartage::default()),
+        ),
+    ];
+    for (n, id, lettre) in arrivees {
+        let nouvelle = lien::Nouvelle::Lettre {
+            n,
+            id: id.into(),
+            lettre,
+        };
+        salle.send(nouvelle).expect("la file");
+    }
+    assert!(fermer(&mut app));
+    assert_eq!(souvenir(&d, &chemin).and_then(|s| s.confirme), Some(3));
+    drop(app);
+
+    let mut relance = lancer(&d);
+    relance.retrouver_le_travail(None);
+    let board = relance.store.project.active_board_id.clone();
+    assert!(
+        relance.store.project.annotation(&board, "b0b-1").is_some(),
+        "le geste de Bob, écrit avant le numéro"
+    );
+}
+
+/// **La loi de l'attente** : seulement des gestes en attente, une salle reliée, au présent, et
+/// pas au-delà du silence.
+#[test]
+fn partage_survit_l_attente_s_arrete_quand_rien_ne_peut_revenir() {
+    let tot = Duration::from_millis(1);
+    assert!(attendre(1, true, false, tot));
+    assert!(!attendre(0, true, false, tot), "rien n'attend");
+    assert!(!attendre(1, false, false, tot), "pas reliée");
+    assert!(!attendre(1, true, true, tot), "dans le passé");
+    assert!(!attendre(1, true, false, SILENCE), "silencieuse");
 }

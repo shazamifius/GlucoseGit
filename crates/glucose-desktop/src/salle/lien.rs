@@ -127,6 +127,20 @@ struct Fil {
     boite: Boite,
 }
 
+/// **Un lien d'épreuve, relié** : ce que la salle apporte, l'épreuve l'envoie par la file rendue.
+#[cfg(test)]
+pub fn d_epreuve() -> (Lien, mpsc::Sender<Nouvelle>) {
+    let (envoi, nouvelles) = mpsc::channel();
+    let lien = Lien {
+        arret: Arc::new(AtomicBool::new(false)),
+        ordres: mpsc::channel().0,
+        passes: mpsc::sync_channel(1).0,
+        nouvelles,
+        etat: Arc::new(Mutex::new(EtatDuLien::Relie)),
+    };
+    (lien, envoi)
+}
+
 /// **Relie ce Glucose à la salle de ce code**, depuis le numéro `depuis` (zéro : depuis la base).
 pub fn lancer(racine: &str, code: Code, depuis: u64, boite: Boite) -> Lien {
     let (lien, mut fil) = relier(racine, code, depuis, boite);

@@ -235,6 +235,9 @@ impl GlucoseApp {
     pub fn fermer_le_document(&mut self) -> bool {
         self.terminer_les_gestes_en_cours();
         self.consigner();
+        // Un geste parti juste avant attend son numéro : la salle le rend, puis on écrit (fiche 144).
+        self.attendre_le_retour_de_mes_gestes();
+        self.consigner();
         // Le numéro que le fichier contient, lu avant que rien d'autre ne s'applique (PARTAGE-SURVIT).
         let partage = self.souvenir_du_canevas();
         let Some(e) = self.disque.ecriture.take() else {

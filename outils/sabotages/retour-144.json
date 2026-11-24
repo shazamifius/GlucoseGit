@@ -1,0 +1,135 @@
+[
+ {
+  "nom": "RETOUR — la fermeture n'attend plus",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "        self.attendre_le_retour_de_mes_gestes();\n        self.consigner();\n",
+  "apres": "        self.consigner();\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "RETOUR — ce qui est arrivé pendant l'attente n'est pas écrit",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "        self.attendre_le_retour_de_mes_gestes();\n        self.consigner();\n",
+  "apres": "        self.attendre_le_retour_de_mes_gestes();\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "RETOUR — attendre sans salle reliée",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "en_attente > 0 && relie && !voyage && ecoule < SILENCE",
+  "apres": "en_attente > 0 && !voyage && ecoule < SILENCE",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "RETOUR — attendre dans le passé",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "en_attente > 0 && relie && !voyage && ecoule < SILENCE",
+  "apres": "en_attente > 0 && relie && ecoule < SILENCE",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "RETOUR — attendre sans fin",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "en_attente > 0 && relie && !voyage && ecoule < SILENCE",
+  "apres": "en_attente > 0 && relie && !voyage",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "RETOUR — attendre sans rien en attente",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "en_attente > 0 && relie && !voyage && ecoule < SILENCE",
+  "apres": "relie && !voyage && ecoule < SILENCE",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ },
+ {
+  "nom": "RETOUR — l'attente ne relève pas la salle",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/reprise.rs",
+  "avant": "            self.suivre_le_canevas_partage();\n            std::thread::sleep(CURSEUR);",
+  "apres": "            std::thread::sleep(CURSEUR);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::collaborer::reprise"
+  ]
+ }
+]

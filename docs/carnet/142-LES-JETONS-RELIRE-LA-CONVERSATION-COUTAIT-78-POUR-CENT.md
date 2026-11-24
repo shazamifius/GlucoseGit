@@ -76,6 +76,12 @@ neuve doit relire 150 000 jetons de code. Une fenêtre plus petite (200 000) gar
    Premier relevé : la fenêtre du compte b ouverte à 12 h, **2 % à 12 h 00, 19 % à 12 h 25** — cette
    conversation, partie sous l'ancien démarrage, à 260 000 jetons de contexte à 12 h 25. La suivante sera la
    première sous les règles neuves : relever la jauge à son début et à sa fin.
+   **Deuxième relevé** — la conversation partie à 13 h 17 sous les règles neuves (démarrage maigre, seuil à
+   300 000) : **52 % à 13 h 18, 55 % à 13 h 31, 65 % à 13 h 47, 70 % à 14 h 00**, soit **≈ 25 % de la fenêtre
+   par heure** (41 % la veille de midi, ≈ 67 % avant la fiche 142) : environ **4 h de travail par fenêtre de
+   5 h**, contre 1 h 30. **À nuancer** : une heure faite de compilations et de suites (trois ici) coûte moins
+   qu'une heure de lecture ; et le coût par geste grandit avec la conversation. Le relevé de sa fin dira la
+   pente entière.
 2. ~~Le MCP plus court~~ : **fait à 12 h 24** — une lecture par `ids` ou `cherche` ne redit plus le
    document (deux fois), la partie visible, les onglets ni les domaines ; le sommaire, qui oriente, les
    garde (`executer/tests/courte.rs`, `mcp-court-142.json` 3 sur 3 ; 3 586 épreuves).

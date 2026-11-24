@@ -52,6 +52,33 @@ systemd, puis il lit dans la sortie ce qu'a fait le partage, et l'écrit dans so
 haut (`relais-relances`, douze lignes ; l'histoire garde les autres). Le mode d'emploi du relais le dit
 (les pièges payés), et `CLAUDE.md` à la ligne de la compilation : **une relance pour plusieurs chantiers**.
 
+### La fermeture attend le retour de ses gestes (RETOUR-1)
+
+**Une cause possible, lue dans le code** : à la fermeture, le numéro de la salle n'est retenu que si
+aucun geste de ce PC n'attend le sien (`souvenir_du_canevas`) ; sinon le lancement suivant s'arrête « net »
+et **ne rejoint pas** (fiche 131). Or le relais écrit sans cesse dans son Glucose (le ❤️ chaque minute, les
+réponses des sessions), et la fermeture elle-même écrit ce qui restait (`consigner`) : un geste parti dans
+la dernière fraction de seconde suffisait. Ce PC hors de la salle, ce que le relais écrit n'arrive plus chez
+lui, de loin — *« j'ai bien le fichier, mais seul, sans mise à jour »* (sa note `text-c3kr-2251`). **Probable,
+pas prouvé** : aucun journal ne garde ce qu'a fait le partage à 12 h 18 (la télémétrie n'en dit rien) ; sa
+réponse et `relais-relances` le diront.
+
+**Fait** : `fermer_le_document` attend le retour de ses gestes (`attendre_le_retour_de_mes_gestes`) — tant
+que la salle est reliée (sinon rien ne reviendra), au présent, et au plus `SILENCE` (le temps au bout
+duquel un pair silencieux passe pour parti, déjà là : aucune durée neuve) ; puis elle écrit ce qui est
+arrivé pendant l'attente, **avant** de lire le numéro. Le lancement qui ne reprend pas le dit désormais
+dans sa sortie (« pas repris, arrêté net ») : `relancer_glucose.py` l'écrit chez lui.
+
+**Épreuves** : un lien d'épreuve relié (`salle::lien::d_epreuve`) rend, pendant la fermeture, un geste de
+Bob puis le mien : numéro 3 retenu, le geste de Bob dans le fichier relancé ; et la loi de l'attente.
+**Sabotages** `outils/sabotages/retour-144.json` : **7 sur 7**.
+
+**Ce qui reste** (le chantier des codes) : un arrêt vraiment net (coupure de courant, `SIGKILL`) ne
+reprend toujours pas ; et « Partager » fait **toujours une salle neuve** (`partager_ce_canevas` : un code
+neuf à chaque fois) — d'où ses doublons : un document repartagé laisse ses autres appareils dans
+l'ancienne salle. La forme juste, à concevoir : une salle par document, gardée ; le numéro exact écrit
+dans l'histoire du document elle-même, plutôt qu'à la fermeture.
+
 ## 3. MCP-REPONDRE, vérifié chez lui
 
 Son Glucose relancé sur `0f9ec0b` : la première réponse posée par `glucose repondre` (`relais-rep-mcp-4`)
