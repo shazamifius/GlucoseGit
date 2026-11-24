@@ -160,7 +160,7 @@ fn test_table_3_les_colonnes_restent_en_face() {
 
 /// **TABLE-3 — la répartition**, sur des nombres : la naturelle quand la place suffit ; entre
 /// les deux, la combinaison linéaire qui remplit la place, chaque colonne entre sa minimale et
-/// sa naturelle ; en deçà, les minimales en proportion. Continue aux deux frontières.
+/// sa naturelle ; en deçà, le partage équitable (TABLE-5). Continue aux deux frontières.
 #[test]
 fn test_table_3_la_repartition_remplit_la_place() {
     let (minimales, naturelles) = ([10.0f32, 50.0, 20.0], [100.0f32, 60.0, 400.0]);
@@ -179,11 +179,18 @@ fn test_table_3_la_repartition_remplit_la_place() {
             );
         }
     }
+    // TABLE-5 : en deçà, la plus étroite (10) garde sa minimale, les deux autres ont la part.
     let sous = repartir(&minimales, &naturelles, 40.0);
     assert!((somme(&sous) - 40.0).abs() < 1e-4, "{sous:?}");
     assert!(
-        (sous[1] / sous[0] - 5.0).abs() < 1e-4,
-        "pas en proportion : {sous:?}"
+        (sous[0] - 10.0).abs() < 1e-4 && (sous[1] - 15.0).abs() < 1e-4,
+        "pas le partage équitable : {sous:?}"
+    );
+    // Dans n'importe quel ordre : la plus large en tête ne prend pas la part de la plus étroite.
+    let desordre = repartir(&[50.0, 10.0, 20.0], &[60.0, 100.0, 400.0], 40.0);
+    assert!(
+        (desordre[0] - 15.0).abs() < 1e-4 && (desordre[1] - 10.0).abs() < 1e-4,
+        "{desordre:?}"
     );
     let pres = |a: &[f32], b: &[f32]| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-2);
     assert!(pres(&repartir(&minimales, &naturelles, 80.0), &minimales));
@@ -250,5 +257,38 @@ fn test_table_3_en_edition_une_rangee_est_sa_source() {
     }
     for (x, morceau) in bords_droits(&typo, &layout, source) {
         assert!(x <= 400.0 + 1e-3, "{morceau:?} finit à {x}");
+    }
+}
+
+/// **TABLE-5 — seul le mot trop long se coupe** (sa capture du 22/11, `text-wiov-330`) : un
+/// tableau de SUITE dans un nœud étroit, où une adresse de fichier de 59 signes ne tient pas.
+/// Réduites en proportion, toutes les colonnes passaient sous leur mot le plus long : « [~] »
+/// sur trois lignes, « télémétri-e ». Ici, l'adresse se coupe (le cas est exercé), aucun autre
+/// mot.
+#[test]
+fn test_table_5_seul_le_mot_trop_long_se_coupe() {
+    let adresse = "~/.cache/glucose-bancs/session-123/outils/ancienne-adresse/";
+    let source = format!(
+        "| | chantier | fini quand |\n|---|---|---|\n| [~] | la boîte noire et {adresse} recopiée | les deux serveurs prouvés en ligne |"
+    );
+    let layout = pose(&source, boite(257.0), TextMode::Rendered);
+    let octets = lignes_des_octets(&layout);
+    let rangee = source.lines().last().expect("trois rangées");
+    let debut = source.len() - rangee.len();
+    for mot in rangee.split([' ', '|']).filter(|m| !m.is_empty()) {
+        let at = debut + (mot.as_ptr() as usize - rangee.as_ptr() as usize);
+        let lignes: std::collections::BTreeSet<usize> = (at..at + mot.len())
+            .filter_map(|o| octets.get(&o))
+            .flatten()
+            .copied()
+            .collect();
+        if mot == adresse {
+            assert!(
+                lignes.len() > 1,
+                "l'adresse tient : le cas n'est pas exercé"
+            );
+        } else {
+            assert!(lignes.len() <= 1, "{mot:?} est coupé : {lignes:?}");
+        }
     }
 }

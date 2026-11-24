@@ -1,0 +1,47 @@
+[
+ {
+  "nom": "TABLE-5 — en deçà des minimales, de nouveau en proportion",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "    minimales.iter().map(|m| m.min(part)).collect()",
+  "apres": "    minimales.iter().map(|m| m * place / somme_min).collect()",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-5 — la part comparée au reste entier, pas partagée",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "        if *minimale > reste / restantes {",
+  "apres": "        if *minimale > reste {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ },
+ {
+  "nom": "TABLE-5 — les minimales prises dans leur ordre, sans les trier",
+  "fichier": "crates/glucose-desktop/src/renderer/richtext/table.rs",
+  "avant": "    triees.sort_by(f32::total_cmp);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "table_"
+  ]
+ }
+]

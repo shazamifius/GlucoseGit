@@ -158,8 +158,11 @@ pub(super) fn layout_table(
 /// La spécification CSS des tableaux (§ 3.9.3) : entre la répartition où chaque colonne a sa
 /// largeur minimale et celle où elle a sa largeur naturelle, la combinaison linéaire qui
 /// remplit la place ; au-delà de la naturelle, la naturelle. En deçà de la minimale (la CSS
-/// déborde), les minimales réduites en proportion : la fonction reste continue, et un nœud
-/// qu'on rétrécit resserre ses colonnes sans saut.
+/// déborde), **TABLE-5** : le partage équitable de Typst (`shrink_auto_columns`) — une colonne
+/// plus étroite que sa part garde sa minimale, les autres reçoivent la part. Seul le mot qui ne
+/// tient pas se coupe : réduites en proportion, un seul long mot (une adresse de fichier)
+/// coupait toutes les colonnes, « [~] » sur trois lignes (sa capture du 22/11, fiche 143). La
+/// fonction reste continue, et un nœud qu'on rétrécit resserre ses colonnes sans saut.
 fn repartir(minimales: &[f32], naturelles: &[f32], place: f32) -> Vec<f32> {
     let somme_min: f32 = minimales.iter().sum();
     let somme_nat: f32 = naturelles.iter().sum();
@@ -175,8 +178,20 @@ fn repartir(minimales: &[f32], naturelles: &[f32], place: f32) -> Vec<f32> {
             .map(|(m, n)| m + (n - m) * t)
             .collect();
     }
-    // `place < somme_min` et `place >= 0` : `somme_min` est strictement positive.
-    minimales.iter().map(|m| m * place / somme_min).collect()
+    // `place < somme_min` : une colonne au moins dépasse sa part, la plus large — elle n'entre
+    // donc pas dans la boucle, qui ne divise jamais par zéro.
+    let mut triees = minimales.to_vec();
+    triees.sort_by(f32::total_cmp);
+    let (mut reste, mut restantes) = (place, triees.len() as f32);
+    for minimale in &triees[..triees.len() - 1] {
+        if *minimale > reste / restantes {
+            break;
+        }
+        reste -= minimale;
+        restantes -= 1.0;
+    }
+    let part = reste / restantes;
+    minimales.iter().map(|m| m.min(part)).collect()
 }
 
 /// Les cellules de chaque rangée, analysées une fois — l'en-tête en gras.
