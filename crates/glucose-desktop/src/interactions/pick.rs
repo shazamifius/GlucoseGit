@@ -92,27 +92,7 @@ impl GlucoseApp {
         }
 
         let Some(top) = self.pick_for_click(wx, wy) else {
-            // Le bandeau d'une zone de gabarit la prend ; ailleurs, le vide est au canevas
-            // (PRESET-1).
-            // Une case du storyboard passe au-dessus des zones : sa bande d'abord.
-            if self.prendre_la_bande() || self.prendre_le_bandeau() {
-                return;
-            }
-            self.commit_editing();
-            self.store.clear_selection();
-            // Le doigt, sur le vide, déplace le canevas ; la souris y trace un cadre (fiche 54).
-            // Deux touchers rapprochés y ouvrent le menu : la main n'a pas de clic droit (fiche 56).
-            if self.au_doigt() {
-                let rang = self.click_count_at(LE_VIDE);
-                self.remember_click(LE_VIDE.to_string(), rang);
-                if rang == 2 {
-                    self.ouvrir_le_menu_au_doigt();
-                } else {
-                    self.is_panning = true;
-                }
-            } else {
-                self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
-            }
+            self.appuyer_dans_le_vide();
             return;
         };
 
@@ -144,6 +124,9 @@ impl GlucoseApp {
             return;
         }
 
+        if self.appuyer_dans_une_membrane(&top) {
+            return;
+        }
         // Cliquer ailleurs valide la saisie en cours.
         if self
             .editing_session
@@ -154,6 +137,29 @@ impl GlucoseApp {
         }
         self.select_node(&top);
         self.init_item_drag(wx, wy);
+    }
+
+    /// **L'appui dans le vide.** Le bandeau d'une zone de gabarit la prend ; ailleurs, le vide est
+    /// au canevas (PRESET-1). Une case du storyboard passe au-dessus des zones : sa bande d'abord.
+    fn appuyer_dans_le_vide(&mut self) {
+        if self.prendre_la_bande() || self.prendre_le_bandeau() {
+            return;
+        }
+        self.commit_editing();
+        self.store.clear_selection();
+        // Le doigt, sur le vide, déplace le canevas ; la souris y trace un cadre (fiche 54).
+        // Deux touchers rapprochés y ouvrent le menu : la main n'a pas de clic droit (fiche 56).
+        if self.au_doigt() {
+            let rang = self.click_count_at(LE_VIDE);
+            self.remember_click(LE_VIDE.to_string(), rang);
+            if rang == 2 {
+                self.ouvrir_le_menu_au_doigt();
+            } else {
+                self.is_panning = true;
+            }
+        } else {
+            self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
+        }
     }
 
     /// Le nœud que ce clic désigne — **cycle de profondeur compris** (PICK-1, fiche 07 § 3.3).
@@ -348,7 +354,7 @@ impl GlucoseApp {
     }
 
     /// Ce noeud fait-il deja partie de la selection ?
-    fn est_deja_selectionne(&self, top: &PickCandidate) -> bool {
+    pub(crate) fn est_deja_selectionne(&self, top: &PickCandidate) -> bool {
         match top.owner {
             PickOwner::Image => self.store.selected_image_ids.contains(&top.id),
             PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {

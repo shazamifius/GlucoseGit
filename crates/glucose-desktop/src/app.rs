@@ -227,6 +227,8 @@ pub struct GlucoseApp {
     pub bend_session: Option<crate::interactions::arrow_edit::BendSession>,
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
+    /// La membrane dont on a pressé le vide sans la choisir : un clic la choisit (MEMB-SEL-1).
+    pub membrane_au_clic: Option<glucose_core::hit_priority::PickCandidate>,
     /// Ce que le mode référence fait à la fenêtre : la déplacer, la redimensionner (fiche 51
     /// § 5, fiche 52 § 10).
     pub fenetre_de_reference: crate::interactions::reference::FenetreDeReference,
@@ -403,6 +405,7 @@ impl GlucoseApp {
             bend_session: None,
             active_guides: SnapGuides::default(),
             selection_box: None,
+            membrane_au_clic: None,
             fenetre_de_reference: Default::default(),
             editing_session: None,
             text_drag: None,

@@ -1,4 +1,4 @@
-# 143 — Ses problèmes rangés ; les tableaux qui redeviennent lisibles (24/11, le relais, compte b)
+# 143 — Ses problèmes rangés ; les tableaux qui redeviennent lisibles ; sélectionner dans une membrane (24/11, le relais, compte b)
 
 Ses notes du 24/11 : *« re-organiser de manière plus propre, mieux formuler, plus complet toute cette
 membrane, car elle va dans tous les sens »* (`text-g420-2319`) ; *« archive les blocs texte une fois
@@ -49,3 +49,36 @@ non partagée, le tri ôté). **Au pilote** : son tableau collé dans un Glucose
 mot entiers, seule l'adresse coupée (`~/.cache/glucose-bancs/table5-pilote.png`).
 
 **Reste** : son écran — ses tableaux de SUITE, dans ses nœuds étroits.
+
+## 3. MEMB-SEL-1 — sélectionner dans une membrane
+
+**Sa note** (`text-g420-2316`, 24/11) : *« au sein d'une membrane, si on veut faire un maintien du clic
+pour effectuer une sélection, c'est impossible, car ça sélectionne la membrane »* ; sa proposition :
+appuyer sans bouger *« suffisamment longtemps »* prend la membrane, bouger trace le rectangle.
+
+**La recherche** : Figma a la même plainte sur ses sections
+([*Dragging inside sections moves the section instead of selecting*](https://forum.figma.com/t/in-ui3-dragging-inside-sections-moves-the-section-instead-of-selecting/88839)) ;
+sa règle, rapportée dans ce fil : une section **non choisie** se traverse par le rectangle, une section
+**choisie** se glisse. Glucose l'avait déjà pour les zones de gabarit (`interactions/zone.rs`, PRESET-1 :
+on les prend par leur bandeau).
+
+**Le choix, contre sa proposition** : pas de durée. Une durée est une constante à régler (trop courte,
+le rectangle part en membrane ; trop longue, on attend), et elle se sent comme un retard. **La sélection
+départage** : dans le vide d'une membrane non choisie, appuyer trace le rectangle (`appuyer_dans_une_membrane`,
+`interactions/selection.rs`) ; relâché sans bouger, c'est un clic, qui la choisit (`membrane_au_clic`,
+lu au relâchement) ; choisie, son vide la glisse comme avant ; son titre et son bord la prennent toujours
+d'un geste ; `Maj` (l'ajouter) et `Alt` (la pile) ne changent pas. Déplacer une membrane non choisie :
+un clic puis glisser, ou son titre — autant de gestes que l'appui long, sans attendre. Dit dans
+`relais-rep-selection-membrane` ; à lui de trancher s'il préfère sa durée.
+
+**Le noyau** (`Board::pris_par`) : le rectangle ne prend plus **la membrane dans laquelle il est tracé
+tout entier** (ni ses mères) — tracé dans son vide, il vise ce qu'elle porte ; il prend toujours celle
+dont il touche le bord ou le titre (TITRE-1).
+
+**Le doigt** garde son geste (le vide déplace le canevas) : sa note parle de la souris.
+
+**Épreuves** (`interactions/selection/tests.rs`) : glisser dans le vide prend le texte et ne bouge pas
+la membrane ; un clic la choisit, puis son vide la glisse. **Sabotages** `outils/sabotages/memb-sel-143.json` :
+4 sur 4 tombent. **Au pilote** : le rectangle part du vide, la membrane reste, seul le texte est choisi
+(`~/.cache/glucose-bancs/memb-sel-pilote.png`). `click_node_at` passait à 82 lignes : l'appui dans le vide
+en est extrait (`appuyer_dans_le_vide`).

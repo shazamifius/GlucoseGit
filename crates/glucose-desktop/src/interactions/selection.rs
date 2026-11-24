@@ -27,12 +27,17 @@ impl GlucoseApp {
     /// aussi** (DOSSIER-2, fiche 130) : sa note du 22/11, *« lorsqu'on maintient l'outil
     /// sélectionner, certains nœuds ne sont pas compris dedans, comme les dossiers »*.
     pub fn finish_selection_box(&mut self) {
+        let membrane = self.membrane_au_clic.take();
         let Some((x1, y1, x2, y2)) = self.selection_box.take() else {
             return;
         };
-        // En deçà du seuil sur les deux axes, c'est un clic dans le vide, pas un geste.
+        // En deçà du seuil sur les deux axes, c'est un clic, pas un geste : dans le vide d'une
+        // membrane, il la choisit (MEMB-SEL-1).
         let seuil = RUBBERBAND_MIN_PX * self.densite();
         if (x2 - x1).abs() <= seuil && (y2 - y1).abs() <= seuil {
+            if let Some(top) = membrane {
+                self.select_node(&top);
+            }
             return;
         }
         let vp = self.store.viewport();
@@ -58,6 +63,30 @@ impl GlucoseApp {
         for id in pris.dossiers {
             self.store.select_folder(id, true);
         }
+    }
+
+    /// **MEMB-SEL-1 — dans le vide d'une membrane qu'on n'a pas choisie, le glisser trace le
+    /// rectangle de sélection** (sa note du 24/11, `text-g420-2316` : *« au sein d'une membrane,
+    /// si on veut faire un maintien du clic pour effectuer une sélection, c'est impossible car ça
+    /// sélectionne la membrane »*). Un clic sans bouger la choisit, au relâchement ; choisie, elle
+    /// se glisse par son vide ; son titre et son bord la prennent toujours d'un geste. Aucune durée
+    /// à attendre : c'est la sélection qui départage, comme les sections de Figma (choisie, elle se
+    /// déplace ; sinon, le rectangle). `Maj` (l'ajouter) et `Alt` (la pile) gardent leur sens ; le
+    /// doigt, lui, déplace le canevas dans le vide et garde son geste.
+    pub(crate) fn appuyer_dans_une_membrane(&mut self, top: &PickCandidate) -> bool {
+        if top.kind != glucose_core::hit_priority::PickKind::MembraneBody
+            || self.au_doigt()
+            || self.modifiers.shift_key()
+            || self.modifiers.alt_key()
+            || self.est_deja_selectionne(top)
+        {
+            return false;
+        }
+        self.commit_editing();
+        self.store.clear_selection();
+        self.membrane_au_clic = Some(top.clone());
+        self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
+        true
     }
 
     /// **Ce que l'arbitre de clic lit** de ce tableau et de la sélection, en ce point du monde.
@@ -116,3 +145,6 @@ impl GlucoseApp {
         candidats
     }
 }
+
+#[cfg(test)]
+mod tests;

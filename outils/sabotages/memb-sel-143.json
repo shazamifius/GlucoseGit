@@ -1,0 +1,62 @@
+[
+ {
+  "nom": "MEMB-SEL-1 — le vide d'une membrane la prend encore (l'ancien geste)",
+  "fichier": "crates/glucose-desktop/src/interactions/selection.rs",
+  "avant": "        if top.kind != glucose_core::hit_priority::PickKind::MembraneBody\n",
+  "apres": "        if top.kind == glucose_core::hit_priority::PickKind::MembraneBody\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memb_sel"
+  ]
+ },
+ {
+  "nom": "MEMB-SEL-1 — choisie, son vide trace aussi le rectangle",
+  "fichier": "crates/glucose-desktop/src/interactions/selection.rs",
+  "avant": "            || self.est_deja_selectionne(top)\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memb_sel"
+  ]
+ },
+ {
+  "nom": "MEMB-SEL-1 — un clic dans son vide ne la choisit pas",
+  "fichier": "crates/glucose-desktop/src/interactions/selection.rs",
+  "avant": "            if let Some(top) = membrane {\n                self.select_node(&top);\n            }\n",
+  "apres": "            let _ = membrane;\n",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memb_sel"
+  ]
+ },
+ {
+  "nom": "MEMB-SEL-1 — le rectangle prend la membrane dans laquelle il est tracé",
+  "fichier": "crates/glucose-core/src/types/board.rs",
+  "avant": "                        && !entoure(a, lasso)\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "memb_sel"
+  ]
+ }
+]

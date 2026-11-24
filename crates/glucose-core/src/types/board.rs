@@ -101,6 +101,11 @@ pub struct Board {
     pub updated_at: i64,
 }
 
+/// **Une membrane entoure ce rectangle** : il est tracé dans son vide (MEMB-SEL-1).
+fn entoure(a: &Annotation, lasso: crate::geometry::Rect) -> bool {
+    matches!(a, Annotation::Membrane { .. }) && a.rect().is_some_and(|r| r.contains_rect(lasso))
+}
+
 impl Board {
     /// **Les flèches du tableau** : ce qu'un lecteur parcourt — l'export en page web, ce que
     /// disent ses flèches (fiche 115) — sans ouvrir la liste du modèle (le cliquet du couplage).
@@ -112,7 +117,8 @@ impl Board {
 
     /// **Ce que ce rectangle prend** — la sélection élastique : les images, les annotations
     /// (par leur encre ; une flèche, par l'enveloppe de son tracé) et **les dossiers** (DOSSIER-2,
-    /// sa note du 22/11) qu'il croise, et que `voir` laisse voir. Une seule question au noyau,
+    /// sa note du 22/11) qu'il croise, et que `voir` laisse voir — **sauf la membrane dans laquelle
+    /// il est tracé tout entier** (MEMB-SEL-1) : tracé dans son vide, il vise ce qu'elle porte. Une seule question au noyau,
     /// sans ouvrir ses listes (le cliquet du couplage, règle S de la fiche 12 § 3).
     pub fn pris_par(&self, lasso: crate::geometry::Rect, voir: impl Fn(&str) -> bool) -> Pris {
         // Une flèche se prend là où elle se dessine, jamais à la copie de ses bouts (ANCRE-1).
@@ -124,7 +130,11 @@ impl Board {
                 .map(|i| i.id.clone())
                 .collect(),
             annotations: (self.annotations.iter())
-                .filter(|a| lasso.overlaps(crate::arrow::encre_vue(a, boite)) && voir(a.id()))
+                .filter(|a| {
+                    lasso.overlaps(crate::arrow::encre_vue(a, boite))
+                        && !entoure(a, lasso)
+                        && voir(a.id())
+                })
                 .map(|a| a.id().to_string())
                 .collect(),
             dossiers: (self.folders.iter())
