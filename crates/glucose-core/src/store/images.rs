@@ -40,6 +40,10 @@ fn selection_sets_de<'a>(
     }
 }
 
+/// **L'écart d'une copie** : un nœud dupliqué (Ctrl+D) se pose d'autant en bas à droite ; la version
+/// d'ici d'un conflit, d'autant à droite du nœud que la salle a emporté (REVENIR-2).
+pub(crate) const ECART_D_UNE_COPIE: f64 = 20.0;
+
 impl Store {
     /// **Combien de nœuds a le tableau ouvert** : ses images, ses textes et ses dossiers (CHARGE-1).
     pub fn nombre_de_noeuds(&self) -> usize {
@@ -339,7 +343,7 @@ impl Store {
             return;
         }
         let (mut new_imgs, mut new_anns) = self.clone_selection(board_id);
-        const OFFSET: f64 = 20.0;
+        const OFFSET: f64 = ECART_D_UNE_COPIE;
 
         for img in &mut new_imgs {
             img.id = self.generate_id("img");

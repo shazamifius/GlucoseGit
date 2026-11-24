@@ -51,7 +51,8 @@
   sur les dix tâches) ; le clic « Publish » est le sien.
 * **Un document, une salle** (fiche 146 § 4) : fait, sur `main` (pas encore dans une version) —
   « Quitter » garde le code, « Partager » revient dans la même salle, un arrêt net revient aussi, par la
-  fusion à trois (REVENIR-1 et 2, fiches 147 § 6 et 148) ; reste la version d'ici d'un conflit gardée à côté.
+  fusion à trois (REVENIR-1 et 2, fiches 147 § 6 et 148).
+  Ce qui a changé des deux côtés : la salle l'emporte, la version d'ici est posée à côté.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai

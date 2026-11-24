@@ -120,7 +120,8 @@ impl GlucoseApp {
         );
         if !conflits.is_empty() {
             self.dire_ce_qui_arrive_au_canevas(format!(
-                "De retour dans la salle : {} élément(s) changé(s) ici et là-bas — la salle l'a emporté",
+                "De retour dans la salle : {} élément(s) changé(s) ici et là-bas — la salle l'a emporté, \
+                 ta version de ses nœuds est posée à côté",
                 conflits.len()
             ));
         }

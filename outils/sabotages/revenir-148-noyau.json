@@ -1,0 +1,156 @@
+[
+ {
+  "nom": "REVENIR-2 — aucune photo d'ici gardée",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "        let photos = b.images.iter().filter(|i| conflits.contains(&i.id));",
+  "apres": "        let photos = b.images.iter().filter(|i| conflits.contains(&i.id) && false);",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ },
+ {
+  "nom": "REVENIR-2 — aucune note d'ici gardée",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "            .filter(|a| conflits.iter().any(|c| c == a.id()))",
+  "apres": "            .filter(|a| conflits.iter().any(|c| c == a.id()) && false)",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ },
+ {
+  "nom": "REVENIR-2 — la flèche d'ici copiée aussi",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "            .filter(|a| !matches!(a, Annotation::Arrow { .. }));",
+  "apres": "            .filter(|_| true);",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ },
+ {
+  "nom": "REVENIR-2 — la photo d'ici collée à l'autre, sans écart",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "                    img.x += img.width + ECART_D_UNE_COPIE;",
+  "apres": "                    img.x += img.width;",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ },
+ {
+  "nom": "REVENIR-2 — la note d'ici posée sur l'autre",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "                    note.translate(note.bounds().width + ECART_D_UNE_COPIE, 0.0);",
+  "apres": "                    note.translate(0.0, 0.0);",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ },
+ {
+  "nom": "REVENIR-2 — les copies ne partent pas",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "        edits.extend(self.poser_a_cote(versions, &fusion.projet));",
+  "apres": "        let _ = self.poser_a_cote(versions, &fusion.projet);",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ },
+ {
+  "nom": "REVENIR-2 — la photo d'ici garde son nom",
+  "fichier": "crates/glucose-core/src/store/revenir.rs",
+  "avant": "                    img.id = self.generate_id(\"img\");",
+  "apres": "                    let _ = self.generate_id(\"img\");",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "revenir"
+  ]
+ }
+]

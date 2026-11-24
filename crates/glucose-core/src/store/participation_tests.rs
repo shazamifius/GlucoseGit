@@ -3,6 +3,7 @@
 //! salle les ordonne ; chacun rejoue cet ordre — **et tous finissent avec le même canevas**.
 
 use super::*;
+use crate::store::images::ECART_D_UNE_COPIE;
 use crate::store::journal::partage::{EditionPartagee, Rencontre};
 use crate::store::journal::Edit;
 use crate::store::CeQueLaSalleGarde;
@@ -482,6 +483,28 @@ fn revenir_1_revenir_dans_sa_salle_converge_sans_rien_perdre() {
     salle.poster(&mut bob);
     alice.update_image(T, "a", |i| i.x = 40.0);
     alice.update_image(T, "c", |i| i.x = 41.0);
+    let conflits = revenir(&salle, &mut alice, retenu);
+    assert_eq!(conflits, Some(vec!["c".to_string()]));
+    salle.poster(&mut alice);
+    tous(&salle, [&mut alice, &mut bob]);
+    assert_eq!(xs(&alice), xs(&bob), "les deux canevas convergent");
+    let bob_voit = xs(&bob);
+    assert_eq!(bob_voit[..3], [("a", 40.0), ("b", 70.0), ("c", 80.0)]);
+    // La version d'ici de « c » (41), gardée à droite de celle de la salle, sous un nom neuf.
+    assert_eq!(
+        bob_voit.len(),
+        4,
+        "la version d'ici gardée à côté : {bob_voit:?}"
+    );
+    assert_eq!(bob_voit[3].1, 41.0 + 100.0 + ECART_D_UNE_COPIE);
+    assert!(
+        bob_voit[3].0.starts_with("img-a7-"),
+        "un nom neuf, de sa marque"
+    );
+}
+
+/// Alice revient dans la salle, depuis le numéro `retenu` : rend les conflits.
+fn revenir(salle: &Salle, alice: &mut Store, retenu: u64) -> Option<Vec<String>> {
     let Envoi::Base(base) = &salle.lettres[0].1.envoi else {
         panic!("la base d'abord");
     };
@@ -497,10 +520,47 @@ fn revenir_1_revenir_dans_sa_salle_converge_sans_rien_perdre() {
         gestes: &gestes,
         n,
     };
-    let conflits = alice.revenir_dans_la_salle(ce_qu_elle_garde, retenu, "a7", true);
-    assert_eq!(conflits, Some(vec!["c".to_string()]));
+    alice.revenir_dans_la_salle(ce_qu_elle_garde, retenu, "a7", true)
+}
+
+/// **REVENIR-2** (fiche 148) : la version d'ici d'une note que la salle a emportée est gardée à
+/// côté, sous un nom neuf ; celle d'une flèche, non — une flèche tient à ses deux bouts.
+#[test]
+fn revenir_2_la_version_d_ici_d_une_note_gardee_a_cote() {
+    let (mut salle, mut alice, mut bob) = depart();
+    alice.add_annotation(T, Annotation::text("t", 0.0, 300.0, "d'abord"));
+    alice.add_annotation(T, Annotation::arrow("f", 0.0, 0.0, 10.0, 0.0));
     salle.poster(&mut alice);
     tous(&salle, [&mut alice, &mut bob]);
-    assert_eq!(xs(&alice), xs(&bob), "les deux canevas convergent");
-    assert_eq!(xs(&bob), [("a", 40.0), ("b", 70.0), ("c", 80.0)]);
+    let retenu = salle.lettres.len() as u64;
+    alice.quitter_le_partage();
+    bob.update_annotation(T, "t", |a| a.translate(50.0, 0.0));
+    bob.update_annotation(T, "f", |a| a.translate(0.0, 50.0));
+    salle.poster(&mut bob);
+    alice.update_annotation(T, "t", |a| a.translate(7.0, 0.0));
+    alice.update_annotation(T, "f", |a| a.translate(0.0, 7.0));
+    let largeur = (alice.project.boards[0].annotations.iter())
+        .find(|a| a.id() == "t")
+        .map(|a| a.bounds().width)
+        .expect("la note d'ici");
+    let conflits = revenir(&salle, &mut alice, retenu).map(|mut c| {
+        c.sort();
+        c
+    });
+    assert_eq!(conflits, Some(vec!["f".to_string(), "t".to_string()]));
+    salle.poster(&mut alice);
+    tous(&salle, [&mut alice, &mut bob]);
+    let notes = |s: &Store| -> Vec<(String, f64)> {
+        (s.project.boards[0].annotations.iter())
+            .map(|a| (a.id().to_string(), a.bounds().left))
+            .collect()
+    };
+    assert_eq!(notes(&alice), notes(&bob), "les deux canevas convergent");
+    let vues = notes(&bob);
+    assert_eq!(
+        vues.len(),
+        3,
+        "la note d'ici à côté, pas la flèche : {vues:?}"
+    );
+    assert_eq!(vues[2].1, 7.0 + largeur + ECART_D_UNE_COPIE);
 }

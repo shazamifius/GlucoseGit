@@ -32,6 +32,13 @@ bien le fichier mais seul sans mise à jour »* (`text-c3kr-2251`).
   et l'on participe. Sans base (une salle vide), on le dit et l'on attend encore. `Entree::attend()`
   réunit `AttendLaBase` et `Revient` partout où l'on n'est pas encore dedans (le fil qu'on ne coupe pas,
   le curseur, les photos).
+* **La version d'ici d'un conflit, gardée à côté** (`Store::revenir_dans_la_salle`, `poser_a_cote`) :
+  pour chaque photo ou note que la salle a emportée, une copie d'ici, sous un nom neuf de ma marque, à
+  droite du nœud de la salle, de l'écart d'un nœud dupliqué (`ECART_D_UNE_COPIE`, la constante de
+  Ctrl+D, désormais partagée) — dans le même geste que la fusion (un seul Ctrl+Z). Pas les flèches (une
+  flèche tient à ses deux bouts) ni un nom de tableau : dits seulement. Épreuves : REVENIR-1 (la photo
+  d'Alice à 41 gardée à 161) et `revenir_2_…` (la note, pas la flèche) ; 7 sabotages sur 7
+  (`revenir-148-noyau.json`).
 * **Supprimés** : `rejoindre_au_numero` (le numéro exact), `ARRETE_NET`, `attendre_le_retour_de_mes_gestes`.
 
 Épreuves (`collaborer/reprise/tests.rs`, 6 neuves) : fermé proprement, il revient depuis sa borne ; un geste
@@ -43,13 +50,11 @@ disque** (scribe retenu : le souvenir reste à 0 ; relâché, il monte à 2). Sa
 
 ## 3. Ce qui reste
 
-1. **La version d'ici d'un conflit, gardée à côté** : aujourd'hui, seulement « N éléments changés ici et
-   là-bas — la salle l'a emporté ». Poser une copie du nœud d'ici (un nom neuf) à côté.
-2. Dans Collaborer, un document dehors qui a sa salle pourrait dire « Revenir dans sa salle » plutôt que
+1. Dans Collaborer, un document dehors qui a sa salle pourrait dire « Revenir dans sa salle » plutôt que
    « Partager ».
-3. « Changer les codes » (la salle qui se ferme) attend la connexion Cloudflare ; la liste des accès
+2. « Changer les codes » (la salle qui se ferme) attend la connexion Cloudflare ; la liste des accès
    (Collaborer en trois portes).
-4. **À voir chez lui** : partager, quitter, repartager — le même code ; relancer son Glucose pendant un
+3. **À voir chez lui** : partager, quitter, repartager — le même code ; relancer son Glucose pendant un
    partage — le canevas de loin suit encore.
 
 ## 4. Les jetons (sa priorité)
