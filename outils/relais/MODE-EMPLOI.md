@@ -82,6 +82,8 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
 - **Son Glucose est un service** (`glucose.service`, `Restart=always`) : le relancer par
   `relancer_glucose.py`, jamais `kill` puis `glucose` à la main — le service en rouvre un second dix
   secondes après (le 24/11 à 13 h 30, deux fenêtres ; la seconde n'avait rouvert aucun document).
+  Le relais MCP et `glucose lire` rouvrent Glucose **par son service** quand sa porte se tait (SERVICE-1,
+  fiche 144) : avant, ils lançaient une seconde fenêtre pendant chaque relance (14 h 02).
   **Chaque relance coupe peut-être son partage de loin** (sa note du 24/11 : « déconnecté de la sync […]
   12 h 10 », la relance de 12 h 18) : le moins souvent possible — une relance pour plusieurs chantiers —,
   et chacune s'écrit dans `relais-relances`, avec ce qu'a fait le partage (fiche 144).

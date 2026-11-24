@@ -169,6 +169,10 @@ pub(super) fn brancher(nom: &str, ouvrir: bool) -> Result<porte::Flux, String> {
 /// (`CREATE_BREAKAWAY_FROM_JOB`) ; un *Job* qui l'interdit fait échouer ce lancement, et le
 /// second, ordinaire, le dit au moins en s'ouvrant.
 fn lancer_glucose() -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if par_son_service() {
+        return Ok(());
+    }
     let exe = std::env::current_exe().map_err(|e| format!("Glucose introuvable : {e}"))?;
     let commande = || {
         let mut c = std::process::Command::new(&exe);
@@ -193,6 +197,28 @@ fn lancer_glucose() -> Result<(), String> {
         .spawn()
         .map(drop)
         .map_err(|e| format!("Glucose n'a pas pu s'ouvrir : {e}"))
+}
+
+/// **Son service d'abord** (fiche 144 § 4). Sous Linux, un service utilisateur `glucose.service`
+/// peut tenir Glucose ouvert jour et nuit (le relais, H24) et le relancer quand il tombe. C'est
+/// alors à lui de l'ouvrir : pendant qu'il le relance, la porte se tait une seconde, et un relais
+/// MCP ou une commande qui lançait Glucose à côté faisait **une seconde fenêtre** sur le même
+/// document (le 24/11 à 14 h 02). Demander au service ne double jamais : `start` ne fait rien sur
+/// un service qui tourne, et rejoint celui qui redémarre. Sans service activé : le lancer soi-même.
+#[cfg(target_os = "linux")]
+fn par_son_service() -> bool {
+    const SERVICE: &str = "glucose.service";
+    let systemctl = |args: &[&str]| {
+        std::process::Command::new("systemctl")
+            .arg("--user")
+            .args(args)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success())
+    };
+    systemctl(&["is-enabled", "--quiet", SERVICE]) && systemctl(&["start", SERVICE])
 }
 
 /// Attend que la porte de Glucose réponde, le temps d'un lancement.

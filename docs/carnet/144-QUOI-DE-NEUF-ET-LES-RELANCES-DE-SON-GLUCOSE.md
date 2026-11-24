@@ -79,6 +79,29 @@ neuf à chaque fois) — d'où ses doublons : un document repartagé laisse ses 
 l'ancienne salle. La forme juste, à concevoir : une salle par document, gardée ; le numéro exact écrit
 dans l'histoire du document elle-même, plutôt qu'à la fermeture.
 
+### Une seconde fenêtre à chaque relance : le relais MCP la lançait (SERVICE-1)
+
+À 14 h 02, `relancer_glucose.py` relance le service… et **deux** Glucose s'ouvrent à la même seconde :
+celui du service, et un second dans la portée tmux de ma session — **le relais MCP** (`glucose --mcp`),
+qui, sa porte tue pendant la relance, rouvrait Glucose lui-même (`agents/relais.rs`, `lancer_glucose`) ;
+la commande `glucose lire` fait pareil, et le veilleur l'appelle chaque minute. Les deux fenêtres
+avaient rouvert le document et rejoint la salle. **Son document n'a rien eu** : le verrou d'écriture
+(`persist/verrou.rs`, `flock`) n'en laisse écrire qu'une ; celle du relais MCP l'écrivait, et son
+histoire se relit entière jusqu'au dernier geste (1571, 14 h 02, relu du fichier). La fenêtre du
+service a été coupée net (`SIGKILL`, sans écriture de fermeture), le service arrêté.
+
+**Fait** : sous Linux, quand un service utilisateur `glucose.service` est activé, `lancer_glucose`
+**le demande au service** (`systemctl --user start`) au lieu de lancer une fenêtre à côté : `start` ne
+fait rien sur un service qui tourne, et rejoint celui qui redémarre — jamais deux. Sans service, rien ne
+change (les autres machines, la CI). **Vérifié pour de vrai** : la fenêtre hors service fermée
+proprement, `glucose lire` a rouvert Glucose **par son service** (sa portée : `glucose.service`), une
+seule fenêtre, partage repris au geste n° 435. Pas d'épreuve automatique : systemd n'existe pas dans
+la CI ; l'essai réel en tient lieu.
+
+**Vu, pas réglé** : une fenêtre qui n'a pas le document en écriture (le verrou pris ailleurs) rejoint
+quand même la salle et, fermée proprement, peut retenir un numéro que le fichier ne contient pas. Ne
+reprendre le partage que si l'on est le scribe du document — au prochain passage.
+
 ## 3. MCP-REPONDRE, vérifié chez lui
 
 Son Glucose relancé sur `0f9ec0b` : la première réponse posée par `glucose repondre` (`relais-rep-mcp-4`)
