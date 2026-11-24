@@ -1,0 +1,154 @@
+[
+ {
+  "nom": "MCP-REPONDRE — la réponse ne glisse plus hors de ce qu'elle chevauche",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "Some(o) => passer(o, &mut r),",
+  "apres": "Some(_) => break,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::agents::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — toujours à droite, même quand dessous est plus proche",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "let place = if dessous.top - t.bottom() < a_droite.left - t.right() {",
+  "apres": "let place = if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::agents::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — dessous à égalité, au lieu de la droite",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "let place = if dessous.top - t.bottom() < a_droite.left - t.right() {",
+  "apres": "let place = if dessous.top - t.bottom() <= a_droite.left - t.right() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::agents::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — la membrane qui entoure la note devient un obstacle",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": ".filter(|d| !(d.sorte == Sorte::Membrane && d.boite.contains_rect(t)))",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::agents::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — la réponse hors de la membrane de la note",
+  "fichier": "crates/glucose-desktop/src/agents/executer/repondre.rs",
+  "avant": "s.poser_pour_un_agent(board, ann, dans.as_deref())?;",
+  "apres": "s.poser_pour_un_agent(board, ann, None)?;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — la flèche sans « réponse »",
+  "fichier": "crates/glucose-desktop/src/agents/executer/repondre.rs",
+  "avant": "texte: Some(\"réponse\"),",
+  "apres": "texte: None,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — la flèche à l'envers",
+  "fichier": "crates/glucose-desktop/src/agents/executer/repondre.rs",
+  "avant": "source: &id,\n                        cible,",
+  "apres": "source: cible,\n                        cible: &id,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE — la membrane ne grandit pas pour la réponse",
+  "fichier": "crates/glucose-desktop/src/agents/executer/repondre.rs",
+  "avant": "s.agrandir_la_membrane_pour(board, m, boite)?;",
+  "apres": "let _ = (m, boite);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::repondre"
+  ]
+ }
+]

@@ -82,3 +82,28 @@ la membrane ; un clic la choisit, puis son vide la glisse. **Sabotages** `outils
 4 sur 4 tombent. **Au pilote** : le rectangle part du vide, la membrane reste, seul le texte est choisi
 (`~/.cache/glucose-bancs/memb-sel-pilote.png`). `click_node_at` passait à 82 lignes : l'appui dans le vide
 en est extrait (`appuyer_dans_le_vide`).
+
+## 4. MCP-REPONDRE — répondre à côté, en un geste (13 h 00 - 13 h 40)
+
+Le point 4 de sa liste (`relais-rep-mcp`) : *« un seul geste qui pose ma réponse près de ta note, sans
+rien chevaucher, avec la flèche « réponse » »*. Jusqu'ici, une IA posait sa réponse au bout du tableau (la
+place par défaut), ou calculait elle-même une position, puis tirait la flèche : trois appels, deux
+gestes à annuler, et des réponses qui chevauchaient.
+
+**`glucose_repondre`** (`a`, `texte`, `id`, `largeur`) : le texte à la **place libre la plus proche**
+(`Store::place_pour_une_reponse`, le noyau) — à droite de la note ou dessous, glissée au-delà de chaque
+nœud qu'elle chevaucherait, la plus proche des deux, la droite à égalité (on lit de gauche à droite).
+Les membranes qui **entourent** la note ne gênent pas : la réponse y entre, et la membrane **de la
+note** grandit pour elle. Elle appartient à la membrane nommée, pas à celle qui la recouvre (MEMB-8 :
+ce qu'on a nommé l'emporte sur la géométrie). La flèche `<id>-fleche` dit « réponse ». Un seul `Ctrl+Z`
+défait tout ; le même `id` récrit la réponse où elle est. Aucune distance à régler : l'écart est celui
+de tout ce qu'une IA pose (`ECART`).
+
+**Épreuves** : 4 au noyau (`store/agents/repondre_tests.rs`), 4 à l'exécuteur
+(`agents/executer/tests/repondre.rs`). **Sabotages** `outils/sabotages/repondre-143.json` : **8 sur 8**
+tombent. Le premier passage en laissait un aveugle (la réponse posée sans sa membrane) : la membrane
+grandie la reprenait par la géométrie. Deux épreuves l'ont rendu visible : une membrane serrée qui doit
+grandir, et une membrane plus petite qui recouvre la note sans être la sienne.
+
+Le point 5, **archiver d'un geste**, existait déjà : `glucose_ranger` (le dossier « archive », flèches
+comprises). Restent, dans l'ordre : 2, 9, 3, 6, 7, 8.
