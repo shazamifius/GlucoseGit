@@ -148,3 +148,12 @@ pilote reste à faire.
   bas, `pousser_en_ecrivant(…, bas d'origine)` ramène tout ; le geste fondu s'annule de lui-même.
   À vérifier avant de coder : ce que fait un pas reçu du partage (`collaborer`) entre deux pas ; que
   `fondre` (FONDRE-1) sache réunir deux transactions et non seulement les éditions d'une seule.
+
+**Vérifié (19 h 50), pour qui codera** : le journal n'a **aucune** fusion entre deux transactions — `fondre`
+(FONDRE-1) ne réunit que les éditions d'une seule, et `remplacer_dans_le_geste` (GLISSER-1) ne vit que
+dans un geste ouvert. La fusion par étiquette se loge donc dans `Journal::commit`
+(`glucose-core/src/store/journal.rs`, l. 539) : si le sommet de `done` porte la même étiquette et
+qu'`undone` est vide, ses éditions s'y ajoutent, puis `fondre` ; sinon on empile. **Ce qui est publié ne
+change pas** (`publier` : l'histoire et les pairs reçoivent chaque pas, dans l'ordre) — seule la pile
+d'annulation fond. **Un canevas partagé** n'empile pas dans `done` (« la pile est la sienne ») : la pile
+par main de `participation.rs` doit fondre de la même façon, sans quoi Ctrl+Z y défait la saisie pas à pas.
