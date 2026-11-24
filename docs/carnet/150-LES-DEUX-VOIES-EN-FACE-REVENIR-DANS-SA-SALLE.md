@@ -47,4 +47,13 @@ connecté »). Une photo n'a pas de champ « auteur » (`types/image.rs`) et ne 
 format changerait) : qui l'a posée se lit dans la main du geste (`Main::Participant`,
 `store/journal/mains.rs`) — en mémoire à l'arrivée d'un geste de la salle, dans l'histoire après une
 relance (`Auteur::d_une_main`, `persist/histoire.rs`). Le cadre gris : `renderer/scene/image.rs`,
-`poser_ou_demander` rend `None` quand `magasin.echecs` tient la photo.
+`poser_ou_demander` rend `None` quand `magasin.echecs` tient la photo, et `ornement.rs` (`libelle`)
+écrit « Image [id] » — trois appelants : la scène, `composants.rs`, le dessin vectoriel.
+
+**Le chemin proposé** : (1) à l'arrivée d'un geste de la salle (`collaborer.rs`, `une_lettre`, la
+main `Main::Participant { nom, .. }`), retenir pour chaque photo qu'il pose
+(`GestePartage::images_posees`, comme l'envoi le fait déjà) qui l'a posée ; (2) le libellé du cadre
+lit ce souvenir — « la photo de Loup Émeraude, pas connecté » si son nom n'est pas parmi
+`cp.presents()` — par le magasin plutôt que par trois signatures du rendu ; hors partage, rien ne
+change. Une photo déjà là avant l'entrée (la base) n'a pas de geste arrivé : son auteur se lit dans
+l'histoire, ou la ligne dit seulement « attend quelqu'un qui l'a ».
