@@ -119,15 +119,38 @@ fn test_q12_ce_qu_on_a_choisi_reste_net_le_reste_se_floute() {
     );
 }
 
-/// **Rien de visé, rien de flou** : un écran entièrement flou ne dirait rien de la sélection.
+/// Le plus fort écart d'un pixel à son voisin de droite sur une boîte : les lettres nettes d'un
+/// texte en ont un grand, que le flou efface.
+fn contraste(p: &Pixmap, (x0, y0, x1, y1): (u32, u32, u32, u32)) -> u8 {
+    let mut fort = 0;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            let (a, b) = (
+                p.pixel(x, y).expect("dedans"),
+                p.pixel(x + 1, y).expect("dedans"),
+            );
+            fort = fort.max(a.red().abs_diff(b.red()));
+        }
+    }
+    fort
+}
+
+/// **Rien de visé, rien de flou** : un écran entièrement flou ne dirait rien de la sélection. Le
+/// texte témoin garde le contraste de ses lettres — un témoin indépendant : deux rendus qui
+/// passeraient tous deux par le flou seraient égaux entre eux.
 #[test]
 fn test_q12_rien_de_vise_rien_ne_se_floute() {
     let mut store = tableau();
     store.selected_annotation_ids.clear();
-    assert_eq!(
-        rendre(&store, true).data(),
-        rendre(&store, false).data(),
-        "sans sélection, le flou ne pose rien"
+    let rendu = rendre(&store, true);
+    assert_eq!(rendu.data(), rendre(&store, false).data());
+    let lettres = (90, 480, 370, 520);
+    assert!(contraste(&rendu, lettres) > 80, "le témoin reste net");
+    // À l'envers : choisi ailleurs, le flou efface ce contraste.
+    let floute = rendre(&tableau(), true);
+    assert!(
+        contraste(&floute, lettres) < 40,
+        "flouté, le témoin perd ses lettres"
     );
 }
 

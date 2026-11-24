@@ -236,7 +236,8 @@ fn test_q12_le_flou_se_rend_pareil_sur_les_deux_voies() {
     let pire = banc_gpu::pire_ecart(&processeur, &carte);
     let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
     let canaux = processeur.data().len();
-    eprintln!("flou : pire écart {pire}, {larges} canaux au-delà de {ECART_COURANT}");
+    let deux = banc_gpu::canaux_hors_tolerance(&processeur, &carte, 2);
+    eprintln!("flou : pire écart {pire}, {larges} canaux au-delà de {ECART_COURANT}, {deux} de 2");
     assert!(
         pire <= ECART_ADMIS,
         "les deux voies floutent à {pire} niveaux l'une de l'autre"
@@ -244,6 +245,14 @@ fn test_q12_le_flou_se_rend_pareil_sur_les_deux_voies() {
     assert!(
         larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
         "l'écart dépasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+    // **La borne propre du flou** : les arrondis de la carte (seize bits par canal, les poids
+    // bilinéaires) ne passent deux niveaux qu'à quelques bords du masque — 15 canaux sur 6,5
+    // millions, mesurés le 24/11 sur sa RTX. Une réduction à mi-texel (la boîte au lieu du
+    // binomial) en écarte 17 160, sous la borne générale : c'est celle-ci qui la voit.
+    assert!(
+        deux * 100_000 <= canaux,
+        "le flou des deux voies s'écarte de plus de 2 niveaux sur {deux} canaux sur {canaux}"
     );
 }
 

@@ -306,15 +306,15 @@ pub fn grille(plan: &Plan, (largeur, hauteur): (usize, usize)) -> (usize, usize)
 /// à 1, ce qui reste net. Le flou se lit sous le centre de chaque pixel dans la grille du premier
 /// étage (la dernière montée de [`flouter`]), le masque dans la grille la plus grossière — la même
 /// lecture bilinéaire, les bords prolongés. `net` : des octets RVBA prémultipliés, que le mélange
-/// remplace. Les lignes au-dessus de `haut` ne se touchent pas (la chrome les couvre).
+/// remplace — l'image entière : la chrome, posée ensuite, couvre la bande.
 pub fn meler(
     net: &mut [u8],
-    (largeur, hauteur, haut): (usize, usize, usize),
+    (largeur, hauteur): (usize, usize),
     (flou, plan): (&Image, &Plan),
     masque: &Masque,
 ) {
     let maille = plan.maille() as f32;
-    for y in haut.min(hauteur)..hauteur {
+    for y in 0..hauteur {
         for x in 0..largeur {
             let f = if plan.etages == 0 {
                 flou.a(x as isize, y as isize)

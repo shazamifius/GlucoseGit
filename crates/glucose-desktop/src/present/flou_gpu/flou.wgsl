@@ -9,7 +9,7 @@ struct Reglage {
     // Les poids de la gaussienne, du centre vers un bord : poids[d / 4][d % 4].
     poids: array<vec4<f32>, 3>,
     // .x : le rayon de la gaussienne ; .y : de combien la source est plus petite que l'image
-    // (1 ou 2) ; .z : la maille du masque ; .w : la ligne au-dessus de laquelle rien ne change.
+    // (1 ou 2) ; .z : la maille du masque.
     divers: vec4<f32>,
 };
 
@@ -64,13 +64,10 @@ fn fs_agrandir(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
 }
 
 // Meler : net x m + flou x (1 - m), le flou lu dans la grille du premier etage, le masque dans
-// la plus grossiere ; au-dessus de la bande, l'image nette.
+// la plus grossiere -- l'image entiere : la chrome, posee ensuite, couvre la bande.
 @fragment
 fn fs_meler(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
     let net = textureLoad(nette, vec2<i32>(p.xy), 0);
-    if (p.y < r.divers.w) {
-        return net;
-    }
     let flou = textureSampleLevel(source, lineaire, p.xy / r.divers.y / r.source.xy, 0.0);
     let grille = vec2<f32>(textureDimensions(masque));
     let m = clamp(textureSampleLevel(masque, lineaire, p.xy / r.divers.z / grille, 0.0).r, 0.0, 1.0);

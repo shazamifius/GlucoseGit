@@ -335,7 +335,7 @@ impl Renderer {
         self.synchroniser_les_caches(store, ui, (pixmap.width(), pixmap.height()));
         let debut = std::time::Instant::now();
         self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height(), regard);
-        self.flouter_le_reste(pixmap, 1, ui.header_height());
+        self.flouter_le_reste(pixmap, 1);
         noter_le_cout_de_la_scene(debut);
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
@@ -383,7 +383,7 @@ impl Renderer {
         noter_le_cout_de_la_scene(debut);
         agrandir(plein, scene.tampon, f);
         crate::perf::stage("agrandir");
-        self.flouter_le_reste(plein, f, ui.header_height());
+        self.flouter_le_reste(plein, f);
 
         render_ui(plein, store, ui, &self.typo_ecran, &self.theme, pointer);
         self.magasin.fermer();

@@ -184,7 +184,7 @@ impl FlouGpu {
         }
         let m = &flou.masque;
         let sous = if flou.plan.etages == 0 { 1.0 } else { 2.0 };
-        let divers = [sous, flou.plan.maille() as f32, flou.haut];
+        let divers = [sous, flou.plan.maille() as f32, 0.0];
         let premier = etat.grilles[0].taille;
         file.write_buffer(&etat.meler.0, 0, &reglage(premier, [0.0; 2], flou, divers));
         file.write_texture(

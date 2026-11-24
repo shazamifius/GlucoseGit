@@ -153,7 +153,7 @@ fn test_flou_1_l_agrandissement_lit_aux_quarts() {
 }
 
 /// **Le mélange** : où le masque est plein, l'image nette reste telle quelle ; où il est vide,
-/// c'est le flou ; au-dessus de `haut`, rien ne se touche.
+/// c'est le flou ; à moitié, entre les deux.
 #[test]
 fn test_flou_1_le_masque_dit_ce_qui_reste_net() {
     let (l, h) = (16usize, 16usize);
@@ -174,15 +174,25 @@ fn test_flou_1_le_masque_dit_ce_qui_reste_net() {
         octets: vec![v; 64],
     };
     let mut plein = damier.clone();
-    meler(&mut plein, (l, h, 0), (&flou, &plan), &masque_de(255));
+    meler(&mut plein, (l, h), (&flou, &plan), &masque_de(255));
     assert_eq!(plein, damier, "masque plein : l'image reste nette");
     let mut vide = damier.clone();
-    meler(&mut vide, (l, h, 4), (&flou, &plan), &masque_de(0));
-    assert_eq!(
-        vide[..l * 4 * 4],
-        damier[..l * 4 * 4],
-        "au-dessus de haut, rien"
-    );
+    meler(&mut vide, (l, h), (&flou, &plan), &masque_de(0));
+    // À moitié : chaque pixel où le net et le flou diffèrent tombe strictement entre les deux.
+    let mut moitie = damier.clone();
+    meler(&mut moitie, (l, h), (&flou, &plan), &masque_de(128));
+    let mut entre = 0;
+    for i in (0..l * h * 4).step_by(4) {
+        let (n, f, m) = (damier[i], vide[i], moitie[i]);
+        if n.abs_diff(f) > 4 {
+            assert!(
+                m > n.min(f) && m < n.max(f),
+                "à moitié, {m} n'est pas entre le net {n} et le flou {f}"
+            );
+            entre += 1;
+        }
+    }
+    assert!(entre > 50, "le mélange s'éprouve sur {entre} pixels");
     // Le damier flouté tend vers le gris moyen.
     let milieu = (8 * l + 8) * 4;
     assert!(

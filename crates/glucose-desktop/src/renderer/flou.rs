@@ -55,13 +55,12 @@ impl Forme {
     }
 }
 
-/// **Le flou d'une image** : son plan, à la densité de l'écran, la grille de ce qui reste net, et
-/// la ligne au-dessus de laquelle rien ne change — la bande de l'interface, qui ne se floute pas.
+/// **Le flou d'une image** : son plan, à la densité de l'écran, et la grille de ce qui reste net.
+/// L'image entière se floute ; la chrome, posée ensuite sur les deux voies, couvre la bande.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Flou {
     pub plan: Plan,
     pub masque: Masque,
-    pub haut: f32,
 }
 
 /// **Ce qui reste net dans cette image** : les nœuds visés, les flèches choisies — rien quand le
@@ -124,7 +123,7 @@ pub(crate) fn marge(scale: WorldScale, plan: &Plan) -> f32 {
 pub(crate) fn flou(
     formes: &[Forme],
     (largeur, hauteur): (u32, u32),
-    (scale, haut): (WorldScale, f32),
+    scale: WorldScale,
 ) -> Option<Flou> {
     if formes.is_empty() || largeur == 0 || hauteur == 0 {
         return None;
@@ -156,7 +155,6 @@ pub(crate) fn flou(
             hauteur: gh,
             octets: grille.data().to_vec(),
         },
-        haut,
     })
 }
 
@@ -205,14 +203,7 @@ fn trait_elargi(points: &[(f32, f32)], demi: f32) -> Option<tiny_skia::Path> {
 pub(crate) fn flouter_le_reste(pixmap: &mut PixmapMut, flou: &Flou) {
     let (l, h) = (pixmap.width() as usize, pixmap.height() as usize);
     let demi = loi::flouter(pixmap.data_mut(), (l, h), &flou.plan);
-    // La carte compare la ligne au centre de chaque pixel : `y + ½ < haut`, soit `y < ⌈haut − ½⌉`.
-    let haut = (flou.haut - 0.5).max(0.0).ceil() as usize;
-    loi::meler(
-        pixmap.data_mut(),
-        (l, h, haut),
-        (&demi, &flou.plan),
-        &flou.masque,
-    );
+    loi::meler(pixmap.data_mut(), (l, h), (&demi, &flou.plan), &flou.masque);
     // Aucune marque de mesure à lui : le serveur de télémétrie ne la connaît pas (il se déploie
     // avant la version qui l'écrit) ; `img_scene_us` compte la scène, son flou compris.
 }
@@ -221,22 +212,17 @@ impl super::Renderer {
     /// **Le flou de cette image**, à la taille de ce tampon : ce que la couche du dessus a relevé
     /// de net, vu `facteur` fois plus grand quand la scène s'est rendue réduite, à la densité de
     /// l'écran (Q12, fiche 137).
-    pub(crate) fn flou_de_l_image(
-        &self,
-        taille: (u32, u32),
-        facteur: u32,
-        haut: f32,
-    ) -> Option<Flou> {
+    pub(crate) fn flou_de_l_image(&self, taille: (u32, u32), facteur: u32) -> Option<Flou> {
         let k = facteur.max(1) as f32;
         let formes: Vec<Forme> = self.formes_du_flou.iter().map(|f| f.agrandie(k)).collect();
         let scale = WorldScale::new(1.0, self.densite);
-        flou(&formes, taille, (scale, haut))
+        flou(&formes, taille, scale)
     }
 
     /// **Floute le reste, sur la voie du processeur**, si le flou vit dans cette image.
-    pub(super) fn flouter_le_reste(&self, pixmap: &mut PixmapMut, facteur: u32, haut: f32) {
+    pub(super) fn flouter_le_reste(&self, pixmap: &mut PixmapMut, facteur: u32) {
         let taille = (pixmap.width(), pixmap.height());
-        if let Some(f) = self.flou_de_l_image(taille, facteur, haut) {
+        if let Some(f) = self.flou_de_l_image(taille, facteur) {
             flouter_le_reste(pixmap, &f);
         }
     }

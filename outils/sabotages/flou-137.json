@@ -75,21 +75,6 @@
   ]
  },
  {
-  "nom": "FLOU-1 — le mélange touche la bande",
-  "fichier": "crates/glucose-core/src/flou.rs",
-  "avant": "    for y in haut.min(hauteur)..hauteur {",
-  "apres": "    for y in 0..hauteur.max(haut) {",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-core",
-   "--lib",
-   "--",
-   "flou::tests::test_flou_1_le_masque"
-  ]
- },
- {
   "nom": "Q12 — le flou de l'image D, entier",
   "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
   "avant": "pub(crate) const SIGMA: f32 = 5.6;",
@@ -147,21 +132,6 @@
    "--lib",
    "--",
    "renderer::flou::tests::test_q12_rien"
-  ]
- },
- {
-  "nom": "Q12 — le processeur floute la bande",
-  "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
-  "avant": "    let haut = (flou.haut - 0.5).max(0.0).ceil() as usize;",
-  "apres": "    let haut = 0 * flou.haut as usize;",
-  "cmd": [
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "renderer::flou::tests::test_q12_ce_qu_on_a_choisi"
   ]
  },
  {
@@ -247,6 +217,30 @@
   "fichier": "crates/glucose-desktop/src/renderer/flou.rs",
   "avant": "    formes.extend(poignees_du_groupe(store, pass));",
   "apres": "    let _ = poignees_du_groupe(store, pass);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "renderer::flou::tests::test_q12_ce_qu_on_a_choisi"
+  ]
+ },
+ {
+  "nom": "Q12 — le flou après l'interface : la bande floutée",
+  "remplacements": [
+   {
+    "fichier": "crates/glucose-desktop/src/renderer.rs",
+    "avant": "        self.flouter_le_reste(pixmap, 1);\n",
+    "apres": ""
+   },
+   {
+    "fichier": "crates/glucose-desktop/src/renderer.rs",
+    "avant": "        render_ui(pixmap, store, ui, &self.typo_ecran, &self.theme, pointer);\n        self.magasin.fermer();",
+    "apres": "        render_ui(pixmap, store, ui, &self.typo_ecran, &self.theme, pointer);\n        self.flouter_le_reste(pixmap, 1);\n        self.magasin.fermer();"
+   }
+  ],
   "cmd": [
    "cargo",
    "test",
