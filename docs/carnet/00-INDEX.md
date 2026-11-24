@@ -174,6 +174,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 134 | [Le relais jamais figé, et la flèche vers une membrane](134-LE-RELAIS-JAMAIS-FIGE-ET-LA-FLECHE-VERS-UNE-MEMBRANE.md) | le relais figé deux fois le 23/11 (la question de Chrome au démarrage, une permission du mode auto) : **`--no-chrome`, le bypass** (sa réponse : *« jamais de mode auto »*), le ❤️ qui dit « figée » ; **la mémoire du modèle à 90 %** relance une conversation neuve, la semaine à 90 % ; **ses textes** du relais dans son Glucose ; **FLECHE-7** — ce que contient un bout n'est pas un obstacle, une flèche vers une membrane va droit à son bord ; **RANGER-1 et 2** — ranger dans un dossier (l'archive) : `glucose_ranger` pour les IA, lâcher sur un dossier pour sa main, une flèche dont un seul bout part vise le dossier ; la sélection A, B, C dans son Glucose ; le brouillon de la beta.5 prêt |
 | 135 | [La flèche qu'on ne choisit plus](135-LA-FLECHE-QU-ON-NE-CHOISIT-PLUS.md) | sa note du 23/11 au soir (`text-kpll-375`) : *« une espèce de zone de clic invisible »*, une flèche qu'on ne choisit plus — reproduit au pilote (le pilote sait `maj-clic`) ; la copie des bouts d'une flèche accrochée lue par sept lecteurs (l'index, le cadre du groupe, l'élastique, F, Alt+F, la zone redessinée, la boîte dite aux IA) et laissée loin du dessin par trois gestes (la flèche glissée avec un autre nœud, le rangement dans un dossier, un dossier déplacé) ; **ANCRE-1** — une seule source : tout se lit sur le tracé ancré, l'index recale chaque flèche accrochée sur ses nœuds sans hachage ni écriture quand rien ne change (tldraw déduit, Excalidraw tient une copie) ; la scène de LIEN-4 reposait sur la copie |
 | 136 | [L'appui dans le texte qu'on écrit](136-L-APPUI-DANS-LE-TEXTE-QU-ON-ECRIT.md) | sa note du 23/11 au soir (`text-kpll-370`) : *« ça quitte le bloc texte carrément »* — en écriture, l'arbitre ne connaissait que la boîte du document : un appui dans les lignes neuves (ou la source d'un texte mis en forme, plus longue que son rendu) validait la saisie ; une poignée du bord et une flèche qui arrive dans le texte volaient aussi l'appui ; **EDIT-PRISE** — dans la boîte vivante, rien ne passe devant le texte ; l'avant et l'après au pilote ; commencé par le compte b, repris par le compte a |
+| 137 | [La sélection en équerres, et le flou](137-LA-SELECTION-EN-EQUERRES-ET-LE-FLOU.md) | sa réponse finale à Q12 (23/11) : *« les carrés avec le flou, mais au moins 60 % moins »* ; et `detourage-121`, le dernier fichier de sabotages jamais joué : 25 sur 25 |
 
 ## Les décisions — **foi**
 
@@ -197,7 +198,7 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [17](decisions/17-LE-DETOURAGE-PAR-U2NETP.md) le détourage, par u2netp lu par un moteur à nous (une donnée embarquée, pas une caisse) ·
 [18](decisions/18-LES-EMOJIS-EN-COULEUR-PAR-TWEMOJI.md) les émojis en couleur, par Twemoji 17 construit par nous en COLRv0, lu par `ttf-parser` (une donnée embarquée, pas une caisse ; [10](decisions/10-LES-EMOJIS-PAR-NOTO-EMOJI.md) n'en garde que le reste).
 
-La prochaine fiche porte le numéro **136**.
+La prochaine fiche porte le numéro **138**.
 
 ## Hors série — des archives, à consulter
 

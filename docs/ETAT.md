@@ -145,8 +145,8 @@ de battements sautés). Le halo de la parenté, les membranes à 11 % : pas enco
   `echelle-121` 5 sur 5 (trois gardes étaient aveugles : leurs épreuves sont écrites), `emoji-126`
   9 sur 9 ; **un échantillon de 24 anciens sabotages** tirés au hasard dans 18 fichiers : 24 sur 24
   (fiche 126 § 3) ; à la fiche 127, `tiroirs-126` **13 sur 13**, `tiroirs-127` **5 sur 5**,
-  `veille-126` **2 sur 2**, `liste-123` **8 sur 8** — et `detourage-121`, le dernier jamais joué
-  (fiche 127 § 9) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
+  `veille-126` **2 sur 2**, `liste-123` **8 sur 8** ; `detourage-121`, le dernier jamais joué,
+  **25 sur 25** (le 24/11, fiche 137 : son modèle sous `opt-level = 1`) ; à la fiche 130, `discussion-129` **25 sur 25** et `lecture-130` **11 sur 11** ;
   à la fiche 131, `relais-131` **12 sur 12**, `agents-toujours-131` **12 sur 12**,
   `relais-2-131` **7 sur 7**, `partage-survit-131` **10 sur 10** (et `saboter.py` lit `unittest`). 1 380 des 1 527 sabotages écrits s'appliquent encore au code d'aujourd'hui ; les
   autres gardaient du code réécrit.
