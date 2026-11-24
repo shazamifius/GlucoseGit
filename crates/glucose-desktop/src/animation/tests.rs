@@ -171,8 +171,11 @@ fn test_l_echelle_s_interpole_geometriquement() {
     a.flight = Some(Flight {
         chemin: Chemin::entre(depart, arrivee, ECRAN),
         to: arrivee,
-        start: Instant::now() - Duration::from_millis(50),
-        duration_ms: 100,
+        // Un vol long, saisi à sa moitié : la suite entière qui charge la machine retarde le
+        // `tick` de quelques dizaines de millisecondes — 0,5 % de dix secondes, la moitié d'un
+        // vol de 100 ms (le 24/11, elle est tombée ainsi pendant la suite entière).
+        start: Instant::now() - Duration::from_secs(5),
+        duration_ms: 10_000,
         curve: Curve::Linear,
         then: Pending::Nothing,
         board: board.clone(),

@@ -46,11 +46,13 @@ mod accroche;
 pub mod aspect;
 pub mod champ;
 pub mod contour;
+mod double;
 mod enveloppe;
 mod noeuds;
 pub mod trace;
 
 pub use accroche::{snap_parmi, snap_to_nearest, Snap, Visee, SNAP_DIST};
+pub use double::{a_reprendre, qui_relie_deja};
 pub use enveloppe::{boites_du_tableau, encre_vue, enveloppe_with};
 pub use noeuds::{Bout, Itineraire, Noeuds};
 

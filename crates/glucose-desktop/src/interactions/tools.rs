@@ -264,7 +264,10 @@ impl GlucoseApp {
                 }
             }
         });
-        self.store.end_live_edit();
+        // Les mêmes bouts qu'une autre : la question, avant que le geste n'existe (fiche 149 § 2).
+        if !self.demander_si_en_double(&board, &session.id) {
+            self.store.end_live_edit();
+        }
         self.mark_dirty();
     }
 

@@ -330,8 +330,13 @@ impl Store {
     }
 
     /// **Tend une flèche** de `source` à `cible`, partie du passage cité de l'une et arrivée à
-    /// celui de l'autre (AGENT-3) ; ou met à jour celle qui porte déjà cet identifiant.
-    pub fn relier_pour_un_agent(&mut self, board_id: &str, lien: Lien<'_>) -> Result<(), Refus> {
+    /// celui de l'autre (AGENT-3) ; ou met à jour celle qui porte déjà cet identifiant, ou
+    /// celle qui relie déjà ces bouts pour dire la même chose. Rend l'identifiant de la flèche.
+    pub fn relier_pour_un_agent(
+        &mut self,
+        board_id: &str,
+        lien: Lien<'_>,
+    ) -> Result<String, Refus> {
         let (depart, arrivee) = (
             self.boite_d_un_noeud(board_id, lien.source)?,
             self.boite_d_un_noeud(board_id, lien.cible)?,
@@ -357,7 +362,24 @@ impl Store {
             *predicate = lien.relation;
             *text = lien.texte.map(str::to_string);
         }
-        self.poser_pour_un_agent(board_id, fleche, None)
+        // Ces bouts déjà reliés pour dire la même chose : l'agent reprend cette flèche plutôt que
+        // d'en cacher une seconde dessous (fiche 149 § 2) — ce qu'il dit de neuf s'y écrit.
+        if let Some(id) = crate::arrow::a_reprendre(self.annotations_du_tableau(board_id), &fleche)
+        {
+            let id = id.to_string();
+            self.update_annotation(board_id, &id, |a| {
+                if let Annotation::Arrow {
+                    predicate, text, ..
+                } = a
+                {
+                    *predicate = lien.relation.or(*predicate);
+                    *text = lien.texte.map(str::to_string).or(text.take());
+                }
+            });
+            return Ok(id);
+        }
+        self.poser_pour_un_agent(board_id, fleche, None)?;
+        Ok(lien.id.to_string())
     }
 
     /// **Retire des nœuds**, et avec eux les flèches qui n'ont plus de bout. Rend combien de
@@ -517,7 +539,7 @@ impl Store {
             .ok_or_else(|| Refus::TableauInconnu(board_id.to_string()))
     }
 
-    pub(super) fn boite_d_un_noeud(&self, board_id: &str, id: &str) -> Result<Rect, Refus> {
+    pub fn boite_d_un_noeud(&self, board_id: &str, id: &str) -> Result<Rect, Refus> {
         if let Some(i) = self.image(board_id, id) {
             return Ok(i.rect());
         }

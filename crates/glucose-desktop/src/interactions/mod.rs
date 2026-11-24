@@ -24,6 +24,7 @@ pub mod drop;
 pub mod echelle;
 pub mod elan;
 pub mod fenetre;
+pub mod fleche_en_double;
 pub mod frise;
 pub mod gabarit;
 pub mod grouper;

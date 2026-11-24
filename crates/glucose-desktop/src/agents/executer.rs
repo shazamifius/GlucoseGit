@@ -277,7 +277,8 @@ impl GlucoseApp {
             relation,
             texte: a.texte("texte"),
         };
-        self.store
+        let id = self
+            .store
             .geste_d_agent(|s| s.relier_pour_un_agent(board, lien))
             .map_err(|r| r.to_string())?;
         Ok(Json::objet([("id", Json::from(id))]))

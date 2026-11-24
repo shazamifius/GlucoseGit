@@ -35,8 +35,30 @@ s'il veut réellement une duplication. »* Deux flèches aux mêmes bouts suiven
 seconde se cache sous la première. **Proposé** (`relais-rep-fleche-double`) : au lâcher d'une flèche
 dont les deux bouts (nœud et passage) sont déjà reliés, dans un sens ou dans l'autre, la question
 « Une flèche relie déjà ces deux nœuds. En tracer une seconde ? » — non : l'ancienne est choisie ; oui :
-la seconde passe à côté. Une IA qui relie deux nœuds déjà reliés met à jour la flèche existante. À
-construire.
+la seconde passe à côté. Une IA qui relie deux nœuds déjà reliés met à jour la flèche existante.
+
+**Fait** (le même soir) :
+* **le noyau** (`arrow/double.rs`) : `qui_relie_deja` — mêmes nœuds, mêmes passages (bloc et
+  sélection), dans un sens ou dans l'autre ; un bout libre n'en double aucune. `a_reprendre`, pour
+  les IA : la flèche de même relation d'abord, sinon une sans relation, ou n'importe laquelle si
+  l'IA n'en donne pas ; **deux relations différentes sont deux affirmations** (« inspire » et
+  « contredit ») et gardent chacune leur flèche. `Store::fleche_qui_relie_deja` (`store/double.rs`).
+* **sa main** (`interactions/fleche_en_double.rs`) : au lâcher (`finish_draw`), si la flèche tracée
+  en double une autre, son geste s'abandonne (`cancel_live_edit` : rien dans l'histoire) et la
+  question se pose (`Suite::FlecheEnDouble`). « Tracer la seconde » la pose d'un geste qu'un Ctrl+Z
+  défait ; « Annuler » ou Échap choisit l'ancienne.
+* **les IA** : `relier_pour_un_agent` reprend la flèche qui dit la même chose — ce que l'IA dit de
+  neuf (relation, texte) s'y écrit, rien d'autre n'est effacé — et rend son identifiant, que
+  `glucose_relier` renvoie.
+* 8 épreuves (noyau 4, application 5 — dont « un seul Ctrl+Z »), 7 sabotages sur 7
+  (`outils/sabotages/double-149.json`).
+
+**Reste — la seconde à côté** : aujourd'hui, « Tracer la seconde » la pose encore sous la première.
+Il faut que l'itinéraire écarte les flèches parallèles (mêmes bouts) l'une de l'autre, comme tout
+dessinateur de graphes : un rang parmi ses parallèles, demandé par `Noeuds`, et un écart d'une
+pastille (on doit pouvoir lire les deux étiquettes) ; tous les lecteurs du tracé (dessin, clic,
+poignées, étiquette) passent par `morceaux_with` et suivraient d'eux-mêmes. Cela vaut aussi pour les
+doubles qui existent déjà dans son document.
 
 ## 3. Le flou sous NVIDIA — sa note du 24/11 (`text-pxtg-2313`)
 

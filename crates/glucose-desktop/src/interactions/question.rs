@@ -244,6 +244,12 @@ impl GlucoseApp {
                     self.mark_dirty();
                 }
             }
+            Suite::FlecheEnDouble {
+                board,
+                source,
+                cible,
+                ancienne,
+            } => self.repondre_a_la_fleche_en_double((board, source, cible, ancienne), reponse),
             Suite::RenommerLeDossier { board, id } => {
                 self.repondre_au_dossier((&board, &id), reponse, champ);
             }

@@ -43,6 +43,7 @@ pub mod choix;
 mod colonnes;
 mod dates;
 mod domains;
+mod double;
 pub mod fenetre;
 mod folders;
 mod glisser;

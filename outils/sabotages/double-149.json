@@ -1,0 +1,135 @@
+[
+ {
+  "nom": "DOUBLE-149 — l'autre sens ne compte pas",
+  "fichier": "crates/glucose-core/src/arrow/double.rs",
+  "avant": "(c, d) == (a, b) || (c, d) == (b, a)",
+  "apres": "(c, d) == (a, b)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — les passages ne comptent pas",
+  "fichier": "crates/glucose-core/src/arrow/double.rs",
+  "avant": "            source_text_sel.as_ref(),",
+  "apres": "            None,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — l'agent ne reprend pas une flèche sans relation",
+  "fichier": "crates/glucose-core/src/arrow/double.rs",
+  "avant": "dit.is_none() || relation(autre).is_none()",
+  "apres": "dit.is_none()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — l'agent ne reprend rien",
+  "fichier": "crates/glucose-core/src/store/agents.rs",
+  "avant": "crate::arrow::a_reprendre(self.annotations_du_tableau(board_id), &fleche)",
+  "apres": "None::<&str>",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — pas de question au lâcher",
+  "fichier": "crates/glucose-desktop/src/interactions/tools.rs",
+  "avant": "if !self.demander_si_en_double(&board, &session.id) {",
+  "apres": "if true || !self.demander_si_en_double(&board, &session.id) {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "fleche_en_double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — le geste n'est pas abandonné",
+  "fichier": "crates/glucose-desktop/src/interactions/fleche_en_double.rs",
+  "avant": "        self.store.cancel_live_edit();\n",
+  "apres": "        self.store.end_live_edit();\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "fleche_en_double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — « Annuler » ne choisit pas l'ancienne",
+  "fichier": "crates/glucose-desktop/src/interactions/fleche_en_double.rs",
+  "avant": "            self.store.select_annotation(ancienne, false);",
+  "apres": "            let _ = ancienne;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "fleche_en_double"
+  ]
+ }
+]

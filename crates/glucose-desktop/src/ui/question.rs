@@ -120,6 +120,14 @@ pub enum Suite {
     Ajouter(Vec<std::path::PathBuf>),
     /// Exporter sans sélecteur : le format, puis la feuille de partage (PARTAGE-2).
     Exporter,
+    /// **Une flèche relie déjà ces deux nœuds** (fiche 149 § 2) : tracer la seconde, ou choisir
+    /// l'ancienne.
+    FlecheEnDouble {
+        board: String,
+        source: String,
+        cible: String,
+        ancienne: String,
+    },
     /// L'un des textes d'une case du storyboard, écrit dans le champ (STORYBOARD-1, fiche 67).
     EcrireLaCase {
         board: String,
