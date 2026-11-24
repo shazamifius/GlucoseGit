@@ -57,6 +57,23 @@ impl Zones {
     }
 }
 
+/// **Ce que le haut de la fenêtre cède à sa bordure, en pixels** (PLEIN-1, sa note du 24/11 : sous
+/// Windows, *« le mode F11 ne fait strictement rien à part légèrement réduire la fenêtre »*).
+///
+/// Agrandie, une fenêtre déborde de l'écran de sa bordure : sa bande, qui monte jusqu'en haut, se
+/// cacherait dessous ; elle cède donc la bordure. En plein écran, la fenêtre couvre l'écran
+/// **exactement** — mais Windows la dit encore agrandie (`winit` garde `WS_MAXIMIZE` et ne retire
+/// que le cadre, `WS_OVERLAPPEDWINDOW`). Céder la bordure y laissait une bande morte en haut : le
+/// plein écran ressemblait à une fenêtre un peu plus petite. `cadree` dit si le cadre du système
+/// est encore là : sans lui, il n'y a rien qui déborde, et rien à céder.
+pub fn retrait_du_haut(agrandie: bool, cadree: bool, bordure: i32) -> i32 {
+    if agrandie && cadree {
+        bordure
+    } else {
+        0
+    }
+}
+
 #[cfg(windows)]
 mod cadre_windows;
 
@@ -152,5 +169,26 @@ mod tests {
             tenus: Vec::new(),
         };
         assert_eq!(z.sous(50, 3, false, 8), Zone::Client);
+    }
+
+    /// **PLEIN-1** — agrandie, la fenêtre cède sa bordure en haut ; en plein écran (le cadre
+    /// retiré, l'agrandie gardée), elle ne cède rien : elle couvre l'écran exactement.
+    #[test]
+    fn test_plein_1_le_plein_ecran_ne_cede_rien_en_haut() {
+        assert_eq!(
+            super::retrait_du_haut(true, true, 12),
+            12,
+            "agrandie, la bordure"
+        );
+        assert_eq!(
+            super::retrait_du_haut(true, false, 12),
+            0,
+            "en plein écran, rien ne déborde"
+        );
+        assert_eq!(
+            super::retrait_du_haut(false, true, 12),
+            0,
+            "ni agrandie, ni pleine"
+        );
     }
 }

@@ -1,0 +1,65 @@
+[
+ {
+  "nom": "PLEIN-1 — le plein écran cède encore la bordure",
+  "fichier": "crates/glucose-desktop/src/plateforme/cadre.rs",
+  "avant": "    if agrandie && cadree {",
+  "apres": "    if agrandie {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "plein_1",
+   "geste_19"
+  ]
+ },
+ {
+  "nom": "GESTE-19 — le bouton absent de la barre",
+  "fichier": "crates/glucose-desktop/src/ui/options_de_fleche.rs",
+  "avant": "Contenu::Action(IconType::Text, ECRIRE_SUR_LA_FLECHE),",
+  "apres": "Contenu::Action(IconType::Text, EDITER_LE_TEXTE_LIE),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "plein_1",
+   "geste_19"
+  ]
+ },
+ {
+  "nom": "GESTE-19 — le clic n'ouvre pas la saisie",
+  "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+  "avant": "        self.start_text_edit(id, texte);\n        self.mark_dirty();",
+  "apres": "        let _ = (id, texte);\n        self.mark_dirty();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "plein_1",
+   "geste_19"
+  ]
+ }
+]

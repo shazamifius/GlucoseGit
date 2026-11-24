@@ -61,6 +61,8 @@ pub enum Action {
     Regler(Reglage),
     /// Ouvrir l'éditeur d'ancres de la flèche sélectionnée (FLECHE-4).
     Ancrer,
+    /// Écrire ce que dit la flèche sélectionnée, comme son double-clic (GESTE-19).
+    Ecrire,
 }
 
 /// Un bouton : sa boîte, ce qu'il montre, s'il est allumé, et ce qu'un clic demande.
@@ -195,14 +197,25 @@ fn groupes_de_boutons(store: &Store, avec_mots: bool) -> Option<Vec<Vec<(Contenu
     // une carte qu'on désigne un passage. « Ancrer… » se lisait comme un libellé tronqué, et
     // pas comme un bouton ; il dit maintenant ce qu'il fait, en entier, avec son crayon — et
     // s'allume quand la flèche désigne déjà un passage.
+    //
+    // **GESTE-19 — écrire sur une flèche se voit** (sa note du 24/11 : *« le truc réponse existe
+    // pas »*). Le double-clic l'ouvrait depuis toujours, mais rien ne le disait : il voyait les
+    // flèches des IA porter « réponse », et croyait ce geste réservé à elles. Le bouton le montre
+    // à qui choisit une flèche ; le double-clic reste.
     if let [fleche] = fleches[..] {
+        let mut gestes = vec![(
+            Contenu::Action(IconType::Text, ECRIRE_SUR_LA_FLECHE),
+            false,
+            Action::Ecrire,
+        )];
         if touche_une_carte(store, fleche) {
-            groupes.push(vec![(
+            gestes.push((
                 Contenu::Action(IconType::Crayon, EDITER_LE_TEXTE_LIE),
                 designe_un_passage(fleche),
                 Action::Ancrer,
-            )]);
+            ));
         }
+        groupes.push(gestes);
     }
     Some(groupes)
 }
@@ -341,6 +354,9 @@ pub fn action_sous(barre: &OptionsDeFleche, px: f32, py: f32) -> Option<Action> 
 
 /// Le libellé du bouton qui ouvre l'éditeur du texte lié.
 pub const EDITER_LE_TEXTE_LIE: &str = "Éditer le texte lié";
+
+/// Le libellé du bouton qui écrit sur la flèche (GESTE-19).
+pub const ECRIRE_SUR_LA_FLECHE: &str = "Écrire sur la flèche";
 
 /// La flèche désigne-t-elle déjà un passage, dans sa source ou dans sa cible ?
 fn designe_un_passage(fleche: &Annotation) -> bool {

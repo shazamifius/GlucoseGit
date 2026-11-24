@@ -11,10 +11,11 @@ use windows::Win32::Graphics::Gdi::ScreenToClient;
 use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, GetPropW, GetWindowLongPtrW, IsZoomed, RemovePropW, SetPropW,
-    SetWindowLongPtrW, SetWindowPos, GWLP_WNDPROC, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT,
-    HTCAPTION, HTCLIENT, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT, NCCALCSIZE_PARAMS,
-    SM_CXPADDEDBORDER, SM_CYSIZEFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_NOZORDER, WM_NCCALCSIZE, WM_NCDESTROY, WM_NCHITTEST, WNDPROC,
+    SetWindowLongPtrW, SetWindowPos, GWLP_WNDPROC, GWL_STYLE, HTBOTTOM, HTBOTTOMLEFT,
+    HTBOTTOMRIGHT, HTCAPTION, HTCLIENT, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT,
+    NCCALCSIZE_PARAMS, SM_CXPADDEDBORDER, SM_CYSIZEFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WM_NCCALCSIZE, WM_NCDESTROY, WM_NCHITTEST, WNDPROC,
+    WS_CAPTION,
 };
 
 /// La procédure qui était là avant la nôtre.
@@ -118,11 +119,10 @@ unsafe extern "system" fn procedure(
             let haut = (*parametres).rgrc[0].top;
             let rendu = suite();
             if rendu.0 == 0 {
-                let retrait = if IsZoomed(fenetre).as_bool() {
-                    bordure(fenetre)
-                } else {
-                    0
-                };
+                // En plein écran, `winit` retire le cadre (`WS_CAPTION`) et garde l'agrandie.
+                let cadree = GetWindowLongPtrW(fenetre, GWL_STYLE) as u32 & WS_CAPTION.0 != 0;
+                let agrandie = IsZoomed(fenetre).as_bool();
+                let retrait = super::retrait_du_haut(agrandie, cadree, bordure(fenetre));
                 (*parametres).rgrc[0].top = haut + retrait;
             }
             rendu

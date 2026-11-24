@@ -186,6 +186,10 @@ impl GlucoseApp {
             self.commencer_l_ancrage();
             return true;
         }
+        if let Some(Action::Ecrire) = action_sous(&barre, pointer.x, pointer.y) {
+            self.ecrire_sur_la_fleche();
+            return true;
+        }
         if let Some(Action::Regler(reglage)) = action_sous(&barre, pointer.x, pointer.y) {
             let fleches: Vec<String> = self
                 .store
@@ -200,6 +204,24 @@ impl GlucoseApp {
             self.mark_dirty();
         }
         true
+    }
+
+    /// **« Écrire sur la flèche »** (GESTE-19) : la saisie de son étiquette s'ouvre, le curseur à
+    /// la fin — exactement ce que fait son double-clic (`open_node`).
+    pub(crate) fn ecrire_sur_la_fleche(&mut self) {
+        let Some(id) = self
+            .store
+            .selected_arrows()
+            .first()
+            .map(|a| a.id().to_string())
+        else {
+            return;
+        };
+        let Some(texte) = self.editable_text_of(&id) else {
+            return;
+        };
+        self.start_text_edit(id, texte);
+        self.mark_dirty();
     }
 
     /// La barre d'outils, les onglets et la minimap.

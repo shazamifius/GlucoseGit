@@ -420,3 +420,39 @@ fn test_passage_2_la_fenetre_vise_ce_qu_elle_montre() {
         .collect();
     assert_eq!(choisis, ["efgh", "rstuv"]);
 }
+
+/// **GESTE-19 — « Écrire sur la flèche » se voit dans sa barre**, et ouvre ce que son double-clic
+/// ouvre : la saisie de son étiquette, le curseur à la fin. Sa note du 24/11 : *« le truc réponse
+/// existe pas »* — le geste existait, rien ne le montrait.
+#[test]
+fn test_geste_19_ecrire_sur_la_fleche_depuis_sa_barre() {
+    let mut app = application();
+    let barre = crate::ui::options_de_fleche::layout_options_de_fleche(
+        &app.store,
+        &app.renderer.typography,
+        ECRAN,
+        app.ui.scale_factor,
+    )
+    .expect("la barre");
+    let b = barre
+        .boutons
+        .iter()
+        .find(|b| {
+            b.contenu
+                == crate::ui::options_de_fleche::Contenu::Action(
+                    crate::icons::IconType::Text,
+                    crate::ui::options_de_fleche::ECRIRE_SUR_LA_FLECHE,
+                )
+        })
+        .expect("le bouton « Écrire sur la flèche »");
+    clic(
+        &mut app,
+        (
+            f64::from(b.rect.0 + 4.0),
+            f64::from(b.rect.1 + b.rect.3 / 2.0),
+        ),
+    );
+    let saisie = app.editing_session.as_ref().expect("la saisie s'ouvre");
+    assert_eq!(saisie.ann_id, "f", "sur la flèche choisie");
+    assert!(app.ui.ancrage.is_none(), "pas l'éditeur du texte lié");
+}
