@@ -57,6 +57,8 @@ enum Course {
         cles: Vec<String>,
         bonjour: bool,
     },
+    /// **Son nom ou sa couleur ont changé** (IDENTITE-2) : ses lettres suivantes les portent.
+    Signer(Qui),
 }
 
 /// Qui signe les lettres du facteur : marque, nom, couleur.
@@ -73,7 +75,7 @@ impl Photos {
         let (facteur, courses) = mpsc::channel();
         let lance = std::thread::Builder::new()
             .name("glucose-facteur".into())
-            .spawn(move || porter(&objets, &expediteur, &qui, &courses));
+            .spawn(move || porter(&objets, &expediteur, qui, &courses));
         if let Err(e) = lance {
             crate::dire_erreur!("[Glucose] le facteur des photos ne part pas : {e}");
         }
@@ -88,6 +90,11 @@ impl Photos {
         let _ = self.facteur.send(Course::Photo(cle));
     }
 
+    /// Ses lettres suivantes porteront ce nom et cette couleur (IDENTITE-2).
+    pub(super) fn signer(&self, qui: Qui) {
+        let _ = self.facteur.send(Course::Signer(qui));
+    }
+
     /// **La salle est à jour** — j'entre, ou le réseau revient : ce qui était en route a pu se
     /// perdre. Mon bonjour partira dès que je serai dedans.
     pub(super) fn dire_bonjour(&mut self) {
@@ -100,7 +107,7 @@ impl Photos {
 fn porter(
     objets: &Objets,
     expediteur: &mpsc::SyncSender<Passe>,
-    qui: &Qui,
+    mut qui: Qui,
     courses: &mpsc::Receiver<Course>,
 ) {
     for (n, course) in courses.iter().enumerate() {
@@ -116,6 +123,10 @@ fn porter(
                 (Corps::Objet { cle, octets }, true)
             }
             Course::Demande { cles, bonjour } => (Corps::Demande { cles, bonjour }, false),
+            Course::Signer(nouveau) => {
+                qui = nouveau;
+                continue;
+            }
         };
         let lettre = Lettre {
             marque: qui.0.clone(),

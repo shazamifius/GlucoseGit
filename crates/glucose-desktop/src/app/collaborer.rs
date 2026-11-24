@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod identite;
+pub mod nommer;
 pub mod photos;
 mod rejoindre;
 pub mod reprise;
@@ -30,6 +31,7 @@ const PORTE: Reponse = Reponse::Choix(2);
 const COPIER_ECRIRE: Reponse = Reponse::Choix(3);
 const COPIER_LIRE: Reponse = Reponse::Choix(4);
 const QUITTER: Reponse = Reponse::Choix(5);
+const NOMMER: Reponse = Reponse::Choix(6);
 /// Un curseur part au plus toutes les tant : une dizaine par seconde, comme la page de la fiche 113.
 const CURSEUR: Duration = Duration::from_millis(100);
 /// Un participant dont rien n'est venu depuis ne montre plus son curseur.
@@ -155,6 +157,7 @@ impl GlucoseApp {
     /// pu se faire : ce qu'on a fait se dit là où on l'a fait.
     fn montrer_collaborer_avec(&mut self, note: Option<String>) {
         let porte = ("La porte aux IA publiques…".to_string(), PORTE);
+        let nommer = ("Ton nom et ta couleur…".to_string(), NOMMER);
         let question = match &self.lancement.agents.partage {
             None => Question {
                 titre: "Collaborer".into(),
@@ -165,6 +168,7 @@ impl GlucoseApp {
                 choix: vec![
                     ("Partager ce canevas".into(), PARTAGER),
                     ("Rejoindre…".into(), REJOINDRE),
+                    nommer,
                     porte,
                     ("L'API publique…".into(), crate::app::collaborer::api::MENU),
                     ("Fermer".into(), Reponse::Annuler),
@@ -178,6 +182,7 @@ impl GlucoseApp {
                 }
                 choix.push(("Copier le code pour regarder".into(), COPIER_LIRE));
                 choix.push(("Quitter le partage".into(), QUITTER));
+                choix.push(nommer);
                 choix.push(porte);
                 choix.push(("L'API publique…".into(), crate::app::collaborer::api::MENU));
                 choix.push(("Fermer".into(), Reponse::Annuler));
@@ -223,8 +228,10 @@ impl GlucoseApp {
     /// Sa réponse à la question de Collaborer.
     pub(crate) fn repondre_a_collaborer(&mut self, reponse: Reponse) {
         match reponse {
-            PARTAGER => self.partager_ce_canevas(),
-            REJOINDRE => self.demander_le_code(),
+            // La première fois, son nom et sa couleur d'abord (IDENTITE-2).
+            PARTAGER if !self.d_abord_son_nom(nommer::Puis::Partager) => self.partager_ce_canevas(),
+            REJOINDRE if !self.d_abord_son_nom(nommer::Puis::Rejoindre) => self.demander_le_code(),
+            NOMMER => self.demander_son_nom(None, None),
             PORTE => self.montrer_la_porte_publique(),
             crate::app::collaborer::api::MENU => self.montrer_l_api_publique(None),
             COPIER_ECRIRE | COPIER_LIRE => {

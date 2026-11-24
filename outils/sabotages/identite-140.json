@@ -1,0 +1,130 @@
+[
+ {
+  "nom": "IDENTITE-2 — la première fois ne demande rien",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/nommer.rs",
+  "avant": "        if Identite::la_sienne(&self.disque.identite).choisie {",
+  "apres": "        if Identite::la_sienne(&self.disque.identite).choisie || true {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "IDENTITE-2 — une identité choisie se relit tirée",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/identite.rs",
+  "avant": "        let choisie = lignes.next().is_some_and(|l| l.trim() == CHOISIE);",
+  "apres": "        let choisie = lignes.next().is_some_and(|l| l.trim() == CHOISIE) && false;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "IDENTITE-2 — le partage garde l'ancien nom",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/nommer.rs",
+  "avant": "            cp.nom.clone_from(&moi.nom);",
+  "apres": "            let _ = &moi.nom;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "IDENTITE-2 — la couleur prise ne se dit pas",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/nommer.rs",
+  "avant": "        let texte = self.texte_du_nom(couleur);",
+  "apres": "        let texte = POURQUOI.to_string() + &String::new().repeat(couleur);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "IDENTITE-2 — un nom vide se garde",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/nommer.rs",
+  "avant": "        let Some(nom) = champ.as_deref().and_then(nom_propre) else {",
+  "apres": "        let Some(nom) = champ.as_deref().and_then(nom_propre).or(Some(String::new())) else {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "PASTILLES-1 — la pastille touchée n'est pas choisie",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "            p.choisie = i;",
+  "apres": "            let _ = i;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "PASTILLES-1 — Alt + flèche reste au champ",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "        let libre = alt || question.champ.is_none();",
+  "apres": "        let libre = !alt && question.champ.is_none();",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ },
+ {
+  "nom": "PASTILLES-1 — les pastilles par-dessus le champ",
+  "fichier": "crates/glucose-desktop/src/ui/question.rs",
+  "avant": "        let haut = y + PAD * s * 1.5 + haut_du_texte + du_champ - des_pastilles;",
+  "apres": "        let haut = y + PAD * s * 1.5 + haut_du_texte + 0.0 * (du_champ - des_pastilles);",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "identite_2",
+   "pastilles_1"
+  ]
+ }
+]

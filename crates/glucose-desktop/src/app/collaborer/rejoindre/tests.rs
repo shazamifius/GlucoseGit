@@ -28,6 +28,10 @@ fn ouvrir(app: &mut GlucoseApp) {
         choix.map(|(_, r)| *r)
     });
     app.repondre_a_la_question(Some(rejoindre.expect("« Rejoindre… » parmi les choix")));
+    // La première fois, son nom et sa couleur d'abord (IDENTITE-2) : il garde ceux qu'on propose.
+    if matches!(app.ui.question, Some((_, Suite::Identite(_)))) {
+        app.repondre_a_la_question(Some(crate::ui::question::Reponse::Oui));
+    }
 }
 
 fn champ(app: &GlucoseApp) -> Option<String> {

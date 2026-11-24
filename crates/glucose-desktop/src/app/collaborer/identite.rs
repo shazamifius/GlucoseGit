@@ -48,6 +48,9 @@ const ANIMAUX: [&str; 10] = [
     "Écureuil",
 ];
 
+/// La troisième ligne d'une identité qu'il a choisie lui-même.
+const CHOISIE: &str = "choisie";
+
 /// Au-delà, l'étiquette d'un curseur devient une banderole qui cache le canevas des autres (Tauri).
 pub const NOM_MAX: usize = 24;
 
@@ -57,6 +60,10 @@ pub struct Identite {
     pub nom: String,
     /// Le rang de sa couleur dans [`COULEURS`].
     pub couleur: usize,
+    /// **Choisie par lui** (Q19, IDENTITE-2), et non tirée au sort : sinon, Glucose les lui
+    /// demande avant son premier partage. Une troisième ligne du fichier, que les versions
+    /// d'avant ignorent — elles lisent les deux premières.
+    pub choisie: bool,
 }
 
 impl Identite {
@@ -66,6 +73,7 @@ impl Identite {
         Self {
             nom: format!("{} {}", ANIMAUX[a % 10], ADJECTIFS[b % 10]),
             couleur: c % COULEURS.len(),
+            choisie: false,
         }
     }
 
@@ -74,11 +82,17 @@ impl Identite {
         let mut lignes = texte.lines();
         let nom = nom_propre(lignes.next()?)?;
         let couleur = lignes.next()?.trim().parse::<usize>().ok()?;
-        (couleur < COULEURS.len()).then_some(Self { nom, couleur })
+        let choisie = lignes.next().is_some_and(|l| l.trim() == CHOISIE);
+        (couleur < COULEURS.len()).then_some(Self {
+            nom,
+            couleur,
+            choisie,
+        })
     }
 
     pub fn ecrire(&self) -> String {
-        format!("{}\n{}\n", self.nom, self.couleur)
+        let choisie = if self.choisie { CHOISIE } else { "" };
+        format!("{}\n{}\n{choisie}\n", self.nom, self.couleur)
     }
 
     /// **La sienne** : lue, ou tirée et gardée — un nom tiré qui changerait à chaque lancement,
@@ -130,6 +144,24 @@ mod tests {
             "une couleur hors palette"
         );
         assert_eq!(Identite::lire("\n2\n"), None, "un nom vide");
+    }
+
+    /// **IDENTITE-2** : une identité choisie se relit choisie ; le fichier d'une version d'avant
+    /// (deux lignes) se relit tirée, et la sienne lui sera demandée ; ses deux premières lignes
+    /// restent celles qu'une version d'avant lit.
+    #[test]
+    fn identite_2_choisie_se_relit_choisie_et_l_ancienne_tiree() {
+        let moi = Identite {
+            nom: "Shaza".into(),
+            couleur: 4,
+            choisie: true,
+        };
+        assert_eq!(Identite::lire(&moi.ecrire()), Some(moi.clone()));
+        let ancienne = Identite::lire("Aigle Émeraude\n7\n").expect("lue");
+        assert!(!ancienne.choisie, "un fichier d'avant : tirée");
+        let mut lignes = moi.ecrire().lines().map(str::to_string).collect::<Vec<_>>();
+        lignes.truncate(2);
+        assert_eq!(lignes, ["Shaza", "4"], "ce qu'une version d'avant lit");
     }
 
     #[test]

@@ -34,6 +34,8 @@ use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::text::Selection;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
+pub mod pastilles;
+
 /// L'écart minimal entre la carte et le bord de l'écran.
 const MARGE_ECRAN: f32 = 16.0;
 /// La carte ne s'élargit pas au-delà : une ligne plus longue se lit mal.
@@ -96,6 +98,9 @@ pub enum Suite {
     Collaborer,
     /// **Rejoindre un canevas** par le code écrit dans le champ (REJOINDRE-1).
     Rejoindre,
+    /// **Son nom et sa couleur** dans un canevas partagé (Q19, IDENTITE-2) : le champ et les
+    /// pastilles ; puis, la première fois, le partage ou l'entrée qui attendait.
+    Identite(Option<crate::app::collaborer::nommer::Puis>),
     /// La porte aux IA publiques, ouverte ou fermée (fiche 116).
     PortePublique,
     /// **« L'API publique »** : le menu des IA gratuites, et le résultat de l'essai (fiche 128).
@@ -169,6 +174,8 @@ pub struct Question {
     pub sous_le_doigt: Option<Reponse>,
     /// Le champ où l'on écrit, sous le texte, s'il y en a un.
     pub champ: Option<Champ>,
+    /// Les couleurs qu'on choisit, sous le champ, s'il y en a (PASTILLES-1).
+    pub pastilles: Option<pastilles::Pastilles>,
     /// **La réponse qu'Entrée donne** (POPUP-1), le rang de l'un des choix, cerné d'un filet :
     /// la première, sauf quand elle détruit — « Supprimer » laisse l'évidence à « Annuler »,
     /// comme le veut le motif de dialogue du W3C.
@@ -213,6 +220,8 @@ pub struct Placee {
     pub boutons: Vec<(Rangee, String, Reponse)>,
     /// Le champ, s'il y en a un : sa rangée, et ce qu'il porte.
     pub champ: Option<(Rangee, Champ)>,
+    /// Les pastilles, s'il y en a (PASTILLES-1).
+    pub pastilles: Option<pastilles::Placees>,
     /// Le rang de la réponse en évidence (POPUP-1).
     pub focus: usize,
     /// Les corps du titre et du texte, et le bord gauche du texte.
@@ -232,6 +241,12 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
     let entre = if titre.is_empty() { 0.0 } else { PAD * s / 2.0 };
     // Le champ prend la hauteur d'une réponse : la cible d'un doigt.
     let du_champ = if q.champ.is_some() { BOUTON * s } else { 0.0 };
+    let des_pastilles = if q.pastilles.is_some() {
+        BOUTON * s
+    } else {
+        0.0
+    };
+    let du_champ = du_champ + des_pastilles;
     // **Les réponses restent à l'écran** (POPUP-1) : un texte trop long — les notes d'une
     // mise à jour — se coupe à ce que l'écran laisse, et le dit.
     let fixe = PAD * s * 2.0 + titre.len() as f32 * pas_titre + entre + du_champ;
@@ -254,6 +269,11 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
         let rangee = (x + PAD * s, haut, largeur - 2.0 * PAD * s, BOUTON * s);
         (rangee, c.clone())
     });
+    // Sous le champ, ou là où il serait.
+    let pastilles = q.pastilles.as_ref().map(|p| {
+        let haut = y + PAD * s * 1.5 + haut_du_texte + du_champ - des_pastilles;
+        pastilles::placer(p, (x + PAD * s, haut, largeur - 2.0 * PAD * s, BOUTON * s))
+    });
     let mut haut = y + PAD * s * 2.0 + haut_du_texte + du_champ;
     let boutons = q
         .choix
@@ -270,6 +290,7 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
         texte,
         boutons,
         champ,
+        pastilles,
         focus: q.focus,
         corps: (corps_titre, corps_texte),
         gauche: x + PAD * s,
@@ -372,6 +393,9 @@ pub fn dessiner(
     }
     if let Some((rangee, champ)) = &p.champ {
         dessiner_le_champ(pixmap, (*rangee, champ), (typo, theme), p.corps.1, s);
+    }
+    if let Some(pastilles) = &p.pastilles {
+        pastilles::dessiner(pixmap, pastilles, theme.selection_frame, s);
     }
     for (rang, (rangee, libelle, _)) in p.boutons.iter().enumerate() {
         filet(pixmap, (x, rangee.1, largeur), theme.border_medium);

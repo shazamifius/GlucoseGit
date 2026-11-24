@@ -163,3 +163,47 @@ fn test_popup_1_la_reponse_en_evidence_se_voit() {
         "il la quitte quand l'évidence passe à la suivante"
     );
 }
+
+/// **PASTILLES-1** : sous le champ, au-dessus des réponses, une case par couleur, côte à côte
+/// dans la marge intérieure ; la carte grandit d'une rangée — celle d'un doigt, au téléphone
+/// aussi. Le centre d'une case la désigne ; le champ et les réponses n'en sont pas.
+#[test]
+fn test_pastilles_1_sous_le_champ_au_dessus_des_reponses() {
+    let typo = Typography::new();
+    let mut q = question("Ton nom");
+    q.champ = Some(Champ::default());
+    let sans = placer(&q, &typo, TELEPHONE, 2.0);
+    q.pastilles = Some(pastilles::Pastilles {
+        couleurs: vec![[1, 2, 3]; 10],
+        choisie: 0,
+    });
+    let p = placer(&q, &typo, TELEPHONE, 2.0);
+    let bouton = BOUTON * 2.0;
+    assert!(
+        (p.carte.3 - sans.carte.3 - bouton).abs() < 0.01,
+        "une rangée de plus"
+    );
+    let cases = &p.pastilles.as_ref().expect("placées").cases;
+    let ((_, champ_haut, _, champ_h), _) = p.champ.clone().expect("le champ");
+    let premier = p.boutons[0].0;
+    for &(x, y, w, h) in cases {
+        assert!(y >= champ_haut + champ_h - 0.01, "sous le champ");
+        assert!(y + h <= premier.1 + 0.01, "au-dessus des réponses");
+        assert!(
+            x >= p.gauche - 0.01 && x + w <= p.carte.0 + p.carte.2 - (p.gauche - p.carte.0) + 0.01
+        );
+        assert!((h - bouton).abs() < 0.01, "la hauteur d'un doigt");
+    }
+    let placees = p.pastilles.as_ref().expect("placées");
+    let (x, y, w, h) = cases[3];
+    assert_eq!(pastilles::sous(placees, x + w / 2.0, y + h / 2.0), Some(3));
+    assert_eq!(
+        pastilles::sous(placees, premier.0 + 1.0, premier.1 + 1.0),
+        None
+    );
+    assert_eq!(
+        reponse_sous(&p, x + w / 2.0, y + h / 2.0),
+        None,
+        "une case n'est pas une réponse"
+    );
+}

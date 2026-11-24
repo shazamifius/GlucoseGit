@@ -16,8 +16,8 @@ use crate::app::GlucoseApp;
 use crate::params::{Pointer, ScreenFrame};
 use crate::persist::close::Ensuite;
 use crate::ui::question::{
-    champ_sous, deplacer_le_focus, echappatoire, placer, reponse_en_evidence, reponse_sous,
-    Question, Reponse, Suite,
+    champ_sous, deplacer_le_focus, echappatoire, pastilles, placer, reponse_en_evidence,
+    reponse_sous, Question, Reponse, Suite,
 };
 use winit::keyboard::{Key, NamedKey};
 
@@ -43,6 +43,15 @@ impl GlucoseApp {
         // Toucher le champ ressort le clavier, que le geste retour a pu rentrer.
         if champ_sous(&placee, pointer.x, pointer.y) {
             self.lancement.clavier.redemander();
+        }
+        // Une pastille touchée est choisie (PASTILLES-1) ; la question le dit.
+        let touchee = placee
+            .pastilles
+            .as_ref()
+            .and_then(|p| pastilles::sous(p, pointer.x, pointer.y));
+        if let (Some(i), Some(p)) = (touchee, question.pastilles.as_mut()) {
+            p.choisie = i;
+            self.la_couleur_a_change();
         }
         self.mark_dirty();
         true
@@ -86,6 +95,9 @@ impl GlucoseApp {
         if appuyee && self.touche_de_la_palette(touche, self.modifiers.shift_key()) {
             return true;
         }
+        if appuyee && self.changer_de_pastille(touche) {
+            return true;
+        }
         if appuyee && self.frapper_dans_la_question(touche, texte) {
             return true;
         }
@@ -122,6 +134,28 @@ impl GlucoseApp {
         true
     }
 
+    /// **Gauche et droite changent de pastille** (PASTILLES-1) — avec `Alt` quand la question a
+    /// un champ : ses flèches seules y déplacent le curseur. Rend `true` si la touche a servi.
+    fn changer_de_pastille(&mut self, touche: &Key) -> bool {
+        let pas = match touche {
+            Key::Named(NamedKey::ArrowLeft) => -1,
+            Key::Named(NamedKey::ArrowRight) => 1,
+            _ => return false,
+        };
+        let alt = self.modifiers.alt_key();
+        let Some((question, _)) = &mut self.ui.question else {
+            return false;
+        };
+        let libre = alt || question.champ.is_none();
+        let Some(p) = question.pastilles.as_mut().filter(|_| libre) else {
+            return false;
+        };
+        p.avancer(pas);
+        self.la_couleur_a_change();
+        self.mark_dirty();
+        true
+    }
+
     /// **Un appui long sur une question** n'y répond rien : la réponse pressée s'oublie — sauf
     /// sur un document de la liste, qui demande alors ce qu'on en fait (DOCUMENTS-2). Rend
     /// `true` s'il y avait une question.
@@ -153,12 +187,14 @@ impl GlucoseApp {
             return;
         };
         if let Some(reponse) = reponse {
-            self.suivre(suite, reponse, question.champ.map(|c| c.texte));
+            let pastille = question.pastilles.as_ref().map(|p| p.choisie);
+            self.suivre(suite, reponse, (question.champ.map(|c| c.texte), pastille));
         }
     }
 
-    /// Ce que la réponse déclenche ; `champ`, ce qu'on avait écrit dans la question.
-    fn suivre(&mut self, suite: Suite, reponse: Reponse, champ: Option<String>) {
+    /// Ce que la réponse déclenche ; `champ`, ce qu'on avait écrit dans la question, et la
+    /// pastille choisie (PASTILLES-1).
+    fn suivre(&mut self, suite: Suite, reponse: Reponse, (champ, pastille): Ecrit) {
         let oui = reponse == Reponse::Oui;
         match suite {
             Suite::NouveauDocument if oui => self.laisser_puis(Ensuite::Vierge),
@@ -167,6 +203,7 @@ impl GlucoseApp {
             Suite::OublierLesAgents if oui => self.oublier_les_agents(),
             Suite::Collaborer => self.repondre_a_collaborer(reponse),
             Suite::Rejoindre => self.rejoindre_par_le_code(reponse, champ),
+            Suite::Identite(puis) => self.repondre_a_l_identite(reponse, (champ, pastille), puis),
             Suite::ApiPublique => self.repondre_a_l_api_publique(reponse),
             Suite::ClefIa(fournisseur) => self.enregistrer_la_cle(fournisseur, reponse, champ),
             Suite::PortePublique => self.repondre_a_la_porte(reponse),
@@ -224,6 +261,9 @@ impl GlucoseApp {
         }
     }
 }
+
+/// Ce qu'une question rend avec sa réponse : le texte de son champ, et la pastille choisie.
+type Ecrit = (Option<String>, Option<usize>);
 
 /// Le rang choisi dans une liste, si la réponse en est un.
 fn reponse_choisie(reponse: Reponse) -> Option<usize> {
