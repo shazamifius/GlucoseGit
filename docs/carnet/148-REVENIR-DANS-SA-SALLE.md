@@ -72,3 +72,10 @@ vrai arrêt net (la borne seule) n'est éprouvé que par `revenir_la_borne_atten
 contre 46 000 à 48 000 avant `SANS_OUTILS` (fiche 147) : le socle a perdu 42 %. L'histoire des jauges
 tenait 5 intervalles à 18 h, tous en heure de pointe : la relecture de poids 0 y disperse le moins
 (15 %), mais il en faut une dizaine, dont des heures creuses, avant de remonter le seuil.
+
+**Ce que la session écrit, décomposé** (18 h 56, 90 requêtes) : ~80 000 jetons écrits, dont ~40 000 pour
+les outils (le code, les fiches, les commandes : 114 000 caractères), ~1 000 de texte, et donc ~40 000 de
+pensée (le journal de la conversation ne garde pas la pensée : déduite). Avec les poids 2 (ajouté) et
+5 (écrit) de `mesurer_jetons.py`, la pensée pèse **~25 %** de la jauge de cette session, l'ajouté ~49 %.
+Un effort de pensée plus bas en gagnerait au plus une dizaine de pour cent : un levier secondaire, à lui
+proposer seulement si l'histoire des jauges confirme les poids.
