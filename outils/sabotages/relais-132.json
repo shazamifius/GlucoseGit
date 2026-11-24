@@ -526,5 +526,53 @@
    "-p",
    "test_relais.py"
   ]
+ },
+ {
+  "nom": "RELAIS-VUE — chaque VS Code ne suit que son compte (comme avant le 24/11 : le a vide toute la nuit)",
+  "fichier": "outils/relais/voir.sh",
+  "avant": "grep -m1 '^relais-')",
+  "apres": "grep -m1 \"^relais-${RELAIS_COMPTE:-a}$\")",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-VUE — n'importe quelle session tmux se montre",
+  "fichier": "outils/relais/voir.sh",
+  "avant": "grep -m1 '^relais-')",
+  "apres": "head -n1)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-VUE — sans session, elle ne dit pas pourquoi",
+  "fichier": "outils/relais/voir.sh",
+  "avant": "memoire.get(\"dit\") or ",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
  }
 ]

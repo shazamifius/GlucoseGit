@@ -64,12 +64,17 @@ python3 -I outils/relais/relais.py rendre    # une session à lui rend la main
 systemctl --user status relais-glucose       # le service ; restart : KillMode=process, tmux survit
 tail ~/.local/state/relais/journal.txt       # ce qu'il a fait ; ses fichiers d'état à côté
 tmux capture-pane -p -t relais-a             # l'écran de la session (lire, jamais taper à sa place)
+bash outils/relais/voir.sh                   # ce que montrent ses deux VS Code : la session qui vit, ou pourquoi aucune
 python3 -m unittest discover -s outils/relais -p test_relais.py   # ses épreuves
 python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sabotages
 ```
 
 ## Les pièges payés
 
+- **La vue de VS Code suit la seule session qui vit, quel que soit son compte** (`voir.sh`, relu toutes
+  les 20 secondes par `.vscode/tasks.json`) : jusqu'au 24/11, chaque VS Code ne suivait que la session de
+  son compte, et celui du compte a, vide toute une nuit (sa semaine pleine), lui a fait croire le relais
+  en panne (fiche 141).
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à

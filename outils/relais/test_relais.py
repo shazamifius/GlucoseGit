@@ -1,5 +1,6 @@
 """Les épreuves du relais : ce qu'il décide, sans Glucose ni Claude Code (python3 -m unittest)."""
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -705,6 +706,36 @@ class Reponse(unittest.TestCase):
         r.surveiller(memoire, {"gestes": [geste]}, 0)
         self.taper.assert_not_called()
         self.assertEqual(memoire["reponse_vue"], "r2")
+
+
+class Vue(unittest.TestCase):
+    """**La vue de VS Code** (`voir.sh`) : la session du relais qui vit, quel que soit le compte de ce
+    VS Code — le 24/11, celui du compte a est resté vide toute la nuit pendant que le b travaillait."""
+    VOIR = Path(__file__).resolve().parent / "voir.sh"
+
+    def voir(self, sessions, dit=None):
+        """Lance la vue devant un faux tmux, qui connaît ces sessions et dit à laquelle on s'attache."""
+        with tempfile.TemporaryDirectory() as d:
+            faux = Path(d) / "tmux"
+            faux.write_text('#!/usr/bin/env bash\ncase "$1" in\n  ls) printf "%s" "$FAUX_SESSIONS" ;;\n'
+                            '  attach) echo "attache $3" ;;\nesac\n')
+            faux.chmod(0o755)
+            if dit:
+                (Path(d) / "veilleur.json").write_text(json.dumps({"dit": dit, "battu": time.time()}))
+            env = {**os.environ, "PATH": f"{d}:{os.environ['PATH']}", "RELAIS_COMPTE": "a",
+                   "RELAIS_ETAT": d, "FAUX_SESSIONS": "".join(f"{s}\n" for s in sessions)}
+            return subprocess.run(["bash", str(self.VOIR)], env=env, capture_output=True, text=True).stdout
+
+    def test_le_vscode_du_compte_a_montre_la_session_du_compte_b(self):
+        self.assertIn("attache relais-b", self.voir(["relais-b"]))
+
+    def test_une_autre_session_tmux_ne_se_montre_pas(self):
+        self.assertNotIn("attache", self.voir(["glucose-pilote", "mon-travail"]))
+
+    def test_sans_session_elle_dit_pourquoi_et_jusqu_a_quand(self):
+        sortie = self.voir([], "les comptes sont à leur limite : reprise vers 12:00")
+        self.assertIn("reprise vers 12:00", sortie)
+        self.assertNotIn("attache", sortie)
 
 
 class Heure(unittest.TestCase):

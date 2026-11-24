@@ -52,7 +52,7 @@ MUR = {"five_hour": 100.0, "seven_day": 100.0}
 
 
 def nom_tmux(compte):
-    """Une session tmux par compte : le VS Code de ce compte l'affiche (.vscode/tasks.json)."""
+    """Une session tmux par compte ; une seule vit à la fois, que montrent ses deux VS Code (voir.sh)."""
     return f"relais-{compte}"
 
 
