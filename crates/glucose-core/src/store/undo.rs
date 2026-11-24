@@ -122,8 +122,8 @@ impl Store {
     }
 
     /// FONDRE-145 : ferme le geste sous une étiquette — les pas d'une même saisie se fondent en un
-    /// seul Ctrl+Z (`journal/pas.rs`). Un canevas partagé n'empile pas ici : sa pile par main
-    /// (`participation.rs`) ne fond pas encore (fiche 145).
+    /// seul Ctrl+Z (`journal/pas.rs`), dans un canevas partagé aussi (sa pile par main :
+    /// `Participation::empiler`).
     pub fn end_live_edit_etiquete(&mut self, etiquette: u64) {
         self.clore_le_glisser();
         if self.journal.end_etiquete(etiquette) {

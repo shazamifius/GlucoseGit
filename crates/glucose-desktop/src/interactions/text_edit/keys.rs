@@ -393,6 +393,8 @@ impl GlucoseApp {
         if let Some(session) = &mut self.editing_session {
             session.blink_timer = std::time::Instant::now();
         }
+        // Le document grandit avec ce qu'on écrit, ses voisins s'écartent (POUSSER-145).
+        self.suivre_la_hauteur();
         self.mark_dirty();
         // Ce qu'on écrit reste à l'écran (SUIVRE-1).
         self.garder_la_ligne_en_vue();
@@ -452,6 +454,7 @@ impl crate::app::GlucoseApp {
         // La colonne visee par les fleches verticales appartient au curseur d'avant : la
         // garder ferait sauter la ligne suivante a une abscisse qui n'a plus de sens.
         session.goal_x = None;
+        self.suivre_la_hauteur();
         self.mark_dirty();
         self.garder_la_ligne_en_vue();
     }

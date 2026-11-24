@@ -1,0 +1,287 @@
+[
+ {
+  "nom": "FONDRE-145 par case — une translation coupe tout",
+  "fichier": "crates/glucose-core/src/store/journal/fondre_par_case.rs",
+  "avant": "cases.retain(|case, _| !edit.deplace(case));",
+  "apres": "cases.clear();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 par case — une translation ne coupe rien",
+  "fichier": "crates/glucose-core/src/store/journal/fondre_par_case.rs",
+  "avant": "cases.retain(|case, _| !edit.deplace(case));",
+  "apres": "cases.retain(|case, _| true || !edit.deplace(case));",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 par case — une insertion ne coupe pas",
+  "fichier": "crates/glucose-core/src/store/journal/fondre_par_case.rs",
+  "avant": "                cases.clear();\n                translations.clear();",
+  "apres": "                translations.clear();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 par case — une insertion prise pour un changement sur place",
+  "fichier": "crates/glucose-core/src/store/journal/fondre_par_case.rs",
+  "avant": "self.before.is_some() && self.after.is_some()",
+  "apres": "true",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 pile — un changement entre deux translations ne coupe pas",
+  "fichier": "crates/glucose-core/src/store/journal/fondre_par_case.rs",
+  "avant": "translations.retain(|&r| sortie[r].as_ref().is_some_and(|t| !t.deplace(&case)));",
+  "apres": "translations.retain(|&r| sortie[r].is_some());",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 pile — une somme nulle reste",
+  "fichier": "crates/glucose-core/src/store/journal/fondre_par_case.rs",
+  "avant": "if premiere.is_noop() {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 pile — rien ne s'additionne",
+  "fichier": "crates/glucose-core/src/store/journal/fondre.rs",
+  "avant": "while self.fondre_par_case(true) {",
+  "apres": "while self.fondre_par_case(false) {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 fichier — les translations s'additionnent",
+  "fichier": "crates/glucose-core/src/store/journal/fondre.rs",
+  "avant": "while self.fondre_par_case(false) {",
+  "apres": "while self.fondre_par_case(true) {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "journal::fondre"
+  ]
+ },
+ {
+  "nom": "FONDRE-145 — la pile fond comme le fichier",
+  "fichier": "crates/glucose-core/src/store/journal/pas.rs",
+  "avant": "sommet.fondre_les_pas();",
+  "apres": "sommet.fondre();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 lettre à lettre — la frappe n'écrit pas la hauteur",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/keys.rs",
+  "avant": "        // Le document grandit avec ce qu'on écrit, ses voisins s'écartent (POUSSER-145).\n        self.suivre_la_hauteur();\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 lettre à lettre — la validation sans étiquette",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit.rs",
+  "avant": "        self.store\n            .end_live_edit_etiquete(self.numero_de_la_saisie());",
+  "apres": "        self.store.end_live_edit();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 lettre à lettre — un même numéro pour deux saisies",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/poussee.rs",
+  "avant": "p.numero += 1;",
+  "apres": "p.numero += 0;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 lettre à lettre — le plancher suit la hauteur écrite",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/poussee.rs",
+  "avant": "map_or(rect.height, |o| o.1.height)",
+  "apres": "map_or(rect.height, |_| rect.height)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 lettre à lettre — ce qu'une autre main prend est ramené",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/poussee.rs",
+  "avant": "laissee.is_none() || laissee == self.boite_de(qui)",
+  "apres": "laissee.is_none() || laissee.is_some()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 lettre à lettre — le document coupé comme on le lira",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/poussee.rs",
+  "avant": "(s.buffer.clone(), TextMode::Source)",
+  "apres": "(s.buffer.clone(), TextMode::Rendered)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "pousser_145"
+  ]
+ }
+]

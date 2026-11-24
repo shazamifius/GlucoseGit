@@ -36,7 +36,7 @@ impl Journal {
         // Défaire efface l'étiquette du sommet (`oublier_le_sommet`) : rien de défait n'est refondu.
         if let Some(sommet) = self.done.last_mut().filter(|_| meme) {
             sommet.edits.extend(tx.edits);
-            sommet.fondre();
+            sommet.fondre_les_pas();
             // Une saisie revenue à son point de départ ne laisse rien à défaire.
             if sommet.is_empty() {
                 self.done.pop();

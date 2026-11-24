@@ -56,8 +56,8 @@ fn test_fondre_1_ce_qui_ne_change_rien_disparait() {
     );
 }
 
-/// **Seules des éditions adjacentes se fondent**, et seulement quand la seconde part de là où
-/// la première arrive : une autre case entre deux, ou un avant qui ne suit pas, et tout reste.
+/// **Seules se fondent des éditions qui se suivent** : la seconde part de là où la première
+/// arrive, et rien ne les sépare qu'un changement sur place d'une autre case (FONDRE-145).
 #[test]
 fn test_fondre_1_seules_des_voisines_qui_se_suivent_se_fondent() {
     let entrelacees = vec![
@@ -65,7 +65,10 @@ fn test_fondre_1_seules_des_voisines_qui_se_suivent_se_fondent() {
         change(2, 0.0, 1.0),
         change(1, 1.0, 2.0),
     ];
-    assert_eq!(fondre(entrelacees.clone()), entrelacees);
+    assert_eq!(
+        fondre(entrelacees),
+        vec![change(1, 0.0, 2.0), change(2, 0.0, 1.0)]
+    );
     let decousues = vec![change(1, 0.0, 1.0), change(1, 7.0, 8.0)];
     assert_eq!(fondre(decousues.clone()), decousues);
     // Deux cases différentes, dont les valeurs s'enchaînent pourtant : rien ne se fond.
@@ -155,4 +158,83 @@ fn test_fondre_1_le_geste_publie_rejoue_exactement_le_geste() {
     assert_eq!(rejoue, vivant);
     assert!(journal.undo(&mut vivant));
     assert_eq!(vivant, depart);
+}
+
+/// **FONDRE-145 : une saisie qui pousse un voisin, revenue à son départ, ne laisse rien** — le
+/// texte, le voisin, le texte, le voisin, puis tout ramené.
+#[test]
+fn test_fondre_145_des_cases_entrelacees_revenues_ne_laissent_rien() {
+    let aller_retour = vec![
+        change(1, 0.0, 1.0),
+        change(2, 0.0, 5.0),
+        change(1, 1.0, 2.0),
+        change(2, 5.0, 9.0),
+        change(1, 2.0, 0.0),
+        change(2, 9.0, 0.0),
+    ];
+    assert_eq!(fondre(aller_retour), Vec::<Edit>::new());
+}
+
+/// **FONDRE-145 : une insertion ou un retrait entre deux arrête la fusion** — les rangs ont pu
+/// bouger, la seconde case n'est peut-être plus la première (JRN-2).
+#[test]
+fn test_fondre_145_une_insertion_entre_deux_garde_tout() {
+    let insertion = Edit::Image {
+        board: "main".into(),
+        slot: Slot::inserted(0, image("neuve", 3.0)),
+    };
+    let coupees = vec![change(1, 0.0, 1.0), insertion, change(1, 1.0, 2.0)];
+    assert_eq!(fondre(coupees.clone()), coupees);
+}
+
+/// L'image 0 déplacée de `d`.
+fn translation(d: f64) -> Edit {
+    Edit::Translation {
+        board: "main".into(),
+        delta: (d, 0.0),
+        images: vec![0],
+        annotations: vec![],
+        folders: vec![],
+        bouts: vec![],
+    }
+}
+
+fn fondre_les_pas(edits: Vec<Edit>) -> Vec<Edit> {
+    let mut tx = Transaction { edits };
+    tx.fondre_les_pas();
+    tx.edits
+}
+
+/// **FONDRE-145 : une translation qui ne déplace pas la case ne sépare pas ses éditions** ; une
+/// qui la déplace, si.
+#[test]
+fn test_fondre_145_une_translation_ne_coupe_que_ce_qu_elle_deplace() {
+    let ailleurs = vec![change(1, 0.0, 1.0), translation(5.0), change(1, 1.0, 0.0)];
+    assert_eq!(fondre(ailleurs), vec![translation(5.0)]);
+    let dessus = vec![change(0, 0.0, 1.0), translation(5.0), change(0, 1.0, 2.0)];
+    assert_eq!(fondre(dessus.clone()), dessus);
+}
+
+/// **FONDRE-145, dans la pile** : les translations d'un même ensemble s'additionnent, et une
+/// saisie revenue à son départ ne laisse rien — le fichier, lui, garde chaque pas.
+#[test]
+fn test_fondre_145_dans_la_pile_les_pas_s_additionnent() {
+    let saisie = vec![
+        change(1, 0.0, 1.0),
+        translation(5.0),
+        change(1, 1.0, 0.0),
+        translation(-5.0),
+    ];
+    assert_eq!(fondre_les_pas(saisie.clone()), Vec::<Edit>::new());
+    assert_eq!(fondre(saisie).len(), 2, "le fichier n'additionne rien");
+    assert_eq!(
+        fondre_les_pas(vec![translation(0.5), translation(0.25)]),
+        vec![translation(0.75)]
+    );
+    let coupees = vec![translation(5.0), change(0, 5.0, 9.0), translation(-5.0)];
+    assert_eq!(
+        fondre_les_pas(coupees.clone()),
+        coupees,
+        "un changement de l'image entre deux"
+    );
 }

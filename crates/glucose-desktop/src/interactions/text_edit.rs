@@ -15,6 +15,7 @@ pub mod historique;
 pub(crate) mod keys;
 pub mod miroir;
 mod montrer;
+pub mod poussee;
 
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;
@@ -40,6 +41,7 @@ impl GlucoseApp {
         // cet oubli, annuler dans une carte y reposerait le texte d'une carte precedente --
         // et c'est la sorte de defaut qu'on ne comprend qu'apres avoir perdu du travail.
         self.historique_du_texte.oublier();
+        self.ouvrir_la_poussee();
         self.montrer_ce_qu_on_ecrit(&ann_id);
         self.editing_session = Some(TextEditSession {
             ann_id,
@@ -57,8 +59,9 @@ impl GlucoseApp {
     /// Valide et persiste le texte édité dans le store.
     ///
     /// La saisie entière est **une** entrée d'undo (fiche 09 § 2.2) : `begin_live_edit`
-    /// ouvre le geste, le texte puis la hauteur de la carte (TEXT-FIT-1) s'y écrivent, et
-    /// `end_live_edit` le referme. Chaque écriture passe par le store, jamais par le board
+    /// ouvre le geste, le texte puis la hauteur de la carte (TEXT-FIT-1) s'y écrivent, et il se
+    /// referme sous le numéro de la saisie, qui le fond avec les pas écrits pendant qu'on tapait
+    /// (POUSSER-145, [`poussee`]). Chaque écriture passe par le store, jamais par le board
     /// directement : tant que l'ouverture prenait un cliché du document, une écriture
     /// directe était couverte ; avec le journal d'éditions, elle est invisible — et c'est
     /// ainsi que la saisie de texte a cessé d'être annulable sans qu'aucun test ne le voie.
@@ -85,8 +88,9 @@ impl GlucoseApp {
             // perdent leur texte, qui est optionnel ; une carte garde sa chaîne.
             self.store
                 .ecrire_le_texte(&board, &session.ann_id, &session.buffer);
-            self.fit_text_card_height(&session.ann_id);
+            self.pas_de_la_saisie(&session.ann_id);
         }
-        self.store.end_live_edit();
+        self.store
+            .end_live_edit_etiquete(self.numero_de_la_saisie());
     }
 }

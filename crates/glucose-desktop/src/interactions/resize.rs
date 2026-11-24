@@ -497,41 +497,6 @@ impl GlucoseApp {
             .filter(|c| c.kind == PickKind::Handle)?;
         candidate.corner.as_deref().and_then(Handle::parse)
     }
-
-    /// TEXT-FIT-1 — écrit dans le document la hauteur qu'une carte de texte doit avoir pour
-    /// son texte à sa largeur. Appelé quand le texte change (validation d'une saisie).
-    pub fn fit_text_card_height(&mut self, ann_id: &str) {
-        let board = self.store.project.active_board_id.clone();
-        let Some((rect, text)) = self.store.active_board().and_then(|b| {
-            b.annotations
-                .iter()
-                .find(|a| a.id() == ann_id)
-                .and_then(|a| match a {
-                    Annotation::Text { text, .. } => a.rect().map(|r| (r, text.clone())),
-                    _ => None,
-                })
-        }) else {
-            return;
-        };
-        // Le texte **pousse** la carte, il ne la fixe pas : une hauteur tirée à la main est un
-        // plancher qu'une saisie ne reprend pas. Pour la faire redescendre, on tire — et le
-        // geste s'arrêtera lui-même au texte.
-        let height = text_card_fit_height(
-            &self.renderer.typography,
-            &self.renderer.math,
-            &text,
-            rect.width,
-        )
-        .max(rect.height);
-        if (height - rect.height).abs() > 1e-6 {
-            self.store
-                .set_annotation_rect(&board, ann_id, AlignRect { height, ..rect });
-            // TEXT-FIT-2 et POUSSER-145 : ses membranes le suivent, ce qui était dessous s'écarte
-            // — dans le même geste. Son origine : sa boîte d'avant (la voie sans copie).
-            let mut origines = vec![(ann_id.to_string(), rect)];
-            (self.store).pousser_en_ecrivant(&board, &mut origines, ann_id, rect.top + height);
-        }
-    }
 }
 
 fn rotate((x, y): (f64, f64), angle: f64) -> (f64, f64) {

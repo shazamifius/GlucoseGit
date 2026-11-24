@@ -165,12 +165,28 @@ pub(crate) fn boite_montree(
         Some(e) => (e.buffer.as_str(), TextMode::Source),
         None => (text.as_str(), TextMode::Rendered),
     };
-    let largeur = boite.width as f32;
-    let lignes = mises_en_page
-        .de((typographie, math), corps, largeur, mode)
-        .line_count();
-    boite.height = f64::from(CardLayout::text_card(largeur, boite.height as f32, lignes).height);
+    let mesure = (typographie, math, mises_en_page);
+    boite.height = hauteur_poussee(mesure, corps, boite.width, mode, boite.height);
     Some(boite)
+}
+
+/// **La hauteur qu'un texte pousse** à `largeur`, jamais sous `plancher` : coupé comme on l'édite
+/// en saisie (`Source`), comme on le lit sinon (`Rendered`). Le dessin ([`boite_montree`]) et le
+/// document (POUSSER-145, `text_edit/poussee.rs`) la lisent ici : ils ne peuvent pas diverger.
+pub(crate) fn hauteur_poussee(
+    (typographie, math, mises_en_page): (&Typography, &MathRenderer, &MisesEnPage),
+    texte: &str,
+    largeur: f64,
+    mode: TextMode,
+    plancher: f64,
+) -> f64 {
+    let largeur = largeur as f32;
+    let lignes = mises_en_page
+        .de((typographie, math), texte, largeur, mode)
+        .line_count();
+    // Le plancher reste en f64 : passé par f32, il différerait de la hauteur écrite, et chaque
+    // frappe récrirait la même hauteur.
+    f64::from(CardLayout::text_card(largeur, 0.0, lignes).height).max(plancher)
 }
 
 /// Le décalage du texte depuis le coin haut-gauche de la carte, en unités monde.

@@ -20,10 +20,14 @@
 //! laisse rien, et disparaît ; ce qui la précédait devient alors voisin de ce qui la suivait,
 //! et peut se fondre à son tour.
 //!
-//! Adjacentes seulement : entre deux éditions d'une même case, une insertion ailleurs dans la
-//! liste décalerait les rangs, et la fusion désignerait une autre case (JRN-2). Et jamais une
-//! translation : elle porte un **pas**, et additionner des pas en virgule flottante ne redonne
-//! pas la position qu'ils ont laissée — le glisser s'en charge autrement (GLISSER-1).
+//! Adjacentes, ou séparées seulement par des **changements sur place** d'autres cases
+//! (FONDRE-145) : entre deux éditions d'une même case, une insertion ailleurs dans la liste
+//! décalerait les rangs, et la fusion désignerait une autre case (JRN-2) ; un changement sur
+//! place ne déplace aucun rang et ne touche pas la case — l'ordre entre eux ne compte pas. Une
+//! saisie qui pousse un voisin écrit le texte, le voisin, le texte, le voisin… : sans cela,
+//! revenue à son départ, elle laissait un geste qui ne change rien. Et jamais une translation :
+//! elle porte un **pas**, et additionner des pas en virgule flottante ne redonne pas la position
+//! qu'ils ont laissée — le glisser s'en charge autrement (GLISSER-1).
 
 use super::edit::Edit;
 use super::{Slot, Transaction, Whole};
@@ -153,9 +157,27 @@ impl Edit {
 }
 
 impl Transaction {
-    /// **Fond les éditions successives d'une même case** (FONDRE-1) : le geste dit la même
-    /// chose, en ne gardant que ce qui la dit.
+    /// **Fond les éditions d'une même case** (FONDRE-1, FONDRE-145) : le geste dit la même
+    /// chose, en ne gardant que ce qui la dit. Les deux règles se relaient jusqu'à ce que rien ne
+    /// fonde plus : chaque tour retire au moins une édition.
     pub(super) fn fondre(&mut self) {
+        self.fondre_voisines();
+        while self.fondre_par_case(false) {
+            self.fondre_voisines();
+        }
+    }
+
+    /// **FONDRE-145, dans la pile seulement** : les pas d'une saisie fondus en un seul geste —
+    /// deux translations du même ensemble s'y additionnent aussi ([`par_case`]).
+    pub(super) fn fondre_les_pas(&mut self) {
+        self.fondre_voisines();
+        while self.fondre_par_case(true) {
+            self.fondre_voisines();
+        }
+    }
+
+    /// FONDRE-1 : deux éditions adjacentes d'une même case n'en font qu'une.
+    fn fondre_voisines(&mut self) {
         let mut fondues: Vec<Edit> = Vec::with_capacity(self.edits.len());
         for edit in self.edits.drain(..) {
             let Some(precedente) = fondues.pop() else {
@@ -175,6 +197,9 @@ impl Transaction {
         self.edits = fondues;
     }
 }
+
+#[path = "fondre_par_case.rs"]
+mod par_case;
 
 #[cfg(test)]
 #[path = "fondre_tests.rs"]

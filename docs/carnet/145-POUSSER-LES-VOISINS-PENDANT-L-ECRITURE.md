@@ -186,3 +186,38 @@ atteint, la prochaine épreuve de ce fichier va ailleurs) ; **9 sabotages sur 9*
 coupé en pleine compilation laisse le cache incrémental du noyau corrompu (l'éditeur de liens : « undefined
 reference to anon… ») — `rm -rf target/debug/incremental/glucose_core-*` le répare. **Reste** :
 l'application, Échap, l'essai au pilote.
+
+**Fait (22 h 25) : lettre à lettre dans l'application** (`interactions/text_edit/poussee.rs`). À chaque
+changement du tampon (`after_text_change`, et le `Ctrl+Z` du texte), `suivre_la_hauteur` ouvre un pas,
+écrit la hauteur si elle change et pousse (`Store::pousser_en_ecrivant`), puis le ferme aussitôt sous le
+numéro de la saisie ; la validation se ferme sous le même (`commit_editing`). L'état, `Poussee` (numéro,
+`origines`, `laissees`), vit **à côté** de la session, comme l'historique du texte (la session est copiée
+à chaque frappe). Quatre décisions :
+
+* **La hauteur, une seule fonction** : `card::hauteur_poussee`, que lisent le dessin (`boite_montree`) et
+  le document — en saisie, le texte coupé comme on l'édite (`Source`), sinon comme on le lit. Le plancher
+  reste en f64 : passé par f32, il différait de la hauteur écrite et chaque frappe l'aurait récrite.
+* **Le plancher est la boîte d'origine**, plus la hauteur courante : écrite pendant la saisie, celle-ci
+  aurait empêché d'effacer de faire remonter, et la validation (`Rendered`) de reprendre la hauteur lue.
+* **Ce qu'une autre main prend lui reste** : `laissees` garde chaque boîte telle que le dernier pas l'a
+  laissée ; une autre, retrouvée au pas suivant (un agent, un pair), et la saisie l'oublie — le nœud écrit,
+  lui, reprend son origine là où on le trouve.
+* **Un geste déjà ouvert** (un glisser) n'est pas le nôtre : le pas attend le suivant, ou la validation.
+
+**Ce que l'essai a appris : FONDRE-1 ne fondait que des voisines.** Une saisie revenue à son départ
+(Entrée puis Effacer) laissait un `Ctrl+Z` mort : le texte, la translation du voisin, le texte, la
+translation… jamais deux éditions d'une même case côte à côte. **FONDRE-145, par case**
+(`journal/fondre_par_case.rs`) : deux éditions d'une case se rejoignent par-dessus ce qui ne la touche pas
+— un changement sur place d'une autre case, une translation qui ne la déplace pas ; une insertion, un
+retrait, un tout arrêtent tout (JRN-2). **Dans la pile seulement** (`fondre_les_pas`, appelé par
+`empiler`), deux translations du même ensemble s'additionnent : le fichier le refuse (GLISSER-1, le bit
+près), la pile n'est ni relue ni écrite, et défaire une translation applique déjà son opposé. Limite
+honnête : le retour d'un voisin à son origine est exact quand départ et arrivée sont du même signe et à
+moins d'un facteur deux (Sterbenz) ; ailleurs (autour de zéro), il peut rester un ulp, et le geste une
+translation d'un ulp — vraie, invisible.
+
+Épreuves : 7 `test_pousser_145_*` (`poussee/tests.rs`) ; 4 dans `fondre_tests.rs` (dont
+`test_fondre_1_seules_des_voisines…`, réécrite : des cases entrelacées se fondent désormais) ;
+`outils/sabotages/pousser-145-lettre.json`, 15 sabotages. Toutes les épreuves de l'espace de travail
+vertes (3 651), clippy vert ; 15 sabotages sur 15. Piège : après des sabotages coupés, le cache incrémental a donné trois pannes du compilateur (éditeur de liens, « dep graph », un SIGSEGV dans LLVM) — `rm -rf target/debug/incremental/glucose_{core,desktop}-*` les a toutes réglées. **Reste** : l'essai au pilote, à son écran ensuite (« Entrée dans un texte
+au-dessus d'un autre : l'autre descend pendant qu'on tape »).

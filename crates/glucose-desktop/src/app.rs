@@ -175,6 +175,8 @@ pub struct GlucoseApp {
     /// texture d'une carte en saisie porte une copie de cette session, et un historique range
     /// la serait clone a chaque frappe.
     pub historique_du_texte: crate::interactions::text_edit::historique::Historique,
+    /// Ce que la saisie en cours a poussé, à côté d'elle pour la même raison (POUSSER-145).
+    pub poussee: crate::interactions::text_edit::poussee::Poussee,
 
     /// Les commandes qui attendent des pixels : un `Ctrl+B` ses originaux, un rangement ses
     /// couleurs (ETAGES-1, ORDONNER-2).
@@ -386,6 +388,7 @@ impl GlucoseApp {
             reduire_a_la_relache: None,
             lancement: Default::default(),
             historique_du_texte: Default::default(),
+            poussee: Default::default(),
             attentes: attentes::Attentes::default(),
             clic_de_reveil: false,
             relachement_a_jeter: false,
