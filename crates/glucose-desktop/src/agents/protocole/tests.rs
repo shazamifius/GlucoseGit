@@ -223,7 +223,8 @@ fn lecture_2_les_lecteurs_se_disent_en_lecture_seule_et_eux_seuls() {
             "glucose_chercher",
             "glucose_domaines",
             "glucose_histoire",
-            "glucose_lire"
+            "glucose_lire",
+            "glucose_quoi_de_neuf"
         ]
     );
 }

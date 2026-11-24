@@ -44,7 +44,7 @@ Puis : prendre le premier chantier ouvert de SUITE § 2, **tout remettre en ques
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 144.**
+fiche. **La prochaine porte le numéro 145.**
 
 ## Avec lui
 
@@ -77,7 +77,7 @@ python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand
 bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran : clic, molette, taper, capture
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
 glucose lire niveau=plan  # son Glucose ouvert, par sa porte (puis dans=…, ids=…, niveau=complet) ; `glucose aide` liste tout
-bash outils/borne.sh nix develop -c cargo build --release -p glucose-desktop --bin glucose-desktop  # SON Glucose : la commande `glucose` lance ce binaire (22/11), rien d'autre à mettre à jour
+bash outils/borne.sh nix develop -c cargo build --release -p glucose-desktop --bin glucose-desktop  # SON Glucose (la commande `glucose` lance ce binaire), puis : python3 -I outils/relais/relancer_glucose.py "<raison>"
 ```
 
 Le relais de la porte publique (`outils/porte`) vit sur le même compte : `npx wrangler deploy`, son essai

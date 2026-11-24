@@ -459,7 +459,12 @@ fn la_portee_borne_les_outils_d_une_ia_du_nuage() {
     let (_, j) = b.mcp(&lire, &ancien(1, "tools/list", ""));
     assert_eq!(
         noms_des_outils(&j),
-        vec!["glucose_lire", "glucose_chercher", "glucose_histoire"]
+        vec![
+            "glucose_lire",
+            "glucose_chercher",
+            "glucose_histoire",
+            "glucose_quoi_de_neuf"
+        ]
     );
     let (s, j) = b.mcp(
         &lire,

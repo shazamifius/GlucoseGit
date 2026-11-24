@@ -222,6 +222,7 @@ pub fn geste_en_mots(outil: &str, echec: Option<String>) -> String {
         "glucose_dater" => "a daté un nœud",
         "glucose_noter" => "a écrit une note",
         "glucose_histoire" => "a lu l'histoire du document",
+        "glucose_quoi_de_neuf" => "a lu ce qui a changé",
         autre => return geste_inconnu(autre, echec),
     };
     match echec {

@@ -72,12 +72,19 @@ systemctl --user status relais-glucose       # le service ; restart : KillMode=p
 tail ~/.local/state/relais/journal.txt       # ce qu'il a fait ; ses fichiers d'état à côté
 tmux capture-pane -p -t relais-a             # l'écran de la session (lire, jamais taper à sa place)
 bash outils/relais/voir.sh                   # ce que montrent ses deux VS Code : la session qui vit, ou pourquoi aucune
+python3 -I outils/relais/relancer_glucose.py "<raison>"  # relancer SON Glucose (binaire neuf) : par son service, l'heure écrite chez lui
 python3 -m unittest discover -s outils/relais -p test_relais.py   # ses épreuves
 python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sabotages
 ```
 
 ## Les pièges payés
 
+- **Son Glucose est un service** (`glucose.service`, `Restart=always`) : le relancer par
+  `relancer_glucose.py`, jamais `kill` puis `glucose` à la main — le service en rouvre un second dix
+  secondes après (le 24/11 à 13 h 30, deux fenêtres ; la seconde n'avait rouvert aucun document).
+  **Chaque relance coupe peut-être son partage de loin** (sa note du 24/11 : « déconnecté de la sync […]
+  12 h 10 », la relance de 12 h 18) : le moins souvent possible — une relance pour plusieurs chantiers —,
+  et chacune s'écrit dans `relais-relances`, avec ce qu'a fait le partage (fiche 144).
 - **La vue de VS Code suit la seule session qui vit, quel que soit son compte** (`voir.sh`, relu toutes
   les 20 secondes par `.vscode/tasks.json`) : jusqu'au 24/11, chaque VS Code ne suivait que la session de
   son compte, et celui du compte a, vide toute une nuit (sa semaine pleine), lui a fait croire le relais

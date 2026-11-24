@@ -208,7 +208,9 @@ impl<T> Whole<T> {
 }
 
 pub mod edit;
+mod effets;
 mod en_mots;
+pub use effets::{Effet, Touche};
 mod fondre;
 mod mains;
 pub mod partage;

@@ -1,0 +1,230 @@
+[
+ {
+  "nom": "MCP-NEUF — son propre dernier geste compté comme neuf",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "|k| k + 1)",
+  "apres": "|k| k)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — ce qui est venu et reparti reste",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "neufs.retain(|n| n.avant || n.apres);",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — l'ordre du plus ancien",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "neufs.sort_by_key(|n| std::cmp::Reverse(n.dernier));",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — un nœud retiré se dit changé",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "(true, false) => \"retire\",",
+  "apres": "(true, false) => \"change\",",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — le dernier état n'est pas suivi",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "n.apres = t.apres;",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — « depuis » ignoré",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "(n as usize).min(o.gestes.len())",
+  "apres": "0",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — personne n'a fait le premier geste",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "par: vec![qui.clone()],",
+  "apres": "par: vec![],",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — la membrane tue",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "champs.push((\"membrane\".to_string(), Json::texte(m.clone())));",
+  "apres": "let _ = m;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — la première phrase tue",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "champs.push((\"debut\".to_string(), Json::texte(p)));",
+  "apres": "let _ = p;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::executer::tests::neuf"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — « existait avant » lu après",
+  "fichier": "crates/glucose-core/src/store/journal/effets.rs",
+  "avant": "avant: slot.before.is_some(),",
+  "apres": "avant: slot.after.is_some(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::journal::effets"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — une flèche se dit texte",
+  "fichier": "crates/glucose-core/src/store/journal/effets.rs",
+  "avant": "Annotation::Arrow { .. } => \"flèche\",",
+  "apres": "Annotation::Arrow { .. } => \"texte\",",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::journal::effets"
+  ]
+ },
+ {
+  "nom": "MCP-NEUF — elle n'est plus un lecteur",
+  "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+  "avant": "    \"glucose_histoire\",\n    \"glucose_quoi_de_neuf\",\n];",
+  "apres": "    \"glucose_histoire\",\n    \"glucose_lire\",\n];",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "agents::protocole::tests"
+  ]
+ }
+]

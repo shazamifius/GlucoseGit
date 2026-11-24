@@ -16,7 +16,7 @@ use glucose_core::persist::histoire::{self, Ouvert};
 use std::io::{Read, Seek, SeekFrom};
 
 /// Combien de gestes l'histoire rend par défaut : les plus récents.
-const DERNIERS: usize = 50;
+pub(super) const DERNIERS: usize = 50;
 
 impl GlucoseApp {
     /// **Attache un écrit à un geste** : le dernier que cet agent a fait, ou celui de rang
@@ -76,7 +76,7 @@ impl GlucoseApp {
 }
 
 /// **Qui est cet auteur**, en mots : « humain », « l'IA de Glucose », ou « agent » et son nom.
-fn auteur_en_json(o: &Ouvert, id: u64) -> Json {
+pub(super) fn auteur_en_json(o: &Ouvert, id: u64) -> Json {
     let auteur = o.auteurs.get(&id).and_then(|a| a.en_mots());
     Json::texte(auteur.unwrap_or_else(|| "humain".to_string()))
 }
@@ -116,7 +116,7 @@ fn geste_en_json(o: &Ouvert, rang: usize, fichier: &mut std::fs::File) -> Json {
 }
 
 /// Le geste repéré, relu dans le fichier.
-fn relire(fichier: &mut std::fs::File, repere: Repere) -> Option<histoire::Geste> {
+pub(super) fn relire(fichier: &mut std::fs::File, repere: Repere) -> Option<histoire::Geste> {
     let mut contenu = vec![0u8; repere.tranche.longueur as usize];
     fichier.seek(SeekFrom::Start(repere.tranche.offset)).ok()?;
     fichier.read_exact(&mut contenu).ok()?;

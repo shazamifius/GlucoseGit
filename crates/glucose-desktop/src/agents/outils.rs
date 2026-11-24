@@ -206,6 +206,16 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"nombre":{"type":"number","description":"combien de gestes, les plus récents ; 50 par défaut"}}}"##,
     ),
     (
+        "glucose_quoi_de_neuf",
+        "Ce qui a changé dans le document depuis ton dernier geste — ou depuis le rang « depuis » \
+         (le « jusqu_a » de ta lecture d'avant) : chaque nœud une fois, posé, changé ou retiré, par \
+         qui (« humain », un autre appareil, « agent » et son nom), quand, sur quel tableau, dans \
+         quelle membrane, avec sa première phrase ; puis le reste en mots (« déplace des nœuds »). \
+         Les plus récents d'abord. Lis-le en revenant, avant de relire le tableau : relis ensuite \
+         seulement ces nœuds (glucose_lire, ids).",
+        r##"{"type":"object","properties":{"depuis":{"type":"number","description":"le rang d'où partir : le « jusqu_a » de ta lecture d'avant ; par défaut ton dernier geste"}}}"##,
+    ),
+    (
         "glucose_noter",
         "Attache un écrit à un geste de l'histoire, sans le changer — comme une note sur un \
          commit : ce que tu comprends de ce geste, et pourquoi il compte. Par défaut ton dernier \
@@ -279,17 +289,18 @@ impl Portee {
 
 /// **Les outils qui ne font que lire** : « Lire seulement » ne donne qu'eux. Une liste qui
 /// permet, jamais une qui interdit : un outil neuf écrit, jusqu'à preuve du contraire.
-const LECTEURS: [&str; 4] = [
+const LECTEURS: [&str; 5] = [
     "glucose_lire",
     "glucose_domaines",
     "glucose_chercher",
     "glucose_histoire",
+    "glucose_quoi_de_neuf",
 ];
 
 /// **Les outils ouverts à une IA du nuage** : ceux qui ne regardent que le document ouvert.
 /// `glucose_domaines` lit les autres fichiers et dit leurs chemins : il reste à cette machine.
 /// Un outil neuf n'est ouvert au nuage que quand on l'ajoute ici, exprès.
-const DU_DOCUMENT: [&str; 19] = [
+const DU_DOCUMENT: [&str; 20] = [
     "glucose_lire",
     "glucose_repondre",
     "glucose_renommer",
@@ -308,6 +319,7 @@ const DU_DOCUMENT: [&str; 19] = [
     "glucose_retirer",
     "glucose_dater",
     "glucose_histoire",
+    "glucose_quoi_de_neuf",
     "glucose_noter",
 ];
 

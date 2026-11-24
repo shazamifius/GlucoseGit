@@ -8,6 +8,7 @@ mod disposer;
 mod grouper_1;
 mod heritage;
 mod mcp_dossier;
+mod neuf;
 mod operateur_2;
 mod parente_3;
 mod plan;

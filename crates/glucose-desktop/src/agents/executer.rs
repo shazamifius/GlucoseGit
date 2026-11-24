@@ -12,6 +12,7 @@ mod disposer;
 mod domaines;
 mod grouper;
 mod lire;
+mod neuf;
 mod partir;
 mod repondre;
 mod temps;
@@ -95,6 +96,7 @@ impl GlucoseApp {
             "glucose_disposer" => self.agent_disposer(&board, &a),
             "glucose_grouper" => self.agent_grouper(&board, &a),
             "glucose_histoire" => self.agent_histoire(&a),
+            "glucose_quoi_de_neuf" => self.agent_quoi_de_neuf(&a),
             "glucose_noter" => self.agent_noter(&a),
             "glucose_dater" => self.agent_dater(&board, &a),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),

@@ -10,7 +10,7 @@ impl Transaction {
     /// **Une ligne par édition** : « pose le texte « a-12 » », « retire la flèche « f-3 » »,
     /// « déplace 4 nœuds »…
     pub fn en_mots(&self) -> Vec<String> {
-        self.edits.iter().map(en_mots).collect()
+        self.edits.iter().map(une_edition).collect()
     }
 }
 
@@ -41,7 +41,8 @@ fn sorte(a: &Annotation) -> &'static str {
     }
 }
 
-fn en_mots(edit: &Edit) -> String {
+/// **Une édition, en mots.**
+pub(super) fn une_edition(edit: &Edit) -> String {
     match edit {
         Edit::Image { slot, .. } => la_case(slot, |i| ("la photo", i.id.clone())),
         Edit::Annotation { slot, .. } => la_case(slot, |a| (sorte(a), a.id().to_string())),
