@@ -77,3 +77,37 @@ bouton voulu. **Doute** : avec plusieurs flèches choisies, le bouton écrit sur
 2. **Ce que le modèle écrit** pèse alors autant que ce qui entre (la session de 17 h : 47 % pour l'écrit, la
    pensée surtout) : l'effort de pensée (`--effort`) est le levier suivant — sa parole « Opus reste » ne dit
    rien de l'effort, à lui proposer chiffré.
+
+## 6. REVENIR-1 — le noyau de « un document, une salle » (fiche 146 § 4, le 2)
+
+Fait, pur, dans `core/store/journal/fusion.rs` et `fusion_projet.rs` (20 épreuves ; `revenir-147.json`,
+12 sabotages sur 12) :
+
+* **`fondre_la_liste` / `fondre_la_valeur`** : la règle de diff3, élément par élément, par le nom —
+  inchangé ici : la salle ; changé ici seulement (posé, changé, retiré) : il part ; le même des deux
+  côtés : rien ; changé des deux côtés autrement : **la salle gagne, la version d'ici est rendue**. Un
+  retrait d'un côté contre un changement de l'autre est un conflit, jamais un retrait. Un posé d'ici prend
+  place derrière son voisin d'ici le plus proche. Ce qui part : des `Slot` à appliquer dans l'ordre à la
+  liste de la salle — l'épreuve les rejoue et retrouve la fusion.
+* **`fondre_le_document`** : chaque liste et valeur du document ; un tableau présent des deux côtés se
+  fusionne **liste par liste**, jamais en bloc (sinon un nœud changé ici et un autre là-bas feraient un
+  conflit). Ce qui part : des `Edit` du journal ; l'épreuve les applique par `Edit::apply` à la salle.
+* **`revenir(ici, base, gestes, retenu)`** : la salle rebâtie depuis sa base au numéro retenu (l'ancêtre)
+  et maintenant, puis fusionnée. **Un numéro trop bas ne crée aucun conflit** : c'est ce qui permet de
+  revenir après un arrêt net. Et comme on compare des états, aucun déplacement n'est rejoué deux fois —
+  la raison pour laquelle la reprise exigeait le numéro exact (`collaborer/reprise.rs`) disparaît.
+
+**Ce qui reste, côté application** (la prochaine session) :
+1. Le souvenir garde le code à « Quitter » (le 1 de la fiche 146) et, pendant le partage, **une borne
+   basse** du numéro (celui que la salle a confirmé au dernier écrit du disque) au lieu de « en cours ».
+2. Une entrée `Revient` (à côté de `AttendLaBase`) : le fil part de 0, on garde la base et les gestes
+   jusqu'à « salle à jour » (`salle_a_jour`), puis `revenir`, on adopte le document fusionné,
+   `store.rejoindre(…, N)`, et ce qui part devient **mon** geste (annulable). « Partager » un document
+   qui a son code, et le lancement après un arrêt net, passent par là.
+3. **La version d'ici d'un conflit, gardée à côté** : aujourd'hui seulement son nom est rendu ; poser une
+   copie du nœud d'ici (un nom neuf) à côté de celui de la salle, et le dire dans Collaborer.
+4. Le 3 de la fiche 146 (« Changer les codes », la salle qui se ferme) attend la connexion Cloudflare.
+
+**Piège payé** : le compilateur (rustc 1.98.1) plante en compilation incrémentale sur un sabotage
+(*internal compiler error … impl_item_implementor_ids*), puis clippy par SIGSEGV : `CARGO_INCREMENTAL=0`
+(les sabotages de `revenir-147.json` le portent), ou `rm -rf target/debug/incremental/glucose_core-*`.
