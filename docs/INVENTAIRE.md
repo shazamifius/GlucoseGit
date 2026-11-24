@@ -72,6 +72,7 @@ panneaux. Le menu se range en colonnes quand l'écran est trop bas (ACCES-1).
 | Premier plan, arrière-plan | menu, `Ctrl+]` `Ctrl+[` | ✅ |
 | Supprimer | barre d'action, menu, `Suppr` | ✅ |
 | Transformer la sélection (origine commune ou individuelles) | poignées, barre d'action, `Alt` + coin | ✅ |
+| **La sélection en équerres, le reste flouté** (Q12, fiche 137) : quatre coins de viseur autour de chaque nœud choisi, quelle que soit sa sorte (rouges sur une photo verrouillée), les poignées logées dans leurs angles ; **le reste du canevas se floute** (σ 5,6 px, 40 % de l'image D), la main au repos — il s'efface pendant un glisser, un redimensionnement, un tracé, une écriture | « Flouter le reste » / « Ne plus flouter le reste » au **menu de la sélection** et à la palette, retenu d'une session à l'autre | ✅ menu (appui long sur la sélection) |
 | Recadrer une image | double-clic | ✅ |
 | **Retourner une image** (MIROIR-1, fiche 118) : de gauche à droite ou de haut en bas, chaque image sur elle-même ; une verrouillée ne se retourne pas | **menu d'une image**, la palette, `Alt+Maj+H`, `Alt+Maj+V` (ceux de PureRef) | ✅ menu |
 | **Détourer une image** (DETOURER-1 et 2, fiche 121) : la forme principale seule, en transparence, par une petite IA embarquée (u2netp, Apache 2.0, sans réseau) — environ 1,5 s sur son VivoBook, le curseur dit le travail ; le bord sans la couleur du fond ; un seul `Ctrl+Z` rend la photo, et le document garde les deux | **menu d'une image** « Détourer : la forme principale », la palette | ✅ menu |
@@ -173,7 +174,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire |
 | **Les doigts sous Windows** (tablettes) | toutes les machines | — | à faire |
 | **Mac** (une version publiée), **iPad** (par le web) | toutes les machines | — | la CI compile le Mac ; l'iPad attend le web |
-| **Le dessin de la sélection** (son choix entre les directions) | sa demande | — | planches à lui montrer |
+| ~~**Le dessin de la sélection** (son choix entre les directions)~~ | sa demande | — | **fait** (fiche 137 : B, les équerres, et le reste flouté) |
 | **L'UX du téléphone**, toute refaite : ultra rapide, fluide, pratique | sa demande | — | **en dernier** |
 | **Le Storyboard, plus loin** : ~~plusieurs images qui remplissent les cases vides à la suite~~ (fait, fiche 66) ; ~~un storyboard de la sélection~~ (fait, fiche 66) ; ~~insérer une case entre deux~~ (fait, fiche 66) ; ~~la lecture, les champs, le plan~~ (faits, fiche 67) ; ~~plusieurs storyboards par tableau~~ (fait, fiche 68) ; ~~l'export en planches~~ (fait, fiche 68) — **les huit propositions sont écrites** | ses mots du 13/10, Boords, Storyboarder, Toon Boom, Krita | panneau Storyboard, clic droit | **validées toutes les huit** (13/10) — SUITE P2 |
 | **Le défilement au bord** (« moche, pas fluide ») | son essai | — | à reprendre avec sa chronique |
