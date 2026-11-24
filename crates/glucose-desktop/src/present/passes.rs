@@ -36,7 +36,12 @@ pub struct Passes {
 }
 
 impl Passes {
-    pub fn nouvelles(peripherique: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
+    /// `grille` : le format des grilles du flou que la carte sait porter
+    /// ([`flou_gpu::grille_pour`]).
+    pub fn nouvelles(
+        peripherique: &wgpu::Device,
+        (format, grille): (wgpu::TextureFormat, wgpu::TextureFormat),
+    ) -> Self {
         Self {
             fond: fond_gpu::FondGpu::nouveau(peripherique, format),
             lueurs: lueurs_gpu::Lueurs::nouvelles(peripherique, format),
@@ -46,7 +51,7 @@ impl Passes {
             fleches: fleches_gpu::FlechesGpu::nouvelles(peripherique, format),
             lisere: lisere_gpu::LisereGpu::nouveau(peripherique, format),
             formes: formes_gpu::FormesGpu::nouvelles(peripherique, format),
-            flou: flou_gpu::FlouGpu::nouveau(peripherique, format),
+            flou: flou_gpu::FlouGpu::nouveau(peripherique, (format, grille)),
         }
     }
 

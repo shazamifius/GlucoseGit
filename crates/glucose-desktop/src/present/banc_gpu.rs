@@ -241,7 +241,8 @@ pub fn composer_les_cinq_temps(
 ) -> Option<Pixmap> {
     use crate::present::{couches, passes, scene_gpu};
     let ecran = (taille.0 as f32, taille.1 as f32);
-    let mut passes = passes::Passes::nouvelles(peripherique, FORMAT);
+    let grille = crate::present::flou_gpu::GRILLE_PRECISE;
+    let mut passes = passes::Passes::nouvelles(peripherique, (FORMAT, grille));
     let mut scene = scene_gpu::SceneGpu::nouvelle(peripherique, FORMAT);
     let mut deux = couches::Couches::nouvelles(peripherique, FORMAT);
     let mut envoi = crate::present::envoi::Envoi::nouveau(peripherique, file);

@@ -19,9 +19,23 @@ use crate::renderer::flou::Flou;
 
 const NUANCEUR: &str = include_str!("flou_gpu/flou.wgsl");
 
-/// Le format des grilles du flou : seize bits flottants par canal — l'écart d'un niveau de huit
-/// bits ne s'y perd pas d'une passe à l'autre.
-const GRILLE: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+/// **Le format des grilles du flou** : seize bits flottants par canal — l'écart d'un niveau de
+/// huit bits ne s'y perd pas d'une passe à l'autre.
+pub const GRILLE_PRECISE: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+
+/// **Les grilles que cette carte sait porter** : seize bits flottants si elle sait les cibler et les
+/// filtrer — certains pilotes OpenGL ES ne le savent pas —, sinon huit bits par canal, que toutes
+/// savent (un arrondi par passe, au plus un niveau chacune). Aucune machine exclue.
+pub fn grille_pour(adapter: &wgpu::Adapter) -> wgpu::TextureFormat {
+    let f = adapter.get_texture_format_features(GRILLE_PRECISE);
+    let usages = wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
+    let filtre = wgpu::TextureFormatFeatureFlags::FILTERABLE;
+    if f.allowed_usages.contains(usages) && f.flags.contains(filtre) {
+        GRILLE_PRECISE
+    } else {
+        wgpu::TextureFormat::Rgba8Unorm
+    }
+}
 
 /// La taille d'un réglage : la source, douze poids, le reste (`flou.wgsl`).
 const REGLAGE: u64 = 4 * (4 + 12 + 4);
@@ -65,6 +79,7 @@ struct Etat {
 /// **Le flou sur la carte** : ses nuanceurs, et ce qu'il tient pour l'image en cours.
 pub struct FlouGpu {
     format: wgpu::TextureFormat,
+    grille: wgpu::TextureFormat,
     disposition: wgpu::BindGroupLayout,
     echantillonneur: wgpu::Sampler,
     reduire: wgpu::RenderPipeline,
@@ -77,7 +92,10 @@ pub struct FlouGpu {
 }
 
 impl FlouGpu {
-    pub fn nouveau(peripherique: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
+    pub fn nouveau(
+        peripherique: &wgpu::Device,
+        (format, grille): (wgpu::TextureFormat, wgpu::TextureFormat),
+    ) -> Self {
         let disposition = disposition(peripherique);
         let module = peripherique.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("flou"),
@@ -125,9 +143,10 @@ impl FlouGpu {
         });
         Self {
             format,
-            reduire: pipeline("fs_reduire", GRILLE),
-            gauss: pipeline("fs_gauss", GRILLE),
-            agrandir: pipeline("fs_agrandir", GRILLE),
+            grille,
+            reduire: pipeline("fs_reduire", grille),
+            gauss: pipeline("fs_gauss", grille),
+            agrandir: pipeline("fs_agrandir", grille),
             meler: pipeline("fs_meler", format),
             disposition,
             echantillonneur,
@@ -273,7 +292,10 @@ impl FlouGpu {
         }
         let grossiere = tailles[tailles.len() - 1];
         tailles.push(grossiere);
-        let grilles: Vec<Tex> = tailles.iter().map(|&t| tex(t, GRILLE, dessin)).collect();
+        let grilles: Vec<Tex> = tailles
+            .iter()
+            .map(|&t| tex(t, self.grille, dessin))
+            .collect();
         let copie = wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING;
         let masque = tex(grossiere, wgpu::TextureFormat::R8Unorm, copie);
         let n = etages as usize;
