@@ -131,5 +131,43 @@
    "--lib",
    "store::pousser"
   ]
+ },
+ {
+  "nom": "POUSSER-145 — ce qu'elle a poussé ne revient pas",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "|| deja.iter().any(|d| d == a.id())",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — le journal ne déplace rien",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "let dy = cible.top - actuel.top;",
+  "apres": "let dy = 0.0;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
  }
 ]

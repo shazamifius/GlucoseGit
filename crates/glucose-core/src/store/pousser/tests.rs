@@ -239,6 +239,9 @@ fn test_pousser_pendant_l_ecriture_par_le_journal() {
     store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 120.0));
     store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 120.0);
     assert_eq!(haut(&store), 150.0, "effacer le fait remonter");
+    store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 100.0));
+    store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 100.0);
+    assert_eq!(haut(&store), 130.0, "jusqu'à sa place de départ");
     store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 180.0));
     store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 180.0);
     store.end_live_edit();

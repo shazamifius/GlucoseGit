@@ -82,6 +82,6 @@ leurs sabotages, et l'essai au pilote.
 le geste ouvert — chaque voisin prend son haut voulu en emportant son contenu, ou revient à son haut de
 départ ; `déjà` (ce que cette écriture a poussé) borne le retour à ce qu'elle a déplacé, jamais un nœud
 qu'une autre main a bougé. Épreuve `test_pousser_pendant_l_ecriture_par_le_journal` (au contact,
-effacer fait remonter, un seul Ctrl+Z). **Reste** : garder `départ` et `déjà` à l'ouverture de la saisie
+effacer fait remonter jusqu’à sa place, un seul Ctrl+Z) ; 9 sabotages sur 9 (14 h 34). **Reste** : garder `départ` et `déjà` à l'ouverture de la saisie
 et appeler la méthode à la place de `pousser_les_membranes` (`interactions/resize.rs`), ses sabotages,
 le pilote.
