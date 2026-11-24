@@ -211,3 +211,38 @@ fn test_pousser_pendant_l_ecriture_la_membrane_grandit_et_pousse_les_siens() {
         "rien n'atteint rien"
     );
 }
+
+/// **Par le journal** (fiche 145) : à chaque lettre, le voisin s'écarte ; effacer le fait remonter
+/// à sa place ; un seul `Ctrl+Z` rend tout.
+#[test]
+fn test_pousser_pendant_l_ecriture_par_le_journal() {
+    let mut store = Store::new("essai");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, texte("t", (0.0, 0.0, 200.0, 100.0), None));
+    store.add_annotation(&board, texte("dessous", (0.0, 130.0, 200.0, 60.0), None));
+    let depart = store
+        .active_board()
+        .expect("le tableau")
+        .annotations
+        .clone();
+    let haut = |s: &Store| {
+        let b = s.active_board().expect("le tableau");
+        bas_de(&b.annotations, "dessous") - 60.0
+    };
+    let mut deja = Vec::new();
+    store.begin_live_edit();
+    for bas in [150.0, 200.0] {
+        store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, bas));
+        store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", bas);
+    }
+    assert_eq!(haut(&store), 230.0, "au contact, l'écart gardé");
+    store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 120.0));
+    store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 120.0);
+    assert_eq!(haut(&store), 150.0, "effacer le fait remonter");
+    store.set_annotation_rect(&board, "t", Rect::new(0.0, 0.0, 200.0, 180.0));
+    store.pousser_en_ecrivant(&board, &depart, &mut deja, "t", 180.0);
+    store.end_live_edit();
+    assert_eq!(haut(&store), 210.0);
+    assert!(store.undo());
+    assert_eq!(haut(&store), 130.0, "un seul Ctrl+Z");
+}

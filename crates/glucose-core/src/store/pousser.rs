@@ -168,5 +168,69 @@ impl Store {
     }
 }
 
+impl Store {
+    /// **POUSSER-145, par le journal** : le nœud `id` qu'on écrit a son bas à `bas` ; `depart` est
+    /// son tableau au début de l'écriture, `deja` ce que cette écriture a déjà poussé. Chaque
+    /// voisin prend le haut que la loi lui donne, en emportant son contenu — ou revient à son haut
+    /// de départ (effacer fait remonter) ; chaque membrane, son bas. Dans le geste ouvert : le
+    /// même `Ctrl+Z` défait la saisie et tout ce qu'elle a poussé.
+    pub fn pousser_en_ecrivant(
+        &mut self,
+        board_id: &str,
+        depart: &[Annotation],
+        deja: &mut Vec<String>,
+        id: &str,
+        bas: f64,
+    ) {
+        let faits = pousser_en_ecrivant(depart, id, bas);
+        let voulu = |rang: usize, cadre: Rect| {
+            let fait = faits.iter().find(|f| f.0 == rang);
+            match fait {
+                Some(&(_, Bord::Haut, haut)) => {
+                    Rect::new(cadre.left, haut, cadre.width, cadre.height)
+                }
+                Some(&(_, Bord::Bas, b)) => {
+                    Rect::new(cadre.left, cadre.top, cadre.width, b - cadre.top)
+                }
+                None => cadre,
+            }
+        };
+        let touches: Vec<(String, Rect)> = (depart.iter().enumerate())
+            .filter(|(r, a)| faits.iter().any(|f| f.0 == *r) || deja.iter().any(|d| d == a.id()))
+            .filter_map(|(r, a)| Some((a.id().to_string(), voulu(r, a.rect()?))))
+            .collect();
+        *deja = (faits.iter())
+            .map(|f| depart[f.0].id().to_string())
+            .collect();
+        for (qui, cible) in touches {
+            let Some(actuel) = (self.project.boards.iter().find(|b| b.id == board_id))
+                .and_then(|b| b.annotations.iter().find(|a| a.id() == qui))
+                .and_then(Annotation::rect)
+            else {
+                continue;
+            };
+            let dy = cible.top - actuel.top;
+            if dy != 0.0 {
+                let emport = (self.project.boards.iter().find(|b| b.id == board_id))
+                    .map(|b| super::membranes::Emport::de(b, &[], std::slice::from_ref(&qui)));
+                let t = emport.and_then(|e| {
+                    self.translation_de(board_id, &e, &super::choix::Choix::default(), (0.0, dy))
+                });
+                if let Some(t) = t.filter(|t| t.apply(&mut self.project)) {
+                    self.record_as_one_gesture(vec![t]);
+                }
+            }
+            if (cible.height - actuel.height).abs() > 1e-9 {
+                let haut = actuel.top + dy;
+                self.set_annotation_rect(
+                    board_id,
+                    &qui,
+                    Rect::new(cible.left, haut, cible.width, cible.height),
+                );
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;

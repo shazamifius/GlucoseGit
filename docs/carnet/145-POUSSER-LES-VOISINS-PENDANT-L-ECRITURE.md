@@ -76,3 +76,12 @@ leurs sabotages, et l'essai au pilote.
 * **Dans le geste ouvert** : `pousser_les_membranes` écrit par `set_annotation_rect` dans la saisie
   ouverte (`begin_live_edit`) ; vérifier qu'une `Edit::Translation` y entre aussi (sinon
   `record_as_one_gesture` ouvrirait une seconde entrée d'annulation) — l'épreuve « un seul Ctrl+Z ».
+
+**Fait (14 h 35)** : `translation_de` extraite (`store/images.rs`, la sélection la partage) ; et
+`Store::pousser_en_ecrivant(tableau, départ, déjà, id, bas)` (`store/pousser.rs`) applique la loi dans
+le geste ouvert — chaque voisin prend son haut voulu en emportant son contenu, ou revient à son haut de
+départ ; `déjà` (ce que cette écriture a poussé) borne le retour à ce qu'elle a déplacé, jamais un nœud
+qu'une autre main a bougé. Épreuve `test_pousser_pendant_l_ecriture_par_le_journal` (au contact,
+effacer fait remonter, un seul Ctrl+Z). **Reste** : garder `départ` et `déjà` à l'ouverture de la saisie
+et appeler la méthode à la place de `pousser_les_membranes` (`interactions/resize.rs`), ses sabotages,
+le pilote.
