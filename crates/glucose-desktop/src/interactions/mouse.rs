@@ -99,8 +99,9 @@ impl GlucoseApp {
             self.update_bend(wx, wy);
         } else if self.resize_session.is_some() {
             self.handle_resize_move(position.x, position.y);
-        } else if self.is_dragging_item && self.hors_de_la_fenetre(position) {
-            // Les nœuds tenus quittent la fenêtre : ils partent vers une autre (fiche 51 § 2).
+        } else if self.is_dragging_item && self.part_ailleurs(position) {
+            // Les nœuds tenus partent vers une autre fenêtre (fiche 51 § 2) : au bord, ou
+            // tout de suite avec `Ctrl` (Q10).
             self.emporter_hors_de_la_fenetre();
         } else if self.is_dragging_item {
             self.handle_item_drag_move(position.x, position.y);
@@ -203,18 +204,26 @@ impl GlucoseApp {
         false
     }
 
-    /// **Ce point est-il hors de la fenêtre ?** La souris tenue continue d'être suivie au-delà de
-    /// ses bords. Seulement là où un glisser sait partir vers une autre fenêtre — Windows, et
-    /// Wayland par son pont (fiche 100) ; ailleurs, les nœuds continuent de suivre la main. Et
-    /// seulement avec une vraie fenêtre : sans elle, il n'y a nulle part d'où sortir.
-    fn hors_de_la_fenetre(&self, position: PhysicalPosition<f64>) -> bool {
+    /// **Les nœuds tenus partent-ils vers une autre fenêtre ?** Quand la main sort de celle-ci
+    /// — la souris tenue continue d'être suivie au-delà de ses bords —, ou dès qu'elle bouge avec
+    /// `Ctrl` (Q10, sa validation du 24/11, `relais-rep-q10`) : une fenêtre posée par-dessus
+    /// Glucose, Discord ou un navigateur, ne se rejoint pas en sortant de la sienne. Aucun bureau
+    /// ne prend `Ctrl` + glisser (Alt et la touche du logo déplacent les fenêtres), et c'est le
+    /// « copier » de tous les explorateurs. Pas de seuil : un `Ctrl` + clic qui tremble part et
+    /// retombe sur Glucose, qui ne pose pas ce qui vient de lui — rien ne bouge.
+    ///
+    /// Seulement là où un glisser sait partir vers une autre fenêtre — Windows, et Wayland par
+    /// son pont (fiche 100) ; ailleurs, les nœuds continuent de suivre la main. Et seulement
+    /// avec une vraie fenêtre : sans elle, il n'y a nulle part d'où partir.
+    fn part_ailleurs(&self, position: PhysicalPosition<f64>) -> bool {
         let (largeur, hauteur) = self.taille_de_la_fenetre();
+        let dehors = position.x < 0.0
+            || position.y < 0.0
+            || position.x >= f64::from(largeur)
+            || position.y >= f64::from(hauteur);
         crate::plateforme::sait_glisser_dehors()
             && self.window.is_some()
-            && (position.x < 0.0
-                || position.y < 0.0
-                || position.x >= f64::from(largeur)
-                || position.y >= f64::from(hauteur))
+            && (dehors || self.modifiers.control_key())
     }
 
     /// Enfoncement d'un bouton de la souris.

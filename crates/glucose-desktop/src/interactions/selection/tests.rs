@@ -112,3 +112,15 @@ fn test_parite_19_la_pastille_levee_par_le_predicat_la_choisit() {
     glisser(&mut app, (340.0, 286.0), (340.0, 286.0));
     assert_eq!(choisis(&app), vec!["f".to_string()]);
 }
+
+/// **Q10 — `Ctrl` + appui sur un nœud le prend** : c'est le geste qui l'emporte hors de Glucose
+/// (sa validation du 24/11, `relais-rep-q10`). Sans fenêtre, il glisse ici, comme sans `Ctrl`.
+#[test]
+fn test_q10_ctrl_appui_sur_un_noeud_le_prend() {
+    let mut app = app();
+    app.modifiers = winit::keyboard::ModifiersState::CONTROL;
+    app.handle_cursor_moved(PhysicalPosition::new(610.0, 510.0));
+    app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
+    assert!(app.is_dragging_item, "Ctrl + appui prend le nœud");
+    assert_eq!(choisis(&app), vec!["t".to_string()]);
+}
