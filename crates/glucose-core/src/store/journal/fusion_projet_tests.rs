@@ -1,7 +1,9 @@
 //! REVENIR-1, le document entier : le travail des deux côtés gardé, et la salle qui, en appliquant ce
 //! qui part par le vrai chemin du journal (`Edit::apply`), retrouve le document fusionné.
 
-use super::fondre_le_document;
+use super::super::partage::{EditionPartagee, GestePartage};
+use super::super::{Edit, Slot};
+use super::{fondre_le_document, revenir};
 use crate::types::{Board, BoardImage, Project};
 
 fn image(id: &str, x: f64) -> BoardImage {
@@ -90,4 +92,49 @@ fn test_sans_ancetre_pour_un_tableau_commun_rien_ne_se_perd() {
     let f = fondre(&a, &l, &r);
     assert_eq!(f.projet.boards.len(), 1);
     assert_eq!(f.projet.boards[0].images.len(), 3);
+}
+
+fn deplacer(id: &str, avant: f64, apres: f64, rang: usize) -> GestePartage {
+    let slot = Slot::changed(rang, image(id, avant), image(id, apres));
+    let edition = EditionPartagee::Telle(Edit::Image {
+        board: "main".into(),
+        slot,
+    });
+    GestePartage {
+        editions: vec![edition],
+    }
+}
+
+#[test]
+fn test_revenir_garde_ce_qui_s_est_fait_de_loin_pendant_l_absence() {
+    // La salle : sa base, puis « a » déplacé (n° 2, que le fichier d'ici contient), puis « b »
+    // déplacé de loin pendant l'absence de ce PC (n° 3). Ici, « a » a encore bougé, hors ligne.
+    let base = depart();
+    let gestes = vec![
+        (2, deplacer("a", 0.0, 1.0, 0)),
+        (3, deplacer("b", 0.0, 7.0, 1)),
+    ];
+    let mut ici = base.clone();
+    ici.boards[0].images[0].x = 4.0;
+    let f = revenir(&ici, &base, &gestes, 2);
+    let xs: Vec<f64> = f.projet.boards[0].images.iter().map(|i| i.x).collect();
+    assert_eq!(
+        xs,
+        [4.0, 7.0],
+        "le geste d'ici et celui de loin restent tous deux"
+    );
+    assert_eq!(f.a_envoyer.len(), 1, "seul le geste d'ici part");
+    assert!(f.conflits.is_empty());
+}
+
+#[test]
+fn test_revenir_avec_un_numero_trop_bas_ne_cree_pas_de_conflit() {
+    // Après un arrêt net, on ne sait que « au moins la base » : le geste n° 2 est des deux côtés.
+    let base = depart();
+    let gestes = vec![(2, deplacer("a", 0.0, 1.0, 0))];
+    let mut ici = base.clone();
+    ici.boards[0].images[0].x = 1.0;
+    let f = revenir(&ici, &base, &gestes, 1);
+    assert!(f.conflits.is_empty() && f.a_envoyer.is_empty());
+    assert_eq!(f.projet.boards[0].images[0].x, 1.0);
 }

@@ -8,7 +8,7 @@
 //! Le point de vue et l'onglet regardé restent à chacun (ils ne partent jamais, PARTAGE-1).
 
 use super::fusion::{fondre_la_liste, fondre_la_valeur, FusionDeListe, FusionDeValeur};
-use super::partage::Nomme;
+use super::partage::{GestePartage, Nomme};
 use super::{Edit, Slot, Whole};
 use crate::types::{Board, Project};
 
@@ -41,6 +41,27 @@ pub fn fondre_le_document(ancetre: &Project, ici: &Project, la_bas: &Project) ->
     f.projet.presets = f.liste(preglages, |slot| Edit::Preset { slot });
     f.fondre_les_tableaux(ancetre, ici, la_bas);
     f
+}
+
+/// **Revenir dans sa salle** (fiche 146 § 4, le 2) : la salle rebâtie depuis sa base — au numéro
+/// `retenu`, le dernier que le fichier d'ici contient (au moins : un numéro trop bas ne gêne pas), et
+/// maintenant —, puis fusionnée avec le document d'ici. `gestes` : ce que la salle garde après sa base,
+/// avec leur numéro, dans son ordre.
+pub fn revenir(
+    ici: &Project,
+    base: &Project,
+    gestes: &[(u64, GestePartage)],
+    retenu: u64,
+) -> FusionDuDocument {
+    let mut ancetre = base.clone();
+    let mut la_bas = base.clone();
+    for (n, geste) in gestes {
+        if *n <= retenu {
+            geste.appliquer(&mut ancetre);
+        }
+        geste.appliquer(&mut la_bas);
+    }
+    fondre_le_document(&ancetre, ici, &la_bas)
 }
 
 /// Le tableau de ce nom dans ce document.

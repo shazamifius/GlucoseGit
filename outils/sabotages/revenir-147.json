@@ -5,6 +5,8 @@
   "avant": "    if ici == la_bas || ici == ancetre {",
   "apres": "    if ici == ancetre {",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -25,6 +27,8 @@
   "avant": "    if ici == la_bas || ici == ancetre {",
   "apres": "    if ici == la_bas {",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -45,6 +49,8 @@
   "avant": "    } else if la_bas == ancetre {",
   "apres": "    } else if true {",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -65,6 +71,8 @@
   "avant": "let index = voisin.map_or(0, |v| v + 1);",
   "apres": "let index = voisin.map_or(0, |v| v);",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -85,6 +93,8 @@
   "avant": "let retires = ancetre.iter().filter(|e| !l.contains_key(e.nom()));",
   "apres": "let retires = ancetre.iter().filter(|_| false);",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -105,6 +115,8 @@
   "avant": "noms.filter(|n| vus.insert(n.clone()))",
   "apres": "noms.filter(|n| { vus.insert(n.clone()); true })",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -125,6 +137,8 @@
   "avant": "(Some(_), Some(r)) => r.clone(),",
   "apres": "(Some(_), Some(_)) => b.clone(),",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -145,6 +159,8 @@
   "avant": "for l in &ici.boards {",
   "apres": "for l in ici.boards.iter().take(0) {",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -165,6 +181,8 @@
   "avant": "unwrap_or_else(|| vide(r))",
   "apres": "unwrap_or_else(|| l.clone())",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
@@ -185,6 +203,52 @@
   "avant": "self.a_envoyer.extend(f.a_envoyer.map(edition));",
   "apres": "",
   "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — l'ancêtre s'arrête avant le numéro retenu",
+  "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
+  "avant": "        if *n <= retenu {",
+  "apres": "        if *n < retenu {",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — la salle d'aujourd'hui sans ses gestes",
+  "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
+  "avant": "        geste.appliquer(&mut la_bas);\n",
+  "apres": "",
+  "cmd": [
+   "env",
+   "CARGO_INCREMENTAL=0",
    "bash",
    "outils/borne.sh",
    "nix",
