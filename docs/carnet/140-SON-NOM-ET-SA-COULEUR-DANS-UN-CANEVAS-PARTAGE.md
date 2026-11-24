@@ -105,3 +105,22 @@ déjà faits) sert désormais au mélange et à l'agrandissement, au bit près
 le tout **40,5 ms** en 1080p (73,2 en 1440p) — : dans cette étape, c'est la réduction à pleine
 taille (`reduire_des_octets`, quatre lectures bornées par pixel) qui pèse, à mesurer à part ensuite.
 
+**La réduction, par rangées** (vers 8 h 40) : mesurée à part, la première réduction coûtait 8,7 ms
+des 13,5 de la gaussienne. Chaque rangée d'octets se convertit une fois, les quatre voisins bornés de
+chaque colonne et de chaque rangée se calculent une fois (`fenetre`), le filtre binomial est le même
+(`pese`, la ligne que `flou-137` sabote) : au bit près
+(`test_flou_reduire_rend_au_bit_pres_la_lecture_voisin_par_voisin`, des octets comme d'une image,
+tailles paires, impaires, d'un pixel). `meler-140.json` **4 sur 4**, `flou-137.json` **16 sur 16**,
+`voies_suite` 34.
+
+```text
+                     tout (médiane)            réduction   gaussienne   mélange
+1920 x 1080, ×1      65,6 → 41,9 → 37,5 ms     8,7 → 5,2   15,0 → 10,6  50,6 → 26,9
+2560 x 1440, ×1     118,0 → 75,7 → 68,7 ms        → 10,0   26,8 → 19,9  91,1 → 48,8
+```
+
+**Reste** près de quatre fois le plancher. Le mélange (27 ms) n'a plus rien à pré-calculer : ce
+sont ses flottants — par canal, deux produits, un `round`, deux `clamp`. La suite est une loi en
+entiers, qui ne sera plus au bit près de l'ancienne : elle devra garder l'accord des deux voies à 4
+niveaux, et se juger au banc.
+

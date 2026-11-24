@@ -262,3 +262,50 @@ fn test_flou_agrandir_rend_au_bit_pres_la_lecture_pixel_par_pixel() {
         .collect();
     assert_eq!(agrandir(&img, (gl, gh)).pixels, ancien);
 }
+
+/// **La réduction rend au bit près la lecture voisin par voisin** (fiche 140 § 5) : ses rangées
+/// lues d'un coup et ses fenêtres calculées une fois donnent les nombres mêmes que l'ancienne loi —
+/// quatre voisins bornés lus un à un, le filtre binomial —, sur des tailles impaires et paires, des
+/// octets comme d'une image.
+#[test]
+fn test_flou_reduire_rend_au_bit_pres_la_lecture_voisin_par_voisin() {
+    let ancienne = |(l, h): (usize, usize), a: &dyn Fn(isize, isize) -> Pixel| -> Vec<Pixel> {
+        let pese = |p: [Pixel; 4]| -> Pixel {
+            std::array::from_fn(|c| (p[0][c] + 3.0 * p[1][c] + 3.0 * p[2][c] + p[3][c]) / 8.0)
+        };
+        let (pl, ph) = (moitie(l) as isize, moitie(h) as isize);
+        let borne = |v: isize, n: usize| v.clamp(0, n as isize - 1);
+        let ligne = |i: isize, y: isize| {
+            let x = 2 * i;
+            pese([a(x - 1, y), a(x, y), a(x + 1, y), a(x + 2, y)])
+        };
+        let mut sortie = Vec::new();
+        for j in 0..ph {
+            for i in 0..pl {
+                let y = 2 * j;
+                let r = [y - 1, y, y + 1, y + 2].map(|v| ligne(i, borne(v, h)));
+                sortie.push(pese(r));
+            }
+        }
+        sortie
+    };
+    for (l, h) in [(17usize, 9usize), (16, 10), (1, 1)] {
+        let octets: Vec<u8> = (0..l * h * 4).map(|i| (i * 71 % 251) as u8).collect();
+        let lu = |x: isize, y: isize| {
+            let (x, y) = (
+                x.clamp(0, l as isize - 1) as usize,
+                y.clamp(0, h as isize - 1) as usize,
+            );
+            let i = (y * l + x) * 4;
+            [0, 1, 2, 3].map(|c| f32::from(octets[i + c]))
+        };
+        let attendu = ancienne((l, h), &lu);
+        assert_eq!(
+            reduire_des_octets(&octets, (l, h)).pixels,
+            attendu,
+            "{l} x {h}, octets"
+        );
+        let img = Image::d_octets(&octets, l, h);
+        assert_eq!(reduire(&img).pixels, attendu, "{l} x {h}, image");
+    }
+}

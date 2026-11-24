@@ -43,5 +43,20 @@
    "--",
    "flou"
   ]
+ },
+ {
+  "nom": "MELER-1 — la réduction oublie le voisin de gauche",
+  "fichier": "crates/glucose-core/src/flou.rs",
+  "avant": "    [x - 1, x, x + 1, x + 2].map(|k| k.clamp(0, n as isize - 1) as usize)",
+  "apres": "    [x, x, x + 1, x + 2].map(|k| k.clamp(0, n as isize - 1) as usize)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "flou"
+  ]
  }
 ]

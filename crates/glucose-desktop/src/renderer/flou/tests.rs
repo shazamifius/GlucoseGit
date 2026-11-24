@@ -218,6 +218,19 @@ fn banc_flou_au_processeur() {
         for e in &mut etapes {
             e.sort_by(f64::total_cmp);
         }
+        let mut reductions: Vec<f64> = (0..11)
+            .map(|_| {
+                let debut = std::time::Instant::now();
+                let _ =
+                    loi::reduire_des_octets(pixmap.data(), (largeur as usize, hauteur as usize));
+                debut.elapsed().as_secs_f64() * 1000.0
+            })
+            .collect();
+        reductions.sort_by(f64::total_cmp);
+        crate::dire!(
+            "[banc]   dont la première réduction {:.2} ms (médiane)",
+            reductions[5]
+        );
         crate::dire!(
             "[banc]   dont le masque {:.2} ms, la gaussienne {:.2} ms, le mélange {:.2} ms (médianes)",
             etapes[0][15],

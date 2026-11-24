@@ -121,64 +121,61 @@ pub fn moitie(n: usize) -> usize {
 /// **Réduit de moitié** par le filtre binomial `[1, 3, 3, 1] / 8` sur chaque axe : le pixel `i`
 /// de la petite grille couvre les pixels `2i` et `2i + 1` de la grande, et lit `2i − 1` à `2i + 2`.
 pub fn reduire(img: &Image) -> Image {
-    reduire_par((img.largeur, img.hauteur), |x, y| img.a(x, y))
-}
-
-/// **Réduit de moitié des octets RVBA prémultipliés** — le premier étage, qui lit le tampon de
-/// l'écran tel quel : sans copie flottante de l'image entière.
-pub fn reduire_des_octets(octets: &[u8], (largeur, hauteur): (usize, usize)) -> Image {
-    reduire_par((largeur, hauteur), |x, y| {
-        let x = x.clamp(0, largeur as isize - 1) as usize;
-        let y = y.clamp(0, hauteur as isize - 1) as usize;
-        let i = (y * largeur + x) * 4;
-        [0, 1, 2, 3].map(|c| f32::from(octets[i + c]))
+    reduire_par((img.largeur, img.hauteur), |y, rangee| {
+        rangee.clear();
+        rangee.extend_from_slice(&img.pixels[y * img.largeur..(y + 1) * img.largeur]);
     })
 }
 
-/// La réduction, lisant chaque pixel par `a(x, y)`, les bords prolongés par lui.
-fn reduire_par((largeur, hauteur): (usize, usize), a: impl Fn(isize, isize) -> Pixel) -> Image {
-    let img = Dimensions { largeur, hauteur };
-    let (l, h) = (moitie(img.largeur), moitie(img.hauteur));
-    let pese = |p: [Pixel; 4]| -> Pixel {
-        std::array::from_fn(|c| (p[0][c] + 3.0 * p[1][c] + 3.0 * p[2][c] + p[3][c]) / 8.0)
-    };
-    // D'abord les lignes (largeur réduite, hauteur entière), puis les colonnes.
-    let mut lignes = Image {
-        largeur: l,
-        hauteur: img.hauteur,
-        pixels: Vec::with_capacity(l * img.hauteur),
-    };
-    for y in 0..img.hauteur as isize {
-        for i in 0..l as isize {
-            let x = 2 * i;
-            lignes
-                .pixels
-                .push(pese([a(x - 1, y), a(x, y), a(x + 1, y), a(x + 2, y)]));
-        }
-    }
-    let mut sortie = Image {
-        largeur: l,
-        hauteur: h,
-        pixels: Vec::with_capacity(l * h),
-    };
-    for j in 0..h as isize {
-        let y = 2 * j;
-        for x in 0..l as isize {
-            sortie.pixels.push(pese([
-                lignes.a(x, y - 1),
-                lignes.a(x, y),
-                lignes.a(x, y + 1),
-                lignes.a(x, y + 2),
-            ]));
-        }
-    }
-    sortie
+/// **Réduit de moitié des octets RVBA prémultipliés** — le premier étage, qui lit le tampon de
+/// l'écran tel quel : sans copie flottante de l'image entière, une rangée à la fois.
+pub fn reduire_des_octets(octets: &[u8], (largeur, hauteur): (usize, usize)) -> Image {
+    reduire_par((largeur, hauteur), |y, rangee| {
+        rangee.clear();
+        let octets = &octets[y * largeur * 4..(y + 1) * largeur * 4];
+        rangee.extend(octets.as_chunks::<4>().0.iter().map(|p| p.map(f32::from)));
+    })
 }
 
-/// Les dimensions d'une image qu'on ne tient pas encore.
-struct Dimensions {
-    largeur: usize,
-    hauteur: usize,
+/// **La réduction**, chaque rangée lue d'un coup par `lire_la_rangee` ; les quatre voisins de chaque
+/// pixel de la petite grille, bornés aux bords (le dernier pixel se répète), se calculent une fois
+/// par colonne et par rangée. Les nombres mêmes qu'un voisin borné lu pixel par pixel, au bit près —
+/// qui coûtaient 8,7 ms à pleine taille en 1080p (fiche 140 § 5).
+fn reduire_par(
+    (largeur, hauteur): (usize, usize),
+    lire_la_rangee: impl Fn(usize, &mut Vec<Pixel>),
+) -> Image {
+    let (l, h) = (moitie(largeur), moitie(hauteur));
+    let colonnes: Vec<[usize; 4]> = (0..l).map(|i| fenetre(i, largeur)).collect();
+    // D'abord les lignes (largeur réduite, hauteur entière), puis les colonnes.
+    let mut lignes = Vec::with_capacity(l * hauteur);
+    let mut rangee = Vec::with_capacity(largeur);
+    for y in 0..hauteur {
+        lire_la_rangee(y, &mut rangee);
+        lignes.extend(colonnes.iter().map(|f| pese(f.map(|k| rangee[k]))));
+    }
+    let mut pixels = Vec::with_capacity(l * h);
+    for j in 0..h {
+        let quatre = fenetre(j, hauteur).map(|k| &lignes[k * l..(k + 1) * l]);
+        pixels.extend((0..l).map(|x| pese(quatre.map(|r| r[x]))));
+    }
+    Image {
+        largeur: l,
+        hauteur: h,
+        pixels,
+    }
+}
+
+/// Les quatre voisins `2i − 1` à `2i + 2` du pixel `i` de la petite grille, dans une grille de `n`
+/// cases, bornés aux bords.
+fn fenetre(i: usize, n: usize) -> [usize; 4] {
+    let x = 2 * i as isize;
+    [x - 1, x, x + 1, x + 2].map(|k| k.clamp(0, n as isize - 1) as usize)
+}
+
+/// Le filtre binomial `[1, 3, 3, 1] / 8` sur quatre pixels.
+fn pese(p: [Pixel; 4]) -> Pixel {
+    std::array::from_fn(|c| (p[0][c] + 3.0 * p[1][c] + 3.0 * p[2][c] + p[3][c]) / 8.0)
 }
 
 /// La lecture bilinéaire d'une image au point `(cx, cy)` de sa grille (le centre du pixel `i` est
