@@ -118,5 +118,85 @@
    "--",
    "journal::fusion"
   ]
+ },
+ {
+  "nom": "REVENIR — un tableau des deux côtés comparé en bloc",
+  "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
+  "avant": "(Some(_), Some(r)) => r.clone(),",
+  "apres": "(Some(_), Some(_)) => b.clone(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — les tableaux communs jamais fusionnés liste par liste",
+  "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
+  "avant": "for l in &ici.boards {",
+  "apres": "for l in ici.boards.iter().take(0) {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — sans ancêtre, ici pris pour l'ancêtre",
+  "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
+  "avant": "unwrap_or_else(|| vide(r))",
+  "apres": "unwrap_or_else(|| l.clone())",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
+ },
+ {
+  "nom": "REVENIR — une valeur changée ici ne part pas",
+  "fichier": "crates/glucose-core/src/store/journal/fusion_projet.rs",
+  "avant": "self.a_envoyer.extend(f.a_envoyer.map(edition));",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "journal::fusion"
+  ]
  }
 ]

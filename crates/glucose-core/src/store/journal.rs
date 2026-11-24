@@ -213,6 +213,7 @@ mod en_mots;
 pub use effets::{Effet, Touche};
 mod fondre;
 pub mod fusion;
+pub mod fusion_projet;
 mod mains;
 pub mod partage;
 mod partir;
