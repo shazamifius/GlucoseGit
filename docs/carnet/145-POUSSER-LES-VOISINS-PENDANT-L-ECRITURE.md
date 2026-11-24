@@ -177,3 +177,12 @@ l'étiquette de son sommet ; même étiquette → l'inverse neuf se place **deva
 (défaire B puis A), sinon on empile ; `pas_partage` (défaire, refaire) l'efface. Les gestes reçus entre deux
 pas ne coupent pas la fusion : défaire rebase déjà sur eux (`rebaser`). Épreuve à écrire sur deux
 participants (comme `participation_tests.rs`), puis ses sabotages.
+
+**Fait (22 h 10) : le partage** (commit `e02a6c5`), par la voie repérée : `Ecrit.etiquette` (posée par
+`etiqueter_le_dernier_ecrit` dans la branche partagée de `commit`), rendue par `nommer_ce_qui_part` ;
+`Participation::empiler` fond l'inverse neuf **devant** le sommet de même étiquette ; `pas_partage`
+efface `sommet`. Deux épreuves (`fondre_145_*`, `participation_tests.rs`, 599 lignes : le cliquet est
+atteint, la prochaine épreuve de ce fichier va ailleurs) ; **9 sabotages sur 9**. Note : un `saboter.py`
+coupé en pleine compilation laisse le cache incrémental du noyau corrompu (l'éditeur de liens : « undefined
+reference to anon… ») — `rm -rf target/debug/incremental/glucose_core-*` le répare. **Reste** :
+l'application, Échap, l'essai au pilote.
