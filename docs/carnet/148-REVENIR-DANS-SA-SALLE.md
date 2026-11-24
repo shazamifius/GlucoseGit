@@ -48,14 +48,23 @@ de Bob et celui écrit pendant le retour sont là, le sien part comme son geste)
 disque** (scribe retenu : le souvenir reste à 0 ; relâché, il monte à 2). Sabotages :
 `outils/sabotages/revenir-148.json`.
 
+**L'essai réel** (`outils/porte/essai/essai_revenir_pilote.sh`, deux vrais Glucose hors écran, la salle
+locale de `wrangler dev`, 24/11 à 18 h 50) : Alice pose, partage, Bob rejoint ; Alice quitte ; Bob pose
+« Bob », Alice, dehors, « ici » ; Alice repartage — *« revient dans sa salle (au moins au n° 1) »*, puis
+*« revenu au n° 3, 0 conflit »*, aucun code neuf ; Alice arrêtée, Bob pose « B3 », Alice relancée — *« au
+moins au n° 4 »* (la borne était montée), *« revenu au n° 6 »*. Les deux canevas finissent identiques
+(Alice, ici, Bob, B3), le curseur d'Alice relancée chez Bob. Piège : le premier « Partager » pose d'abord
+la question du nom (IDENTITE-2) — l'essai la valide. L'arrêt du pilote ferme la fenêtre proprement : le
+vrai arrêt net (la borne seule) n'est éprouvé que par `revenir_la_borne_attend_le_disque`.
+
 ## 3. Ce qui reste
 
 1. Dans Collaborer, un document dehors qui a sa salle pourrait dire « Revenir dans sa salle » plutôt que
    « Partager ».
 2. « Changer les codes » (la salle qui se ferme) attend la connexion Cloudflare ; la liste des accès
    (Collaborer en trois portes).
-3. **À voir chez lui** : partager, quitter, repartager — le même code ; relancer son Glucose pendant un
-   partage — le canevas de loin suit encore.
+3. **À voir chez lui**, une fois son Glucose recompilé : relancer son Glucose pendant un partage — le
+   canevas de loin suit encore.
 
 ## 4. Les jetons (sa priorité)
 
