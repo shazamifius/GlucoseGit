@@ -79,7 +79,8 @@ impl GlucoseApp {
             index: Some(&self.renderer.spatial_hash),
             typographie: &self.renderer.typography,
             math: &self.renderer.math,
-            contournement: None,
+            // Les tracés mêmes du dessin — une flèche écartée de ses parallèles comprise.
+            contournement: Some(self.renderer.contournement()),
         };
         let mains = [
             Main {

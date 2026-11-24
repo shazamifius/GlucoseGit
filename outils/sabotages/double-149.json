@@ -131,5 +131,81 @@
    "--lib",
    "fleche_en_double"
   ]
+ },
+ {
+  "nom": "DOUBLE-149 — « Flèche ajoutée » reste sous la question",
+  "fichier": "crates/glucose-desktop/src/interactions/fleche_en_double.rs",
+  "avant": "        self.ui.current_toast = None;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "fleche_en_double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — les parallèles ne s'écartent pas",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "    etapes.extend(ecartee);",
+  "apres": "    let _ = ecartee;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "fleche_en_double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — le rendu ne range pas les parallèles",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/noeuds.rs",
+  "avant": "            .paralleles(self.board, fleche.id())",
+  "apres": "            .paralleles(self.board, fleche.id())\n            .filter(|_| false)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "fleche_en_double"
+  ]
+ },
+ {
+  "nom": "DOUBLE-149 — l'écart ne dépend pas du sens",
+  "fichier": "crates/glucose-core/src/arrow/double.rs",
+  "avant": "    let (de, vers) = if a <= b {",
+  "apres": "    let (de, vers) = if true || a <= b {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "double"
+  ]
  }
 ]

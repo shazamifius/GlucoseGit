@@ -74,17 +74,35 @@ pub struct Itineraires {
     une_faite: Cell<bool>,
     /// Les flèches que la dernière image a montrées d'un chemin d'avant.
     dettes: RefCell<Vec<String>>,
+    /// **Les flèches parallèles du tableau, rangées** (fiche 149 § 2) : une fois par version,
+    /// oubliées avec les chemins.
+    paralleles: RefCell<Option<glucose_core::arrow::Paralleles>>,
 }
 
 impl Itineraires {
     /// Oublie tout : un autre tableau.
     pub fn oublier(&self) {
         self.table.borrow_mut().clear();
+        self.paralleles.take();
+    }
+
+    /// **Le rang d'une flèche parmi ses parallèles**, et leur nombre (fiche 149 § 2) : le
+    /// tableau se range à la première demande qui suit un changement du document.
+    pub fn paralleles(
+        &self,
+        board: &glucose_core::types::Board,
+        id: &str,
+    ) -> Option<(usize, usize)> {
+        self.paralleles
+            .borrow_mut()
+            .get_or_insert_with(|| glucose_core::arrow::Paralleles::du_board(board))
+            .de(id)
     }
 
     /// **Rend tout périmé**, sans rien oublier : le document a changé, chaque chemin se montre
     /// encore en attendant d'être refait (ITINERAIRE-2).
     pub fn perimer(&self) {
+        self.paralleles.take();
         for entree in self.table.borrow_mut().values_mut() {
             entree.frais = false;
         }

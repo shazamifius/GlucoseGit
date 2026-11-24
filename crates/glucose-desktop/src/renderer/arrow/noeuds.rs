@@ -136,6 +136,14 @@ impl Noeuds for NoeudsDuRendu<'_> {
         crate::renderer::arrow_label::pastille_au_monde(self.typographie, fleche, milieu)
     }
 
+    /// Rangées avec la mémoire des itinéraires ; sans elle, chaque lecture balaierait le
+    /// tableau entier : les flèches restent alors droites.
+    fn paralleles(&self, fleche: &Annotation) -> Option<(usize, usize)> {
+        self.contournement?
+            .itineraires
+            .paralleles(self.board, fleche.id())
+    }
+
     fn boite(&self, id: &str) -> Option<Rect> {
         if let Some(boite) = self.vivante(id) {
             return Some(boite);

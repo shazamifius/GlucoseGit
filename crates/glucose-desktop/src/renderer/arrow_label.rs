@@ -46,7 +46,7 @@ const LABEL_CORPS: f32 = 11.0;
 const LABEL_PAD_X: f32 = 5.0;
 
 /// Demi-hauteur de la pastille, en unités du monde (Glucose Tauri : `y={-11} height={22}`).
-const LABEL_HALF_H: f32 = 11.0;
+const LABEL_HALF_H: f32 = (glucose_core::arrow::HAUTEUR_DE_PASTILLE / 2.0) as f32;
 
 /// Rayon des coins de la pastille, en unités du monde (Glucose Tauri : `rx={3}`).
 const LABEL_RADIUS: f32 = 3.0;

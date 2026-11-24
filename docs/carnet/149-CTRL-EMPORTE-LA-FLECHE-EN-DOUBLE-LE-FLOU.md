@@ -53,12 +53,22 @@ la seconde passe à côté. Une IA qui relie deux nœuds déjà reliés met à j
 * 8 épreuves (noyau 4, application 5 — dont « un seul Ctrl+Z »), 7 sabotages sur 7
   (`outils/sabotages/double-149.json`).
 
-**Reste — la seconde à côté** : aujourd'hui, « Tracer la seconde » la pose encore sous la première.
-Il faut que l'itinéraire écarte les flèches parallèles (mêmes bouts) l'une de l'autre, comme tout
-dessinateur de graphes : un rang parmi ses parallèles, demandé par `Noeuds`, et un écart d'une
-pastille (on doit pouvoir lire les deux étiquettes) ; tous les lecteurs du tracé (dessin, clic,
-poignées, étiquette) passent par `morceaux_with` et suivraient d'eux-mêmes. Cela vaut aussi pour les
-doubles qui existent déjà dans son document.
+**La seconde à côté, faite** (le même soir) : le noyau range chaque flèche parmi ses parallèles
+(`Paralleles`, une fois par version du document — la mémoire des itinéraires du rendu la garde et
+l'oublie avec eux ; jamais un balayage par flèche et par image) ; une flèche droite parmi des
+parallèles passe par son milieu écarté de son rang (`ecartee`, perpendiculaire à la direction
+commune, du plus petit nœud au plus grand : les deux sens s'écartent l'un de l'autre) et se courbe.
+Écart : deux hauteurs de pastille au sommet ; les étiquettes, posées au milieu du premier morceau
+(la règle de Tauri), en gardent les trois quarts. La hauteur de pastille vit dans le noyau
+(`HAUTEUR_DE_PASTILLE`), le rendu en tire la sienne. Tous les lecteurs du tracé suivent (dessin,
+clic, poignées, étiquette, survol — qui reçoit maintenant la mémoire). Les doubles qui existent déjà dans
+son document s'écartent d'eux-mêmes. **Essayé au pilote** : deux flèches tracées du texte d'accueil
+à un nouveau texte — la question au lâcher de la seconde, puis les deux courbes de part et d'autre.
+Vu au passage et réglé : « Flèche ajoutée », annoncé à l'appui, restait sous la question. 11
+sabotages sur 11.
+
+**Limite** : une flèche qui contourne des obstacles (FLECHE-5) garde son itinéraire, parallèles ou
+non — deux doubles qui contournent restent confondus.
 
 ## 3. Le flou sous NVIDIA — sa note du 24/11 (`text-pxtg-2313`)
 

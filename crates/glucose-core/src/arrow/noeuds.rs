@@ -40,6 +40,12 @@ pub trait Noeuds {
         None
     }
 
+    /// **Le rang de cette flèche parmi ses parallèles** (mêmes bouts), et leur nombre — `None`
+    /// si elle est seule, ou qu'on ne les a pas rangées ([`super::Paralleles`], fiche 149 § 2).
+    fn paralleles(&self, _fleche: &Annotation) -> Option<(usize, usize)> {
+        None
+    }
+
     /// **Un itinéraire retenu d'un appel à l'autre** : `calcul` ne se fait que si cet
     /// itinéraire n'est pas déjà connu. Le dessin, le clic, les poignées et l'étiquette lisent
     /// tous le tracé d'une flèche ; il n'a pas à se chercher quatre fois par image. Sans mémoire
@@ -93,6 +99,10 @@ impl Noeuds for &dyn Noeuds {
 
     fn pastille(&self, fleche: &Annotation, milieu: (f64, f64)) -> Option<Rect> {
         (**self).pastille(fleche, milieu)
+    }
+
+    fn paralleles(&self, fleche: &Annotation) -> Option<(usize, usize)> {
+        (**self).paralleles(fleche)
     }
 
     fn itineraire(

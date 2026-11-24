@@ -52,7 +52,9 @@ mod noeuds;
 pub mod trace;
 
 pub use accroche::{snap_parmi, snap_to_nearest, Snap, Visee, SNAP_DIST};
-pub use double::{a_reprendre, qui_relie_deja};
+pub use double::{
+    a_reprendre, qui_relie_deja, Paralleles, ECART_DES_PARALLELES, HAUTEUR_DE_PASTILLE,
+};
 pub use enveloppe::{boites_du_tableau, encre_vue, enveloppe_with};
 pub use noeuds::{Bout, Itineraire, Noeuds};
 
@@ -190,6 +192,12 @@ pub fn node_rect_indexe(board: &Board, index: &SpatialHash, id: &str) -> Option<
 /// sélection élastique et le dessin lisent tous cette fonction, donc aucun d'eux ne peut
 /// voir une flèche ailleurs que là où elle est (ARROW-1).
 pub fn path_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<(f64, f64)>> {
+    trace_with(arrow, noeuds).map(|(points, _)| points)
+}
+
+/// Les points du tracé, et s'il se courbe : une flèche courbe, ou une flèche droite écartée de
+/// ses parallèles (fiche 149 § 2), qui s'arrondit par son point écarté.
+fn trace_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<(Vec<(f64, f64)>, bool)> {
     let Annotation::Arrow {
         x,
         y,
@@ -219,17 +227,26 @@ pub fn path_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<(f64, f6
     );
     // Une flèche sans coude contourne ce qu'elle traverserait (FLECHE-5) ; une flèche que la
     // main a pliée passe par où la main l'a dit.
-    let etapes: Vec<(f64, f64)> = if waypoints.is_empty() {
+    let mut etapes: Vec<(f64, f64)> = if waypoints.is_empty() {
         contourner(arrow, &noeuds, (depart, arrivee))
     } else {
         waypoints.iter().map(|p| (p.x, p.y)).collect()
     };
+    // Droite et parmi des parallèles : elle passe à côté des autres, par un point écarté.
+    let ecartee = etapes
+        .is_empty()
+        .then(|| noeuds.paralleles(arrow))
+        .flatten()
+        .and_then(|rang| {
+            double::ecartee(arrow, rang, ((depart.x, depart.y), (arrivee.x, arrivee.y)))
+        });
+    etapes.extend(ecartee);
     let (debut, fin) = extremites(depart, arrivee, &etapes);
     let mut points = Vec::with_capacity(etapes.len() + 2);
     points.push(debut);
     points.extend(etapes);
     points.push(fin);
-    Some(points)
+    Some((points, est_courbe(arrow) || ecartee.is_some()))
 }
 
 /// Les deux extrémités d'une flèche qui passe par ces étapes : chacune sort de son bloc du côté
@@ -322,10 +339,8 @@ pub fn est_courbe(arrow: &Annotation) -> bool {
 /// **Les morceaux qu'une flèche ancrée dessine** — la description que le dessin, le clic,
 /// les poignées et l'étiquette lisent tous (FLECHE-1, loi L4).
 pub fn morceaux_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<trace::Morceau>> {
-    Some(trace::morceaux(
-        &path_with(arrow, noeuds)?,
-        est_courbe(arrow),
-    ))
+    let (points, courbe) = trace_with(arrow, noeuds)?;
+    Some(trace::morceaux(&points, courbe))
 }
 
 /// Les mêmes morceaux, pour une flèche de ce tableau.

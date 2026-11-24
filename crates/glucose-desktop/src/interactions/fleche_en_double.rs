@@ -26,6 +26,8 @@ impl GlucoseApp {
             return false;
         };
         self.store.cancel_live_edit();
+        // « Flèche ajoutée », annoncé à l'appui, mentirait sous la question : rien n'est ajouté.
+        self.ui.current_toast = None;
         let question = Question {
             titre: DEJA_RELIES.into(),
             texte: "Une seconde se cacherait sous la première. En tracer une seconde quand même ?"
