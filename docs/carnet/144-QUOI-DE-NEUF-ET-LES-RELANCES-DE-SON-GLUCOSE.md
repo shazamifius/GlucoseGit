@@ -118,3 +118,15 @@ d'écriture). Payé en chemin : un cache incrémental de rustc corrompu (« unde
 
 Son Glucose relancé sur `0f9ec0b` : la première réponse posée par `glucose repondre` (`relais-rep-mcp-4`)
 est à droite de sa note (x = 3 242 + 700 + 30), même hauteur, dans la membrane « relais », avec sa flèche.
+
+## 4. MCP 9, « sur quoi il se concentre » : cadré, sa parole attendue (14 h 25)
+
+Ce qui existe : chaque appareil d'une salle a son identité propre (`app/collaborer/identite.rs` :
+un nom tiré au sort et gardé, une couleur) — **rien ne relie ses appareils entre eux** ; les pairs
+envoient leur curseur (`Pair::curseur`, dix par seconde, `app/collaborer.rs`), pas leur sélection ;
+le MCP ne rend que la sélection de la fenêtre qu'il interroge (`agents/executer/lire.rs`,
+`ce_qu_il_designe`). Proposé (`relais-q-mcp9-appareils`) : la sélection voyage avec le curseur
+(éphémère, jamais dans l'histoire), et un seul interrupteur par appareil, gardé avec son identité —
+« les IA voient ce que je sélectionne », éteint par défaut chez qui rejoint par un code : son accord à
+lui sur son téléphone, celui d'une autre personne chez elle, une seule règle. L'autre voie (une clé de
+personne recopiée d'appareil en appareil) coûte un geste et un secret de plus.
