@@ -328,3 +328,41 @@ fn q18_collaborer_compte_les_photos_qui_attendent() {
         .poser(CLE, Source::Memoire(Arc::new(vec![1, 2, 3])));
     assert!(!texte(&mut app).contains("attend"), "ses octets sont là");
 }
+
+/// Le geste d'Alice, chez elle, dans le même canevas : elle pose une photo.
+fn alice_pose_une_photo(projet: &glucose_core::types::Project) -> Lettre {
+    let mut alice = glucose_core::store::Store::new("alice");
+    alice.load_project(projet.clone());
+    assert!(alice.rejoindre("a1ce", true, 1));
+    let tableau = alice.project.active_board_id.clone();
+    let mut img = BoardImage::new("chat", 0.0, 0.0, 10.0, 10.0);
+    img.src = Some(CLE.into());
+    alice.add_image(&tableau, img);
+    alice.partager_les_gestes();
+    match alice.prendre_les_sortants().pop().map(|s| s.envoi) {
+        Some(glucose_core::store::Envoi::Geste(g)) => d_alice(Corps::Geste(g)),
+        _ => panic!("le geste d'Alice"),
+    }
+}
+
+/// **Q18 — le cadre gris dit de qui est la photo, et si elle est là** : Alice pose une photo, son
+/// geste arrive sans les octets ; elle se tait, puis on quitte le partage.
+#[test]
+fn q18_le_cadre_dit_qui_a_pose_la_photo() {
+    let mut app = GlucoseApp::new();
+    let _ordres = partage(&mut app, ecrivain(), Entree::Dedans);
+    let lettre = alice_pose_une_photo(&app.store.project);
+    app.une_lettre(1, "a1ce-1".into(), lettre);
+    app.renderer.magasin.echecs.insert(CLE.into());
+    let cadre = |app: &mut GlucoseApp| {
+        app.dire_qui_est_la();
+        app.renderer.magasin.cadre(Some(CLE), "chat")
+    };
+    assert_eq!(cadre(&mut app), "La photo d'Alice arrive…");
+    let cp = app.lancement.agents.partage.as_mut().expect("le partage");
+    let tait = std::time::Instant::now().checked_sub(Duration::from_secs(31));
+    cp.pairs.get_mut("a1ce").expect("Alice").vu = tait.expect("une heure passée");
+    assert_eq!(cadre(&mut app), "La photo d'Alice, hors ligne");
+    app.quitter_le_canevas_partage();
+    assert_eq!(cadre(&mut app), "Image [chat]");
+}

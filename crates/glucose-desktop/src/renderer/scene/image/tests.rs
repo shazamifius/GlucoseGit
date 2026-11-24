@@ -127,3 +127,26 @@ fn test_poignee_1_le_cadre_d_une_vignette_s_estompe() {
         "le cadre d'une vignette de 8 px garde {vignette} d'encre contre {grande}"
     );
 }
+
+/// **Q18 — le libellé d'un cadre gris se tait s'il n'y tient pas** : il déborderait sur le canevas,
+/// ou la texture le couperait au milieu d'un mot.
+#[test]
+fn q18_le_libelle_se_tait_s_il_ne_tient_pas_dans_son_cadre() {
+    let (typo, theme) = (
+        crate::typography::Typography::new(),
+        crate::theme::Theme::dark(),
+    );
+    let texte = "La photo d'Aigle Émeraude, hors ligne";
+    let (largeur, _) = typo.measure_text(texte, 12.0, crate::typography::Face::Regular);
+    let dans = |taille: (f32, f32)| {
+        let libelle = ornement::libelle(&typo, &theme, ((0.0, 0.0), taille), texte);
+        libelle.map(|(at, _)| at)
+    };
+    assert_eq!(
+        dans((largeur + 20.0, 40.0)),
+        Some((10.0, 14.0)),
+        "il tient : il s'écrit"
+    );
+    assert_eq!(dans((largeur + 19.0, 40.0)), None, "trop étroit");
+    assert_eq!(dans((largeur + 20.0, 21.0)), None, "trop bas");
+}

@@ -41,7 +41,9 @@ pub(super) enum Contenu {
         edition: Option<crate::renderer::TextEditSession>,
     },
     PhotoEnChemin {
-        id: String,
+        /// Ce que son cadre dit : son identifiant, ou de qui elle attend ses octets (Q18) — dans
+        /// l'empreinte : quand quelqu'un arrive, la texture se refait.
+        libelle: String,
         /// Son centre **dans le monde** : ce que ses formes posent à l'écran (fiche 73). Il
         /// n'entre pas dans l'empreinte — la texture ne dépend pas de sa place.
         centre: (f64, f64),
@@ -158,13 +160,13 @@ impl Contenu {
                 }
             }
             Self::PhotoEnChemin {
-                id,
+                libelle,
                 taille,
                 rotation,
                 ..
             } => {
                 1u8.hash(h);
-                id.hash(h);
+                libelle.hash(h);
                 taille.0.to_bits().hash(h);
                 taille.1.to_bits().hash(h);
                 rotation.to_bits().hash(h);

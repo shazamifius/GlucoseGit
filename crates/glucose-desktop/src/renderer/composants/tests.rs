@@ -44,7 +44,8 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
     let taille = (400u32, 300u32);
     let regime = Regime::de((vp, 1.0), Regard::immobile(), taille, 0.0);
 
-    // En place, comme la voie processeur.
+    // En place, comme la voie processeur, avec le libellé que le magasin donne hors partage.
+    let libelle = format!("Image [{}]", img.id);
     let mut en_place = Pixmap::new(taille.0, taille.1).expect("pixmap");
     let (sx, sy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &vp);
     draw_missing_image(
@@ -56,13 +57,13 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
             (img.width * vp.scale) as f32,
             (img.height * vp.scale) as f32,
         ),
-        &img.id,
+        &libelle,
         img.rotation,
     );
 
     // A part, puis repose la ou la pose le dit.
     let composant = regime
-        .photo_en_chemin(kit, &img)
+        .photo_en_chemin(kit, &img, libelle)
         .expect("un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -680,7 +681,7 @@ fn test_repos_4_chaque_composant_se_pose_par_le_passage_exact() {
             ("Un texte", (96, 165, 250)),
             (None, None),
         );
-        let photo = regime.photo_en_chemin(kit, &img);
+        let photo = regime.photo_en_chemin(kit, &img, format!("Image [{}]", img.id));
         [
             carte.and_then(|p| p.posee).expect("la carte"),
             regime.titre(kit, &titre),

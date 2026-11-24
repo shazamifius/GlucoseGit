@@ -176,6 +176,33 @@ pub(super) fn en_attente(projet: &Project, objets: &Objets) -> Option<String> {
 }
 
 impl GlucoseApp {
+    /// **Qui pose une photo, d'un canevas partagé** (Q18) : son cadre gris dira de qui elle attend
+    /// ses octets, tant qu'ils ne sont pas là.
+    pub(super) fn retenir_qui_pose(&mut self, main: &Main, corps: &Corps) {
+        let (Main::Participant { marque, nom }, Corps::Geste(geste)) = (main, corps) else {
+            return;
+        };
+        for cle in geste
+            .images_posees()
+            .into_iter()
+            .filter_map(|i| i.src.as_deref())
+        {
+            self.renderer.magasin.posee_par(cle, marque, nom);
+        }
+    }
+
+    /// **Qui est là** (Q18), pour les cadres gris : un participant dont rien n'est venu depuis
+    /// `SILENCE` n'y est plus. Hors partage, les cadres reprennent leur libellé.
+    pub(super) fn dire_qui_est_la(&mut self) {
+        match self.lancement.agents.partage.as_ref() {
+            Some(cp) => {
+                let la = cp.presents_par_marque().map(str::to_string).collect();
+                self.renderer.magasin.presents(la);
+            }
+            None => self.renderer.magasin.hors_partage(),
+        }
+    }
+
     /// **Ce qui manque ici se demande**, si quelqu'un vient d'entrer — sauf à qui attend la base :
     /// il n'a rien à demander, son bonjour attend avec lui. Celui qui a ouvert le partage dit
     /// bonjour comme les autres : son réseau aussi revient.

@@ -36,5 +36,195 @@
    "--lib",
    "q18_"
   ]
+ },
+ {
+  "nom": "Q18 — le cadre ignore qui l'a posée",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "match a.posees_par.get(cle) {",
+  "apres": "match None::<&(String, String)> {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — le cadre croit tout le monde là",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "if a.presents.contains(marque)",
+  "apres": "if true || a.presents.contains(marque)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — une photo qu'on décode attend quelqu'un",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "let attend = |cle: &&str| self.echecs.contains(*cle);",
+  "apres": "let attend = |_: &&str| true;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — qui est là ne refait pas le lot",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "            attentes.presents = marques;\n            self.changements += 1;",
+  "apres": "            attentes.presents = marques;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — un même « qui est là » refait le lot",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "if attentes.presents != marques {",
+  "apres": "if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — hors partage, les cadres gardent la ligne",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/photos.rs",
+  "avant": "None => self.renderer.magasin.hors_partage(),",
+  "apres": "None => {}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — le geste arrivé n'est pas retenu",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "        self.retenir_qui_pose(&main, &lettre.corps);\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — qui se tait reste là",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "let la = self.pairs.iter().filter(|(_, p)| p.vu.elapsed() < SILENCE);",
+  "apres": "let la = self.pairs.iter();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — pas d'élision",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "    if voyelle {\n        format!(\"d'{nom}\")",
+  "apres": "    if false && voyelle {\n        format!(\"d'{nom}\")",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
+ },
+ {
+  "nom": "Q18 — le libellé ne se tait plus quand il ne tient pas dans son cadre",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/image/ornement.rs",
+  "avant": "    tient.then_some(((at.0 + marge, at.1 + size.1 / 2.0 - demi), style))",
+  "apres": "    let _ = tient;\n    Some(((at.0 + marge, at.1 + size.1 / 2.0 - demi), style))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "q18_"
+  ]
  }
 ]

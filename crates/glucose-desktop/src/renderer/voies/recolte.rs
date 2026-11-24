@@ -168,7 +168,8 @@ pub(in crate::renderer) fn poses_des_photos(
                 });
             }
             None => {
-                if let Some(mut pieces) = regime.photo_en_chemin(kit, img) {
+                let libelle = magasin.cadre(img.src.as_deref(), &img.id);
+                if let Some(mut pieces) = regime.photo_en_chemin(kit, img, libelle) {
                     estomper(&mut pieces, presence);
                     photos.ranger(pieces, Tranche::Photos);
                     en_chemin += 1.0;

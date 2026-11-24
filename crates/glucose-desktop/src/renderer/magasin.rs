@@ -26,7 +26,9 @@ use glucose_core::store::Store;
 use std::collections::HashSet;
 use std::time::Duration;
 
+mod attentes;
 mod cache;
+mod comptes;
 mod etagement;
 pub use cache::{Cache, Numero};
 
@@ -140,6 +142,8 @@ pub struct Magasin {
     reconduite: bool,
     /// Ce que l'étagement a fait depuis le début.
     mouvements: Mouvements,
+    /// **Les photos d'un canevas partagé qui attendent quelqu'un qui les a** (Q18, fiche 150).
+    attentes: Option<attentes::Attentes>,
 }
 
 impl Magasin {
@@ -535,62 +539,6 @@ impl Magasin {
     fn borne_courante(&mut self) -> Option<u64> {
         self.borne = Memoire::du_systeme().map(|m| m.part_pour_un_cache());
         self.borne
-    }
-
-    /// Combien de décodages et de reprises sont encore en chantier.
-    pub fn en_travail(&self) -> usize {
-        self.atelier.en_travail()
-    }
-
-    /// Combien d'images ont été rendues à la machine depuis le début.
-    pub fn evincees(&self) -> usize {
-        self.evincees
-    }
-
-    /// Ce que l'étagement a fait depuis le début.
-    pub fn mouvements(&self) -> Mouvements {
-        self.mouvements
-    }
-
-    /// Attend que tout le chantier soit rentré.
-    ///
-    /// # Le seul endroit où attendre un décodage est juste
-    ///
-    /// Les **témoins visuels et les bancs**, qui produisent une image de référence et non une
-    /// cadence : un témoin rendu avant l'arrivée des photos ne montrerait que des cadres, et
-    /// ne prouverait rien. Partout ailleurs, l'invariant DECODE-1 l'interdit — le rendu
-    /// n'attend jamais, il dessine ce qu'il a.
-    ///
-    /// Ne coûte rien quand le chantier est vide, ce qui est le cas de toutes les images sauf
-    /// la première. La borne de temps n'est pas un réglage : c'est un garde-fou pour qu'un
-    /// fil perdu fasse échouer un test au lieu de le faire tourner sans fin.
-    pub fn attendre_le_chantier(&mut self) {
-        let depart = std::time::Instant::now();
-        while self.atelier.en_route() > 0 && depart.elapsed() < std::time::Duration::from_secs(60) {
-            self.recolter();
-            std::thread::yield_now();
-        }
-        self.recolter();
-    }
-
-    /// Les octets que les images décodées représentent, où qu'ils soient.
-    pub fn octets(&self) -> usize {
-        self.cache.octets()
-    }
-
-    /// Les octets de leurs niveaux dans cet état — tenus, offerts, en chemin.
-    pub fn octets_en(&self, etat: Etat) -> usize {
-        self.cache
-            .values()
-            .map(|e| e.pyramide.octets_en(etat))
-            .sum()
-    }
-
-    /// **Ce que les images occupent en mémoire** : leurs niveaux tenus, et ceux qu'un ouvrier
-    /// emporte pour les offrir ou les reprendre — encore là, dans sa file (MEMOIRE-4, fiche 82).
-    /// Compter les seuls tenus laissait 2,7 Go « inconnus » au journal du téléphone virtuel.
-    pub fn octets_en_memoire(&self) -> usize {
-        self.octets_en(Etat::Tenu) + self.octets_en(Etat::EnChemin) + self.atelier.octets_a_jeter()
     }
 }
 

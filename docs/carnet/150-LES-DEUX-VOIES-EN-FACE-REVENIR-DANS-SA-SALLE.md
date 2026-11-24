@@ -59,3 +59,17 @@ change. Le chemin de la carte graphique pose le cadre par `Contenu::PhotoEnChemi
 et `composants/formes.rs` en vecteurs) : y porter le libellé lui-même, pour que le composant se
 refasse quand la ligne change (quelqu'un arrive). Une photo déjà là avant l'entrée (la base) n'a pas de geste arrivé : son auteur se lit dans
 l'histoire, ou la ligne dit seulement « attend quelqu'un qui l'a ».
+
+**Fait** (25/11 vers 0 h 45 ; codé par le compte b, fini par le compte a) : le chemin proposé, tel quel.
+`renderer/magasin/attentes.rs` retient qui a posé chaque photo (`posee_par`, à l'arrivée d'un geste
+de la salle : `collaborer/photos.rs`, `retenir_qui_pose`) et qui est là (`presents`,
+`dire_qui_est_la`, à chaque tour du canevas partagé). `Magasin::cadre` dit « La photo d'Aigle
+Émeraude arrive… » (il est là), « La photo de Loup Émeraude, hors ligne » (il s'est tu),
+« Cette photo attend quelqu'un qui l'a » (venue avec la base : auteur inconnu) ; hors partage,
+« Image [id] » comme avant. Le libellé descend aux deux voies (`Contenu::PhotoEnChemin { libelle }`,
+dans l'empreinte : le composant se refait quand quelqu'un arrive) et **se tait s'il ne tient pas
+dans son cadre** (mesuré, `ornement::libelle`). Les comptes du magasin extraits dans
+`magasin/comptes.rs` (il était à 598 lignes). 7 épreuves `q18_` ; 12 sabotages (`q18-photos.json`) :
+11 tombés au compte b, le 12ᵉ (le libellé qui ne se tait plus) ici ; 3 675 épreuves vertes —
+l'épreuve au bit près des photos en chemin donnait encore l'identifiant nu à la voie processeur
+(corrigée). **Pas encore vu** à deux hors écran (pilote), ni dans son Glucose (pas relancé).

@@ -121,6 +121,12 @@ impl CanevasPartage {
             .filter(|p| p.vu.elapsed() < SILENCE)
             .collect()
     }
+
+    /// La marque de chacun d'eux.
+    fn presents_par_marque(&self) -> impl Iterator<Item = &str> {
+        let la = self.pairs.iter().filter(|(_, p)| p.vu.elapsed() < SILENCE);
+        la.map(|(marque, _)| marque.as_str())
+    }
 }
 
 const PAS_DE_RESEAU: &str = "Ce Glucose n'a pas de réseau ici.";
@@ -347,6 +353,7 @@ impl GlucoseApp {
 
     /// **À chaque tour de la boucle** : ce qui arrive entre, ce qui part s'en va.
     pub(crate) fn suivre_le_canevas_partage(&mut self) {
+        self.dire_qui_est_la();
         let Some(cp) = self.lancement.agents.partage.as_ref() else {
             return;
         };
@@ -440,6 +447,7 @@ impl GlucoseApp {
     fn une_lettre(&mut self, n: u64, id: String, lettre: Lettre) {
         self.un_pair(&lettre);
         let main = lettre.main_chez_moi();
+        self.retenir_qui_pose(&main, &lettre.corps);
         let Some(entree) = self.lancement.agents.partage.as_ref().map(|cp| cp.entree) else {
             return;
         };

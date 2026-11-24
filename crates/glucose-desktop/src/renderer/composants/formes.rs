@@ -39,7 +39,7 @@ impl Composant {
                 }
             }
             Contenu::PhotoEnChemin {
-                id,
+                libelle,
                 centre,
                 taille,
                 rotation,
@@ -50,7 +50,7 @@ impl Composant {
                     (taille.1 * regime.vue.scale) as f32,
                 );
                 let at = (cx as f32 - taille.0 / 2.0, cy as f32 - taille.1 / 2.0);
-                cadre_manquant_en_vecteurs(kit, &mut releve, (at, taille), (id, *rotation));
+                cadre_manquant_en_vecteurs(kit, &mut releve, (at, taille), (libelle, *rotation));
             }
             // Un titre qui dépasserait la fenêtre ne devient pas un composant : il reste au
             // processeur (TITRE-3). Il n'a donc jamais de formes.

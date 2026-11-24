@@ -41,15 +41,16 @@ pub(super) fn mode_de_report(opaque: bool, rotation: f64, presence: f32) -> Blen
     }
 }
 
-/// Une image dont les octets ne sont pas (encore) là : un cadre gris de la chrome, son
-/// identifiant dedans. Monochrome — ce n'est pas du contenu, c'est son absence.
+/// Une image dont les octets ne sont pas (encore) là : un cadre gris de la chrome, son libellé
+/// dedans — son identifiant, ou de qui elle attend ses octets (Q18, `Magasin::cadre`).
+/// Monochrome — ce n'est pas du contenu, c'est son absence.
 pub(in crate::renderer) fn draw_missing_image(
     typography: &Typography,
     theme: &Theme,
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     size: (f32, f32),
-    id: &str,
+    texte: &str,
     rotation: f64,
 ) {
     let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) else {
@@ -77,27 +78,30 @@ pub(in crate::renderer) fn draw_missing_image(
     };
     pixmap.stroke_path(&path, &border, &stroke, ts, None);
 
-    let (texte, (x, y), style) = libelle(theme, at, size, id);
-    typography.draw_text(pixmap, &texte, x, y, style);
+    if let Some(((x, y), style)) = libelle(typography, theme, (at, size), texte) {
+        typography.draw_text(pixmap, texte, x, y, style);
+    }
 }
 
-/// **Le libellé d'une photo en chemin** : son texte, son coin, son style — là où
-/// [`draw_missing_image`] l'écrit, et le dessin vectoriel avec lui.
-fn libelle(
+/// **Le libellé d'une photo en chemin** : son coin, son style — là où
+/// [`draw_missing_image`] l'écrit, et le dessin vectoriel avec lui. **S'il ne tient pas dans son
+/// cadre, il se tait** : il déborderait sur le canevas, ou la texture le couperait au milieu d'un
+/// mot (Q18 : « La photo d'Aigle Émeraude, hors ligne » est plus long qu'un identifiant).
+pub(super) fn libelle(
+    typography: &Typography,
     theme: &Theme,
-    at: (f32, f32),
-    size: (f32, f32),
-    id: &str,
-) -> (String, (f32, f32), TextStyle) {
-    (
-        format!("Image [{id}]"),
-        (at.0 + 10.0, at.1 + size.1 / 2.0 - 6.0),
-        TextStyle {
-            size: 12.0,
-            color: theme.text_muted,
-            face: Face::Regular,
-        },
-    )
+    (at, size): ((f32, f32), (f32, f32)),
+    texte: &str,
+) -> Option<((f32, f32), TextStyle)> {
+    let style = TextStyle {
+        size: 12.0,
+        color: theme.text_muted,
+        face: Face::Regular,
+    };
+    let (marge, demi) = (10.0, style.size / 2.0);
+    let (largeur, _) = typography.measure_text(texte, style.size, style.face);
+    let tient = largeur + 2.0 * marge <= size.0 && style.size + marge <= size.1;
+    tient.then_some(((at.0 + marge, at.1 + size.1 / 2.0 - demi), style))
 }
 
 /// **Le cadre d'une photo en chemin, en formes** (fiche 73) : celui de [`draw_missing_image`] —
@@ -107,7 +111,7 @@ pub(in crate::renderer) fn cadre_manquant_en_vecteurs(
     kit: PaintKit<'_>,
     v: &mut crate::renderer::vectoriel::Releve,
     (at, size): ((f32, f32), (f32, f32)),
-    (id, rotation): (&str, f64),
+    (texte, rotation): (&str, f64),
 ) {
     use crate::renderer::vectoriel::Vectoriel;
     let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) else {
@@ -125,8 +129,9 @@ pub(in crate::renderer) fn cadre_manquant_en_vecteurs(
     if let Some(trait_) = path.stroke(&stroke, 1.0).and_then(|t| t.transform(ts)) {
         v.chemin(&trait_, kit.theme.border_accent);
     }
-    let (texte, at, style) = libelle(kit.theme, at, size, id);
-    v.texte(kit.typography, at, &texte, style);
+    if let Some((at, style)) = libelle(kit.typography, kit.theme, (at, size), texte) {
+        v.texte(kit.typography, at, texte, style);
+    }
 }
 
 /// La transformation qui fait tourner une boîte écran autour de son propre centre.
