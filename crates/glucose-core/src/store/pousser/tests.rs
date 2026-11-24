@@ -186,3 +186,28 @@ fn test_pousser_pendant_l_ecriture_seul_son_niveau() {
     ];
     assert_eq!(pousses(&a, "t", 150.0), vec![("frere".into(), 180.0)]);
 }
+
+/// **L'étage du dessus** : le voisin poussé sort du bas de la membrane — elle grandit jusqu'à lui,
+/// et pousse à son tour ce qui était sous elle.
+#[test]
+fn test_pousser_pendant_l_ecriture_la_membrane_grandit_et_pousse_les_siens() {
+    let a = [
+        membrane("m", (0.0, 0.0, 300.0, 230.0), None),
+        texte("t", (10.0, 10.0, 200.0, 100.0), Some("m")),
+        texte("frere", (10.0, 140.0, 200.0, 60.0), Some("m")),
+        texte("sous-m", (0.0, 260.0, 300.0, 50.0), None),
+    ];
+    let faits = pousser_en_ecrivant(&a, "t", 150.0);
+    assert_eq!(
+        faits,
+        vec![
+            (2, Bord::Haut, 180.0),
+            (0, Bord::Bas, 270.0),
+            (3, Bord::Haut, 300.0)
+        ]
+    );
+    assert!(
+        pousser_en_ecrivant(&a, "t", 110.0).is_empty(),
+        "rien n'atteint rien"
+    );
+}

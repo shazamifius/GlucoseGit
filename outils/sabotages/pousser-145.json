@@ -93,5 +93,43 @@
    "--lib",
    "store::pousser"
   ]
+ },
+ {
+  "nom": "POUSSER-145 — la membrane oublie les poussés",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "let voulu = plus_bas + ECART;",
+  "apres": "let voulu = bas + ECART;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
+ },
+ {
+  "nom": "POUSSER-145 — la membrane ne pousse pas les siens",
+  "fichier": "crates/glucose-core/src/store/pousser.rs",
+  "avant": "(qui, bas) = (depart[rang].id().to_string(), voulu);",
+  "apres": "(qui, bas) = (depart[rang].id().to_string(), bas);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "store::pousser"
+  ]
  }
 ]

@@ -90,6 +90,45 @@ pub fn voisins_pousses(depart: &[Annotation], id: &str, bas: f64) -> Vec<(usize,
     pousses
 }
 
+/// **Ce que pousse le nœud `id` pendant qu'on l'écrit, à chaque étage** (fiche 145) : ses voisins
+/// ([`voisins_pousses`]), puis sa membrane, qui grandit jusqu'au plus bas de ce qu'elle contient
+/// désormais (+ `ECART`) et pousse à son tour les siens — jusqu'à la première qui le contient déjà.
+/// Rend le haut neuf de chaque voisin poussé et le bas neuf de chaque membrane qui grandit, par rang.
+pub fn pousser_en_ecrivant(depart: &[Annotation], id: &str, bas: f64) -> Vec<(usize, Bord, f64)> {
+    let mut faits: Vec<(usize, Bord, f64)> = Vec::new();
+    let (mut qui, mut bas) = (id.to_string(), bas);
+    while faits.len() <= depart.len() {
+        let pousses = voisins_pousses(depart, &qui, bas);
+        let plus_bas = (pousses.iter())
+            .filter_map(|&(r, haut)| Some(haut + depart[r].rect()?.height))
+            .fold(bas, f64::max);
+        faits.extend(pousses.into_iter().map(|(r, haut)| (r, Bord::Haut, haut)));
+        let Some((rang, cadre)) = (depart.iter().find(|a| a.id() == qui))
+            .and_then(Annotation::membrane_id)
+            .and_then(|m| depart.iter().position(|a| a.id() == m))
+            .and_then(|r| Some((r, depart[r].rect()?)))
+        else {
+            break;
+        };
+        let voulu = plus_bas + ECART;
+        if voulu <= cadre.bottom() {
+            break;
+        }
+        faits.push((rang, Bord::Bas, voulu));
+        (qui, bas) = (depart[rang].id().to_string(), voulu);
+    }
+    faits
+}
+
+/// Le bord qu'un geste de [`pousser_en_ecrivant`] déplace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bord {
+    /// Le nœud descend, sa taille gardée.
+    Haut,
+    /// La membrane grandit, son haut gardé.
+    Bas,
+}
+
 /// Le bas d'une membrane posé à `bas`, son haut gardé.
 fn poser_le_bas(membrane: &mut Annotation, bas: f64) {
     if let Annotation::Membrane { y, height, .. } = membrane {

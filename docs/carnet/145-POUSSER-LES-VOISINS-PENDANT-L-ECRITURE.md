@@ -47,13 +47,18 @@ voisins poussés) + `ECART` (la loi de `membranes_poussees`, élargie aux pouss�
 pousse ses voisins à elle. Une membrane poussée emporte son contenu (le déplacement d'une membrane
 qu'on tire, déjà là). Pas de branche horizontale : la saisie ne grandit que vers le bas.
 
-**Fait (14 h 30) : la loi d'un niveau**, pure, dans le noyau — `voisins_pousses`
+**Fait (14 h 25) : la loi d'un niveau**, pure, dans le noyau — `voisins_pousses`
 (`glucose-core/src/store/pousser.rs`) ; trois épreuves (`store/pousser/tests.rs` : au contact et en
 cascade, effacer fait remonter, seul son niveau) ; `outils/sabotages/pousser-145.json`, 5 sur 5. Le
 filtre « entièrement dessous » s'est révélé redondant : un pousseur qui n'a pas bougé ne pousse
 jamais (`bas + min(ECART, écart) ≤ haut`) — retiré.
 
-À faire : l'étage du dessus (la membrane qui grandit jusqu'aux poussés, puis pousse ses voisins), l'état
+**Puis (14 h 28) l'étage du dessus** : `pousser_en_ecrivant` rend, par rang, le haut neuf de chaque
+voisin poussé et le bas neuf de chaque membrane qui grandit (`Bord::Haut`, `Bord::Bas`), étage après
+étage ; une épreuve de plus, deux sabotages de plus (7 sur 7). Il remplacera `membranes_poussees` à la
+saisie, qu'il contient (un texte sans voisin ne fait que pousser ses membranes).
+
+À faire : l'état
 de départ gardé dans la session d'édition, la loi branchée à côté de `pousser_les_membranes` ; épreuves (pousser,
 cascade, remonter, ordre gardé, un seul Ctrl+Z, les pairs du partage reçoivent les déplacements),
 leurs sabotages, et l'essai au pilote.
