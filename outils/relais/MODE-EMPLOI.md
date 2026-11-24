@@ -32,7 +32,8 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close. **La mémoire
    du modèle** (le contexte de la conversation) passé **300 000 jetons** (90 % d'une fenêtre plus
    petite) : la passation, puis une conversation neuve. Chaque réponse relit la conversation entière :
-   c'était 78 % des jetons dépensés, à 318 000 jetons de contexte en moyenne (fiche 142).
+   78 % des jetons au prix de l'API (fiche 142) — mais **la jauge ne compte probablement pas la relecture**
+   (fiche 147) : `mesurer_jetons.py` le tranche sur l'histoire des jauges (`jauges-histoire.jsonl`).
 5. **La relance** : le crochet « Stop » (`relais.py fin-de-tour`) relance une fois ; la suivante est
    tapée par le veilleur — Claude Code coupe au 8ᵉ blocage de suite (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`).
 6. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, l'écran part dans
@@ -99,6 +100,9 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
 - **`glucose_quoi_de_neuf` sans `depuis`, dans une session neuve, rend 200 gestes** (≈ 8 000 jetons,
   24/11 à 14 h 12) : son agent n'a encore rien fait. Lui donner le rang `jusqu_a` que la passation
   écrit ; les notes de sa main, le relais les donne déjà au premier message.
+- **Une sonde `claude -p` lancée d'une session du relais hérite `RELAIS=1`** (le crochet de fin de tour la
+  relance) ; sans lui, dans le dépôt, elle prendrait la main : `env -u RELAIS`, hors du dépôt. Elle coûte
+  (deux sondes, 6 % de la fenêtre de 5 h, fiche 147) : l'histoire des jauges suffit d'ordinaire.
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à

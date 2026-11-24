@@ -1,0 +1,82 @@
+[
+ {
+  "nom": "HISTOIRE — une ligne à chaque appel, même sans bouger",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if all(pct(avant, nom) == pct(limites, nom) for nom in SEUILS):\n        return\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "HISTOIRE — jamais écrite",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        garder_l_histoire(compte, avant, limites, entree.get(\"session_id\"))\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "HISTOIRE — la conversation oubliée",
+  "fichier": "outils/relais/relais.py",
+  "avant": "\"compte\": compte, \"session\": session,",
+  "apres": "\"compte\": compte, \"session\": None,",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SANS-OUTILS — Artifact rendu",
+  "fichier": "outils/relais/relais.py",
+  "avant": "SANS_OUTILS = (\"Artifact\", ",
+  "apres": "SANS_OUTILS = (",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "SANS-OUTILS — l'option oubliée au lancement",
+  "fichier": "outils/relais/relais.py",
+  "avant": "\"--allow-dangerously-skip-permissions\", \"--disallowedTools\", \",\".join(SANS_OUTILS),",
+  "apres": "\"--allow-dangerously-skip-permissions\",",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

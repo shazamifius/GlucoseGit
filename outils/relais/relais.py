@@ -119,6 +119,22 @@ def ailleurs(compte, maintenant):
     return False, min(murs, default=None)
 
 
+def garder_l_histoire(compte, avant, limites, session):
+    """**L'histoire des jauges** (fiche 147) : une ligne chaque fois qu'une jauge bouge — l'heure, le
+    compte, la conversation, les deux pourcentages, la remise des 5 h. Croisée avec les jetons des
+    conversations (leurs journaux), elle dit ce que l'abonnement compte vraiment et ce qu'un
+    changement fait gagner ; sans elle, on n'avait que des relevés notés à la main (fiche 142)."""
+    def pct(fenetres, nom):
+        return (fenetres.get(nom) or {}).get("used_percentage")
+    if all(pct(avant, nom) == pct(limites, nom) for nom in SEUILS):
+        return
+    ligne = {"t": round(time.time()), "compte": compte, "session": session,
+             **{nom: pct(limites, nom) for nom in SEUILS},
+             "remise": (limites.get("five_hour") or {}).get("resets_at")}
+    with open(ETAT / "jauges-histoire.jsonl", "a") as f:
+        f.write(json.dumps(ligne) + "\n")
+
+
 def jauges():
     try:
         entree = json.load(sys.stdin)
@@ -126,7 +142,10 @@ def jauges():
         entree = {}
     limites = entree.get("rate_limits") or {}
     if limites:
-        ecrire_json(ETAT / f"jauges-{compte_courant()}.json", {"lu": time.time(), "rate_limits": limites})
+        compte = compte_courant()
+        avant = lire_json(ETAT / f"jauges-{compte}.json", {}).get("rate_limits") or {}
+        ecrire_json(ETAT / f"jauges-{compte}.json", {"lu": time.time(), "rate_limits": limites})
+        garder_l_histoire(compte, avant, limites, entree.get("session_id"))
     fenetre = entree.get("context_window") or {}
     if os.environ.get("RELAIS") == "1" and fenetre.get("used_percentage") is not None:
         ecrire_json(ETAT / "contexte.json", {"lu": time.time(), "pct": fenetre["used_percentage"],
@@ -346,6 +365,13 @@ def importants():
     return ses_fleches(lu.get("noeuds", []), histoire.get("gestes", []))
 
 
+# **Les outils qu'une session du relais ne sert jamais** (fiche 147) : chaque requête relit leur mode
+# d'emploi, et celui d'Artifact est le plus long de tous. Personne ne lit une page ni ne répond à une
+# question en menu (tout va dans son Glucose), personne ne programme un réveil ni n'envoie d'avis.
+# Agent reste : sans lui, aucune page web ne se lit (« chercher sur internet avant de concevoir »).
+SANS_OUTILS = ("Artifact", "AskUserQuestion", "ScheduleWakeup", "SendFeedback", "ReportFindings")
+
+
 def lancer(compte, paroles=(), texte=None, designes=()):
     """Lance la session du relais sur ce compte — **jamais une seconde** : s'il en vit une, rien."""
     if session_tmux():
@@ -362,7 +388,8 @@ def lancer(compte, paroles=(), texte=None, designes=()):
     # skipDangerousModePermissionPrompt, sinon Claude Code poserait sa question au démarrage (fiche 134).
     fait = tmux("new-session", "-d", "-s", nom_tmux(compte), "-x", "200", "-y", "50", "-c", str(DEPOT),
                 "env", *reglages, binaire, "--ide", "--no-chrome", "--permission-mode", "bypassPermissions",
-                "--allow-dangerously-skip-permissions", "--remote-control", f"relais-{compte}",
+                "--allow-dangerously-skip-permissions", "--disallowedTools", ",".join(SANS_OUTILS),
+                "--remote-control", f"relais-{compte}",
                 "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")

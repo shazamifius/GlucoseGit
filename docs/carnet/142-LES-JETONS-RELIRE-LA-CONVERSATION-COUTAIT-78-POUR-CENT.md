@@ -72,6 +72,9 @@ neuve doit relire 150 000 jetons de code. Une fenêtre plus petite (200 000) gar
 
 ## 4. Ce qui reste
 
+> **Le 24/11 à 17 h 35, la fiche 147 doute de cette fiche** : la jauge d'un abonnement ne compte
+> probablement pas la relecture ; à trancher par l'histoire des jauges avant de toucher au seuil.
+
 1. **Mesurer le gain à la jauge** : le pourcentage de la fenêtre de 5 h par heure de travail, avant et après.
    Premier relevé : la fenêtre du compte b ouverte à 12 h, **2 % à 12 h 00, 19 % à 12 h 25** — cette
    conversation, partie sous l'ancien démarrage, à 260 000 jetons de contexte à 12 h 25. La suivante sera la

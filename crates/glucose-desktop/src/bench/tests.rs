@@ -408,7 +408,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
 /// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
 /// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
-const EMPREINTE_TEMOIN_SELECTION: &str = "ac234fa294118bef";
+/// **Puis, le 24/11** (GESTE-19, fiche 146) : le bouton « Écrire sur la flèche » au bout de la barre
+/// d'une flèche choisie — regardé (fiche 147) ; la vérification GitHub de `b4d257b` l'a dit, la même
+/// empreinte sous Linux, Windows et Mac.
+const EMPREINTE_TEMOIN_SELECTION: &str = "d16e5daf3b5226ed";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -520,7 +523,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
 /// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
 /// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
-const EMPREINTE_TEMOIN_MENU: &str = "7fdd71dbe57c3482";
+/// **Puis, le 24/11** (GESTE-19, fiche 146) : le bouton « Écrire sur la flèche » au bout de la barre
+/// d'une flèche choisie — regardé (fiche 147) ; la vérification GitHub de `b4d257b` l'a dit, la même
+/// empreinte sous Linux, Windows et Mac.
+const EMPREINTE_TEMOIN_MENU: &str = "87b107f95029976b";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

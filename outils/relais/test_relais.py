@@ -168,6 +168,20 @@ class Jauges(unittest.TestCase):
         self.assertEqual(r.charge("b", time.time())["five_hour"][0], 60.0)
         dire.assert_called_once_with("Opus · 5 h 60 %")
 
+    def test_la_barre_d_etat_ecrit_l_histoire_quand_une_jauge_bouge(self):
+        histoire = r.ETAT / "jauges-histoire.jsonl"
+        for pct in (60, 60, 61):
+            entree = {"session_id": "s1", "rate_limits": {
+                "five_hour": {"used_percentage": pct, "resets_at": 99},
+                "seven_day": {"used_percentage": 20}}}
+            with mock.patch("sys.stdin") as stdin, mock.patch("builtins.print"), \
+                    mock.patch.dict("os.environ", {"RELAIS_COMPTE": "b"}):
+                stdin.read.return_value = json.dumps(entree)
+                r.jauges()
+        lignes = [json.loads(l) for l in histoire.read_text().splitlines()]
+        self.assertEqual([(l["five_hour"], l["seven_day"]) for l in lignes], [(60, 20), (61, 20)])
+        self.assertEqual((lignes[0]["compte"], lignes[0]["session"], lignes[0]["remise"]), ("b", "s1", 99))
+
     def test_la_barre_d_etat_d_une_session_du_relais_garde_sa_memoire_du_modele(self):
         entree = {"context_window": {"used_percentage": 42}}
         for relais, ecrit in (("0", False), ("1", True)):
@@ -459,6 +473,15 @@ class Lancement(unittest.TestCase):
         mode = claude.index("--permission-mode")
         self.assertEqual(claude[mode + 1], "bypassPermissions")
         self.assertIn("--allow-dangerously-skip-permissions", claude)
+
+    def test_sans_les_outils_qu_il_ne_sert_jamais(self):
+        """Chaque requête relit le mode d'emploi de chaque outil : ceux qu'une session du relais ne sert
+        jamais (Artifact, le plus long, et la question en menu) ne lui sont pas donnés (fiche 147)."""
+        claude = self.lancer("b")
+        sans = claude[claude.index("--disallowedTools") + 1].split(",")
+        self.assertIn("Artifact", sans)
+        self.assertIn("AskUserQuestion", sans)
+        self.assertNotIn("Agent", sans)
 
     def test_son_texte_de_depart(self):
         self.assertIn("Mon départ.", self.lancer("b", [], "Mon départ.")[-1])
