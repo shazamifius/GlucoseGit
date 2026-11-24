@@ -105,3 +105,6 @@ Ses leçons restent à la fiche 140 § 5.
    Gardé par `parente_3` (sabotage 4 de `mcp-court-142.json`). **Une épreuve manque** : une flèche entre deux
    textes de musique sûrs lit une sûreté de 0 dans l'épreuve, et aucune flèche de son document ne dit de
    parenté — la sûreté des flèches que promet la description du MCP est peut-être morte. À creuser.
+   Piste : seules se jugent les flèches posées par un agent (MAIN-1, `parente/liens.rs`) ; or les flèches
+   « réponse » du relais, posées par un agent, n'en disent rien non plus — regarder d'abord comment
+   `des_agents` est rempli, dans l'épreuve et dans son Glucose.
