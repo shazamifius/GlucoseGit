@@ -31,19 +31,32 @@ def glucose(*args, entree=None):
         return {"erreur": (r.stdout + r.stderr).strip()}
 
 
-def partage_apres(depuis):
-    """Ce que la sortie du Glucose relancé dit du partage, une fois sa fenêtre ouverte."""
-    for _ in range(60):
-        if os.path.exists(SORTIE) and os.path.getmtime(SORTIE) >= depuis:
-            with open(SORTIE, encoding="utf-8", errors="replace") as f:
-                lignes = f.read().splitlines()
-            if any("chronique de cette session" in l for l in lignes):
-                for l in lignes:
-                    if "canevas partagé" in l:
-                        return l.replace("[Glucose] canevas partagé : ", "partage ")
-                return "aucun partage repris"
+def cette_session(depuis):
+    """Les lignes de la sortie depuis l'ouverture de la fenêtre relancée (sa dernière chronique) —
+    `None` tant qu'elle n'est pas ouverte. Avant, les lignes d'une session d'avant étaient lues :
+    « repris au geste n° 442 », le 24/11 à 18 h 53, quand le Glucose relancé disait 814."""
+    if not os.path.exists(SORTIE) or os.path.getmtime(SORTIE) < depuis:
+        return None
+    with open(SORTIE, encoding="utf-8", errors="replace") as f:
+        lignes = f.read().splitlines()
+    debuts = [i for i, l in enumerate(lignes) if "chronique de cette session" in l]
+    return lignes[debuts[-1]:] if debuts else None
+
+
+def partage_apres(depuis, attente=60):
+    """Ce que le Glucose relancé dit du partage : il **revient** dans sa salle, puis, la salle
+    arrivée, il y est **revenu** (REVENIR-2, fiche 148). On attend « revenu » au plus une minute."""
+    dit = "fenêtre pas ouverte après une minute : à vérifier"
+    for _ in range(attente):
+        lignes = cette_session(depuis)
+        if lignes is not None:
+            partage = [l.replace("[Glucose] canevas partagé : ", "partage ") for l in lignes
+                       if "canevas partagé" in l]
+            if partage and "revenu" in partage[-1]:
+                return partage[-1]
+            dit = partage[-1] + " — la salle n'est pas encore arrivée" if partage else "aucun partage"
         time.sleep(1)
-    return "fenêtre pas ouverte après une minute : à vérifier"
+    return dit
 
 
 def main():
