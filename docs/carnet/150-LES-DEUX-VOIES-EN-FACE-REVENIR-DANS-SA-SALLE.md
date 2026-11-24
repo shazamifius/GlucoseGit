@@ -55,5 +55,7 @@ main `Main::Participant { nom, .. }`), retenir pour chaque photo qu'il pose
 (`GestePartage::images_posees`, comme l'envoi le fait déjà) qui l'a posée ; (2) le libellé du cadre
 lit ce souvenir — « la photo de Loup Émeraude, pas connecté » si son nom n'est pas parmi
 `cp.presents()` — par le magasin plutôt que par trois signatures du rendu ; hors partage, rien ne
-change. Une photo déjà là avant l'entrée (la base) n'a pas de geste arrivé : son auteur se lit dans
+change. Le chemin de la carte graphique pose le cadre par `Contenu::PhotoEnChemin` (`composants.rs`,
+et `composants/formes.rs` en vecteurs) : y porter le libellé lui-même, pour que le composant se
+refasse quand la ligne change (quelqu'un arrive). Une photo déjà là avant l'entrée (la base) n'a pas de geste arrivé : son auteur se lit dans
 l'histoire, ou la ligne dit seulement « attend quelqu'un qui l'a ».
