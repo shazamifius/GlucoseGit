@@ -49,7 +49,8 @@
   pourrait remonter — l'histoire des jauges (`jauges-histoire.jsonl`, `mesurer_jetons.py`) le tranchera.
 * **La 2.0.4-beta.6 : son brouillon est prêt** (24/11, 18 h 06, sur `725411b`, la vérification GitHub verte
   sur les dix tâches) ; le clic « Publish » est le sien.
-* **Un document, une salle** (fiche 146 § 4) : fait, sur `main` (pas encore dans une version) —
+* **Un document, une salle** (fiche 146 § 4) : fait, sur `main` (pas encore dans une version ; son Glucose
+  le tourne depuis le 24/11 à 18 h 53, revenu seul dans sa salle au n° 814, l'essai réel à deux passé) —
   « Quitter » garde le code, « Partager » revient dans la même salle, un arrêt net revient aussi, par la
   fusion à trois (REVENIR-1 et 2, fiches 147 § 6 et 148).
   Ce qui a changé des deux côtés : la salle l'emporte, la version d'ici est posée à côté.
