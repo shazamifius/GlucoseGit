@@ -1,4 +1,4 @@
-# 158 — Un nœud, plusieurs places : l'étude des miroirs (25/11 vers 3 h 30, le relais, compte b)
+# 158 — Un nœud, plusieurs places : l'étude des miroirs (25/11 vers 3 h 15, le relais, compte b)
 
 Le plan du relais, point 12 : « les boutons qui manquent » (SUITE § 2, INVENTAIRE § 3), d'abord
 **les miroirs** de Tauri (`Ctrl+Maj+M`, « un même nœud à deux endroits »). Une étude : rien n'est
