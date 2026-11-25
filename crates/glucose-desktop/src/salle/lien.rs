@@ -213,6 +213,10 @@ impl Fil {
 
     fn tourner(&mut self, arret: &AtomicBool, etat: &Mutex<EtatDuLien>) {
         let mut pause = Duration::from_secs(1);
+        // **Depuis quand la salle est perdue** : la sortie dit la coupure, la raison du premier
+        // échec d'une série, et le retour — sans quoi « déconnecté de la sync » (sa note du 24/11)
+        // ne se diagnostique pas : un lien qui ne revient jamais ne s'y lisait pas.
+        let mut perdue: Option<Instant> = None;
         while !arret.load(Ordering::Relaxed) {
             let autorisation = self.code.secret_d_ecriture().map(|s| format!("Bearer {s}"));
             let entetes: Vec<(&str, &str)> = autorisation
@@ -222,13 +226,24 @@ impl Fil {
                 .collect();
             match websocket::ouvrir(&self.adresse, &entetes) {
                 Ok(canal) => {
+                    if let Some(depuis) = perdue.take() {
+                        let s = depuis.elapsed().as_secs();
+                        crate::dire!("[Glucose] canevas partagé : relié de nouveau, après {s} s");
+                    }
                     self.dire_l_etat(etat, EtatDuLien::Relie);
                     pause = Duration::from_secs(1);
                     let raison = self.servir(canal, arret);
                     crate::dire!("[Glucose] canevas partagé : {raison}");
+                    perdue = Some(Instant::now());
                     self.dire_l_etat(etat, EtatDuLien::Hors(raison));
                 }
-                Err(e) => self.dire_l_etat(etat, EtatDuLien::Hors(e)),
+                Err(e) => {
+                    if perdue.is_none() {
+                        crate::dire!("[Glucose] canevas partagé : pas relié ({e}) ; il réessaie");
+                        perdue = Some(Instant::now());
+                    }
+                    self.dire_l_etat(etat, EtatDuLien::Hors(e));
+                }
             }
             let debut = Instant::now();
             while debut.elapsed() < pause && !arret.load(Ordering::Relaxed) {
