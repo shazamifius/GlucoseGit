@@ -54,3 +54,25 @@ vus.
 
 **Les vidéos** ne suivent pas ce chemin : il leur faut un décodeur (celui du système sur chaque
 machine, ou une bibliothèque) — une dépendance, donc sa note dans `decisions/`, et une étude à part.
+
+## 5. Le chemin dans le code (lu le 25/11, pour la session qui codera)
+
+* **Ce que la carte montre d'une photo** se décide dans `renderer/voies/tenue.rs` (`pose_tenue` →
+  `PhotoTenue { numero, facteur, pose, … }`).
+* **Une texture a une identité et un contenu** (`present/scene_gpu/cle.rs`) : `Cle::Photo(numero)`
+  est l'identité, `Cle::Niveau(numero, facteur)` ce qu'elle montre ; `SceneGpu::connait(identite,
+  cle)` (`scene_gpu.rs` l. 194) compare les deux, et la cascade (`scene_gpu/cascade.rs`,
+  `assurer`) réécrit l'identité dont le contenu a changé, sur son budget, l'ancien posé pendant ce
+  temps. **Une image de GIF est donc un contenu de plus sous la même identité** — une variante de
+  clé qui porte aussi le rang de l'image —, et la cascade fait déjà le reste. À vérifier : qu'une
+  identité réécrite à la même taille réutilise sa texture au lieu d'en créer une.
+* **Les pixels** viennent de `Source` (`scene_gpu.rs` l. 55 : une clé → des pixels prêtés) : la
+  source doit savoir prêter la toile courante du lecteur.
+* **La voie processeur** lit les niveaux de la pyramide (`renderer/magasin.rs`, `photo.rs` :
+  `niveau_pour`) : la toile courante doit s'y substituer aussi, sinon les deux voies divergent.
+* **Le réveil** : `app/reveil.rs`, `enum Raison` (`Animation` y sert aux animations des nœuds) —
+  une raison à lui, pour que la chronique dise pourquoi Glucose s'est réveillé.
+* **Le décodeur** : `image::codecs::gif::GifDecoder` et `AnimationDecoder::into_frames()` rendent des
+  toiles déjà composées, avec leur délai (`Frame::delay`). Le nombre de tours n'y est pas exposé
+  (à vérifier) ; la caisse `gif`, déjà dans l'arbre par `image`, le donne (`Decoder::repeat`) — une
+  dépendance directe, donc sa note dans `decisions/`.
