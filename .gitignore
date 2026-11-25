@@ -67,3 +67,6 @@ outils/telemetrie/.wrangler/
 
 # Le cache de Python : le pilote (outils/pilote) importe ses modules à chaque essai.
 __pycache__/
+
+# Les docs de travail vivent dans leur propre dépôt, privé (GlucoseGit-docs), cloné ici.
+/docs/

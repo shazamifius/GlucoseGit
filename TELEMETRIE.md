@@ -77,4 +77,4 @@ ce qui a été effacé.
 
 Sur un serveur Cloudflare Workers qui appartient à l'auteur de Glucose. Personne d'autre que lui
 n'y a accès, et rien n'est revendu ni partagé. Le code du serveur est dans
-[`outils/telemetrie/`](../outils/telemetrie/).
+[`outils/telemetrie/`](outils/telemetrie/).

@@ -13,7 +13,7 @@
 //! 4. **À la fin de la session**, par un processus à part, et ce qui n'a pas pu partir **au
 //!    lancement suivant**, sur un fil à part : jamais pendant qu'on dessine (JOURNAL-1, fiche 87).
 //! 5. **Un identifiant tiré au hasard**, renouvelé quand on efface ce qui est parti.
-//! 6. **Aucune adresse IP gardée**, et une page publique qui dit tout : `docs/TELEMETRIE.md`.
+//! 6. **Aucune adresse IP gardée**, et une page publique qui dit tout : `TELEMETRIE.md`.
 
 pub mod accord;
 pub mod envoi;

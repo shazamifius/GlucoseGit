@@ -9,7 +9,7 @@ Natif, écrit en Rust, sans navigateur.
 
 <br>
 
-<img src="docs/images/carte-de-wikipedia.webp" alt="Glucose : les cent articles vitaux de Wikipédia, rangés en régions colorées sur un canevas noir" width="100%">
+<img src=".github/images/carte-de-wikipedia.webp" alt="Glucose : les cent articles vitaux de Wikipédia, rangés en régions colorées sur un canevas noir" width="100%">
 
 <sub>Les cent articles vitaux de Wikipédia, posés par un agent dans des membranes — « Eau » et « Hydrogène » en entier.</sub>
 
@@ -81,8 +81,7 @@ qui ne font rien encore le disent eux-mêmes ; aucun ne fait semblant.
 ## Les dépendances, telles qu'elles sont
 
 Glucose vise, à terme, **zéro dépendance** : une application que n'importe qui peut lire et forker.
-Aujourd'hui, il en prend une quand il ne peut pas faire sans, et chacune se défend par écrit dans
-[`docs/carnet/decisions/`](docs/carnet/decisions).
+Aujourd'hui, il en prend une quand il ne peut pas faire sans, et chacune se défend par écrit.
 
 - **`glucose-core`, le noyau** — le modèle, la géométrie, le journal, le format de fichier, le
   texte : **aucune dépendance**, la bibliothèque standard seule.
@@ -138,7 +137,7 @@ crates/
 └── glucose-android/   l'entrée d'Android
 ```
 
-La documentation de l'ingénierie est dans [`docs/`](docs/README.md), en français.
+Ce que Glucose envoie quand on l'accepte, et rien d'autre : [`TELEMETRIE.md`](TELEMETRIE.md).
 
 ## Glucose 1 (Tauri)
 

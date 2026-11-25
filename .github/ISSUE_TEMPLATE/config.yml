@@ -6,6 +6,3 @@ contact_links:
   - name: Le guide d'utilisation
     url: https://github.com/shazamifius/GlucoseGit/blob/main/GUIDE.md
     about: Chaque geste et chaque touche de Glucose, tels qu'ils sont aujourd'hui
-  - name: Où en est le projet
-    url: https://github.com/shazamifius/GlucoseGit/blob/main/docs/README.md
-    about: Le carnet de bord de l'ingénierie, et la différence entre Glucose Tauri et Glucose Rust

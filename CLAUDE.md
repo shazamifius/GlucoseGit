@@ -106,6 +106,9 @@ arrête une publication qui l'oublierait.
   renouvelle tous les 3 jours ; aucune remarque de notre part) ; le lire au moment d'envoyer, sans
   l'écrire nulle part : `git push "https://x-access-token:$JETON@github.com/shazamifius/GlucoseGit.git"
   main:main`. Git n'a pas d'identité globale sur cette machine : celle du dépôt est réglée.
+* **`docs/` est un dépôt à part, privé** (`shazamifius/GlucoseGit-docs`, sa réponse du 25/11 dans
+  `relais-rep-orga`), ignoré du dépôt public : ce qui y change se commite et s'envoie **là**
+  (`git -C docs …`, le même jeton) ; le code, ici. Publics : `README.md`, `GUIDE.md`, `TELEMETRIE.md`.
 * **Deux branches, pas une de plus** : `main` et `tauri-v1.0.1`. Une branche de travail se retire, en local
   et sur GitHub, dès qu'elle est fusionnée.
 * **Publier une version reste son geste** : le brouillon se prépare, le clic « Publish release » est le sien.

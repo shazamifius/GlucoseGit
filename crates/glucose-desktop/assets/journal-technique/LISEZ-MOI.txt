@@ -251,4 +251,4 @@ accès, et rien n'est revendu ni partagé. Un identifiant tiré au hasard relie 
 même appareil ; il ne dit rien de toi, et il est renouvelé quand tu réponds « Non ».
 
 Le code de Glucose et celui du serveur sont publics : https://github.com/shazamifius/GlucoseGit
-(la page docs/TELEMETRIE.md, et le dossier outils/telemetrie/).
+(la page TELEMETRIE.md, et le dossier outils/telemetrie/).
