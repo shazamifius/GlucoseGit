@@ -77,10 +77,11 @@ TEXTES = {
 }
 
 
-def depart(compte, paroles=(), texte=None, importants=()):
+def depart(compte, paroles=(), texte=None, importants=(), garde=False):
     """Le premier message d'une session du relais : son texte, et **d'abord ce qu'il a écrit
     depuis la dernière** — elle lui répond avant tout (sa parole du 23/11 : « soit actif sur le
-    Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait)."""
+    Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait). Sur la fin de la
+    semaine d'un compte (`garde`, RESERVE-1, fiche 163), elle ne fait que lui répondre."""
     ecrit = (f" Depuis la dernière session, il a écrit dans son Glucose ({lire_ids(paroles)}) : lis-le "
              "en premier et réponds-lui dans son Glucose — une réponse à côté de chaque note, ou reliée "
              "par une flèche — avant toute autre tâche. Une note que cette lecture dit introuvable est "
@@ -88,7 +89,9 @@ def depart(compte, paroles=(), texte=None, importants=()):
              "tableau=…." if paroles else "")
     designe = (f" Sa consigne désigne par ses flèches ce qu'il juge le plus important "
                f"({lire_ids(importants)}) : lis-le juste après elle." if importants else "")
-    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}"
+    reserve = (f" {POURQUOI['reserve']} Réponds à ses notes, à rien d'autre, puis termine ton tour."
+               if garde else "")
+    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}{reserve}"
 
 
 def ses_fleches(noeuds, gestes, depuis=CONSIGNE, profondeur=2):
@@ -232,6 +235,9 @@ POURQUOI = {
     "contexte": f"Ta conversation a passé {SEUIL_JETONS // 1000} 000 jetons : chaque réponse la relit "
                 "entière, et c'est ce qui use ses comptes. Une conversation neuve reprendra, avec ta "
                 "passation (sa réponse du 24/11).",
+    "reserve": "La semaine de ce compte a passé son seuil et aucun autre ne peut reprendre : ce qui en "
+               "reste est gardé pour lui répondre quand il écrit (RESERVE-1, fiche 163) — une session "
+               "se lancera pour ses notes.",
 }
 
 

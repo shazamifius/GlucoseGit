@@ -154,6 +154,29 @@ class Jauges(unittest.TestCase):
         self.poser("b", 4, 10, 7000)
         self.assertEqual(r.garder({"compte": "a"}, 1000), "passation")
 
+    def test_la_fin_de_sa_semaine_est_gardee_pour_ses_notes(self):
+        """RESERVE-1 (fiche 163) : le 25/11, a à 17 % de sa semaine en trois heures, b plein jusqu'au
+        30/11 — brûlée au travail, la fin de la semaine de a laissait le relais sourd quatre jours."""
+        jour = 86400
+        self.poser("a", 10, 92, 3 * jour)  # sa semaine se remet dans trois jours
+        self.poser("b", 4, 100, 2 * jour)
+        self.assertEqual(r.choisir("a", 1000), (None, 2 * jour + 1000))
+        self.assertEqual(r.choisir("a", 1000, notes=True), ("a", None))
+        self.poser("b", 4, 99, 2 * jour)  # b garde 1 % : ses notes vont à a, qui a le plus de marge
+        self.assertEqual(r.choisir("b", 1000, notes=True), ("a", None))
+        self.poser("b", 4, 100, 2 * jour)
+        self.assertEqual(r.garder({"compte": "a"}, 1000), "reserve")
+        self.assertIsNone(r.garder({"compte": "a", "notes": True}, 1000))
+        # Dans la dernière fenêtre avant sa remise, elle se dépense au travail : sinon, perdue.
+        self.poser("b", 4, 100, 4 * jour)
+        self.assertEqual(r.choisir("a", 1000), (None, 3 * jour + 1000 - r.FENETRE))
+        fin = 3 * jour + 1000 - r.FENETRE + 60
+        self.assertEqual(r.choisir("a", fin), ("a", None))
+        self.assertEqual(r.garder({"compte": "a"}, fin), "prevenir")
+        # Seules ses cinq heures au seuil : elles se remettent bientôt, rien n'est gardé.
+        self.poser("a", 92, 10, 3 * jour)
+        self.assertEqual(r.choisir("a", 1000), ("a", None))
+
     def test_un_compte_pas_connecte_n_est_jamais_choisi(self):
         with mock.patch.object(r, "connecte", side_effect=lambda c: c == "a"):
             self.assertEqual(r.choisir("b", 1000), ("a", None))
@@ -440,6 +463,27 @@ class Veilleur(unittest.TestCase):
         self.taper.assert_called_once_with(r.raison_prevenir(self.maintenant + 3600))
         self.tmux.assert_not_called()
 
+    def test_la_fin_de_sa_semaine_ne_se_lance_que_pour_ses_notes(self):
+        """RESERVE-1 (fiche 163) : sans note de lui, le veilleur attend et le dit ; une note, et une
+        session se lance pour lui répondre, puis écrit sa passation à la fin de son tour."""
+        for compte in "ab":
+            r.ecrire_json(r.ETAT / f"jauges-{compte}.json", {"rate_limits": {
+                "five_hour": {"used_percentage": 10, "resets_at": self.maintenant + 3600},
+                "seven_day": {"used_percentage": 92 if compte == "b" else 100,
+                              "resets_at": self.maintenant + 3 * 86400}}})
+        with mock.patch.object(r, "ecran", lambda: None):
+            r.un_tour()
+            self.lancer.assert_not_called()
+            self.assertIn("gardée pour tes notes", r.lire_json(r.ETAT / "veilleur.json", {})["dit"])
+            with mock.patch.object(r, "gestes_neufs", lambda memoire: {"total": 3, "gestes": [
+                    {"auteur": "humain", "fait": ["pose le texte « sa-note »"]}]}):
+                r.un_tour()
+        self.lancer.assert_called_once_with("b", ["sa-note"], None, [])
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "notes": True, "depuis": self.maintenant})
+        dire, session = self.crochet()
+        self.assertIn(json.dumps(r.raison_passation("reserve"), ensure_ascii=False), dire.call_args.args[0])
+        self.assertEqual(session.get("passation_pourquoi"), "reserve")
+
     def test_figee_le_battement_ne_dit_plus_au_travail(self):
         """Le 23/11, de 16 h à 17 h 48 : figée au démarrage, le ❤️ disait « au travail » (fiche 134)."""
         self.jauge("b", 10, 10)
@@ -482,6 +526,14 @@ class Lancement(unittest.TestCase):
         self.assertIn("Artifact", sans)
         self.assertIn("AskUserQuestion", sans)
         self.assertNotIn("Agent", sans)
+
+    def test_sur_la_fin_de_sa_semaine_elle_ne_fait_que_lui_repondre(self):
+        """RESERVE-1 (fiche 163) : le premier message le dit, et la session est marquée pour ses notes."""
+        self.assertNotIn(r.POURQUOI["reserve"], self.lancer("b", ["sa-note"])[-1])
+        with mock.patch.object(r, "gardee", lambda compte, maintenant: 1.0), \
+                mock.patch.object(r, "ecrire_json") as ecrit:
+            self.assertIn(r.POURQUOI["reserve"], self.lancer("b", ["sa-note"])[-1])
+        self.assertTrue(ecrit.call_args.args[1].get("notes"))
 
     def test_son_texte_de_depart(self):
         self.assertIn("Mon départ.", self.lancer("b", [], "Mon départ.")[-1])

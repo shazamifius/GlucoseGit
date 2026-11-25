@@ -37,7 +37,7 @@ from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICAT
                  REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES, contexte_plein,
                  decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, raison_continuer,
                  raison_entendre, raison_passation, raison_prevenir, ses_fleches, ses_paroles, signee)
-from loi import MODE_EMPLOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (pour les épreuves)
+from loi import MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (pour les épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
 
@@ -49,6 +49,8 @@ COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
 SEUILS = {"five_hour": 90.0, "seven_day": 90.0}
 # Le mur : une fenêtre pleine, et le serveur refuse le compte (« You've hit your … limit »).
 MUR = {"five_hour": 100.0, "seven_day": 100.0}
+# La plus courte des fenêtres de jauge : ce qu'un compte peut encore dépenser d'une traite.
+FENETRE = 5 * 3600
 
 
 def nom_tmux(compte):
@@ -296,7 +298,8 @@ def fin_de_tour():
     compte = compte_courant()
     motif = "retrait" if main_humaine(maintenant) else "contexte" if contexte_plein(
         lire_json(ETAT / "contexte.json", {}), session) else (
-        "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else None)
+        "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else
+        "reserve" if gardee(compte, maintenant) else None)
     textes = memoire.get("textes", {})
     action, pourquoi = decider(session, texte, en_pause(texte), signee(n, memoire, gestes_neufs(memoire)),
                                motif, maintenant, passation_ecrite(session),
@@ -329,21 +332,36 @@ def connecte(compte):
     return (dossier / ".credentials.json").exists()
 
 
-def choisir(courant, maintenant):
+def gardee(compte, maintenant):
+    """**La fin de sa semaine, gardée pour ses notes** (RESERVE-1, fiche 163) : sa semaine a passé
+    son seuil, et sa remise est à plus d'une fenêtre de cinq heures. Ce qui reste ne sert plus qu'à
+    lui répondre quand il écrit : brûlé au travail, il laissait le relais sourd des jours entiers (le
+    25/11, le compte a à 17 % de sa semaine en trois heures de travail, b plein jusqu'au 30/11 ;
+    sa consigne : « h24 actif »). Dans la dernière fenêtre avant la remise, la réserve se dépense au
+    travail : sinon elle serait perdue. Rendue (None) : l'heure où elle se rend au travail."""
+    pct, remise = charge(compte, maintenant).get("seven_day", (0.0, 0.0))
+    return remise - FENETRE if pct >= SEUILS["seven_day"] and remise - maintenant > FENETRE else None
+
+
+def choisir(courant, maintenant, notes=False):
     """Le compte qui travaille : le courant s'il est sous ses seuils, sinon un autre ; faute de
     mieux, un compte encore sous le mur — mieux vaut finir sa jauge que dormir (le 23/11, trois
-    heures perdues à 91 %). Aucun : (None, l'heure où le premier se libère)."""
+    heures perdues à 91 %) —, **sauf la fin d'une semaine** (`gardee`), qui ne sert qu'à répondre à
+    ses notes (`notes`). Aucun : (None, l'heure où le premier se libère ou se rend au travail)."""
     ordre = [courant] + [c for c in COMPTES if c != courant]
     murs = []
     for seuils in (SEUILS, MUR):
         murs = []
+        if seuils is MUR:  # sous le mur, d'abord celui qui a le plus de marge : ses notes y tiennent
+            ordre.sort(key=lambda c: max((pct for pct, _ in charge(c, maintenant).values()), default=0.0))
         for compte in ordre:
             if not connecte(compte):
                 continue
             au_seuil, libre_a = plein(compte, maintenant, seuils)
-            if not au_seuil:
+            rendue = None if au_seuil or notes or seuils is SEUILS else gardee(compte, maintenant)
+            if not au_seuil and rendue is None:
                 return compte, None
-            murs.append(libre_a)
+            murs.append(libre_a if au_seuil else rendue)
     return None, (min(murs) if murs else None)
 
 
@@ -381,6 +399,7 @@ def lancer(compte, paroles=(), texte=None, designes=()):
     if COMPTES[compte]:
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
     binaire = claude_binaire()
+    garde = bool(gardee(compte, time.time()))
     # --ide : branché sur le VS Code de ce compte. --no-chrome : sans lui, un compte qui n'a jamais
     # répondu à « Claude in Chrome » se fige au démarrage sur cette question (le 23/11, 1 h 48). Le
     # bypass, jamais le mode auto (sa réponse du 23/11 : « il faut que Claude ne soit JAMAIS bloqué ») :
@@ -390,12 +409,13 @@ def lancer(compte, paroles=(), texte=None, designes=()):
                 "env", *reglages, binaire, "--ide", "--no-chrome", "--permission-mode", "bypassPermissions",
                 "--allow-dangerously-skip-permissions", "--disallowedTools", ",".join(SANS_OUTILS),
                 "--remote-control", f"relais-{compte}",
-                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes))
+                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes, garde))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
         return False
-    ecrire_json(ETAT / "session.json", {"compte": compte, "depuis": time.time()})
+    ecrire_json(ETAT / "session.json", {"compte": compte, "depuis": time.time(), **({"notes": True} if garde else {})})
     notes = f", avec {len(paroles)} nœud(s) qu'il a écrits" if paroles else ""
+    notes += ", sur la fin de sa semaine, pour ses notes seulement" if garde else ""
     journal(f"session lancée sur le compte {compte}{notes} ({binaire})")
     return True
 
@@ -426,6 +446,9 @@ def garder(session, maintenant, humaine_la=None):
       minutes, le compte à 97 %) ;
     * « prevenir » — un seuil passé et personne pour reprendre : elle continue jusqu'au mur, prévenue
       une fois ;
+    * « reserve » — sa semaine au seuil, personne pour reprendre, la fin de sa semaine gardée pour
+      ses notes (`gardee`) : la passation, sauf pour une session lancée pour elles (`notes`), qui
+      la fera à la fin de son tour (`fin_de_tour`) ;
     * « contexte » — la mémoire du modèle à 90 % : la passation, puis une conversation neuve ;
     * None : rien à faire."""
     compte = session.get("compte")
@@ -443,6 +466,8 @@ def garder(session, maintenant, humaine_la=None):
         return None
     if ailleurs(compte, maintenant)[0]:
         return "passation"
+    if gardee(compte, maintenant):
+        return None if session.get("notes") else "reserve"
     return None if session.get("prevenue") else "prevenir"
 
 
@@ -469,10 +494,11 @@ def tenir(session, memoire, humaine_la, maintenant):
         if not retrait:
             memoire["compte"] = autre(session.get("compte"))
         return False
-    if geste in ("passation", "retrait", "contexte"):
+    if geste in ("passation", "retrait", "contexte", "reserve"):
         demander_passation(session, maintenant, geste if geste != "passation" else "limite")
         taper(raison_passation(session["passation_pourquoi"], memoire.get("textes", {}).get(TEXTE_PASSATION)))
-        journal({"retrait": "une session à lui prend la main", "contexte": "la mémoire du modèle à 90 %"}
+        journal({"retrait": "une session à lui prend la main", "contexte": "la mémoire du modèle à 90 %",
+                 "reserve": "la fin de la semaine gardée pour ses notes"}
                 .get(geste, "seuil passé en plein tour")
                 + f" : passation demandée au compte {session.get('compte')}")
     elif geste == "prevenir":
@@ -562,8 +588,13 @@ def attendre(memoire, ok, pause, humaine_la, maintenant):
         return "en attente : une IA a changé la consigne après toi — retouche-la pour qu'elle reparte"
     if pause:
         return "en pause (première ligne de la consigne)"
-    compte, libre_a = choisir(memoire.get("compte", "a"), maintenant)
+    compte, libre_a = choisir(memoire.get("compte", "a"), maintenant, bool(memoire.get("paroles")))
     if not compte:
+        garde = [c for c in COMPTES if connecte(c) and gardee(c, maintenant) and not plein(c, maintenant, MUR)[0]]
+        if garde:
+            return (f"la fin de la semaine du compte {garde[0]} est gardée pour tes notes : écris dans ton "
+                    f"Glucose, une session te répondra — le travail reprend vers "
+                    f"{heure(libre_a) if libre_a else '?'}")
         return "les comptes sont à leur limite : reprise vers " + (heure(libre_a) if libre_a else "?")
     if not lancer(compte, memoire.get("paroles", []), memoire.get("textes", {}).get(TEXTE_DEPART),
                   importants()):

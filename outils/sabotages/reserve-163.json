@@ -1,0 +1,194 @@
+[
+ {
+  "nom": "RESERVE — jamais gardée",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    return remise - FENETRE if pct >= SEUILS[\"seven_day\"] and remise - maintenant > FENETRE else None\n",
+  "apres": "    return None\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — gardée jusqu'à la remise (perdue)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "and remise - maintenant > FENETRE else None",
+  "apres": "and remise - maintenant > 0 else None",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — le choix l'ignore",
+  "fichier": "outils/relais/relais.py",
+  "avant": "            rendue = None if au_seuil or notes or seuils is SEUILS else gardee(compte, maintenant)\n",
+  "apres": "            rendue = None\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — ses notes n'y ont pas droit",
+  "fichier": "outils/relais/relais.py",
+  "avant": "            rendue = None if au_seuil or notes or seuils is SEUILS",
+  "apres": "            rendue = None if au_seuil or seuils is SEUILS",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — l'heure de reprise oubliée",
+  "fichier": "outils/relais/relais.py",
+  "avant": "            murs.append(libre_a if au_seuil else rendue)\n",
+  "apres": "            murs.append(libre_a)\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — la session au travail continue",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        return None if session.get(\"notes\") else \"reserve\"\n",
+  "apres": "        return None if session.get(\"notes\") else \"prevenir\"\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — la session de ses notes interrompue",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        return None if session.get(\"notes\") else \"reserve\"\n",
+  "apres": "        return \"reserve\"\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — le crochet ne la ferme pas",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        \"reserve\" if gardee(compte, maintenant) else None)\n",
+  "apres": "        None)\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — le battement se tait",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        if garde:\n            return (f\"la fin",
+  "apres": "        if False:\n            return (f\"la fin",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — le départ ne le dit pas",
+  "fichier": "outils/relais/loi.py",
+  "avant": "               if garde else \"\")",
+  "apres": "               if False else \"\")",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — la session pas marquée",
+  "fichier": "outils/relais/relais.py",
+  "avant": "**({\"notes\": True} if garde else {})",
+  "apres": "**({})",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RESERVE — ses notes au compte le plus plein",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        if seuils is MUR:  # sous",
+  "apres": "        if False:  # sous",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]
