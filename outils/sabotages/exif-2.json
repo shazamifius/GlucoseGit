@@ -1,0 +1,42 @@
+[
+ {
+  "nom": "EXIF-2 — l'EXIF informatif du HEIC suivi : la photo tournée deux fois",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "impl ImageDecoder for Heic {\n",
+  "apres": "impl ImageDecoder for Heic {\n    fn exif_metadata(&mut self) -> ImageResult<Option<Vec<u8>>> {\n        Ok(heifer::read_metadata(&self.octets).ok().and_then(|m| m.exif))\n    }\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "exif_2"
+  ]
+ },
+ {
+  "nom": "EXIF-2 — le quart de tour d'irot oublié dans la taille",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "            Property::Rotation(quarts) if quarts % 2 == 1 => taille = (taille.1, taille.0),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "exif_2"
+  ]
+ }
+]

@@ -81,7 +81,8 @@
   pilote (§ 10), le retour de la fenêtre pas encore. **EXIF-1** — une
   photo de téléphone tenue en portrait paraît debout (elle était couchée depuis Glucose Rust ; Tauri la
   montrait droite), et un nœud posé quand elle arrivait couchée se redresse à l'arrivée de ses pixels,
-  en un geste signé « Glucose » qu'on peut défaire (fiche 165 § 5-6).
+  en un geste signé « Glucose » qu'on peut défaire (fiche 165 § 5-6) ; une photo d'iPhone (HEIC) aussi,
+  tournée une seule fois (EXIF-2, § 7).
 * **Le relais met Claude à jour seul** (MAJ-1, fiche 162, sa demande du 24/11) : toutes les six heures, la
   version neuve de l'extension s'installe et s'essaie sans un jeton (l'invite, sans question), refusée
   sinon ; `relais-maj-claude` le dit. La 2.1.332 installée le 25/11 à 5 h 33.

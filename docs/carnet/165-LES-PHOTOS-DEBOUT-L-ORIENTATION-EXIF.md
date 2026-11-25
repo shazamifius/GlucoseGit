@@ -168,3 +168,35 @@ les données — la photo y paraît enfin droite, mais un recadrage ou un demi-t
 photo à l'envers restent tels quels (une photo tenue tête en bas, « 3 », redressée à la main d'un
 demi-tour, se retrouve à l'envers). Les retrouver demanderait un champ du format, pour un cas rare. Le
 HEIC reste EXIF-2.
+
+## 7. EXIF-2, le HEIC : une garde, pas un correctif (25/11 vers 12 h, compte a)
+
+**Ce que dit le format** : en HEIF, la rotation vit dans les propriétés de l'image (`irot`, en quarts
+de tour dans le sens inverse des aiguilles ; `imir`), que le lecteur doit appliquer ; la balise EXIF
+d'orientation n'y est qu'**informative** — l'iPhone écrit les deux (`irot` 3 et EXIF 6 pour un portrait),
+et les suivre toutes deux tourne la photo deux fois ; mal accordées, elles font les photos d'iPhone
+mal tournées de plusieurs visionneuses (les bogues KDE 461205, 473396 et 510990). ExifTool l'a relevé sur des fichiers d'iPhone : la vignette `thmb`, le
+second aperçu et la carte de gain partagent l'`irot` de l'image première.
+[forum ExifTool](https://exiftool.org/forum/index.php?msg=91969),
+[bogue KDE 473396](https://bugs.kde.org/show_bug.cgi?id=473396). `heifer` le dit aussi
+(`Exif::orientation` : « informative only in HEIF »).
+
+**Ce que fait Glucose, lu** : `heifer` applique `irot`/`imir` en décodant (`decode_item_with`), à
+l'image comme à la vignette, décodée comme image première d'une copie (HEIC-3) ; notre décodeur
+(`Heic`) ne rend pas l'EXIF, donc `orientation()` dit « rien à tourner » au décodage
+(`Pyramide::depuis_le_decodeur`) comme au dépôt et au miroir (`dimensions_du_fichier`) ; et
+`transformer` dit la taille tournée sans décoder. **Rien à corriger.** Le piège est pour demain : qui
+ferait rendre l'EXIF au décodeur (pour la date, le GPS) ferait tourner `image` une seconde fois, sans
+bruit.
+
+**La garde** : deux épreuves sur un HEIC fabriqué tel qu'un iPhone tenu en portrait l'écrit — l'encodeur
+de `heifer`, puis un `irot` 3 ajouté à chaque image (l'image et sa vignette) et l'EXIF remis à 6
+(`ajouter_un_irot`, la chirurgie des boîtes `ipco`, `ipma`, `iprp`, `meta`, et des étendues d'`iloc`) :
+le dégradé paraît debout, tourné **une seule fois** et dans le bon sens (un coin chacun), à la taille
+droite, sa vignette aussi. Sabotages (`exif-2.json`, 2 sur 2) : l'EXIF rendu par le décodeur (la photo
+tournée deux fois), le quart de tour oublié dans la taille.
+
+**Au pilote** (le binaire de `23c5656`, après EXIF-1) : `arrow.heic`, une vraie photo d'iPhone qui porte
+`irot` 3 **et** l'EXIF 6, collée dans un Glucose hors écran — debout, en portrait, dès sa vignette.
+
+**Reste** : `imir` n'a pas d'épreuve à nous (un miroir dans un HEIC est rare ; `heifer` l'applique).

@@ -6,14 +6,19 @@ use std::io::Cursor;
 
 /// Un dégradé de `l` × `h`, opaque, encodé en HEIC.
 fn fabriquer(l: u32, h: u32) -> (Vec<u8>, Vec<u8>) {
-    let rgba: Vec<u8> = (0..l * h)
+    let rgba = degrade(l, h);
+    let heic = heifer::encode_rgba8(l, h, &rgba, &heifer::EncodeOptions::new()).unwrap();
+    (heic, rgba)
+}
+
+/// Le rouge croît vers la droite, le vert vers le bas.
+fn degrade(l: u32, h: u32) -> Vec<u8> {
+    (0..l * h)
         .flat_map(|i| {
             let (x, y) = (i % l, i / l);
             [(x * 255 / l) as u8, (y * 255 / h) as u8, 128, 255]
         })
-        .collect();
-    let heic = heifer::encode_rgba8(l, h, &rgba, &heifer::EncodeOptions::new()).unwrap();
-    (heic, rgba)
+        .collect()
 }
 
 fn lecteur(octets: &[u8]) -> image::ImageReader<Cursor<&[u8]>> {
@@ -210,4 +215,142 @@ fn heic_3_un_fichier_abime_ne_donne_rien_sans_panique() {
     let mut faux = heic.clone();
     faux[24..28].copy_from_slice(&u32::MAX.to_be_bytes());
     let _ = vignette::apercu(&faux);
+}
+
+// ── EXIF-2 : une photo d'iPhone tenue en portrait (fiche 165 § 7) ─────────────────────────
+
+/// **Un HEIC tel qu'un iPhone tenu en portrait l'écrit** : ses pixels couchés (le dégradé de `l`
+/// × `h`), un quart de tour dans le sens des aiguilles (`irot` 3 : trois quarts dans l'autre sens)
+/// que l'image et sa vignette partagent, et la balise EXIF qui dit la même chose (6) — seulement
+/// informative en HEIF : la suivre aussi tournerait la photo deux fois.
+fn tenu_en_portrait(l: u32, h: u32) -> Vec<u8> {
+    let image = heifer::Image {
+        width: l,
+        height: h,
+        bit_depth: 8,
+        has_alpha: false,
+        data: degrade(l, h).into_iter().map(u16::from).collect(),
+    };
+    // Un EXIF gros-boutiste d'une seule entrée : l'orientation (0x0112, un SHORT), 6.
+    let exif = b"MM\0\x2a\0\0\0\x08\0\x01\x01\x12\0\x03\0\0\0\x01\0\x06\0\0\0\0\0\0".to_vec();
+    let metadata = heifer::Metadata {
+        exif: Some(exif),
+        ..Default::default()
+    };
+    let options = heifer::EncodeOptions::new();
+    let mut heic = heifer::encode_with_metadata(&image, &metadata, &options).unwrap();
+    // L'encodeur la remet à 1, ses pixels étant droits ; l'iPhone la laisse dire 6.
+    let entree = b"\x01\x12\0\x03\0\0\0\x01\0";
+    let at = heic
+        .windows(9)
+        .position(|w| w == entree)
+        .expect("l'orientation")
+        + 9;
+    heic[at] = 6;
+    ajouter_un_irot(&heic, 3)
+}
+
+/// Un entier gros-boutiste de quatre octets, lu ou augmenté sur place.
+fn u32_a(o: &[u8], at: usize) -> u32 {
+    u32::from_be_bytes(o[at..at + 4].try_into().unwrap())
+}
+fn grandir(o: &mut [u8], at: usize, de: u32) {
+    let v = u32_a(o, at) + de;
+    o[at..at + 4].copy_from_slice(&v.to_be_bytes());
+}
+
+/// **Ajoute un `irot`** (`angle` quarts de tour dans le sens inverse des aiguilles) à chaque image
+/// de ce HEIC, comme l'iPhone, et recule d'autant ce que `iloc` situe dans `mdat`. Le fichier de
+/// l'encodeur de `heifer` : `iloc` version 0 (champs de quatre octets, une étendue par élément),
+/// `ipma` version 0 (index sur sept bits), dans cet ordre.
+fn ajouter_un_irot(heic: &[u8], angle: u8) -> Vec<u8> {
+    let boite = |nom: &[u8; 4]| heic.windows(4).position(|w| w == nom).expect("boîte") - 4;
+    let (iloc, ipco, ipma) = (boite(b"iloc"), boite(b"ipco"), boite(b"ipma"));
+    assert!(iloc < ipco && ipco < ipma);
+    assert_eq!(
+        (heic[iloc + 8], heic[iloc + 12], u32_a(heic, ipma + 8)),
+        (0, 0x44, 0)
+    );
+    let (fin_ipco, fin_ipma) = (
+        ipco + u32_a(heic, ipco) as usize,
+        ipma + u32_a(heic, ipma) as usize,
+    );
+    // Son rang dans `ipco` : après les propriétés qui y sont.
+    let (mut at, mut rang) = (ipco + 8, 1u8);
+    while at < fin_ipco {
+        at += u32_a(heic, at) as usize;
+        rang += 1;
+    }
+    // Chaque image l'associe, essentiel (le bit 0x80), après ses autres propriétés.
+    let mut nouvelle = heic[ipma..ipma + 16].to_vec();
+    let images = u32_a(heic, ipma + 12) as usize;
+    let mut at = ipma + 16;
+    for _ in 0..images {
+        let n = heic[at + 2] as usize;
+        nouvelle.extend_from_slice(&heic[at..at + 2]);
+        nouvelle.push(heic[at + 2] + 1);
+        nouvelle.extend_from_slice(&heic[at + 3..at + 3 + n]);
+        nouvelle.push(0x80 | rang);
+        at += 3 + n;
+    }
+    let irot = [0, 0, 0, 9, b'i', b'r', b'o', b't', angle];
+    let mut o = [
+        &heic[..fin_ipco],
+        &irot,
+        &heic[fin_ipco..ipma],
+        &nouvelle,
+        &heic[fin_ipma..],
+    ]
+    .concat();
+    let ajout = (irot.len() + images) as u32;
+    grandir(&mut o, ipco, irot.len() as u32);
+    grandir(&mut o, ipma + irot.len(), images as u32);
+    grandir(&mut o, boite(b"iprp"), ajout);
+    grandir(&mut o, boite(b"meta"), ajout);
+    for i in 0..u16::from_be_bytes([heic[iloc + 14], heic[iloc + 15]]) as usize {
+        assert_eq!(heic[iloc + 16 + i * 14 + 4..iloc + 16 + i * 14 + 6], [0, 1]);
+        grandir(&mut o, iloc + 16 + i * 14 + 6, ajout);
+    }
+    o
+}
+
+/// **Le dégradé debout** (`l` × `h` RGBA) : tourné d'un quart dans le sens des aiguilles, le
+/// rouge, qui croissait vers la droite, croît vers le bas ; le vert, vers le bas, croît vers la
+/// gauche. L'ancien coin en haut à gauche est en haut à droite.
+fn est_debout(octets: &[u8], (l, h): (usize, usize)) {
+    assert_eq!(octets.len(), l * h * 4);
+    let px = |x: usize, y: usize| &octets[(y * l + x) * 4..(y * l + x) * 4 + 2];
+    let (haut_droit, bas_gauche) = (px(l - 2, 1), px(1, h - 2));
+    assert!(haut_droit[0] < 35 && haut_droit[1] < 35, "{haut_droit:?}");
+    assert!(bas_gauche[0] > 220 && bas_gauche[1] > 220, "{bas_gauche:?}");
+}
+
+#[test]
+fn exif_2_un_portrait_d_iphone_se_decode_debout_une_seule_fois() {
+    let heic = tenu_en_portrait(64, 48);
+    // Le chemin de l'atelier : la pyramide née du décodeur, tournée comme il le lui dit.
+    let decodeur = lecteur(&heic).into_decoder().unwrap();
+    let p = crate::renderer::photo::Pyramide::depuis_le_decodeur(decodeur).expect("décodée");
+    assert_eq!(
+        p.dimensions_natives(),
+        (48, 64),
+        "debout, et une seule fois"
+    );
+    est_debout(p.niveau(1).expect("le niveau natif").data(), (48, 64));
+    // Ce que lisent aussi le dépôt et le miroir (`dimensions_du_fichier`) : la taille droite, et
+    // plus rien à tourner — l'EXIF, informatif, se tait.
+    let mut decodeur = lecteur(&heic).into_decoder().unwrap();
+    let orientation = decodeur.orientation().unwrap();
+    assert_eq!(
+        (decodeur.dimensions(), orientation),
+        ((48, 64), image::metadata::Orientation::NoTransforms)
+    );
+}
+
+#[test]
+fn exif_2_sa_vignette_aussi() {
+    let heic = tenu_en_portrait(800, 600);
+    let a = vignette::apercu(&heic).expect("une vignette tournée comme l'image");
+    assert_eq!((a.natives, a.rang), ((600, 800), 2));
+    est_debout(&a.niveaux[0], (150, 200));
 }
