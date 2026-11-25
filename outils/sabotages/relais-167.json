@@ -62,5 +62,21 @@
    "-p",
    "test_relais.py"
   ]
+ },
+ {
+  "nom": "167 — la semaine passe la main à 90 % (sa réponse : 97 %)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "SEUILS = {\"five_hour\": 90.0, \"seven_day\": 97.0}",
+  "apres": "SEUILS = {\"five_hour\": 90.0, \"seven_day\": 90.0}",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
  }
 ]

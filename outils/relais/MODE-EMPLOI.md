@@ -29,7 +29,7 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    fini d'écrire** (un tour du veilleur sans geste de sa main : `loi.il_ecrit`). Un collage — un geste
    qui pose plusieurs nœuds, comme un rangement dans son archive — n'en est pas une (fiche 166).
    **Elle lui répond dans son Glucose avant toute autre tâche.**
-4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou sur la semaine
+4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou à 97 % sur la semaine (sa réponse du 25/11)
    passe la main **si l'autre peut la prendre** ; sinon la session écrit sa passation et s'arrête, et le
    relais attend la remise — **jamais au mur** (fiche 167 : poussée jusqu'au mur le 24/11, une session a
    été coupée en plein travail ; ce qu'une fenêtre ne dépense pas reste à la semaine, qui borne tout).

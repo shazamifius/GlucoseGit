@@ -45,8 +45,10 @@ ETAT = MAISON / ".local/state/relais"
 # a : le dossier par défaut de Claude Code (~/.claude) ; b : son propre dossier — sa connexion à lui,
 # les mémoires et les journaux partagés par liens (installer).
 COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
-# La passation coûte un tour : la demander avant le mur, pas au mur. 90 % partout (sa règle du 23/11).
-SEUILS = {"five_hour": 90.0, "seven_day": 90.0}
+# La passation coûte un tour : la demander avant le mur, pas au mur. 90 % des cinq heures (sa règle
+# du 23/11) ; 97 % de la semaine (sa réponse du 25/11 dans `relais-reserve` : « plus que 90 %, peut-être
+# 97 % si possible ») — le reste, jusqu'au bord, ne sert qu'à lui répondre (RESERVE-1).
+SEUILS = {"five_hour": 90.0, "seven_day": 97.0}
 # Le mur : une fenêtre pleine, et le serveur refuse le compte (« You've hit your … limit »).
 MUR = {"five_hour": 100.0, "seven_day": 100.0}
 # **Le bord : le mur moins une passation**, qui coûte au plus un point des cinq heures (quatorze

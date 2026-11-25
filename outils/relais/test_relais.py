@@ -112,9 +112,11 @@ class Jauges(unittest.TestCase):
         self.assertIsNone(r.garder({"compte": "a"}, 1000))
         self.assertIsNone(r.garder({"compte": "b"}, 1000))
 
-    def test_la_semaine_a_90_passe_la_main_comme_les_cinq_heures(self):
-        """Sa règle du 23/11 : « on vise toujours 90 % » — la semaine était à 95."""
-        self.poser("a", 10, 91, 5000)
+    def test_la_semaine_a_97_passe_la_main_comme_les_cinq_heures(self):
+        """Sa règle du 23/11 (« on vise toujours 90 % »), la semaine portée à 97 % le 25/11 (`relais-reserve`)."""
+        self.poser("a", 10, 96, 5000)
+        self.assertIsNone(r.garder({"compte": "a"}, 1000))
+        self.poser("a", 10, 97, 5000)
         self.assertEqual(r.garder({"compte": "a"}, 1000), "passation")
 
     def test_la_memoire_du_modele_a_90_demande_une_conversation_neuve(self):
@@ -166,7 +168,7 @@ class Jauges(unittest.TestCase):
         """RESERVE-1 (fiche 163) : le 25/11, a à 17 % de sa semaine en trois heures, b plein jusqu'au
         30/11 — brûlée au travail, la fin de la semaine de a laissait le relais sourd quatre jours."""
         jour = 86400
-        self.poser("a", 10, 92, 3 * jour)  # sa semaine se remet dans trois jours
+        self.poser("a", 10, 98, 3 * jour)  # sa semaine se remet dans trois jours
         self.poser("b", 4, 100, 2 * jour)
         self.assertEqual(r.choisir("a", 1000), (None, 2 * jour + 1000))
         self.assertEqual(r.choisir("a", 1000, notes=True), ("a", None))
@@ -497,7 +499,7 @@ class Veilleur(unittest.TestCase):
         for compte in "ab":
             r.ecrire_json(r.ETAT / f"jauges-{compte}.json", {"rate_limits": {
                 "five_hour": {"used_percentage": 10, "resets_at": self.maintenant + 3600},
-                "seven_day": {"used_percentage": 92 if compte == "b" else 100,
+                "seven_day": {"used_percentage": 98 if compte == "b" else 100,
                               "resets_at": self.maintenant + 3 * 86400}}})
         with mock.patch.object(r, "ecran", lambda: None):
             r.un_tour()

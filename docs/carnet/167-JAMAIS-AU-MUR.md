@@ -47,3 +47,10 @@ le journal) : 1 à 4 minutes, **au plus un point** des cinq heures, rien de la s
 **Limite, dite** : le relais dort davantage entre deux fenêtres (le H24 l'était déjà par la semaine,
 fiche 141) ; une session pour ses notes, partie à 98 %, peut encore toucher le mur si sa réponse
 coûte plus d'un point.
+
+## 5. La semaine à 97 % (sa réponse du 25/11, `relais-reserve`)
+
+*« Dans l'idée ça me va, mais juste plus que 90 %, peut-être 97 % si possible ! »* La semaine passe la
+main (et sa réserve commence) à **97 %** ; ses notes gardent le reste jusqu'au bord (99 %) — deux
+points, ~15 minutes de travail d'une fenêtre. Les cinq heures restent à 90 %. Sabotage : le cinquième
+de `relais-167.json`.
