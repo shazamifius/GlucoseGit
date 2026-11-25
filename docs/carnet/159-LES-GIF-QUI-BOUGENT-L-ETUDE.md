@@ -135,10 +135,13 @@ finissant**, chacun gardé par une épreuve et un sabotage (`outils/sabotages/gi
   mémoire. Un GIF de 2 000 × 2 000 pèse 16 Mo la toile : à surveiller, pas encore mesuré.
 * La première toile se repose une fois quand le GIF paraît (la même que celle du décodage) : un
   envoi de texture de trop, accepté — un GIF qui revient à l'écran doit, lui, repartir du début.
-* **À vérifier, hors des GIF** : une vignette faite sur l'**aperçu** d'une photo survit-elle au
-  décodage entier qui le remplace ? Rien ne l'oublie (même mécanisme que ci-dessus) ; si oui, la
-  voie processeur garde une photo floue à l'arrêt. Le geste serait le même, à chaque `accueillir`
-  — mais son coût (un tour des vignettes par photo qui arrive) est à mesurer d'abord.
+* **NETTETE-2, hors des GIF** (`magasin.rs`, `accueillir`) : une vignette faite sur l'**aperçu**
+  d'une photo survivait au décodage entier qui le remplace — la voie processeur reposait l'aperçu
+  agrandi, flou, tant que la vue ne bougeait pas (la charte : « à l'arrêt, net »). Prouvé par une
+  épreuve qui tombait avant le geste (`nette_une_pyramide_remplacee_oublie_ses_vignettes`) ; jamais
+  vu à l'écran. **Le geste** : toute pyramide qui en remplace une autre oublie les vignettes de son
+  fichier, pas seulement une toile — un tour des vignettes par remplacement (pas par arrivée),
+  quelques microsecondes pour les centaines de nœuds dessinés. Sabotage : 10 sur 10.
 
 **Regardé au pilote** (25/11 vers 4 h 15, le binaire de `ae960b5` construit à part : le sien,
 `target/release`, remis en place aussitôt) : un GIF de quatre toiles unies de 600 ms (fabriqué par

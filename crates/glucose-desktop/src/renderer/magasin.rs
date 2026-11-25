@@ -414,14 +414,13 @@ impl Magasin {
         entree.apercu_a_ecrire = a_ecrire;
         // Une image redécodée garde ce qu'on savait de sa vue d'ensemble ; une toile, en plus,
         // la dernière image qui l'a vue — se poser n'est pas être vue : sinon un GIF sorti de
-        // l'écran se gardait lui-même en vie, de toile en toile (GIF-2).
+        // l'écran se gardait lui-même en vie, de toile en toile (GIF-2). Ses vignettes, elles,
+        // montrent l'ancienne pyramide — l'aperçu flou, la toile d'avant : elles s'oublient.
         if let Some(ancienne) = self.cache.get(&src) {
             (entree.queue, entree.queue_vue) = (ancienne.queue, ancienne.queue_vue);
             if toile {
                 entree.vue = ancienne.vue;
             }
-        }
-        if toile {
             self.vignettes.oublier_la_source(&src);
         }
         let numero = self.cache.numero(&src);

@@ -140,10 +140,10 @@
   ]
  },
  {
-  "nom": "GIF-2 — la vignette de la voie processeur reste figée sur sa toile",
+  "nom": "GIF-2 et NETTE — une pyramide remplacée garde ses vignettes (la toile d'avant, l'aperçu flou)",
   "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
-  "avant": "        if toile {\n            self.vignettes.oublier_la_source(&src);\n        }\n",
-  "apres": "",
+  "avant": "            self.vignettes.oublier_la_source(&src);\n        }",
+  "apres": "        }",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -156,7 +156,8 @@
    "glucose-desktop",
    "--lib",
    "--",
-   "gif_2"
+   "gif_2",
+   "nette_une_pyramide"
   ]
  },
  {

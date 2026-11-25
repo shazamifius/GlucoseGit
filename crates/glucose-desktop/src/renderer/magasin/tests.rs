@@ -329,3 +329,30 @@ fn test_jeter_1_les_ouvriers_rendent_tout() {
     assert_eq!(magasin.atelier.en_route(), 0);
     assert_eq!(magasin.octets_en_memoire(), 0);
 }
+
+/// **Une pyramide remplacée oublie ses vignettes** (fiche 159 § 7) : une vignette faite sur
+/// l'aperçu d'une photo survivait au décodage entier qui le remplace, et la voie processeur la
+/// reposait, floue, tant que la vue ne bougeait pas — la charte veut l'image d'arrêt nette.
+#[test]
+fn nette_une_pyramide_remplacee_oublie_ses_vignettes() {
+    let mut magasin = Magasin::nouveau();
+    let src = "remplacee.png";
+    let pyr = || Pyramide::nouvelle(Pixmap::new(8, 8).expect("une image"));
+    magasin.accueillir(src.into(), pyr(), Duration::ZERO, false);
+    let forme = crate::renderer::photo::Forme::posee(0.0, 0.0, 4.0, 4.0);
+    let faite = pyr();
+    for _ in 0..3 {
+        magasin.vignettes.ouvrir();
+        let _ = magasin.vignettes.pour("n", src, forme, 16.0);
+        (magasin.vignettes).avancer_le_chantier(Duration::from_secs(3600), |_| Some(&faite));
+    }
+    assert!(
+        magasin.vignettes.a_prete("n", forme),
+        "sa vignette est faite"
+    );
+    magasin.accueillir(src.into(), pyr(), Duration::ZERO, false);
+    assert!(
+        !magasin.vignettes.a_prete("n", forme),
+        "la pyramide neuve oublie la vignette de l'ancienne"
+    );
+}
