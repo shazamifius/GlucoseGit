@@ -1214,6 +1214,7 @@ dependencies = [
  "heifer",
  "image",
  "libc",
+ "libloading",
  "minisign-verify",
  "miniz_oxide 0.8.9",
  "objc2-app-kit 0.3.2",

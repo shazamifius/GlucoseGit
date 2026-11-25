@@ -62,7 +62,8 @@ impl GlucoseApp {
     /// **Une photo tournée attend que ses nœuds couchés se redressent** (EXIF-1) — pas pendant un
     /// geste : il attend qu'il se ferme, et une frappe de texte n'a pas à réveiller la boucle.
     pub(crate) fn redressement_en_attente(&self) -> bool {
-        self.renderer.magasin.tournees_neuves && !self.store.in_live_edit()
+        let m = &self.renderer.magasin;
+        (m.tournees_neuves || m.mesurees_neuves) && !self.store.in_live_edit()
     }
 
     /// **Les nœuds posés quand leur photo arrivait couchée se redressent** (EXIF-1, fiche 165
@@ -73,15 +74,19 @@ impl GlucoseApp {
     fn redresser_les_photos(&mut self) {
         let autre_document = self.attentes.redresse_pour != self.store.identite;
         let magasin = &mut self.renderer.magasin;
-        if !(magasin.tournees_neuves || autre_document) {
+        if !(magasin.tournees_neuves || magasin.mesurees_neuves || autre_document) {
             return;
         }
         let Some(redresses) = self.store.redresser_les_photos(&magasin.tournees) else {
             return;
         };
-        magasin.tournees_neuves = false;
+        // Les vidéos prennent leur forme de la même façon (VIDEO-1, fiche 169).
+        let Some(mesurees) = self.store.mesurer_les_videos(&magasin.mesurees) else {
+            return;
+        };
+        (magasin.tournees_neuves, magasin.mesurees_neuves) = (false, false);
         self.attentes.redresse_pour.clone_from(&self.store.identite);
-        if redresses > 0 {
+        if redresses + mesurees > 0 {
             self.mark_dirty();
         }
     }

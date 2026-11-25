@@ -373,9 +373,12 @@ impl GlucoseApp {
         if !path.is_dir() && file_kind::readable(&name).is_some() {
             return self.place_readable(board, path, &name, (x, y));
         }
-        // 2. Image : on ne la devine pas par son extension, on tente son en-tête — et c'est
-        // le décodeur lui-même qui répond, donc aucune liste ne peut en diverger.
-        if !path.is_dir() && self.place_image_file(board, path, (x, y)).is_ok() {
+        // 2. Image, ou vidéo (VIDEO-1) : on ne la devine pas par son extension, on tente son
+        // en-tête — le décodeur, puis la signature d'une vidéo ; aucune liste n'en diverge.
+        if !path.is_dir()
+            && (self.place_image_file(board, path, (x, y)).is_ok()
+                || self.poser_une_video(board, path, (x, y)))
+        {
             return true;
         }
         // 3. Le reste — un dossier qu'on ne lit pas compris : une tuile qui mène au fichier.

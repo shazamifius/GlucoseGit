@@ -1,0 +1,202 @@
+[
+ {
+  "nom": "VIDEO-1 — une vidéo rendue par l'atelier comme une photo",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/ouvrier.rs",
+  "avant": "                let sorte = if video {\n",
+  "apres": "                let sorte = if video && false {\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — un HEIC ou un AVIF pris pour une vidéo",
+  "fichier": "crates/glucose-desktop/src/renderer/video/signature.rs",
+  "avant": ".is_some_and(|marque| !MARQUES_D_IMAGE.iter().any(|m| m == &marque));",
+  "apres": ".is_some();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — la tranche du document lue depuis le début du fichier",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_gst.rs",
+  "avant": ".read_at(&mut tampon[..n], debut + self.position)",
+  "apres": ".read_at(&mut tampon[..n], self.position + (*debut).min(0))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — les rangées prises telles quelles, débordement compris",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_gst.rs",
+  "avant": "octets.get(..n).map(<[u8]>::to_vec)",
+  "apres": "Some(octets.to_vec()).filter(|_| n > 0)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — les images sortent sans attendre leur heure",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_gst.rs",
+  "avant": "poser(gst, sortie, \"sync\", Valeur::Entier(1));",
+  "apres": "poser(gst, sortie, \"sync\", Valeur::Entier(0));",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — une photo mesurée comme une vidéo",
+  "fichier": "crates/glucose-core/src/store/mesurer.rs",
+  "avant": "(i.is_video && l > 0",
+  "apres": "(l > 0",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — le son touchable avant que la vidéo ne soit lancée",
+  "fichier": "crates/glucose-desktop/src/renderer/video/commandes.rs",
+  "avant": "if lancee && px >= sx",
+  "apres": "if px >= sx",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — le clic sur un nœud tourné lu comme s'il était droit",
+  "fichier": "crates/glucose-desktop/src/renderer/video/commandes.rs",
+  "avant": "let (s, c) = (-img.rotation).sin_cos();",
+  "apres": "let (s, c) = (0.0_f64).sin_cos();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — une image posée avant la vidéo la couvre",
+  "fichier": "crates/glucose-core/src/types/board.rs",
+  "avant": ".map_or(0, |r| r + 1);",
+  "apres": ".map_or(0, |_| 0);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — une membrane couvre ce qu'elle porte",
+  "fichier": "crates/glucose-core/src/types/board.rs",
+  "avant": ".filter(|a| matches!(a, Annotation::Text { .. } | Annotation::Sticky { .. }))",
+  "apres": ".filter(|a| a.rect().is_some())",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ }
+]

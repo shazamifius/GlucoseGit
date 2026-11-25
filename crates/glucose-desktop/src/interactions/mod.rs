@@ -62,6 +62,7 @@ pub mod text_mouse;
 pub mod tools;
 pub mod toucher;
 pub mod trace;
+pub mod video;
 pub mod vol;
 pub mod zen;
 pub mod zone;

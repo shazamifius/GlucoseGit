@@ -367,6 +367,28 @@ fn gif_4_la_signature_se_lit_aussi_loin_qu_il_faut() {
     assert!(anime, "acTL après 3 Ko de profil : un PNG animé");
 }
 
+/// Une vidéo déposée revient de l'atelier **en vidéo**, à sa signature — même là où le système ne
+/// sait pas la lire — et, là où il le sait, avec sa première image pour image fixe (VIDEO-1).
+#[test]
+fn video_1_une_video_revient_de_l_atelier_en_video_avec_sa_premiere_image() {
+    let octets = include_bytes!("../../../tests/donnees/rouge-64x48.mp4");
+    let chemin = std::env::temp_dir().join(format!("glucose-video-{}.mp4", std::process::id()));
+    std::fs::write(&chemin, octets).expect("écrite");
+    let src = chemin.to_string_lossy().to_string();
+    let mut atelier = Atelier::nouveau();
+    assert!(atelier.demander(&src), "la demande doit partir");
+    let moisson = moisson_complete(&mut atelier);
+    let _ = std::fs::remove_file(&chemin);
+    let (_, image, _, sorte) = moisson.first().expect("une réponse");
+    assert_eq!(*sorte, Sorte::Video);
+    let dimensions = image.as_ref().map(Pyramide::dimensions_natives);
+    let attendu = crate::renderer::video::lisible_ici().then_some((64, 48));
+    assert_eq!(
+        dimensions, attendu,
+        "l'image fixe : la première image, ou rien"
+    );
+}
+
 #[test]
 fn heic_3_une_photo_d_iphone_parait_par_sa_vignette_puis_entiere() {
     use crate::renderer::photo::{heic, Etat};

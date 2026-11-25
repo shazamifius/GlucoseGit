@@ -18,7 +18,7 @@
 //! chose impossible ; des champs distincts s'empruntent séparément, ce que le compilateur sait
 //! vérifier. Le type gagne la cohésion sans rien perdre.
 
-use super::atelier::{Atelier, Deplacement, Fait};
+use super::atelier::{Atelier, Deplacement};
 use super::photo::{Etat, Pyramide};
 use super::vignette::Vignettes;
 use crate::memoire::Memoire;
@@ -32,7 +32,10 @@ mod comptes;
 mod etagement;
 mod gifs;
 mod oubli;
+mod recolte;
+mod videos;
 pub use cache::{Cache, Numero};
+pub use videos::EtatVideo;
 
 /// Ce que le magasin sait de la couleur moyenne d'une image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,6 +169,12 @@ pub struct Magasin {
     /// que l'application a regardé.
     pub tournees: std::collections::HashMap<String, glucose_core::store::redresser::Arrivee>,
     pub tournees_neuves: bool,
+    /// **La forme des vidéos décodées** (VIDEO-1) : leurs dimensions, par fichier ;
+    /// `mesurees_neuves`, il en est arrivé depuis que leurs nœuds l'ont prise.
+    pub mesurees: std::collections::HashMap<String, (u32, u32)>,
+    pub mesurees_neuves: bool,
+    /// Les vidéos lancées, par fichier.
+    videos: std::collections::HashMap<String, crate::renderer::video::joueur::JoueurVideo>,
 }
 
 impl Magasin {
@@ -378,71 +387,6 @@ impl Magasin {
         if self.atelier.en_cours(src) {
             self.arrives.insert(src.to_string());
         }
-    }
-
-    /// Verse dans les caches tout ce que l'atelier a fini : les images décodées, et les
-    /// niveaux revenus de chez le système.
-    ///
-    /// Appelée au début de chaque image, et là seulement : le rendu voit ainsi un cache qui ne
-    /// bouge pas sous ses pieds pendant qu'il dessine.
-    pub fn recolter(&mut self) {
-        for fait in self.atelier.recolter() {
-            match fait {
-                // La pyramide arrive **faite** : il ne reste ici qu'un déplacement de
-                // pointeurs. La construire ici coûtait 73 ms en pleine image (DECODE-1).
-                Fait::Decodee((src, Some(pyramide), cout, gif)) => {
-                    self.arrives.remove(&src);
-                    if gif {
-                        self.gifs.insert(src.clone());
-                    }
-                    self.accueillir(src, pyramide, cout, false);
-                }
-                // Absent, illisible, ou trop grand pour tenir en mémoire : les trois se
-                // constatent de la même façon, et aucun ne se redemande.
-                Fait::Decodee((src, None, ..)) => {
-                    self.changements += 1;
-                    if !self.arrives.remove(&src) {
-                        self.echecs.insert(src);
-                    }
-                }
-                Fait::Deplace(d) => self.rentrer(d),
-            }
-        }
-        self.avancer_les_gifs(std::time::Instant::now());
-    }
-
-    /// Une pyramide neuve : entièrement tenue, et à revoir — la fermeture offrira ce que
-    /// l'écran ne demande pas. Née d'un décodage entier, elle garde sa vue d'ensemble sur le
-    /// disque ; née d'un aperçu, elle en vient.
-    fn accueillir(&mut self, src: String, pyramide: Pyramide, cout: Duration, toile: bool) {
-        self.generations += 1;
-        self.changements += 1;
-        // L'aperçu d'un GIF reste sa première toile : les suivantes ne le réécrivent pas.
-        let a_ecrire = !toile && self.atelier.garde_les_apercus() && pyramide.entiere();
-        let orientation = pyramide.orientation();
-        if orientation != image::metadata::Orientation::NoTransforms {
-            let droite = (orientation.to_exif(), pyramide.dimensions_natives());
-            self.tournees.insert(src.clone(), droite);
-            self.tournees_neuves = true;
-        }
-        let mut entree = Entree::nouvelle(pyramide, cout, self.image, self.generations);
-        entree.apercu_a_ecrire = a_ecrire;
-        // Une image redécodée garde ce qu'on savait de sa vue d'ensemble ; une toile, en plus,
-        // la dernière image qui l'a vue — se poser n'est pas être vue : sinon un GIF sorti de
-        // l'écran se gardait lui-même en vie, de toile en toile (GIF-2). Ses vignettes, elles,
-        // montrent l'ancienne pyramide — l'aperçu flou, la toile d'avant : elles s'oublient.
-        if let Some(ancienne) = self.cache.get(&src) {
-            (entree.queue, entree.queue_vue) = (ancienne.queue, ancienne.queue_vue);
-            if toile {
-                entree.vue = ancienne.vue;
-            }
-            self.vignettes.oublier_la_source(&src);
-        }
-        let numero = self.cache.numero(&src);
-        if let Some(ancienne) = self.cache.insert(src, entree) {
-            self.jeter(ancienne.pyramide);
-        }
-        self.remettre_a_revoir(numero);
     }
 
     /// **Rend cette pyramide à la mémoire, sur un ouvrier** (JETER-1). Ce qu'elle tient encore reste

@@ -84,8 +84,17 @@ use std::time::Duration;
 /// `None` n'est pas une erreur à signaler : un fichier absent ou illisible est un cas normal
 /// du document, et l'appelant en fait un cache négatif.
 /// Une image décodée : sa source, sa pyramide (rien si elle ne se lit pas), ce qu'elle a coûté,
-/// et si ses octets sont ceux d'un GIF — qui peut bouger (GIF-2, fiche 159 § 6).
-pub type Decodee = (String, Option<Pyramide>, Duration, bool);
+/// et ce que sont ses octets — une image fixe, une image qui bouge (GIF-2, fiche 159 § 6), ou
+/// une vidéo, dont la pyramide est la première image (VIDEO-1, fiche 169).
+pub type Decodee = (String, Option<Pyramide>, Duration, Sorte);
+
+/// **Ce que sont les octets d'une image décodée.**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sorte {
+    Fixe,
+    Animee,
+    Video,
+}
 
 /// **Un niveau qui voyage** : de quelle image, de quelle pyramide, quel rang — et ce qu'il
 /// porte, à l'aller comme au retour.

@@ -2,7 +2,7 @@
 //! qu'il sait faire d'une image (la lire, l'encoder). Sorti d'`atelier.rs`, qui touchait son
 //! plafond de 600 lignes (fiche 159).
 
-use super::{admission, apercu, Commandes, Deplacement, Fait, Partis, Travail};
+use super::{admission, apercu, Commandes, Deplacement, Fait, Partis, Sorte, Travail};
 use crate::renderer::photo::Pyramide;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::Sender;
@@ -26,13 +26,26 @@ pub(super) fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Par
                 let debut = Instant::now();
                 let empreinte = objets.as_deref().and_then(|o| o.empreinte(&src));
                 let permis = apercus.is_some();
+                // Une vidéo (VIDEO-1) : son image fixe est sa première image, que son aperçu
+                // garde ensuite comme celui d'une photo.
+                let video = est_une_video(&src, objets.as_deref());
+                let porte = admission::de_la_machine();
                 let pyramide = apercus
                     .and_then(|d| apercu::lire(&apercu::chemin(&d, &src, empreinte)?))
                     .or_else(|| permis.then(|| par_sa_vignette(&src, objets.as_deref()))?)
                     .and_then(Pyramide::depuis_apercu)
-                    .or_else(|| decoder(&src, objets.as_deref(), admission::de_la_machine()));
-                let gif = est_anime(&src, objets.as_deref());
-                Fait::Decodee((src, pyramide, debut.elapsed(), gif))
+                    .or_else(|| match video {
+                        true => par_son_image_fixe(&src, objets.as_deref(), porte),
+                        false => decoder(&src, objets.as_deref(), porte),
+                    });
+                let sorte = if video {
+                    Sorte::Video
+                } else if est_anime(&src, objets.as_deref()) {
+                    Sorte::Animee
+                } else {
+                    Sorte::Fixe
+                };
+                Fait::Decodee((src, pyramide, debut.elapsed(), sorte))
             }
             Travail::Adopter(src, rgba, (l, h), parole) => {
                 let debut = Instant::now();
@@ -41,7 +54,7 @@ pub(super) fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Par
                 // (COLLER-2) ; une promesse ne se lit qu'entière.
                 let tenue = encoder_en_png(&rgba, (l, h)).map(|png| parole.tenir(png));
                 let pyramide = tenue.and_then(|()| Pyramide::depuis_rgba(l, h, &rgba));
-                Fait::Decodee((src, pyramide, debut.elapsed(), false))
+                Fait::Decodee((src, pyramide, debut.elapsed(), Sorte::Fixe))
             }
             Travail::Ecrire(src, dossier, a, empreinte) => {
                 // Un aperçu qui ne s'écrit pas n'est qu'un aperçu de moins : la source reste.
@@ -174,6 +187,25 @@ fn debut(src: &str, objets: Option<&crate::persist::objets::Objets>, n: usize) -
             Some(debut)
         }),
     }
+}
+
+/// **Ces octets sont-ils une vidéo ?** À leur début seulement (VIDEO-1, fiche 169).
+fn est_une_video(src: &str, objets: Option<&crate::persist::objets::Objets>) -> bool {
+    use crate::renderer::video::signature;
+    debut(src, objets, signature::LONGUEUR).is_some_and(|d| signature::est_video(&d))
+}
+
+/// **L'image fixe d'une vidéo**, en pyramide : sa première image, décodée par le système. La
+/// pyramide entre par l'admission, comme un décodage ; le décodeur du système, lui, n'y passe
+/// pas — il ne dit sa taille qu'en ayant décodé.
+fn par_son_image_fixe(
+    src: &str,
+    objets: Option<&crate::persist::objets::Objets>,
+    porte: &admission::Admission,
+) -> Option<Pyramide> {
+    let t = crate::renderer::video::image_fixe(src, objets)?;
+    let pic = admission::pic((t.rgba.len()) as u64, (t.largeur, t.hauteur));
+    porte.pendant(pic, || Pyramide::depuis_rgba(t.largeur, t.hauteur, &t.rgba))
 }
 
 /// **Cette image bouge-t-elle ?** Un GIF, un WebP ou un PNG animés, à leur signature : son début

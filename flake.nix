@@ -22,26 +22,19 @@
       });
 
       # `nix develop` : de quoi construire et éprouver Glucose.
-      devShells = pour (pkgs: {
+      devShells = pour (pkgs: let
+        recette = self.packages.${pkgs.stdenv.hostPlatform.system}.glucose;
+      in {
         default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${pkgs.stdenv.hostPlatform.system}.glucose ];
+          inputsFrom = [ recette ];
           packages = with pkgs; [
             clippy
             rustfmt
           ];
-          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
-            with pkgs;
-            [
-              libxkbcommon
-              wayland
-              vulkan-loader
-              libGL
-              xorg.libX11
-              xorg.libXcursor
-              xorg.libXi
-              xorg.libXrandr
-            ]
-          );
+          # Les bibliothèques ouvertes à l'exécution et les greffons des vidéos : ceux de la
+          # recette (nix/glucose.nix), une seule liste.
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath recette.passthru.ouvertes;
+          GLUCOSE_GREFFONS_GST = recette.passthru.cheminDesGreffons;
         };
       });
     };

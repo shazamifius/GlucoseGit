@@ -61,6 +61,7 @@ mod surface;
 pub mod svg;
 pub mod tuiles;
 pub(crate) mod vectoriel;
+pub(crate) mod video;
 pub mod vignette;
 pub mod wrap;
 pub mod zone;
@@ -516,6 +517,10 @@ impl Renderer {
 
         if cadrage.couche.porte_le_dessus() {
             dessiner_sur_les_photos(pixmap, (store, pass, kit), (ui, overlay), cadrage);
+            // ▶ et le son des vidéos, par-dessus, comme les ornements (VIDEO-1).
+            if ui.lecture.is_none() {
+                video::commandes::poser(pixmap, (store, pass), &self.magasin);
+            }
             // Le dessus porte toujours la chrome, donc toujours de l'encre.
             encre = true;
         }

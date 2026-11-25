@@ -83,6 +83,11 @@ winit = { version = "0.30", features = ["android-game-activity"] }
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
 libc = "0.2"
 
+# Les vidéos sous Linux (VIDEO-1, decisions/21) : GStreamer s'ouvre à l'exécution, jamais lié —
+# `libloading` est déjà là par wgpu, même version : rien de plus ne se compile.
+[target.'cfg(target_os = "linux")'.dependencies]
+libloading = "0.8"
+
 [dev-dependencies]
 # L'encodeur de `heifer` fabrique les HEIC des épreuves : jamais dans l'application.
 heifer = "0.5"

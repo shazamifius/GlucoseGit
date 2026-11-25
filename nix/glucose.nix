@@ -12,6 +12,7 @@
   vulkan-loader,
   libGL,
   xorg,
+  gst_all_1,
 }:
 
 let
@@ -29,7 +30,22 @@ let
     xorg.libXcursor
     xorg.libXi
     xorg.libXrandr
+    # Les vidéos (VIDEO-1, fiche 169) : GStreamer et sa bibliothèque `app` (appsink, appsrc),
+    # ouverts seulement quand une vidéo se lit — absents, Glucose démarre et montre l'image fixe.
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-base
   ];
+
+  # Les greffons que GStreamer charge lui-même (démultiplexeurs, décodeurs, sortie du son) :
+  # sous NixOS, aucun dossier standard ne les rassemble ; le binaire porte où les chercher,
+  # comme il porte le chemin de ses bibliothèques.
+  greffons = [
+    gst_all_1.gst-plugins-base
+    gst_all_1.gst-plugins-good
+    gst_all_1.gst-plugins-bad
+    gst_all_1.gst-libav
+  ];
+  cheminDesGreffons = lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" greffons;
 in
 rustPlatform.buildRustPackage {
   pname = "glucose";
@@ -58,6 +74,7 @@ rustPlatform.buildRustPackage {
   # (`xdg-desktop-portal`, en D-Bus), et non plus par GTK 3 (fiche 100) ; le reste s'ouvre au
   # lancement, depuis le chemin que le binaire porte.
   buildInputs = ouvertes;
+  env.GLUCOSE_GREFFONS_GST = cheminDesGreffons;
 
   # Ce que posent aussi le .deb, le .rpm et l'AppImage (`outils/paquets`), depuis les mêmes
   # fichiers : un seul raccourci de bureau, qui ouvre un .glucose d'un double-clic, et le type
@@ -75,6 +92,9 @@ rustPlatform.buildRustPackage {
   postFixup = ''
     patchelf --add-rpath ${lib.makeLibraryPath ouvertes} $out/bin/glucose-desktop
   '';
+
+  # Ce que `nix develop` reprend : une seule liste, ici.
+  passthru = { inherit ouvertes cheminDesGreffons; };
 
   meta = {
     description = "Glucose — la toile infinie des idées et des images, en Rust natif";

@@ -52,9 +52,13 @@ impl Magasin {
         }
     }
 
-    /// **Quand la toile suivante d'un GIF doit se montrer**, parmi celles que leurs fils ont
-    /// tendues ; `None` si aucune n'attend — un fil qui prépare la sienne réveillera la boucle.
+    /// **Quand la toile suivante d'un GIF doit se montrer** (ou l'image d'une vidéo : tout de
+    /// suite), parmi celles que leurs fils ont tendues ; `None` si aucune n'attend — un fil qui prépare la sienne réveillera la boucle.
     pub fn prochaine_toile(&mut self) -> Option<Instant> {
+        // L'image d'une vidéo est due dès qu'elle est là : le système l'a déjà cadencée.
+        if self.une_image_de_video_attend() {
+            return Some(Instant::now());
+        }
         (self.joueurs.values_mut())
             .filter_map(|joueur| {
                 joueur.recevoir();

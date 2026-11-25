@@ -129,6 +129,23 @@ impl Board {
             .filter(|a| matches!(a, Annotation::Arrow { .. }))
     }
 
+    /// **Ce point est-il couvert** par ce que ce tableau pose au-dessus de cette image : une image
+    /// posée après elle, un texte, un pense-bête, un dossier — une membrane est dessous, une flèche
+    /// ne couvre rien. Les commandes d'une vidéo (VIDEO-1) ne se dessinent ni ne se touchent sous
+    /// un nœud qui la cache.
+    pub fn couvre(&self, image: &str, p: crate::geometry::Point) -> bool {
+        let apres = (self.images.iter())
+            .position(|i| i.id == image)
+            .map_or(0, |r| r + 1);
+        self.images[apres..]
+            .iter()
+            .any(|i| i.bounds().contains_point(p))
+            || (self.annotations.iter())
+                .filter(|a| matches!(a, Annotation::Text { .. } | Annotation::Sticky { .. }))
+                .any(|a| a.rect().is_some_and(|r| r.contains_point(p)))
+            || self.folders.iter().any(|f| f.rect().contains_point(p))
+    }
+
     /// **Ce que ce rectangle prend** — la sélection élastique : les images, les annotations
     /// (par leur encre ; une flèche, par l'enveloppe de son tracé) et **les dossiers** (DOSSIER-2,
     /// sa note du 22/11) qu'il croise, et que `voir` laisse voir — **sauf la membrane dans laquelle
@@ -187,5 +204,42 @@ pub struct Pris {
 impl Default for Board {
     fn default() -> Self {
         Self::new("default", "Default Board")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::Point;
+
+    #[test]
+    fn video_1_ce_qui_est_pose_au_dessus_couvre_ce_qui_est_dessous_non() {
+        let mut board = Board::default();
+        board
+            .images
+            .push(BoardImage::new("dessous", 0.0, 0.0, 100.0, 100.0));
+        board
+            .images
+            .push(BoardImage::new("v", 0.0, 0.0, 400.0, 200.0));
+        board
+            .images
+            .push(BoardImage::new("dessus", 300.0, 0.0, 50.0, 50.0));
+        board
+            .annotations
+            .push(Annotation::membrane("m", -10.0, -10.0, 900.0, 900.0));
+        board
+            .annotations
+            .push(Annotation::text("t", 150.0, 50.0, "x"));
+        let mut dossier = CanvasFolder::new("d", "dossier", "b2");
+        (dossier.x, dossier.y) = (50.0, 120.0);
+        board.folders.push(dossier);
+        let couvert = |x, y| board.couvre("v", Point::new(x, y));
+        assert!(
+            !couvert(10.0, 10.0),
+            "l'image d'avant et la membrane sont dessous"
+        );
+        assert!(couvert(310.0, 10.0), "l'image d'après");
+        assert!(couvert(151.0, 51.0), "le texte");
+        assert!(couvert(51.0, 121.0), "le dossier");
     }
 }
