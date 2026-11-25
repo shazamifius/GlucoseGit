@@ -38,6 +38,11 @@ impl GlucoseApp {
         if !self.en_arriere_plan() {
             return;
         }
+        // Le lien du canevas partagé a pu mourir pendant le sommeil : l'éprouver tout de suite,
+        // pour que le témoin dise vrai dès qu'il écrit (SYNCHRO-2).
+        if let Some(cp) = self.lancement.agents.partage.as_ref() {
+            cp.lien.eprouver();
+        }
         let Some(window) = self.window.clone() else {
             return;
         };
@@ -116,14 +121,14 @@ impl GlucoseApp {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::present::{Issue, Presenter};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
     /// Une présentation qui compte les surfaces qu'on lui fait lâcher, et dit si elle en tient.
-    struct Temoin(Arc<AtomicUsize>, bool);
+    pub(crate) struct Temoin(pub Arc<AtomicUsize>, pub bool);
 
     impl Presenter for Temoin {
         fn resize(&mut self, _: NonZeroU32, _: NonZeroU32) -> crate::error::DesktopResult<()> {

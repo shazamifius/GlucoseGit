@@ -70,6 +70,7 @@ pub enum Nouvelle {
 /// **Le fil en marche** : le lâcher l'arrête.
 pub struct Lien {
     arret: Arc<AtomicBool>,
+    presse: Arc<AtomicBool>,
     ordres: mpsc::Sender<Ordre>,
     passes: mpsc::SyncSender<Passe>,
     nouvelles: mpsc::Receiver<Nouvelle>,
@@ -83,6 +84,15 @@ impl Drop for Lien {
 }
 
 impl Lien {
+    /// **Éprouver le lien tout de suite** (SYNCHRO-2) : le système rend la main après un sommeil
+    /// (Android revient au premier plan), et le lien a pu mourir sans le dire — une connexion à
+    /// moitié ouverte ne se révélait qu'au ping suivant (20 s, puis 10 d'attente), et un lien
+    /// coupé attendait sa pause (jusqu'à 60 s), pendant qu'il écrivait. Un ping part au prochain
+    /// tour ; coupé, l'essai suivant part sans attendre.
+    pub fn eprouver(&self) {
+        self.presse.store(true, Ordering::Relaxed);
+    }
+
     pub fn envoyer(&self, ordre: Ordre) {
         let _ = self.ordres.send(ordre);
     }
@@ -95,6 +105,12 @@ impl Lien {
     /// Ce qui est arrivé depuis la dernière relève, dans l'ordre.
     pub fn relever(&self) -> Vec<Nouvelle> {
         self.nouvelles.try_iter().collect()
+    }
+
+    /// Le lien a-t-il été pressé ([`Lien::eprouver`]), sans que le fil l'ait encore lu ?
+    #[cfg(test)]
+    pub fn presse(&self) -> bool {
+        self.presse.load(Ordering::Relaxed)
     }
 
     /// L'état qu'un lien d'épreuve ([`d_epreuve`]) dit : le fil n'y tourne pas.
@@ -131,6 +147,8 @@ struct Fil {
     a_passer: mpsc::Receiver<Passe>,
     nouvelles: mpsc::Sender<Nouvelle>,
     boite: Boite,
+    /// Éprouver le lien sans attendre ([`Lien::eprouver`]).
+    presse: Arc<AtomicBool>,
 }
 
 /// **Un lien d'épreuve, relié** : ce que la salle apporte, l'épreuve l'envoie par la file rendue.
@@ -139,6 +157,7 @@ pub fn d_epreuve() -> (Lien, mpsc::Sender<Nouvelle>) {
     let (envoi, nouvelles) = mpsc::channel();
     let lien = Lien {
         arret: Arc::new(AtomicBool::new(false)),
+        presse: Arc::new(AtomicBool::new(false)),
         ordres: mpsc::channel().0,
         passes: mpsc::sync_channel(1).0,
         nouvelles,
@@ -162,8 +181,10 @@ fn relier(racine: &str, code: Code, depuis: u64, boite: Boite) -> (Lien, Fil) {
     let (ordres, entree) = mpsc::channel();
     let (passes, a_passer) = mpsc::sync_channel(1);
     let (sortie, nouvelles) = mpsc::channel();
+    let presse = Arc::new(AtomicBool::new(false));
     let lien = Lien {
         arret: Arc::new(AtomicBool::new(false)),
+        presse: Arc::clone(&presse),
         ordres,
         passes,
         nouvelles,
@@ -183,6 +204,7 @@ fn relier(racine: &str, code: Code, depuis: u64, boite: Boite) -> (Lien, Fil) {
         a_passer,
         nouvelles: sortie,
         boite,
+        presse,
     };
     (lien, fil)
 }
@@ -246,12 +268,25 @@ impl Fil {
                     self.dire_l_etat(etat, EtatDuLien::Hors(e));
                 }
             }
-            let debut = Instant::now();
-            while debut.elapsed() < pause && !arret.load(Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            pause = (pause * 2).min(PAUSE_MAX);
+            pause = if self.patienter(pause, arret) {
+                Duration::from_secs(1)
+            } else {
+                (pause * 2).min(PAUSE_MAX)
+            };
         }
+    }
+
+    /// La pause avant l'essai suivant ; rend vrai si on l'a pressée ([`Lien::eprouver`]) : la
+    /// série d'échecs repart alors de sa plus courte pause.
+    fn patienter(&self, pause: Duration, arret: &AtomicBool) -> bool {
+        let debut = Instant::now();
+        while debut.elapsed() < pause && !arret.load(Ordering::Relaxed) {
+            if self.presse.swap(false, Ordering::Relaxed) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        false
     }
 
     /// **Une connexion**, jusqu'à ce qu'elle meure ou qu'on quitte ; rend pourquoi.
@@ -273,7 +308,8 @@ impl Fil {
             if pong_attendu.is_some_and(|t| t.elapsed() > PONG_MAX) {
                 return "la salle ne répond plus".into();
             }
-            if pong_attendu.is_none() && dernier_ping.elapsed() > PING {
+            let presse = self.presse.swap(false, Ordering::Relaxed);
+            if pong_attendu.is_none() && (presse || dernier_ping.elapsed() > PING) {
                 if let Err(e) = canal.envoyer("ping") {
                     return e;
                 }

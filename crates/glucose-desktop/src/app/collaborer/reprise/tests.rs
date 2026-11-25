@@ -491,3 +491,17 @@ fn synchro_un_code_qui_regarde_se_dit() {
     app.suivre_le_canevas_partage();
     assert_eq!(app.ui.synchro, Some(crate::ui::Synchro::Regarde));
 }
+
+/// **SYNCHRO-2** : Glucose revient au premier plan (Android) — le lien du canevas partagé est
+/// éprouvé tout de suite, pour que le témoin dise vrai dès qu'il écrit.
+#[test]
+fn synchro_2_au_retour_le_lien_est_eprouve() {
+    use crate::app::vie::tests::Temoin;
+    let d = dossier("canevas-retour");
+    let (fil, _salle) = lien::d_epreuve();
+    let (mut app, _, _) = document_partage_par(&d, fil, Code::neuf([7; 32]));
+    app.presenter = Some(Box::new(Temoin(Arc::new(Default::default()), false)));
+    app.reprendre();
+    let cp = app.lancement.agents.partage.as_ref().expect("partagé");
+    assert!(cp.lien.presse(), "le lien n'a pas été éprouvé au retour");
+}

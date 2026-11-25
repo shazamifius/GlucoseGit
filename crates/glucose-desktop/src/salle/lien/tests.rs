@@ -109,3 +109,53 @@ fn la_sortie_dit_le_premier_echec_de_chaque_serie_puis_le_retour() {
         "perdue puis reliée du premier essai : le retour se dit"
     );
 }
+
+/// Un canal qui dit tout de suite ce qui part, et ne reçoit rien.
+struct Espion(mpsc::Sender<String>);
+
+impl Canal for Espion {
+    fn envoyer(&mut self, texte: &str) -> Result<(), String> {
+        self.0.send(texte.to_string()).map_err(|e| e.to_string())
+    }
+
+    fn recevoir(&mut self, attente: Duration) -> Result<Option<String>, String> {
+        std::thread::sleep(attente);
+        Ok(None)
+    }
+}
+
+/// **SYNCHRO-2** : au retour du sommeil, une connexion morte sans le dire se révèle tout de
+/// suite — un ping part au tour suivant, au lieu d'attendre ses 20 s.
+#[test]
+fn synchro_2_eprouve_un_ping_part_tout_de_suite() {
+    let (lien, mut fil) = un_fil();
+    let (envoi, parti) = mpsc::channel();
+    let arret = Arc::clone(&lien.arret);
+    let tourne = std::thread::spawn(move || fil.servir(Box::new(Espion(envoi)), &arret));
+    lien.eprouver();
+    let debut = Instant::now();
+    let mut ping = false;
+    while !ping && debut.elapsed() < Duration::from_secs(5) {
+        ping = parti
+            .recv_timeout(Duration::from_millis(50))
+            .is_ok_and(|m| m == "ping");
+    }
+    drop(lien);
+    let _ = tourne.join();
+    assert!(ping, "aucun ping avant 5 s : le lien attendait ses 20 s");
+}
+
+/// **SYNCHRO-2** : coupé, le lien pressé n'attend pas sa pause (jusqu'à 60 s) — une fois.
+#[test]
+fn synchro_2_eprouve_coupe_la_pause_une_fois() {
+    let (lien, fil) = un_fil();
+    lien.eprouver();
+    let debut = Instant::now();
+    assert!(fil.patienter(Duration::from_secs(60), &AtomicBool::new(false)));
+    assert!(
+        debut.elapsed() < Duration::from_secs(1),
+        "{:?}",
+        debut.elapsed()
+    );
+    assert!(!fil.patienter(Duration::from_millis(150), &AtomicBool::new(false)));
+}

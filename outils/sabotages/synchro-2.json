@@ -1,0 +1,82 @@
+[
+ {
+  "nom": "SYNCHRO-2 — au retour, le lien pas éprouvé",
+  "fichier": "crates/glucose-desktop/src/app/vie.rs",
+  "avant": "            cp.lien.eprouver();\n",
+  "apres": "            let _ = cp;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_2"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-2 — relié, le ping attend ses 20 s",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "(presse || dernier_ping.elapsed() > PING)",
+  "apres": "(dernier_ping.elapsed() > PING)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_2"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-2 — coupé, la pause entière",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "            if self.presse.swap(false, Ordering::Relaxed) {\n                return true;\n            }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_2"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-2 — pressé pour toujours",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "            if self.presse.swap(false, Ordering::Relaxed) {",
+  "apres": "            if self.presse.load(Ordering::Relaxed) {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_2"
+  ]
+ }
+]
