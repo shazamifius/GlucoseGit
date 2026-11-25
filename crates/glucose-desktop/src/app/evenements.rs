@@ -59,7 +59,14 @@ impl GlucoseApp {
             // Le pincement de macOS et d'iOS ; sous Wayland, il arrive par le pavé natif (fiche 93).
             WindowEvent::PinchGesture { delta, .. } => self.pincement_du_systeme(*delta),
             WindowEvent::MouseInput { button, state, .. } => self.clic(*button, *state),
-            WindowEvent::KeyboardInput { event, .. } => self.handle_key(event),
+            WindowEvent::KeyboardInput { event, .. } => {
+                #[cfg(target_os = "android")]
+                {
+                    self.modifiers =
+                        modificateurs_suivis(self.modifiers, &event.physical_key, event.state);
+                }
+                self.handle_key(event);
+            }
             // Hors de Windows : là, Windows simule aussi la souris du premier doigt (fiche 54).
             #[cfg(not(windows))]
             WindowEvent::Touch(doigt) => self.toucher(doigt),
@@ -285,5 +292,56 @@ impl GlucoseApp {
                 event_loop.set_control_flow(ControlFlow::Wait);
             }
         }
+    }
+}
+
+/// **Les modificateurs qu'une touche fait changer** (fiche 171 § 4). Sous Android, winit 0.30
+/// n'envoie jamais `ModifiersChanged` : Ctrl, Maj, Alt et Méta n'y existaient pas, et aucun
+/// raccourci ne marchait d'un clavier branché à une tablette — Ctrl+V tapait un « v ». Leurs
+/// appuis et relâchements les disent ; le focus perdu les efface, comme ailleurs.
+#[cfg(any(target_os = "android", test))]
+pub(crate) fn modificateurs_suivis(
+    etat: winit::keyboard::ModifiersState,
+    touche: &winit::keyboard::PhysicalKey,
+    appui: ElementState,
+) -> winit::keyboard::ModifiersState {
+    use winit::keyboard::{KeyCode, ModifiersState, PhysicalKey};
+    let drapeau = match touche {
+        PhysicalKey::Code(KeyCode::ControlLeft | KeyCode::ControlRight) => ModifiersState::CONTROL,
+        PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => ModifiersState::SHIFT,
+        PhysicalKey::Code(KeyCode::AltLeft | KeyCode::AltRight) => ModifiersState::ALT,
+        PhysicalKey::Code(KeyCode::SuperLeft | KeyCode::SuperRight) => ModifiersState::SUPER,
+        _ => return etat,
+    };
+    let mut etat = etat;
+    etat.set(drapeau, appui == ElementState::Pressed);
+    etat
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winit::keyboard::{KeyCode, ModifiersState, PhysicalKey};
+
+    /// **Ctrl, Maj, Alt et Méta se suivent à leurs touches**, et rien d'autre ne les change :
+    /// Ctrl appuyé puis V, c'est Ctrl+V au téléphone (fiche 171 § 4).
+    #[test]
+    fn android_les_modificateurs_se_suivent_a_leurs_touches() {
+        let touche =
+            |etat, code, appui| modificateurs_suivis(etat, &PhysicalKey::Code(code), appui);
+        let vide = ModifiersState::empty();
+        let ctrl = touche(vide, KeyCode::ControlRight, ElementState::Pressed);
+        assert_eq!(ctrl, ModifiersState::CONTROL);
+        assert_eq!(touche(ctrl, KeyCode::KeyV, ElementState::Pressed), ctrl);
+        let maj = touche(ctrl, KeyCode::ShiftLeft, ElementState::Pressed);
+        assert_eq!(maj, ModifiersState::CONTROL | ModifiersState::SHIFT);
+        assert_eq!(
+            touche(maj, KeyCode::ControlLeft, ElementState::Released),
+            ModifiersState::SHIFT
+        );
+        let tout = [KeyCode::AltLeft, KeyCode::SuperRight]
+            .into_iter()
+            .fold(vide, |e, c| touche(e, c, ElementState::Pressed));
+        assert_eq!(tout, ModifiersState::ALT | ModifiersState::SUPER);
     }
 }

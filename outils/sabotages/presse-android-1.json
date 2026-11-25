@@ -1,0 +1,222 @@
+[
+ {
+  "nom": "PRESSE-ANDROID — l'étiquette prend « Glucose1 » pour un lot",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "        .strip_prefix(' ')?\n",
+  "apres": "        .trim_start()\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — la copie d'avant reste",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "    oublier_les_copies(&partages);\n",
+  "apres": "    let _ = oublier_les_copies;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — l'image n'est pas offerte",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "    porte.ecrire(&etiquette, formes.texte.as_deref(), image.as_deref())\n",
+  "apres": "    let _ = image;\n    porte.ecrire(&etiquette, formes.texte.as_deref(), None)\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — un lot dont le fichier a disparu se relit",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "        .is_file()\n",
+  "apres": "        .is_absolute()\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — un collage se pose au centre",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "        ou: Some(ou),\n",
+  "apres": "        ou: None.filter(|_: &(f64, f64)| ou.0.is_nan()),\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — un illisible ne se compte pas",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "            None => collage.illisibles += 1,\n",
+  "apres": "            None => {}\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — un texte seul ne revient pas",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers/telephone.rs",
+  "avant": "        return Some(lu.texte.map_or(Colle::Rien, Colle::Texte));\n",
+  "apres": "        return Some(Colle::Rien);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — le collage ne demande pas à Android",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+  "avant": "        if let Some(colle) = crate::plateforme::presse_papiers::telephone::coller(self.mouse_pos) {\n",
+  "apres": "        if let Some(colle) = None::<crate::plateforme::presse_papiers::telephone::Colle> {\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — un partage perd son point",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": "            echec: rien.then(|| RIEN.to_string()),\n            ou,\n",
+  "apres": "            echec: rien.then(|| RIEN.to_string()),\n            ou: ou.filter(|_| false),\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "PRESSE-ANDROID — « Coller » du menu pose sous l'entrée touchée",
+  "fichier": "crates/glucose-desktop/src/interactions/chrome.rs",
+  "avant": "let pointe = std::mem::replace(&mut self.mouse_pos, (f64::from(at.0), f64::from(at.1)));",
+  "apres": "let pointe = self.mouse_pos;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "presse_android"
+  ]
+ },
+ {
+  "nom": "ANDROID — un modificateur relâché reste appuyé",
+  "fichier": "crates/glucose-desktop/src/app/evenements.rs",
+  "avant": "    etat.set(drapeau, appui == ElementState::Pressed);\n",
+  "apres": "    etat.set(drapeau, etat.contains(drapeau) || appui == ElementState::Pressed);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "android_les_modificateurs"
+  ]
+ }
+]

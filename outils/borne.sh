@@ -30,8 +30,34 @@
 # bureau en tenait 1,08. Moins d'une : la commande ne part pas, et le dit — mieux vaut attendre
 # que l'étouffer. Les épreuves gardent la moitié des cœurs. L'appelant qui les a déjà réglés garde
 # ses réglages ; `nice` laisse la main à ce qu'il fait pendant ce temps.
+#
+# **Le disque aussi** (fiche 171). Cargo ne retire jamais un ancien exécutable : chaque suite en
+# ajoute un exemplaire de chaque exemple et de chaque épreuve. Le 25/11, `target/debug/examples`
+# pesait 101 Go (une trentaine d'exemplaires de chaque exemple), `target/` 160 Go, et le disque s'est
+# rempli pendant une suite (« No space left on device » à l'édition de liens) — or c'est aussi le
+# disque où son Glucose écrit. Avant chaque commande, **seul le plus récent de chaque exécutable
+# reste**, et un plus ancien redevenu utile se recompile. « Le même », c'est la même unité de Cargo,
+# lue dans son dossier d'empreinte (`.fingerprint/<caisse>-<hachage>/<unité>`, le hachage de
+# l'exécutable) — jamais le nom du fichier : les épreuves d'une bibliothèque, son programme et les
+# épreuves de son programme portent tous `glucose_desktop-<hachage>`, et n'en garder qu'un en
+# recompilerait deux à chaque suite. Ce qu'aucune empreinte ne nomme ne se touche pas, ni les
+# bibliothèques : deux exemplaires d'une même caisse y vivent légitimement.
 set -u
 [ $# -ge 1 ] || { echo "usage : borne.sh <commande> [arguments…]" >&2; exit 2; }
+garder_le_plus_recent() {
+    {
+        find "$1/.fingerprint" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended \
+            -regex '.*/[^/]+-[0-9a-f]{16}/(bin|test|example|bench)-[^./]+' -printf 'U %h/%f\n'
+        find "$1/deps" "$1/examples" -maxdepth 1 -type f -executable -regextype posix-extended \
+            -regex '.*-[0-9a-f]{16}' -printf 'X %T@ %p\n' 2>/dev/null | sort -k2 -rn
+    } | awk '$1 == "U" { n = split($2, a, "/"); d = a[n - 1]
+                         unite[substr(d, length(d) - 15)] = substr(d, 1, length(d) - 17) "/" a[n]; next }
+             { h = substr($3, length($3) - 15); if ((h in unite) && vu[unite[h]]++) print $3 }' \
+        | xargs -r -d '\n' rm -f --
+}
+for profil in "$(cd "$(dirname "$0")/.." && pwd)"/target/*/; do
+    [ -d "$profil.fingerprint" ] && garder_le_plus_recent "${profil%/}"
+done
 total_ko=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
 disponible_ko=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)
 une_compilation_ko=$(( 2560 * 1024 ))

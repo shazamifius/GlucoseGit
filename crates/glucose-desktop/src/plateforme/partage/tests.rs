@@ -83,6 +83,7 @@ fn test_images_are_posed_and_their_caption_ignored() {
         recus: vec![recu.clone()],
         illisibles: 1,
         texte: Some("https://pin.it/4xYz".into()),
+        ou: None,
     });
     assert_eq!(
         route,
@@ -92,6 +93,21 @@ fn test_images_are_posed_and_their_caption_ignored() {
             ..Moisson::default()
         })
     );
+}
+
+/// **Un collage se pose au point du geste** (fiche 171) : le partage porte son point jusqu'au
+/// dépôt.
+#[test]
+fn test_presse_android_un_partage_porte_son_point_jusqu_au_depot() {
+    let recu = lire(Cursor::new(png()), 0, None).expect("l'image");
+    let Route::Poser(moisson) = router(Partage {
+        recus: vec![recu],
+        ou: Some((12.0, 34.0)),
+        ..Partage::default()
+    }) else {
+        panic!("une image se pose");
+    };
+    assert_eq!(moisson.ou, Some((12.0, 34.0)));
 }
 
 /// **Sans image, les adresses vont chercher la leur**, et se posent en liens si elles ne la
@@ -230,6 +246,7 @@ fn test_shared_images_are_one_gesture_and_the_unreadable_is_counted() {
             recus: vec![image(), image()],
             illisibles: 1,
             texte: None,
+            ou: None,
         },
     );
     let posees =

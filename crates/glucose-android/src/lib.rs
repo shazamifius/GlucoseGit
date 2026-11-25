@@ -10,6 +10,8 @@
 use winit::platform::android::activity::AndroidApp;
 use winit::platform::android::EventLoopBuilderExtAndroid;
 
+mod presse_papiers;
+
 /// **Ce que `GameActivity` appelle** au lancement, sur le fil de Glucose.
 #[no_mangle]
 fn android_main(app: AndroidApp) {
@@ -31,6 +33,9 @@ fn android_main(app: AndroidApp) {
         .internal_data_path()
         .unwrap_or_else(std::env::temp_dir)
         .join("glucose");
+    // Le dossier que le fournisseur de Glucose sert (`fichiers_partages.xml`), comme la feuille
+    // de partage : ce que Glucose copie y vit.
+    presse_papiers::brancher(&app, dossier.join("partages"));
     let mut constructeur = winit::event_loop::EventLoop::builder();
     constructeur.with_android_app(app);
     let boucle = match constructeur.build() {

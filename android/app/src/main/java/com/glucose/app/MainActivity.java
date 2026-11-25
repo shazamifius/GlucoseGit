@@ -4,6 +4,8 @@ import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.app.PendingIntent;
 import android.content.ClipData;
+import android.content.ClipDescription;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInstaller;
@@ -187,6 +189,70 @@ public class MainActivity extends GameActivity {
         });
     }
 
+    /**
+     * **Le presse-papiers du système** (fiche 171), pris sur le fil de l'interface : le premier
+     * `getSystemService` d'un fil sans `Looper` plante sous Android 8.1. Les appels au service qui
+     * suivent sont permis de tout fil — Rust les fait du sien.
+     */
+    private volatile ClipboardManager presse;
+
+    /**
+     * **Écrit un seul élément** dans le presse-papiers : ce texte et l'adresse de cette image
+     * ensemble — une zone de texte qui colle concatène chaque élément, et y écrirait une adresse.
+     * L'étiquette porte la date du lot de Glucose. Appelé par Rust ; Rust décide de tout.
+     */
+    public void ecrireLePressePapiers(String etiquette, String texte, String image) {
+        Uri adresse = image == null
+                ? null
+                : FileProvider.getUriForFile(this, getPackageName() + ".fichiers", new File(image));
+        List<String> types = new ArrayList<>();
+        if (texte != null || adresse == null) {
+            types.add(ClipDescription.MIMETYPE_TEXT_PLAIN);
+        }
+        if (adresse != null) {
+            types.add("image/png");
+        }
+        ClipData.Item element = new ClipData.Item(
+                texte == null && adresse == null ? "" : texte, null, adresse);
+        presse.setPrimaryClip(new ClipData(etiquette, types.toArray(new String[0]), element));
+    }
+
+    /** **L'étiquette** de ce que porte le presse-papiers, sans lire ses données : Android 12 ne
+     *  dit rien. `null` s'il ne porte rien. Appelé par Rust. */
+    public String lireLEtiquette() {
+        ClipDescription description = presse.getPrimaryClipDescription();
+        CharSequence etiquette = description == null ? null : description.getLabel();
+        return etiquette == null ? null : etiquette.toString();
+    }
+
+    /**
+     * **Ce que porte le presse-papiers** : ses adresses ouvertes si `ouvrir` (trois nombres
+     * chacune, comme `ouvrirLesAdresses`), puis le texte du premier élément qui en a un — une
+     * adresse seule n'en a pas. `null` s'il ne porte rien. Appelé par Rust.
+     */
+    public Object[] lireLePressePapiers(boolean ouvrir) {
+        ClipData clip = presse.getPrimaryClip();
+        if (clip == null) {
+            return null;
+        }
+        List<Uri> adresses = new ArrayList<>();
+        String texte = null;
+        for (int i = 0; i < clip.getItemCount(); i++) {
+            ClipData.Item element = clip.getItemAt(i);
+            if (element.getUri() != null) {
+                adresses.add(element.getUri());
+            }
+            CharSequence t = element.getText();
+            if (t == null && element.getUri() == null) {
+                t = element.coerceToText(this);
+            }
+            if (texte == null && t != null) {
+                texte = t.toString();
+            }
+        }
+        return new Object[] {ouvrirLesAdresses(ouvrir ? adresses : new ArrayList<>()), texte};
+    }
+
     /** **L'appui long a pris** (fiche 57) : le doigt le sent, comme partout sous Android — et
      *  selon le réglage de vibration de l'utilisateur. Appelé par Rust, du fil de Glucose. */
     public void sentirLAppui() {
@@ -292,6 +358,8 @@ public class MainActivity extends GameActivity {
                 this,
                 SystemBarStyle.dark(Color.TRANSPARENT),
                 SystemBarStyle.dark(Color.TRANSPARENT));
+        // Avant `super.onCreate`, qui lance le fil de Glucose : il trouve le service pris.
+        presse = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         super.onCreate(etat);
         // Une activité recréée (le système avait tué Glucose), ou rouverte depuis les
         // applications récentes, reçoit l'intention d'origine une seconde fois : le partage
@@ -353,23 +421,38 @@ public class MainActivity extends GameActivity {
 
     /** Ouvre chaque fichier comme `openInputStream` l'ouvrirait, et confie le tout à Rust. */
     private void ouvrir(List<Uri> adresses, String texte) {
+        long[] ouverts = ouvrirLesAdresses(adresses);
         int n = adresses.size();
         int[] fichiers = new int[n];
         long[] debuts = new long[n];
         long[] longueurs = new long[n];
         for (int i = 0; i < n; i++) {
-            fichiers[i] = -1;
+            fichiers[i] = (int) ouverts[i * 3];
+            debuts[i] = ouverts[i * 3 + 1];
+            longueurs[i] = ouverts[i * 3 + 2];
+        }
+        recevoirUnPartage(fichiers, debuts, longueurs, texte);
+    }
+
+    /**
+     * **Ouvre ces adresses** : trois nombres chacune — le descripteur, détaché pour Rust (-1 si
+     * le système refuse), son début et sa longueur, ceux de l'`AssetFileDescriptor`.
+     */
+    private long[] ouvrirLesAdresses(List<Uri> adresses) {
+        long[] ouverts = new long[adresses.size() * 3];
+        for (int i = 0; i < adresses.size(); i++) {
+            ouverts[i * 3] = -1;
             try (AssetFileDescriptor afd =
                     getContentResolver().openAssetFileDescriptor(adresses.get(i), "r")) {
                 if (afd != null) {
-                    debuts[i] = afd.getStartOffset();
-                    longueurs[i] = afd.getDeclaredLength();
-                    fichiers[i] = afd.getParcelFileDescriptor().detachFd();
+                    ouverts[i * 3 + 1] = afd.getStartOffset();
+                    ouverts[i * 3 + 2] = afd.getDeclaredLength();
+                    ouverts[i * 3] = afd.getParcelFileDescriptor().detachFd();
                 }
             } catch (Exception e) {
                 // Rust le comptera parmi les illisibles, et le compte-rendu le dira.
             }
         }
-        recevoirUnPartage(fichiers, debuts, longueurs, texte);
+        return ouverts;
     }
 }

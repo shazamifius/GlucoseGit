@@ -174,6 +174,15 @@ impl GlucoseApp {
         if self.coller_un_lot(&active_bid, (wx, wy)) {
             return;
         }
+        // 0 bis. **Le presse-papiers d'Android** (fiche 171) : il se lit une fois — chaque
+        // lecture des données d'une autre application, Android 12 la dit à l'écran.
+        #[cfg(any(target_os = "android", test))]
+        if let Some(colle) = crate::plateforme::presse_papiers::telephone::coller(self.mouse_pos) {
+            if let crate::plateforme::presse_papiers::telephone::Colle::Texte(texte) = colle {
+                self.coller_un_texte(&active_bid, (wx, wy), &texte);
+            }
+            return;
+        }
 
         match presse_papiers::ouvrir() {
             Ok(mut clipboard) => {
@@ -194,40 +203,45 @@ impl GlucoseApp {
 
                 // 2. Tenter de coller du texte ou un chemin de fichier
                 if let Ok(text) = clipboard.texte() {
-                    let trimmed = text.trim();
-                    let path = Path::new(trimmed);
-                    if path.exists() && path.is_file() {
-                        self.import_image_files(&[path.to_path_buf()]);
-                        return;
-                    }
-
-                    // Coller en tant que carte texte, **par la fabrique**.
-                    //
-                    // Elle construisait la carte à la main, avec 44 unités de haut écrites en
-                    // dur. Un texte collé de vingt lignes se dessinait donc sur huit cents
-                    // unités et ne se cliquait que sur quarante-quatre : la mise en page
-                    // prend le maximum de la hauteur déclarée et de celle du texte, l'arbitre
-                    // de clic interroge la boîte du document, et les deux divergeaient d'un
-                    // facteur vingt. C'est ce que « les textes trop longs deviennent
-                    // impossibles à sélectionner » décrivait.
-                    //
-                    // La fabrique mesure ; personne d'autre n'a à savoir comment.
-                    let aid = self.store.generate_id("text");
-                    let ann = crate::interactions::tools::text_card(
-                        &self.renderer.typography,
-                        &self.renderer.math,
-                        aid,
-                        wx,
-                        wy,
-                        trimmed,
-                    );
-                    // Sans message : la carte apparaît sous le curseur, et cela se regarde.
-                    self.store.add_annotation(&active_bid, ann);
-                    self.mark_dirty();
+                    self.coller_un_texte(&active_bid, (wx, wy), &text);
                 }
             }
             Err(e) => self.echec_presse_papiers(e),
         }
+    }
+
+    /// **Pose un texte collé** en ce point du monde — ou, s'il nomme un fichier qui existe, ce
+    /// fichier.
+    fn coller_un_texte(&mut self, board: &str, (wx, wy): (f64, f64), text: &str) {
+        let trimmed = text.trim();
+        let path = Path::new(trimmed);
+        if path.exists() && path.is_file() {
+            self.import_image_files(&[path.to_path_buf()]);
+            return;
+        }
+
+        // Coller en tant que carte texte, **par la fabrique**.
+        //
+        // Elle construisait la carte à la main, avec 44 unités de haut écrites en dur. Un texte
+        // collé de vingt lignes se dessinait donc sur huit cents unités et ne se cliquait que
+        // sur quarante-quatre : la mise en page prend le maximum de la hauteur déclarée et de
+        // celle du texte, l'arbitre de clic interroge la boîte du document, et les deux
+        // divergeaient d'un facteur vingt. C'est ce que « les textes trop longs deviennent
+        // impossibles à sélectionner » décrivait.
+        //
+        // La fabrique mesure ; personne d'autre n'a à savoir comment.
+        let aid = self.store.generate_id("text");
+        let ann = crate::interactions::tools::text_card(
+            &self.renderer.typography,
+            &self.renderer.math,
+            aid,
+            wx,
+            wy,
+            trimmed,
+        );
+        // Sans message : la carte apparaît sous le curseur, et cela se regarde.
+        self.store.add_annotation(board, ann);
+        self.mark_dirty();
     }
 }
 

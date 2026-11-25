@@ -104,7 +104,12 @@ impl GlucoseApp {
         }
         if let Some(action) = crate::ui::context_menu::hit_context_menu(&menu, pointer.x, pointer.y)
         {
+            // Le geste vise le point où le menu s'est ouvert, jamais l'entrée touchée : « Coller »
+            // pose là où l'on a cliqué droit, ou touché deux fois — au téléphone, le menu s'ouvre
+            // en haut de l'écran, et le collé tombait sous lui (fiche 171 § 4).
+            let pointe = std::mem::replace(&mut self.mouse_pos, (f64::from(at.0), f64::from(at.1)));
             self.apply_menu_action(action, onglet.as_deref());
+            self.mouse_pos = pointe;
         }
         true
     }

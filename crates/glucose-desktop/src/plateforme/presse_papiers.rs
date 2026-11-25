@@ -44,7 +44,7 @@ pub fn disponible() -> Result<(), String> {
         .map(|_| ())
         .map_err(|e| e.to_string());
     #[cfg(target_os = "android")]
-    Err(imp::PAS_ENCORE.into())
+    telephone::disponible()
 }
 
 /// Le texte que porte le presse-papiers du système.
@@ -58,7 +58,7 @@ pub fn lire_le_texte() -> Result<String, String> {
         .and_then(|mut c| c.get_text())
         .map_err(|e| e.to_string());
     #[cfg(target_os = "android")]
-    Err(imp::PAS_ENCORE.into())
+    telephone::lire_le_texte()
 }
 
 /// L'image que porte le presse-papiers du système, en pixels.
@@ -76,8 +76,10 @@ pub fn lire_l_image() -> Result<crate::interactions::presse_papiers::Pixels, Str
             bytes: i.bytes.into_owned(),
         })
         .map_err(|e| e.to_string());
+    // Android ne donne jamais de pixels : une image y voyage par son adresse, et se colle par le
+    // chemin d'un partage ([`telephone::coller`]).
     #[cfg(target_os = "android")]
-    Err(imp::PAS_ENCORE.into())
+    Err("le presse-papiers d'Android donne ses images par leur adresse".into())
 }
 
 /// **Les fichiers que porte le presse-papiers** — copiés dans un gestionnaire de fichiers —, ceux
@@ -111,10 +113,7 @@ pub fn ecrire_le_texte(texte: String) -> Result<(), String> {
         .and_then(|mut c| c.set_text(texte))
         .map_err(|e| e.to_string());
     #[cfg(target_os = "android")]
-    {
-        let _ = texte;
-        Err(imp::PAS_ENCORE.into())
-    }
+    telephone::ecrire_le_texte(&texte)
 }
 
 /// **Le presse-papiers du système, tenu pour toute la vie de l'application** (fiche 60).
@@ -348,19 +347,12 @@ mod imp {
 /// sont jamais appelées — elles le disent si elles l'étaient.
 #[cfg(target_os = "android")]
 mod imp {
-    pub(super) const PAS_ENCORE: &str =
-        "le presse-papiers du systeme n'est pas encore pris sous Android";
-
-    pub fn ecrire_la_selection(
-        _formes: crate::interactions::clipboard::Formes,
-    ) -> Result<(), String> {
-        Err(PAS_ENCORE.into())
-    }
-
-    pub fn lire_un_lot() -> Option<super::LotALire> {
-        None
-    }
+    pub use super::telephone::{ecrire_la_selection, lire_un_lot};
 }
+
+/// **Le presse-papiers d'Android**, par la porte que Java branche (fiche 171).
+#[cfg(any(target_os = "android", test))]
+pub mod telephone;
 
 /// **Les pixels en `CF_DIBV5`** : l'en-tête `BITMAPV5HEADER`, puis les rangées **du bas vers le
 /// haut**, en bleu-vert-rouge-alpha. Une hauteur négative dirait « du haut vers le bas » sans

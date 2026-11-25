@@ -46,6 +46,9 @@ pub struct Partage {
     pub illisibles: usize,
     /// Le texte partagé, s'il y en a un.
     pub texte: Option<String>,
+    /// **Où le poser**, en pixels de la fenêtre : le point d'un collage (fiche 171) ; un partage
+    /// venu d'une autre application n'en a pas, et se pose au centre.
+    pub ou: Option<(f64, f64)>,
 }
 
 /// **Lit un fichier partagé** : à partir de `debut`, `longueur` octets quand le système les
@@ -100,6 +103,7 @@ pub fn router(partage: Partage) -> Route {
         recus,
         illisibles,
         texte,
+        ou,
     } = partage;
     let liens = texte.as_deref().map(adresses).unwrap_or_default();
     if !recus.is_empty() || liens.is_empty() {
@@ -108,12 +112,14 @@ pub fn router(partage: Partage) -> Route {
             recus,
             illisibles,
             echec: rien.then(|| RIEN.to_string()),
+            ou,
             ..Moisson::default()
         });
     }
     let repli = Moisson {
         liens: liens.clone(),
         illisibles,
+        ou,
         ..Moisson::default()
     };
     Route::Rapatrier(liens, repli)

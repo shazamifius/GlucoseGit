@@ -7,9 +7,8 @@
 //! donc au lancement de l'application, comme son dossier (`main.rs`) ; sans cela, chaque fil a
 //! le sien, en mémoire, et deux épreuves qui tournent ensemble ne se lisent pas l'une l'autre.
 //!
-//! **Sous Android**, `arboard` ne sait rien faire : le presse-papiers est celui de Glucose seul
-//! (fiche 54) — copier et coller entre ses nœuds marche, pas encore avec les autres
-//! applications, qui demanderont celui du système par JNI.
+//! **Sous Android**, `arboard` ne sait rien faire : celui du système passe par la porte que Java
+//! branche au lancement (fiche 171) ; sans elle, celui de Glucose seul (fiche 54).
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -56,7 +55,6 @@ pub struct Pixels {
 /// Un presse-papiers ouvert : celui du système passe par sa porte
 /// ([`crate::plateforme::presse_papiers`] — Wayland, X11, Windows ou macOS, elle choisit).
 pub enum Acces {
-    #[cfg(not(target_os = "android"))]
     Systeme,
     ASoi,
 }
@@ -64,9 +62,13 @@ pub enum Acces {
 /// **Ouvre le presse-papiers** — celui du système si l'application l'a pris, et si le système
 /// en a un que Glucose sait lire.
 pub fn ouvrir() -> Result<Acces, String> {
-    #[cfg(not(target_os = "android"))]
     if DU_SYSTEME.load(Ordering::Relaxed) {
-        return crate::plateforme::presse_papiers::disponible().map(|()| Acces::Systeme);
+        let systeme = crate::plateforme::presse_papiers::disponible().map(|()| Acces::Systeme);
+        // Sans la porte de Java, celui de Glucose seul : copier et coller entre ses nœuds.
+        #[cfg(target_os = "android")]
+        return Ok(systeme.unwrap_or(Acces::ASoi));
+        #[cfg(not(target_os = "android"))]
+        return systeme;
     }
     Ok(Acces::ASoi)
 }
@@ -75,7 +77,6 @@ impl Acces {
     /// Le texte qu'il porte.
     pub fn texte(&mut self) -> Result<String, String> {
         match self {
-            #[cfg(not(target_os = "android"))]
             Acces::Systeme => crate::plateforme::presse_papiers::lire_le_texte(),
             Acces::ASoi => A_SOI.with(|c| c.borrow().texte.clone().ok_or_else(|| RIEN.into())),
         }
@@ -84,7 +85,6 @@ impl Acces {
     /// L'image qu'il porte.
     pub fn image(&mut self) -> Result<Pixels, String> {
         match self {
-            #[cfg(not(target_os = "android"))]
             Acces::Systeme => crate::plateforme::presse_papiers::lire_l_image(),
             Acces::ASoi => {
                 let png = A_SOI.with(|c| c.borrow().image.clone()).ok_or(RIEN)?;
@@ -103,7 +103,6 @@ impl Acces {
     /// Y écrit ce texte.
     pub fn ecrire(&mut self, texte: String) -> Result<(), String> {
         match self {
-            #[cfg(not(target_os = "android"))]
             Acces::Systeme => crate::plateforme::presse_papiers::ecrire_le_texte(texte),
             Acces::ASoi => {
                 A_SOI.with(|c| {
@@ -125,7 +124,6 @@ impl Acces {
         formes: crate::interactions::clipboard::Formes,
     ) -> Result<(), String> {
         match self {
-            #[cfg(not(target_os = "android"))]
             Acces::Systeme => crate::plateforme::presse_papiers::ecrire_la_selection(formes),
             Acces::ASoi => {
                 A_SOI.with(|c| {
@@ -144,7 +142,6 @@ impl Acces {
     /// `Ctrl+V` les pose comme s'ils étaient déposés. Celui d'une épreuve n'en porte jamais.
     pub fn fichiers(&mut self) -> Vec<std::path::PathBuf> {
         match self {
-            #[cfg(not(target_os = "android"))]
             Acces::Systeme => crate::plateforme::presse_papiers::lire_les_fichiers(),
             Acces::ASoi => Vec::new(),
         }
@@ -153,7 +150,6 @@ impl Acces {
     /// Le lot de nœuds qu'il porte, s'il en porte un — à lire sur le fil du collage.
     pub fn lot(&mut self) -> Option<crate::plateforme::presse_papiers::LotALire> {
         match self {
-            #[cfg(not(target_os = "android"))]
             Acces::Systeme => crate::plateforme::presse_papiers::lire_un_lot(),
             Acces::ASoi => A_SOI
                 .with(|c| c.borrow().lot.clone())
