@@ -52,10 +52,13 @@ fn test_un_document_v1_se_lit_encore_et_ses_images_sont_entieres() {
         "tout ce qui existait en v1 doit revenir a l'identique, et les images entieres"
     );
 
-    // Et réécrit par cette build, il monte au schéma du jour sans rien perdre.
+    // Et réécrit par cette build, il monte au plus petit schéma qui le dit, sans rien perdre.
     let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
     let remonte = persist::decode(&reecrit).expect("le document migre se relit");
-    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(
+        remonte.manifest.document_version,
+        persist::SCHEMA_ECRIT_AU_MOINS
+    );
     assert_eq!(remonte.project, relu.project);
 }
 
@@ -85,7 +88,10 @@ fn test_un_document_v2_se_lit_encore_sans_grille_de_storyboard() {
 
     let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
     let remonte = persist::decode(&reecrit).expect("le document migré se relit");
-    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(
+        remonte.manifest.document_version,
+        persist::SCHEMA_ECRIT_AU_MOINS
+    );
     assert_eq!(remonte.project, relu.project);
 }
 
@@ -180,7 +186,10 @@ fn test_un_document_v3_se_lit_encore_aux_reglages_de_naissance() {
 
     let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
     let remonte = persist::decode(&reecrit).expect("le document migré se relit");
-    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(
+        remonte.manifest.document_version,
+        persist::SCHEMA_ECRIT_AU_MOINS
+    );
     assert_eq!(remonte.project, relu.project);
 }
 
@@ -210,7 +219,10 @@ fn test_un_document_v4_se_lit_encore_sous_le_storyboard_d_avant() {
 
     let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
     let remonte = persist::decode(&reecrit).expect("le document migré se relit");
-    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(
+        remonte.manifest.document_version,
+        persist::SCHEMA_ECRIT_AU_MOINS
+    );
     assert_eq!(remonte.project, relu.project);
 }
 
@@ -238,7 +250,10 @@ fn test_un_document_v5_se_lit_encore_ses_images_non_retournees() {
 
     let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
     let remonte = persist::decode(&reecrit).expect("le document migré se relit");
-    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(
+        remonte.manifest.document_version,
+        persist::SCHEMA_ECRIT_AU_MOINS
+    );
     assert_eq!(remonte.project, relu.project);
 }
 
@@ -353,9 +368,10 @@ fn test_round_trip_of_a_rich_project_is_the_identity() {
     );
     assert_eq!(reloaded.manifest.project_name, project.name);
     assert_eq!(reloaded.manifest.saved_at, SAVED_AT);
+    // Au plus petit schéma qui le dit : aucune de ses vidéos n'a de choix (VIDEO-2).
     assert_eq!(
         reloaded.manifest.document_version,
-        persist::DOCUMENT_VERSION
+        persist::SCHEMA_ECRIT_AU_MOINS
     );
 }
 

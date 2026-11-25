@@ -316,18 +316,20 @@ pub enum Genre {
 
 /// Un geste, préfixé du schéma de document auquel ses éléments sont écrits.
 pub fn contenu_geste(g: &Geste) -> Vec<u8> {
-    let mut w = Writer::with_capacity(256);
-    w.u16(super::DOCUMENT_VERSION);
-    geste::ecrire(&mut w, g);
-    w.into_bytes()
+    super::au_plus_petit_schema(|w| {
+        w.u16(w.schema());
+        geste::ecrire(w, g);
+    })
+    .1
 }
 
 /// Le document entier, préfixé de son schéma.
 pub fn contenu_instantane(p: &Project) -> Vec<u8> {
-    let mut w = Writer::with_capacity(4096);
-    w.u16(super::DOCUMENT_VERSION);
-    w.raw(&super::encode_document(p));
-    w.into_bytes()
+    super::au_plus_petit_schema(|w| {
+        w.u16(w.schema());
+        super::document::write_project(w, p);
+    })
+    .1
 }
 
 pub fn contenu_jalon(j: &Jalon) -> Vec<u8> {

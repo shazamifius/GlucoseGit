@@ -74,7 +74,11 @@ use manifest::{AssetEntry, Manifest};
 /// **Passée à 6 le 17/11/2026** : une image porte son miroir (MIROIR-1, fiche 118). Un document
 /// v5 se relit, ses images non retournées ; une version d'avant refuse un document v6 par son
 /// message (« mets Glucose à jour »), jamais en silence.
-pub const DOCUMENT_VERSION: u16 = 6;
+///
+/// **Passée à 7 le 25/11/2026** : une vidéo porte ses choix (VIDEO-2). Et depuis, **chaque document
+/// s'écrit au plus petit schéma qui le dit** ([`au_plus_petit_schema`]) : 6 tant qu'aucune vidéo
+/// n'a de choix — la beta.6 de son téléphone continue de lire ses lettres et ses documents.
+pub const DOCUMENT_VERSION: u16 = 7;
 
 /// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
 ///
@@ -90,6 +94,12 @@ pub const ANIMATIQUE_DEPUIS: u16 = 4;
 pub const SEQUENCES_DEPUIS: u16 = 5;
 /// Le schéma depuis lequel une image porte son miroir (MIROIR-1, fiche 118).
 pub const MIROIR_DEPUIS: u16 = 6;
+/// Le schéma depuis lequel une vidéo porte ses choix (VIDEO-2, fiche 170).
+pub const VIDEO_DEPUIS: u16 = 7;
+/// **Le plus ancien schéma qu'on écrit encore** : celui de la beta.6. Chaque champ venu après ne
+/// le fait dépasser qu'à un document qui s'en sert — un Glucose plus ancien ne refuse que ce
+/// qu'il ne saurait pas dire.
+pub const SCHEMA_ECRIT_AU_MOINS: u16 = MIROIR_DEPUIS;
 /// Plus ancien schéma de document que cette build sait lire.
 pub const MIN_READABLE_DOCUMENT_VERSION: u16 = 1;
 /// Extension de fichier, sans le point.
@@ -103,7 +113,37 @@ pub struct GlucoseFile {
     pub manifest: Manifest,
 }
 
+#[cfg(test)]
+mod schema_tests;
+
 // ── Document seul ───────────────────────────────────────────────────────────
+
+/// **Écrit au plus petit schéma qui dit tout** et rend ce schéma avec les octets : `ecrire` part
+/// au [`SCHEMA_ECRIT_AU_MOINS`] ; si une valeur ne s'y dit pas, l'écrivain l'a noté
+/// ([`Writer::exiger`]) et tout se réécrit une fois, au schéma qu'elle exige. Les écrivains
+/// disent eux-mêmes ce qu'ils n'ont pas pu dire : aucune liste à tenir à côté d'eux.
+pub fn au_plus_petit_schema(ecrire: impl Fn(&mut Writer)) -> (u16, Vec<u8>) {
+    let mut w = Writer::au_schema(SCHEMA_ECRIT_AU_MOINS);
+    ecrire(&mut w);
+    match w.exige() {
+        Some(schema) => {
+            let mut w = Writer::au_schema(schema);
+            ecrire(&mut w);
+            (schema, w.into_bytes())
+        }
+        None => (SCHEMA_ECRIT_AU_MOINS, w.into_bytes()),
+    }
+}
+
+/// Écrit le document dans un tampon, au schéma du tampon (une lettre de la salle le porte).
+pub(crate) fn ecrire_le_document(w: &mut Writer, project: &Project) {
+    document::write_project(w, project);
+}
+
+/// Le document nu, au plus petit schéma qui le dit.
+pub fn encode_document_au_plus_petit(project: &Project) -> (u16, Vec<u8>) {
+    au_plus_petit_schema(|w| document::write_project(w, project))
+}
 
 /// Sérialise le document nu, sans conteneur ni somme de contrôle.
 ///
@@ -154,11 +194,12 @@ pub fn encode(project: &Project, assets: &AssetStore, saved_at: i64) -> Vec<u8> 
     // Ordre stable : deux enregistrements du même projet donnent les mêmes octets.
     entries.sort_by(|a, b| a.key.cmp(&b.key));
 
+    let (schema, document) = encode_document_au_plus_petit(project);
     let mut sections = Vec::with_capacity(2 + entries.len());
     sections.push(Section {
         kind: container::KIND_MANIFEST,
         payload: manifest::encode(&Manifest {
-            document_version: DOCUMENT_VERSION,
+            document_version: schema,
             project_name: project.name.clone(),
             saved_at,
             assets: entries.clone(),
@@ -166,7 +207,7 @@ pub fn encode(project: &Project, assets: &AssetStore, saved_at: i64) -> Vec<u8> 
     });
     sections.push(Section {
         kind: container::KIND_DOCUMENT,
-        payload: encode_document(project),
+        payload: document,
     });
 
     let mut written: Vec<[u8; 32]> = Vec::with_capacity(entries.len());

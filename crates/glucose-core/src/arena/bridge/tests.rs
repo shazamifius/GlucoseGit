@@ -64,6 +64,10 @@ fn tableau_complet() -> Board {
         rotation: 45.0,
         // Retournée (MIROIR-1) : l'aller-retour par l'arène doit la rendre telle.
         miroir: true,
+        video: crate::types::ChoixVideo {
+            lecture_auto: true,
+            a_cote: true,
+        },
         locked: true,
         tags: vec!["une".into(), "deux".into()],
         slot_id: Some("slot-a".into()),

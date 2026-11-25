@@ -7,9 +7,9 @@
 //! Un schéma plus récent que le sien se refuse en le disant — l'autre a une version plus neuve.
 
 use crate::error::{CoreError, CoreResult};
-use crate::persist::bytes::{Reader, Writer};
+use crate::persist::bytes::Reader;
 use crate::persist::histoire::geste::{ecrire_partage, lire_partage};
-use crate::persist::{decode_document_v, encode_document, DOCUMENT_VERSION};
+use crate::persist::{decode_document_v, DOCUMENT_VERSION};
 use crate::store::journal::partage::GestePartage;
 use crate::store::journal::Main;
 use crate::types::Project;
@@ -62,48 +62,51 @@ pub struct Lettre {
 }
 
 impl Lettre {
-    /// **Écrit la lettre**, au schéma de cette version.
+    /// **Écrit la lettre**, au plus petit schéma qui la dit.
     pub fn ecrire(&self) -> Vec<u8> {
-        let mut w = Writer::with_capacity(256);
-        w.u16(DOCUMENT_VERSION);
-        w.text(&self.marque);
-        w.text(&self.nom);
-        w.u8(self.couleur);
-        match &self.main {
-            Main::Agent(nom) => {
-                w.u8(1);
-                w.text(nom);
+        // Au plus petit schéma qui la dit : une beta.6 lit encore ce qui ne parle pas de ses
+        // champs neufs (VIDEO-2, fiche 170).
+        crate::persist::au_plus_petit_schema(|w| {
+            w.u16(w.schema());
+            w.text(&self.marque);
+            w.text(&self.nom);
+            w.u8(self.couleur);
+            match &self.main {
+                Main::Agent(nom) => {
+                    w.u8(1);
+                    w.text(nom);
+                }
+                // Un participant ne renvoie jamais un geste reçu : seule sa main ou ses agents parlent.
+                Main::Humain | Main::Participant { .. } => w.u8(0),
             }
-            // Un participant ne renvoie jamais un geste reçu : seule sa main ou ses agents parlent.
-            Main::Humain | Main::Participant { .. } => w.u8(0),
-        }
-        match &self.corps {
-            Corps::Base(p) => {
-                w.u8(BASE);
-                w.raw(&encode_document(p));
+            match &self.corps {
+                Corps::Base(p) => {
+                    w.u8(BASE);
+                    crate::persist::ecrire_le_document(w, p);
+                }
+                Corps::Geste(g) => {
+                    w.u8(GESTE);
+                    ecrire_partage(w, g);
+                }
+                Corps::Curseur { tableau, x, y } => {
+                    w.u8(CURSEUR);
+                    w.text(tableau);
+                    w.f64(*x);
+                    w.f64(*y);
+                }
+                Corps::Objet { cle, octets } => {
+                    w.u8(OBJET);
+                    w.text(cle);
+                    w.blob(octets);
+                }
+                Corps::Demande { cles, bonjour } => {
+                    w.u8(DEMANDE);
+                    w.flag(*bonjour);
+                    w.seq(cles, |w, c| w.text(c));
+                }
             }
-            Corps::Geste(g) => {
-                w.u8(GESTE);
-                ecrire_partage(&mut w, g);
-            }
-            Corps::Curseur { tableau, x, y } => {
-                w.u8(CURSEUR);
-                w.text(tableau);
-                w.f64(*x);
-                w.f64(*y);
-            }
-            Corps::Objet { cle, octets } => {
-                w.u8(OBJET);
-                w.text(cle);
-                w.blob(octets);
-            }
-            Corps::Demande { cles, bonjour } => {
-                w.u8(DEMANDE);
-                w.flag(*bonjour);
-                w.seq(cles, |w, c| w.text(c));
-            }
-        }
-        w.into_bytes()
+        })
+        .1
     }
 
     /// **Relit une lettre** écrite par n'importe quelle version jusqu'à celle-ci.

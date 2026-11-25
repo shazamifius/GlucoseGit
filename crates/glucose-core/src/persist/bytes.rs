@@ -37,20 +37,57 @@ fn overflow(what: &str) -> CoreError {
 // ── Écriture ────────────────────────────────────────────────────────────────
 
 /// Tampon d'écriture séquentiel. Infaillible : écrire dans un `Vec` ne peut pas échouer.
-#[derive(Debug, Default)]
+///
+/// Il sait **à quel schéma** il écrit (le plus récent, sauf [`super::au_plus_petit_schema`]), et
+/// retient le plus récent qu'une valeur a exigé sans l'avoir ([`Self::exiger`]).
+#[derive(Debug)]
 pub struct Writer {
     buf: Vec<u8>,
+    schema: u16,
+    exige: Option<u16>,
+}
+
+impl Default for Writer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Writer {
     pub fn new() -> Self {
-        Self { buf: Vec::new() }
+        Self::with_capacity(0)
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buf: Vec::with_capacity(capacity),
+            schema: super::DOCUMENT_VERSION,
+            exige: None,
         }
+    }
+
+    /// Un tampon qui écrit au schéma `schema`, pour [`super::au_plus_petit_schema`] seul.
+    pub(super) fn au_schema(schema: u16) -> Self {
+        Self {
+            schema,
+            ..Self::with_capacity(4096)
+        }
+    }
+
+    /// Le schéma auquel ce tampon écrit.
+    pub fn schema(&self) -> u16 {
+        self.schema
+    }
+
+    /// **Cette valeur ne se dit qu'au schéma `schema`**, plus récent que celui du tampon : ce
+    /// qu'il porte est à réécrire là.
+    pub fn exiger(&mut self, schema: u16) {
+        self.exige = self.exige.max(Some(schema));
+    }
+
+    /// Le plus récent des schémas exigés, s'il dépasse celui du tampon.
+    pub fn exige(&self) -> Option<u16> {
+        self.exige.filter(|&s| s > self.schema)
     }
 
     pub fn into_bytes(self) -> Vec<u8> {

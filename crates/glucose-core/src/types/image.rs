@@ -30,6 +30,26 @@ impl AssetRef {
     }
 }
 
+/// **Les choix d'une vidéo**, chacun le sien (VIDEO-2 ; sa réponse du 25/11, `relais-q-videos` :
+/// « que ce soit l'utilisateur qui choisit à chaque fois […] on peut indiquer si la vidéo
+/// autoplay ou demande un bouton »). Le défaut — au bouton, dans le document — est ce que
+/// VIDEO-1 faisait, et s'écrit au schéma 6 (une beta.6 le lit).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ChoixVideo {
+    /// Elle joue seule (son coupé, en boucle) dès qu'elle est à l'écran, plutôt qu'à son ▶.
+    pub lecture_auto: bool,
+    /// Ses octets restent **à côté** du document (son chemin sur le disque) plutôt que dedans :
+    /// le document reste léger, mais elle disparaît si le fichier bouge.
+    pub a_cote: bool,
+}
+
+impl ChoixVideo {
+    /// Rien de choisi : ce qu'une vidéo est sans qu'on y touche.
+    pub fn est_neutre(self) -> bool {
+        self == Self::default()
+    }
+}
+
 // ── Images ──────────────────────────────────────────────────────────────────
 /// Une image posée sur le canvas (centre ancré en x, y).
 #[derive(Debug, Clone, PartialEq)]
@@ -55,6 +75,8 @@ pub struct BoardImage {
     pub original_width: f64,
     pub original_height: f64,
     pub is_video: bool,
+    /// **Les choix d'une vidéo** (VIDEO-2) : rien pour une photo.
+    pub video: ChoixVideo,
     /// **Ce qu'on retire des bords de cette image** (RECADRAGE-1).
     ///
     /// Non destructif : les octets du fichier ne bougent pas, et deux poses de la meme photo
@@ -88,6 +110,7 @@ impl BoardImage {
             original_width: width,
             original_height: height,
             is_video: false,
+            video: ChoixVideo::default(),
             crop: Recadrage::ENTIER,
             fit: None,
             domains: Vec::new(),

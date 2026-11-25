@@ -110,6 +110,9 @@ impl Bridge {
         if img.miroir {
             self.doc.miroir.set(id, ());
         }
+        if !img.video.est_neutre() {
+            self.doc.video.set(id, img.video);
+        }
         let propre = ImageTrait {
             src: img.src.as_deref().map(Into::into),
             source_url: img.source_url.as_deref().map(Into::into),

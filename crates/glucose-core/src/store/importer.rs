@@ -240,6 +240,7 @@ fn suivre_dans_l_image(r: &Renommage, i: &mut BoardImage) {
         original_width: _,
         original_height: _,
         is_video: _,
+        video: _,
         crop: _,
         fit: _,
         domains,

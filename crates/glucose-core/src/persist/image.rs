@@ -8,7 +8,7 @@ use super::document::{
     read_domain_assignment, read_temporal_anchor, write_domain_assignment, write_temporal_anchor,
 };
 use crate::error::{CoreError, CoreResult};
-use crate::types::{AssetRef, BoardImage, Recadrage};
+use crate::types::{AssetRef, BoardImage, ChoixVideo, Recadrage};
 
 pub fn write_image(w: &mut Writer, img: &BoardImage) {
     let BoardImage {
@@ -29,6 +29,7 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
         original_width,
         original_height,
         is_video,
+        video,
         crop,
         fit,
         domains,
@@ -64,6 +65,13 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
     w.opt(temporal_anchor.as_ref(), write_temporal_anchor);
     // MIROIR-1, schéma v6 : à la fin, pour qu'un lecteur v5 n'ait rien d'autre à sauter.
     w.flag(*miroir);
+    // VIDEO-2, schéma v7 : écrits seulement là ; une vidéo qui a des choix l'exige.
+    if w.schema() >= crate::persist::VIDEO_DEPUIS {
+        w.flag(video.lecture_auto);
+        w.flag(video.a_cote);
+    } else if !video.est_neutre() {
+        w.exiger(crate::persist::VIDEO_DEPUIS);
+    }
 }
 
 /// **Lit une image du schema `version`.**
@@ -75,6 +83,12 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
 pub fn read_image(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
     let mut image = read_image_v5(r, version)?;
     image.miroir = version >= crate::persist::MIROIR_DEPUIS && r.flag()?;
+    if version >= crate::persist::VIDEO_DEPUIS {
+        image.video = ChoixVideo {
+            lecture_auto: r.flag()?,
+            a_cote: r.flag()?,
+        };
+    }
     Ok(image)
 }
 
@@ -99,6 +113,8 @@ fn read_image_v5(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
         original_width: r.f64()?,
         original_height: r.f64()?,
         is_video: r.flag()?,
+        // Lus à la fin de la notice (schéma v7), posés après coup.
+        video: ChoixVideo::default(),
         crop: read_crop(r, version)?,
         fit: r.opt_text()?,
         domains: r.seq(read_domain_assignment)?,

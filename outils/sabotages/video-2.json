@@ -1,0 +1,149 @@
+[
+ {
+  "nom": "SCHEMA-MIN — une vidéo qui a des choix n'exige pas le schéma 7",
+  "fichier": "crates/glucose-core/src/persist/image.rs",
+  "avant": "        w.exiger(crate::persist::VIDEO_DEPUIS);\n",
+  "apres": "        let _ = video;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ },
+ {
+  "nom": "SCHEMA-MIN — tout s'écrit au schéma le plus récent",
+  "fichier": "crates/glucose-core/src/persist.rs",
+  "avant": "    let mut w = Writer::au_schema(SCHEMA_ECRIT_AU_MOINS);\n",
+  "apres": "    let mut w = Writer::au_schema(DOCUMENT_VERSION);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ },
+ {
+  "nom": "SCHEMA-MIN — la lettre dit le schéma du jour, pas le sien",
+  "fichier": "crates/glucose-core/src/salle/lettre.rs",
+  "avant": "        w.u16(w.schema());\n",
+  "apres": "        w.u16(DOCUMENT_VERSION);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ },
+ {
+  "nom": "SCHEMA-MIN — l'instantané de l'histoire dit le schéma du jour",
+  "fichier": "crates/glucose-core/src/persist/histoire.rs",
+  "avant": "        w.u16(w.schema());\n        super::document::write_project(w, p);\n",
+  "apres": "        w.u16(super::DOCUMENT_VERSION);\n        super::document::write_project(w, p);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — les choix lus un schéma trop tard",
+  "fichier": "crates/glucose-core/src/persist/image.rs",
+  "avant": "    if version >= crate::persist::VIDEO_DEPUIS {\n",
+  "apres": "    if version > crate::persist::VIDEO_DEPUIS {\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — l'arène oublie les choix d'une vidéo",
+  "fichier": "crates/glucose-core/src/arena/bridge/import.rs",
+  "avant": "            self.doc.video.set(id, img.video);\n",
+  "apres": "            let _ = img.video;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ },
+ {
+  "nom": "SCHEMA-MIN — un geste de l'histoire dit le schéma du jour",
+  "fichier": "crates/glucose-core/src/persist/histoire.rs",
+  "avant": "        w.u16(w.schema());\n        geste::ecrire(w, g);\n",
+  "apres": "        w.u16(super::DOCUMENT_VERSION);\n        geste::ecrire(w, g);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2",
+   "bridge"
+  ]
+ }
+]
