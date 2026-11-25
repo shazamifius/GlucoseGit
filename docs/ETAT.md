@@ -98,7 +98,8 @@
   4070 SUPER, niri) — le dépôt, les mémoires et les journaux y ont été rapatriés du VivoBook à
   l'identique (même `87dfb5a`, même copie de travail, empreinte vérifiée), et `cargo check`, Clippy
   strict et la version optimisée y passent. Du 6 au 22/11, c'était son VivoBook (7,6 Go) ; son PC
-  Windows est cassé. **Windows, macOS et Android ne s'éprouvent qu'à travers la CI.** La carte :
+  Windows est cassé. **Windows, macOS et Android ne s'éprouvent qu'à travers la CI** ; Windows et le Mac se *vérifient*
+  ici (`outils/verifier_cibles.sh`, fiche 156). La carte :
   `~/Projets/LISEZ-MOI.md`.
 
 ## 2. Ce que fait Glucose Rust

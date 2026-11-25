@@ -45,7 +45,7 @@ Puis : prendre le premier chantier ouvert du plan — **son ordre vit dans son G
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 156.**
+fiche. **La prochaine porte le numéro 157.**
 
 ## Avec lui
 
@@ -75,6 +75,7 @@ bash outils/borne.sh nix develop -c cargo clippy --workspace --all-targets -- -D
 bash outils/borne.sh nix develop -c cargo test --workspace --no-fail-fast  # ~3 160 épreuves, dont les cliquets
 GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
+bash outils/verifier_cibles.sh [windows|mac]  # le clippy de la CI pour Windows et le Mac, ici (fiche 156)
 bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran : clic, molette, taper, capture
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
 glucose lire niveau=plan  # son Glucose ouvert, par sa porte (puis dans=…, ids=…, niveau=complet) ; `glucose aide` liste tout

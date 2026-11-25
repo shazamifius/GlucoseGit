@@ -258,8 +258,11 @@ au 22/11) : sur ce poste, `outils/borne.sh` en tire une borne bien plus large, m
   isDraft,publishedAt`. Le 19/11, une passation disait « brouillon vide, à retirer » d'une beta.3
   publiée une heure plus tôt par son clic, et déjà installée (fiche 126). Une version publiée ne se
   remplace pas : la suivante prend le numéro d'après.
-* **Windows, Mac, Android** : seule la CI les compile et les éprouve ; une correction propre à l'un part
-  donc sans essai réel, et se dit telle. L'APK : `bash outils/android/construire.sh` (le SDK et le NDK sont
+* **Windows et le Mac se vérifient ici** : `bash outils/verifier_cibles.sh [windows|mac]`, le `clippy` de
+  la CI pour leurs cibles, une minute chacune (fiche 156) — avant tout envoi qui touche un fichier
+  `#[cfg(windows)]` ou `#[cfg(target_os = "macos")]`. Il compile, il n'éprouve rien : leurs épreuves, et
+  Android tout entier, ne tournent que sur la CI ; une correction propre à l'un part donc sans essai
+  réel, et se dit telle. L'APK : `bash outils/android/construire.sh` (le SDK et le NDK sont
   absents ici : la CI le construit). `/dev/kvm` existe pour un téléphone virtuel ; les 4 Go de l'appareil
   seront serrés.
 * **Glucose Tauri** : `git worktree add --detach <scratchpad>/tauri origin/tauri-v1.0.1`, retiré en sortant.

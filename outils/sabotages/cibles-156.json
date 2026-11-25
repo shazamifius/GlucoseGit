@@ -1,0 +1,35 @@
+[
+ {
+  "nom": "Windows : une faute de type dans le code du bureau",
+  "fichier": "crates/glucose-desktop/src/plateforme/glisser_windows.rs",
+  "avant": "    let _ = unsafe { RedrawWindow(Some(fenetre), None, None, RDW_NOINTERNALPAINT) };",
+  "apres": "    let _ = unsafe { RedrawWindow(fenetre, None, None, RDW_NOINTERNALPAINT) };",
+  "cmd": [
+   "bash",
+   "outils/verifier_cibles.sh",
+   "windows"
+  ]
+ },
+ {
+  "nom": "Windows : un avertissement dans une epreuve (--all-targets, -D warnings)",
+  "fichier": "crates/glucose-desktop/src/plateforme/glisser_windows.rs",
+  "avant": "        use windows::core::w;",
+  "apres": "        use windows::core::w;\n        let inutile = 1;",
+  "cmd": [
+   "bash",
+   "outils/verifier_cibles.sh",
+   "windows"
+  ]
+ },
+ {
+  "nom": "Mac : une faute de type dans le presse-papiers",
+  "fichier": "crates/glucose-desktop/src/plateforme/presse_papiers.rs",
+  "avant": "        let html = arboard::Clipboard::new().ok()?.get().html().ok()?;",
+  "apres": "        let html: u32 = arboard::Clipboard::new().ok()?.get().html().ok()?;",
+  "cmd": [
+   "bash",
+   "outils/verifier_cibles.sh",
+   "mac"
+  ]
+ }
+]
