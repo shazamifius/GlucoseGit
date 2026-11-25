@@ -24,8 +24,10 @@
 //! sur n'importe quelle machine.
 
 use super::moisson::{Depot, Moisson, Recu, OCTETS_MAX};
-use super::{rapatrier, sources, Reveil};
-use std::io::{Read, Seek, SeekFrom};
+use super::{rapatrier, sources, telechargements, Reveil};
+use crate::renderer::video::signature;
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{Mutex, PoisonError};
 
@@ -41,6 +43,9 @@ pub const RIEN: &str = "Glucose reçoit les images et les liens : ce partage n'e
 pub struct Partage {
     /// Les fichiers lus, dans l'ordre du partage.
     pub recus: Vec<Recu>,
+    /// **Les fichiers copiés sur le disque** sans passer par la mémoire : une vidéo
+    /// (VIDEO-ANDROID-2), qui pèse souvent plus que la borne d'un fichier lu.
+    pub chemins: Vec<PathBuf>,
     /// Les fichiers que le système n'a pas laissé ouvrir, ou qui dépassaient la borne : ils se
     /// comptent dans le compte-rendu, au lieu de disparaître.
     pub illisibles: usize,
@@ -51,23 +56,77 @@ pub struct Partage {
     pub ou: Option<(f64, f64)>,
 }
 
+/// **Ce qu'un fichier partagé devient.**
+#[derive(Debug, PartialEq)]
+pub enum Lu {
+    /// Ses octets, en mémoire : une image s'y scelle sans laisser de fichier.
+    Octets(Recu),
+    /// Le fichier où il a été copié : une vidéo.
+    Fichier(PathBuf),
+}
+
 /// **Lit un fichier partagé** : à partir de `debut`, `longueur` octets quand le système les
-/// dit, jamais plus de [`OCTETS_MAX`]. Rien si la lecture échoue, si le fichier est vide ou
-/// trop gros.
+/// dit. Rien si la lecture échoue, si le fichier est vide ou trop gros.
 ///
 /// Le début et la longueur sont ceux de l'`AssetFileDescriptor` d'Android : un fournisseur
 /// peut ne donner qu'un **morceau** d'un fichier, et lire du début lirait autre chose.
-pub fn lire(mut fichier: impl Read + Seek, debut: u64, longueur: Option<u64>) -> Option<Recu> {
+///
+/// **Une vidéo se copie dans `dossier`**, de son descripteur au disque, sans jamais tenir en
+/// mémoire ni connaître de borne (VIDEO-ANDROID-2) : une minute filmée en 4K dépasse les
+/// [`OCTETS_MAX`] d'un fichier lu. Ses premiers octets le disent, jamais un nom ; le reste —
+/// une image, que le document scelle depuis la mémoire — se lit, jusqu'à la borne.
+pub fn lire(
+    mut fichier: impl Read + Seek,
+    debut: u64,
+    longueur: Option<u64>,
+    dossier: Option<&Path>,
+) -> Option<Lu> {
     if debut > 0 {
         fichier.seek(SeekFrom::Start(debut)).ok()?;
     }
-    let borne = longueur.unwrap_or(u64::MAX).min(OCTETS_MAX as u64 + 1);
+    let mut fichier = fichier.take(longueur.unwrap_or(u64::MAX));
     let mut octets = Vec::new();
-    fichier.take(borne).read_to_end(&mut octets).ok()?;
+    (&mut fichier)
+        .take(signature::LONGUEUR as u64)
+        .read_to_end(&mut octets)
+        .ok()?;
+    if let Some(dossier) = dossier.filter(|_| signature::est_video(&octets)) {
+        let copier = |sortie: &mut std::io::BufWriter<std::fs::File>| {
+            sortie.write_all(&octets)?;
+            std::io::copy(&mut fichier, sortie).map(drop)
+        };
+        return telechargements::poser_en_flux(dossier, NOM, copier).map(Lu::Fichier);
+    }
+    let reste = (OCTETS_MAX as u64 + 1).saturating_sub(octets.len() as u64);
+    fichier.take(reste).read_to_end(&mut octets).ok()?;
     if octets.len() > OCTETS_MAX {
         return None;
     }
-    Recu::nouveau(NOM, octets)
+    Recu::nouveau(NOM, octets).map(Lu::Octets)
+}
+
+impl Partage {
+    /// **Ajoute un fichier ouvert** (son descripteur, son début, sa longueur) — ou le compte
+    /// illisible, que le système ne l'ait pas laissé ouvrir ou qu'il ne se lise pas. Une vidéo
+    /// se copie dans le dossier de l'application ([`telechargements::de_l_application`]).
+    pub fn ajouter(&mut self, ouvert: Option<(impl Read + Seek, u64, Option<u64>)>) {
+        let dossier = telechargements::de_l_application();
+        self.ajouter_dans(ouvert, dossier.as_deref());
+    }
+
+    /// [`Partage::ajouter`], une vidéo copiée dans ce dossier.
+    pub(crate) fn ajouter_dans(
+        &mut self,
+        ouvert: Option<(impl Read + Seek, u64, Option<u64>)>,
+        dossier: Option<&Path>,
+    ) {
+        match ouvert.and_then(|(fichier, debut, longueur)| lire(fichier, debut, longueur, dossier))
+        {
+            Some(Lu::Octets(recu)) => self.recus.push(recu),
+            Some(Lu::Fichier(chemin)) => self.chemins.push(chemin),
+            None => self.illisibles += 1,
+        }
+    }
 }
 
 /// **Les adresses web d'un texte partagé**, dans l'ordre, sans doublon.
@@ -101,14 +160,17 @@ pub enum Route {
 pub fn router(partage: Partage) -> Route {
     let Partage {
         recus,
+        chemins,
         illisibles,
         texte,
         ou,
     } = partage;
     let liens = texte.as_deref().map(adresses).unwrap_or_default();
-    if !recus.is_empty() || liens.is_empty() {
-        let rien = recus.is_empty() && illisibles == 0;
+    let porte = !recus.is_empty() || !chemins.is_empty();
+    if porte || liens.is_empty() {
+        let rien = !porte && illisibles == 0;
         return Route::Poser(Moisson {
+            chemins,
             recus,
             illisibles,
             echec: rien.then(|| RIEN.to_string()),

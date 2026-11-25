@@ -14,11 +14,37 @@
 //! écrasé : `rapport (1).pdf`, comme un navigateur.
 
 use super::moisson::Recu;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+/// **Le dossier de l'application**, quand la plateforme en donne un au lieu d'un dossier
+/// Téléchargements : Android ne laisse pas une application écrire dans le sien (il passe par
+/// `MediaStore`), et son dossier temporaire est un cache que le système vide quand la place
+/// manque — une vidéo gardée « à côté » du document y disparaîtrait (VIDEO-ANDROID-2).
+static DE_L_APPLICATION: OnceLock<PathBuf> = OnceLock::new();
+
+/// **Glucose habite ce dossier** : ce qu'il reçoit et qui n'est pas une image va dans son
+/// `telechargements/`. Sous Android, l'activité le dit avant que le fil de Glucose naisse.
+pub fn habiter(application: &Path) {
+    let _ = DE_L_APPLICATION.set(application.join("telechargements"));
+}
+
+/// Le dossier de l'application, s'il y en a un ([`habiter`]) : c'est là qu'un fichier partagé
+/// se copie sans passer par la mémoire. Aucun sur un bureau, où rien n'est partagé ainsi.
+pub fn de_l_application() -> Option<PathBuf> {
+    DE_L_APPLICATION.get().cloned()
+}
+
+/// **Où va ce qu'un dépôt apporte et qui n'est pas une image** : le dossier de l'application
+/// s'il y en a un ([`habiter`]), sinon les téléchargements de cet utilisateur.
+pub fn dossier() -> Option<PathBuf> {
+    de_l_application().or_else(du_systeme)
+}
 
 /// Le dossier des téléchargements de cet utilisateur, tel que le système le connaît.
 #[cfg(windows)]
-pub fn dossier() -> Option<PathBuf> {
+fn du_systeme() -> Option<PathBuf> {
     use windows::Win32::System::Com::CoTaskMemFree;
     use windows::Win32::UI::Shell::{FOLDERID_Downloads, SHGetKnownFolderPath, KNOWN_FOLDER_FLAG};
     // SAFETY : l'appel ne lit que ses arguments ; la chaîne qu'il rend est à nous, et se rend
@@ -34,7 +60,7 @@ pub fn dossier() -> Option<PathBuf> {
 /// Le dossier des téléchargements de cet utilisateur : celui que `user-dirs.dirs` nomme —
 /// il est traduit (« Téléchargements » sur un bureau français) —, sinon `~/Downloads`.
 #[cfg(not(windows))]
-pub fn dossier() -> Option<PathBuf> {
+fn du_systeme() -> Option<PathBuf> {
     let personnel = PathBuf::from(std::env::var_os("HOME")?);
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
@@ -66,15 +92,42 @@ fn dossier_nomme(texte: &str, personnel: &Path) -> Option<PathBuf> {
 /// contenu y est posé d'un bloc ([`crate::persist::atomic`]) : un arrêt en chemin laisse un
 /// fichier vide, jamais un fichier à moitié écrit qui passerait pour entier.
 pub fn poser_dans(dossier: &Path, recu: &Recu) -> Option<PathBuf> {
+    poser_en_flux(dossier, &recu.nom, |sortie| sortie.write_all(&recu.octets))
+}
+
+/// **Pose sous ce nom ce que `ecrire` écrit**, au fil de l'eau, sous la même loi que
+/// [`poser_dans`] : une vidéo partagée se copie ainsi de son descripteur au disque, sans jamais
+/// tenir en mémoire (VIDEO-ANDROID-2). Une écriture qui échoue rend son nom : aucun fichier
+/// vide ne reste.
+pub fn poser_en_flux(
+    dossier: &Path,
+    nom: &str,
+    ecrire: impl FnOnce(&mut BufWriter<std::fs::File>) -> std::io::Result<()>,
+) -> Option<PathBuf> {
     std::fs::create_dir_all(dossier).ok()?;
-    let nom = Path::new(&recu.nom);
-    let souche = nom
+    let chemin = reserver(dossier, nom)?;
+    match crate::persist::atomic::ecrire_en_flux(&chemin, ecrire) {
+        Ok(()) => Some(chemin),
+        Err(_) => {
+            let _ = std::fs::remove_file(&chemin);
+            None
+        }
+    }
+}
+
+/// **Réserve un nom libre** dans ce dossier — `nom`, sinon `nom (1).ext`, `nom (2).ext`… —,
+/// créé vide, et seulement s'il n'existait pas : un fichier de l'utilisateur ne s'écrase jamais.
+fn reserver(dossier: &Path, nom: &str) -> Option<PathBuf> {
+    let chemin_du_nom = Path::new(nom);
+    let souche = chemin_du_nom
         .file_stem()
-        .map_or_else(|| recu.nom.clone(), |s| s.to_string_lossy().into());
-    let extension = nom.extension().map(|e| format!(".{}", e.to_string_lossy()));
+        .map_or_else(|| nom.to_string(), |s| s.to_string_lossy().into());
+    let extension = chemin_du_nom
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()));
     for rang in 0usize.. {
         let essai = match rang {
-            0 => recu.nom.clone(),
+            0 => nom.to_string(),
             n => format!("{souche} ({n}){}", extension.as_deref().unwrap_or("")),
         };
         let chemin = dossier.join(essai);
@@ -85,9 +138,7 @@ pub fn poser_dans(dossier: &Path, recu: &Recu) -> Option<PathBuf> {
         {
             Ok(reserve) => {
                 drop(reserve);
-                return crate::persist::atomic::ecrire_d_un_bloc(&chemin, &recu.octets)
-                    .ok()
-                    .map(|()| chemin);
+                return Some(chemin);
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(_) => return None,

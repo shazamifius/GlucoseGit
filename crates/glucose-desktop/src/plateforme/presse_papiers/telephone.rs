@@ -211,11 +211,7 @@ fn partage_du_collage(fichiers: Vec<Option<Ouvert>>, ou: (f64, f64)) -> Partage 
         ..Partage::default()
     };
     for ouvert in fichiers {
-        match ouvert.and_then(|(fichier, debut, longueur)| partage::lire(fichier, debut, longueur))
-        {
-            Some(recu) => collage.recus.push(recu),
-            None => collage.illisibles += 1,
-        }
+        collage.ajouter(ouvert);
     }
     collage
 }

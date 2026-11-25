@@ -60,6 +60,14 @@ public class MainActivity extends GameActivity {
             int[] fichiers, long[] debuts, long[] longueurs, String texte);
 
     /**
+     * **Le dossier privé de Glucose** (VIDEO-ANDROID-2, fiche 172 § 5) : ce qu'il reçoit et qui
+     * n'est pas une image — une vidéo partagée, copiée sans passer par la mémoire — y vit, hors
+     * du cache que le système vide quand la place manque. Dit avant `super.onCreate`, qui lance
+     * le fil de Glucose : un partage qui arrive avec le lancement le trouve déjà.
+     */
+    private static native void connaitreLeDossier(String dossier);
+
+    /**
      * Où en est une mise à jour confiée à Android (MAJ-ANDROID-1, fiche 58) : 1, il faut
      * autoriser Glucose à installer des applications ; 2, Android demande la confirmation ;
      * 3, l'installation a échoué, et `detail` dit pourquoi. Rust choisit les mots.
@@ -370,8 +378,10 @@ public class MainActivity extends GameActivity {
                 this,
                 SystemBarStyle.dark(Color.TRANSPARENT),
                 SystemBarStyle.dark(Color.TRANSPARENT));
-        // Avant `super.onCreate`, qui lance le fil de Glucose : il trouve le service pris.
+        // Avant `super.onCreate`, qui lance le fil de Glucose : il trouve le service pris et
+        // le dossier connu.
         presse = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        connaitreLeDossier(getFilesDir().getPath());
         super.onCreate(etat);
         // Une activité recréée (le système avait tué Glucose), ou rouverte depuis les
         // applications récentes, reçoit l'intention d'origine une seconde fois : le partage

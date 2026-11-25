@@ -1,0 +1,162 @@
+[
+  {
+    "nom": "VIDEO-ANDROID-2 — une vidéo jamais reconnue",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "dossier.filter(|_| signature::est_video(&octets))",
+    "apres": "dossier.filter(|_| false)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — une image copiée aussi",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "dossier.filter(|_| signature::est_video(&octets))",
+    "apres": "dossier.filter(|_| true)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — la tête de la vidéo perdue",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "            sortie.write_all(&octets)?;\n",
+    "apres": "",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — la copie bornée comme une lecture",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "std::io::copy(&mut fichier, sortie)",
+    "apres": "std::io::copy(&mut (&mut fichier).take(OCTETS_MAX as u64), sortie)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — la copie lue depuis le début",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "    if debut > 0 {\n        fichier.seek(SeekFrom::Start(debut)).ok()?;\n    }\n    let mut fichier",
+    "apres": "    let mut fichier",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — une copie ratée garde son nom",
+    "fichier": "crates/glucose-desktop/src/plateforme/telechargements.rs",
+    "avant": "            let _ = std::fs::remove_file(&chemin);\n",
+    "apres": "",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — une vidéo copiée comptée illisible",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "Some(Lu::Fichier(chemin)) => self.chemins.push(chemin),",
+    "apres": "Some(Lu::Fichier(_)) => self.illisibles += 1,",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  },
+  {
+    "nom": "VIDEO-ANDROID-2 — une vidéo seule prise pour un partage vide",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "let porte = !recus.is_empty() || !chemins.is_empty();",
+    "apres": "let porte = !recus.is_empty();",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2"
+    ]
+  }
+]

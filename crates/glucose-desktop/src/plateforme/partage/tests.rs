@@ -12,10 +12,19 @@ fn png() -> Vec<u8> {
     octets
 }
 
+/// Lu en mémoire, sans dossier où copier une vidéo : ce que les épreuves d'avant VIDEO-ANDROID-2
+/// éprouvent.
+fn en_memoire(fichier: impl Read + Seek, debut: u64, longueur: Option<u64>) -> Option<Recu> {
+    match lire(fichier, debut, longueur, None)? {
+        Lu::Octets(recu) => Some(recu),
+        Lu::Fichier(chemin) => panic!("copié sans dossier : {chemin:?}"),
+    }
+}
+
 /// **Un fichier entier se lit entier**, sous un nom qui ne décide de rien.
 #[test]
 fn test_a_whole_shared_file_is_read_whole() {
-    let recu = lire(Cursor::new(png()), 0, None).expect("le fichier se lit");
+    let recu = en_memoire(Cursor::new(png()), 0, None).expect("le fichier se lit");
     assert_eq!(recu.octets, png());
     assert_eq!(recu.nom, NOM);
 }
@@ -27,7 +36,7 @@ fn test_a_section_is_read_at_its_offset_and_length() {
     let mut fichier = b"ENTETE".to_vec();
     fichier.extend(png());
     fichier.extend(b"QUEUE");
-    let recu = lire(Cursor::new(fichier), 6, Some(png().len() as u64)).expect("le morceau");
+    let recu = en_memoire(Cursor::new(fichier), 6, Some(png().len() as u64)).expect("le morceau");
     assert_eq!(
         recu.octets,
         png(),
@@ -38,7 +47,7 @@ fn test_a_section_is_read_at_its_offset_and_length() {
 /// **Un fichier vide n'est pas une image partagée**, et ne pose pas une tuile vide.
 #[test]
 fn test_an_empty_shared_file_is_nothing() {
-    assert_eq!(lire(Cursor::new(Vec::new()), 0, None), None);
+    assert_eq!(en_memoire(Cursor::new(Vec::new()), 0, None), None);
 }
 
 /// **Au-delà de la borne, rien** : un fournisseur peut annoncer autant qu'il veut.
@@ -56,7 +65,7 @@ fn test_a_file_beyond_the_bound_is_refused() {
             Ok(0)
         }
     }
-    assert_eq!(lire(Infini, 0, None), None);
+    assert_eq!(en_memoire(Infini, 0, None), None);
 }
 
 /// **Les adresses d'un texte** : seules, entourées d'une phrase ou de ponctuation, sans
@@ -78,12 +87,12 @@ fn test_the_addresses_of_a_shared_text() {
 /// **Des images se posent**, et le texte qui les accompagne n'est qu'une légende.
 #[test]
 fn test_images_are_posed_and_their_caption_ignored() {
-    let recu = lire(Cursor::new(png()), 0, None).expect("l'image");
+    let recu = en_memoire(Cursor::new(png()), 0, None).expect("l'image");
     let route = router(Partage {
         recus: vec![recu.clone()],
         illisibles: 1,
         texte: Some("https://pin.it/4xYz".into()),
-        ou: None,
+        ..Partage::default()
     });
     assert_eq!(
         route,
@@ -99,7 +108,7 @@ fn test_images_are_posed_and_their_caption_ignored() {
 /// dépôt.
 #[test]
 fn test_presse_android_un_partage_porte_son_point_jusqu_au_depot() {
-    let recu = lire(Cursor::new(png()), 0, None).expect("l'image");
+    let recu = en_memoire(Cursor::new(png()), 0, None).expect("l'image");
     let Route::Poser(moisson) = router(Partage {
         recus: vec![recu],
         ou: Some((12.0, 34.0)),
@@ -163,7 +172,7 @@ fn test_the_mailbox_waits_for_the_window() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
     let image = || Partage {
-        recus: vec![lire(Cursor::new(png()), 0, None).expect("l'image")],
+        recus: vec![en_memoire(Cursor::new(png()), 0, None).expect("l'image")],
         ..Partage::default()
     };
     recevoir(image());
@@ -239,14 +248,13 @@ fn message(app: &crate::app::GlucoseApp) -> Option<String> {
 #[test]
 fn test_shared_images_are_one_gesture_and_the_unreadable_is_counted() {
     let mut app = application();
-    let image = || lire(Cursor::new(png()), 0, None).expect("l'image");
+    let image = || en_memoire(Cursor::new(png()), 0, None).expect("l'image");
     partager(
         &mut app,
         Partage {
             recus: vec![image(), image()],
             illisibles: 1,
-            texte: None,
-            ou: None,
+            ..Partage::default()
         },
     );
     let posees =
@@ -308,3 +316,5 @@ fn test_the_photo_picker_opens_when_plugged() {
         "il s'est ouvert, une fois"
     );
 }
+
+mod video;

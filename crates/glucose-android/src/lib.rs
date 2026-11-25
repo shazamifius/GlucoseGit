@@ -13,6 +13,10 @@ use winit::platform::android::EventLoopBuilderExtAndroid;
 mod presse_papiers;
 mod video;
 
+/// **Le nom du dossier de Glucose** dans le dossier privé de l'application : celui de ses
+/// documents et de ce qu'il reçoit (`telechargements/`, VIDEO-ANDROID-2).
+const DOSSIER: &str = "glucose";
+
 /// **Ce que `GameActivity` appelle** au lancement, sur le fil de Glucose.
 #[no_mangle]
 fn android_main(app: AndroidApp) {
@@ -34,7 +38,7 @@ fn android_main(app: AndroidApp) {
     let dossier = app
         .internal_data_path()
         .unwrap_or_else(std::env::temp_dir)
-        .join("glucose");
+        .join(DOSSIER);
     // Le dossier que le fournisseur de Glucose sert (`fichiers_partages.xml`), comme la feuille
     // de partage : ce que Glucose copie y vit.
     presse_papiers::brancher(&app, dossier.join("partages"));
@@ -75,7 +79,7 @@ fn repartir() -> ! {
 /// **Ce qu'une autre application partage vers Glucose** (PARTAGE-1, fiche 56) : l'activité
 /// Java a ouvert les fichiers, Rust les lit et les confie au dépôt de Glucose.
 mod partage {
-    use glucose_desktop::plateforme::partage::{lire, recevoir, Partage};
+    use glucose_desktop::plateforme::partage::{recevoir, Partage};
     use jni::objects::{JClass, JIntArray, JLongArray, JString};
     use jni::refs::Reference;
     use jni::{Env, EnvUnowned};
@@ -113,23 +117,18 @@ mod partage {
             ..Partage::default()
         };
         for ((fd, debut), longueur) in fichiers.into_iter().zip(debuts).zip(longueurs) {
-            let recu = (fd >= 0)
-                .then(|| {
-                    // SAFETY : Java a détaché ce descripteur pour nous (`detachFd`) : il est à
-                    // Rust seul, et `File` le fermera.
-                    let fichier = unsafe { std::fs::File::from_raw_fd(fd) };
-                    let longueur = u64::try_from(longueur).ok();
-                    lire(fichier, u64::try_from(debut).unwrap_or(0), longueur)
-                })
-                .flatten();
-            match recu {
-                Some(recu) => partage.recus.push(recu),
-                None => partage.illisibles += 1,
-            }
+            partage.ajouter((fd >= 0).then(|| {
+                // SAFETY : Java a détaché ce descripteur pour nous (`detachFd`) : il est à
+                // Rust seul, et `File` le fermera.
+                let fichier = unsafe { std::fs::File::from_raw_fd(fd) };
+                let longueur = u64::try_from(longueur).ok();
+                (fichier, u64::try_from(debut).unwrap_or(0), longueur)
+            }));
         }
         println!(
-            "[Glucose] partage : {} image(s) lue(s), {} illisible(s), {}",
+            "[Glucose] partage : {} image(s) lue(s), {} fichier(s) copie(s), {} illisible(s), {}",
             partage.recus.len(),
+            partage.chemins.len(),
             partage.illisibles,
             if partage.texte.is_some() {
                 "un texte"
@@ -138,6 +137,24 @@ mod partage {
             }
         );
         recevoir(partage);
+    }
+
+    /// `MainActivity.connaitreLeDossier`, avant que le fil de Glucose naisse (VIDEO-ANDROID-2,
+    /// fiche 172 § 5) : où va ce qu'il reçoit et qui n'est pas une image — le dossier privé,
+    /// celui de ses documents, jamais le cache que le système vide.
+    #[no_mangle]
+    pub extern "system" fn Java_com_glucose_app_MainActivity_connaitreLeDossier<'l>(
+        mut env: EnvUnowned<'l>,
+        _classe: JClass<'l>,
+        dossier: JString<'l>,
+    ) {
+        let lu = env
+            .with_env(|env| -> jni::errors::Result<String> { dossier.try_to_string(env) })
+            .resolve::<jni::errors::LogErrorAndDefault>();
+        if !lu.is_empty() {
+            let application = std::path::Path::new(&lu).join(super::DOSSIER);
+            glucose_desktop::plateforme::telechargements::habiter(&application);
+        }
     }
 
     /// Les tableaux et le texte de Java, en Rust.
