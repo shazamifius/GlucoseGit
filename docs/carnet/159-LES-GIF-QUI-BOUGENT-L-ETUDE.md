@@ -84,3 +84,28 @@ machine, ou une bibliothèque) — une dépendance, donc sa note dans `decisions
   génération (vérifié), une pyramide remplacée sous la même clé garderait l'ancienne texture.
   `accueillir` ne doit pas réécrire l'aperçu du disque pour une image de GIF (l'aperçu reste la
   première), et `changements` doit croître, sans quoi LOT-1 reconduit la récolte d'avant.
+
+## 6. Les décisions prises en lisant (25/11 vers 3 h 45, pour GIF-1 et 2)
+
+* **Fait d'abord : OUVRIER-1** (`87611c8`) — `atelier.rs` touchait son plafond (594 lignes sur
+  600) : la vie d'un ouvrier (`ouvrier`, `attendre`, `decoder`, `encoder_en_png`) est passée dans
+  `atelier/ouvrier.rs`, un déplacement pur ; `atelier.rs` a 476 lignes.
+* **Le lecteur, sans dépendance nouvelle** : `image` 0.25.10 donne tout — `GifDecoder` puis
+  `AnimationDecoder::into_frames()` (des toiles déjà composées, `Frame::delay()` en millisecondes),
+  et `ImageDecoder::loop_count()` (`LoopCount::Finite(n)` ou `Infinite`, `codecs/gif.rs` l. 427) ;
+  `GifEncoder::set_repeat` fabrique les GIF des épreuves. La caisse `gif` n'est pas nécessaire.
+* **Savoir qu'une image est un GIF** : ni la clé (une clé du document n'a pas toujours
+  d'extension) ni la pyramide ne le disent, et une image rouverte vient de son **aperçu** sans
+  jamais passer par le décodeur. Proposé : le travail `Decoder` lit la signature (`GIF8`, six
+  octets) sur ses deux chemins — une lecture partielle de la source (`Objets::source` : fichier ou
+  tranche du document), sans l'empreinte, qui ne sert qu'à choisir ; seule la lecture entière, par
+  le joueur, la vérifie — et `Fait::Decodee` porte ce drapeau jusqu'à l'entrée du magasin.
+* **Le joueur** : un fil par GIF visible, qui cède au fil qui dessine
+  (`plateforme::priorite`), lit les octets par `Objets::lire` (vérifiés), construit la pyramide de
+  chaque toile sous l'admission, et les tend par un `sync_channel(1)` (une image d'avance, deux en
+  mémoire au plus). Le magasin le lâche quand l'image n'est plus vue : le récepteur tombe, le fil
+  s'arrête à son envoi suivant. Un GIF d'une seule image s'arrête à la deuxième demande, et
+  l'entrée le retient (plus de joueur pour elle).
+* **La clé de la carte** : `Cle::Niveau(numero, facteur)` porte aussi la **génération** de l'entrée
+  (`Entree::generation`, qu'`accueillir` fait déjà croître) — la même règle sert alors à toute
+  pyramide remplacée, pas seulement aux GIF.
