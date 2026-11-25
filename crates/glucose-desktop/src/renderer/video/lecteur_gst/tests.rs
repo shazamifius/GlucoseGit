@@ -79,7 +79,10 @@ fn video_1_la_video_joue_ses_images_jusqu_au_bout() {
                 vues.push(Instant::now());
             }
             Ok(None) => {}
-            Err(()) => break,
+            Err(fin) => {
+                assert_eq!(fin, Fin::AuBout);
+                break;
+            }
         }
         assert!(debut.elapsed() < Duration::from_secs(10), "jamais finie");
     }
@@ -105,4 +108,32 @@ fn video_1_des_octets_qui_ne_sont_pas_une_video_n_ouvrent_rien() {
 fn video_1_les_rangees_coupent_ce_qui_depasse_et_refusent_ce_qui_manque() {
     assert_eq!(rangees(&[1; 40], 2, 4).map(|v| v.len()), Some(32));
     assert_eq!(rangees(&[1; 31], 2, 4), None);
+}
+
+/// **La lecture automatique joue en boucle** (VIDEO-2) : au bout, elle revient au début et les
+/// images reprennent.
+#[test]
+fn video_2_au_bout_la_video_revient_au_debut() {
+    if !gstreamer() {
+        return;
+    }
+    let lecteur = LecteurVideo::ouvrir(Lieu::Octets(ROUGE.into()), false).expect("ouverte");
+    lecteur.jouer(true);
+    let debut = Instant::now();
+    let mut tours = 0;
+    let mut images = 0;
+    while tours < 2 {
+        match lecteur.suivante(Duration::from_millis(100)) {
+            Ok(Some(_)) => images += 1,
+            Ok(None) => {}
+            Err(Fin::AuBout) => {
+                tours += 1;
+                assert!(lecteur.revenir_au_debut(), "le système refuse de revenir");
+            }
+            Err(Fin::Faute) => panic!("faute"),
+        }
+        assert!(debut.elapsed() < Duration::from_secs(10), "jamais revenue");
+    }
+    // Deux tours de dix images : plus d'un tour en a été vu.
+    assert!(images > 12, "{images} images en deux tours");
 }

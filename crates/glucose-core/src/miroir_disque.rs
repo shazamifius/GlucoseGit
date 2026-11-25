@@ -164,12 +164,15 @@ pub fn tableaux_du_disque(projet: &Project) -> HashMap<&str, &str> {
 /// qu'il colle ou lâche **dans** un miroir aussi, qui ne vient pas de ce dossier (sans quoi elle ne
 /// vivrait que dans un cache, ou dans un fichier qu'il peut effacer). `AssetRef::Link` ne le dit
 /// pas, qui désigne aussi les images d'un document portable de Tauri — à sceller, elles.
+///
+/// **Une vidéo gardée à côté** (VIDEO-2, son choix au dépôt) reste aussi dehors, où qu'elle soit.
 pub fn reste_dehors(disque: &HashMap<&str, &str>, tableau: &str, img: &BoardImage) -> bool {
-    disque.get(tableau).is_some_and(|racine| {
-        img.src
-            .as_deref()
-            .is_some_and(|src| reconcilier::vient_de(src, racine))
-    })
+    img.video.a_cote
+        || disque.get(tableau).is_some_and(|racine| {
+            img.src
+                .as_deref()
+                .is_some_and(|src| reconcilier::vient_de(src, racine))
+        })
 }
 
 /// **Les photos du projet qui se scellent** : toutes, sauf celles qui restent sur le disque

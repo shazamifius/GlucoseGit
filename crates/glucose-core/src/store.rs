@@ -63,6 +63,7 @@ pub mod participation;
 pub mod pousser;
 mod ranger;
 pub mod redresser;
+pub mod videos;
 pub use ranger::Rangement;
 mod resize;
 pub mod retour;

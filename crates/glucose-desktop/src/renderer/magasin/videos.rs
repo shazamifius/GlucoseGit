@@ -3,8 +3,9 @@
 //! même identité — comme une toile de GIF. Une vidéo qui quitte l'écran s'arrête ; allée au bout,
 //! elle reste sur sa dernière image, et ▶ la relance du début.
 
-use super::Magasin;
+use super::{Magasin, Numero};
 use crate::renderer::video::joueur::JoueurVideo;
+use glucose_core::types::BoardImage;
 
 /// **Où en est une vidéo**, pour ce que son nœud montre (▶, l'icône du son).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,7 +22,35 @@ impl Magasin {
             return;
         }
         let (objets, reveil) = (self.atelier.objets(), self.reveil.clone());
-        let joueur = JoueurVideo::lancer(src.to_string(), objets, reveil);
+        let joueur = JoueurVideo::lancer(src.to_string(), objets, reveil, false);
+        self.videos.insert(src.to_string(), joueur);
+    }
+
+    /// **Réclame la photo de ce nœud, qui est à l'écran** ([`Magasin::reclamer_par_numero`]) — et
+    /// une vidéo en lecture automatique s'y met à jouer (VIDEO-2). Les trois chemins du dessin (la
+    /// grille, la passe directe, la carte graphique) réclament par ici : aucun ne l'oublie.
+    ///
+    /// Seulement quand sa première image est tenue : c'est elle qui dit le joueur encore à l'écran
+    /// ([`Magasin::avancer_les_videos`]). Sans elle — un fichier gardé à côté qui a bougé —, le
+    /// joueur serait lâché à l'image suivante, puis relancé : un fil par image, sans fin.
+    pub fn reclamer_le_noeud(&mut self, img: &BoardImage) -> Option<Numero> {
+        let src = img.src.as_deref().filter(|s| !s.is_empty())?;
+        let numero = self.reclamer_par_numero(src, img.width)?;
+        if img.is_video && img.video.lecture_auto {
+            self.jouer_seule(src);
+        }
+        Some(numero)
+    }
+
+    /// **Une vidéo en lecture automatique est à l'écran** : elle joue seule, en boucle, le son
+    /// coupé — sauf déjà lancée (arrêtée par ⏸, elle le reste), ou muette ici (elle ne s'est pas
+    /// lue : la relancer à chaque image ne ferait que la rater encore).
+    fn jouer_seule(&mut self, src: &str) {
+        if self.videos.contains_key(src) || self.videos_muettes.contains(src) {
+            return;
+        }
+        let (objets, reveil) = (self.atelier.objets(), self.reveil.clone());
+        let joueur = JoueurVideo::lancer(src.to_string(), objets, reveil, true);
         self.videos.insert(src.to_string(), joueur);
     }
 
@@ -72,7 +101,10 @@ impl Magasin {
             self.accueillir(src, pyramide, std::time::Duration::ZERO, true);
         }
         for src in finies {
-            self.videos.remove(&src);
+            // Une boucle ne finit qu'en faute : muette ici, jusqu'au prochain lancement.
+            if self.videos.remove(&src).is_some_and(|j| j.en_boucle()) {
+                self.videos_muettes.insert(src);
+            }
             self.changements += 1;
         }
     }

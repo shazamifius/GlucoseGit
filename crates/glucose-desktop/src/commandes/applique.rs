@@ -22,6 +22,7 @@ use crate::interactions::depot_web::liens_choisis;
 use crate::interactions::echelle::cran_vers;
 use crate::interactions::fenetre::{candidats_a_montrer, noeud_montre_choisi};
 use crate::interactions::suivre::une_fleche_seule;
+use crate::interactions::video::Choix;
 use crate::ui::UiState;
 use glucose_core::store::Store;
 use glucose_core::types::Annotation;
@@ -56,6 +57,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::RetirerLesBordures
         | C::RetournerHorizontalement
         | C::RetournerVerticalement
+        | C::Video(_)
         | C::Detourer
         | C::RetirerLeFondUni
         | C::Verrouiller
@@ -149,6 +151,9 @@ fn selon_le_choix(store: &Store, ui: &UiState, commande: Commande) -> bool {
         // Une image sans octets n'a rien à détourer, une image verrouillée refuse qu'on la change :
         // les proposer mentirait (DETOURER-1, fiche 121).
         C::Detourer | C::RetirerLeFondUni => images_a_detourer(store),
+        // Une photo n'a pas de lecture ; une vidéo déjà dans le document n'a pas à y entrer.
+        C::Video(Choix::LectureAutomatique) => videos_choisies(store).next().is_some(),
+        C::Video(Choix::DansLeDocument) => videos_choisies(store).any(|i| i.video.a_cote),
         C::EnregistrerLImage => {
             store.selected_image_ids.len() == 1 && store.selected_annotation_ids.is_empty()
         }
@@ -217,6 +222,14 @@ fn selon_le_document(store: &Store, commande: Commande) -> bool {
         // voit. Les autres sont rangées ailleurs par [`s_applique`].
         _ => false,
     }
+}
+
+/// Les vidéos du choix.
+fn videos_choisies(store: &Store) -> impl Iterator<Item = &glucose_core::types::BoardImage> {
+    let board = &store.project.active_board_id;
+    (store.selected_image_ids.iter())
+        .filter_map(move |id| store.image(board, id))
+        .filter(|i| i.is_video)
 }
 
 /// **Une image choisie que le détourage peut changer** : déverrouillée, et qui a des octets.

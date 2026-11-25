@@ -250,6 +250,7 @@ impl GlucoseApp {
                 cible,
                 ancienne,
             } => self.repondre_a_la_fleche_en_double((board, source, cible, ancienne), reponse),
+            Suite::Videos { board, poses } => self.repondre_aux_videos(&board, &poses, reponse),
             Suite::RenommerLeDossier { board, id } => {
                 self.repondre_au_dossier((&board, &id), reponse, champ);
             }

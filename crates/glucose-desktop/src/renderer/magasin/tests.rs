@@ -4,6 +4,10 @@
 use super::*;
 use tiny_skia::Pixmap;
 
+/// **La photo témoin**, écrite à part puis renommée : des épreuves en parallèle la demandent
+/// ensemble, et `nix develop` donne un dossier temporaire neuf à chaque lancement — l'une
+/// copiait la photo que l'autre écrivait encore, et attendait trente secondes une image
+/// illisible (le témoin de `video-2.json`, le 25/11).
 fn photo_temoin(nom: &str) -> String {
     let dossier = std::env::temp_dir().join("glucose-magasin-tests");
     std::fs::create_dir_all(&dossier).expect("dossier de test");
@@ -13,7 +17,9 @@ fn photo_temoin(nom: &str) -> String {
         for (x, _, px) in brute.enumerate_pixels_mut() {
             *px = image::Rgba([(x * 5 % 256) as u8, 90, 160, 255]);
         }
-        brute.save(&chemin).expect("écriture de la photo témoin");
+        let a_part = dossier.join(format!("{nom}.{:?}.part", std::thread::current().id()));
+        (brute.save_with_format(&a_part, image::ImageFormat::Png)).expect("photo témoin");
+        std::fs::rename(&a_part, &chemin).expect("photo témoin renommée");
     }
     chemin.to_string_lossy().to_string()
 }
@@ -198,6 +204,7 @@ fn test_l_eviction_s_arrete_des_que_la_borne_est_tenue() {
 
 mod etages;
 mod gifs;
+mod videos;
 
 /// **Une image reconduite garde ses photos à l'abri de l'éviction** (LOT-1) : elle ne les réclame
 /// pas, mais elle reprend le numéro de l'image qui les a réclamées. À l'envers : une image ouverte

@@ -148,6 +148,11 @@ pub enum Suite {
     Raccourci(crate::commandes::Commande),
     /// Rendre tous les raccourcis de Glucose, en oubliant ceux de l'utilisateur.
     RetablirLesRaccourcis,
+    /// **Des vidéos déposées** : dans le document, ou à côté (VIDEO-2, fiche 170).
+    Videos {
+        board: String,
+        poses: Vec<crate::interactions::video::Pose>,
+    },
     /// **Le nouveau nom de ce dossier** (RENOMMER-1, fiche 120).
     RenommerLeDossier { board: String, id: String },
     /// Le nom d'un champ de ce storyboard — son rang, ou `None` pour en ajouter un (fiches 67

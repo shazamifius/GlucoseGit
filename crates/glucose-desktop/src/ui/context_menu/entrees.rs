@@ -150,6 +150,7 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "Verrouiller"
         };
         defs.push(Some((MenuAction::ToggleLock, label, "")));
+        defs.extend(entrees_des_videos(store));
     }
     defs.extend([
         Some((MenuAction::TrimBorders, "Retirer les bordures", "")),
@@ -170,6 +171,33 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
         Some((MenuAction::Delete, "Supprimer", "")),
     ]);
     Some(defs)
+}
+
+/// **Les choix des vidéos choisies** (VIDEO-2, fiche 170) : leur lecture, dite par ce qu'elle
+/// deviendra (comme le verrou) ; et l'entrée dans le document de celles gardées à côté.
+fn entrees_des_videos(store: &Store) -> Vec<Def> {
+    let board = &store.project.active_board_id;
+    let videos: Vec<_> = (store.selected_image_ids.iter())
+        .filter_map(|id| store.image(board, id))
+        .filter(|i| i.is_video)
+        .collect();
+    if videos.is_empty() {
+        return Vec::new();
+    }
+    let lecture = if videos.iter().all(|i| i.video.lecture_auto) {
+        "Lecture au bouton ▶"
+    } else {
+        "Lecture automatique"
+    };
+    let mut defs = vec![Some((MenuAction::LectureAutomatique, lecture, ""))];
+    if videos.iter().any(|i| i.video.a_cote) {
+        defs.push(Some((
+            MenuAction::MettreDansLeDocument,
+            "Mettre dans le document",
+            "",
+        )));
+    }
+    defs
 }
 
 /// **Les régions** : en faire une de ce qu'on a choisi — entourer d'un geste (GROUPER-1, fiche

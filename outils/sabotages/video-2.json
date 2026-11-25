@@ -145,5 +145,245 @@
    "video_2",
    "bridge"
   ]
+ },
+ {
+  "nom": "VIDEO-2 — une vidéo à côté se scelle quand même",
+  "fichier": "crates/glucose-core/src/miroir_disque.rs",
+  "avant": "    img.video.a_cote\n        ||",
+  "apres": "    false\n        ||",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — la lecture auto ne se bascule plus",
+  "fichier": "crates/glucose-core/src/store/videos.rs",
+  "avant": "let auto = !toutes;",
+  "apres": "let auto = true;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — une vidéo à côté n'entre pas dans le document",
+  "fichier": "crates/glucose-core/src/store/videos.rs",
+  "avant": "|i| i.video.a_cote = false",
+  "apres": "|i| i.video.a_cote = true",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — le joueur en boucle ne repart pas",
+  "fichier": "crates/glucose-desktop/src/renderer/video/joueur.rs",
+  "avant": "Err(Fin::AuBout) if en_boucle && lecteur.revenir_au_debut()",
+  "apres": "Err(Fin::AuBout) if false && lecteur.revenir_au_debut()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — revenir au début ment",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_gst.rs",
+  "avant": "CHERCHER_EN_VIDANT, 0)\n                != 0",
+  "apres": "CHERCHER_EN_VIDANT, 0)\n                == 0",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — la lecture auto ne se lance pas à l'écran",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/videos.rs",
+  "avant": "        if img.is_video && img.video.lecture_auto {",
+  "apres": "        if false && img.video.lecture_auto {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — une vidéo illisible se relance à chaque image",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/videos.rs",
+  "avant": "                self.videos_muettes.insert(src);\n",
+  "apres": "                let _ = src;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — la lecture auto part avant sa première image",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/videos.rs",
+  "avant": "        let numero = self.reclamer_par_numero(src, img.width)?;\n        if img.is_video && img.video.lecture_auto {\n            self.jouer_seule(src);\n        }\n",
+  "apres": "        let numero = self.reclamer_par_numero(src, img.width);\n        if img.is_video && img.video.lecture_auto {\n            self.jouer_seule(src);\n        }\n        let numero = numero?;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — chaque vidéo déposée a sa question",
+  "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+  "avant": "Some((_, Suite::Videos { board: b, poses })) if b == board => poses,",
+  "apres": "Some((_, Suite::Videos { board: b, .. })) if b == board => Vec::new(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — « À côté » les met dans le document",
+  "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+  "avant": "            Reponse::Non => true,",
+  "apres": "            Reponse::Non => false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — les vidéos déposées ensemble, un geste chacune",
+  "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+  "avant": "        self.store.begin_live_edit();\n        for (path",
+  "apres": "        for (path",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — une vidéo qui attend sa question se dit « posée »",
+  "fichier": "crates/glucose-desktop/src/interactions/drop.rs",
+  "avant": "let demandees = self.videos_en_question().saturating_sub(en_question);",
+  "apres": "let demandees = 0 * en_question;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2"
+  ]
  }
 ]

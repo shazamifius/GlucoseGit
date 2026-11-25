@@ -27,17 +27,29 @@ pub(crate) struct JoueurVideo {
     joue: bool,
     son: bool,
     fini: bool,
+    en_boucle: bool,
 }
 
 impl JoueurVideo {
     /// **Lance le fil** de cette vidéo : elle joue tout de suite, le son coupé (sa réponse du
-    /// 25/11 : coupé par défaut, rallumé par son icône).
-    pub(crate) fn lancer(src: String, objets: Option<Arc<Objets>>, reveil: Option<Reveil>) -> Self {
+    /// 25/11 : coupé par défaut, rallumé par son icône) ; `en_boucle`, elle repart du début au
+    /// bout (la lecture automatique, VIDEO-2).
+    pub(crate) fn lancer(
+        src: String,
+        objets: Option<Arc<Objets>>,
+        reveil: Option<Reveil>,
+        en_boucle: bool,
+    ) -> Self {
         let (envoi, recu) = sync_channel(1);
         let (ordres, a_faire) = channel();
         std::thread::spawn(move || {
             crate::plateforme::priorite::ceder_au_fil_qui_dessine();
-            jouer(&src, objets.as_deref(), &envoi, &a_faire, reveil.as_ref());
+            jouer(
+                (&src, objets.as_deref(), en_boucle),
+                &envoi,
+                &a_faire,
+                reveil.as_ref(),
+            );
             // Fini : la boucle le voit, et son nœud remontre ▶.
             drop(envoi);
             if let Some(reveil) = &reveil {
@@ -51,6 +63,7 @@ impl JoueurVideo {
             joue: true,
             son: false,
             fini: false,
+            en_boucle,
         }
     }
 
@@ -97,6 +110,11 @@ impl JoueurVideo {
         self.son
     }
 
+    /// Elle joue en boucle (la lecture automatique).
+    pub(crate) fn en_boucle(&self) -> bool {
+        self.en_boucle
+    }
+
     /// **Son fil a fini** (la vidéo est allée au bout, ou ne se lit pas ici) et rien n'attend.
     pub(crate) fn fini(&self) -> bool {
         self.fini && self.prete.is_none()
@@ -105,8 +123,7 @@ impl JoueurVideo {
 
 /// La vie du fil : ouvrir, jouer, obéir, tendre chaque image — jusqu'à la fin.
 fn jouer(
-    src: &str,
-    objets: Option<&Objets>,
+    (src, objets, en_boucle): (&str, Option<&Objets>, bool),
     envoi: &std::sync::mpsc::SyncSender<Pyramide>,
     a_faire: &Receiver<Ordre>,
     reveil: Option<&Reveil>,
@@ -114,6 +131,7 @@ fn jouer(
     #[cfg(target_os = "linux")]
     {
         use crate::renderer::atelier::admission;
+        use crate::renderer::video::lecteur_gst::Fin;
         use crate::renderer::video::{LecteurVideo, Lieu};
         use std::time::Duration;
         let Some(lecteur) = Lieu::de(src, objets).and_then(|l| LecteurVideo::ouvrir(l, true))
@@ -136,7 +154,8 @@ fn jouer(
             let t = match lecteur.suivante(Duration::from_millis(50)) {
                 Ok(Some(t)) => t,
                 Ok(None) => continue,
-                Err(()) => return,
+                Err(Fin::AuBout) if en_boucle && lecteur.revenir_au_debut() => continue,
+                Err(_) => return,
             };
             let pic = admission::pic(t.rgba.len() as u64, (t.largeur, t.hauteur));
             let pyramide =
@@ -152,6 +171,56 @@ fn jouer(
     }
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (src, objets, envoi, a_faire, reveil);
+        let _ = (src, objets, en_boucle, envoi, a_faire, reveil);
+    }
+}
+
+/// **La lecture automatique joue en boucle** (VIDEO-2, fiche 170) : sur la vraie vidéo de
+/// téléphone en miniature (dix images en une seconde), le joueur en boucle ne finit jamais ; l'autre
+/// finit au bout.
+#[cfg(all(test, target_os = "linux"))]
+mod epreuves {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    const ROUGE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/donnees/rouge-64x48.mp4");
+
+    /// Joue pendant `duree` ; rend le nombre d'images tendues, et si le fil a fini.
+    fn jouer_pendant(en_boucle: bool, duree: Duration) -> Option<(usize, bool)> {
+        let gst = crate::renderer::video::gst::gst().is_some();
+        assert!(
+            gst || crate::renderer::video::gst::GREFFONS.is_none(),
+            "GStreamer manque alors que nix develop le porte"
+        );
+        if !gst {
+            return None;
+        }
+        let mut joueur = JoueurVideo::lancer(ROUGE.to_string(), None, None, en_boucle);
+        let (debut, mut images) = (Instant::now(), 0);
+        while debut.elapsed() < duree && !joueur.fini() {
+            images += usize::from(joueur.a_poser().is_some());
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Some((images, joueur.fini()))
+    }
+
+    #[test]
+    fn video_2_en_boucle_le_joueur_repart_au_bout() {
+        let Some((images, fini)) = jouer_pendant(true, Duration::from_millis(2600)) else {
+            return;
+        };
+        assert!(!fini, "la boucle a fini");
+        assert!(
+            images > 12,
+            "{images} images en plus de deux tours d'une seconde"
+        );
+    }
+
+    #[test]
+    fn video_2_sans_boucle_le_joueur_finit_au_bout() {
+        let Some((_, fini)) = jouer_pendant(false, Duration::from_secs(5)) else {
+            return;
+        };
+        assert!(fini, "jamais finie");
     }
 }

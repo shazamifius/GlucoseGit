@@ -26,8 +26,7 @@ pub(super) fn pose_tenue(
     img: &glucose_core::types::BoardImage,
     (vp, cran, plafond): (&Viewport, u32, Option<u32>),
 ) -> Option<PhotoTenue> {
-    let src = img.src.as_deref()?;
-    let numero = magasin.reclamer_par_numero(src, img.width)?;
+    let numero = magasin.reclamer_le_noeud(img)?;
     let entree = magasin.cache.par_numero(numero)?;
     // Le modele place une photo par son CENTRE : le coin s'en deduit, et c'est le piege
     // que `ce_que_porte` avait deja paye une fois.

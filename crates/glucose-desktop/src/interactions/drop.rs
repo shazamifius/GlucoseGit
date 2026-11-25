@@ -43,6 +43,9 @@ use glucose_core::file_kind;
 use glucose_core::types::Annotation;
 use std::path::{Path, PathBuf};
 
+mod rendu;
+use rendu::{avec_l_echec, compte_rendu};
+
 /// Décalage entre deux nœuds d'un même lot, en unités monde — la cascade de Glucose Tauri.
 const CASCADE: f64 = 28.0;
 
@@ -118,37 +121,6 @@ fn accent_of(ext: &str) -> &'static str {
     ACCENT
         .binary_search_by_key(&ext, |(key, _)| key)
         .map_or("#1a1a2e", |index| ACCENT[index].1)
-}
-
-/// Ce qu'un lot déposé a donné, en une phrase.
-///
-/// Pure, donc testable sans fenêtre : la formulation d'un message est exactement le genre
-/// de chose qui se casse sans qu'aucun test ne le voie.
-fn compte_rendu(poses: usize, rates: usize) -> String {
-    let pluriel = if poses > 1 { "s" } else { "" };
-    match (poses, rates) {
-        (0, 0) => String::new(),
-        (0, 1) => "Le fichier n'a pas pu être posé".to_string(),
-        (0, n) => format!("Aucun des {n} fichiers n'a pu être posé"),
-        (p, 0) => format!("{p} élément{pluriel} posé{pluriel}"),
-        (p, n) => format!(
-            "{p} élément{pluriel} posé{pluriel}, {n} illisible{}",
-            if n > 1 { "s" } else { "" }
-        ),
-    }
-}
-
-/// **Ce que dit un dépôt qui s'est replié** (DEPOT-WEB-6) : un lien posé à la place d'une image
-/// est un échec, et le dire « posé » le faisait passer pour une réussite. Le message nomme le
-/// site et la raison, et le geste qui rattrape.
-fn avec_l_echec(rendu: String, echec: Option<&str>, des_liens: bool) -> String {
-    match echec {
-        None => rendu,
-        Some(raison) if des_liens => format!(
-            "Image introuvable ({raison}) : lien posé à sa place — clic droit, « Remplacer par l'image »"
-        ),
-        Some(raison) => format!("{rendu} — l'image entière est introuvable ({raison})"),
-    }
 }
 
 /// **Un lot à poser** : des fichiers, ce qu'une page a livré, des adresses — les raccourcis
@@ -287,6 +259,7 @@ impl GlucoseApp {
         self.store.begin_live_edit();
         let avant = self.depot.posees.len();
         let deja = self.store.ids_des_images(&board);
+        let en_question = self.videos_en_question();
         let placed = self.poser_le_lot(&board, lot, origine);
         let posees = self.depot.posees.split_off(avant);
         // Lâché sur un storyboard, le lot le remplit, une image par case vide (P2, fiche 66) —
@@ -303,8 +276,13 @@ impl GlucoseApp {
         // **Un** compte-rendu pour le lot, échecs compris. Déposer huit fichiers ne doit pas
         // produire huit messages : ce qui s'est passé se dit d'une phrase, et celui qui a
         // raté s'y compte au lieu de s'annoncer tout seul au milieu des autres.
-        let rendu = compte_rendu(placed, attendus - placed);
-        self.dire_le_depot(avec_l_echec(rendu, echec, des_liens));
+        // Une vidéo n'est pas encore posée : sa question parle pour elle (VIDEO-2).
+        let demandees = self.videos_en_question().saturating_sub(en_question);
+        let rendu = compte_rendu(placed - demandees, attendus - placed);
+        let message = avec_l_echec(rendu, echec, des_liens);
+        if !message.is_empty() {
+            self.dire_le_depot(message);
+        }
         self.mark_dirty();
         posees
     }

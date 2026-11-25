@@ -18,6 +18,8 @@ const ETAT_PAUSE: c_int = 3;
 const ETAT_LECTURE: c_int = 4;
 const CHANGEMENT_RATE: c_int = 0;
 const MESSAGE_ERREUR: c_uint = 1 << 1;
+const FORMAT_TEMPS: c_int = 3;
+const CHERCHER_EN_VIDANT: c_int = 1;
 const LIRE: c_int = 1;
 const ECRIRE: c_int = 2;
 const FLUX_EN_ACCES_LIBRE: c_int = 2;
@@ -40,6 +42,15 @@ pub(crate) struct LecteurVideo {
     pipeline: Ptr,
     sortie: Ptr,
     bus: Ptr,
+}
+
+/// **Pourquoi une vidéo ne donne plus d'image.**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Fin {
+    /// Elle est allée au bout.
+    AuBout,
+    /// Le système n'a pas su la lire.
+    Faute,
 }
 
 impl LecteurVideo {
@@ -130,25 +141,35 @@ impl LecteurVideo {
     }
 
     /// **L'image suivante**, attendue au plus `delai` : `Ok(None)` si elle n'est pas encore là,
-    /// `Err(())` à la fin de la vidéo ou à la première faute.
-    pub(crate) fn suivante(&self, delai: Duration) -> Result<Option<Toile>, ()> {
+    /// `Err` à la fin de la vidéo ou à la première faute.
+    pub(crate) fn suivante(&self, delai: Duration) -> Result<Option<Toile>, Fin> {
         // SAFETY : comme `image_arretee` ; le bus vit autant que le lecteur.
         unsafe {
             let faute = (self.gst.gst_bus_pop_filtered)(self.bus, MESSAGE_ERREUR);
             if !faute.is_null() {
                 (self.gst.gst_mini_object_unref)(faute);
-                return Err(());
+                return Err(Fin::Faute);
             }
             let echantillon =
                 (self.gst.gst_app_sink_try_pull_sample)(self.sortie, delai.as_nanos() as u64);
             if echantillon.is_null() {
                 return if (self.gst.gst_app_sink_is_eos)(self.sortie) != 0 {
-                    Err(())
+                    Err(Fin::AuBout)
                 } else {
                     Ok(None)
                 };
             }
             Ok(self.toile(echantillon))
+        }
+    }
+
+    /// **Revient au début**, pour une vidéo qui joue en boucle (VIDEO-2) ; `false` si le système
+    /// refuse.
+    pub(crate) fn revenir_au_debut(&self) -> bool {
+        // SAFETY : le pipeline vit autant que le lecteur ; la source en accès libre sait chercher.
+        unsafe {
+            (self.gst.gst_element_seek_simple)(self.pipeline, FORMAT_TEMPS, CHERCHER_EN_VIDANT, 0)
+                != 0
         }
     }
 

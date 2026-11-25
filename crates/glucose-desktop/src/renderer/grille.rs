@@ -345,16 +345,7 @@ fn poser_par_la_grille(
     // machine lente se fera entendre -- par ce qu'elle MESURE, pas par un materiel suppose.
     let filtre = Filtre::Lisse;
 
-    // Ce qui est à l'écran reste hors d'atteinte de l'éviction, même quand aucune photo n'est
-    // posée par la passe directe : sans cela, le magasin rendrait à la machine des images
-    // qu'il faudrait redécoder à la première tuile invalidée.
-    if let Some(board) = store.active_board() {
-        for img in Visibles::nouvelles(pass.visibles, board).images() {
-            if let Some(src) = img.src.as_deref() {
-                atelier.magasin.reclamer(src, img.width);
-            }
-        }
-    }
+    retenir_ce_qui_est_a_l_ecran(atelier, store, pass);
 
     let (peintes_avant, reprises_avant) = (atelier.tuiles.peintes(), atelier.tuiles.reprises());
     atelier.tuiles.ouvrir();
@@ -534,3 +525,15 @@ use bandes::composer_en_bandes;
 
 #[cfg(test)]
 mod tests;
+
+/// **Ce qui est à l'écran reste hors d'atteinte de l'éviction**, même quand aucune photo n'est
+/// posée par la passe directe : sans cela, le magasin rendrait à la machine des images qu'il
+/// faudrait redécoder à la première tuile invalidée.
+fn retenir_ce_qui_est_a_l_ecran(atelier: &mut Atelier<'_>, store: &Store, pass: ViewPass<'_>) {
+    let Some(board) = store.active_board() else {
+        return;
+    };
+    for img in Visibles::nouvelles(pass.visibles, board).images() {
+        atelier.magasin.reclamer_le_noeud(img);
+    }
+}

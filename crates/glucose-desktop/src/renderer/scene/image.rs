@@ -255,13 +255,10 @@ fn poser_ou_demander(
     parts: &[occlusion::Boite],
     regles: (report::Filtre, bool, f32),
 ) -> Option<(u64, Chemin, std::time::Duration)> {
-    let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
     // l'éviction : ce qui est à l'écran ne se rend jamais à la machine (ADAPT-1).
-    if !magasin.reclamer(src, img.width) {
-        return None;
-    }
-    let entree = magasin.cache.get(src)?;
+    let numero = magasin.reclamer_le_noeud(img)?;
+    let entree = magasin.cache.par_numero(numero)?;
     Some(poser(
         &entree.pyramide,
         &mut magasin.vignettes,

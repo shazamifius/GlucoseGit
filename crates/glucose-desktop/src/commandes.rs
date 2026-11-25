@@ -12,6 +12,7 @@
 //! table au lieu d'être écrits dans cinq `match`. Rien n'a changé à l'écran.
 
 use crate::interactions::echelle::Vers;
+use crate::interactions::video::Choix;
 use crate::ui::couleurs::NOMS;
 use crate::ui::ActiveTool;
 use glucose_core::raccourcis::{Clavier, Couche, ErreurDeLigne};
@@ -87,6 +88,9 @@ pub enum Commande {
     /// Retourner les images choisies, chacune sur elle-même (MIROIR-1, fiche 118).
     RetournerHorizontalement,
     RetournerVerticalement,
+    /// **Les choix d'une vidéo** (VIDEO-2, fiche 170) : qu'elle joue seule, ou à son ▶ ; faire
+    /// entrer dans le document une vidéo gardée à côté.
+    Video(Choix),
     /// **Détourer les images choisies** : la forme principale seule, par l'IA (DETOURER-1, fiche
     /// 121) ; ou **retirer leur fond uni**, exactement (DETOURER-3).
     Detourer,
@@ -418,6 +422,7 @@ impl Commande {
                 .flat_map(|&s| [Commande::Pousser(s, false), Commande::Pousser(s, true)]),
         );
         v.extend(Vers::TOUS.map(Commande::Echelle));
+        v.extend(Choix::TOUS.map(Commande::Video));
         v.extend(OUTILS.iter().map(|(o, _, _)| Commande::Outil(*o)));
         v.extend((1..=9).map(Commande::AllerAuSignet));
         v.extend((1..=9).map(Commande::PoserLeSignet));
@@ -437,6 +442,7 @@ impl Commande {
                 format!("pousser.{}{}", s.nom(), if dix { ".dix" } else { "" })
             }
             Commande::Echelle(vers) => format!("interface.{}", vers.id()),
+            Commande::Video(choix) => format!("video.{}", choix.id()),
             Commande::Outil(o) => format!("outil.{}", Self::outil(o).1),
             Commande::AllerAuSignet(n) => format!("signet.aller.{n}"),
             Commande::PoserLeSignet(n) => format!("signet.poser.{n}"),
@@ -465,6 +471,7 @@ impl Commande {
                 if dix { "dix pas" } else { "un pas" }
             ),
             Commande::Echelle(vers) => vers.nom().to_string(),
+            Commande::Video(choix) => choix.nom().to_string(),
             Commande::Outil(o) => Self::outil(o).2.to_string(),
             Commande::AllerAuSignet(n) => format!("Aller au signet {n}"),
             Commande::PoserLeSignet(n) => format!("Poser le signet {n}"),

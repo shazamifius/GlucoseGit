@@ -175,6 +175,8 @@ pub struct Magasin {
     pub mesurees_neuves: bool,
     /// Les vidéos lancées, par fichier.
     videos: std::collections::HashMap<String, crate::renderer::video::joueur::JoueurVideo>,
+    /// Les vidéos en lecture automatique qui ne se sont pas lues ici (VIDEO-2).
+    videos_muettes: std::collections::HashSet<String>,
 }
 
 impl Magasin {

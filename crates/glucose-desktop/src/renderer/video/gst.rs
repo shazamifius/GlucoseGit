@@ -86,6 +86,7 @@ table! {
         gst_element_set_state: fn(Ptr, c_int) -> c_int;
         gst_element_get_state: fn(Ptr, *mut c_int, *mut c_int, u64) -> c_int;
         gst_element_get_bus: fn(Ptr) -> Ptr;
+        gst_element_seek_simple: fn(Ptr, c_int, c_int, i64) -> c_int;
         gst_bus_pop_filtered: fn(Ptr, c_uint) -> Ptr;
         gst_object_unref: fn(Ptr);
         gst_mini_object_unref: fn(Ptr);

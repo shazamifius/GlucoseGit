@@ -33,6 +33,7 @@
 
 use crate::commandes::Commande;
 use crate::interactions::echelle::Vers;
+use crate::interactions::video::Choix;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use entrees::entrees;
@@ -85,6 +86,8 @@ impl MenuAction {
             MenuAction::TrimBorders => Commande::RetirerLesBordures,
             MenuAction::RetournerH => Commande::RetournerHorizontalement,
             MenuAction::RetournerV => Commande::RetournerVerticalement,
+            MenuAction::LectureAutomatique => Commande::Video(Choix::LectureAutomatique),
+            MenuAction::MettreDansLeDocument => Commande::Video(Choix::DansLeDocument),
             MenuAction::Detourer => Commande::Detourer,
             MenuAction::RetirerLeFondUni => Commande::RetirerLeFondUni,
             MenuAction::StoryboardDeLaSelection => Commande::StoryboardDeLaSelection,
@@ -191,6 +194,8 @@ pub enum MenuAction {
     /// Retourner les images choisies, chacune sur elle-même (MIROIR-1).
     RetournerH,
     RetournerV,
+    LectureAutomatique,
+    MettreDansLeDocument,
     /// Détourer les images choisies, ou retirer leur fond uni (DETOURER-1, fiche 121).
     Detourer,
     RetirerLeFondUni,
