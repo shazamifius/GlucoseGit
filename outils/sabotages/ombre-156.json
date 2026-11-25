@@ -1,0 +1,62 @@
+[
+ {
+  "nom": "Windows : les couleurs laissees premultipliees",
+  "fichier": "crates/glucose-desktop/src/plateforme/ombre_bgra.rs",
+  "avant": "                a => ((u32::from(c) * 255 + a / 2) / a).min(255) as u8,",
+  "apres": "                _ => c,",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre"
+  ]
+ },
+ {
+  "nom": "Windows : rouge et bleu dans l'ordre de tiny-skia",
+  "fichier": "crates/glucose-desktop/src/plateforme/ombre_bgra.rs",
+  "avant": "            [droit(p[2]), droit(p[1]), droit(p[0]), p[3]]",
+  "apres": "            [droit(p[0]), droit(p[1]), droit(p[2]), p[3]]",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre"
+  ]
+ },
+ {
+  "nom": "Wayland : l'echelle exacte au lieu de l'entier d'au-dessus",
+  "fichier": "crates/glucose-desktop/src/plateforme.rs",
+  "avant": "    if cfg!(windows) {",
+  "apres": "    if !cfg!(windows) {",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre"
+  ]
+ },
+ {
+  "nom": "Wayland : la densite entiere oubliee",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "        let d = if densite.fract() == 0.0 {\n            densite as u32\n        } else {\n            1\n        };",
+  "apres": "        let d = 1;",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre"
+  ]
+ }
+]

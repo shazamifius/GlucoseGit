@@ -41,7 +41,7 @@ stable ; `__CARGO_TESTS_ONLY_SRC_ROOT` montre ces sources à Cargo, qui les cher
   `--sysroot` du NDK de nixpkgs, non libre et lourd) est possible ; pas tentée.
 * **Le Mac Intel** (`x86_64-apple-darwin`) : rien dans le code ne distingue les deux Mac aujourd'hui.
 * Rien ne s'y lie ni ne s'y lance : leurs épreuves ne tournent que sur la CI.
-* **L'ombre sous Windows** (fiche 155 § 3) : la suite, vérifiée par cet outil.
+* **L'ombre sous Windows** (fiche 155 § 3) : faite, § 6.
 
 ## 4. La preuve
 
@@ -54,9 +54,51 @@ stable ; `__CARGO_TESTS_ONLY_SRC_ROOT` montre ces sources à Cargo, qui les cher
 
 ## 5. Piège payé
 
-* Un `rustc-ice-….txt` à la racine du dépôt, du 25/11 à 1 h 19 : « Failed to recover key for
-  associated_item » — le cache incrémental de `rustc`, abîmé (un `rustc` tué par sa borne, le plus
-  souvent). Pas une faute du code : `cargo clean -p <crate>`, recompiler ; le fichier se retire.
+* **Le cache incrémental de `rustc` s'abîme** : un `rustc-ice-….txt` à la racine du dépôt, le 25/11 à
+  1 h 19 (« Failed to recover key for associated_item »), puis deux fois vers 3 h, juste après des
+  sabotages (« on_disk_cache.rs:658 », dans les cliquets puis dans le témoin d'un sabotage). Pas une faute
+  du code : vider `target/debug/incremental/glucose_desktop-*`, recompiler ; le fichier se retire. Les
+  sabotages se jouent désormais avec `CARGO_INCREMENTAL=0` (MÉTHODE § 5) : rejoué ainsi, le témoin a
+  tenu.
+
+## 6. L'ombre sous Windows (OMBRE-2, `a1c37f0`)
+
+La suite de la fiche 155 § 3, vérifiée par l'outil ci-dessus.
+
+* **L'image** (`glisser_windows.rs`, `poser_l_ombre`) : un DIB de 32 bits, de haut en bas (une hauteur
+  négative, comme Chromium), confié à `IDragSourceHelper::InitializeFromBitmap` avec le point de la main en
+  `ptOffset` ; `crColorKey` à `CLR_NONE`, l'alpha dit la transparence. Le gestionnaire ne prend l'image
+  qu'en réussissant : sinon `DeleteObject`. Une ombre qui ne se pose pas n'empêche pas de glisser : une
+  ligne au journal, le curseur seul.
+* **Des couleurs non prémultipliées** (`ombre_bgra.rs`) : « because InitializeFromBitmap always performs
+  the RGB multiplication step in calculating the alpha value, you should always pass a bitmap without
+  premultiplied alpha blending » (la documentation de Microsoft) ; Chromium les rend droites pour la même
+  raison. Écrit hors de Windows, éprouvé partout.
+* **`SetData` enfin** (`selection_windows.rs`) : le gestionnaire range l'image dans l'objet (« DragImageBits »,
+  « DragWindow »…) et chaque fenêtre survolée l'y relit ; notre objet répondait `E_NOTIMPL`, et l'ombre ne
+  se serait jamais posée (le piège que décrit Adam Root pour WPF et WinForms). Les octets sont copiés, le
+  support rendu si on nous le confie ; nos propres formats passent avant ; ce qui est rangé s'énumère.
+  De même, la description que l'explorateur y range (« Copier vers Bureau ») devrait se voir sous le
+  curseur — pas vu.
+* **L'image au-dessus de Glucose** (`depot_windows/image.rs`) : Windows ne la montre que sur une fenêtre
+  dont la cible appelle `IDropTargetHelper`. Sans lui, l'ombre disparaissait sur Glucose — sur la fenêtre
+  même d'où le geste part —, et la vignette d'un fichier venu de l'explorateur aussi. La cible lui passe
+  chaque entrée, survol, sortie et dépôt, avec l'effet qu'elle vient de répondre (`ecrire_effet` le rend).
+* **L'échelle exacte** (`plateforme::densite_de_l_ombre`) : Wayland ne prend qu'une échelle entière (2
+  pour 150 %, le compositeur réduit) ; Windows montre l'image pixel pour pixel — à 150 %, l'ombre prise
+  à 2 aurait été d'un tiers trop grande.
+
+**La preuve, et sa limite.** `verifier_cibles.sh windows` vert (clippy strict, épreuves comprises) ;
+**4 sabotages sur 4** (`outils/sabotages/ombre-156.json` : les couleurs laissées prémultipliées, rouge et
+bleu inversés, l'échelle exacte sous Wayland, la densité entière oubliée). L'épreuve de `SetData`
+(`selection_windows/tests.rs`) ne tourne qu'à la CI de Windows : son sabotage l'y attend. **Jamais
+lancée sous Windows** : que l'ombre se voie, à sa taille, sous la main, se regarde à la première
+version publiée sur une machine Windows.
+
+Sources : [InitializeFromBitmap](https://learn.microsoft.com/en-us/windows/desktop/api/shobjidl_core/nf-shobjidl_core-idragsourcehelper-initializefrombitmap) ;
+[SHDRAGIMAGE](https://learn.microsoft.com/windows/win32/api/shobjidl_core/ns-shobjidl_core-shdragimage) ;
+[Chromium, `drag_utils_win.cc`](https://sources.debian.org/src/chromium-browser/41.0.2272.118-1/ui/base/dragdrop/drag_utils_win.cc) ;
+[Adam Root, Shell Style Drag and Drop in .NET](https://learn.microsoft.com/en-us/archive/blogs/adamroot/shell-style-drag-and-drop-in-net-wpf-and-winforms).
 
 Sources : [wiki de NixOS, Rust](https://wiki.nixos.org/wiki/Rust) ;
 [fenix](https://github.com/rcerc/fenix) ;
