@@ -3,6 +3,8 @@
 use super::{DomainAssignment, Id, Recadrage, TemporalAnchor};
 use crate::geometry::Rect;
 
+mod redresser;
+
 /// Référence à un asset binaire (image, vidéo, fichier).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssetRef {

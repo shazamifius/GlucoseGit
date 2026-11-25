@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 25/11/2026, 5 h 40** (fiches 108-162 ; le détail des fiches 141-158 vit dans le carnet). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 25/11/2026, 11 h** (fiches 108-166 ; le détail des fiches 141-158 vit dans le carnet). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -74,7 +74,10 @@
   devient son miroir, lu un niveau à la fois, ses photos laissées sur le disque ; essayé au pilote
   (fiche 164 § 7-8) : sa première vue montre tout, et la taille d'un JPEG se lit dans son en-tête
   (150 photos d'appareil : 540 ms d'image figée avant, 17,6 ms après). Reste : lire hors du fil de
-  l'image, avec DISQUE-2 (le dossier vivant) ; sa question `relais-q-dossier-disque`.
+  l'image, avec DISQUE-2 (le dossier vivant) ; sa question `relais-q-dossier-disque`. **EXIF-1** — une
+  photo de téléphone tenue en portrait paraît debout (elle était couchée depuis Glucose Rust ; Tauri la
+  montrait droite), et un nœud posé quand elle arrivait couchée se redresse à l'arrivée de ses pixels,
+  en un geste signé « Glucose » qu'on peut défaire (fiche 165 § 5-6).
 * **Le relais met Claude à jour seul** (MAJ-1, fiche 162, sa demande du 24/11) : toutes les six heures, la
   version neuve de l'extension s'installe et s'essaie sans un jeton (l'invite, sans question), refusée
   sinon ; `relais-maj-claude` le dit. La 2.1.332 installée le 25/11 à 5 h 33.

@@ -52,7 +52,7 @@ impl Pyramide {
         let pixels = largeur as usize * hauteur as usize;
         decodeur.read_image(page.get_mut(..pixels * k)?).ok()?;
         etaler(page, pixels, k);
-        Self::batir(niveau.oriente(orientation)?)
+        Some(Self::batir(niveau.oriente(orientation)?)?.tournee_par(orientation))
     }
 }
 

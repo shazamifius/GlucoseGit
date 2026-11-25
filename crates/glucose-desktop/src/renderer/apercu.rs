@@ -26,6 +26,7 @@
 
 use super::photo::dimensions_au_rang;
 use glucose_core::hash::{hex_of, sha256};
+use image::metadata::Orientation;
 use std::path::{Path, PathBuf};
 
 /// La vue d'ensemble d'une image, telle qu'elle se garde.
@@ -34,6 +35,9 @@ pub struct Apercu {
     /// Les dimensions de l'image entière : elles disent celles de tous les niveaux.
     pub natives: (u32, u32),
     pub opaque: bool,
+    /// **Comment la photo a été tournée pour paraître debout** (EXIF-1, fiche 165) : ses pixels le sont
+    /// déjà ; un nœud posé avant EXIF-1 s'en redresse, même vu d'abord par son aperçu.
+    pub orientation: Orientation,
     /// Le rang du premier niveau gardé — la vue d'ensemble.
     pub rang: usize,
     /// Les octets des niveaux, de ce rang au dernier.
@@ -47,8 +51,8 @@ const MAGIE: &[u8; 8] = b"GLAPERCU";
 /// ceux d'avant donnaient au bord d'une image jusqu'à la moitié du poids de son sommet. La 4, des
 /// photos debout (EXIF-1, fiche 165) : celles d'avant gardaient couché un portrait de téléphone.
 pub(crate) const VERSION: u8 = 4;
-/// Magie, version, opacité, rang, largeur, hauteur.
-const ENTETE: usize = 8 + 1 + 1 + 1 + 4 + 4;
+/// Magie, version, opacité, rang, orientation, largeur, hauteur.
+const ENTETE: usize = 8 + 1 + 1 + 1 + 1 + 4 + 4;
 /// Le sceau qui clôt un aperçu : le début de l'empreinte de tout ce qui le précède.
 const SCEAU: usize = 8;
 
@@ -117,6 +121,7 @@ pub fn ecrire(chemin: &Path, a: &Apercu) -> std::io::Result<()> {
     octets.push(VERSION);
     octets.push(u8::from(a.opaque));
     octets.push(u8::try_from(a.rang).unwrap_or(u8::MAX));
+    octets.push(a.orientation.to_exif());
     octets.extend_from_slice(&a.natives.0.to_le_bytes());
     octets.extend_from_slice(&a.natives.1.to_le_bytes());
     for niveau in &a.niveaux {
@@ -141,7 +146,8 @@ pub fn lire(chemin: &Path) -> Option<Apercu> {
         return None;
     }
     let lire_u32 = |i: usize| Some(u32::from_le_bytes(entete.get(i..i + 4)?.try_into().ok()?));
-    let natives = (lire_u32(11)?, lire_u32(15)?);
+    let natives = (lire_u32(12)?, lire_u32(16)?);
+    let orientation = Orientation::from_exif(entete[11])?;
     let rang = usize::from(entete[10]);
     let mut reste = &octets[ENTETE..];
     let mut niveaux = Vec::new();
@@ -160,6 +166,7 @@ pub fn lire(chemin: &Path) -> Option<Apercu> {
     reste.is_empty().then_some(Apercu {
         natives,
         opaque: entete[9] != 0,
+        orientation,
         rang,
         niveaux,
     })

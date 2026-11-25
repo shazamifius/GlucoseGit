@@ -32,6 +32,9 @@ pub struct Attentes {
     /// **Un détourage** (DETOURER-1, fiche 121) : tant qu'il attend ses originaux, la boucle
     /// repasse ; son fil, lui, la réveille quand il a fini.
     pub detourage: Option<crate::interactions::detourer::Detourage>,
+    /// **Le document où les nœuds couchés ont été cherchés** (EXIF-1) : son identité, pour les
+    /// chercher encore dans un autre qu'on ouvre.
+    pub redresse_pour: String,
 }
 
 impl Attentes {
@@ -52,6 +55,34 @@ impl GlucoseApp {
         self.poursuivre_le_rangement();
         self.poursuivre_le_detourage();
         self.suivre_la_parente();
+        self.redresser_les_photos();
+    }
+
+    /// **Une photo tournée attend que ses nœuds couchés se redressent** (EXIF-1) — pas pendant un
+    /// geste : il attend qu'il se ferme, et une frappe de texte n'a pas à réveiller la boucle.
+    pub(crate) fn redressement_en_attente(&self) -> bool {
+        self.renderer.magasin.tournees_neuves && !self.store.in_live_edit()
+    }
+
+    /// **Les nœuds posés quand leur photo arrivait couchée se redressent** (EXIF-1, fiche 165
+    /// § 3.3) : quand une photo tournée arrive, et dans un autre document qu'on ouvre sur celles
+    /// déjà là. Un seul geste, signé « Glucose » (`Store::redresser_les_photos`). Le passé qu'on
+    /// regarde est un autre document : ce qui s'y redresse ne s'écrit pas, et le présent se
+    /// redresse au retour.
+    fn redresser_les_photos(&mut self) {
+        let autre_document = self.attentes.redresse_pour != self.store.identite;
+        let magasin = &mut self.renderer.magasin;
+        if !(magasin.tournees_neuves || autre_document) {
+            return;
+        }
+        let Some(redresses) = self.store.redresser_les_photos(&magasin.tournees) else {
+            return;
+        };
+        magasin.tournees_neuves = false;
+        self.attentes.redresse_pour.clone_from(&self.store.identite);
+        if redresses > 0 {
+            self.mark_dirty();
+        }
     }
 
     /// **L'avis de l'IA**, s'il est neuf, passe au rendu ; toute l'image se refait — chaque halo,
@@ -62,3 +93,6 @@ impl GlucoseApp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

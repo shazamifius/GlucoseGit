@@ -321,9 +321,9 @@ impl GlucoseApp {
     /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1), **un rangement ses couleurs**
     /// (ORDONNER-2) : il faut repasser à chaque image, parce que le dernier revient pendant un
     /// rendu — après que la commande a regardé — et que plus rien d'autre ne réveillerait
-    /// l'application pour qu'elle s'applique.
+    /// l'application pour qu'elle s'applique. Une photo arrivée tournée, de même (EXIF-1).
     fn attente_de_la_commande(&mut self) -> Option<u64> {
-        if self.attentes.aucune() {
+        if self.attentes.aucune() && !self.redressement_en_attente() {
             return None;
         }
         self.mark_dirty();

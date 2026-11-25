@@ -129,7 +129,10 @@ pub(super) fn decoder(
         let mut image = image::DynamicImage::from_decoder(decodeur).ok()?;
         image.apply_orientation(orientation);
         let rgba = image.to_rgba8();
-        Pyramide::depuis_rgba(rgba.width(), rgba.height(), rgba.as_raw())
+        Some(
+            Pyramide::depuis_rgba(rgba.width(), rgba.height(), rgba.as_raw())?
+                .tournee_par(orientation),
+        )
     })
 }
 

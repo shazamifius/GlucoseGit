@@ -1,0 +1,268 @@
+[
+ {
+  "nom": "EXIF-1 (redressement) — la boîte reste en paysage",
+  "fichier": "crates/glucose-core/src/types/image/redresser.rs",
+  "avant": "(self.width, self.height) = (self.height, self.width);",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — la compensation à l'envers",
+  "fichier": "crates/glucose-core/src/types/image/redresser.rs",
+  "avant": "let defaite = if miroir == self.miroir {",
+  "apres": "let defaite = if miroir != self.miroir {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — la rotation jamais relue",
+  "fichier": "crates/glucose-core/src/types/image/redresser.rs",
+  "avant": "if compensee.abs() < normalize(self.rotation).abs() {",
+  "apres": "if compensee.abs() < normalize(self.rotation).abs() && false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — le quart de tour du document pris pour π/2",
+  "fichier": "crates/glucose-core/src/types/image/redresser.rs",
+  "avant": "let compensee = match quarts_exacts(self.rotation) {",
+  "apres": "let compensee = match None::<i64> {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — un carré pris pour couché",
+  "fichier": "crates/glucose-core/src/types/image/redresser.rs",
+  "avant": "            && largeur != hauteur\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — le recadrage sans son miroir",
+  "fichier": "crates/glucose-core/src/types/image/redresser.rs",
+  "avant": "let bord = if miroir { 2 - bord } else { bord };",
+  "apres": "let bord = bord;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "renderer::photo::orientation"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — le geste signé par l'humain",
+  "fichier": "crates/glucose-core/src/store/redresser.rs",
+  "avant": "std::mem::replace(&mut self.journal.main, Main::Agent(GLUCOSE.into()))",
+  "apres": "std::mem::replace(&mut self.journal.main, Main::Humain)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — le redressement fondu dans un geste ouvert",
+  "fichier": "crates/glucose-core/src/store/redresser.rs",
+  "avant": "        if self.in_live_edit() {\n            return None;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "redresser"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — le magasin ne note pas l'arrivée",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "            self.tournees_neuves = true;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::attentes"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — un autre document jamais regardé",
+  "fichier": "crates/glucose-desktop/src/app/attentes.rs",
+  "avant": "let autre_document = self.attentes.redresse_pour != self.store.identite;",
+  "apres": "let autre_document = false;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::attentes"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — le réveil ne repasse pas",
+  "fichier": "crates/glucose-desktop/src/app/reveil.rs",
+  "avant": "if self.attentes.aucune() && !self.redressement_en_attente() {",
+  "apres": "if self.attentes.aucune() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::attentes"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — une frappe réveille la boucle",
+  "fichier": "crates/glucose-desktop/src/app/attentes.rs",
+  "avant": "self.renderer.magasin.tournees_neuves && !self.store.in_live_edit()",
+  "apres": "self.renderer.magasin.tournees_neuves",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "app::attentes"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — l'aperçu oublie l'orientation",
+  "fichier": "crates/glucose-desktop/src/renderer/apercu.rs",
+  "avant": "let orientation = Orientation::from_exif(entete[11])?;",
+  "apres": "let orientation = Orientation::NoTransforms;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "renderer::atelier"
+  ]
+ },
+ {
+  "nom": "EXIF-1 (redressement) — la pyramide oublie l'orientation",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "?.tournee_par(orientation))",
+  "apres": "?)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "renderer::atelier"
+  ]
+ }
+]

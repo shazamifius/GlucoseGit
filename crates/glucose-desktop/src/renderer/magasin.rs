@@ -159,6 +159,12 @@ pub struct Magasin {
     reveil: Option<crate::plateforme::Reveil>,
     /// Le système demande moins de mouvement : les GIF restent sur leur toile (GIF-3).
     mouvement_reduit: bool,
+    /// **Les photos arrivées tournées** (EXIF-1, fiche 165 § 3.3) : leur orientation et leurs
+    /// dimensions droites, de quoi redresser un nœud posé quand elles arrivaient couchées — dans
+    /// ce document, ou dans le prochain qu'on ouvrira. `tournees_neuves` : il en est arrivé depuis
+    /// que l'application a regardé.
+    pub tournees: std::collections::HashMap<String, glucose_core::store::redresser::Arrivee>,
+    pub tournees_neuves: bool,
 }
 
 impl Magasin {
@@ -412,6 +418,12 @@ impl Magasin {
         self.changements += 1;
         // L'aperçu d'un GIF reste sa première toile : les suivantes ne le réécrivent pas.
         let a_ecrire = !toile && self.atelier.garde_les_apercus() && pyramide.entiere();
+        let orientation = pyramide.orientation();
+        if orientation != image::metadata::Orientation::NoTransforms {
+            let droite = (orientation.to_exif(), pyramide.dimensions_natives());
+            self.tournees.insert(src.clone(), droite);
+            self.tournees_neuves = true;
+        }
         let mut entree = Entree::nouvelle(pyramide, cout, self.image, self.generations);
         entree.apercu_a_ecrire = a_ecrire;
         // Une image redécodée garde ce qu'on savait de sa vue d'ensemble ; une toile, en plus,

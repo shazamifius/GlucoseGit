@@ -66,7 +66,7 @@
 mod decodage;
 pub mod heic;
 mod niveau;
-mod orientation;
+pub(crate) mod orientation;
 mod pixels;
 pub use niveau::{Etat, Retour, Transit};
 
@@ -129,6 +129,8 @@ impl Forme {
 pub struct Pyramide {
     niveaux: Vec<Niveau>,
     opaque: bool,
+    /// Comment ses pixels ont été tournés pour paraître debout (EXIF-1, `photo/orientation.rs`).
+    orientation: image::metadata::Orientation,
     /// Les rangs lus ou voulus depuis que le magasin a regardé, un bit par rang (ETAGES-1).
     ///
     /// Atomique et non `Cell` : la composition se découpe en bandes sur plusieurs fils, qui
@@ -216,6 +218,7 @@ impl Pyramide {
         Some(Self {
             niveaux,
             opaque,
+            orientation: image::metadata::Orientation::NoTransforms,
             voulus: AtomicU64::new(0),
         })
     }
@@ -482,6 +485,7 @@ impl Pyramide {
         Some(Self {
             niveaux: perdus.chain(gardes).collect::<Option<Vec<_>>>()?,
             opaque: a.opaque,
+            orientation: a.orientation,
             voulus: AtomicU64::new(0),
         })
     }
@@ -498,6 +502,7 @@ impl Pyramide {
         Some(super::apercu::Apercu {
             natives: self.dimensions_natives(),
             opaque: self.opaque,
+            orientation: self.orientation,
             rang,
             niveaux,
         })

@@ -77,6 +77,8 @@ ferait d'un détail de stockage un geste qu'on peut défaire : écartée.
      ensemble par une seule formule** : à trancher, avec un argument. Proposé : un nœud dont la
      rotation est un multiple d'un quart de tour (0 compris) paraît debout, sa rotation ramenée à ce qui
      le montre droit ; un nœud incliné d'un autre angle (un choix d'artiste) garde ce qu'il voyait.
+     **Tranché en le codant (§ 6)** : une règle plus simple tient les deux — des deux lectures de sa
+     rotation, le nœud garde celle qui le laisse le moins tourné.
 4. **Les aperçus en cache** (`renderer::apercu`, nommés par la taille et la date du fichier) : ceux
    faits avant seraient couchés — changer leur nom (une version) pour qu'ils se refassent.
 5. **Le HEIC** (fiche 161) : ses transformations `irot`/`imir` passent par `heifer`, à vérifier à part ;
@@ -113,3 +115,56 @@ HEIC (§ 3.5). § 3.3 tranché : le redressement fait partie d'EXIF-1.
 **Pas encore, et rien de cela ne part dans son Glucose sans elle** : la seconde moitié — le
 redressement des nœuds déjà posés (§ 3.3), les aperçus en cache (§ 3.4, leur nom à changer), le HEIC
 (EXIF-2), et la photo marquée au pilote.
+
+## 6. EXIF-1, seconde moitié : les nœuds déjà posés se redressent (25/11 vers 11 h, compte a)
+
+* **L'orientation voyage avec les pixels** : un champ de la pyramide (`Pyramide::orientation`, posé
+  par les deux chemins du décodage), et un octet de plus dans l'en-tête des aperçus (leur version 4) —
+  une photo vue d'abord par son aperçu sait encore comment elle a été tournée.
+* **Le magasin note chaque photo arrivée tournée** (`Magasin::tournees` : son orientation, ses
+  dimensions droites ; gardées pour la session) ; avant la peinture suivante, l'application demande
+  au noyau de redresser (`app/attentes.rs`), et le réveil repasse pour cela — sauf pendant un geste
+  ouvert (une frappe de texte peut durer : la boucle dort, et le redressement attend qu'il se ferme).
+  **Un autre document qu'on ouvre** se redresse sur les photos déjà tenues (son identité a changé) ; le
+  passé de la Time Machine aussi, et rien de ce qui s'y fait ne s'écrit : le présent se redresse au
+  retour. Une image écrasée paraît le temps d'une image, celle où la photo arrive. Le prix : un
+  parcours des images du document à chaque image où une photo tournée arrive (une recherche par
+  image, sans index) — rien pour un document sans photo de téléphone.
+* **Au pilote** (l'ancien binaire, `a55d280`, puis le nouveau, sur le même brouillon) : une photo
+  marquée « 6 » posée par l'ancien paraît couchée (la bande noire en haut, en paysage) ; rouvert par
+  le nouveau, le nœud est en portrait, la bande noire à droite, le bleu en haut ; `Ctrl+Z` rend la boîte
+  en paysage, la photo debout écrasée dedans.
+* **Le noyau** (`types/image/redresser.rs`, `store/redresser.rs`) : un nœud est couché quand
+  l'orientation échange largeur et hauteur (5 à 8), que la photo n'est pas carrée, et que ses
+  dimensions d'origine sont exactement la transposée des pixels. Sa boîte et ses dimensions d'origine
+  s'échangent autour du même centre, son recadrage suit les pixels (chaque marge suit son bord :
+  `Recadrage::oriente`). **Sa rotation** : des deux lectures — un geste sur la photo telle qu'elle
+  paraissait (elle reste, la photo paraît enfin debout), ou une correction de la photo couchée
+  (elle s'efface, ce qu'il voyait ne change pas) —, le nœud garde **celle qui le laisse le moins
+  tourné**. Jamais tourné : debout. Redressé à la main d'un quart : rotation zéro, rien ne bouge à
+  l'écran. Redressé puis penché : il garde sa pente. Penché seulement : la photo debout, sa pente
+  gardée. Pas de seuil, pas de cas à part pour « un choix d'artiste » : la proposition du § 3.3
+  (« un multiple d'un quart de tour paraît debout, un autre angle garde ce qu'il voyait ») traitait mal
+  un nœud redressé puis penché. Un quart de tour rangé en `f32` par le document n'est pas `π/2` : il
+  se lit au grain du document, et revient exactement à zéro.
+* **Un seul geste, signé « Glucose »** (`Main::Agent("Glucose")` : c'est son nom dans l'histoire et
+  dans `glucose_quoi_de_neuf`), écrit, partagé aux autres mains, défaisable par `Ctrl+Z` — défait, le
+  nœud reste couché jusqu'à la prochaine arrivée de sa photo. Un verrou n'y change rien : il garde le
+  nœud de la main, et le laisser serait le montrer écrasé.
+* Épreuves : la lecture la moins tournée sur les quatre orientations, huit pentes, deux miroirs (en
+  matrices) ; un nœud jamais tourné, un nœud redressé à la main revenu exactement à zéro (rangé en
+  `f32`), un redressé puis penché ; rien d'autre ne bouge (déjà debout, carré, 1 à 4, inconnue) ; le
+  recadrage qui suit ses bords, **tenu contre `image`** (la même région de pixels, les huit
+  orientations) ; le nœud ramené à zéro est bien celui qui montrait la photo debout (tenu contre
+  `fliph`/`rotate90` d'`image`) ; un seul geste signé, défait d'un coup ; de bout en bout, une vraie
+  photo marquée décodée par l'atelier, le réveil, un geste ouvert, un autre document. Sabotages :
+  `outils/sabotages/exif-1-redresser.json` (14 sur 14). Suite verte (3 763), clippy strict, Windows
+  vérifié ici. **Elle a attrapé un oubli de la première moitié** (`4f302e9`, après la beta.6) : les
+  répétitions de l'installeur plantaient leur aperçu témoin dans `apercus/v3`, que la version 4 retire
+  au lancement — ramenées à `v4` (`commun.ps1`, `une_forme.sh`), comme la fiche 63 l'avait payé.
+
+**Limites, dites** : les orientations 2, 3 et 4, et un portrait carré, ne laissent aucun signe dans
+les données — la photo y paraît enfin droite, mais un recadrage ou un demi-tour posés avant sur la
+photo à l'envers restent tels quels (une photo tenue tête en bas, « 3 », redressée à la main d'un
+demi-tour, se retrouve à l'envers). Les retrouver demanderait un champ du format, pour un cas rare. Le
+HEIC reste EXIF-2.

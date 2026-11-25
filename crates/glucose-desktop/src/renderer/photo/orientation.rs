@@ -10,6 +10,19 @@
 use super::niveau::Niveau;
 use image::metadata::Orientation;
 
+impl super::Pyramide {
+    /// Comment ses pixels ont été tournés pour paraître debout.
+    pub fn orientation(&self) -> Orientation {
+        self.orientation
+    }
+
+    /// La même pyramide, qui se souvient de l'orientation qu'on a donnée à ses pixels.
+    pub(crate) fn tournee_par(mut self, orientation: Orientation) -> Self {
+        self.orientation = orientation;
+        self
+    }
+}
+
 impl Niveau {
     /// **Ce niveau, tel que la photo demande d'être vue.** Le sens d'`image` : `Rotate90` tourne d'un
     /// quart dans le sens des aiguilles (l'EXIF 6, un portrait tenu droit), les `Flip…` retournent.
@@ -56,4 +69,4 @@ impl Niveau {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
