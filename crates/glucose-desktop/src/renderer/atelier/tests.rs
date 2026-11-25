@@ -339,3 +339,29 @@ fn test_memoire_3_un_decodage_attend_que_la_porte_s_ouvre() {
     ouvrier.join().expect("l'ouvrier a fini");
     assert_eq!(porte.en_vol(), 0, "son jeton est rendu");
 }
+
+/// **Une image qui bouge se reconnaît même loin dans son début** (fiche 159 § 9) : un PNG animé
+/// dont le profil de couleur, long, repousse `acTL` au-delà de la première lecture.
+#[test]
+fn gif_4_la_signature_se_lit_aussi_loin_qu_il_faut() {
+    let morceau = |nom: &[u8], n: usize| {
+        let mut m = u32::try_from(n).expect("court").to_be_bytes().to_vec();
+        m.extend_from_slice(nom);
+        m.extend(std::iter::repeat_n(0, n + 4));
+        m
+    };
+    let mut png = b"\x89PNG\r\n\x1a\n".to_vec();
+    for (nom, n) in [
+        (&b"IHDR"[..], 13),
+        (b"iCCP", 3000),
+        (b"acTL", 8),
+        (b"IDAT", 1),
+    ] {
+        png.extend(morceau(nom, n));
+    }
+    let chemin = std::env::temp_dir().join(format!("glucose-apng-{}.png", std::process::id()));
+    std::fs::write(&chemin, &png).expect("écrit");
+    let anime = ouvrier::est_anime(&chemin.to_string_lossy(), None);
+    let _ = std::fs::remove_file(&chemin);
+    assert!(anime, "acTL après 3 Ko de profil : un PNG animé");
+}

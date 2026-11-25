@@ -219,5 +219,85 @@
    "--",
    "gif_3"
   ]
+ },
+ {
+  "nom": "GIF-4 — un PNG n'est jamais animé",
+  "fichier": "crates/glucose-desktop/src/renderer/gif/signature.rs",
+  "avant": "    if debut.starts_with(PNG) {\n        return png_anime(debut);\n    }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_4"
+  ]
+ },
+ {
+  "nom": "GIF-4 — tout WebP étendu passe pour animé",
+  "fichier": "crates/glucose-desktop/src/renderer/gif/signature.rs",
+  "avant": "&& tete[20] & 0x02 != 0)",
+  "apres": ")",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_4"
+  ]
+ },
+ {
+  "nom": "GIF-4 — le lecteur ne lit pas les APNG",
+  "fichier": "crates/glucose-desktop/src/renderer/gif.rs",
+  "avant": "    Some(tour(decodeur.apng().ok()?))",
+  "apres": "    None",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_4"
+  ]
+ },
+ {
+  "nom": "GIF-4 — la lecture ne s'allonge pas",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/ouvrier.rs",
+  "avant": "            Err(besoin) => n = besoin.max(n.saturating_mul(2)),",
+  "apres": "            Err(_) => return false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_4"
+  ]
  }
 ]

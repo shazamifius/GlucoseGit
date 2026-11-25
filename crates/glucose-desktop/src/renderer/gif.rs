@@ -1,4 +1,5 @@
-//! **Les GIF qui bougent** (GIF-1, fiche 159) : le lecteur — des octets d'un GIF à la suite de ses
+//! **Les GIF qui bougent** (GIF-1, fiche 159 ; les WebP et PNG animés aussi, § 9) : le lecteur — des
+//! octets d'un GIF à la suite de ses
 //! toiles, déjà composées (chacune par-dessus la précédente), avec le temps que chacune reste, tour
 //! après tour. Il ne garde que la toile en cours : la mémoire d'un GIF est celle d'une image, quelle
 //! que soit sa longueur (fiche 159 § 3).
@@ -85,17 +86,36 @@ impl Lecteur {
     }
 }
 
-/// Les toiles d'un tour, et les tours qui restent après lui.
+/// Les toiles d'un tour, et les tours qui restent après lui : un GIF, un WebP animé, un PNG animé
+/// (fiche 159 § 9) — `image` les compose tous trois.
 fn ouvrir(octets: &Arc<[u8]>) -> Option<(image::Frames<'static>, Option<u32>)> {
-    let decodeur = image::codecs::gif::GifDecoder::new(Cursor::new(Arc::clone(octets))).ok()?;
+    use image::codecs::{gif::GifDecoder, png::PngDecoder, webp::WebPDecoder};
+    let lecture = Cursor::new(Arc::clone(octets));
+    if octets.starts_with(b"GIF8") {
+        return Some(tour(GifDecoder::new(lecture).ok()?));
+    }
+    if octets.starts_with(b"RIFF") {
+        let decodeur = WebPDecoder::new(lecture).ok()?;
+        return decodeur.has_animation().then(|| tour(decodeur));
+    }
+    let decodeur = PngDecoder::new(lecture).ok()?;
+    if !decodeur.is_apng().ok()? {
+        return None;
+    }
+    Some(tour(decodeur.apng().ok()?))
+}
+
+/// Les toiles d'un décodeur, et les tours qui restent après le premier ; `None` : sans fin.
+fn tour<D: AnimationDecoder<'static>>(decodeur: D) -> (image::Frames<'static>, Option<u32>) {
     let tours = match decodeur.loop_count() {
         LoopCount::Infinite => None,
         LoopCount::Finite(n) => Some(n.get() - 1),
     };
-    Some((decodeur.into_frames(), tours))
+    (decodeur.into_frames(), tours)
 }
 
 pub(crate) mod joueur;
+pub(crate) mod signature;
 
 #[cfg(test)]
 mod tests;

@@ -26,7 +26,7 @@ pub(super) fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Par
                     .and_then(|d| apercu::lire(&apercu::chemin(&d, &src, empreinte)?))
                     .and_then(Pyramide::depuis_apercu)
                     .or_else(|| decoder(&src, objets.as_deref(), admission::de_la_machine()));
-                let gif = est_un_gif(&src, objets.as_deref());
+                let gif = est_anime(&src, objets.as_deref());
                 Fait::Decodee((src, pyramide, debut.elapsed(), gif))
             }
             Travail::Adopter(src, rgba, (l, h), parole) => {
@@ -131,17 +131,29 @@ fn encoder_en_png(rgba: &[u8], (l, h): (u32, u32)) -> Option<Vec<u8>> {
     Some(png)
 }
 
-/// **Ces octets sont-ils ceux d'un GIF ?** Sa signature, six octets lus sans l'image entière : une
-/// image rouverte vient de son aperçu et ne passe jamais par le décodeur (GIF-2, fiche 159 § 6).
-fn est_un_gif(src: &str, objets: Option<&crate::persist::objets::Objets>) -> bool {
+/// **Cette image bouge-t-elle ?** Un GIF, un WebP ou un PNG animés, à leur signature : son début
+/// seulement, autant qu'il en faut pour le dire (fiche 159 § 9) — une image rouverte vient de son
+/// aperçu et ne passe jamais par le décodeur (GIF-2).
+pub(super) fn est_anime(src: &str, objets: Option<&crate::persist::objets::Objets>) -> bool {
     use std::io::Read;
-    let debut = match objets {
-        Some(o) => o.debut(src, 6),
+    let lire = |n: usize| match objets {
+        Some(o) => o.debut(src, n),
         None => std::fs::File::open(src).ok().and_then(|f| {
             let mut debut = Vec::new();
-            f.take(6).read_to_end(&mut debut).ok()?;
+            f.take(n as u64).read_to_end(&mut debut).ok()?;
             Some(debut)
         }),
     };
-    debut.is_some_and(|d| d.starts_with(b"GIF8"))
+    let mut n = 64;
+    loop {
+        let Some(debut) = lire(n) else {
+            return false;
+        };
+        match crate::renderer::gif::signature::animee(&debut) {
+            Ok(anime) => return anime,
+            // Le fichier finit avant : il ne le dira pas.
+            Err(_) if debut.len() < n => return false,
+            Err(besoin) => n = besoin.max(n.saturating_mul(2)),
+        }
+    }
 }

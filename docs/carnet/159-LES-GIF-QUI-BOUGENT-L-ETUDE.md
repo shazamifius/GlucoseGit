@@ -191,3 +191,20 @@ l'ouverture, et le signal `SettingChanged` suit un changement en cours de route.
   lecteur comme celui du doigt) — Android 8 et plus ; avant, la méthode manque, son exception est
   rendue et rien ne se lit (son Redmi 9 est sous Android 10). Vérifié par `verifier_cibles.sh
   android`, jamais lancé sur un téléphone. **Les quatre systèmes le lisent.**
+
+## 9. Les WebP et PNG animés (GIF-4, 25/11 vers 4 h 45, compte b)
+
+* **Le même lecteur** : `image` 0.25 compose aussi les toiles d'un WebP animé (`WebPDecoder`,
+  `has_animation`) et d'un PNG animé (`PngDecoder::apng`, `is_apng`) ; `ouvrir` choisit le
+  décodeur par la signature, `tour` est commun. La règle des 10 ms vaut pour les trois (Chromium
+  l'applique à toute image animée, à ce qu'on en sait ; non vérifié pour Firefox).
+* **La signature** (`gif/signature.rs`, une fonction pure) : `GIF8` ; un WebP dont le morceau
+  `VP8X` porte le drapeau de l'animation (octet 20, bit 1) ; un PNG dont `acTL` vient avant le
+  premier `IDAT`. **Lue aussi loin qu'il faut** (`ouvrier::est_anime`) : 64 octets d'abord, puis
+  ce que les morceaux disent — un profil de couleur de 3 Ko devant `acTL` est franchi en une
+  lecture de plus ; aucun plafond : un fichier qui finit avant ne dit rien, et la lecture s'arrête.
+* **Épreuves** : un APNG écrit par la caisse `png`, un WebP animé assemblé à la main (`image`
+  n'en écrit pas ; `image-webp` compose chaque toile par un mélange qui arrondit d'un cran : 254
+  pour 255, toléré), les signatures, la lecture qui s'allonge. Quatre sabotages de plus
+  (`gif-159.json`, 15 sur 15). Pas regardé au pilote : le chemin d'après la signature est celui
+  des GIF, qui l'a été.
