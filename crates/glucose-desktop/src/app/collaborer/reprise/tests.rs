@@ -227,7 +227,7 @@ fn revenir_quitter_garde_le_code_et_partager_y_revient() {
         relance.lancement.agents.partage.is_none(),
         "dehors : il ne revient pas seul"
     );
-    relance.montrer_collaborer();
+    relance.montrer_la_porte_humain(None);
     let premier = relance
         .ui
         .question

@@ -1,0 +1,200 @@
+[
+ {
+  "nom": "PORTES-1 — Collaborer perd la porte Sécurité",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "                choix(\"Sécurité…\", SECURITE),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — « Retour » ne remonte plus",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "            RETOUR => self.montrer_collaborer(),",
+  "apres": "            RETOUR => {}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — la porte IA ne mène plus à la porte MCP",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "                choix(\"La porte aux IA publiques…\", PORTE),",
+  "apres": "                choix(\"La porte aux IA publiques…\", RETOUR),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — Sécurité tait l'accord des programmes",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "        let programmes = self.qui_a_ton_accord();",
+  "apres": "        let programmes: Vec<String> = Vec::new();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — Sécurité tait qui a la porte du nuage",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "                self.qui_a_la_porte()\n",
+  "apres": "                String::new()\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — Sécurité confond le code qui regarde",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "        let codes = if cp.code.peut_ecrire() {",
+  "apres": "        let codes = if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — un code qui regarde se dit capable d'écrire",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "                if cp.code.peut_ecrire() {\n                    liste.push",
+  "apres": "                if true {\n                    liste.push",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — la porte humain perd « Rejoindre… »",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/revenir.rs",
+  "avant": "                (\"Rejoindre…\".into(), REJOINDRE),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ },
+ {
+  "nom": "PORTES-1 — Sécurité ne mène plus à l'accord des programmes",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "            LES_PROGRAMMES => self.demander_a_oublier_les_agents(),",
+  "apres": "            LES_PROGRAMMES => self.montrer_les_ia(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "portes",
+   "test_the_collab",
+   "rejoindre_1"
+  ]
+ }
+]

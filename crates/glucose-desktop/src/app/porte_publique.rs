@@ -107,7 +107,7 @@ impl GlucoseApp {
         self.demander(question, Suite::PortePublique);
     }
 
-    fn qui_a_la_porte(&self) -> String {
+    pub(crate) fn qui_a_la_porte(&self) -> String {
         let accords = self
             .etat_de_la_porte()
             .map(|e| e.accords)
@@ -179,7 +179,7 @@ impl GlucoseApp {
     }
 
     /// **Les IA qui ont ta porte**, chacune à retirer d'un clic.
-    fn montrer_les_ia(&mut self) {
+    pub(crate) fn montrer_les_ia(&mut self) {
         let accords = self
             .etat_de_la_porte()
             .map(|e| e.accords)

@@ -47,17 +47,22 @@ fn test_the_collab_button_opens_collaboration_and_the_public_door() {
         panic!("la question de Collaborer");
     };
     assert_eq!(question.titre, "Collaborer");
-    let reponse = |debut: &str| {
-        question
-            .choix
-            .iter()
+    let reponse = |app: &GlucoseApp, debut: &str| {
+        let question = app.ui.question.as_ref().map(|(q, _)| q);
+        let mut choix = question.into_iter().flat_map(|q| q.choix.iter());
+        choix
             .find(|(l, _)| l.starts_with(debut))
             .map(|(_, r)| *r)
             .unwrap_or_else(|| panic!("« {debut} » parmi les choix"))
     };
-    reponse("Partager ce canevas");
-    reponse("Rejoindre");
-    app.repondre_a_collaborer(reponse("La porte aux IA"));
+    app.ui.question = Some((question, Suite::Collaborer));
+    // Trois portes (fiche 154) : les humains partagent et rejoignent, les IA ont leur porte.
+    app.repondre_a_collaborer(reponse(&app, "Porte humain"));
+    reponse(&app, "Partager ce canevas");
+    reponse(&app, "Rejoindre");
+    app.repondre_a_collaborer(reponse(&app, "Retour"));
+    app.repondre_a_collaborer(reponse(&app, "Porte IA"));
+    app.repondre_a_collaborer(reponse(&app, "La porte aux IA"));
     let Some((porte, Suite::PortePublique)) = &app.ui.question else {
         panic!("la question de la porte");
     };

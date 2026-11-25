@@ -53,9 +53,9 @@ impl GlucoseApp {
         true
     }
 
-    /// **« Collaborer », seul** : partager ce canevas — ou, s'il a gardé sa salle en la quittant,
+    /// **La porte humain, seul** : partager ce canevas — ou, s'il a gardé sa salle en la quittant,
     /// **y revenir** (fiche 148 § 3, le 1) : le bouton dit ce qu'il fera, sous les mêmes codes.
-    pub(super) fn question_seul(&self, nommer: Choix, porte: Choix) -> Question {
+    pub(super) fn question_seul(&self, nommer: Choix, retour: Choix) -> Question {
         let dehors = (self.document_du_canevas())
             .and_then(|d| reprise::lire(&self.disque.canevas, &d))
             .is_some();
@@ -73,17 +73,13 @@ impl GlucoseApp {
             )
         };
         Question {
-            titre: "Collaborer".into(),
-            texte: format!(
-                "{partager} Rejoindre : avec le code qu'on t'a donné.\n\nLa porte aux IA \
-                 publiques : Claude.ai, depuis le nuage."
-            ),
+            titre: "Porte humain".into(),
+            texte: format!("{partager}\n\nRejoindre : avec le code qu'on t'a donné."),
             choix: vec![
                 (bouton.into(), PARTAGER),
                 ("Rejoindre…".into(), REJOINDRE),
                 nommer,
-                porte,
-                ("L'API publique…".into(), super::api::MENU),
+                retour,
                 ("Fermer".into(), Reponse::Annuler),
             ],
             ..Default::default()
@@ -104,7 +100,7 @@ impl GlucoseApp {
         } else {
             PAS_DE_RESEAU
         };
-        self.montrer_collaborer_avec(Some(note.into()));
+        self.montrer_la_porte_humain(Some(note.into()));
         true
     }
 

@@ -61,7 +61,7 @@ impl GlucoseApp {
     /// écrit ; « Annuler » revient à Collaborer.
     pub(crate) fn rejoindre_par_le_code(&mut self, reponse: Reponse, texte: Option<String>) {
         if reponse != Reponse::Oui {
-            return self.montrer_collaborer();
+            return self.montrer_la_porte_humain(None);
         }
         let texte = texte.unwrap_or_default();
         match Code::lire_le_texte(&texte) {

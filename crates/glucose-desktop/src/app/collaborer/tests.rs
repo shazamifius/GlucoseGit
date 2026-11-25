@@ -1,6 +1,7 @@
 //! Ce que la boucle dit et montre d'un canevas partagé (fiche 117).
 
 use super::*;
+use crate::ui::question::Question;
 
 fn pair(nom: &str, couleur: u8, curseur: Option<(&str, f64, f64)>) -> Pair {
     Pair {

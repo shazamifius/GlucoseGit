@@ -72,6 +72,11 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
+**Collaborer en trois portes** (PORTES-1, fiche 154 ; à sa prochaine relance) : Collaborer → « Porte
+humain… », « Porte IA… », « Sécurité… » ; « Retour » remonte. Depuis, les chemins ci-dessous passent par
+une porte : partager, rejoindre et son nom sous **Porte humain** ; la porte aux IA publiques et l'API
+sous **Porte IA** ; « Les IA du nuage… » (les retirer) aussi sous **Sécurité**.
+
 **Retirer l'écrit d'une IA** (RETRAIT-1, fiche 153 ; à sa prochaine relance) : `Ctrl+H` → l'onglet
 « ÉCRITS DES IA » ; « Retirer » éteint la ligne, « Remettre » la rallume.
 

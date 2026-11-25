@@ -10,13 +10,14 @@ pub mod api;
 pub mod identite;
 pub mod nommer;
 pub mod photos;
+mod portes;
 mod rejoindre;
 pub mod reprise;
 mod revenir;
 
 use crate::app::GlucoseApp;
 use crate::salle::lien::{self, Lien, Nouvelle, Ordre};
-use crate::ui::question::{Question, Reponse, Suite};
+use crate::ui::question::{Reponse, Suite};
 use glucose_core::salle::code::Code;
 use glucose_core::salle::lettre::{Corps, Lettre};
 use glucose_core::store::journal::partage::GestePartage;
@@ -170,68 +171,6 @@ fn nouvelle_marque() -> Result<String, String> {
 }
 
 impl GlucoseApp {
-    /// **« Collaborer »** : seul, partager ou rejoindre ; partagé, les codes, qui est là, quitter.
-    pub(crate) fn montrer_collaborer(&mut self) {
-        self.montrer_collaborer_avec(None);
-    }
-
-    /// La question, avec ce qui vient d'avoir lieu en tête — un code copié, un partage qui n'a pas
-    /// pu se faire : ce qu'on a fait se dit là où on l'a fait.
-    fn montrer_collaborer_avec(&mut self, note: Option<String>) {
-        let porte = ("La porte aux IA publiques…".to_string(), PORTE);
-        let nommer = ("Ton nom et ta couleur…".to_string(), NOMMER);
-        let question = match &self.lancement.agents.partage {
-            None => self.question_seul(nommer, porte),
-            Some(cp) => {
-                let mut choix = Vec::new();
-                if cp.code.peut_ecrire() {
-                    choix.push(("Copier le code pour y travailler".into(), COPIER_ECRIRE));
-                }
-                choix.push(("Copier le code pour regarder".into(), COPIER_LIRE));
-                choix.push(("Quitter le partage".into(), QUITTER));
-                choix.push(nommer);
-                choix.push(porte);
-                choix.push(("L'API publique…".into(), crate::app::collaborer::api::MENU));
-                choix.push(("Fermer".into(), Reponse::Annuler));
-                Question {
-                    titre: "Canevas partagé".into(),
-                    texte: self.etat_du_partage(cp),
-                    choix,
-                    ..Default::default()
-                }
-            }
-        };
-        let mut question = question;
-        if let Some(n) = note {
-            question.texte = format!("{n}\n\n{}", question.texte);
-        }
-        self.demander(question, Suite::Collaborer);
-    }
-
-    fn etat_du_partage(&self, cp: &CanevasPartage) -> String {
-        use crate::agents::publique::lien::EtatDuLien;
-        let lien = match cp.lien.etat() {
-            EtatDuLien::Relie if cp.entree.attend() => "Relié ; le canevas arrive…".into(),
-            EtatDuLien::Relie => "Relié.".to_string(),
-            EtatDuLien::EnRoute => "Il se relie…".to_string(),
-            EtatDuLien::Hors(r) => format!("Pas relié ({r}) : il réessaie."),
-        };
-        let noms: Vec<&str> = cp.presents().iter().map(|p| p.nom.as_str()).collect();
-        let avec = if noms.is_empty() {
-            "Personne d'autre pour l'instant.".to_string()
-        } else {
-            format!("Avec : {}.", noms.join(", "))
-        };
-        let pouvoir = if cp.code.peut_ecrire() {
-            ""
-        } else {
-            "\n\nTon code ne fait que regarder : tes gestes ne partent pas."
-        };
-        let photos = photos::en_attente(&self.store.project, &self.disque.objets)
-            .map_or_else(String::new, |p| format!("\n\n{p}"));
-        format!("{lien} Tu es « {} ».\n\n{avec}{photos}{pouvoir}", cp.nom)
-    }
-
     /// Sa réponse à la question de Collaborer.
     pub(crate) fn repondre_a_collaborer(&mut self, reponse: Reponse) {
         match reponse {
@@ -251,14 +190,14 @@ impl GlucoseApp {
                 });
                 if let Some(t) = texte {
                     let note = self.copier_un_code(t);
-                    self.montrer_collaborer_avec(Some(note));
+                    self.montrer_la_porte_humain(Some(note));
                 }
             }
             QUITTER => {
                 self.laisser_le_canevas();
                 self.quitter_le_canevas_partage();
             }
-            _ => {}
+            autre => self.repondre_aux_portes(autre),
         }
     }
 
@@ -294,10 +233,10 @@ impl GlucoseApp {
             .and_then(|m| crate::plateforme::hasard::octets::<32>().map(|h| (m, Code::neuf(h))));
         let (marque, code) = match prepare {
             Ok(p) => p,
-            Err(e) => return self.montrer_collaborer_avec(Some(format!("Partager : {e}."))),
+            Err(e) => return self.montrer_la_porte_humain(Some(format!("Partager : {e}."))),
         };
         let Some(lien) = self.relier(code.clone(), 0) else {
-            return self.montrer_collaborer_avec(Some(PAS_DE_RESEAU.into()));
+            return self.montrer_la_porte_humain(Some(PAS_DE_RESEAU.into()));
         };
         self.terminer_les_gestes_en_cours();
         self.consigner();
@@ -315,17 +254,17 @@ impl GlucoseApp {
         self.ui.porte_ouverte = true;
         self.retenir_le_canevas_en_cours();
         let note = code.texte_ecrire().map(|t| self.copier_un_code(t));
-        self.montrer_collaborer_avec(note);
+        self.montrer_la_porte_humain(note);
     }
 
     /// Le document laissé : un canevas vide attend la base, le fil part.
     pub(crate) fn commencer_a_rejoindre(&mut self, code: Code) {
         let marque = match nouvelle_marque() {
             Ok(m) => m,
-            Err(e) => return self.montrer_collaborer_avec(Some(format!("Rejoindre : {e}."))),
+            Err(e) => return self.montrer_la_porte_humain(Some(format!("Rejoindre : {e}."))),
         };
         let Some(lien) = self.relier(code.clone(), 0) else {
-            return self.montrer_collaborer_avec(Some(PAS_DE_RESEAU.into()));
+            return self.montrer_la_porte_humain(Some(PAS_DE_RESEAU.into()));
         };
         self.quitter_le_canevas_partage();
         self.adopter_un_document_vierge();
@@ -340,7 +279,7 @@ impl GlucoseApp {
             objets,
         ));
         self.ui.porte_ouverte = true;
-        self.montrer_collaborer();
+        self.montrer_la_porte_humain(None);
     }
 
     /// **Quitte le partage** : le canevas reste ici, à soi seul ; les autres continuent sans soi.
@@ -421,7 +360,7 @@ impl GlucoseApp {
         // Jamais par-dessus une autre question (une IA qui demande la porte, un travail à garder).
         let libre = matches!(self.ui.question, None | Some((_, Suite::Collaborer)));
         if attend && n == 0 && libre {
-            self.montrer_collaborer_avec(Some(SALLE_VIDE.into()));
+            self.montrer_la_porte_humain(Some(SALLE_VIDE.into()));
         }
     }
 

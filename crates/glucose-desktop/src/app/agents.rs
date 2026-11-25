@@ -283,15 +283,7 @@ impl GlucoseApp {
 
     /// **« Retirer l'accord des agents… »** : la question dit qui l'a, et le retire sur sa parole.
     pub(crate) fn demander_a_oublier_les_agents(&mut self) {
-        let agents = &self.lancement.agents;
-        let mut noms: Vec<String> = agents
-            .autorises()
-            .iter()
-            .map(|c| format!("« {c} »"))
-            .collect();
-        if agents.toujours.vaut(&self.store.identite) {
-            noms.insert(0, toujours_dit(agents.toujours.rate.as_deref()));
-        }
+        let noms = self.qui_a_ton_accord();
         let (texte, choix) = if noms.is_empty() {
             (
                 "Aucun agent ne travaille dans Glucose avec ton accord.".to_string(),
@@ -316,6 +308,21 @@ impl GlucoseApp {
             ..Default::default()
         };
         self.demander(question, Suite::OublierLesAgents);
+    }
+
+    /// **Les programmes de cette machine qui ont son accord** : l'accord durable de ce document
+    /// d'abord, puis chaque agent accepté pour cette session — dits ici et dans Sécurité.
+    pub(crate) fn qui_a_ton_accord(&self) -> Vec<String> {
+        let agents = &self.lancement.agents;
+        let mut noms: Vec<String> = agents
+            .autorises()
+            .iter()
+            .map(|c| format!("« {c} »"))
+            .collect();
+        if agents.toujours.vaut(&self.store.identite) {
+            noms.insert(0, toujours_dit(agents.toujours.rate.as_deref()));
+        }
+        noms
     }
 
     /// **Retire l'accord** : celui de chaque agent pour cette session, et l'accord durable de ce
