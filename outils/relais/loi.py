@@ -235,6 +235,8 @@ POURQUOI = {
     "contexte": f"Ta conversation a passé {SEUIL_JETONS // 1000} 000 jetons : chaque réponse la relit "
                 "entière, et c'est ce qui use ses comptes. Une conversation neuve reprendra, avec ta "
                 "passation (sa réponse du 24/11).",
+    "renouveler": "Tu as demandé une conversation neuve (relais.py renouveler) : la suivante reprendra "
+                  "avec ta passation.",
     "reserve": "La semaine de ce compte a passé son seuil et aucun autre ne peut reprendre : ce qui en "
                "reste est gardé pour lui répondre quand il écrit (RESERVE-1, fiche 163) — une session "
                "se lancera pour ses notes.",

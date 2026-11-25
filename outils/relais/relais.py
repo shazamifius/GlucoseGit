@@ -297,7 +297,7 @@ def fin_de_tour():
     texte = (n or {}).get("texte", "")
     compte = compte_courant()
     motif = "retrait" if main_humaine(maintenant) else "contexte" if contexte_plein(
-        lire_json(ETAT / "contexte.json", {}), session) else (
+        lire_json(ETAT / "contexte.json", {}), session) else "renouveler" if session.get("renouveler") else (
         "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else
         "reserve" if gardee(compte, maintenant) else None)
     textes = memoire.get("textes", {})
@@ -453,6 +453,7 @@ def garder(session, maintenant, humaine_la=None):
       ses notes (`gardee`) : la passation, sauf pour une session lancée pour elles (`notes`), qui
       la fera à la fin de son tour (`fin_de_tour`) ;
     * « contexte » — la mémoire du modèle à 90 % : la passation, puis une conversation neuve ;
+    * « renouveler » — la session l'a demandé (`renouveler`) : de même ;
     * None : rien à faire."""
     compte = session.get("compte")
     if not compte:
@@ -465,6 +466,8 @@ def garder(session, maintenant, humaine_la=None):
         return "retrait"
     if contexte_plein(lire_json(ETAT / "contexte.json", {}), session):
         return "contexte"
+    if session.get("renouveler"):
+        return "renouveler"
     if not plein(compte, maintenant)[0]:
         return None
     if ailleurs(compte, maintenant)[0]:
@@ -497,11 +500,12 @@ def tenir(session, memoire, humaine_la, maintenant):
         if not retrait:
             memoire["compte"] = autre(session.get("compte"))
         return False
-    if geste in ("passation", "retrait", "contexte", "reserve"):
+    if geste in ("passation", "retrait", "contexte", "reserve", "renouveler"):
         demander_passation(session, maintenant, geste if geste != "passation" else "limite")
         taper(raison_passation(session["passation_pourquoi"], memoire.get("textes", {}).get(TEXTE_PASSATION)))
         journal({"retrait": "une session à lui prend la main", "contexte": "la mémoire du modèle à 90 %",
-                 "reserve": "la fin de la semaine gardée pour ses notes"}
+                 "reserve": "la fin de la semaine gardée pour ses notes",
+                 "renouveler": "une conversation neuve demandée"}
                 .get(geste, "seuil passé en plein tour")
                 + f" : passation demandée au compte {session.get('compte')}")
     elif geste == "prevenir":
@@ -661,6 +665,21 @@ def veiller():
         time.sleep(60)
 
 
+def renouveler():
+    """**Une conversation neuve, demandée par la session** (RENOUVELER-1, fiche 163 § 6) : un chantier
+    fini, et le suivant n'a que faire de ce qu'elle a lu — chaque réponse relirait pourtant toute sa
+    conversation (sa réponse du 24/11 : « relire la conversation, c'est vraiment à ne jamais faire »).
+    Le veilleur demande la passation, puis lance une conversation neuve, comme au seuil des jetons."""
+    if os.environ.get("RELAIS") != "1":
+        print("seule une session du relais renouvelle sa conversation")
+        return 1
+    session = lire_json(ETAT / "session.json", {})
+    session["renouveler"] = time.time()
+    ecrire_json(ETAT / "session.json", session)
+    journal("la session demande une conversation neuve")
+    return 0
+
+
 def etat():
     maintenant = time.time()
     for compte in COMPTES:
@@ -680,4 +699,4 @@ if __name__ == "__main__":
         import installer
         sys.exit(installer.installer())
     sys.exit({"jauges": jauges, "fin-de-tour": fin_de_tour, "parole": parole, "rendre": rendre,
-              "veiller": veiller, "etat": etat}[geste]() or 0)
+              "renouveler": renouveler, "veiller": veiller, "etat": etat}[geste]() or 0)

@@ -463,6 +463,20 @@ class Veilleur(unittest.TestCase):
         self.taper.assert_called_once_with(r.raison_prevenir(self.maintenant + 3600))
         self.tmux.assert_not_called()
 
+    def test_une_conversation_neuve_a_sa_demande(self):
+        """RENOUVELER-1 (fiche 163 § 6) : la session la demande, le veilleur et le crochet font la passation."""
+        self.jauge("b", 10, 10)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
+        with mock.patch.dict("os.environ", {"RELAIS": "1"}):
+            self.assertEqual(r.renouveler(), 0)
+        with mock.patch.dict("os.environ", {"RELAIS": ""}), mock.patch("builtins.print"):
+            self.assertEqual(r.renouveler(), 1)
+        r.un_tour()
+        self.taper.assert_called_once_with(r.raison_passation("renouveler"))
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "renouveler": 1})
+        dire, session = self.crochet()
+        self.assertIn(json.dumps(r.raison_passation("renouveler"), ensure_ascii=False), dire.call_args.args[0])
+
     def test_la_fin_de_sa_semaine_ne_se_lance_que_pour_ses_notes(self):
         """RESERVE-1 (fiche 163) : sans note de lui, le veilleur attend et le dit ; une note, et une
         session se lance pour lui répondre, puis écrit sa passation à la fin de son tour."""

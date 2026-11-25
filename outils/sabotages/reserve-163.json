@@ -206,5 +206,69 @@
    "-p",
    "test_relais.py"
   ]
+ },
+ {
+  "nom": "RENOUVELER — le veilleur l'ignore",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if session.get(\"renouveler\"):\n        return \"renouveler\"\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RENOUVELER — le crochet l'ignore",
+  "fichier": "outils/relais/relais.py",
+  "avant": " else \"renouveler\" if session.get(\"renouveler\") else (",
+  "apres": " else (",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RENOUVELER — jamais noté",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    session[\"renouveler\"] = time.time()\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "RENOUVELER — permis hors du relais",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if os.environ.get(\"RELAIS\") != \"1\":\n        print(\"seule",
+  "apres": "    if False:\n        print(\"seule",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
  }
 ]

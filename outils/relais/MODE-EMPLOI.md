@@ -53,7 +53,9 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
 Lire sa consigne, la passation (`relais-passation`), puis ses notes si le premier message en donne.
 Une question pour lui : un texte dans son Glucose, et passer à autre chose. Quand le relais demande
 la passation, la récrire (ou la confirmer d'une ligne datée), puis finir le tour. Ne jamais écrire
-dans `relais-consigne`.
+dans `relais-consigne`. **Un chantier fini, et le suivant n'a que faire de ce qu'elle a lu** : écrire la
+passation, puis `python3 -I outils/relais/relais.py renouveler` — une conversation neuve reprend, au lieu de
+relire à chaque réponse ce qui ne sert plus (RENOUVELER-1, fiche 163 § 6).
 
 **Sobre en jetons** (sa priorité du 24/11) : ne relire ni ses règles ni l'index des mémoires (Claude
 Code les charge), seulement la section qu'un travail demande ; aucun compte rendu dans le terminal,
@@ -72,6 +74,7 @@ rendre` — sinon le relais attend 35 minutes de silence.
 ```bash
 python3 -I outils/relais/relais.py etat      # comptes, session du relais, session à lui, mémoire
 python3 -I outils/relais/relais.py rendre    # une session à lui rend la main
+python3 -I outils/relais/relais.py renouveler  # une session du relais demande une conversation neuve
 systemctl --user status relais-glucose       # le service ; restart : KillMode=process, tmux survit
 tail ~/.local/state/relais/journal.txt       # ce qu'il a fait ; ses fichiers d'état à côté
 tmux capture-pane -p -t relais-a             # l'écran de la session (lire, jamais taper à sa place)

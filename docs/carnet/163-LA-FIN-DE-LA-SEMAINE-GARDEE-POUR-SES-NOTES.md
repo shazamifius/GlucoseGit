@@ -72,3 +72,17 @@ binaire de Claude Code 2.1.332 : la variable, ou le réglage `disableClaudeAiCon
 `claude mcp list` sous cette variable ne montre plus que `glucose --mcp`. Ses sessions à lui gardent
 tout. 1 épreuve, son sabotage tombe (13 sur 13 dans `reserve-163.json`) ; veilleur relancé. **À
 mesurer** sur la prochaine session lancée : la taille de son deuxième tour.
+
+## 6. RENOUVELER-1 : une conversation neuve, quand la session change de chantier
+
+Sa réponse du 24/11 : *« relire la conversation, c'est vraiment à ne jamais faire »*. Le seuil de
+300 000 jetons reste (fiche 147 § 5 : la jauge compte une relecture ~0,02 d'un jeton neuf) ; mais une
+session qui finit un chantier à 180 000 jetons et en prend un autre sans rapport relit, à chaque réponse,
+tout ce qui ne lui sert plus — environ 3 600 jetons neufs par réponse au poids mesuré, quand une
+conversation neuve en écrit ~30 000 une fois : passé une dizaine de réponses, la neuve coûte moins.
+`relais.py renouveler` (seulement sous `RELAIS=1`) le note dans `session.json` ; le veilleur (geste
+« renouveler ») et le crochet demandent la passation, puis le relais lance une conversation neuve, comme
+au seuil des jetons. La session en juge seule, d'après ce que le chantier suivant doit lire (MODE-EMPLOI).
+1 épreuve, 4 sabotages (17 sur 17 dans `reserve-163.json`) ; veilleur relancé. **Essayé en vrai par la
+session qui l'a écrit**, le 25/11 vers 6 h 30 : le journal du relais le dira (« une conversation neuve
+demandée »).
