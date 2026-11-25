@@ -72,6 +72,10 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
+**Une photo d'iPhone** (HEIC-2 et 3, fiche 161 ; à sa prochaine relance) : glisser une photo `.heic` —
+sa vignette paraît tout de suite, un peu douce, puis la photo nette, debout, aux couleurs vives. Un GIF
+qui joue à sa vraie vitesse (GIF-5, fiche 159 § 10).
+
 **L'ombre sous la main** (OMBRE-1, fiche 155 ; à sa prochaine relance) : `Ctrl` tenu, glisser un nœud
 — son ombre, réduite et translucide, suit la main jusqu'à Discord ou un navigateur ; au lâcher, elle
 disparaît.
