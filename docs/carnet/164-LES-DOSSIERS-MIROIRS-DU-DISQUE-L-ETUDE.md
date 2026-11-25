@@ -288,3 +288,27 @@ mouvement, un état global que les épreuves se partagent ; à voir au pilote ou
 marquage « absent » (la bordure pointillée) : un nœud gardé reste tel quel, une photo sans fichier
 montre son échec. Rien ne dit « en lecture » (17 ms sur son NVMe ; à mesurer sur un disque lent).
 DISQUE-3 (`notify`) attend sa réponse. Le partage d'un miroir, pas essayé.
+
+## 10. DISQUE-2 au pilote : la lecture qui revenait sans se montrer (25/11 vers 11 h 50, compte a)
+
+Le vrai Glucose hors écran (`presse-fichiers` puis `Ctrl+V` : 3 PNG, `notes.md`, un sous-dossier),
+la version de `e24542e`. **Un défaut, corrigé** : on entrait dans le miroir, l'atelier lisait le
+dossier (sa mémoire écrite dans `miroirs/`)… et le tableau restait vide — quatre secondes, puis un
+mouvement de souris : vide encore. Un cran de molette, et tout paraissait. L'atelier réveillait bien
+la boucle (`EventLoopProxy`), mais un réveil ne fait que consulter les raisons d'attendre
+(`prochain_reveil`) ; aucune ne regardait les lectures revenues, qui ne s'appliquaient qu'avant une
+image — donc au geste suivant de sa main. Le passage du § 9, « il réveille la boucle quand une
+lecture revient », était vrai et ne suffisait pas.
+
+**La correction** : une raison de plus, `attente_des_miroirs` (comptée sous « Commande », le masque
+de seize bits étant plein), qui applique ce que l'atelier a rendu au réveil même qu'il cause ; le
+geste appliqué demande son image (`mark_dirty`), et rien en route ne fait repasser la boucle — pas de
+sondage. L'épreuve `test_une_lecture_revenue_s_applique_au_reveil` ne fait que ce que fait la boucle
+(attendre, puis `prochain_reveil`) ; son sabotage (`disque-2.json`, le dernier) la fait tomber seule.
+
+**Revu au pilote après la correction** : le miroir se remplit à l'entrée, sans autre geste ; sorti,
+un `violet.png` ajouté sur le disque, rentré : il entre sous ce qui était rangé, rien d'autre ne
+bouge (il paraît au bas de la vue : la première vue ne se reprend pas, voulu).
+
+**Pas essayé** : la fenêtre qui reprend la main (un seul client dans le sway sans écran ; à son
+écran) ; un disque lent.

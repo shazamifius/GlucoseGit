@@ -83,11 +83,16 @@ fn attendre(app: &mut GlucoseApp) {
 
 /// Lâche ce dossier, entre dans son miroir, et attend sa lecture.
 fn lache_et_entre(app: &mut GlucoseApp, dossier: &Path) {
+    lache_et_demande(app, dossier);
+    attendre(app);
+}
+
+/// Lâche ce dossier et entre dans son miroir : sa lecture part pour l'atelier.
+fn lache_et_demande(app: &mut GlucoseApp, dossier: &Path) {
     app.drop_files(&[dossier.to_path_buf()]);
     let id = app.store.active_board().expect("ici").folders[0].id.clone();
     app.store.try_enter_folder(&id).expect("on entre");
     app.lire_le_miroir_ou_l_on_entre();
-    attendre(app);
 }
 
 /// La fenêtre reprend la main : le miroir se relit.
@@ -500,4 +505,20 @@ fn test_un_texte_ne_se_lit_qu_en_tete() {
         .expect("lisible");
     assert!(markdown.contains("tronqué"));
     assert!(markdown.len() < 101_000, "{}", markdown.len());
+}
+
+/// **Une lecture revenue se montre sans geste de la main** (fiche 164 § 10) : l'atelier ne fait
+/// que réveiller la boucle, qui ne consulte que ses raisons d'attendre (`prochain_reveil`). Au
+/// pilote, le miroir où l'on entrait restait vide jusqu'à la molette.
+#[test]
+fn test_une_lecture_revenue_s_applique_au_reveil() {
+    let bac = Bac::garni("reveil");
+    let mut app = app();
+    lache_et_demande(&mut app, &bac.0);
+    let limite = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while !app.miroirs.en_lecture.is_empty() && std::time::Instant::now() < limite {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        app.prochain_reveil();
+    }
+    assert_eq!(contenu(&app), (1, 1, 2), "le miroir s'est rempli au réveil");
 }

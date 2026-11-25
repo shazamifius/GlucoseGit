@@ -245,7 +245,7 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 17] = [
+        let attentes: [(Raison, Attente); 18] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
@@ -258,6 +258,7 @@ impl GlucoseApp {
             (Raison::Chantier, Self::attente_du_chantier),
             (Raison::Pomodoro, Self::attente_du_pomodoro),
             (Raison::Commande, Self::attente_de_la_commande),
+            (Raison::Commande, Self::attente_des_miroirs),
             (Raison::Commande, Self::attente_des_echanges),
             (Raison::Pave, Self::attente_du_pave),
             (Raison::Appui, Self::attente_de_l_appui),

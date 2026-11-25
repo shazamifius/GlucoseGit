@@ -148,7 +148,8 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   `core/miroir_disque/`, `core/store/miroir_disque.rs`) : lâché, il devient un dossier miroir « à lire »,
   lu **un niveau à la fois** au moment d'y entrer — et relu **à chaque entrée** et quand la fenêtre
   reprend la main (`relire_le_miroir`). **Le disque se lit sur un fil** (`atelier.rs`), qui rend le
-  niveau et la mémoire du miroir ; **la loi** (`reconcilier`, pure) dit ce qui entre, ce qui suit son
+  niveau et la mémoire du miroir, et réveille la boucle — sa lecture s'applique au réveil même
+  (`attente_des_miroirs`, une raison de `prochain_reveil`) ; **la loi** (`reconcilier`, pure) dit ce qui entre, ce qui suit son
   fichier, ce qui part, et ce que le miroir aura vu ; `appliquer.rs` fait les nœuds ; **le geste**
   (`Store::reconcilier_le_miroir`) est signé « Glucose ». Ce que chaque miroir a vu vit dans
   `<dossier de l'application>/miroirs/`, hors du document. Une photo reste sur le disque **tant qu'elle

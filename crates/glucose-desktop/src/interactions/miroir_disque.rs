@@ -203,8 +203,18 @@ impl GlucoseApp {
         }
     }
 
-    /// **Ce que l'atelier a lu s'applique** — appelé avant chaque image ; pendant un geste ouvert,
-    /// la lecture attend qu'il se ferme.
+    /// **Une lecture revenue de l'atelier s'applique au réveil qu'elle cause**, sans attendre une
+    /// image : l'atelier ne fait que réveiller la boucle, qui ne consulte alors que ses raisons
+    /// d'attendre — au pilote, le miroir où l'on entrait restait vide jusqu'au geste suivant de la
+    /// main (fiche 164 § 10). Le geste appliqué demande son image lui-même ; rien en route, rien
+    /// ne repasse : la lecture suivante réveillera de nouveau.
+    pub(crate) fn attente_des_miroirs(&mut self) -> Option<u64> {
+        self.suivre_les_miroirs();
+        None
+    }
+
+    /// **Ce que l'atelier a lu s'applique** — appelé avant chaque image et à chaque réveil ;
+    /// pendant un geste ouvert, la lecture attend qu'il se ferme.
     pub(crate) fn suivre_les_miroirs(&mut self) {
         if let Some(a) = &self.miroirs.atelier {
             self.miroirs.en_attente.extend(a.recu.try_iter());

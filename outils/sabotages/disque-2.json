@@ -359,5 +359,24 @@
    "--lib",
    "miroir_disque"
   ]
+ },
+ {
+  "nom": "DISQUE-2 — la lecture revenue attend le geste suivant de la main",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "avant": "        self.suivre_les_miroirs();\n        None",
+  "apres": "        None",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
  }
 ]
