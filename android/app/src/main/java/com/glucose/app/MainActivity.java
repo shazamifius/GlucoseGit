@@ -253,6 +253,18 @@ public class MainActivity extends GameActivity {
         return new Object[] {ouvrirLesAdresses(ouvrir ? adresses : new ArrayList<>()), texte};
     }
 
+    /** **Ouvre une vidéo** (VIDEO-ANDROID-1, fiche 172) : `LecteurVideo`, que Rust lit. Appelé
+     *  par Rust, du fil de la vidéo — une classe à nous ne se trouve pas de ce fil-là. */
+    public LecteurVideo ouvrirUneVideo(String chemin, long debut, long longueur, boolean son) {
+        return LecteurVideo.ouvrir(chemin, debut, longueur, son);
+    }
+
+    /** **La première image d'une vidéo** (fiche 172), comme `LecteurVideo.imageFixe`. Appelé
+     *  par Rust, du fil de l'atelier. */
+    public int[] imageDUneVideo(String chemin, long debut, long longueur) {
+        return LecteurVideo.imageFixe(chemin, debut, longueur);
+    }
+
     /** **L'appui long a pris** (fiche 57) : le doigt le sent, comme partout sous Android — et
      *  selon le réglage de vibration de l'utilisateur. Appelé par Rust, du fil de Glucose. */
     public void sentirLAppui() {

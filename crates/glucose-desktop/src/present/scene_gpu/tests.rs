@@ -480,6 +480,71 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     );
 }
 
+/// **Des textures qui vieillissent à chaque image passent chacune à son tour** (fiche 172).
+///
+/// Deux vidéos l'une sur l'autre, un budget nul : « au moins une par image » n'en sert qu'une. Dans
+/// l'ordre du dessin, celle du dessous la prenait à chaque image, et celle du dessus restait figée
+/// — vu au téléphone virtuel. Le périmé le plus ancien d'abord : elles alternent.
+#[test]
+fn test_cascade_les_perimes_passent_chacun_a_son_tour() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    const VIDEOS: [&str; 2] = ["dessous", "dessus"];
+    for id in VIDEOS {
+        let cle = format!("{id}:0");
+        scene.televerser(
+            &peripherique,
+            &mut envoi,
+            (&Cle::from(id), &Cle::from(cle.as_str())),
+            photo(4, [1, 2, 3, 255]).as_ref(),
+        );
+    }
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let mut servies = Vec::new();
+    for image in 1..=4 {
+        scene.ouvrir();
+        let cles = VIDEOS.map(|id| format!("{id}:{image}"));
+        let demandes: Vec<APoser> = (VIDEOS.iter().zip(&cles))
+            .map(|(id, cle)| APoser {
+                repli: None,
+                cle: cle.as_str().into(),
+                identite: (*id).into(),
+                pose,
+            })
+            .collect();
+        scene.assurer(
+            &peripherique,
+            &mut envoi,
+            (&demandes, &[], std::time::Duration::ZERO),
+            &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
+        );
+        let a_jour: Vec<&str> = (VIDEOS.iter().zip(&cles))
+            .filter(|(id, cle)| scene.connait(&(**id).into(), &cle.as_str().into()))
+            .map(|(id, _)| *id)
+            .collect();
+        servies.push(a_jour);
+    }
+    assert_eq!(
+        servies,
+        [["dessous"], ["dessus"], ["dessous"], ["dessus"]],
+        "chacune à son tour, jamais la même à chaque image"
+    );
+}
+
 /// **La chronique sait ce que le rendu des textures a pris**, à part de leur envoi.
 ///
 /// Pendant qu'il écrit, sa chronique donne 11,6 ms de `textures` par image, et le banc 2,2 ms

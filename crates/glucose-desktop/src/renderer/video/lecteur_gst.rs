@@ -6,7 +6,7 @@
 //! la mémoire, lus là où ils sont — aucune copie sur le disque, et un seul chemin pour les trois.
 
 use super::gst::{c, gst, Gst, MapInfo, Ptr, RappelsSource};
-use super::Lieu;
+use super::{Fin, Lieu};
 use crate::renderer::gif::Toile;
 use std::ffi::{c_int, c_uint};
 use std::sync::{Arc, Mutex};
@@ -42,15 +42,6 @@ pub(crate) struct LecteurVideo {
     pipeline: Ptr,
     sortie: Ptr,
     bus: Ptr,
-}
-
-/// **Pourquoi une vidéo ne donne plus d'image.**
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Fin {
-    /// Elle est allée au bout.
-    AuBout,
-    /// Le système n'a pas su la lire.
-    Faute,
 }
 
 impl LecteurVideo {

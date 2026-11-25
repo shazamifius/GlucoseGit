@@ -1,0 +1,282 @@
+[
+ {
+  "nom": "VIDEO-ANDROID-1 — les mesures de Java lues dans un autre ordre",
+  "fichier": "crates/glucose-desktop/src/plateforme/video.rs",
+  "avant": "let &[ry, py, ru, pu, rv, pv, x, h0, l, h, espace, quarts] = mesures else {",
+  "apres": "let &[ry, py, pu, ru, rv, pv, x, h0, l, h, espace, quarts] = mesures else {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — un pas nul accepté",
+  "fichier": "crates/glucose-desktop/src/plateforme/video.rs",
+  "avant": "usize::try_from(v).ok().filter(|&v| v > 0)",
+  "apres": "usize::try_from(v).ok()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — les quarts de tour pris tels quels",
+  "fichier": "crates/glucose-desktop/src/plateforme/video.rs",
+  "avant": "u8::try_from(quarts.rem_euclid(4)).ok()?",
+  "apres": "u8::try_from(quarts).ok()?",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — l'image fixe gardée en ARGB",
+  "fichier": "crates/glucose-desktop/src/plateforme/video.rs",
+  "avant": "            [r, g, b, a]\n",
+  "apres": "            [a, r, g, b]\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — l'image fixe sans compter ses pixels",
+  "fichier": "crates/glucose-desktop/src/plateforme/video.rs",
+  "avant": "argb.len() != (largeur as usize) * (hauteur as usize)",
+  "apres": "argb.is_empty()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — sans espace dit, BT.601 même en HD",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "_ if largeur.max(hauteur) >= COTE_HD => P709,",
+  "apres": "_ if false => P709,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — l'étendue pleine ignorée",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "Self::de(poids, espace & ETENDUE == ETENDUE_PLEINE)",
+  "apres": "Self::de(poids, false)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — le vert mal signé",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "c(y - self.gu * u - self.gv * v),",
+  "apres": "c(y - self.gu * u + self.gv * v),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — le recadrage lu depuis le coin",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "    for y in y0..y0 + h {\n        for x in x0..x0 + l {",
+  "apres": "    for y in 0..h {\n        for x in 0..l {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — la couleur lue colonne par colonne",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "let (cx, cy) = (x / 2, y / 2);",
+  "apres": "let (cx, cy) = (x, y);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — la place des plans jamais vérifiée",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "    dernier < plan.octets.len()\n",
+  "apres": "    dernier < usize::MAX\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — le quart de tour dans l'autre sens",
+  "fichier": "crates/glucose-desktop/src/renderer/video/yuv.rs",
+  "avant": "        1 => rotate90(&image),",
+  "apres": "        1 => rotate270(&image),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — une image illisible prise pour rien",
+  "fichier": "crates/glucose-desktop/src/renderer/video/telephone.rs",
+  "avant": "Attente::Image => toile.map(Some).ok_or(Fin::Faute),",
+  "apres": "Attente::Image => Ok(toile),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_android_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-ANDROID-1 — les périmés dans l'ordre du dessin",
+  "fichier": "crates/glucose-desktop/src/present/scene_gpu/cascade.rs",
+  "avant": "        en_retard.sort_by_key(|t| self.photos.get(&t.identite).map(|p| p.faite));\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "chacun_a_son_tour"
+  ]
+ }
+]

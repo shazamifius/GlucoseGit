@@ -11,6 +11,7 @@ use winit::platform::android::activity::AndroidApp;
 use winit::platform::android::EventLoopBuilderExtAndroid;
 
 mod presse_papiers;
+mod video;
 
 /// **Ce que `GameActivity` appelle** au lancement, sur le fil de Glucose.
 #[no_mangle]
@@ -22,6 +23,7 @@ fn android_main(app: AndroidApp) {
     batterie::brancher(&app);
     sortie::brancher(&app);
     place::brancher(&app);
+    video::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
     glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
         java::Activite::de(&app),

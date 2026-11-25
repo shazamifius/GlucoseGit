@@ -4,8 +4,9 @@
 //! son icône (sa réponse du 25/11, `relais-q-videos`).
 //!
 //! Les décodeurs sont ceux du système (la voie A de la fiche 160) : aucun poids livré, aucune
-//! licence de codec à porter, la carte graphique décode. Linux d'abord (GStreamer) ; ailleurs,
-//! en attendant leur porte, une vidéo n'a pas d'image fixe et ne joue pas.
+//! licence de codec à porter, la carte graphique décode. Linux (GStreamer) et Android
+//! (`MediaPlayer`, VIDEO-ANDROID-1, fiche 172) ; ailleurs, en attendant leur porte, une vidéo n'a
+//! pas d'image fixe et ne joue pas.
 
 use crate::persist::objets::Objets;
 
@@ -19,10 +20,26 @@ mod gst;
 mod lecteur_gst;
 #[cfg(target_os = "linux")]
 pub(crate) use lecteur_gst::LecteurVideo;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 mod lieu;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use lieu::Lieu;
+#[cfg(any(target_os = "android", test))]
+mod telephone;
+#[cfg(target_os = "android")]
+pub(crate) use telephone::LecteurDuTelephone as LecteurVideo;
+#[cfg(any(target_os = "android", test))]
+mod yuv;
+
+/// **Pourquoi une vidéo ne donne plus d'image.**
+#[cfg(any(target_os = "linux", target_os = "android", test))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Fin {
+    /// Elle est allée au bout.
+    AuBout,
+    /// Le système n'a pas su la lire.
+    Faute,
+}
 
 /// **Annonce à GStreamer les greffons connus à la compilation** (sous Nix), avant qu'aucun fil ne
 /// parte : à appeler en tête de `main`. `gst_init` lit `GST_PLUGIN_PATH_1_0` et range ce qu'il y
@@ -49,14 +66,18 @@ fn chemins_des_greffons(greffons: &str, deja: Option<std::ffi::OsString>) -> std
     chemins
 }
 
-/// **Ce système sait-il lire une vidéo ?** Sous Linux, si GStreamer est là ; ailleurs, pas
-/// encore (leur porte suit, fiche 169).
+/// **Ce système sait-il lire une vidéo ?** Sous Linux, si GStreamer est là ; sous Android, si sa
+/// porte est branchée ; ailleurs, pas encore (leur porte suit, fiche 169).
 pub(crate) fn lisible_ici() -> bool {
     #[cfg(target_os = "linux")]
     {
         gst::gst().is_some()
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "android")]
+    {
+        telephone::lisible_ici()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         false
     }
@@ -72,7 +93,11 @@ pub(crate) fn image_fixe(
     {
         LecteurVideo::ouvrir(Lieu::de(src, objets)?, false)?.image_arretee()
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "android")]
+    {
+        telephone::image_fixe(Lieu::de(src, objets)?)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         let _ = (src, objets);
         None

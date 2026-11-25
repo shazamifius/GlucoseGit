@@ -41,17 +41,20 @@
             </intent-filter>
 
             <!-- **Le partage** (PARTAGE-1, fiche 56) : Glucose paraît dans « Partager » de la
-                 galerie, d'un navigateur, de Pinterest ou d'Instagram. Des images, une ou
-                 plusieurs ; ou un texte, dont les liens vont chercher leur image. -->
+                 galerie, d'un navigateur, de Pinterest ou d'Instagram. Des images ou des
+                 vidéos (fiche 172), une ou plusieurs ; ou un texte, dont les liens vont chercher
+                 leur image. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

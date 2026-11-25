@@ -212,6 +212,7 @@ impl SceneGpu {
                 }),
                 cle: cle.clone(),
                 vue,
+                faite: vue,
                 octets: octets_d_une_texture(l, h),
                 photo: false,
             },

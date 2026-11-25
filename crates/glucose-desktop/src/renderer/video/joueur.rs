@@ -10,9 +10,12 @@ use crate::renderer::photo::Pyramide;
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 
-/// Ce que le magasin peut dire au fil. Hors Linux, aucun lecteur ne l'écoute encore (leur porte
-/// suit, fiche 169) : l'attente tombera le jour où l'un l'écoutera.
-#[cfg_attr(not(target_os = "linux"), expect(dead_code))]
+/// Ce que le magasin peut dire au fil. Hors Linux et Android, aucun lecteur ne l'écoute encore
+/// (leur porte suit, fiche 169) : l'attente tombera le jour où l'un l'écoutera.
+#[cfg_attr(
+    not(any(target_os = "linux", target_os = "android")),
+    expect(dead_code)
+)]
 enum Ordre {
     Jouer(bool),
     Son(bool),
@@ -128,11 +131,10 @@ fn jouer(
     a_faire: &Receiver<Ordre>,
     reveil: Option<&Reveil>,
 ) {
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         use crate::renderer::atelier::admission;
-        use crate::renderer::video::lecteur_gst::Fin;
-        use crate::renderer::video::{LecteurVideo, Lieu};
+        use crate::renderer::video::{Fin, LecteurVideo, Lieu};
         use std::time::Duration;
         let Some(lecteur) = Lieu::de(src, objets).and_then(|l| LecteurVideo::ouvrir(l, true))
         else {
@@ -169,7 +171,7 @@ fn jouer(
             }
         }
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         let _ = (src, objets, en_boucle, envoi, a_faire, reveil);
     }

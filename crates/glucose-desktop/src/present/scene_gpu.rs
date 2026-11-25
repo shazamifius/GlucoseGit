@@ -127,6 +127,9 @@ struct Televersee {
     cle: Cle,
     /// La dernière image où cette photo a été posée.
     vue: u64,
+    /// L'image où cette texture a été faite : parmi les périmées, la plus ancienne se refait
+    /// d'abord ([`SceneGpu::assurer`]).
+    faite: u64,
     /// Ce qu'elle occupe sur la carte, en octets.
     octets: u64,
     /// Une photo, et non une carte de texte : ses pixels ont été prêtés par le magasin
@@ -255,6 +258,7 @@ impl SceneGpu {
                 cellule: None,
                 cle: cle.clone(),
                 vue: image,
+                faite: image,
                 octets: u64::from(l) * u64::from(h) * 4,
                 photo: false,
             },

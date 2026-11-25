@@ -52,12 +52,7 @@ impl SceneGpu {
         // Mais ils sont toujours demandés tant qu'ils peuvent servir — les réserver à ce qui
         // manque les laissait sans jamais de temps, puisque ce qui manque passe avant eux.
         //
-        // **Ce qui est à jour ne se regarde qu'une fois** (PHOTO-1) : à huit mille photos à
-        // l'écran, tout est à jour presque toujours, et le second tour revoyait chacune pour rien.
-        let en_retard: Vec<&APoser> = a_poser
-            .iter()
-            .filter(|t| !self.connait(&t.identite, &t.cle))
-            .collect();
+        let en_retard = self.en_retard(a_poser);
         for urgent in [true, false] {
             for t in &en_retard {
                 self.rendre_si_besoin((peripherique, envoi), (t, urgent), source, &mut tranche);
@@ -89,6 +84,26 @@ impl SceneGpu {
             }
         }
         self.clore(&tranche);
+    }
+
+    /// **Ce qui est en retard, le plus ancien d'abord.**
+    ///
+    /// **Ce qui est à jour ne se regarde qu'une fois** (PHOTO-1) : à huit mille photos à
+    /// l'écran, tout est à jour presque toujours, et le second tour revoyait chacune pour rien.
+    ///
+    /// **Parmi les périmés, le plus ancien d'abord** (VIDEO-ANDROID-1, fiche 172). Dans l'ordre
+    /// du dessin, deux vidéos — ou deux GIF — dont la texture vieillit à chaque image, sur une
+    /// machine où le budget ne laisse que « au moins une » : la première prenait la place à
+    /// chaque image, et l'autre restait figée. Vu au téléphone virtuel : la vidéo du dessous
+    /// jouait, celle du dessus ne bougeait plus pendant trois secondes. Le plus ancien
+    /// d'abord, chacune passe à son tour. L'absent n'a pas de date : il passe devant.
+    fn en_retard<'a>(&self, a_poser: &'a [APoser]) -> Vec<&'a APoser> {
+        let mut en_retard: Vec<&APoser> = a_poser
+            .iter()
+            .filter(|t| !self.connait(&t.identite, &t.cle))
+            .collect();
+        en_retard.sort_by_key(|t| self.photos.get(&t.identite).map(|p| p.faite));
+        en_retard
     }
 
     /// **La cascade se ferme** : l'instant d'où la fin de l'image se mesure (QUEUE-1), et ce

@@ -54,6 +54,7 @@ pub mod rapatrier;
 pub mod sortie;
 pub mod sources;
 pub mod telechargements;
+pub mod video;
 pub mod websocket;
 
 #[cfg(windows)]

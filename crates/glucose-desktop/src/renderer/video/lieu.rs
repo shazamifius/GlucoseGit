@@ -51,3 +51,23 @@ impl Lieu {
         })
     }
 }
+
+#[cfg(target_os = "android")]
+impl Lieu {
+    /// Le lieu, tel que la porte d'Android le reçoit.
+    pub(crate) fn ou(&self) -> crate::plateforme::video::Ou<'_> {
+        use crate::plateforme::video::Ou;
+        match self {
+            Self::Fichier {
+                chemin,
+                debut,
+                longueur,
+            } => Ou::Fichier {
+                chemin,
+                debut: *debut,
+                longueur: *longueur,
+            },
+            Self::Octets(octets) => Ou::Octets(octets),
+        }
+    }
+}
