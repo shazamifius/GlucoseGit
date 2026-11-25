@@ -97,6 +97,12 @@ impl Lien {
         self.nouvelles.try_iter().collect()
     }
 
+    /// L'état qu'un lien d'épreuve ([`d_epreuve`]) dit : le fil n'y tourne pas.
+    #[cfg(test)]
+    pub fn poser_l_etat(&self, etat: EtatDuLien) {
+        *self.etat.lock().unwrap_or_else(PoisonError::into_inner) = etat;
+    }
+
     pub fn etat(&self) -> EtatDuLien {
         self.etat
             .lock()

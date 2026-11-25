@@ -40,6 +40,22 @@ pub use toast::{Toast, ToastRepaint};
 pub const TABS_HEIGHT: f32 = 34.0;
 pub const TOTAL_HEADER_HEIGHT: f32 = TOPBAR_HEIGHT + TABS_HEIGHT;
 
+/// **Le témoin du partage** (SYNCHRO-1, sa note du 25/11, `text-utzs-2464` : *« je perds la
+/// synchronisation […] je note plein de trucs dans le vide »*) : ce que la rangée des onglets dit
+/// d'un canevas partagé. Le lien coupé ne perdait rien — ses gestes attendent dans le fichier et
+/// partent au retour —, mais rien ne le disait : il écrivait en se croyant entendu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Synchro {
+    /// Relié à sa salle, et à jour : ses gestes partent.
+    Reliee,
+    /// Il se relie, ou le canevas arrive.
+    EnRoute,
+    /// Le lien est coupé : ses gestes restent ici, et partiront au retour — combien attendent.
+    Coupee(usize),
+    /// Un code qui ne fait que regarder : ses gestes ne partent jamais.
+    Regarde,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActiveTool {
     Select,
@@ -230,6 +246,8 @@ pub struct UiState {
     pub zen: bool,
     /// **La porte aux IA publiques est ouverte** (fiche 116) : « Collaborer » s'allume.
     pub porte_ouverte: bool,
+    /// **Le témoin du partage** (SYNCHRO-1) : rien hors d'un canevas partagé.
+    pub synchro: Option<Synchro>,
     /// La barre sur le côté, quand elle ne tient plus en haut (fiche 55), et son dessin gardé.
     pub rail: rail::Rail,
     pub rail_cache: Option<rail::RailCache>,
@@ -311,6 +329,7 @@ impl UiState {
             fenetre: fenetre::ModeDeFenetre::Normale,
             zen: false,
             porte_ouverte: false,
+            synchro: None,
             rail: rail::Rail::default(),
             rail_cache: None,
             marges: Default::default(),

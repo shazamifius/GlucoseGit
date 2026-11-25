@@ -293,6 +293,7 @@ impl GlucoseApp {
     /// **À chaque tour de la boucle** : ce qui arrive entre, ce qui part s'en va.
     pub(crate) fn suivre_le_canevas_partage(&mut self) {
         self.dire_qui_est_la();
+        self.tenir_le_temoin();
         let Some(cp) = self.lancement.agents.partage.as_ref() else {
             return;
         };
@@ -324,6 +325,30 @@ impl GlucoseApp {
             self.dire_ce_qui_arrive_au_canevas(phrase);
         }
         if self.store.version != version {
+            self.mark_dirty();
+        }
+    }
+
+    /// **Le témoin du partage** (SYNCHRO-1) : ce que le fil et la salle disent, posé dans la
+    /// rangée des onglets ; elle se redessine quand il change. Le fil réveille la boucle à chaque
+    /// changement d'état : le témoin ne retarde jamais.
+    fn tenir_le_temoin(&mut self) {
+        use crate::agents::publique::lien::EtatDuLien;
+        use crate::ui::Synchro;
+        let attente = self.store.partage.as_ref().map_or(0, |p| p.en_attente());
+        let temoin = self
+            .lancement
+            .agents
+            .partage
+            .as_ref()
+            .map(|cp| match cp.lien.etat() {
+                _ if !cp.code.peut_ecrire() => Synchro::Regarde,
+                EtatDuLien::Hors(_) => Synchro::Coupee(attente),
+                EtatDuLien::Relie if !cp.entree.attend() => Synchro::Reliee,
+                _ => Synchro::EnRoute,
+            });
+        if temoin != self.ui.synchro {
+            self.ui.synchro = temoin;
             self.mark_dirty();
         }
     }

@@ -454,3 +454,40 @@ fn partage_survit_une_seconde_fenetre_ne_reprend_pas_la_salle() {
         "le scribe, lui, reprend"
     );
 }
+
+/// **SYNCHRO-1** (sa note du 25/11, `text-utzs-2464` : *« je note plein de trucs dans le vide »*) :
+/// la rangée des onglets dit le lien — relié ; coupé, et ce qui attend d'en partir ; rien hors
+/// d'un partage.
+#[test]
+fn synchro_le_temoin_dit_le_lien_et_ce_qui_attend() {
+    use crate::agents::publique::lien::EtatDuLien;
+    use crate::ui::Synchro;
+    let d = dossier("canevas-temoin");
+    let (fil, _salle) = lien::d_epreuve();
+    let (mut app, _, _) = document_partage_par(&d, fil, Code::neuf([7; 32]));
+    app.suivre_le_canevas_partage();
+    assert_eq!(app.ui.synchro, Some(Synchro::Reliee));
+    let cp = app.lancement.agents.partage.as_ref().expect("partagé");
+    cp.lien
+        .poser_l_etat(EtatDuLien::Hors("le téléphone dort".into()));
+    noter(&mut app, "c2", "écrit pendant la coupure");
+    image_suivante(&mut app);
+    app.suivre_le_canevas_partage();
+    assert_eq!(app.ui.synchro, Some(Synchro::Coupee(1)));
+    app.quitter_le_canevas_partage();
+    app.suivre_le_canevas_partage();
+    assert_eq!(app.ui.synchro, None);
+}
+
+/// Sous un code qui ne fait que regarder, ses gestes ne partent jamais, même relié : le témoin le
+/// dit, au lieu de « synchro ».
+#[test]
+fn synchro_un_code_qui_regarde_se_dit() {
+    let d = dossier("canevas-temoin-lecteur");
+    let (fil, _salle) = lien::d_epreuve();
+    let lecteur =
+        Code::lire_le_texte(&Code::neuf([7; 32]).texte_lire()).expect("un code de lecture");
+    let (mut app, _, _) = document_partage_par(&d, fil, lecteur);
+    app.suivre_le_canevas_partage();
+    assert_eq!(app.ui.synchro, Some(crate::ui::Synchro::Regarde));
+}

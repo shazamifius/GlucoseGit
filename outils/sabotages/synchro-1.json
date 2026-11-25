@@ -1,0 +1,107 @@
+[
+ {
+  "nom": "SYNCHRO-1 — le témoin jamais tenu",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "        self.tenir_le_temoin();\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_",
+   "test_ce_qui_change_l_aspect"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-1 — coupé, ce qui attend tu",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "EtatDuLien::Hors(_) => Synchro::Coupee(attente),",
+  "apres": "EtatDuLien::Hors(_) => Synchro::Coupee(0),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_",
+   "test_ce_qui_change_l_aspect"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-1 — un code qui regarde passe pour relié",
+  "fichier": "crates/glucose-desktop/src/app/collaborer.rs",
+  "avant": "_ if !cp.code.peut_ecrire() => Synchro::Regarde,",
+  "apres": "_ if false => Synchro::Regarde,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_",
+   "test_ce_qui_change_l_aspect"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-1 — la bande ne se refait pas quand le témoin change",
+  "fichier": "crates/glucose-desktop/src/ui/bande.rs",
+  "avant": "        synchro: ui.synchro,\n",
+  "apres": "        synchro: None,\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_",
+   "test_ce_qui_change_l_aspect"
+  ]
+ },
+ {
+  "nom": "SYNCHRO-1 — le témoin jamais dessiné",
+  "fichier": "crates/glucose-desktop/src/ui/bande/rangee.rs",
+  "avant": "    dessiner_le_temoin(pixmap, ui, typo, theme, width);\n",
+  "apres": "    let _ = dessiner_le_temoin;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "synchro_",
+   "test_ce_qui_change_l_aspect"
+  ]
+ }
+]

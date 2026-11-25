@@ -221,6 +221,15 @@ fn test_ce_qui_change_l_aspect_redessine_la_bande() {
 
     store.project.active_board_id = store.project.boards[1].id.clone();
     change(&mut ui, &store, "changer de tableau actif");
+
+    ui.synchro = Some(crate::ui::Synchro::Reliee);
+    change(&mut ui, &store, "un canevas partagé (SYNCHRO-1)");
+    ui.synchro = Some(crate::ui::Synchro::Coupee(0));
+    change(&mut ui, &store, "la synchro coupée");
+    ui.synchro = Some(crate::ui::Synchro::Coupee(2));
+    change(&mut ui, &store, "deux gestes en attente");
+    ui.synchro = Some(crate::ui::Synchro::Regarde);
+    change(&mut ui, &store, "un code qui ne fait que regarder");
 }
 
 /// Une fenêtre qui change de largeur refait la bande à sa taille.
