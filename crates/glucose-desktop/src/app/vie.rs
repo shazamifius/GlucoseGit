@@ -68,6 +68,24 @@ impl GlucoseApp {
 }
 
 impl GlucoseApp {
+    /// **Ce que le système dit** entre deux images : ses marges, puis le clavier du téléphone
+    /// (BORD-1, CLAVIER-1), et le mouvement qu'il veut (GIF-3).
+    pub(crate) fn suivre_le_systeme(&mut self) {
+        self.suivre_les_marges();
+        self.suivre_le_clavier();
+        self.suivre_le_mouvement();
+    }
+
+    /// **Le mouvement que le système veut** (GIF-3, fiche 159 § 8) : le magasin fige ou relance
+    /// les GIF ; une image le montre.
+    pub(crate) fn suivre_le_mouvement(&mut self) {
+        let reduit = crate::plateforme::mouvement::reduit();
+        if self.renderer.magasin.mouvement_reduit() != reduit {
+            self.renderer.magasin.reduire_le_mouvement(reduit);
+            self.mark_dirty();
+        }
+    }
+
     /// **Les marges que le système vient de dire** (BORD-1, fiche 57) — la barre d'état, la
     /// navigation, le clavier qui sort ou rentre : l'interface s'y cale, et la ligne qu'on
     /// écrit reste au-dessus du clavier.
@@ -169,5 +187,18 @@ mod tests {
         let texte = std::fs::read_to_string(chemin).expect("la session");
         let session = bilan(&texte, None).expect("une session");
         assert_eq!(session.fin, Fin::ArrierePlan, "{texte}");
+    }
+
+    /// **GIF-3** : le système change d'avis sur le mouvement, le magasin le suit.
+    #[test]
+    fn gif_3_le_mouvement_du_systeme_va_au_magasin() {
+        let mut app = GlucoseApp::new();
+        crate::plateforme::mouvement::poser(true);
+        app.suivre_le_systeme();
+        let fige = app.renderer.magasin.mouvement_reduit();
+        crate::plateforme::mouvement::poser(false);
+        app.suivre_le_systeme();
+        assert!(fige, "moins de mouvement demandé : le magasin fige les GIF");
+        assert!(!app.renderer.magasin.mouvement_reduit(), "puis les relance");
     }
 }

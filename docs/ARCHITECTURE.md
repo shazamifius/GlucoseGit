@@ -73,7 +73,8 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
   (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes — Inter, et le reste de Noto
   Emoji en repli ; les émojis en couleur, Twemoji, par leur contour : EMOJI-2, `decisions/18`), `image` (décodeurs), `arboard` (presse-papiers) et `rfd` (les sélecteurs
   de fichiers, ouverts sur un fil à eux — DIAL-2, `persist::choix` —, et la seule boîte posée
-  avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
+  avant la fenêtre, DIAL-5 ; par lui `ashpd` et `pollster`, qui lisent aussi le réglage « moins de
+  mouvement » du portail sous Linux, GIF-3, `decisions/19`) **hors d'Android seulement** — chacune derrière
   sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`
   (signatures), `png` (l'export en image, écrit par bandes au fil de l'eau, `decisions/12`),
   `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs, `x11rb` sous

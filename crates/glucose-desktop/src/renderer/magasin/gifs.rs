@@ -11,6 +11,11 @@ impl Magasin {
     /// toiles dont l'heure est venue. Un GIF dont le fil a tout joué s'arrête sur sa dernière
     /// toile, et ne se relance plus.
     pub(super) fn avancer_les_gifs(&mut self, maintenant: Instant) {
+        // Moins de mouvement demandé : chaque GIF reste sur la toile qu'il montre (GIF-3).
+        if self.mouvement_reduit {
+            self.joueurs.clear();
+            return;
+        }
         let image = self.image;
         let vu = |m: &Magasin, src: &str| m.cache.get(src).is_some_and(|e| e.vue + 1 >= image);
         let partis: Vec<String> = (self.joueurs.keys())
@@ -56,6 +61,17 @@ impl Magasin {
                 joueur.echeance()
             })
             .min()
+    }
+
+    /// **Le système demande moins de mouvement** (GIF-3) : les GIF se figent à la prochaine
+    /// récolte, et repartent quand il n'en demande plus.
+    pub fn reduire_le_mouvement(&mut self, oui: bool) {
+        self.mouvement_reduit = oui;
+    }
+
+    /// Le mouvement que le magasin tient pour demandé.
+    pub fn mouvement_reduit(&self) -> bool {
+        self.mouvement_reduit
     }
 
     /// **Ce qui réveille la boucle** quand un joueur tend sa toile.

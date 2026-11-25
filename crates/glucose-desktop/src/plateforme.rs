@@ -43,6 +43,7 @@ pub mod installation;
 pub mod journal;
 pub mod marges;
 pub mod moisson;
+pub mod mouvement;
 pub mod offre;
 pub mod partage;
 pub mod partager;

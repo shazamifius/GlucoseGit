@@ -91,3 +91,42 @@ fn gif_2_un_gif_vu_change_de_pyramide_a_l_heure_de_ses_toiles() {
     );
     assert_eq!(magasin.prochaine_toile(), None);
 }
+
+/// **GIF-3** : moins de mouvement demandé, un GIF à l'écran n'a pas de joueur — et le sien
+/// s'arrête si le réglage arrive pendant qu'il joue ; il repart quand le système n'en demande plus.
+#[test]
+fn gif_3_moins_de_mouvement_fige_les_gifs() {
+    let src = gif_temoin("magasin-gif-fige.gif");
+    let mut magasin = Magasin::nouveau();
+    let depart = Instant::now();
+    while magasin.pyramide(&src).is_none() && depart.elapsed() < Duration::from_secs(30) {
+        magasin.ouvrir();
+        magasin.recolter();
+        std::thread::yield_now();
+    }
+    magasin.ouvrir();
+    let _ = magasin.pyramide(&src);
+    magasin.recolter();
+    assert_eq!(magasin.joueurs.len(), 1, "à l'écran, il joue");
+
+    magasin.reduire_le_mouvement(true);
+    let figee = generation(&magasin, &src);
+    for _ in 0..20 {
+        magasin.ouvrir();
+        let _ = magasin.pyramide(&src);
+        magasin.recolter();
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(
+        magasin.joueurs.is_empty(),
+        "moins de mouvement : plus de joueur"
+    );
+    assert_eq!(generation(&magasin, &src), figee, "il reste sur sa toile");
+    assert_eq!(magasin.prochaine_toile(), None, "et rien ne réveille");
+
+    magasin.reduire_le_mouvement(false);
+    magasin.ouvrir();
+    let _ = magasin.pyramide(&src);
+    magasin.recolter();
+    assert_eq!(magasin.joueurs.len(), 1, "il repart");
+}

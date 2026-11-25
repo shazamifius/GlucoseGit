@@ -179,5 +179,45 @@
    "--",
    "gif_2"
   ]
+ },
+ {
+  "nom": "GIF-3 — moins de mouvement ne fige rien",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/gifs.rs",
+  "avant": "        if self.mouvement_reduit {\n            self.joueurs.clear();\n            return;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_3"
+  ]
+ },
+ {
+  "nom": "GIF-3 — le réglage du système ne va pas au magasin",
+  "fichier": "crates/glucose-desktop/src/app/vie.rs",
+  "avant": "            self.renderer.magasin.reduire_le_mouvement(reduit);\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_3"
+  ]
  }
 ]

@@ -57,6 +57,10 @@ rfd = "0.15"
 [target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))'.dependencies]
 x11rb = "0.13"
 libc = "0.2"
+# Le réglage « moins de mouvement » du portail du bureau (GIF-3, decisions/19) : `ashpd` et
+# `pollster` sont déjà là par `rfd`, mêmes versions, mêmes fonctions — aucune compilation de plus.
+ashpd = { version = "0.11", default-features = false, features = ["async-std"] }
+pollster = "0.4"
 # Le pincement du pavé sous Wayland, que `winit` 0.30 ne transmet pas (fiche 93,
 # `decisions/14`) : les caisses que `winit` apporte déjà, et le protocole `pointer-gestures`.
 wayland-client = "0.31"

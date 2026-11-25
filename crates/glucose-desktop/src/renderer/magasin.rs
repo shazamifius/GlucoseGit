@@ -157,6 +157,8 @@ pub struct Magasin {
     joueurs: std::collections::HashMap<String, crate::renderer::gif::joueur::Joueur>,
     /// Ce qui réveille la boucle quand un joueur tend sa toile.
     reveil: Option<crate::plateforme::Reveil>,
+    /// Le système demande moins de mouvement : les GIF restent sur leur toile (GIF-3).
+    mouvement_reduit: bool,
 }
 
 impl Magasin {

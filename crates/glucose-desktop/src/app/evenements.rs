@@ -36,6 +36,10 @@ impl GlucoseApp {
             // premier plan s'executait donc sur le canevas.
             WindowEvent::Focused(actif) => {
                 self.clic_de_reveil = *actif;
+                // On revient peut-être d'avoir changé le réglage du mouvement (GIF-3).
+                if *actif {
+                    crate::plateforme::mouvement::relire();
+                }
                 // La fenêtre existe chez le bureau : le mode référence retenu s'y pose devant.
                 if *actif && std::mem::take(&mut self.fenetre_de_reference.devant_au_focus) {
                     self.garder_devant(true);
@@ -234,9 +238,8 @@ impl GlucoseApp {
         self.poursuivre_le_detourage();
         // Un brouillon qu'un autre Glucose tenait au lancement s'est libéré (LIBERE-1).
         self.suivre_les_brouillons_liberes();
-        // Les marges du système, puis le clavier du téléphone (BORD-1, CLAVIER-1).
-        self.suivre_les_marges();
-        self.suivre_le_clavier();
+        // Ce que le système dit : ses marges, le clavier du téléphone, le mouvement voulu.
+        self.suivre_le_systeme();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
         self.suivre_la_mise_a_jour();
         // Ce que les sélecteurs de fichiers ont rendu (DIAL-2).

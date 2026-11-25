@@ -141,7 +141,8 @@ finissant**, chacun gardé par une épreuve et un sabotage (`outils/sabotages/gi
   épreuve qui tombait avant le geste (`nette_une_pyramide_remplacee_oublie_ses_vignettes`) ; jamais
   vu à l'écran. **Le geste** : toute pyramide qui en remplace une autre oublie les vignettes de son
   fichier, pas seulement une toile — un tour des vignettes par remplacement (pas par arrivée),
-  quelques microsecondes pour les centaines de nœuds dessinés. Sabotage : 10 sur 10.
+  quelques microsecondes pour les centaines de nœuds dessinés. Saboté (le même sabotage que la
+  vignette du GIF, élargi).
 
 **Regardé au pilote** (25/11 vers 4 h 15, le binaire de `ae960b5` construit à part : le sien,
 `target/release`, remis en place aussitôt) : un GIF de quatre toiles unies de 600 ms (fabriqué par
@@ -167,3 +168,24 @@ l'ouverture, et le signal `SettingChanged` suit un changement en cours de route.
 [gpui-base, reduce_motion.rs](https://docs.rs/crate/gpui-base/0.7.0/source/src/reduce_motion.rs),
 [mundy, freedesktop](https://docs.rs/crate/mundy/0.2.3/source/src/freedesktop/mod.rs),
 [GNOME, « reduced motion »](https://gitlab.gnome.org/GNOME/gnome-control-center/-/merge_requests/3253).
+
+## 8. GIF-3, moins de mouvement (25/11 vers 4 h 30, compte b)
+
+* **La lecture** (`plateforme/mouvement.rs`) : au lancement, puis **chaque fois que la fenêtre
+  revient au premier plan** — c'est de là qu'on revient d'avoir changé le réglage ; sur un fil, la
+  boucle réveillée seulement si la réponse change. Linux : le portail, `reduced-motion`, sinon
+  l'interrupteur de GNOME (`ashpd` et `pollster`, déjà là par `rfd` : `decisions/19`, aucune
+  compilation de plus). **Le portail de son poste est en version 2, sans la clé** : l'interrupteur
+  de GNOME répond (`Some(false)`, lu par le code le 25/11 — une épreuve ignorée, qu'on lance à la
+  main : `cargo test -- --ignored gif_3_le_portail`). Windows : `SPI_GETCLIENTAREAANIMATION`
+  (vérifié par `verifier_cibles.sh`, jamais lancé sous Windows).
+* **L'effet** : l'application porte le réglage au magasin (`suivre_le_systeme`, avec les marges et
+  le clavier) ; moins de mouvement, chaque GIF reste sur la toile qu'il montre et plus rien ne
+  réveille ; le réglage levé, il repart. Deux épreuves, deux sabotages (`gif-159.json`, 11 sur 11).
+* **Pas suivi en direct** : un réglage changé pendant que Glucose garde le premier plan ne vaut
+  qu'au retour de la fenêtre. Le portail sait l'annoncer (`SettingChanged`) : un fil à l'écoute
+  pour toujours, et une caisse de flux de plus — écarté tant que personne ne le demande.
+* **Restent le Mac et Android**, qui ne le lisent pas encore (pour eux, le système « n'a rien
+  dit ») : le Mac par `NSWorkspace.accessibilityDisplayShouldReduceMotion`, Android par l'échelle
+  des animations (`Settings.Global.ANIMATOR_DURATION_SCALE` à zéro) — chacun demande une liaison
+  au système qui n'est pas encore là (fiche 156 pour les vérifier ici).
