@@ -47,7 +47,7 @@ def installer(v):
     for _ in range(2):
         try:
             subprocess.run(["code", "--install-extension", f"{EXTENSION}@{v}", "--force"],
-                           capture_output=True, text=True, timeout=600)
+                           capture_output=True, text=True, timeout=300)
         except (OSError, subprocess.TimeoutExpired):
             continue
         if installee()[0] == v:
@@ -106,10 +106,12 @@ def veiller(memoire, maintenant, dire, journal):
                 "prendra ; ton VS Code l'affichera quand tu le rouvriras.")
     else:
         refusees.append(neuve)
-        installer(avant)
+        # Le veilleur ne regarde plus ses sessions pendant ce temps : borné à cinq minutes par essai.
+        garde = (f"Le relais garde {avant}" if installer(avant) else
+                 f"**Le retour à {avant} a échoué** : la prochaine session lancera {neuve}")
         lignes = [l for l in ecran.splitlines() if l.strip()][-12:]
         fait = (f"⚠️ **Claude {neuve} refusé** le {quand} : à l'essai, il n'arrive pas à son invite sans "
-                f"question. Le relais garde {avant}, et ne retentera pas {neuve}. Son écran :\n\n```\n"
+                f"question. {garde}, et ne retentera pas {neuve}. Son écran :\n\n```\n"
                 + "\n".join(lignes) + "\n```")
     journal(fait.split("\n")[0][:200])
     dire(fait)
