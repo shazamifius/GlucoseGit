@@ -93,5 +93,24 @@
    "--lib",
    "arrow::"
   ]
+ },
+ {
+  "nom": "RESSERRER-1 — wrapping_sub, sur deux mille scènes au hasard",
+  "fichier": "crates/glucose-core/src/arrow/contour.rs",
+  "avant": "        for k in (i.saturating_sub(1)..=i + 1).rev() {",
+  "apres": "        for k in [i + 1, i, i.wrapping_sub(1)] {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "sans_planter_au_hasard"
+  ]
  }
 ]

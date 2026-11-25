@@ -48,7 +48,10 @@ centripète, si : le plantage est sorti. Les voisins se prennent maintenant de `
   qui mord se resserre, scène refaite (la centripète ne débordait plus au-delà de l'épingle : 2 unités
   contre 125 ; elle s'écarte de 13 avant elle, sur un bloc posé 8 unités dessous — c'est son premier
   morceau qui mord, le cas qui plantait).
-* `outils/sabotages/courbe-152.json` : **5 sabotages sur 5 tombent** (l'uniforme, la division par zéro, le
+* **Au hasard** (ajouté à 1 h 35) : deux mille scènes, une courbe resserrée sur chaque itinéraire qui
+  contourne — aucune ne plante, presque aucune ne mord (`test_une_courbe_se_resserre_sans_planter_au_hasard`) ;
+  avec `wrapping_sub`, elle tombe. La règle qui aurait attrapé RESSERRER-1 avant lui.
+* `outils/sabotages/courbe-152.json` : **6 sabotages sur 6 tombent** (l'uniforme, la division par zéro, le
   tiers, la corde qui enjambe, `wrapping_sub`).
 * Les empreintes témoins (`bench/tests.rs`) : 59 pixels, tous sur la flèche courbe ; regardée avant/après,
   agrandie quatre fois — la même arche, à peine plus régulière à droite.

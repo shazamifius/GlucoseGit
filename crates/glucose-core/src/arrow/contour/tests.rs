@@ -374,6 +374,49 @@ fn test_une_courbe_qui_mordrait_se_resserre() {
     }
 }
 
+/// **Une courbe se resserre sans planter, sur deux mille scènes tirées au hasard** (fiche 152) :
+/// `resserrer` cherchait le voisin d'avant du premier morceau au rang `usize::MAX`. Une fois
+/// resserrée, la courbe ne mord plus rien — hors des blocs à l'écart d'un bout, d'où elle part.
+#[test]
+fn test_une_courbe_se_resserre_sans_planter_au_hasard() {
+    let mut h = Hasard(7);
+    let (mut resserrees, mut mordent) = (0, 0);
+    for _ in 0..2000 {
+        let n = 3 + (h.suivant() * 22.0) as usize;
+        let obstacles: Vec<Rect> = (0..n)
+            .map(|_| {
+                let (w, hh) = (h.entre(20.0, 200.0), h.entre(20.0, 200.0));
+                Rect::new(h.entre(0.0, 1000.0), h.entre(0.0, 1000.0), w, hh)
+            })
+            .collect();
+        let bout = |h: &mut Hasard| (h.entre(0.0, 1000.0), h.entre(0.0, 1000.0));
+        let (a, b) = (bout(&mut h), bout(&mut h));
+        let mut requete = requete_sur(&obstacles);
+        let mut etapes = itineraire(a, b, &mut requete);
+        if etapes.is_empty() {
+            continue;
+        }
+        let avant = etapes.len();
+        resserrer(&mut etapes, &|_: &[Point]| (a, b), [a, b], &mut requete);
+        resserrees += usize::from(etapes.len() > avant);
+        let libres = obstacles
+            .iter()
+            .filter(|r| !dedans(a, **r, ECART) && !dedans(b, **r, ECART));
+        let courbe = trace::morceaux(&chemin_complet(a, &etapes, b), true);
+        let mord = libres.into_iter().any(|r| {
+            courbe.iter().any(|m| {
+                (0..=200).any(|k| Boite::de(*r, 0.0).contient(m.point(f64::from(k) / 200.0)))
+            })
+        });
+        mordent += usize::from(mord);
+    }
+    assert!(
+        resserrees > 20,
+        "des courbes se resserrent vraiment : {resserrees}"
+    );
+    assert!(mordent <= 5, "presque aucune ne mord : {mordent}");
+}
+
 /// Le prédicat de traversée : longer un bord ou toucher un coin n'est pas traverser.
 #[test]
 fn test_longer_n_est_pas_traverser() {
