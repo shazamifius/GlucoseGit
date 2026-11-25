@@ -1,0 +1,66 @@
+[
+ {
+  "nom": "167 — sans personne pour reprendre, jusqu'au mur (le veilleur)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if plein(compte, maintenant, repli(session.get(\"notes\")))[0]:\n        return \"repos\"\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "167 — le crochet dit « continue » au seuil sans personne pour reprendre",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        \"repos\" if plein(compte, maintenant, repli(session.get(\"notes\")))[0] else\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "167 — le travail repris sur un compte au-delà de ses cinq heures",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    return BORD if notes else {\"five_hour\": SEUILS[\"five_hour\"], \"seven_day\": BORD[\"seven_day\"]}",
+  "apres": "    return BORD",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "167 — ses notes jusqu'au mur",
+  "fichier": "outils/relais/relais.py",
+  "avant": "BORD = {\"five_hour\": 99.0, \"seven_day\": 99.0}",
+  "apres": "BORD = MUR",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

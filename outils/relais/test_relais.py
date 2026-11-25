@@ -140,17 +140,25 @@ class Jauges(unittest.TestCase):
         self.poser("a", 100, 10, 5000)
         self.assertEqual(r.choisir("a", 1000), (None, 3000))
 
-    def test_faute_de_mieux_un_compte_sous_le_mur_travaille(self):
-        """Le 23/11, 10 h 08 : a à 91 %, b plein jusqu'à 16 h — trois heures sans personne."""
+    def test_faute_de_mieux_le_travail_attend_la_remise_ses_notes_vont_jusqu_au_bord(self):
+        """Fiche 167 : le 24/11 à 19 h 37, b poussé jusqu'au mur faute d'autre compte, coupé en plein
+        travail — il a dû l'arrêter lui-même. Ce qu'une fenêtre ne dépense pas reste à la semaine."""
         self.poser("a", 91, 77, 5000)
         self.poser("b", 4, 100, 7000)
-        self.assertEqual(r.choisir("b", 1000), ("a", None))
+        self.assertEqual(r.choisir("b", 1000), (None, 5000))
+        self.assertEqual(r.choisir("b", 1000, notes=True), ("a", None))
+        self.poser("a", 99, 77, 5000)
+        self.assertEqual(r.choisir("b", 1000, notes=True), (None, 5000), "le bord : le mur moins une passation")
 
     def test_au_seuil_la_passation_seulement_si_un_autre_compte_peut_reprendre(self):
         self.poser("a", 92, 10, 5000)
         self.poser("b", 4, 100, 7000)
-        self.assertEqual(r.garder({"compte": "a"}, 1000), "prevenir")
-        self.assertIsNone(r.garder({"compte": "a", "prevenue": 900}, 1000))
+        self.assertEqual(r.garder({"compte": "a"}, 1000), "repos", "jamais au mur")
+        self.assertIsNone(r.garder({"compte": "a", "passation_demandee": 900}, 1000))
+        self.assertIsNone(r.garder({"compte": "a", "notes": True}, 1000), "ses notes, jusqu'au bord")
+        self.poser("a", 99, 10, 5000)
+        self.assertEqual(r.garder({"compte": "a", "notes": True}, 1000), "repos")
+        self.poser("a", 92, 10, 5000)
         self.poser("b", 4, 10, 7000)
         self.assertEqual(r.garder({"compte": "a"}, 1000), "passation")
 
@@ -172,10 +180,12 @@ class Jauges(unittest.TestCase):
         self.assertEqual(r.choisir("a", 1000), (None, 3 * jour + 1000 - r.FENETRE))
         fin = 3 * jour + 1000 - r.FENETRE + 60
         self.assertEqual(r.choisir("a", fin), ("a", None))
-        self.assertEqual(r.garder({"compte": "a"}, fin), "prevenir")
-        # Seules ses cinq heures au seuil : elles se remettent bientôt, rien n'est gardé.
+        self.assertIsNone(r.garder({"compte": "a"}, fin), "la réserve se dépense")
+        self.poser("a", 10, 99, 3 * jour)
+        self.assertEqual(r.garder({"compte": "a"}, fin), "repos", "jusqu'au bord, jamais au mur")
+        # Seules ses cinq heures au seuil : rien n'est gardé, elles se remettent — on les attend.
         self.poser("a", 92, 10, 3 * jour)
-        self.assertEqual(r.choisir("a", 1000), ("a", None))
+        self.assertEqual(r.choisir("a", 1000), (None, 3 * jour))
 
     def test_un_compte_pas_connecte_n_est_jamais_choisi(self):
         with mock.patch.object(r, "connecte", side_effect=lambda c: c == "a"):
@@ -418,13 +428,14 @@ class Veilleur(unittest.TestCase):
         self.assertIn(json.dumps(r.raison_passation("retrait"), ensure_ascii=False), dire.call_args.args[0])
         self.assertEqual(session.get("passation_pourquoi"), "retrait")
 
-    def test_le_crochet_au_seuil_ne_passe_la_main_que_si_quelqu_un_peut_la_prendre(self):
+    def test_le_crochet_au_seuil_demande_la_passation_meme_sans_personne_pour_reprendre(self):
+        """Fiche 167 : le 24/11 à 19 h 37, le crochet répétait « Ne t'arrête pas » à 90 % — b au mur."""
         self.jauge("b", 92, 60)
         self.jauge("a", 100, 60)
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b"})
         dire, session = self.crochet()
-        self.assertIn(json.dumps(r.raison_continuer("continue"), ensure_ascii=False), dire.call_args.args[0])
-        self.assertNotIn("passation_demandee", session)
+        self.assertIn(json.dumps(r.raison_passation("repos"), ensure_ascii=False), dire.call_args.args[0])
+        self.assertEqual(session.get("passation_pourquoi"), "repos")
         self.jauge("a", 10, 60)
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b"})
         dire, session = self.crochet()
@@ -456,13 +467,14 @@ class Veilleur(unittest.TestCase):
             r.un_tour()
         self.taper.assert_called_once_with(r.raison_continuer("continue", "Ma relance."))
 
-    def test_au_seuil_sans_autre_compte_elle_va_jusqu_au_mur_prevenue_une_fois(self):
+    def test_au_seuil_sans_autre_compte_la_passation_puis_l_attente_jamais_le_mur(self):
+        """Fiche 167 : le 24/11 à 19 h 37, poussée jusqu'au mur, la session a été coupée en plein travail."""
         self.jauge("b", 92, 60)
         self.jauge("a", 100, 60)
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
         r.un_tour()
         r.un_tour()
-        self.taper.assert_called_once_with(r.raison_prevenir(self.maintenant + 3600))
+        self.taper.assert_called_once_with(r.raison_passation("repos"))
         self.tmux.assert_not_called()
 
     def test_une_conversation_neuve_a_sa_demande(self):

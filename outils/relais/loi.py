@@ -257,6 +257,9 @@ POURQUOI = {
                 "passation (sa réponse du 24/11).",
     "renouveler": "Tu as demandé une conversation neuve (relais.py renouveler) : la suivante reprendra "
                   "avec ta passation.",
+    "repos": "Ce compte arrive à sa limite et aucun autre ne peut reprendre : écris ta passation et "
+             "arrête-toi, le relais reprendra seul à sa remise. Jamais au mur : coupée en route, une "
+             "session perd son travail (le 24/11 à 19 h 37, il a dû l'arrêter lui-même).",
     "reserve": "La semaine de ce compte a passé son seuil et aucun autre ne peut reprendre : ce qui en "
                "reste est gardé pour lui répondre quand il écrit (RESERVE-1, fiche 163) — une session "
                "se lancera pour ses notes.",
@@ -268,13 +271,6 @@ def raison_passation(motif=None, texte=None):
 
 
 RAISON_PASSATION = raison_passation()
-
-
-def raison_prevenir(libre_a):
-    return (f"[Relais] Ce compte arrive à sa limite, et aucun autre ne peut reprendre avant "
-            f"{heure(libre_a) if libre_a else '?'} : continue, mais commite chaque étape finie et tiens "
-            f"la passation à jour dans son Glucose ({PASSATION}) — au mur, la session sera close sans "
-            "pouvoir l'écrire.")
 
 
 def raison_entendre(paroles):

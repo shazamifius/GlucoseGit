@@ -36,7 +36,7 @@ sys.path.append(str(Path(__file__).resolve().parent))
 from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
                  REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES, contexte_plein,
                  decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, il_ecrit, raison_continuer,
-                 raison_entendre, raison_passation, raison_prevenir, ses_fleches, ses_paroles, signee)
+                 raison_entendre, raison_passation, ses_fleches, ses_paroles, signee)
 from loi import MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (pour les épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
@@ -49,6 +49,11 @@ COMPTES = {"a": None, "b": MAISON / ".claude-compte-b"}
 SEUILS = {"five_hour": 90.0, "seven_day": 90.0}
 # Le mur : une fenêtre pleine, et le serveur refuse le compte (« You've hit your … limit »).
 MUR = {"five_hour": 100.0, "seven_day": 100.0}
+# **Le bord : le mur moins une passation**, qui coûte au plus un point des cinq heures (quatorze
+# passations mesurées, fiche 167). Une session ne va jamais au mur : coupée en route, elle perd son
+# travail — le 24/11 à 19 h 37, poussée jusqu'au mur faute d'autre compte, elle a laissé du travail
+# non commité et peut-être un sabotage dans le code ; il a dû l'arrêter lui-même.
+BORD = {"five_hour": 99.0, "seven_day": 99.0}
 # La plus courte des fenêtres de jauge : ce qu'un compte peut encore dépenser d'une traite.
 FENETRE = 5 * 3600
 
@@ -299,6 +304,7 @@ def fin_de_tour():
     motif = "retrait" if main_humaine(maintenant) else "contexte" if contexte_plein(
         lire_json(ETAT / "contexte.json", {}), session) else "renouveler" if session.get("renouveler") else (
         "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else
+        "repos" if plein(compte, maintenant, repli(session.get("notes")))[0] else
         "reserve" if gardee(compte, maintenant) else None)
     textes = memoire.get("textes", {})
     action, pourquoi = decider(session, texte, en_pause(texte), signee(n, memoire, gestes_neufs(memoire)),
@@ -343,16 +349,25 @@ def gardee(compte, maintenant):
     return remise - FENETRE if pct >= SEUILS["seven_day"] and remise - maintenant > FENETRE else None
 
 
+def repli(notes):
+    """**Jusqu'où un compte sert faute de mieux** (aucun sous ses seuils). Ses notes, jusqu'au bord :
+    lui répondre passe avant tout. Le travail, jamais au-delà du seuil de ses cinq heures : ce qu'une
+    fenêtre ne dépense pas reste à la semaine, qui borne tout (un compte la remplit en huit fenêtres
+    sur trente-trois) — attendre la remise ne perd rien. Sa semaine, jusqu'au bord, dans sa seule
+    dernière fenêtre (`gardee`) : ce qu'il en reste serait perdu."""
+    return BORD if notes else {"five_hour": SEUILS["five_hour"], "seven_day": BORD["seven_day"]}
+
+
 def choisir(courant, maintenant, notes=False):
     """Le compte qui travaille : le courant s'il est sous ses seuils, sinon un autre ; faute de
-    mieux, un compte encore sous le mur — mieux vaut finir sa jauge que dormir (le 23/11, trois
-    heures perdues à 91 %) —, **sauf la fin d'une semaine** (`gardee`), qui ne sert qu'à répondre à
-    ses notes (`notes`). Aucun : (None, l'heure où le premier se libère ou se rend au travail)."""
+    mieux, un compte sous son repli (`repli`), **sauf la fin d'une semaine** (`gardee`), qui ne sert
+    qu'à répondre à ses notes (`notes`). Aucun : (None, l'heure où le premier se libère ou se rend au
+    travail)."""
     ordre = [courant] + [c for c in COMPTES if c != courant]
     murs = []
-    for seuils in (SEUILS, MUR):
+    for seuils in (SEUILS, repli(notes)):
         murs = []
-        if seuils is MUR:  # sous le mur, d'abord celui qui a le plus de marge : ses notes y tiennent
+        if seuils is not SEUILS:  # faute de mieux, d'abord celui qui a le plus de marge : ses notes y tiennent
             ordre.sort(key=lambda c: max((pct for pct, _ in charge(c, maintenant).values()), default=0.0))
         for compte in ordre:
             if not connecte(compte):
@@ -447,8 +462,8 @@ def garder(session, maintenant, humaine_la=None):
     * « passation » — un seuil passé quand un autre compte peut reprendre, et rien encore demandé :
       **la passation n'attend pas la fin du tour** (le 23/11 à 0 h 15, un tour durait depuis 48
       minutes, le compte à 97 %) ;
-    * « prevenir » — un seuil passé et personne pour reprendre : elle continue jusqu'au mur, prévenue
-      une fois ;
+    * « repos » — un seuil passé, personne pour reprendre, et le compte au-delà de son repli
+      (`repli`) : la passation, puis le relais attend la remise — **jamais au mur** (`BORD`) ;
     * « reserve » — sa semaine au seuil, personne pour reprendre, la fin de sa semaine gardée pour
       ses notes (`gardee`) : la passation, sauf pour une session lancée pour elles (`notes`), qui
       la fera à la fin de son tour (`fin_de_tour`) ;
@@ -472,9 +487,11 @@ def garder(session, maintenant, humaine_la=None):
         return None
     if ailleurs(compte, maintenant)[0]:
         return "passation"
+    if plein(compte, maintenant, repli(session.get("notes")))[0]:
+        return "repos"
     if gardee(compte, maintenant):
         return None if session.get("notes") else "reserve"
-    return None if session.get("prevenue") else "prevenir"
+    return None
 
 
 def fermer(session, raison):
@@ -500,18 +517,15 @@ def tenir(session, memoire, humaine_la, maintenant):
         if not retrait:
             memoire["compte"] = autre(session.get("compte"))
         return False
-    if geste in ("passation", "retrait", "contexte", "reserve", "renouveler"):
+    if geste in ("passation", "retrait", "contexte", "reserve", "renouveler", "repos"):
         demander_passation(session, maintenant, geste if geste != "passation" else "limite")
         taper(raison_passation(session["passation_pourquoi"], memoire.get("textes", {}).get(TEXTE_PASSATION)))
         journal({"retrait": "une session à lui prend la main", "contexte": "la mémoire du modèle à 90 %",
                  "reserve": "la fin de la semaine gardée pour ses notes",
-                 "renouveler": "une conversation neuve demandée"}
+                 "renouveler": "une conversation neuve demandée",
+                 "repos": "seuil passé, aucun compte pour reprendre"}
                 .get(geste, "seuil passé en plein tour")
                 + f" : passation demandée au compte {session.get('compte')}")
-    elif geste == "prevenir":
-        session["prevenue"] = maintenant
-        taper(raison_prevenir(ailleurs(session["compte"], maintenant)[1]))
-        journal(f"seuil passé, aucun compte pour reprendre : le compte {session['compte']} va jusqu'au mur")
     if geste:
         ecrire_json(ETAT / "session.json", session)
     return True

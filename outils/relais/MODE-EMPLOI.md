@@ -30,11 +30,13 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    qui pose plusieurs nœuds, comme un rangement dans son archive — n'en est pas une (fiche 166).
    **Elle lui répond dans son Glucose avant toute autre tâche.**
 4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou sur la semaine
-   passe la main **si l'autre peut la prendre** ; sinon il continue jusqu'au mur (100 %), prévenu une
-   fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close. **Sauf la fin
+   passe la main **si l'autre peut la prendre** ; sinon la session écrit sa passation et s'arrête, et le
+   relais attend la remise — **jamais au mur** (fiche 167 : poussée jusqu'au mur le 24/11, une session a
+   été coupée en plein travail ; ce qu'une fenêtre ne dépense pas reste à la semaine, qui borne tout).
+   Ses notes vont jusqu'au bord (99 %, le mur moins une passation). Au mur, la session est close. **Sauf la fin
    d'une semaine** (RESERVE-1, fiche 163) : sa semaine au seuil et personne pour reprendre, le reste ne
    sert qu'à lui répondre — la session écrit sa passation, et une note de lui en lance une qui ne fait
-   que lui répondre ; dans la dernière fenêtre de cinq heures avant la remise, la réserve se rend au travail. **La mémoire
+   que lui répondre ; dans la dernière fenêtre de cinq heures avant la remise, la réserve se rend au travail, jusqu'au bord. **La mémoire
    du modèle** (le contexte de la conversation) passé **300 000 jetons** (90 % d'une fenêtre plus
    petite) : la passation, puis une conversation neuve. Chaque réponse relit la conversation entière :
    78 % des jetons au prix de l'API (fiche 142) — mais **la jauge la compte cinq fois moins** (~0,02 d'un jeton neuf, mesuré le 24/11 :
