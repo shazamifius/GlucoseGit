@@ -423,6 +423,29 @@ class Veilleur(unittest.TestCase):
         r.un_tour()
         self.taper.assert_called_once_with(r.raison_continuer("continue"))
 
+    def endormir(self, laissee, immobile):
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": 0, **({"laissee": laissee} if laissee else {})})
+        r.ecrire_json(r.ETAT / "veilleur.json", {"consigne_signee": "e", "compte": "b", "paroles": ["text-1"],
+                                                 "ecran_depuis": self.maintenant - immobile})
+        r.un_tour()
+
+    def test_endormie_elle_est_close_jamais_reveillee(self):
+        """Sa note du 25/11 (img-utzs-2460) : ne jamais réveiller une session qui attend depuis plus de
+        50 minutes — son cache perdu, elle relirait tout au prix fort. Ses notes vont à la neuve."""
+        self.endormir("à vide", r.ENDORMIE)
+        self.tmux.assert_any_call("kill-session", "-t", "relais-b")
+        self.taper.assert_not_called()
+        self.lancer.assert_called_once_with("b", ["text-1"], None, [])
+        self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), r.FERMEE_ENDORMIE)
+
+    def test_assoupie_ou_au_travail_elle_vit(self):
+        """Arrêtée depuis moins de 50 minutes, son cache tient : ses notes lui sont tapées. Au travail
+        (rien de `laissee`), un écran immobile est une session figée, pas endormie (`surveiller`)."""
+        self.endormir("à vide", r.ENDORMIE - 60)
+        self.endormir(None, 3 * r.ENDORMIE)
+        self.tmux.assert_not_called()
+        self.lancer.assert_not_called()
+
     def test_le_crochet_cede_a_sa_session(self):
         self.bail()
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b"})
@@ -544,6 +567,18 @@ class Lancement(unittest.TestCase):
             self.assertTrue(r.lancer(*arguments))
         commande = tmux.call_args.args
         return commande[commande.index("claude"):]
+
+    def test_apres_une_endormie_la_neuve_sait_que_la_passation_n_est_pas_recrite(self):
+        tmux = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        with tempfile.TemporaryDirectory() as dossier, mock.patch.object(r, "ETAT", Path(dossier)), \
+                mock.patch.object(r, "session_tmux", lambda: None), mock.patch.object(r, "tmux", tmux), \
+                mock.patch.object(r, "claude_binaire", lambda: "claude"), \
+                mock.patch.object(r, "journal", mock.Mock()):
+            r.ecrire_json(r.ETAT / "session.json", {"compte": "a", "laissee": r.FERMEE_ENDORMIE})
+            r.lancer("a")
+            self.assertIn("git status", tmux.call_args.args[-1])
+            r.lancer("a")
+            self.assertNotIn("git status", tmux.call_args.args[-1])
 
     def test_en_bypass_jamais_en_mode_auto(self):
         """Sa réponse du 23/11 : « on fait tout en mode bypass, jamais de mode auto » — figé deux fois."""

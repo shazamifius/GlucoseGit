@@ -22,6 +22,13 @@ SILENCE = 35 * 60
 # (fiche 142). Une fenêtre plus petite garde l'ancien seuil, en pourcentage.
 SEUIL_JETONS = 300_000
 SEUIL_CONTEXTE = 90.0
+# **Endormie** (sa note du 25/11, img-utzs-2460 : « ne jamais réveiller une session Claude qui attend
+# depuis plus de 50 minutes ») : le serveur garde la conversation en cache une heure (`ephemeral_1h`,
+# lu dans les journaux de Claude Code le 25/11) ; passé ce délai, la réveiller la fait réécrire
+# entière, au prix d'un jeton neuf — jusqu'à 300 000. Une session arrêtée au bout de son tour et dont
+# l'écran n'a pas bougé depuis ENDORMIE est close ; une neuve repart de la passation.
+ENDORMIE = 50 * 60
+FERMEE_ENDORMIE = "endormie depuis plus de 50 minutes"
 # Ce qui réveille une session sans qu'il ait rien écrit : la fin d'une commande en arrière-plan (le
 # 23/11 à 14 h 41, la vérification de Claude, réveillée ainsi, a pris la main au relais). Une session
 # à lui qui travaille garde la main par son journal ; une session qui ne fait que veiller ne la prend plus.
@@ -83,7 +90,7 @@ TEXTES = {
 }
 
 
-def depart(compte, paroles=(), texte=None, importants=(), garde=False):
+def depart(compte, paroles=(), texte=None, importants=(), garde=False, orpheline=False):
     """Le premier message d'une session du relais : son texte, et **d'abord ce qu'il a écrit
     depuis la dernière** — elle lui répond avant tout (sa parole du 23/11 : « soit actif sur le
     Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait). Sur la fin de la
@@ -97,7 +104,11 @@ def depart(compte, paroles=(), texte=None, importants=(), garde=False):
                f"({lire_ids(importants)}) : lis-le juste après elle." if importants else "")
     reserve = (f" {POURQUOI['reserve']} Réponds à ses notes, à rien d'autre, puis termine ton tour."
                if garde else "")
-    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}{reserve}"
+    # Close endormie (`endormie`), la session d'avant n'a pas récrit sa passation : son travail peut
+    # attendre dans l'arbre, non commité.
+    avant = (" La session d'avant a été close endormie, sans récrire la passation : `git status` avant "
+             "de t'y fier." if orpheline else "")
+    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}{reserve}{avant}"
 
 
 def ses_fleches(noeuds, gestes, depuis=CONSIGNE, profondeur=2):
@@ -221,6 +232,13 @@ def decider(session, consigne_texte, pause, a_signee, relayer, maintenant, ecrit
     if len(recents) >= 3:
         return "laisser", "à vide"
     return ("laisser", "relancer") if suite else ("continuer", "")
+
+
+def endormie(session, immobile_depuis, maintenant):
+    """Arrêtée au bout d'un tour (`laissee`), l'écran immobile depuis ENDORMIE : son cache est
+    perdu, la réveiller coûterait sa relecture entière. L'écran, pas l'heure de l'arrêt : une note
+    tapée dans une session arrêtée la fait travailler sans lever `laissee`, et son écran bouge."""
+    return bool(session.get("laissee")) and maintenant - immobile_depuis >= ENDORMIE
 
 
 def contexte_plein(contexte, session):

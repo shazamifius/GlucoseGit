@@ -43,6 +43,9 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    fiche 147 § 5) : relire ~40 % de la jauge, écrire ~36 %, ajouter ~24 % ; le seuil reste.
 5. **La relance** : le crochet « Stop » (`relais.py fin-de-tour`) relance une fois ; la suivante est
    tapée par le veilleur — Claude Code coupe au 8ᵉ blocage de suite (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`).
+   **Jamais réveillée endormie** (sa note du 25/11) : une session arrêtée dont l'écran n'a pas bougé
+   depuis 50 minutes a perdu son cache (une heure) — la réveiller lui ferait tout relire au prix fort.
+   Le veilleur la ferme ; une neuve repart de la passation, avec ses notes.
 6. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, l'écran part dans
    `relais-bloque`, et le ❤️ dit « figée » ; ce qu'il écrit dans `relais-reponse` est tapé dans la session.
 7. **Jamais bloqué** (sa réponse du 23/11) : les sessions se lancent en **bypass** (jamais le mode

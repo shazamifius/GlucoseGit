@@ -1,0 +1,66 @@
+[
+ {
+  "nom": "ENDORMIE — réveillée quand même (le veilleur ne la ferme pas)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        fermer(session, FERMEE_ENDORMIE)\n        return False\n",
+  "apres": "        pass\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "ENDORMIE — l'heure de l'arrêt oubliée : close même au travail",
+  "fichier": "outils/relais/loi.py",
+  "avant": "    return bool(session.get(\"laissee\")) and maintenant - immobile_depuis >= ENDORMIE\n",
+  "apres": "    return maintenant - immobile_depuis >= ENDORMIE\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "ENDORMIE — close dès l'arrêt, cache encore chaud",
+  "fichier": "outils/relais/loi.py",
+  "avant": "    return bool(session.get(\"laissee\")) and maintenant - immobile_depuis >= ENDORMIE\n",
+  "apres": "    return bool(session.get(\"laissee\"))\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "ENDORMIE — la neuve n'apprend pas que la passation est vieille",
+  "fichier": "outils/relais/relais.py",
+  "avant": "depart(compte, paroles, texte, designes, garde, orpheline))",
+  "apres": "depart(compte, paroles, texte, designes, garde))",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

@@ -33,11 +33,11 @@ from pathlib import Path
 # Lancé par `python3 -I`, le dossier du programme n'est pas dans le chemin : `loi` y est. À la fin,
 # pour que la bibliothèque standard passe toujours devant.
 sys.path.append(str(Path(__file__).resolve().parent))
-from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
-                 REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES, contexte_plein,
-                 decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, il_ecrit, raison_continuer,
-                 raison_entendre, raison_passation, ses_fleches, ses_paroles, signee)
-from loi import MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (pour les épreuves)
+from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, FERMEE_ENDORMIE, INVITE_REPONSE, NOTIFICATIONS,  # noqa: E402
+                 PASSATION, REGLES, REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES,
+                 contexte_plein, decider, depart, dernier_geste, dire_session, en_pause, endormie, heure, humaine,
+                 il_ecrit, raison_continuer, raison_entendre, raison_passation, ses_fleches, ses_paroles, signee)
+from loi import ENDORMIE, MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
 
@@ -420,6 +420,7 @@ def lancer(compte, paroles=(), texte=None, designes=()):
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
     binaire = claude_binaire()
     garde = bool(gardee(compte, time.time()))
+    orpheline = lire_json(ETAT / "session.json", {}).get("laissee") == FERMEE_ENDORMIE
     # --ide : branché sur le VS Code de ce compte. --no-chrome : sans lui, un compte qui n'a jamais
     # répondu à « Claude in Chrome » se fige au démarrage sur cette question (le 23/11, 1 h 48). Le
     # bypass, jamais le mode auto (sa réponse du 23/11 : « il faut que Claude ne soit JAMAIS bloqué ») :
@@ -429,7 +430,7 @@ def lancer(compte, paroles=(), texte=None, designes=()):
                 "env", *reglages, binaire, "--ide", "--no-chrome", "--permission-mode", "bypassPermissions",
                 "--allow-dangerously-skip-permissions", "--disallowedTools", ",".join(SANS_OUTILS),
                 "--remote-control", f"relais-{compte}",
-                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes, garde))
+                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes, garde, orpheline))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
         return False
@@ -510,7 +511,11 @@ def autre(compte):
 
 
 def tenir(session, memoire, humaine_la, maintenant):
-    """Ce que le veilleur fait de la session du relais qui vit (`garder`) ; False s'il l'a close."""
+    """Ce que le veilleur fait de la session du relais qui vit (`garder`) ; False s'il l'a close.
+    Endormie, elle est close avant tout (`endormie`) : jamais réveillée, cache perdu."""
+    if endormie(session, memoire.get("ecran_depuis", maintenant), maintenant):
+        fermer(session, FERMEE_ENDORMIE)
+        return False
     geste = garder(session, maintenant, humaine_la)
     if geste == "fermer" or (session.get("passation_demandee") and session.get("laissee") == "relayer"):
         retrait = geste != "fermer" and session.get("passation_pourquoi") == "retrait"
