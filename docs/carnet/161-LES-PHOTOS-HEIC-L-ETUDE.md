@@ -94,3 +94,43 @@ photos à la fois ; `max_threads = 1` évite d'en lancer six de plus par photo (
 cœurs ne vaut que pour une photo seule). Choix pour HEIC-2 : un fil, et la vignette.
 
 **Le brevet** : ce qu'en dit le § 3 reste vrai et se dit dans `decisions/20`.
+
+## 6. HEIC-2, la conception (25/11, compte b)
+
+**Une seule porte : les crochets de `image`.** `image` 0.25.8 et plus (`image::hooks`) accepte des
+décodeurs ajoutés : `register_format_detection_hook` (la signature `ftyp` + marque à l'octet 4,
+masque sur la taille de la boîte) et `register_decoding_hook`. Enregistrés une fois au
+démarrage, ils font lire le HEIC à **toutes** les portes qui passent par `with_guessed_format` —
+l'ouvrier de l'atelier (`atelier/ouvrier.rs`), le dépôt d'une image venue d'une page
+(`drop.rs`, `sceller_une_image`), le presse-papiers, la sélection Wayland — sans une ligne de
+plus dans chacune. Un chemin propre au HEIC dans l'atelier seul laisserait le dépôt le refuser.
+
+**Mais pas le décodeur de `heifer` (`heifer::image_crate::HeifDecoder`), pour trois raisons lues
+dans son code :**
+1. **Il décode dans son constructeur.** Or `sceller_une_image` ne demande que les dimensions
+   (`into_dimensions`), et sur le fil de l'interface : 430 ms d'image bloquée par photo
+   d'iPhone, contre la charte. Et dans l'ouvrier, le décodage aurait lieu dans `into_decoder`,
+   **avant** l'admission de la mémoire (`porte.pendant`, MEMOIRE-3) : elle serait contournée.
+2. **Il garde l'image sur seize bits** (`decode_with_options` : 8 octets par pixel), le double de
+   `decode_rgba8` — au-delà de la borne `admission::pic`.
+3. **Il rend les couleurs telles que codées** (Display P3 sur l'iPhone) et donne le profil à
+   part ; Glucose ne gère pas les profils : les photos sortiraient ternes. `decode_srgb_rgba8`
+   convertit.
+
+**Le nôtre, paresseux** (~60 lignes, `renderer/photo/heic.rs`) : le constructeur lit les octets et
+le conteneur seulement (`heifer_isobmff::HeifFile::parse`, quelques microsecondes) ; `dimensions`
+se calcule de l'`ispe` de l'image première, puis de ses propriétés dans l'ordre (`clap` recadre,
+`irot` impair échange largeur et hauteur ; `imir` ne change rien) — la formule du `clap` est celle
+de `heifer::clean_aperture` (non publique : à recopier, six lignes, et une épreuve qui compare
+avec le décodage). `color_type` : `Rgba8` ; `read_image` décode alors (`decode_srgb_rgba8`, un
+fil) et **refuse par une erreur** si l'image ne fait pas les dimensions annoncées (jamais une
+panique, jamais un tampon faux). La pointe : 7,8 octets par pixel pendant le décodage, puis
+l'image de `heifer` (4) et la pyramide (5,3) ensemble à la copie — la borne `pic` (encodés + 9,3
+octets par pixel) tient, sans marge ; à mesurer au pilote.
+
+**Les épreuves** : un HEIC fabriqué à l'épreuve par l'encodeur de `heifer` (en dépendance de
+développement seulement, `features = ["encoder"]` : le résolveur 2 ne l'ajoute pas au binaire) ;
+la signature reconnue, les dimensions sans décodage, les pixels, un fichier tronqué refusé.
+**À faire ensuite** : l'aperçu par la vignette `thmb` (2 ms) — l'atelier n'en a pas encore pour
+les autres formats ; le nom et l'extension dans `menu_image.rs` (`guess_format` ne connaît pas
+les crochets) ; ARCHITECTURE, à la ligne des dépendances.
