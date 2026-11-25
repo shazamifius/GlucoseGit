@@ -71,10 +71,13 @@
 
 mod bmp;
 mod formats;
+mod image;
 
 use bmp::en_fichier_bmp;
 pub(super) use formats::lot_porte;
-use formats::{dire_les_formats, format_enregistre, offre, tirer, Bloc};
+/// Lu aussi par la sélection, où le gestionnaire d'images du glisser range les siens.
+pub(super) use formats::Bloc;
+use formats::{dire_les_formats, format_enregistre, offre, tirer};
 
 use super::moisson::{self, Depot, Moisson, Recu};
 use std::sync::mpsc::Sender;
@@ -113,6 +116,7 @@ pub fn installer(hwnd: isize, vers: Sender<Depot>, reveil: super::Reveil) -> boo
         vers,
         reveil,
         fenetre: hwnd,
+        image: image::Image::nouvelle(),
     }
     .into();
     unsafe {
@@ -162,6 +166,8 @@ struct Cible {
     reveil: super::Reveil,
     /// La fenêtre : la moisson dit où l'on a lâché dans **ses** pixels (fiche 100).
     fenetre: isize,
+    /// L'image du glisser, montrée aussi au-dessus de cette fenêtre (fiche 156).
+    image: image::Image,
 }
 
 #[allow(non_snake_case)]
@@ -170,29 +176,34 @@ impl IDropTarget_Impl for Cible_Impl {
         &self,
         donnees: Ref<'_, IDataObject>,
         _touches: MODIFIERKEYS_FLAGS,
-        _ou: &POINTL,
+        ou: &POINTL,
         effet: *mut DROPEFFECT,
     ) -> WinResult<()> {
         // Un glisser parti de cette fenêtre n'y revient pas en copie (fiche 51 § 2).
         let accepte = !super::glisser_windows::part_d_ici()
             && donnees.as_ref().is_some_and(porte_quelque_chose);
-        ecrire_effet(effet, accepte);
+        let dit = ecrire_effet(effet, accepte);
+        if let Some(objet) = donnees.as_ref() {
+            self.image.entrer(self.this.fenetre, objet, ou, dit);
+        }
         Ok(())
     }
 
     fn DragOver(
         &self,
         _touches: MODIFIERKEYS_FLAGS,
-        _ou: &POINTL,
+        ou: &POINTL,
         effet: *mut DROPEFFECT,
     ) -> WinResult<()> {
         // `DragOver` ne reçoit pas l'objet : ce que `DragEnter` a répondu vaut pour tout le
         // survol, et Windows ne nous redemande pas notre avis tant que rien ne change.
-        ecrire_effet(effet, !super::glisser_windows::part_d_ici());
+        let dit = ecrire_effet(effet, !super::glisser_windows::part_d_ici());
+        self.image.survoler(ou, dit);
         Ok(())
     }
 
     fn DragLeave(&self) -> WinResult<()> {
+        self.image.quitter();
         Ok(())
     }
 
@@ -203,14 +214,16 @@ impl IDropTarget_Impl for Cible_Impl {
         ou: &POINTL,
         effet: *mut DROPEFFECT,
     ) -> WinResult<()> {
-        if super::glisser_windows::part_d_ici() {
-            ecrire_effet(effet, false);
-            return Ok(());
-        }
-        ecrire_effet(effet, true);
+        let accepte = !super::glisser_windows::part_d_ici();
+        let dit = ecrire_effet(effet, accepte);
         let Some(objet) = donnees.as_ref() else {
+            self.image.quitter();
             return Ok(());
         };
+        self.image.deposer(objet, ou, dit);
+        if !accepte {
+            return Ok(());
+        }
         let (mut recolte, sorte) = recolter(objet);
         // `POINTL` est en pixels de l'écran ; la moisson porte ceux de la fenêtre, comme sous
         // Wayland (fiche 100) — l'application n'a qu'une grandeur à lire.
@@ -270,22 +283,21 @@ fn dire_le_repli(adresses: &[String], repli: &Moisson) {
     );
 }
 
-/// Écrit dans `effet` ce que Windows doit montrer au curseur.
+/// Écrit dans `effet` ce que Windows doit montrer au curseur, et le rend (pour l'image du glisser).
 ///
 /// # Sûreté
 ///
 /// `effet` vient de Windows et pointe sur une valeur valide pour la durée de l'appel.
-fn ecrire_effet(effet: *mut DROPEFFECT, accepte: bool) {
-    if effet.is_null() {
-        return;
+fn ecrire_effet(effet: *mut DROPEFFECT, accepte: bool) -> DROPEFFECT {
+    let dit = if accepte {
+        DROPEFFECT_COPY
+    } else {
+        DROPEFFECT_NONE
+    };
+    if !effet.is_null() {
+        unsafe { *effet = dit };
     }
-    unsafe {
-        *effet = if accepte {
-            DROPEFFECT_COPY
-        } else {
-            DROPEFFECT_NONE
-        };
-    }
+    dit
 }
 
 /// Cet objet porte-t-il quelque chose que nous sachions poser ?

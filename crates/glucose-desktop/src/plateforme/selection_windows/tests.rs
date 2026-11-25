@@ -196,3 +196,42 @@ fn test_la_liste_de_fichiers_a_la_forme_de_l_explorateur() {
         [PathBuf::from("C:\\a"), PathBuf::from("C:\\b")]
     );
 }
+
+/// Range ces octets sous ce format, comme le gestionnaire d'images du glisser : le support est
+/// confié à l'objet (`fRelease`).
+fn ranger(o: &IDataObject, format: u16, octets: &[u8]) {
+    let bloc = super::super::presse_papiers::bloc_global(octets).expect("le bloc");
+    let support = STGMEDIUM {
+        tymed: TYMED_HGLOBAL.0 as u32,
+        u: STGMEDIUM_0 { hGlobal: bloc },
+        pUnkForRelease: ManuallyDrop::new(None),
+    };
+    unsafe { o.SetData(&demande(format), &support, true) }.expect("rangé");
+}
+
+/// **Ce que le gestionnaire d'images du glisser range, il le relit** (fiche 156) : sans
+/// `SetData`, `InitializeFromBitmap` échouait et l'ombre ne se posait pas. Le rangé remplace le
+/// rangé ; nos propres formats passent avant. (`GlobalSize` peut arrondir un bloc : on lit le
+/// début.)
+#[test]
+fn test_ce_qu_un_autre_range_se_relit_sans_cacher_nos_formats() {
+    let f = formes(vec![fichier("a.png", 1)], true);
+    let lot = f.lot.clone();
+    let o = objet(f, Pour::Glisser);
+    let image = format_nomme("DragImageBits").expect("le format");
+    assert!(!offre(&o, image), "rien de rangé encore");
+    ranger(&o, image, &[1; 16]);
+    assert!(offre(&o, image));
+    assert!(lire(&o, image).starts_with(&[1; 16]));
+    ranger(&o, image, &[2; 16]);
+    assert!(
+        lire(&o, image).starts_with(&[2; 16]),
+        "le rangé remplace le rangé"
+    );
+    ranger(&o, CF_HDROP.0, &[3; 16]);
+    assert!(
+        !lire(&o, CF_HDROP.0).starts_with(&[3; 16]),
+        "nos fichiers d'abord"
+    );
+    assert_eq!(super::super::depot_windows::lot_porte(&o), Some(lot));
+}

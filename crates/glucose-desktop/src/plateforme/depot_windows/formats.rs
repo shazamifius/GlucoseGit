@@ -208,7 +208,7 @@ pub(super) fn tirer(
 ///
 /// `GlobalLock` doit être défait par `GlobalUnlock`, y compris quand la lecture échoue : ce
 /// garde est ce qui rend impossible de l'oublier sur un chemin d'erreur.
-pub(super) struct Bloc {
+pub(in crate::plateforme) struct Bloc {
     poignee: HGLOBAL,
     pub(super) pointeur: *mut core::ffi::c_void,
     taille: usize,
@@ -221,7 +221,7 @@ impl Bloc {
     ///
     /// `poignee` doit être une poignée de mémoire globale valide, telle que Windows vient de
     /// la poser dans un `STGMEDIUM`.
-    pub(super) unsafe fn prendre(poignee: HGLOBAL) -> Option<Self> {
+    pub(in crate::plateforme) unsafe fn prendre(poignee: HGLOBAL) -> Option<Self> {
         let pointeur = unsafe { GlobalLock(poignee) };
         if pointeur.is_null() {
             return None;
@@ -239,7 +239,7 @@ impl Bloc {
     }
 
     /// Les octets du bloc, copiés.
-    pub(super) fn copier(&self) -> Vec<u8> {
+    pub(in crate::plateforme) fn copier(&self) -> Vec<u8> {
         unsafe { std::slice::from_raw_parts(self.pointeur.cast::<u8>(), self.taille).to_vec() }
     }
 

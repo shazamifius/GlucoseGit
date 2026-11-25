@@ -59,6 +59,8 @@ pub mod websocket;
 mod depot_windows;
 #[cfg(windows)]
 mod glisser_windows;
+#[cfg(any(windows, test))]
+mod ombre_bgra;
 #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 pub mod pave_wayland;
 #[cfg(windows)]
@@ -157,18 +159,34 @@ pub fn echanger(requete: &Requete, limite: usize) -> Result<Reponse, String> {
 }
 
 /// **Un glisser montre-t-il l'ombre des nœuds ?** Sous Wayland, par le pont (Q10, fiche 155) ;
-/// ailleurs, pas encore : la dessiner serait du travail perdu.
+/// sous Windows (fiche 156) ; ailleurs, pas encore : la dessiner serait du travail perdu.
 pub fn sait_montrer_une_ombre() -> bool {
+    #[cfg(windows)]
+    return true;
     #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
     return selection_wayland::actif();
-    #[cfg(not(all(unix, not(any(target_os = "macos", target_os = "android")))))]
+    #[cfg(not(any(
+        windows,
+        all(unix, not(any(target_os = "macos", target_os = "android")))
+    )))]
     false
+}
+
+/// **Combien de pixels de l'ombre font un point de l'écran**, dont l'échelle est `facteur`.
+/// Wayland ne prend d'une surface qu'une échelle entière, et le compositeur réduit : l'entier
+/// d'au-dessus. Windows montre l'image du glisser pixel pour pixel (fiche 156) : l'échelle même.
+pub fn densite_de_l_ombre(facteur: f64) -> f64 {
+    if cfg!(windows) {
+        facteur
+    } else {
+        facteur.ceil().max(1.0)
+    }
 }
 
 /// **L'ombre des nœuds qu'un glisser emporte** (Q10, fiche 155) : leurs pixels, rouge, vert, bleu
 /// et alpha prémultipliés, rangée après rangée ; le point sous la main, en pixels de l'ombre ; et
-/// combien de ses pixels font un point de l'écran — un entier, comme l'échelle d'une surface de
-/// Wayland.
+/// combien de ses pixels font un point de l'écran quand c'est un entier — l'échelle d'une surface de
+/// Wayland, qui l'exige ([`densite_de_l_ombre`]) ; 1 sinon (sous Windows à 150 %).
 pub struct Ombre {
     pub rgba: Vec<u8>,
     pub largeur: u32,
@@ -184,8 +202,7 @@ pub struct Ombre {
 /// où le compositeur mène le glisser et rend la main aussitôt : vrai y dit « parti ». Ailleurs,
 /// le glisser de `winit` ne sait porter que des fichiers, et rien ne part.
 ///
-/// `ombre` : les nœuds emportés, dessinés sous la main (Q10, fiche 155) — sous Wayland ; sous
-/// Windows, le curseur seul dit encore le glisser.
+/// `ombre` : les nœuds emportés, dessinés sous la main (Q10, fiches 155 et 156).
 pub fn glisser_la_selection(
     fenetre: &winit::window::Window,
     formes: crate::interactions::clipboard::Formes,
@@ -198,8 +215,7 @@ pub fn glisser_la_selection(
         let RawWindowHandle::Win32(w) = poignee.as_raw() else {
             return Err("une fenetre Windows sans poignee Win32".into());
         };
-        let _ = ombre;
-        glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, formes)
+        glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, formes, ombre)
     }
     // Sous Wayland, le pont du presse-papiers glisse aussi (fiche 100).
     #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]

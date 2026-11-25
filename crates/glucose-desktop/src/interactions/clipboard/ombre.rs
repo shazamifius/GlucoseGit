@@ -39,7 +39,7 @@ impl GlucoseApp {
         facteur: f64,
     ) -> Option<Ombre> {
         let region = self.store.selection_bounds(board)?;
-        let densite = facteur.ceil().max(1.0);
+        let densite = crate::plateforme::densite_de_l_ombre(facteur);
         // Un point de l'ombre, un point de l'écran : la taille où on les voit.
         let mut echelle = self.store.viewport().scale / facteur * densite;
         let (cote, plafond) = (region.width.max(region.height), COTE * densite);
@@ -55,8 +55,13 @@ impl GlucoseApp {
         } else {
             0.0
         };
-        let d = densite as u32;
-        // Un multiple de la densité : Wayland l'exige d'un tampon à cette échelle.
+        // Un multiple de la densité quand elle est entière : Wayland l'exige d'un tampon à cette
+        // échelle. Fractionnaire (Windows à 150 %), rien ne l'exige.
+        let d = if densite.fract() == 0.0 {
+            densite as u32
+        } else {
+            1
+        };
         let cote = |l: f64| {
             let pixels = (l * echelle + 2.0 * marge).ceil().clamp(1.0, plafond) as u32;
             pixels.div_ceil(d) * d

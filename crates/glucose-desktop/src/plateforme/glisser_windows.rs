@@ -9,6 +9,12 @@
 //! reste — Discord, Google Docs, l'explorateur, le bureau. Il les fabrique quand la cible les
 //! demande : rien ne s'écrit pour un dépôt dans Glucose.
 //!
+//! # L'ombre des nœuds sous la main
+//!
+//! Le gestionnaire d'images du glisser (`CLSID_DragDropHelper`) range l'ombre dans l'objet
+//! (`SetData`) ; chaque fenêtre qui coopère la montre sous la main — l'explorateur, Chromium,
+//! Glucose ([`super::depot_windows`]) ; sur les autres, le curseur seul (Q10, fiche 156).
+//!
 //! On écrit la **source** : deux questions auxquelles `DoDragDrop` revient à chaque mouvement.
 //! Continuer ? Tant que le bouton gauche est tenu ; lâché, on dépose ; `Échap`, on renonce. Et
 //! quel curseur ? Celui de Windows.
@@ -42,14 +48,19 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use windows::core::{implement, BOOL, HRESULT};
 use windows::Win32::Foundation::{
-    DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, HWND, S_OK,
+    COLORREF, DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, HWND, POINT, SIZE,
+    S_OK,
 };
-use windows::Win32::Graphics::Gdi::{RedrawWindow, RDW_NOINTERNALPAINT};
-use windows::Win32::System::Com::IDataObject;
+use windows::Win32::Graphics::Gdi::{
+    CreateDIBSection, DeleteObject, RedrawWindow, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+    DIB_RGB_COLORS, HBITMAP, RDW_NOINTERNALPAINT,
+};
+use windows::Win32::System::Com::{CoCreateInstance, IDataObject, CLSCTX_INPROC_SERVER};
 use windows::Win32::System::Ole::{
     DoDragDrop, IDropSource, IDropSource_Impl, DROPEFFECT, DROPEFFECT_COPY,
 };
 use windows::Win32::System::SystemServices::{MK_LBUTTON, MODIFIERKEYS_FLAGS};
+use windows::Win32::UI::Shell::{CLSID_DragDropHelper, IDragSourceHelper, SHDRAGIMAGE};
 
 /// Un glisser part-il de ce processus en ce moment ?
 static EN_COURS: AtomicBool = AtomicBool::new(false);
@@ -67,10 +78,15 @@ pub fn part_d_ici() -> bool {
 pub fn glisser(
     fenetre: *mut core::ffi::c_void,
     formes: crate::interactions::clipboard::Formes,
+    ombre: Option<super::Ombre>,
 ) -> Result<bool, String> {
     use super::selection_windows::Selection;
     use crate::interactions::clipboard::Pour;
     let objet: IDataObject = Selection::nouvelle(formes, Pour::Glisser)?.into();
+    if let Some(Err(e)) = ombre.map(|o| poser_l_ombre(&objet, &o)) {
+        // Une ombre en moins n'empêche pas de glisser : le curseur le dit encore.
+        crate::dire_erreur!("[Glucose] glisser : l'ombre des noeuds ne se pose pas ({e})");
+    }
     let source: IDropSource = Source.into();
     let mut effet = DROPEFFECT::default();
     taire_la_peinture_en_attente(HWND(fenetre));
@@ -78,6 +94,69 @@ pub fn glisser(
     let rendu = unsafe { DoDragDrop(&objet, &source, DROPEFFECT_COPY, &mut effet) };
     EN_COURS.store(false, Ordering::Relaxed);
     Ok(rendu == DRAGDROP_S_DROP)
+}
+
+/// **Confie l'ombre au gestionnaire d'images du glisser**, qui la range dans `objet`. Le point
+/// sous la main est `ptOffset` ; `crColorKey` ne sert pas, l'alpha dit ce qui est transparent.
+fn poser_l_ombre(objet: &IDataObject, ombre: &super::Ombre) -> Result<(), String> {
+    let pixels = super::ombre_bgra::en_bgra_droit(&ombre.rgba);
+    let image = bitmap(ombre.largeur, ombre.hauteur, &pixels)?;
+    let forme = SHDRAGIMAGE {
+        sizeDragImage: SIZE {
+            cx: ombre.largeur as i32,
+            cy: ombre.hauteur as i32,
+        },
+        ptOffset: POINT {
+            x: ombre.point.0,
+            y: ombre.point.1,
+        },
+        hbmpDragImage: image,
+        crColorKey: COLORREF(0xFFFF_FFFF),
+    };
+    // SAFETY : OLE est ouvert sur ce fil (celui de la fenêtre) ; `forme` vit pendant l'appel.
+    let pose = unsafe {
+        CoCreateInstance::<_, IDragSourceHelper>(&CLSID_DragDropHelper, None, CLSCTX_INPROC_SERVER)
+            .and_then(|aide| aide.InitializeFromBitmap(&forme, objet))
+    };
+    pose.map_err(|e| {
+        // Le gestionnaire ne prend l'image qu'en réussissant : sinon, elle est encore à nous.
+        let _ = unsafe { DeleteObject(image.into()) };
+        e.to_string()
+    })
+}
+
+/// **Une image de 32 bits** que Windows sait lire, de haut en bas (une hauteur négative), où ces
+/// pixels — bleu, vert, rouge, alpha — sont copiés.
+fn bitmap(largeur: u32, hauteur: u32, bgra: &[u8]) -> Result<HBITMAP, String> {
+    if bgra.len() != largeur as usize * hauteur as usize * 4 {
+        return Err(format!(
+            "{} octets pour {largeur} × {hauteur} pixels",
+            bgra.len()
+        ));
+    }
+    let info = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: largeur as i32,
+            biHeight: -(hauteur as i32),
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut bits = std::ptr::null_mut();
+    // SAFETY : `info` décrit l'image ; Windows y réserve largeur × hauteur × 4 octets.
+    let image = unsafe { CreateDIBSection(None, &info, DIB_RGB_COLORS, &mut bits, None, 0) }
+        .map_err(|e| e.to_string())?;
+    if bits.is_null() {
+        let _ = unsafe { DeleteObject(image.into()) };
+        return Err("une image sans pixels".into());
+    }
+    // SAFETY : `bits` porte exactement `bgra.len()` octets (vérifié plus haut), à nous seuls.
+    unsafe { std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits.cast::<u8>(), bgra.len()) };
+    Ok(image)
 }
 
 /// **Retire la peinture que cette fenêtre attend**, celle qu'un `request_redraw` de `winit` a

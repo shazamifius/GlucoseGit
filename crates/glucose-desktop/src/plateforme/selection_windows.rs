@@ -25,6 +25,7 @@
 //! qu'un collage après coup trouve encore la sélection.
 
 use super::copies::EnFichiers;
+use super::depot_windows::Bloc;
 use crate::interactions::clipboard::{Forme, Formes, Pour};
 use std::cell::RefCell;
 use std::mem::ManuallyDrop;
@@ -32,7 +33,8 @@ use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
 use windows::core::{implement, HSTRING};
 use windows::Win32::Foundation::{
-    DATA_S_SAMEFORMATETC, DV_E_FORMATETC, E_FAIL, E_NOTIMPL, OLE_E_ADVISENOTSUPPORTED, S_OK,
+    DATA_S_SAMEFORMATETC, DV_E_FORMATETC, DV_E_TYMED, E_FAIL, E_INVALIDARG, E_NOTIMPL,
+    OLE_E_ADVISENOTSUPPORTED, S_OK,
 };
 use windows::Win32::System::Com::{
     IAdviseSink, IDataObject, IDataObject_Impl, IEnumFORMATETC, IEnumSTATDATA, DATADIR_GET,
@@ -40,7 +42,8 @@ use windows::Win32::System::Com::{
 };
 use windows::Win32::System::DataExchange::RegisterClipboardFormatW;
 use windows::Win32::System::Ole::{
-    OleFlushClipboard, OleSetClipboard, CF_DIBV5, CF_HDROP, CF_UNICODETEXT, DROPEFFECT_COPY,
+    OleFlushClipboard, OleSetClipboard, ReleaseStgMedium, CF_DIBV5, CF_HDROP, CF_UNICODETEXT,
+    DROPEFFECT_COPY,
 };
 use windows::Win32::UI::Shell::SHCreateStdEnumFmtEtc;
 
@@ -64,6 +67,10 @@ pub struct Selection {
     offertes: Vec<(u16, Rendu)>,
     /// Ses images en fichiers, écrits quand on les demande.
     fichiers: EnFichiers,
+    /// **Ce que d'autres y rangent** (`SetData`), rendu à qui le demande : l'image du glisser,
+    /// que le gestionnaire de Windows y garde pour chaque fenêtre survolée (fiche 156), et ce que
+    /// la cible dit du dépôt (« Copier vers Bureau »). Nos propres formats passent avant.
+    rangees: RefCell<Vec<(u16, Vec<u8>)>>,
 }
 
 thread_local! {
@@ -86,7 +93,18 @@ impl Selection {
             offertes: offertes(&formes, pour)?,
             fichiers: EnFichiers::pour(formes.date, pour),
             formes,
+            rangees: RefCell::default(),
         })
+    }
+
+    /// Ce qu'un autre a rangé sous ce format, s'il le demande en mémoire globale.
+    fn rangee(&self, demande: &FORMATETC) -> Option<Vec<u8>> {
+        let globale = demande.tymed & TYMED_HGLOBAL.0 as u32 != 0;
+        let rangees = self.rangees.borrow();
+        let trouvee = rangees.iter().find(|(f, _)| *f == demande.cfFormat);
+        trouvee
+            .filter(|_| globale)
+            .map(|(_, octets)| octets.clone())
     }
 
     fn rendu(&self, demande: &FORMATETC) -> Option<Rendu> {
@@ -184,12 +202,14 @@ pub fn rendre_avant_de_quitter() {
 impl IDataObject_Impl for Selection_Impl {
     fn GetData(&self, demande: *const FORMATETC) -> windows::core::Result<STGMEDIUM> {
         let demande = unsafe { demande.as_ref() }.ok_or(windows::core::Error::from(E_FAIL))?;
-        let rendu = self
-            .rendu(demande)
-            .ok_or(windows::core::Error::from(DV_E_FORMATETC))?;
-        let octets = self
-            .octets(rendu)
-            .map_err(|_| windows::core::Error::from(E_FAIL))?;
+        let octets = match self.rendu(demande) {
+            Some(rendu) => self
+                .octets(rendu)
+                .map_err(|_| windows::core::Error::from(E_FAIL))?,
+            None => self
+                .rangee(demande)
+                .ok_or(windows::core::Error::from(DV_E_FORMATETC))?,
+        };
         let bloc = super::presse_papiers::bloc_global(&octets)
             .map_err(|_| windows::core::Error::from(E_FAIL))?;
         Ok(STGMEDIUM {
@@ -204,9 +224,9 @@ impl IDataObject_Impl for Selection_Impl {
     }
 
     fn QueryGetData(&self, demande: *const FORMATETC) -> windows::core::HRESULT {
-        match unsafe { demande.as_ref() }.and_then(|d| self.rendu(d)) {
-            Some(_) => S_OK,
-            None => DV_E_FORMATETC,
+        match unsafe { demande.as_ref() } {
+            Some(d) if self.rendu(d).is_some() || self.rangee(d).is_some() => S_OK,
+            _ => DV_E_FORMATETC,
         }
     }
 
@@ -222,24 +242,41 @@ impl IDataObject_Impl for Selection_Impl {
         DATA_S_SAMEFORMATETC
     }
 
+    /// Range une copie des octets ; `liberer` nous confie le support, rendu aussitôt.
     fn SetData(
         &self,
-        _: *const FORMATETC,
-        _: *const STGMEDIUM,
-        _: windows::core::BOOL,
+        format: *const FORMATETC,
+        medium: *const STGMEDIUM,
+        liberer: windows::core::BOOL,
     ) -> windows::core::Result<()> {
-        Err(E_NOTIMPL.into())
+        let (Some(format), Some(support)) =
+            (unsafe { format.as_ref() }, unsafe { medium.as_ref() })
+        else {
+            return Err(E_INVALIDARG.into());
+        };
+        if support.tymed != TYMED_HGLOBAL.0 as u32 {
+            return Err(DV_E_TYMED.into());
+        }
+        // SAFETY : un `STGMEDIUM` en mémoire globale porte une poignée valide le temps de l'appel.
+        let lu = unsafe { Bloc::prendre(support.u.hGlobal) }.map(|bloc| bloc.copier());
+        if liberer.as_bool() {
+            unsafe { ReleaseStgMedium(medium.cast_mut()) };
+        }
+        let mut rangees = self.rangees.borrow_mut();
+        rangees.retain(|(f, _)| *f != format.cfFormat);
+        rangees.push((format.cfFormat, lu.unwrap_or_default()));
+        Ok(())
     }
 
     fn EnumFormatEtc(&self, direction: u32) -> windows::core::Result<IEnumFORMATETC> {
         if direction != DATADIR_GET.0 as u32 {
             return Err(E_NOTIMPL.into());
         }
-        let formats: Vec<FORMATETC> = self
-            .offertes
-            .iter()
-            .map(|(f, _)| FORMATETC {
-                cfFormat: *f,
+        let rangees = self.rangees.borrow();
+        let formats: Vec<FORMATETC> = (self.offertes.iter().map(|(f, _)| *f))
+            .chain(rangees.iter().map(|(f, _)| *f))
+            .map(|f| FORMATETC {
+                cfFormat: f,
                 ptd: std::ptr::null_mut(),
                 dwAspect: DVASPECT_CONTENT.0,
                 lindex: -1,
