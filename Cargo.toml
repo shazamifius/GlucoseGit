@@ -20,6 +20,10 @@ resolver = "2"
 # tout en conservant les symboles de debug.
 [profile.dev]
 opt-level = 1
+# Les lignes seules (fiche 157) : une trace de plantage garde ses fichiers et ses lignes, et
+# personne ne lance de debogueur ici. Le 25/11, les epreuves du bureau : 1 min 49 au lieu de
+# 2 min 16, le plus gros `rustc` a 3,0 Go au lieu de 3,9 (moyennes de deux et trois mesures).
+debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3

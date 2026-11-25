@@ -67,7 +67,9 @@
   portes (« Porte humain… », « Porte IA… », « Sécurité… » ; fiche 154) ; **OMBRE-1** — sous Wayland,
   `Ctrl` + glisser montre l'ombre des nœuds emportés sous la main (fiche 155) ; **OMBRE-2** — sous
   Windows aussi, vérifiée ici, jamais lancée (fiche 156 § 6) ; **CIBLES-1** — Windows, le Mac et
-  Android se vérifient sur ce poste (fiche 156).
+  Android se vérifient sur ce poste (fiche 156) ; **LIEN-JOURNAL** — sa sortie dit si le canevas
+  partagé revient après une coupure, et le profil de développement compile en lignes seules (~20 % plus
+  vite ; fiche 157).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai

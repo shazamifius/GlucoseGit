@@ -157,7 +157,8 @@ au 22/11) : sur ce poste, `outils/borne.sh` en tire une borne bien plus large, m
   qu'il a lu. Un script de remplacement s'écrit **après** `cargo fmt`. **Sans
   compilation incrémentale** (`CARGO_INCREMENTAL=0`) : le 25/11, trois fois, le `rustc` de nixpkgs a planté
   sur son cache après l'aller-retour d'un sabotage (« on_disk_cache », un `rustc-ice-….txt` à la racine) —
-  vider `target/debug/incremental/<caisse>-*`, puis rejouer (fiche 156 § 5).
+  vider `target/debug/incremental/<caisse>-*`, puis rejouer (fiche 156 § 5) ; le même jour, `clippy` aussi,
+  sans aucun sabotage avant (fiche 157 § 4) : le remède vaut pour toute compilation.
 * **Les épreuves tournent en parallèle** : deux qui écrivent le même fichier temporaire tombent au hasard
   (nommer par l'empreinte). Une épreuve graphique se saute sans carte ; `GLUCOSE_EXIGER_UNE_CARTE` la fait
   tomber sur GitHub. Les épreuves de la mémoire offerte tombent sous forte pression mémoire : les rejouer
