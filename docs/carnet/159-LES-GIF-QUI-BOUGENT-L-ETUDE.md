@@ -186,6 +186,8 @@ l'ouverture, et le signal `SettingChanged` suit un changement en cours de route.
 * **Pas suivi en direct** : un réglage changé pendant que Glucose garde le premier plan ne vaut
   qu'au retour de la fenêtre. Le portail sait l'annoncer (`SettingChanged`) : un fil à l'écoute
   pour toujours, et une caisse de flux de plus — écarté tant que personne ne le demande.
-* **Reste Android**, qui ne le lit pas encore (pour lui, le système « n'a rien dit ») : l'échelle
-  des animations (`Settings.Global.ANIMATOR_DURATION_SCALE` à zéro) — par JNI, une liaison qui
-  n'est pas encore là (fiche 156 pour la vérifier ici).
+* **Android** : `ValueAnimator.areAnimatorsEnabled` (« Supprimer les animations », ou l'échelle
+  des animations à zéro), par le pont Java du téléphone (`glucose-android`, qui installe son
+  lecteur comme celui du doigt) — Android 8 et plus ; avant, la méthode manque, son exception est
+  rendue et rien ne se lit (son Redmi 9 est sous Android 10). Vérifié par `verifier_cibles.sh
+  android`, jamais lancé sur un téléphone. **Les quatre systèmes le lisent.**

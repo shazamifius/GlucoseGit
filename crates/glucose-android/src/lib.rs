@@ -24,6 +24,7 @@ fn android_main(app: AndroidApp) {
     glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
         java::Activite::de(&app),
     )));
+    glucose_desktop::plateforme::mouvement::installer(mouvement_reduit);
     // Le dossier privé de l'application : Android n'a ni `LOCALAPPDATA` ni `HOME`, et son
     // dossier temporaire n'est pas à elle. Personne d'autre ne le lit, et il part avec elle.
     let dossier = app
@@ -402,6 +403,25 @@ mod doigt {
                 .appeler(jni::jni_str!("sentirLAppui"), "vibration de l'appui long");
         }
     }
+}
+
+/// **Moins de mouvement** (GIF-3, fiche 159 § 8) : « Supprimer les animations » (accessibilité),
+/// ou l'échelle des animations à zéro (options pour les développeurs) — `areAnimatorsEnabled`,
+/// Android 8 et plus. Avant lui, la méthode manque : son exception est rendue, et rien ne se lit.
+fn mouvement_reduit() -> Option<bool> {
+    java::sur_le_fil(
+        |env| {
+            env.call_static_method(
+                jni::jni_str!("android/animation/ValueAnimator"),
+                jni::jni_str!("areAnimatorsEnabled"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
+        },
+        "animations du système",
+    )
+    .map(|animees| !animees)
 }
 
 /// **Parler à Java** depuis le fil de Glucose : s'y attacher, appeler, et ne jamais laisser une

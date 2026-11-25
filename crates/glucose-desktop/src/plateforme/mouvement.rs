@@ -3,8 +3,8 @@
 //! chaque fois que la fenêtre revient au premier plan : c'est là qu'on revient d'avoir changé le
 //! réglage. Linux : le portail du bureau (`org.freedesktop.appearance`, `reduced-motion`), sinon
 //! l'interrupteur de GNOME ; Windows : `SPI_GETCLIENTAREAANIMATION` ; le Mac : « réduire les
-//! animations » (`NSWorkspace`). Android ne le lit pas encore (fiche 159 § 8) : pour lui, le
-//! système n'a rien dit.
+//! animations » (`NSWorkspace`) ; Android : le lecteur que son pont Java installe
+//! (`ValueAnimator.areAnimatorsEnabled`, `glucose-android`).
 
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Mutex, PoisonError};
@@ -101,9 +101,22 @@ mod natif {
 }
 
 #[cfg(target_os = "android")]
+pub use natif::installer;
+
+#[cfg(target_os = "android")]
 mod natif {
+    use std::sync::OnceLock;
+
+    /// Ce qui lit le réglage par Java : seul le pont du téléphone sait parler à Java.
+    static LECTEUR: OnceLock<fn() -> Option<bool>> = OnceLock::new();
+
+    /// Le pont Java donne son lecteur, avant le lancement.
+    pub fn installer(lecteur: fn() -> Option<bool>) {
+        let _ = LECTEUR.set(lecteur);
+    }
+
     pub fn lire() -> Option<bool> {
-        None
+        LECTEUR.get().and_then(|lire| lire())
     }
 }
 
