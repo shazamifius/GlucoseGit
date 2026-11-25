@@ -76,3 +76,36 @@ fn b1_ce_qui_passe_avant_l_a_jour_se_perd() {
         "la place s'est libérée"
     );
 }
+
+/// LIEN-JOURNAL (fiche 157 § 5) : après une connexion perdue, la raison du premier essai manqué se
+/// dit — avant, seule celle du démarrage se disait, et une salle qui ne revenait plus se taisait.
+#[test]
+fn la_sortie_dit_le_premier_echec_de_chaque_serie_puis_le_retour() {
+    let mut coupure = Coupure::default();
+    assert_eq!(
+        coupure.echec("nom du serveur").as_deref(),
+        Some("pas relié (nom du serveur) ; il réessaie")
+    );
+    assert_eq!(coupure.echec("nom du serveur"), None, "la série se tait");
+    assert_eq!(
+        coupure.relie().as_deref(),
+        Some("relié de nouveau, après 0 s")
+    );
+    assert_eq!(coupure.relie(), None, "relié sans coupure : rien à dire");
+    coupure.perdue();
+    assert_eq!(
+        coupure
+            .echec("le relais refuse l'ouverture : 503")
+            .as_deref(),
+        Some("pas relié (le relais refuse l'ouverture : 503) ; il réessaie")
+    );
+    assert!(
+        coupure.relie().is_some(),
+        "le retour après une connexion perdue"
+    );
+    coupure.perdue();
+    assert!(
+        coupure.relie().is_some(),
+        "perdue puis reliée du premier essai : le retour se dit"
+    );
+}

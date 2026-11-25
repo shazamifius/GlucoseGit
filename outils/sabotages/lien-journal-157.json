@@ -1,0 +1,58 @@
+[
+ {
+  "nom": "LIEN-JOURNAL-2 — après une connexion perdue, le premier échec se tait (l'ancien défaut)",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "        self.dite = false;\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "salle::lien"
+  ]
+ },
+ {
+  "nom": "LIEN-JOURNAL-2 — chaque échec se dit",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "(!std::mem::replace(&mut self.dite, true))",
+  "apres": "(true)",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "salle::lien"
+  ]
+ },
+ {
+  "nom": "LIEN-JOURNAL-2 — l'échec n'ouvre pas la coupure",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "        self.depuis.get_or_insert_with(Instant::now);\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "salle::lien"
+  ]
+ },
+ {
+  "nom": "LIEN-JOURNAL-2 — la perte n'ouvre pas la coupure",
+  "fichier": "crates/glucose-desktop/src/salle/lien.rs",
+  "avant": "        self.depuis = Some(Instant::now());\n",
+  "apres": "",
+  "cmd": [
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "salle::lien"
+  ]
+ }
+]

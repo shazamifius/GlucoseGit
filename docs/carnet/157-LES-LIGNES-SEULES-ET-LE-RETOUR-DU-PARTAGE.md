@@ -50,3 +50,23 @@ seules à dépasser 2,5 Go), elle tient : inchangée.
 `clippy` a planté sur le cache incrémental (`dep_graph/graph.rs`) **sans aucun sabotage avant** :
 le piège de MÉTHODE § 5 n'est pas propre aux sabotages. Le même remède :
 `rm -rf target/debug/incremental/glucose_desktop-*`.
+
+## 5. LIEN-JOURNAL-2 : relu le 25/11 (compte a), un trou dans le cas même de sa note
+
+À la relecture : la raison du premier échec ne se disait **qu'au démarrage**. Après une connexion
+perdue (« le relais a fermé la connexion », sa sortie du 25/11 à 1 h 24), `perdue` était déjà posé :
+les essais manqués qui suivaient se taisaient tous, et une salle qui ne revenait plus ne disait pas
+pourquoi — exactement le cas de « déconnecté de la sync ». La coupure vit maintenant dans une petite
+structure, `Coupure` (`salle/lien.rs`) : la perte ouvre une série, le premier échec de **chaque** série
+dit sa raison, le retour la referme. Une épreuve
+(`la_sortie_dit_le_premier_echec_de_chaque_serie_puis_le_retour`), **4 sabotages sur 4**
+(`outils/sabotages/lien-journal-157.json`) ; clippy du bureau et cliquets verts. Les trois appels de la
+boucle (`tourner`) restent sans épreuve : elle ouvre un vrai réseau.
+
+Relu sans le reprendre : une salle qui accepterait la connexion puis la fermerait aussitôt ferait
+reprendre la pause à une seconde (doublée à deux) et dirait deux lignes à chaque fois. Le serveur ne le
+fait pas : un secret refusé l'est à l'ouverture (403, `salle.js`), donc par l'échec, qui se tait.
+
+**Piège payé** : après `saboter.py` sur une épreuve Rust, `rustc` a paniqué deux fois de suite sur son
+cache incrémental (`dep_graph/graph.rs`) ; vider `target/debug/incremental/glucose_desktop-*` l'a
+réparé.

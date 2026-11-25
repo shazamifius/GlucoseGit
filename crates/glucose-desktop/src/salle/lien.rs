@@ -213,10 +213,7 @@ impl Fil {
 
     fn tourner(&mut self, arret: &AtomicBool, etat: &Mutex<EtatDuLien>) {
         let mut pause = Duration::from_secs(1);
-        // **Depuis quand la salle est perdue** : la sortie dit la coupure, la raison du premier
-        // échec d'une série, et le retour — sans quoi « déconnecté de la sync » (sa note du 24/11)
-        // ne se diagnostique pas : un lien qui ne revient jamais ne s'y lisait pas.
-        let mut perdue: Option<Instant> = None;
+        let mut coupure = Coupure::default();
         while !arret.load(Ordering::Relaxed) {
             let autorisation = self.code.secret_d_ecriture().map(|s| format!("Bearer {s}"));
             let entetes: Vec<(&str, &str)> = autorisation
@@ -226,21 +223,19 @@ impl Fil {
                 .collect();
             match websocket::ouvrir(&self.adresse, &entetes) {
                 Ok(canal) => {
-                    if let Some(depuis) = perdue.take() {
-                        let s = depuis.elapsed().as_secs();
-                        crate::dire!("[Glucose] canevas partagé : relié de nouveau, après {s} s");
+                    if let Some(retour) = coupure.relie() {
+                        crate::dire!("[Glucose] canevas partagé : {retour}");
                     }
                     self.dire_l_etat(etat, EtatDuLien::Relie);
                     pause = Duration::from_secs(1);
                     let raison = self.servir(canal, arret);
                     crate::dire!("[Glucose] canevas partagé : {raison}");
-                    perdue = Some(Instant::now());
+                    coupure.perdue();
                     self.dire_l_etat(etat, EtatDuLien::Hors(raison));
                 }
                 Err(e) => {
-                    if perdue.is_none() {
-                        crate::dire!("[Glucose] canevas partagé : pas relié ({e}) ; il réessaie");
-                        perdue = Some(Instant::now());
+                    if let Some(echec) = coupure.echec(&e) {
+                        crate::dire!("[Glucose] canevas partagé : {echec}");
                     }
                     self.dire_l_etat(etat, EtatDuLien::Hors(e));
                 }
@@ -468,6 +463,39 @@ impl Fil {
             }
         }
         Ok(())
+    }
+}
+
+/// **Ce que la sortie dit d'une coupure** (LIEN-JOURNAL, fiche 157 § 2 et § 5) : la raison du
+/// premier échec de chaque série — au démarrage **comme après une connexion perdue** —, puis le
+/// retour ; les échecs suivants se taisent (la pause double jusqu'à `PAUSE_MAX`). Sans elle,
+/// « déconnecté de la sync » (sa note du 24/11) ne se diagnostique pas : le 25/11, sa sortie
+/// finissait sur « le relais a fermé la connexion », rien après.
+#[derive(Default)]
+struct Coupure {
+    /// Depuis quand la salle est perdue.
+    depuis: Option<Instant>,
+    /// La raison de cette série est déjà dite.
+    dite: bool,
+}
+
+impl Coupure {
+    /// Relié : le retour, s'il y avait une coupure.
+    fn relie(&mut self) -> Option<String> {
+        self.dite = false;
+        let s = self.depuis.take()?.elapsed().as_secs();
+        Some(format!("relié de nouveau, après {s} s"))
+    }
+
+    /// La connexion vient de finir (sa raison est dite par la boucle) : une série commence.
+    fn perdue(&mut self) {
+        self.depuis = Some(Instant::now());
+    }
+
+    /// Un essai manqué : sa raison, s'il ouvre la série.
+    fn echec(&mut self, e: &str) -> Option<String> {
+        self.depuis.get_or_insert_with(Instant::now);
+        (!std::mem::replace(&mut self.dite, true)).then(|| format!("pas relié ({e}) ; il réessaie"))
     }
 }
 
