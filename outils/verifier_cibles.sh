@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # **Vérifier ici le code de Windows, du Mac et d'Android** (fiche 156). Jusqu'au 25/11, une faute
 # dans ce qui ne se compile que pour eux (`#[cfg(windows)]`, `#[cfg(target_os = "macos")]`,
-# `"android"`) n'apparaissait qu'à la CI d'une publication, ou jamais (ses épreuves sous Android). Ici, le `clippy` de la CI (`--workspace --all-targets -D warnings`), pour leurs
+# `"android"`) n'apparaissait qu'à la CI d'une publication, ou jamais (ses épreuves sous Android).
+# Ici, le `clippy` de la CI (`--workspace --all-targets -D warnings`), pour leurs
 # cibles, en une minute environ chacune (66 s pour Windows, 35 s pour le Mac, 45 s pour Android, le
 # 25/11, à froid).
 #
