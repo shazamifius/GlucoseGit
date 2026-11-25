@@ -140,8 +140,17 @@ finissant**, chacun gardé par une épreuve et un sabotage (`outils/sabotages/gi
   voie processeur garde une photo floue à l'arrêt. Le geste serait le même, à chaque `accueillir`
   — mais son coût (un tour des vignettes par photo qui arrive) est à mesurer d'abord.
 
-**Reste** : regarder un GIF bouger au pilote (`outils/pilote/piloter.sh`), sur les deux voies ;
-puis GIF-3 (réduire les animations).
+**Regardé au pilote** (25/11 vers 4 h 15, le binaire de `ae960b5` construit à part : le sien,
+`target/release`, remis en place aussitôt) : un GIF de quatre toiles unies de 600 ms (fabriqué par
+un script, 400 × 300), posé par la porte du Glucose piloté (`poser-page … capture=<gif>` — le nom
+du reçu dit `.png` : c'est bien la signature qui décide). Six captures à 300 ms d'écart, les
+couleurs comptées : **par la carte graphique**, vert, vert, bleu, bleu, jaune, jaune ; **par le
+processeur** (`moteurs.txt`), vert, bleu, bleu, jaune, jaune, rouge — la vignette ne fige plus
+rien. **Le coût au repos**, GIF à l'écran : 0,8 % d'un cœur (carte graphique), 1,2 % (processeur),
+sur 10 s ; **le GIF sorti de l'écran** (la vue déplacée au clic molette) : son fil s'arrête (24 → 23
+fils), 0,3 %.
+
+**Reste** : GIF-3 (réduire les animations).
 
 **Pour GIF-3, lu le 25/11** : sous Linux, le réglage vit dans le portail du bureau, `Settings`,
 espace `org.freedesktop.appearance`, clé **`reduced-motion`** (xdg-desktop-portal 1.21, janvier
