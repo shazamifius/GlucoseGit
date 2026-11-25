@@ -76,3 +76,11 @@ machine, ou une bibliothèque) — une dépendance, donc sa note dans `decisions
   toiles déjà composées, avec leur délai (`Frame::delay`). Le nombre de tours n'y est pas exposé
   (à vérifier) ; la caisse `gif`, déjà dans l'arbre par `image`, le donne (`Decoder::repeat`) — une
   dépendance directe, donc sa note dans `decisions/`.
+* **Où l'image suivante entre** : `Magasin::recolter` (au début de chaque image, et là seulement :
+  le rendu voit un cache immobile) verse ce que l'atelier a fini (`Fait::Decodee`, `Fait::Deplace`) ;
+  `accueillir` y remplace une pyramide par une neuve pour la même source (le numéro reste). Une
+  image de GIF peut y entrer de la même façon — un `Fait` de plus, la pyramide de la toile — **à
+  condition que la clé de la carte change avec elle** : rien du côté de la carte ne porte de
+  génération (vérifié), une pyramide remplacée sous la même clé garderait l'ancienne texture.
+  `accueillir` ne doit pas réécrire l'aperçu du disque pour une image de GIF (l'aperçu reste la
+  première), et `changements` doit croître, sans quoi LOT-1 reconduit la récolte d'avant.
