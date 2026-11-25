@@ -190,5 +190,21 @@
    "-p",
    "test_relais.py"
   ]
+ },
+ {
+  "nom": "CONNECTEURS — ceux de claude.ai rechargés",
+  "fichier": "outils/relais/relais.py",
+  "avant": ", \"ENABLE_CLAUDEAI_MCP_SERVERS=false\"]",
+  "apres": "]",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
  }
 ]

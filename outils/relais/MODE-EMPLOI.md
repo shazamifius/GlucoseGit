@@ -111,6 +111,8 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   `relais-maj-claude` le dit. `code --install-extension anthropic.claude-code` a échoué une fois sur la
   signature du paquet le 25/11 ; nommer la version (`…@2.1.332`) a réussi. Le relais lance la version
   que VS Code dit installée (`extensions.json`), pas le plus grand dossier.
+- **Sans les connecteurs de claude.ai** (`ENABLE_CLAUDEAI_MCP_SERVERS=false` au lancement, fiche 163
+  § 5) : Gmail, Drive, Hugging Face… pesaient ~13 000 jetons relus à chaque réponse, jamais servis.
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à

@@ -395,7 +395,10 @@ def lancer(compte, paroles=(), texte=None, designes=()):
     if session_tmux():
         journal("une session du relais vit déjà : pas de seconde")
         return False
-    reglages = ["RELAIS=1", f"RELAIS_COMPTE={compte}"]
+    # Sans les connecteurs de claude.ai (Gmail, Drive, Hugging Face, sa porte publique…) : aucune
+    # session du relais ne s'en sert, et leurs outils, leurs savoir-faire et leurs consignes pesaient
+    # ~13 000 jetons relus à chaque réponse (le 25/11 : 27 465 au premier tour, 40 853 au second).
+    reglages = ["RELAIS=1", f"RELAIS_COMPTE={compte}", "ENABLE_CLAUDEAI_MCP_SERVERS=false"]
     if COMPTES[compte]:
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
     binaire = claude_binaire()

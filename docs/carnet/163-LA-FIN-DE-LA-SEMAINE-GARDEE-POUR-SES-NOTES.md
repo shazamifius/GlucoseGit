@@ -59,3 +59,16 @@ et 147 : la semaine, et non les cinq heures, borne le H24).
 * Le veilleur relancé sur ce code le 25/11 à 5 h 51 (`systemctl --user restart relais-glucose`).
   **Pas encore vu en vrai** : la semaine de a doit atteindre 90 % (vers le 26/11). À vérifier alors
   dans le journal (« la fin de la semaine gardée pour ses notes ») et le ❤️.
+
+## 5. Sans les connecteurs de claude.ai (même session)
+
+Ses connecteurs de claude.ai (Gmail, Agenda, Drive, Docs, Sheets, Slides, Hugging Face, AWS, Claude
+Docs, et « claude.ai glucose », sa porte publique, qui répondait 503 : sa porte fermée) se chargeaient
+dans chaque session du relais : leurs ~110 outils nommés, les ~25 savoir-faire de Hugging Face et leurs
+consignes. Mesuré sur cette session : **27 465 jetons au premier tour, 40 853 au second** — environ
+13 000 de plus, relus à chaque réponse jusqu'à la passation, pour des outils qu'aucune session du relais
+ne sert. Le relais lance maintenant ses sessions avec `ENABLE_CLAUDEAI_MCP_SERVERS=false` (lu dans le
+binaire de Claude Code 2.1.332 : la variable, ou le réglage `disableClaudeAiConnectors`). Vérifié :
+`claude mcp list` sous cette variable ne montre plus que `glucose --mcp`. Ses sessions à lui gardent
+tout. 1 épreuve, son sabotage tombe (13 sur 13 dans `reserve-163.json`) ; veilleur relancé. **À
+mesurer** sur la prochaine session lancée : la taille de son deuxième tour.

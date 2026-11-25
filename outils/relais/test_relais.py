@@ -535,6 +535,17 @@ class Lancement(unittest.TestCase):
             self.assertIn(r.POURQUOI["reserve"], self.lancer("b", ["sa-note"])[-1])
         self.assertTrue(ecrit.call_args.args[1].get("notes"))
 
+    def test_sans_les_connecteurs_de_claude_ai(self):
+        """Gmail, Drive, Hugging Face… : ~13 000 jetons relus à chaque réponse, jamais servis (fiche 163 § 5)."""
+        tmux = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        with tempfile.TemporaryDirectory() as dossier, mock.patch.object(r, "ETAT", Path(dossier)), \
+                mock.patch.object(r, "session_tmux", lambda: None), mock.patch.object(r, "tmux", tmux), \
+                mock.patch.object(r, "claude_binaire", lambda: "claude"), \
+                mock.patch.object(r, "journal", mock.Mock()):
+            self.assertTrue(r.lancer("b"))
+        commande = tmux.call_args.args
+        self.assertIn("ENABLE_CLAUDEAI_MCP_SERVERS=false", commande[:commande.index("claude")])
+
     def test_son_texte_de_depart(self):
         self.assertIn("Mon départ.", self.lancer("b", [], "Mon départ.")[-1])
         self.assertIn(r.TEXTES[r.TEXTE_DEPART], self.lancer("b", [], None)[-1])
