@@ -51,6 +51,7 @@ impl GlucoseApp {
     /// avant la peinture, pour que ce qu'elle change se voie dans l'image qui suit.
     pub(crate) fn poursuivre_les_attentes(&mut self) {
         self.lire_le_miroir_ou_l_on_entre();
+        self.suivre_les_miroirs();
         self.poursuivre_les_bordures();
         self.poursuivre_le_rangement();
         self.poursuivre_le_detourage();

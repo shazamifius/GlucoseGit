@@ -1,0 +1,363 @@
+[
+ {
+  "nom": "DISQUE-2 — un nœud retiré revient",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "Some(v) if (v.taille, v.date) == (e.taille, e.date) => {",
+  "apres": "Some(v) if false && v.taille == e.taille => {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un fichier renommé perd son nœud",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "Some(&k) => l.renommer(&disparus[k], e),",
+  "apres": "Some(&_k) => l.accueillir(e),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un renommage ambigu se devine",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "([e], [k]) => Some((e.chemin.clone(), *k)),",
+  "apres": "([e, ..], [k, ..]) => Some((e.chemin.clone(), *k)),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — une photo changée ne suit pas",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "(Some(v), _) => (v.taille, v.date) != (e.taille, e.date),",
+  "apres": "(Some(_), _) => false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un texte récrit se relit",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "suivi && !matches!(a, Annotation::Text { text, .. } if empreinte(text) == frais)",
+  "apres": "!matches!(a, Annotation::Text { text, .. } if empreinte(text) == frais)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — une flèche ne retient pas son nœud",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "} => source_id.as_deref() == Some(id) || target_id.as_deref() == Some(id),",
+  "apres": "} => target_id.as_deref() == Some(id),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un domaine ne retient pas sa photo",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "Ne::Photo(i) => !i.domains.is_empty() || i.membrane_id.is_some(),",
+  "apres": "Ne::Photo(i) => i.membrane_id.is_some(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un sous-dossier lu part avec son dossier",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "Ne::Dossier(f) => f.mirror_source.as_ref().is_none_or(|s| !s.pending_scan),",
+  "apres": "Ne::Dossier(f) => f.mirror_source.is_none(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — ce qui vient d'ailleurs est géré par le miroir",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": "let du_disque = |c: &str| vient_de(c, racine) || avant.is_some_and(|v| v.contains_key(c));",
+  "apres": "let du_disque = |_: &str| racine.len() < usize::MAX;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un chemin à saut de ligne s'écrit",
+  "fichier": "crates/glucose-core/src/miroir_disque/reconcilier.rs",
+  "avant": ".filter(|(c, _)| !c.contains('\\n'))",
+  "apres": ".filter(|(c, _)| !c.is_empty())",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — la relecture n'est pas signée Glucose",
+  "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
+  "avant": "Main::Agent(GLUCOSE.into())",
+  "apres": "Main::Humain",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — le neuf se pose sur son rangement",
+  "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
+  "avant": "let (dx, dy) = (c.left, c.top + c.height + super::zones::ECART);",
+  "apres": "let (dx, dy) = (0.0 * c.left, 0.0);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — la lecture se fond dans un geste ouvert",
+  "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
+  "avant": "if self.in_live_edit() || (r.est_vide()",
+  "apres": "if false || (r.est_vide()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — ce qui part reste",
+  "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
+  "avant": "self.remove_annotations(tableau, &notes);",
+  "apres": "let _ = &notes;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — ce qui suit son fichier ne change pas",
+  "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
+  "avant": "self.update_annotation(tableau, &id, |n| *n = a);",
+  "apres": "let _ = (&id, a);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un miroir à lire croit avoir tout vu",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque/atelier.rs",
+  "avant": "let vus = if demande.miroir.source.pending_scan {",
+  "apres": "let vus = if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — ce qu'un miroir a vu ne s'écrit pas",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "avant": "a.ecrire(fichier.clone(), ecrire_les_vus(&vus));",
+  "apres": "let _ = (fichier, ecrire_les_vus(&vus), a);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un fichier se lit en entier",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque/atelier.rs",
+  "avant": ".take(borne)",
+  "apres": ".take(borne.max(u64::MAX))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-2 — un rendu refait garde son ancienne image",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "avant": "self.oublier_les_pixels(&a_oublier);",
+  "apres": "let _ = &a_oublier;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ }
+]

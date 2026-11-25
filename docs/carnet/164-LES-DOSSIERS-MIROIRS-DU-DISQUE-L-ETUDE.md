@@ -209,3 +209,82 @@ l'écran (16,7 ms à 60 Hz), pas le plancher de 10 ms de la charte. Rien n'a sau
 le compilateur panique en lisant ses métadonnées, « invalid enum variant tag while decoding
 `Constness` », même sur le code commité). Un dossier de compilation neuf (`cible-q13`) compile ; l'ancien
 est effacé.
+
+
+## 9. DISQUE-2, le miroir vivant (25/11 vers 11 h 30, compte a)
+
+Sans sa réponse à `relais-q-dossier-disque`, le défaut proposé : **un seul sens**. Le code :
+`core/miroir_disque/reconcilier.rs` (la loi), `core/store/miroir_disque.rs` (le geste),
+`desktop/interactions/miroir_disque/` (`atelier.rs`, le fil du disque ; `appliquer.rs`, du plan aux
+nœuds).
+
+**La loi** (`reconcilier`, pure, sans dépendance) prend le tableau, ce que le disque rend, et **ce que
+le miroir avait vu** (chemin → taille, date, et pour un texte l'empreinte du Markdown qu'il y avait
+posé), et rend un plan : ce qui entre, ce qui suit son fichier, ce qui part, et ce qu'il aura vu.
+
+* **Les nœuds qu'elle gère** : ceux dont le fichier est de ce niveau (son dossier est la racine du
+  miroir), ou que le miroir avait vus. Ses textes, ses flèches, une photo qu'il a collée là : à lui,
+  jamais touchés.
+* **Un fichier sans nœud** que le miroir avait vu à l'identique a été **refusé** (il a retiré son nœud)
+  et ne revient pas ; **changé depuis** (un rendu refait sous le même nom), il revient.
+* **Un renommage** : une paire unique (disparu, apparu) de même taille, même date, même extension —
+  une seule règle pour tous les systèmes, sans l'inode d'Unix. Deux candidats pareils : la loi ne
+  devine pas (le nœud part, les deux fichiers entrent). L'épreuve l'a montré d'elle-même : deux PNG
+  identiques écrits dans la même seconde.
+* **Un seul sens** : un texte dont le contenu n'a plus l'empreinte de ce que le miroir y avait posé a
+  été récrit de sa main — détaché, il ne se relit plus jamais. Sans mémoire, un texte qui n'est pas ce
+  que le fichier donne est tenu pour sien. L'empreinte : les huit premiers octets du SHA-256 du noyau
+  (le hachage de la bibliothèque standard ne promet pas d'être le même d'une version à l'autre).
+* **Un fichier disparu** emporte son nœud, sauf ce que sa main y a mis : une flèche, un domaine, une
+  membrane, un texte récrit, une tuile renommée. **Un sous-dossier déjà lu reste** (son contenu peut
+  porter son travail ; le parcourir récursivement est une question pour plus tard), un jamais lu part.
+  Un miroir illisible (un disque débranché) ne perd rien : une lecture en erreur ne réconcilie pas.
+
+**Le geste** (`Store::reconcilier_le_miroir`) : un seul, **signé « Glucose »** (comme EXIF-1),
+défaisable ; le neuf se dispose par COLONNES-1 **sous ce qu'il a rangé**, sans rien déplacer ; une
+lecture sans rien de neuf n'écrit **aucun** geste (sinon un geste à chaque retour dans la fenêtre) ;
+pendant un geste ouvert, la lecture attend qu'il se ferme.
+
+**Ce que le miroir a vu** se garde dans le dossier de l'application (`miroirs/`, un fichier par miroir,
+nommé par l'empreinte du fichier du document et du tableau), pas dans le document : un chemin n'a de
+sens que sur cette machine, et il faudrait un champ neuf. **Ses défauts, dits** : un « Enregistrer
+sous » ou une autre machine perdent cette mémoire — les nœuds retirés reviennent une fois (jamais
+l'inverse : rien ne se cache). Un `Ctrl+Z` d'une relecture vaut refus (le nœud qu'elle avait ajouté,
+retiré par sa main, ne revient pas tant que son fichier ne change pas) — sauf la première lecture :
+défaite, le miroir redevient « à lire », et **un miroir à lire ignore ce qu'il avait vu**. Un plantage
+entre l'écriture de cette mémoire et celle de l'histoire ferait prendre les fichiers ajoutés juste
+avant pour refusés : fenêtre de quelques millisecondes, non fermée.
+
+**Les déclencheurs** : **chaque entrée** dans le tableau d'un miroir (plus seulement la première), et
+**la fenêtre qui reprend la main** (`WindowEvent::Focused`). **Le dossier lâché n'est plus lu au
+dépôt** : il l'est à l'entrée, comme ses sous-dossiers — une seule loi pour tous les niveaux, aucun
+disque lu dans le geste, et un `Ctrl+Z` après le dépôt l'emporte entier. Fermé, il dit « Double-clic
+pour ouvrir », ce qui est vrai.
+
+**Hors du fil de l'image** (la fin du § 8) : un fil, « l'atelier des miroirs », lit le niveau, le
+Markdown des seuls textes changés ou inconnus, et la mémoire d'un miroir quand l'application ne l'a
+plus ; il écrit cette mémoire, dans l'ordre (une écriture et la lecture suivante ne se croisent pas).
+Il réveille la boucle quand une lecture revient. **Un texte ne se lit plus qu'en tête** (100 001
+octets) : un journal de deux gigaoctets se lisait en entier pour en montrer cent kilo-octets ; le
+témoin est `/dev/zero`, qui sans la borne ne rendrait jamais la main.
+
+**Un défaut de DISQUE-1 trouvé en codant, corrigé** : une photo **collée ou lâchée dans** un miroir ne
+se scellait pas (tout le tableau d'un miroir restait dehors) — elle n'aurait vécu que dans un cache ou
+un fichier qu'il peut effacer. Ne reste dehors que la photo qui montre un fichier du niveau
+(`reste_dehors`). Aucune donnée perdue : son Glucose tourne une version sans miroirs.
+
+**Un rendu refait sous son nom** se redécode : le magasin oublie la pyramide, les vignettes et
+l'échec de ce fichier (`Magasin::oublier`) ; son aperçu sur le disque est déjà nommé par la taille et la
+date. Une autre résolution : la largeur reste, la hauteur suit la forme.
+
+Épreuves : 11 de la loi, 5 du geste, 11 du bureau sur de vrais fichiers (ajout, changement,
+renommage, disparition, refus, détachement, mémoire relue de son fichier, rendu refait, `/dev/zero`).
+Sabotages : `disque-2.json`, et `disque-1.json` remis aux lignes qui ont bougé. Le cliquet 1 a refusé
+six accès au modèle : `Store::board`, `Store::active_board_id`, `Board::image`, `annotation`,
+`dossier`.
+
+**Pas encore** : **le fil du focus n'a pas d'épreuve** — le même évènement relit le réglage du
+mouvement, un état global que les épreuves se partagent ; à voir au pilote ou à son écran. Le
+marquage « absent » (la bordure pointillée) : un nœud gardé reste tel quel, une photo sans fichier
+montre son échec. Rien ne dit « en lecture » (17 ms sur son NVMe ; à mesurer sur un disque lent).
+DISQUE-3 (`notify`) attend sa réponse. Le partage d'un miroir, pas essayé.

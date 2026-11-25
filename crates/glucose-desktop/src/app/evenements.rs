@@ -39,6 +39,8 @@ impl GlucoseApp {
                 // On revient peut-être d'avoir changé le réglage du mouvement (GIF-3).
                 if *actif {
                     crate::plateforme::mouvement::relire();
+                    // Ou d'avoir changé le dossier d'un miroir, dans l'explorateur (DISQUE-2).
+                    self.relire_le_miroir();
                 }
                 // La fenêtre existe chez le bureau : le mode référence retenu s'y pose devant.
                 if *actif && std::mem::take(&mut self.fenetre_de_reference.devant_au_focus) {

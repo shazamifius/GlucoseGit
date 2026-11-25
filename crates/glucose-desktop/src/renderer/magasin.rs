@@ -31,6 +31,7 @@ mod cache;
 mod comptes;
 mod etagement;
 mod gifs;
+mod oubli;
 pub use cache::{Cache, Numero};
 
 /// Ce que le magasin sait de la couleur moyenne d'une image.

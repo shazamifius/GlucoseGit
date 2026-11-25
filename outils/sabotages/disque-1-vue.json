@@ -2,8 +2,8 @@
  {
   "nom": "DISQUE-1 vue — la caméra d'un miroir lu reste à l'origine, sous la bande",
   "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
-  "avant": "self.store.set_viewport(&tableau, vue);",
-  "apres": "let _ = (&tableau, vue);",
+  "avant": "self.store.set_viewport(tableau, vue);",
+  "apres": "let _ = (tableau, vue);",
   "cmd": [
    "bash",
    "outils/borne.sh",

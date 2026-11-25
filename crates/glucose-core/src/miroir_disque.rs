@@ -10,7 +10,7 @@
 use crate::recherche::pli;
 use crate::types::{BoardImage, FolderMirrorSource, FolderSortMode, Project};
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -143,31 +143,48 @@ pub fn source_en_attente(chemin: &str, tri: Option<FolderSortMode>) -> FolderMir
     }
 }
 
-/// **Les tableaux des miroirs** : ce qu'ils montrent reste sur le disque, et ne se scelle pas dans
-/// le document — un dossier de deux mille photos ne doit pas en peser deux mille. Le signe est le
-/// lieu, pas la photo : une photo qui sort d'un miroir (glissée, copiée sur son canevas) devient
-/// sienne, et se scelle ; `AssetRef::Link` ne le dit pas, qui désigne aussi les images d'un document
-/// portable de Tauri — à sceller, elles.
-pub fn tableaux_du_disque(projet: &Project) -> HashSet<&str> {
+/// **Les tableaux des miroirs**, chacun avec le dossier du disque qu'il montre : ce qu'ils montrent
+/// reste sur le disque, et ne se scelle pas dans le document — un dossier de deux mille photos ne
+/// doit pas en peser deux mille.
+pub fn tableaux_du_disque(projet: &Project) -> HashMap<&str, &str> {
     projet
         .boards
         .iter()
         .flat_map(|b| &b.folders)
-        .filter(|f| f.mirror_source.is_some())
-        .map(|f| f.child_board_id.as_str())
+        .filter_map(|f| {
+            let s = f.mirror_source.as_ref()?;
+            Some((f.child_board_id.as_str(), s.root_path.as_str()))
+        })
         .collect()
 }
 
-/// **Les photos du projet qui se scellent** : toutes, sauf celles qui vivent dans le tableau d'un
-/// miroir ([`tableaux_du_disque`]).
+/// **Cette photo, posée sur ce tableau, reste-t-elle sur le disque ?** Seulement si elle montre un
+/// fichier du niveau que ce tableau reflète. Le signe est le lieu **et** le fichier : une photo qui
+/// sort d'un miroir (glissée, copiée sur son canevas) devient sienne et se scelle — et une photo
+/// qu'il colle ou lâche **dans** un miroir aussi, qui ne vient pas de ce dossier (sans quoi elle ne
+/// vivrait que dans un cache, ou dans un fichier qu'il peut effacer). `AssetRef::Link` ne le dit
+/// pas, qui désigne aussi les images d'un document portable de Tauri — à sceller, elles.
+pub fn reste_dehors(disque: &HashMap<&str, &str>, tableau: &str, img: &BoardImage) -> bool {
+    disque.get(tableau).is_some_and(|racine| {
+        img.src
+            .as_deref()
+            .is_some_and(|src| reconcilier::vient_de(src, racine))
+    })
+}
+
+/// **Les photos du projet qui se scellent** : toutes, sauf celles qui restent sur le disque
+/// ([`reste_dehors`]).
 pub fn images_hors_du_disque(projet: &Project) -> impl Iterator<Item = &BoardImage> {
     let disque = tableaux_du_disque(projet);
     projet
         .boards
         .iter()
-        .filter(move |b| !disque.contains(b.id.as_str()))
-        .flat_map(|b| b.images.iter())
+        .flat_map(|b| b.images.iter().map(move |i| (b.id.as_str(), i)))
+        .filter(move |(b, i)| !reste_dehors(&disque, b, i))
+        .map(|(_, i)| i)
 }
+
+pub mod reconcilier;
 
 #[cfg(test)]
 mod tests;

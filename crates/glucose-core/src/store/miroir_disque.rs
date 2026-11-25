@@ -1,10 +1,12 @@
-//! **Remplir un dossier miroir du disque** (DISQUE-1, fiche 164) : un niveau lu par l'application
-//! devient le contenu du tableau du dossier, disposé, et le dossier se dit lu — un seul geste.
+//! **Un dossier miroir du disque reçoit ce que le disque a rendu** (DISQUE-1 et DISQUE-2, fiche 164) :
+//! la première lecture le remplit, les suivantes le réconcilient — ce qui entre, ce qui suit son
+//! fichier, ce qui part (la loi : [`crate::miroir_disque::reconcilier`]) — et le dossier se dit lu.
 //!
 //! **Un geste comme les autres**, et non une lecture hors du journal comme `expand_folder` (l'héritage
 //! de Tauri) : le document est une histoire de gestes. Ce qui n'y entre pas ne s'enregistre pas,
-//! ne se partage pas, ne s'annule pas. Un `Ctrl+Z` juste après l'entrée vide le dossier, qui
-//! redevient « à lire » ; y revenir le relit.
+//! ne se partage pas, ne s'annule pas. Il est **signé « Glucose »** : la lecture arrive d'un autre
+//! fil, après l'entrée — personne ne l'a faite à la main. Un `Ctrl+Z` juste après la première
+//! lecture vide le dossier, qui redevient « à lire » ; y revenir le relit.
 //!
 //! **La disposition est celle de COLONNES-1** ([`crate::layout::colonnes`]) : les sous-dossiers,
 //! les photos, les textes, puis les tuiles, chacun en bloc, dans l'ordre du tri, en colonnes qui
@@ -12,16 +14,18 @@
 //! Tauri (des cellules de 220, des écarts de 160, une rangée de 1 500) a disparu dans la loi qui
 //! dispose déjà les membranes.
 
-use super::journal::{Edit, Slot};
+use super::journal::{Edit, Main, Slot};
+use super::redresser::GLUCOSE;
 use super::Store;
 use crate::geometry::Rect;
 use crate::layout::colonnes::{disposer, Bloc, Marges};
+use crate::miroir_disque::reconcilier::Noeud;
 use crate::types::{Annotation, BoardImage, CanvasFolder, FolderMirrorSource};
 use std::collections::HashMap;
 
 /// **Un niveau lu**, dans l'ordre du tri : ses sous-dossiers (chacun une source en attente), ses
-/// photos, ses textes et ses tuiles. Les positions qu'ils portent ne comptent pas : le niveau se
-/// dispose ici.
+/// photos, ses textes et ses tuiles. Neufs, les positions qu'ils portent ne comptent pas : le niveau
+/// se dispose ici ; suivis, chacun est la nouvelle version entière d'un nœud du tableau.
 #[derive(Debug, Default, Clone)]
 pub struct Niveau {
     pub dossiers: Vec<CanvasFolder>,
@@ -30,57 +34,101 @@ pub struct Niveau {
     pub tuiles: Vec<Annotation>,
 }
 
+/// **Le miroir où l'on se trouve** : le tableau qui le porte, son identifiant, sa source, et le
+/// tableau qu'il montre.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MiroirOuvert {
+    pub parent: String,
+    pub dossier: String,
+    pub tableau: String,
+    pub source: FolderMirrorSource,
+}
+
+/// **Ce qu'une lecture du disque change à un miroir** (la loi : [`crate::miroir_disque::reconcilier`]) :
+/// les nœuds neufs (disposés ici, sous ce qu'il y a déjà), la nouvelle version de ceux qui suivent
+/// leur fichier, et ceux qui partent avec lui.
+#[derive(Debug, Default, Clone)]
+pub struct Reconciliation {
+    pub neufs: Niveau,
+    pub suivis: Niveau,
+    pub partis: Vec<Noeud>,
+}
+
+impl Reconciliation {
+    fn est_vide(&self) -> bool {
+        let n = |v: &Niveau| {
+            v.dossiers.is_empty()
+                && v.photos.is_empty()
+                && v.textes.is_empty()
+                && v.tuiles.is_empty()
+        };
+        n(&self.neufs) && n(&self.suivis) && self.partis.is_empty()
+    }
+}
+
 impl Store {
-    /// **Le dossier miroir où l'on vient d'entrer, s'il attend d'être lu** : son tableau parent,
-    /// son identifiant et sa source. Le haut de la pile des dossiers suffit — quelle que soit la
-    /// porte par laquelle on est entré (le double-clic, le fil d'Ariane, un retour en arrière).
-    pub fn miroir_a_lire(&self) -> Option<(String, String, FolderMirrorSource)> {
+    /// **Le dossier miroir où l'on se trouve**, lu ou non. Le haut de la pile des dossiers suffit —
+    /// quelle que soit la porte par laquelle on est entré (le double-clic, le fil d'Ariane, un retour
+    /// en arrière).
+    pub fn miroir_ouvert(&self) -> Option<MiroirOuvert> {
         let (parent, id) = self.folder_stack.last()?;
-        let source = self
+        let f = self
             .project
             .boards
             .iter()
             .find(|b| &b.id == parent)?
             .folders
             .iter()
-            .find(|f| &f.id == id)?
-            .mirror_source
-            .as_ref()
-            .filter(|s| s.pending_scan)?;
-        Some((parent.clone(), id.clone(), source.clone()))
+            .find(|f| &f.id == id)?;
+        Some(MiroirOuvert {
+            parent: parent.clone(),
+            dossier: id.clone(),
+            tableau: f.child_board_id.clone(),
+            source: f.mirror_source.clone()?,
+        })
     }
 
-    /// **Remplit le tableau de ce dossier miroir avec ce niveau**, disposé pour approcher
-    /// `proportion` (largeur sur hauteur), et le dit lu à l'heure `maintenant` (secondes depuis
-    /// 1970). Un seul geste, ou une part du geste déjà ouvert (le dépôt d'un dossier). Rend le
-    /// tableau rempli — sa première vue reste à poser —, ou `None` si le dossier n'existe pas ou
-    /// n'attend aucune lecture : rien ne change.
-    pub fn remplir_le_miroir(
+    /// **Applique une lecture du disque à ce miroir**, en un seul geste signé « Glucose » — personne
+    /// ne l'a fait à la main —, défaisable, et le dit lu à l'heure `maintenant` (secondes depuis
+    /// 1970). Les nœuds neufs se disposent pour approcher `proportion` (largeur sur hauteur), sous
+    /// ce que le tableau montre déjà : la place qu'il a donnée aux autres ne bouge pas.
+    ///
+    /// Rend `Some(true)` quand ce geste a rempli un miroir vide qui attendait sa lecture (sa
+    /// première vue reste à poser), `Some(false)` pour un autre geste, `None` si rien ne change — un
+    /// dossier introuvable, une lecture sans rien de neuf, ou un geste ouvert : la lecture attend
+    /// qu'il se ferme plutôt que de s'y fondre (un `Échap` défairait les deux).
+    pub fn reconcilier_le_miroir(
         &mut self,
         parent: &str,
         dossier: &str,
-        niveau: Niveau,
+        r: Reconciliation,
         proportion: f64,
         maintenant: i64,
-    ) -> Option<String> {
-        let enfant = self
+    ) -> Option<bool> {
+        let f = self
             .project
             .boards
             .iter()
-            .find(|b| b.id == parent)
-            .and_then(|b| b.folders.iter().find(|f| f.id == dossier))
-            .filter(|f| f.mirror_source.as_ref().is_some_and(|s| s.pending_scan))
-            .map(|f| f.child_board_id.clone())?;
-        let niveau = disposer_le_niveau(niveau, proportion);
-        let ouvert = self.journal.is_open();
-        if !ouvert {
-            self.journal.begin();
+            .find(|b| b.id == parent)?
+            .folders
+            .iter()
+            .find(|f| f.id == dossier)?;
+        let attendait = f.mirror_source.as_ref()?.pending_scan;
+        let enfant = f.child_board_id.clone();
+        if self.in_live_edit() || (r.est_vide() && !attendait) {
+            return None;
         }
-        for f in niveau.dossiers {
+        let vide = self.content_bounds(&enfant).is_none();
+        let main = std::mem::replace(&mut self.journal.main, Main::Agent(GLUCOSE.into()));
+        self.begin_live_edit();
+        self.suivre_et_retirer(&enfant, r.suivis, r.partis);
+        let neufs = disposer_le_niveau(r.neufs, proportion);
+        let neufs = self.sous_le_contenu(&enfant, neufs);
+        for f in neufs.dossiers {
             self.create_folder_with_content(&enfant, f, Vec::new());
         }
-        let noeuds = niveau.textes.into_iter().chain(niveau.tuiles);
-        let edits = self.poser_dans(&enfant, niveau.photos, noeuds.collect());
+        let noeuds = neufs.textes.into_iter().chain(neufs.tuiles);
+        let edits = self.poser_dans(&enfant, neufs.photos, noeuds.collect());
         self.record_as_one_gesture(edits);
         self.update_folder(parent, dossier, |f| {
             if let Some(s) = f.mirror_source.as_mut() {
@@ -88,10 +136,61 @@ impl Store {
                 s.last_scanned_at = maintenant;
             }
         });
-        if !ouvert && self.journal.end() {
-            self.bump_version();
+        self.end_live_edit();
+        self.journal.main = main;
+        Some(attendait && vide && self.content_bounds(&enfant).is_some())
+    }
+
+    /// Les nœuds qui suivent leur fichier prennent leur nouvelle version ; ceux qui partent partent.
+    fn suivre_et_retirer(&mut self, tableau: &str, suivis: Niveau, partis: Vec<Noeud>) {
+        for img in suivis.photos {
+            let id = img.id.clone();
+            self.update_image(tableau, &id, |i| *i = img);
         }
-        Some(enfant)
+        for a in suivis.textes.into_iter().chain(suivis.tuiles) {
+            let id = a.id().to_owned();
+            self.update_annotation(tableau, &id, |n| *n = a);
+        }
+        for d in suivis.dossiers {
+            let id = d.id.clone();
+            self.update_folder(tableau, &id, |f| *f = d);
+        }
+        let (mut photos, mut notes, mut dossiers) = (Vec::new(), Vec::new(), Vec::new());
+        for n in &partis {
+            match n {
+                Noeud::Photo(id) => photos.push(id.as_str()),
+                Noeud::Note(id) => notes.push(id.as_str()),
+                Noeud::Dossier(id) => dossiers.push(id.as_str()),
+            }
+        }
+        if !photos.is_empty() {
+            self.remove_images(tableau, &photos);
+        }
+        if !notes.is_empty() {
+            self.remove_annotations(tableau, &notes);
+        }
+        if !dossiers.is_empty() {
+            self.remove_folders(tableau, &dossiers);
+        }
+    }
+
+    /// Les nœuds neufs d'un tableau qui en montre déjà : le bloc qu'ils forment se pose sous le
+    /// contenu, à son bord gauche, à l'écart de Glucose.
+    fn sous_le_contenu(&self, tableau: &str, mut niveau: Niveau) -> Niveau {
+        let Some(c) = self.content_bounds(tableau) else {
+            return niveau;
+        };
+        let (dx, dy) = (c.left, c.top + c.height + super::zones::ECART);
+        for f in &mut niveau.dossiers {
+            (f.x, f.y) = (f.x + dx, f.y + dy);
+        }
+        for i in &mut niveau.photos {
+            (i.x, i.y) = (i.x + dx, i.y + dy);
+        }
+        for a in niveau.textes.iter_mut().chain(niveau.tuiles.iter_mut()) {
+            a.translate(dx, dy);
+        }
+        niveau
     }
 
     /// Pose ces photos et ces nœuds dans ce tableau, sans toucher à la sélection, et rend ce qui

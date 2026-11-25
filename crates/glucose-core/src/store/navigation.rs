@@ -59,6 +59,16 @@ impl Store {
             .find(|b| b.id == self.project.active_board_id)
     }
 
+    /// **Le tableau du document qui porte cet identifiant.**
+    pub fn board(&self, id: &str) -> Option<&Board> {
+        self.project.boards.iter().find(|b| b.id == id)
+    }
+
+    /// **L'identifiant du tableau du document qu'on regarde.**
+    pub fn active_board_id(&self) -> &str {
+        &self.project.active_board_id
+    }
+
     /// Le tableau qu'on regarde, pour en changer la vue — la fenêtre des liens comprise.
     pub fn active_board_mut(&mut self) -> Option<&mut Board> {
         if let Some(f) = &mut self.fenetre_des_liens {

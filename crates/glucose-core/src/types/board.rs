@@ -107,6 +107,20 @@ fn entoure(a: &Annotation, lasso: crate::geometry::Rect) -> bool {
 }
 
 impl Board {
+    /// **Le nœud de ce tableau qui porte cet identifiant**, par sa sorte : ce qu'un lecteur cherche
+    /// sans ouvrir les listes du modèle (le cliquet du couplage, règle S de la fiche 12 § 3).
+    pub fn image(&self, id: &str) -> Option<&BoardImage> {
+        self.images.iter().find(|i| i.id == id)
+    }
+
+    pub fn annotation(&self, id: &str) -> Option<&Annotation> {
+        self.annotations.iter().find(|a| a.id() == id)
+    }
+
+    pub fn dossier(&self, id: &str) -> Option<&CanvasFolder> {
+        self.folders.iter().find(|f| f.id == id)
+    }
+
     /// **Les flèches du tableau** : ce qu'un lecteur parcourt — l'export en page web, ce que
     /// disent ses flèches (fiche 115) — sans ouvrir la liste du modèle (le cliquet du couplage).
     pub fn fleches(&self) -> impl Iterator<Item = &Annotation> {

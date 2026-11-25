@@ -461,18 +461,20 @@ impl GlucoseApp {
         &mut self,
         path: &Path,
         name: &str,
-        (x, y): (f64, f64),
+        ou: (f64, f64),
     ) -> Option<Annotation> {
-        let raw = std::fs::read(path).ok()?;
-        let truncated = raw.len() > file_kind::INLINE_MAX_BYTES;
-        // Un fichier « lisible » peut très bien ne pas être de l'UTF-8 valide : un `.txt`
-        // hérité d'une autre époque, par exemple. On ne le refuse pas — on remplace ce qui
-        // ne se lit pas, ce que `from_utf8_lossy` fait exactement.
-        let text = String::from_utf8_lossy(&raw);
-        let content = file_kind::truncate_on_char_boundary(&text, file_kind::INLINE_MAX_BYTES);
+        let markdown = super::miroir_disque::atelier::markdown_du_fichier(path, name)?;
+        Some(self.carte_de_markdown(path, markdown, ou))
+    }
 
+    /// La carte de ce Markdown, lu de ce fichier : à la largeur d'un texte lisible, à sa hauteur.
+    pub(crate) fn carte_de_markdown(
+        &mut self,
+        path: &Path,
+        markdown: String,
+        (x, y): (f64, f64),
+    ) -> Annotation {
         let id = self.store.generate_id("txt");
-        let markdown = file_kind::as_markdown(name, content, truncated);
         let height = crate::renderer::card::text_card_fit_height(
             &self.renderer.typography,
             &self.renderer.math,
@@ -495,7 +497,7 @@ impl GlucoseApp {
             // y revenir même quand le contenu a été tronqué.
             *source_file = Some(path.to_string_lossy().into_owned());
         }
-        Some(card)
+        card
     }
 
     /// Une tuile qui mène au fichier, teintée par son extension.

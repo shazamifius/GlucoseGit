@@ -144,13 +144,18 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
   pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6) ; la première
   copie qui arrive se pose tout de suite, et l'original prend sa place (`depot_web/apercu.rs`).
-* **Un dossier de son PC** (DISQUE-1, fiche 164 ; `interactions/miroir_disque.rs`, `core/miroir_disque.rs`,
-  `core/store/miroir_disque.rs`) : lâché, il devient un dossier miroir, lu **un niveau à la fois** — un
-  sous-dossier se lit au moment d'y entrer (`lire_le_miroir_ou_l_on_entre`, avant chaque image, qui ne
-  fait rien tant que le tableau regardé ne change pas). La lecture est **un geste** (`remplir_le_miroir`),
-  disposé par la loi de COLONNES-1. Une photo reste sur le disque **tant qu'elle vit dans le tableau d'un
-  miroir** (`tableaux_du_disque`, lu par `persist/ecriture.rs`) : sortie, elle se scelle. La lecture qui
-  remplit un miroir pose sa **première vue** (`premiere_vue` : tout, jamais plus grand que nature).
+* **Un dossier de son PC** (DISQUE-1 et 2, fiche 164 § 7-9 ; `interactions/miroir_disque/`,
+  `core/miroir_disque/`, `core/store/miroir_disque.rs`) : lâché, il devient un dossier miroir « à lire »,
+  lu **un niveau à la fois** au moment d'y entrer — et relu **à chaque entrée** et quand la fenêtre
+  reprend la main (`relire_le_miroir`). **Le disque se lit sur un fil** (`atelier.rs`), qui rend le
+  niveau et la mémoire du miroir ; **la loi** (`reconcilier`, pure) dit ce qui entre, ce qui suit son
+  fichier, ce qui part, et ce que le miroir aura vu ; `appliquer.rs` fait les nœuds ; **le geste**
+  (`Store::reconcilier_le_miroir`) est signé « Glucose ». Ce que chaque miroir a vu vit dans
+  `<dossier de l'application>/miroirs/`, hors du document. Une photo reste sur le disque **tant qu'elle
+  montre un fichier du niveau** de son miroir (`reste_dehors`, lu par `persist/ecriture.rs`) : sortie,
+  ou collée là, elle se scelle. La lecture qui remplit un miroir pose sa **première vue**
+  (`premiere_vue` : tout, jamais plus grand que nature) ; un fichier changé sous son nom s'oublie du
+  magasin (`Magasin::oublier`).
 * **La taille d'une photo sur le disque** (`interactions/dimensions.rs`, fiche 164 § 8) : l'en-tête seul —
   un JPEG de segment en segment jusqu'à son `SOFn` (`into_dimensions` d'`image` lit tout le fichier).
   Le miroir et le dépôt d'une photo (`place_image_file`) passent par elle.

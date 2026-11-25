@@ -66,6 +66,9 @@ pub struct Disque {
     /// leur code et le numéro que leur fichier contient. Le vrai lancement seul y met le dossier
     /// de l'utilisateur.
     pub canevas: PathBuf,
+    /// **Ce que chaque dossier miroir a vu** (DISQUE-2, fiche 164 § 9) : un fichier par miroir. Le
+    /// vrai lancement seul y met le dossier de l'utilisateur.
+    pub miroirs: PathBuf,
     /// Ce que les autres fichiers disent de leurs domaines, lu sans y écrire (fiche 88).
     pub recenseur: crate::recensement::Recenseur,
 }
@@ -90,6 +93,7 @@ impl Disque {
                 .join(crate::app::collaborer::identite::FICHIER),
             canevas: crate::app::accueil::dossier_hors_lancement()
                 .join(crate::app::collaborer::reprise::FICHIER),
+            miroirs: crate::app::accueil::dossier_hors_lancement().join("miroirs"),
             recenseur: crate::recensement::Recenseur::default(),
         }
     }

@@ -73,8 +73,11 @@
   vite ; fiche 157) ; **DISQUE-1** — un dossier de son PC lâché sur Glucose (ou « Dossier du disque… »)
   devient son miroir, lu un niveau à la fois, ses photos laissées sur le disque ; essayé au pilote
   (fiche 164 § 7-8) : sa première vue montre tout, et la taille d'un JPEG se lit dans son en-tête
-  (150 photos d'appareil : 540 ms d'image figée avant, 17,6 ms après). Reste : lire hors du fil de
-  l'image, avec DISQUE-2 (le dossier vivant) ; sa question `relais-q-dossier-disque`. **EXIF-1** — une
+  (150 photos d'appareil : 540 ms d'image figée avant, 17,6 ms après). **DISQUE-2** — le dossier est
+  vivant : relu sur un fil à chaque entrée et quand la fenêtre reprend la main ; un fichier ajouté
+  entre, un renommé garde son nœud, un changé se relit (une photo se redécode), un disparu emporte son
+  nœud sauf ce que sa main y a mis ; un nœud retiré ne revient pas tant que son fichier ne change pas ;
+  un seul sens, défaut proposé sans sa réponse à `relais-q-dossier-disque` (fiche 164 § 9). **EXIF-1** — une
   photo de téléphone tenue en portrait paraît debout (elle était couchée depuis Glucose Rust ; Tauri la
   montrait droite), et un nœud posé quand elle arrivait couchée se redresse à l'arrivée de ses pixels,
   en un geste signé « Glucose » qu'on peut défaire (fiche 165 § 5-6).

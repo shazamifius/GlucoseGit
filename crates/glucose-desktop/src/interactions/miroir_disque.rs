@@ -1,37 +1,54 @@
-//! **Un dossier de son PC dans Glucose** (DISQUE-1, fiche 164) : lâché sur la fenêtre, il devient un
-//! dossier de Glucose qui montre ce qu'il contient — ses sous-dossiers, ses photos, ses textes, ses
-//! fichiers en tuiles —, **un niveau à la fois** : un sous-dossier se lit quand on y entre.
+//! **Un dossier de son PC dans Glucose** (DISQUE-1 et DISQUE-2, fiche 164) : lâché sur la fenêtre, il
+//! devient un dossier de Glucose qui montre ce qu'il contient — ses sous-dossiers, ses photos, ses
+//! textes, ses fichiers en tuiles —, **un niveau à la fois**, lu quand on y entre ; et **vivant** :
+//! relu à chaque entrée, et quand la fenêtre reprend la main.
 //!
-//! * **Les photos restent sur le disque** tant qu'elles vivent dans le tableau d'un miroir : l'écriture
-//!   du document ne les scelle pas (`persist::ecriture`, [`glucose_core::miroir_disque::tableaux_du_disque`]).
-//!   Une photo qui en sort — glissée, copiée sur son canevas — devient sienne, et se scelle. Leurs
-//!   aperçus vivent dans le cache, nommés par leur taille et leur date (`renderer::apercu`).
-//! * **Rien ne s'écrit sur son disque** : retirer un nœud du miroir ne supprime aucun fichier.
-//! * **La lecture à l'entrée est un geste** de l'histoire (le noyau : `store::miroir_disque`), qui
-//!   dit quand le disque a été lu ; elle n'a lieu **qu'au moment d'entrer** — un `Ctrl+Z` qui vide le
-//!   dossier où l'on se trouve ne le relit pas aussitôt, et ne s'y enferme donc jamais.
-//!
+//! * **Le fil de l'image ne lit jamais le disque** : l'atelier ([`atelier`]) lit le niveau, le noyau
+//!   le réconcilie avec ce que le tableau montre ([`glucose_core::miroir_disque::reconcilier`]), le
+//!   magasin l'applique en un geste signé « Glucose ». Le dossier lâché n'est lu qu'à l'entrée,
+//!   comme ses sous-dossiers : une seule loi pour tous les niveaux, et un `Ctrl+Z` après le dépôt
+//!   l'emporte entier.
+//! * **Les photos restent sur le disque** tant qu'elles montrent un fichier du miroir : l'écriture
+//!   du document ne les scelle pas (`persist::ecriture`, [`glucose_core::miroir_disque::reste_dehors`]).
+//!   Une photo qui en sort — glissée, copiée sur son canevas —, ou qu'il y colle, est sienne, et se
+//!   scelle. Leurs aperçus vivent dans le cache, nommés par leur taille et leur date
+//!   (`renderer::apercu`) ; un fichier changé se redécode.
+//! * **Rien ne s'écrit sur son disque** : retirer un nœud du miroir ne supprime aucun fichier — et
+//!   le nœud ne revient pas, tant que son fichier ne change pas : ce que chaque miroir a vu se garde
+//!   dans le dossier de l'application (`miroirs/`), par document.
 //! * **La première vue d'un miroir lu montre tout ce qu'il contient**, jamais plus grand que nature :
 //!   sans elle, la caméra d'un tableau neuf posait l'origine sous la bande, et le haut du dossier s'y
 //!   cachait (vu au pilote le 25/11) ; 600 photos n'en montraient que six.
-//!
-//! La loi (ce qui se tait, l'ordre, la disposition) est dans le noyau ; ici, le disque.
 
 use crate::app::GlucoseApp;
 use crate::interactions::vol::cadrage_du_contenu;
 use glucose_core::file_kind;
 use glucose_core::geometry::Rect;
 use glucose_core::membrane_focus::ScreenSize;
+use glucose_core::miroir_disque::reconcilier::{ecrire_les_vus, empreinte, reconcilier, Vus};
 use glucose_core::miroir_disque::{masquee, source_en_attente, trier, Entree, Sorte};
-use glucose_core::store::miroir_disque::Niveau;
-use glucose_core::types::{AssetRef, BoardImage, CanvasFolder, FolderSortMode, Viewport};
-use std::path::Path;
-use std::time::{Instant, UNIX_EPOCH};
+use glucose_core::types::{CanvasFolder, FolderSortMode, Viewport};
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
-/// **Le tableau regardé à l'image d'avant** : entrer, c'est le voir changer.
+mod appliquer;
+pub(crate) mod atelier;
+
+/// **Les miroirs, vus du fil de l'image.**
 #[derive(Debug, Default)]
 pub struct Miroirs {
+    /// Le tableau regardé à l'image d'avant : entrer, c'est le voir changer.
     tableau_vu: String,
+    atelier: Option<atelier::Atelier>,
+    /// Les tableaux dont une lecture est en route : une seule à la fois chacun.
+    en_lecture: HashSet<String>,
+    /// Une lecture revenue pendant un geste ouvert : elle attend qu'il se ferme.
+    en_attente: Vec<atelier::Lu>,
+    /// Ce que chaque miroir de ce document a vu, par tableau.
+    vus: HashMap<String, Vus>,
+    /// Le document auquel ce qui précède appartient.
+    document: String,
 }
 
 /// **Lit un niveau d'un dossier** : chaque entrée qu'on montre, rangée selon son tri. Une entrée qui
@@ -110,25 +127,24 @@ fn maintenant() -> i64 {
 }
 
 impl GlucoseApp {
-    /// **Un dossier lâché devient son miroir**, son premier niveau déjà lu, dans le geste du dépôt.
-    /// Rend `false` s'il ne se lit pas : le dépôt en fera une tuile qui y mène.
+    /// **Un dossier lâché devient son miroir**, à lire quand on y entrera — comme ses sous-dossiers.
+    /// Rend `false` s'il ne s'ouvre pas : le dépôt en fera une tuile qui y mène.
     pub(crate) fn poser_un_miroir(
         &mut self,
         board: &str,
         chemin: &Path,
         (x, y): (f64, f64),
     ) -> bool {
-        let Ok(niveau) = self.lire_le_niveau(chemin, None) else {
+        if std::fs::read_dir(chemin).is_err() {
             return false;
-        };
+        }
         let nom = super::drop::file_name_of(chemin);
         let mut dossier = CanvasFolder::new(self.store.generate_id("folder"), nom, "");
         (dossier.x, dossier.y) = (x, y);
         dossier.mirror_source = Some(source_en_attente(&chemin.to_string_lossy(), None));
-        let id = self
-            .store
+        self.store
             .create_folder_with_content(board, dossier, Vec::new());
-        self.remplir(board, &id, niveau)
+        true
     }
 
     /// **« Dossier du disque… »** : le sélecteur du système, et le dossier choisi se lâche là où
@@ -143,45 +159,160 @@ impl GlucoseApp {
         );
     }
 
-    /// **Le dossier miroir où l'on vient d'entrer**, lu s'il attendait — appelé avant chaque image,
-    /// il ne fait rien tant que le tableau regardé ne change pas.
+    /// **Entrer dans un miroir le relit** — appelé avant chaque image, il ne fait rien tant que le
+    /// tableau regardé ne change pas : un `Ctrl+Z` qui vide le miroir où l'on est ne le relit pas
+    /// aussitôt, et ne s'y enferme donc jamais.
     pub(crate) fn lire_le_miroir_ou_l_on_entre(&mut self) {
-        if self.store.project.active_board_id == self.miroirs.tableau_vu {
+        if self.store.active_board_id() == self.miroirs.tableau_vu {
             return;
         }
-        self.miroirs.tableau_vu = self.store.project.active_board_id.clone();
-        let Some((parent, id, source)) = self.store.miroir_a_lire() else {
+        self.miroirs.tableau_vu = self.store.active_board_id().to_string();
+        self.relire_le_miroir();
+    }
+
+    /// **Relit le miroir où l'on se trouve**, s'il y en a un et qu'aucune lecture n'est en route :
+    /// à l'entrée, et quand la fenêtre reprend la main (on revient peut-être de l'explorateur, ou
+    /// d'un rendu). Le disque se lit sur l'atelier ; [`Self::suivre_les_miroirs`] applique ce qu'il rend.
+    pub(crate) fn relire_le_miroir(&mut self) {
+        let Some(miroir) = self.store.miroir_ouvert() else {
             return;
         };
-        let niveau = match self.lire_le_niveau(Path::new(&source.root_path), source.sort_by) {
-            Ok(niveau) => niveau,
-            Err(raison) => {
-                // Il reste « à lire » : y revenir, le disque rebranché, le lira. Le message est
-                // celui du dépôt — lire un sous-dossier à l'entrée, c'est la suite du dépôt du
-                // dossier, différée (et le cliquet 2 ne compte pas un site de plus).
-                let message = format!("« {} » ne se lit pas : {raison}", source.root_path);
-                self.dire_le_depot(message);
-                return;
-            }
+        let document = self.document_des_miroirs();
+        if miroir.tableau != self.store.active_board_id()
+            || !self.miroirs.en_lecture.insert(miroir.tableau.clone())
+        {
+            return;
+        }
+        let demande = atelier::Demande {
+            vus: self.miroirs.vus.remove(&miroir.tableau),
+            fichier: self.fichier_des_vus(&miroir.tableau),
+            document,
+            miroir,
         };
-        if self.remplir(&parent, &id, niveau) {
-            self.mark_dirty();
+        if self.miroirs.atelier.is_none() {
+            self.miroirs.atelier = atelier::Atelier::ouvrir(self.lancement.reveil.clone());
+        }
+        let tableau = demande.miroir.tableau.clone();
+        if !self
+            .miroirs
+            .atelier
+            .as_ref()
+            .is_some_and(|a| a.lire(demande))
+        {
+            self.miroirs.en_lecture.remove(&tableau);
         }
     }
 
-    /// **Un niveau lu remplit son miroir**, et la caméra de son tableau prend sa première vue —
-    /// au dépôt comme à l'entrée. Elle ne se pose qu'à la lecture qui le remplit : une vue qu'on
-    /// s'est faite ne se reprend jamais.
-    fn remplir(&mut self, parent: &str, dossier: &str, niveau: Niveau) -> bool {
-        let proportion = self.proportion_de_l_ecran();
-        let Some(tableau) =
-            self.store
-                .remplir_le_miroir(parent, dossier, niveau, proportion, maintenant())
-        else {
-            return false;
+    /// **Ce que l'atelier a lu s'applique** — appelé avant chaque image ; pendant un geste ouvert,
+    /// la lecture attend qu'il se ferme.
+    pub(crate) fn suivre_les_miroirs(&mut self) {
+        if let Some(a) = &self.miroirs.atelier {
+            self.miroirs.en_attente.extend(a.recu.try_iter());
+        }
+        if self.miroirs.en_attente.is_empty() || self.store.in_live_edit() {
+            return;
+        }
+        for lu in std::mem::take(&mut self.miroirs.en_attente) {
+            self.appliquer_la_lecture(lu);
+        }
+    }
+
+    /// **Le document des miroirs** : celui qu'on regarde. Un autre ouvert, ce qu'on savait des
+    /// miroirs de l'autre s'oublie (il est gardé dans leurs fichiers).
+    fn document_des_miroirs(&mut self) -> String {
+        let document = self.fichier_de_ce_document();
+        if document != self.miroirs.document {
+            self.miroirs.vus.clear();
+            self.miroirs.document = document.clone();
+        }
+        document
+    }
+
+    /// **Où ce miroir garde ce qu'il a vu** : dans le dossier de l'application, sous l'empreinte de
+    /// son document et de son tableau. Un document sans fichier ne le garde qu'en mémoire.
+    fn fichier_des_vus(&self, tableau: &str) -> Option<PathBuf> {
+        let document = &self.disque.ecriture.as_ref()?.chemin;
+        let cle = empreinte(&format!("{}\n{tableau}", document.display()));
+        Some(self.disque.miroirs.join(format!("{cle:016x}")))
+    }
+
+    /// **Une lecture revenue** : réconciliée avec ce que le tableau montre maintenant, appliquée en
+    /// un geste, et ce que le miroir a vu retenu — en mémoire, et dans son fichier.
+    fn appliquer_la_lecture(&mut self, lu: atelier::Lu) {
+        let miroir = &lu.demande.miroir;
+        self.miroirs.en_lecture.remove(&miroir.tableau);
+        if lu.demande.document != self.document_des_miroirs() {
+            return;
+        }
+        let entrees = match &lu.entrees {
+            Ok(e) => e,
+            Err(raison) => return self.dire_l_illisible(lu.demande.miroir, lu.vus, raison),
         };
-        let Some(contenu) = self.store.content_bounds(&tableau) else {
-            return true;
+        let Some(tableau) = self.store.board(&miroir.tableau) else {
+            return;
+        };
+        let frais: HashMap<String, u64> = lu
+            .textes
+            .iter()
+            .map(|(c, m)| (c.clone(), empreinte(m)))
+            .collect();
+        let racine = &miroir.source.root_path;
+        let plan = reconcilier(tableau, racine, lu.vus.as_ref(), entrees, &frais);
+        let a_oublier = self.photos_qui_changent(&miroir.tableau, &plan);
+        let r = self.reconciliation(&miroir.tableau, &plan, &lu.textes, miroir.source.sort_by);
+        let proportion = self.proportion_de_l_ecran();
+        let fait = self.store.reconcilier_le_miroir(
+            &miroir.parent,
+            &miroir.dossier,
+            r,
+            proportion,
+            maintenant(),
+        );
+        if let Some(premiere) = fait {
+            self.mark_dirty();
+            self.oublier_les_pixels(&a_oublier);
+            if premiere {
+                self.poser_la_premiere_vue(&miroir.tableau);
+            }
+        }
+        let change = lu.vus.as_ref() != Some(&plan.vus);
+        self.retenir_les_vus(&lu.demande, plan.vus, change);
+    }
+
+    /// Un miroir qui ne se lit pas (un disque débranché, une permission) : ses nœuds restent tels
+    /// qu'ils sont — rien n'a disparu, on ne sait rien. S'il n'a jamais été lu, il le dit, et reste
+    /// « à lire » : y revenir, le disque rebranché, le lira. Le message est celui du dépôt : lire un
+    /// miroir à l'entrée, c'est la suite du dépôt, différée (et le cliquet 2 ne compte pas un site
+    /// de plus).
+    fn dire_l_illisible(
+        &mut self,
+        miroir: glucose_core::store::miroir_disque::MiroirOuvert,
+        vus: Option<Vus>,
+        raison: &str,
+    ) {
+        if let Some(v) = vus {
+            self.miroirs.vus.insert(miroir.tableau.clone(), v);
+        }
+        if miroir.source.pending_scan {
+            let message = format!("« {} » ne se lit pas : {raison}", miroir.source.root_path);
+            self.dire_le_depot(message);
+        }
+    }
+
+    /// Retient ce que le miroir a vu : en mémoire, et dans son fichier s'il a changé.
+    fn retenir_les_vus(&mut self, demande: &atelier::Demande, vus: Vus, change: bool) {
+        let tableau = demande.miroir.tableau.clone();
+        if let (true, Some(fichier), Some(a)) = (change, &demande.fichier, &self.miroirs.atelier) {
+            a.ecrire(fichier.clone(), ecrire_les_vus(&vus));
+        }
+        self.miroirs.vus.insert(tableau, vus);
+    }
+
+    /// **La première vue d'un miroir qu'une lecture vient de remplir** : une vue qu'on s'est
+    /// faite ne se reprend jamais — elle ne se pose qu'à la lecture qui le remplit.
+    fn poser_la_premiere_vue(&mut self, tableau: &str) {
+        let Some(contenu) = self.store.content_bounds(tableau) else {
+            return;
         };
         let (largeur, hauteur) = self.taille_de_la_fenetre();
         let ecran = ScreenSize {
@@ -189,57 +320,7 @@ impl GlucoseApp {
             height: f64::from(hauteur),
         };
         let vue = premiere_vue(contenu, ecran, f64::from(self.ui.header_height()));
-        self.store.set_viewport(&tableau, vue);
-        true
-    }
-
-    /// **Un niveau du disque, lu en nœuds**, chacun né comme au dépôt ; la disposition est celle du
-    /// noyau. Lu sur le fil de l'image, au dépôt comme à l'entrée : `GLUCOSE_PERF=1` dit ce que la
-    /// lecture lui coûte (`miroir_lu`).
-    fn lire_le_niveau(
-        &mut self,
-        dossier: &Path,
-        tri: Option<FolderSortMode>,
-    ) -> std::io::Result<Niveau> {
-        let debut = Instant::now();
-        let entrees = lire_un_niveau(dossier, tri)?;
-        let mut niveau = Niveau::default();
-        for e in &entrees {
-            let chemin = Path::new(&e.chemin);
-            match e.sorte {
-                Sorte::Dossier => {
-                    let mut f = CanvasFolder::new(self.store.generate_id("folder"), &*e.nom, "");
-                    f.mirror_source = Some(source_en_attente(&e.chemin, tri));
-                    niveau.dossiers.push(f);
-                }
-                Sorte::Photo { largeur, hauteur } => {
-                    niveau.photos.push(self.photo_liee(e, (largeur, hauteur)));
-                }
-                Sorte::Lisible => match self.carte_lisible(chemin, &e.nom, (0.0, 0.0)) {
-                    Some(carte) => niveau.textes.push(carte),
-                    None => niveau.tuiles.push(self.tuile(chemin, &e.nom, (0.0, 0.0))),
-                },
-                Sorte::Autre => niveau.tuiles.push(self.tuile(chemin, &e.nom, (0.0, 0.0))),
-            }
-        }
-        crate::perf::event("miroir_lu", debut);
-        Ok(niveau)
-    }
-
-    /// **Une photo du disque, liée** : sa clé est son chemin, comme une photo déposée ; son `asset`
-    /// dit qu'elle reste où elle est.
-    fn photo_liee(&mut self, e: &Entree, (largeur, hauteur): (u32, u32)) -> BoardImage {
-        let origine = (f64::from(largeur), f64::from(hauteur));
-        let (w, h) = super::clipboard::taille_posee(origine);
-        let mut img = BoardImage::new(self.store.generate_id("img"), 0.0, 0.0, w, h);
-        (img.original_width, img.original_height) = origine;
-        img.src = Some(e.chemin.clone());
-        img.asset = Some(AssetRef::Link {
-            href: e.chemin.clone(),
-            sha256: None,
-            size_bytes: Some(e.taille),
-        });
-        img
+        self.store.set_viewport(tableau, vue);
     }
 }
 

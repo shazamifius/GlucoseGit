@@ -116,8 +116,8 @@
  {
   "nom": "DISQUE-1 — la lecture en plusieurs gestes",
   "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
-  "avant": "self.journal.begin();",
-  "apres": "let _ = 0;",
+  "avant": "        self.begin_live_edit();\n        self.suivre_et_retirer",
+  "apres": "        self.suivre_et_retirer",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -154,8 +154,8 @@
  {
   "nom": "DISQUE-1 — un dossier se remplit deux fois",
   "fichier": "crates/glucose-core/src/store/miroir_disque.rs",
-  "avant": ".filter(|f| f.mirror_source.as_ref().is_some_and(|s| s.pending_scan))",
-  "apres": ".filter(|f| f.mirror_source.is_some() || true)",
+  "avant": "(r.est_vide() && !attendait)",
+  "apres": "(r.est_vide() && attendait && false)",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -173,7 +173,7 @@
  {
   "nom": "DISQUE-1 — relu à chaque image (le Ctrl+Z enfermé)",
   "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
-  "avant": "if self.store.project.active_board_id == self.miroirs.tableau_vu {",
+  "avant": "if self.store.active_board_id() == self.miroirs.tableau_vu {",
   "apres": "if false {",
   "cmd": [
    "bash",
@@ -191,7 +191,7 @@
  },
  {
   "nom": "DISQUE-1 — la photo sans son lien",
-  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque/appliquer.rs",
   "avant": "img.asset = Some(AssetRef::Link {",
   "apres": "let _ = Some(AssetRef::Link {",
   "cmd": [
@@ -249,8 +249,8 @@
  {
   "nom": "DISQUE-1 — la photo du miroir se scelle au geste",
   "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
-  "avant": "                if !disque.contains(board) {",
-  "apres": "                if !disque.is_empty() || board.is_empty() {",
+  "avant": "if !reste_dehors(&disque, board, img) {",
+  "apres": "if !disque.is_empty() || board.is_empty() || img.id.is_empty() {",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -268,8 +268,8 @@
  {
   "nom": "DISQUE-1 — la photo du miroir se scelle avec tout",
   "fichier": "crates/glucose-core/src/miroir_disque.rs",
-  "avant": ".filter(move |b| !disque.contains(b.id.as_str()))",
-  "apres": ".filter(move |b| !b.id.is_empty() || disque.is_empty())",
+  "avant": ".filter(move |(b, i)| !reste_dehors(&disque, b, i))",
+  "apres": ".filter(move |(b, i)| !b.is_empty() || disque.is_empty() || i.id.is_empty())",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -287,8 +287,8 @@
  {
   "nom": "DISQUE-1 — les tableaux des miroirs ne disent rien",
   "fichier": "crates/glucose-core/src/miroir_disque.rs",
-  "avant": "        .filter(|f| f.mirror_source.is_some())",
-  "apres": "        .filter(|f| f.mirror_source.is_none())",
+  "avant": "Some((f.child_board_id.as_str(), s.root_path.as_str()))",
+  "apres": "Some((\"\", s.root_path.as_str()))",
   "cmd": [
    "bash",
    "outils/borne.sh",

@@ -38,7 +38,7 @@
 
 use super::objets::{Objets, Source};
 use super::scribe::{chemin_de_saisie, Depart, Octets, Ordre, Scribe};
-use glucose_core::miroir_disque::{images_hors_du_disque, tableaux_du_disque};
+use glucose_core::miroir_disque::{images_hors_du_disque, reste_dehors, tableaux_du_disque};
 use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Saisie, Vue};
 use glucose_core::persist::histoire::{Auteur, Note, NoteVisee, Retrait};
 use glucose_core::store::journal::{Ecrit, Main};
@@ -217,7 +217,7 @@ impl Ecriture {
         } in ecrits
         {
             for (board, img) in transaction.images_posees_et_ou() {
-                if !disque.contains(board) {
+                if !reste_dehors(&disque, board, img) {
                     self.sceller(img, objets);
                 }
             }

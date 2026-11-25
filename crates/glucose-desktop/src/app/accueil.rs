@@ -108,6 +108,7 @@ impl super::GlucoseApp {
         self.disque.porte_publique = dossier.join(crate::agents::publique::accords::FICHIER);
         self.disque.identite = dossier.join(crate::app::collaborer::identite::FICHIER);
         self.disque.canevas = dossier.join(crate::app::collaborer::reprise::FICHIER);
+        self.disque.miroirs = dossier.join("miroirs");
         self.charger_les_raccourcis();
     }
 }
