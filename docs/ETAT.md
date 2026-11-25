@@ -68,11 +68,16 @@
   `Ctrl` + glisser montre l'ombre des nœuds emportés sous la main (fiche 155) ; **OMBRE-2** — sous
   Windows aussi, vérifiée ici, jamais lancée (fiche 156 § 6) ; **CIBLES-1** — Windows, le Mac et
   Android se vérifient sur ce poste (fiche 156) ; **LIEN-JOURNAL** — sa sortie dit si le canevas
-  partagé revient après une coupure, et le profil de développement compile en lignes seules (~20 % plus
+  partagé revient après une coupure, et pourquoi il ne revient pas (LIEN-JOURNAL-2, § 5), et le profil de développement compile en lignes seules (~20 % plus
   vite ; fiche 157).
 * **Le relais met Claude à jour seul** (MAJ-1, fiche 162, sa demande du 24/11) : toutes les six heures, la
   version neuve de l'extension s'installe et s'essaie sans un jeton (l'invite, sans question), refusée
   sinon ; `relais-maj-claude` le dit. La 2.1.332 installée le 25/11 à 5 h 33.
+* **La fin de la semaine, gardée pour ses notes** (RESERVE-1, fiche 163, sa consigne « h24 actif ») :
+  passé 90 % de la semaine d'un compte sans autre pour reprendre, le reste ne sert qu'à lui répondre (une
+  note lance une session qui ne fait que ça) ; rendu au travail cinq heures avant la remise. Le compte a
+  y arrive vers le 26/11, b est plein jusqu'au 30/11 à 16 h. Les sessions du relais se lancent **sans les
+  connecteurs de claude.ai** (~13 000 jetons de moins relus à chaque réponse, § 5).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
