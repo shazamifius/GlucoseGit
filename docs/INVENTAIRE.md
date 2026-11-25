@@ -171,7 +171,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Collaborer** — le co-working entre humains | Tauri, obligatoire | bande | **fait** (fiche 117 : deux Glucose dans le même canevas, le conflit montré, `Ctrl+Z` par main, les curseurs) ; les photos passent (B1, fiche 119) ; restent le partage qui survit à un relancement, son nom changé dans l'interface, le téléphone |
 | **Plugins, IA locale** | Tauri, PLUGINS.md | panneau Plugins | plus tard — **le MCP est fait** : la porte des agents (fiche 75) |
 | **Trans-domaines** | Tauri | bande | sa définition, à sa parole |
-| **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire ; **le HEIC étudié et mesuré** (fiche 161 § 5 : `heifer`, une photo d'iPhone en 0,43 s, sa vignette en 2 ms ; `decisions/20`) ; HEIC-2 à faire |
+| **Le presse-papiers d'Android**, les photos HEIC | le téléphone | — | à faire ; **le HEIC étudié et mesuré** (fiche 161 § 5 : `heifer`, une photo d'iPhone en 0,43 s, sa vignette en 2 ms ; `decisions/20`) ; **HEIC-2 lu partout** (fiche 161 § 7 : atelier, dépôt, presse-papiers) — reste le pilote |
 | **Les doigts sous Windows** (tablettes) | toutes les machines | — | à faire |
 | **Mac** (une version publiée), **iPad** (par le web) | toutes les machines | — | la CI compile le Mac ; l'iPad attend le web |
 | ~~**Le dessin de la sélection** (son choix entre les directions)~~ | sa demande | — | **fait** (fiche 137 : B, les équerres, et le reste flouté) |

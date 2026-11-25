@@ -71,7 +71,7 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
 * **L'application a les siennes**, chacune défendue par une impossibilité de faire sans :
   `winit` (fenêtre), `wgpu` (Vulkan, Metal, Direct3D, GL ES derrière une interface), `tiny-skia`
   (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes — Inter, et le reste de Noto
-  Emoji en repli ; les émojis en couleur, Twemoji, par leur contour : EMOJI-2, `decisions/18`), `image` (décodeurs), `arboard` (presse-papiers) et `rfd` (les sélecteurs
+  Emoji en repli ; les émojis en couleur, Twemoji, par leur contour : EMOJI-2, `decisions/18`), `image` (décodeurs ; le HEIC de l'iPhone par `heifer`, en Rust, entré par ses crochets — `renderer/photo/heic.rs`, HEIC-2, `decisions/20`), `arboard` (presse-papiers) et `rfd` (les sélecteurs
   de fichiers, ouverts sur un fil à eux — DIAL-2, `persist::choix` —, et la seule boîte posée
   avant la fenêtre, DIAL-5 ; par lui `ashpd` et `pollster`, qui lisent aussi le réglage « moins de
   mouvement » du portail sous Linux, GIF-3, `decisions/19`) **hors d'Android seulement** — chacune derrière

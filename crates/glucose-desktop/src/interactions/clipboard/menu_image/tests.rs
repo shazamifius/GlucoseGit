@@ -124,3 +124,11 @@ fn test_l_image_enregistree_est_celle_qui_avait_ete_posee() {
         "octet pour octet"
     );
 }
+
+#[test]
+fn le_menu_nomme_un_heic() {
+    // Enregistrer une photo de l'iPhone garde son extension, pas « .bin » (HEIC-2).
+    let gris = [128u8; 16 * 16 * 4];
+    let heic = heifer::encode_rgba8(16, 16, &gris, &heifer::EncodeOptions::new()).unwrap();
+    assert_eq!(extension_de(&heic), ("heic", "Image HEIC"));
+}

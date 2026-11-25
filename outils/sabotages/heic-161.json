@@ -138,5 +138,45 @@
    "--",
    "heic"
   ]
+ },
+ {
+  "nom": "HEIC-2 — le menu enregistre une photo d'iPhone en « .bin »",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/menu_image.rs",
+  "avant": "        _ if crate::renderer::photo::heic::est_heic(octets) => (\"heic\", \"Image HEIC\"),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — une signature qui prend tout ftyp pour un HEIC",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "            .is_some_and(|marque| MARQUES.iter().any(|m| m == marque))",
+  "apres": "            .is_some()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
  }
 ]

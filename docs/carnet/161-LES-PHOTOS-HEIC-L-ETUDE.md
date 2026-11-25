@@ -134,3 +134,17 @@ la signature reconnue, les dimensions sans décodage, les pixels, un fichier tro
 **À faire ensuite** : l'aperçu par la vignette `thmb` (2 ms) — l'atelier n'en a pas encore pour
 les autres formats ; le nom et l'extension dans `menu_image.rs` (`guess_format` ne connaît pas
 les crochets) ; ARCHITECTURE, à la ligne des dépendances.
+
+## 7. HEIC-2, fait (25/11, compte b)
+
+`renderer/photo/heic.rs`, comme le § 6 le dit ; `demarrage::lancer` l'enregistre (le bureau et
+Android y passent tous deux). **Vérifié** : les dimensions lues sans décoder sont celles que
+`heifer` rend en décodant, sur les 36 fichiers réels du banc (les deux photos d'iPhone, dont
+`arrow.heic` debout par son `irot`, le 48 Mpx, les 31 d'épreuve) — une épreuve d'un jour, les
+fichiers n'étant pas commitables. 8 épreuves dans le module (une fabrique ses HEIC par l'encodeur
+de `heifer`, en dépendance de développement), une dans le menu (l'extension `.heic` d'une photo
+enregistrée, plus `.bin`) ; 9 sabotages sur 9 (`outils/sabotages/heic-161.json`) ; la suite entière verte (3 719).
+**Non gardés par une épreuve** : la conversion en sRGB (il faudrait un HEIC portant un profil
+P3) ; l'appel au démarrage (le pilote le prouvera) ; `max_threads = 1`.
+**Reste** : le pilote — une photo d'iPhone glissée dans un Glucose piloté, regardée debout et
+nette, sa mémoire mesurée contre la borne `pic` ; l'aperçu par la vignette `thmb`.

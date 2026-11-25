@@ -111,3 +111,11 @@ fn des_dimensions_fausses_sont_refusees_sans_panique() {
     };
     assert!(faux.read_image(&mut [0; 400]).is_err());
 }
+
+#[test]
+fn la_signature_d_un_heic() {
+    let (heic, _) = fabriquer(16, 16);
+    assert!(est_heic(&heic));
+    assert!(!est_heic(b"\x89PNG\r\n\x1a\n\0\0\0\0"));
+    assert!(!est_heic(b"\0\0\0\x1cftypavif"));
+}

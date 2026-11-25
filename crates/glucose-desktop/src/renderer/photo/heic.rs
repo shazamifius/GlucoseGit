@@ -42,6 +42,15 @@ static SIGNATURES: [[u8; 12]; 5] = {
     s
 };
 
+/// **Ces octets sont-ils un HEIC ?** La même signature que les crochets : `image::guess_format`
+/// ne connaît que ses formats à lui, pas ceux qu'on lui apprend.
+pub fn est_heic(octets: &[u8]) -> bool {
+    octets.get(4..8) == Some(b"ftyp")
+        && octets
+            .get(8..12)
+            .is_some_and(|marque| MARQUES.iter().any(|m| m == marque))
+}
+
 /// **Apprend le HEIC à `image`**, une fois pour tout le processus (les crochets sont globaux).
 pub fn enregistrer() {
     static UNE_FOIS: std::sync::Once = std::sync::Once::new();

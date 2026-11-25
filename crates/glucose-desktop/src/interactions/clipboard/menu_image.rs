@@ -64,6 +64,7 @@ pub fn extension_de(octets: &[u8]) -> (&'static str, &'static str) {
         Ok(image::ImageFormat::WebP) => ("webp", "Image WebP"),
         Ok(image::ImageFormat::Gif) => ("gif", "Image GIF"),
         Ok(image::ImageFormat::Bmp) => ("bmp", "Image BMP"),
+        _ if crate::renderer::photo::heic::est_heic(octets) => ("heic", "Image HEIC"),
         _ => ("bin", "Fichier"),
     }
 }
