@@ -44,14 +44,15 @@ pub struct Apercu {
 const MAGIE: &[u8; 8] = b"GLAPERCU";
 /// Un aperçu d'une autre version ne se lit pas : il se refait. La version 2 porte un sceau ;
 /// la 3, des niveaux qui sont chacun la moyenne exacte de ce qu'ils couvrent (MOYENNE-1) —
-/// ceux d'avant donnaient au bord d'une image jusqu'à la moitié du poids de son sommet.
-pub(crate) const VERSION: u8 = 3;
+/// ceux d'avant donnaient au bord d'une image jusqu'à la moitié du poids de son sommet. La 4, des
+/// photos debout (EXIF-1, fiche 165) : celles d'avant gardaient couché un portrait de téléphone.
+pub(crate) const VERSION: u8 = 4;
 /// Magie, version, opacité, rang, largeur, hauteur.
 const ENTETE: usize = 8 + 1 + 1 + 1 + 4 + 4;
 /// Le sceau qui clôt un aperçu : le début de l'empreinte de tout ce qui le précède.
 const SCEAU: usize = 8;
 
-/// **Le dossier des aperçus de cette version**, dans celui de l'application : `apercus/v3`.
+/// **Le dossier des aperçus de cette version**, dans celui de l'application : `apercus/v4`.
 ///
 /// Un aperçu ne se réécrit pas une fois là ; une version qui change de forme ou de nom doit
 /// donc changer de dossier, pour que ceux d'avant ne se lisent jamais. **Ceux d'avant se

@@ -61,6 +61,22 @@ ferait d'un détail de stockage un geste qu'on peut défaire : écartée.
    Les orientations 2, 3 et 4 ne changent pas la boîte : la photo paraît enfin droite ; seul un
    recadrage posé avant tomberait sur la région miroir — rare, à transformer de même.
    **EXIF-1 ne part dans son Glucose qu'avec ce redressement** (rien à moitié).
+
+   **Revu en commençant à le coder (25/11 vers 9 h) — deux choses manquaient :**
+   * **Le recadrage demande l'orientation exacte**, pas seulement « transposée » : ses quatre marges
+     se permutent autrement pour 5, 6, 7 et 8. L'orientation doit donc **voyager avec les pixels** :
+     un champ de la pyramide (posé par `depuis_le_decodeur` et le chemin seize bits), et un octet de
+     plus dans l'en-tête des aperçus (leur version 4, déjà changée pour qu'ils se refassent debout) —
+     une photo vue la première fois par son aperçu dans un autre document doit pouvoir se redresser.
+   * **Un nœud qu'il a déjà tourné à la main** : s'il a mis un portrait couché à 90° pour le voir
+     droit, le redresser sans rien d'autre le recoucherait de l'autre côté. La règle proposée :
+     **composer** — la rotation du nœud perd le quart de tour que les pixels ont pris
+     (`rotation − angle de l'orientation`), et son `miroir` de même pour 2, 4, 5 et 7 ; ce qu'il voyait
+     ne change pas quand il l'avait redressé, et un nœud jamais touché paraît enfin debout… sauf que
+     composer ainsi garde aussi couché celui qu'il n'a jamais touché. **Les deux ne tiennent pas
+     ensemble par une seule formule** : à trancher, avec un argument. Proposé : un nœud dont la
+     rotation est un multiple d'un quart de tour (0 compris) paraît debout, sa rotation ramenée à ce qui
+     le montre droit ; un nœud incliné d'un autre angle (un choix d'artiste) garde ce qu'il voyait.
 4. **Les aperçus en cache** (`renderer::apercu`, nommés par la taille et la date du fichier) : ceux
    faits avant seraient couchés — changer leur nom (une version) pour qu'ils se refassent.
 5. **Le HEIC** (fiche 161) : ses transformations `irot`/`imir` passent par `heifer`, à vérifier à part ;
