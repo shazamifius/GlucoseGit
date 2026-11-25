@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::agents::json::Json;
-use std::io::{BufRead, BufReader, Cursor, Write};
+use std::io::{BufReader, Cursor};
 use std::sync::Arc;
 
 #[test]
@@ -138,6 +138,8 @@ fn quand_glucose_se_ferme_la_connexion_se_termine_au_lieu_d_attendre() {
 }
 
 /// Un nom de porte à cette épreuve seule.
+// Le téléphone n'a pas de porte (`porte.rs`) : ses épreuves n'y ont rien à ouvrir.
+#[cfg(not(target_os = "android"))]
 fn nom_d_epreuve() -> (String, Option<crate::epreuve::Dossier>) {
     #[cfg(windows)]
     {
@@ -156,8 +158,10 @@ fn nom_d_epreuve() -> (String, Option<crate::epreuve::Dossier>) {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 #[test]
 fn agents_2_la_vraie_porte_sert_un_agent_et_ne_s_ouvre_qu_une_fois() {
+    use std::io::{BufRead, Write};
     let (nom, _dossier) = nom_d_epreuve();
     let porte = Porte::ouvrir(&nom, boite_qui_repond()).expect("la porte s'ouvre");
     assert_eq!(porte.nom(), nom);
@@ -184,8 +188,10 @@ fn agents_2_la_vraie_porte_sert_un_agent_et_ne_s_ouvre_qu_une_fois() {
 /// quand l'autre écrit la première requête, puis la seconde après la première réponse — l'ordre
 /// même d'un relais. En mode synchrone, Windows figeait la seconde (17/10). L'épreuve tombe par
 /// un délai au lieu de bloquer.
+#[cfg(not(target_os = "android"))]
 #[test]
 fn tuyau_1_lire_et_ecrire_en_meme_temps_ne_se_bloquent_pas() {
+    use std::io::{BufRead, Write};
     use std::sync::mpsc::channel;
     use std::time::Duration;
     let (nom, _dossier) = nom_d_epreuve();

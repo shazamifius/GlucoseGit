@@ -75,7 +75,7 @@ bash outils/borne.sh nix develop -c cargo clippy --workspace --all-targets -- -D
 bash outils/borne.sh nix develop -c cargo test --workspace --no-fail-fast  # ~3 160 épreuves, dont les cliquets
 GH_TOKEN=… bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 python3 outils/saboter.py <sabotages.json>  # exiger qu'une épreuve tombe quand on casse sa garde
-bash outils/verifier_cibles.sh [windows|mac]  # le clippy de la CI pour Windows et le Mac, ici (fiche 156)
+bash outils/verifier_cibles.sh [windows|mac|android]  # le clippy strict pour Windows, le Mac et Android, ici (fiche 156)
 bash outils/pilote/piloter.sh demarrer <maison> <sortie>  # le vrai Glucose hors écran : clic, molette, taper, capture
 node outils/telemetrie/tableau.mjs <dossier>  # la télémétrie, plantages compris : à lire en début de session
 glucose lire niveau=plan  # son Glucose ouvert, par sa porte (puis dans=…, ids=…, niveau=complet) ; `glucose aide` liste tout

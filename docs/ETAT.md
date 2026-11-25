@@ -66,8 +66,8 @@
   et `glucose_histoire` ne rend plus ce qu'il a retiré (fiche 153) ; **PORTES-1** — Collaborer en trois
   portes (« Porte humain… », « Porte IA… », « Sécurité… » ; fiche 154) ; **OMBRE-1** — sous Wayland,
   `Ctrl` + glisser montre l'ombre des nœuds emportés sous la main (fiche 155) ; **OMBRE-2** — sous
-  Windows aussi, vérifiée ici, jamais lancée (fiche 156 § 6) ; **CIBLES-1** — Windows et le Mac se
-  vérifient sur ce poste (fiche 156).
+  Windows aussi, vérifiée ici, jamais lancée (fiche 156 § 6) ; **CIBLES-1** — Windows, le Mac et
+  Android se vérifient sur ce poste (fiche 156).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
@@ -100,8 +100,8 @@
   4070 SUPER, niri) — le dépôt, les mémoires et les journaux y ont été rapatriés du VivoBook à
   l'identique (même `87dfb5a`, même copie de travail, empreinte vérifiée), et `cargo check`, Clippy
   strict et la version optimisée y passent. Du 6 au 22/11, c'était son VivoBook (7,6 Go) ; son PC
-  Windows est cassé. **Windows, macOS et Android ne s'éprouvent qu'à travers la CI** ; Windows et le Mac se *vérifient*
-  ici (`outils/verifier_cibles.sh`, fiche 156). La carte :
+  Windows est cassé. **Windows, macOS et Android ne s'éprouvent qu'à travers la CI** ; Windows, le Mac et Android se
+  *vérifient* ici (`outils/verifier_cibles.sh`, fiche 156). La carte :
   `~/Projets/LISEZ-MOI.md`.
 
 ## 2. Ce que fait Glucose Rust

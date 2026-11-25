@@ -31,5 +31,27 @@
    "outils/verifier_cibles.sh",
    "mac"
   ]
+ },
+ {
+  "nom": "Android : une faute de type dans la porte du telephone",
+  "fichier": "crates/glucose-desktop/src/agents/porte.rs",
+  "avant": "    pub fn ouvrir(_nom: &str, _boite: Boite) -> Option<Self> {\n        None",
+  "apres": "    pub fn ouvrir(_nom: &str, _boite: Boite) -> Option<Self> {\n        Some(0)",
+  "cmd": [
+   "bash",
+   "outils/verifier_cibles.sh",
+   "android"
+  ]
+ },
+ {
+  "nom": "Android : une epreuve de la vraie porte rendue au telephone (--all-targets)",
+  "fichier": "crates/glucose-desktop/src/agents/porte/tests.rs",
+  "avant": "#[cfg(not(target_os = \"android\"))]\n#[test]\nfn tuyau_1_",
+  "apres": "#[test]\nfn tuyau_1_",
+  "cmd": [
+   "bash",
+   "outils/verifier_cibles.sh",
+   "android"
+  ]
  }
 ]

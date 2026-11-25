@@ -37,8 +37,7 @@ stable ; `__CARGO_TESTS_ONLY_SRC_ROOT` montre ces sources à Cargo, qui les cher
 
 ## 3. Ce qui reste
 
-* **Android** : `ring` y demande les en-têtes du NDK, absent ici. La même voie (`clang` nu, un
-  `--sysroot` du NDK de nixpkgs, non libre et lourd) est possible ; pas tentée.
+* ✅ **Android** (§ 7).
 * **Le Mac Intel** (`x86_64-apple-darwin`) : rien dans le code ne distingue les deux Mac aujourd'hui.
 * Rien ne s'y lie ni ne s'y lance : leurs épreuves ne tournent que sur la CI.
 * **L'ombre sous Windows** (fiche 155 § 3) : faite, § 6.
@@ -104,3 +103,27 @@ Sources : [wiki de NixOS, Rust](https://wiki.nixos.org/wiki/Rust) ;
 [fenix](https://github.com/rcerc/fenix) ;
 [build-std sans rust-src, NixOS Discourse](https://discourse.nixos.org/t/build-rust-app-using-cargos-build-std-feature-with-naersk-fails-because-rust-src-is-missing/13161) ;
 [croiser vers Windows, NixOS Discourse](https://discourse.nixos.org/t/cross-compiling-rust-project-for-windows/81316).
+
+## 7. Android aussi (le 25/11 vers 3 h)
+
+`bash outils/verifier_cibles.sh android` : `aarch64-linux-android`, l'API 21 de `cargo ndk -P 21`. Le
+`clang` nu ne suffit pas : `android-activity` compile du C++ contre `<android/api-level.h>`. **Le NDK 29
+de nixpkgs** (`androidenv.composeAndroidPackages`, le même `29.0.14206865` que la CI, `decisions/08`) :
+non libre, sa licence acceptée comme la CI l'accepte déjà (`echo "y" | sdkmanager`), 2,4 Go une fois ;
+ses `aarch64-linux-android21-clang`, `clang++` et `llvm-ar`. 45 s à froid.
+
+**Ce qu'il a trouvé au premier passage**, que rien ne compilait jamais :
+* **Deux épreuves de la vraie porte** (`agents/porte/tests.rs` : `agents_2_…`, `tuyau_1_…`) appelaient
+  `connecter` et `Porte::nom`, qui n'existent pas sur le téléphone (« Le téléphone n'a pas de porte »).
+  La CI construit l'APK sans ses épreuves : personne ne le voyait. Réservées aux machines qui ont une
+  porte, leurs `use` avec elles.
+* **Une fausse alerte de `clippy`** : `missing_const_for_thread_local` sur trois `thread_local!` déjà
+  écrits `const { … }` (`perf.rs`, `ui/couleurs.rs`). Sous Android, la bibliothèque standard prend sa
+  variante `os_local`, qui produit toujours un `__init()` ; la règle s'y trompe (rust-clippy #12186, qui
+  devait le corriger). Écartée pour Android seul, dans l'outil.
+
+**2 sabotages de plus, 2 sur 2** (`cibles-156.json`) : une faute de type dans la porte du téléphone ;
+une épreuve de la vraie porte rendue au téléphone (ce que `--all-targets` garde).
+
+Sources : [rust-clippy #12186](https://github.com/rust-lang/rust-clippy/pull/12186) ;
+[rust-clippy #12637](https://github.com/rust-lang/rust-clippy/issues/12637).
