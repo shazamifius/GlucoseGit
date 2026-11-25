@@ -74,7 +74,7 @@ tail ~/.local/state/relais/journal.txt       # ce qu'il a fait ; ses fichiers d'
 tmux capture-pane -p -t relais-a             # l'écran de la session (lire, jamais taper à sa place)
 bash outils/relais/voir.sh                   # ce que montrent ses deux VS Code : la session qui vit, ou pourquoi aucune
 python3 -I outils/relais/relancer_glucose.py "<raison>"  # relancer SON Glucose (binaire neuf) : par son service, l'heure écrite chez lui
-python3 -m unittest discover -s outils/relais -p test_relais.py   # ses épreuves
+python3 -m unittest discover -s outils/relais -p 'test_*.py'   # ses épreuves
 python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sabotages
 ```
 
@@ -103,6 +103,11 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
 - **Une sonde `claude -p` lancée d'une session du relais hérite `RELAIS=1`** (le crochet de fin de tour la
   relance) ; sans lui, dans le dépôt, elle prendrait la main : `env -u RELAIS`, hors du dépôt. Elle coûte
   (deux sondes, 6 % de la fenêtre de 5 h, fiche 147) : l'histoire des jauges suffit d'ordinaire.
+- **Claude se met à jour seul** (MAJ-1, fiche 162) : toutes les six heures, le veilleur installe la
+  version neuve de l'extension, l'essaie sans lui écrire (l'invite, sans question), la refuse sinon ;
+  `relais-maj-claude` le dit. `code --install-extension anthropic.claude-code` a échoué une fois sur la
+  signature du paquet le 25/11 ; nommer la version (`…@2.1.332`) a réussi. Le relais lance la version
+  que VS Code dit installée (`extensions.json`), pas le plus grand dossier.
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à

@@ -45,10 +45,29 @@ def version(dossier):
     return tuple(int(x) if x.isdigit() else 0 for x in morceaux.split("."))
 
 
+EXTENSION = "anthropic.claude-code"
+
+
+def installee():
+    """Ce que VS Code dit installé : la version, et son dossier — son registre, jamais le plus grand
+    dossier (une version refusée y reste jusqu'à ce que VS Code s'ouvre et fasse son ménage, MAJ-1)."""
+    try:
+        registre = json.loads((EXTENSIONS / "extensions.json").read_text())
+    except (OSError, ValueError):
+        return None, None
+    for e in registre:
+        if e.get("identifier", {}).get("id") == EXTENSION and e.get("relativeLocation"):
+            return e.get("version"), EXTENSIONS / e["relativeLocation"]
+    return None, None
+
+
 def claude_binaire():
-    """**Le Claude de la dernière extension VS Code**, jamais celui de la ligne de commande : sa
-    parole du 22/11 — le Claude en ligne de commande était en 2.1.223 quand l'extension était en
-    2.1.330. L'extension embarque le sien et le met à jour seule : le relais suit VS Code."""
+    """**Le Claude de l'extension VS Code**, jamais celui de la ligne de commande : sa parole du 22/11
+    — le Claude en ligne de commande était en 2.1.223 quand l'extension était en 2.1.330. Celle que
+    VS Code dit installée ; à défaut de son registre, le plus grand dossier."""
+    _, dossier = installee()
+    if dossier and (dossier / "resources/native-binary/claude").exists():
+        return str(dossier / "resources/native-binary/claude")
     candidats = sorted(EXTENSIONS.glob("anthropic.claude-code-*/resources/native-binary/claude"),
                        key=lambda p: version(p.parents[2]))
     return str(candidats[-1]) if candidats else "claude"

@@ -1,0 +1,114 @@
+[
+ {
+  "nom": "MAJ-1 — une question au démarrage passe pour prête",
+  "fichier": "outils/relais/mise_a_jour.py",
+  "avant": " and \"Enter to confirm\" not in ecran",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ },
+ {
+  "nom": "MAJ-1 — une version refusée oubliée",
+  "fichier": "outils/relais/mise_a_jour.py",
+  "avant": "        refusees.append(neuve)\n",
+  "apres": "        pass\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ },
+ {
+  "nom": "MAJ-1 — la précédente pas réinstallée",
+  "fichier": "outils/relais/mise_a_jour.py",
+  "avant": "        installer(avant)\n",
+  "apres": "        pass\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ },
+ {
+  "nom": "MAJ-1 — une version refusée retentée",
+  "fichier": "outils/relais/mise_a_jour.py",
+  "avant": " or neuve in refusees:",
+  "apres": ":",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ },
+ {
+  "nom": "MAJ-1 — les versions comparées comme des mots",
+  "fichier": "outils/relais/mise_a_jour.py",
+  "avant": "version(neuve) <= version(avant)",
+  "apres": "neuve <= avant",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ },
+ {
+  "nom": "MAJ-1 — le marché interrogé à chaque minute",
+  "fichier": "outils/relais/mise_a_jour.py",
+  "avant": "< TOUTES_LES:",
+  "apres": "< 0:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ },
+ {
+  "nom": "MAJ-1 — le plus grand dossier plutôt que le registre",
+  "fichier": "outils/relais/machine.py",
+  "avant": "    _, dossier = installee()\n",
+  "apres": "    _, dossier = None, None\n",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_mise_a_jour.py"
+  ]
+ }
+]

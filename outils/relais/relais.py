@@ -605,14 +605,25 @@ def un_tour():
     ecrire_json(ETAT / "veilleur.json", memoire)
 
 
+def mettre_a_jour():
+    """Claude se met à jour seul, toutes les six heures (MAJ-1, `mise_a_jour.py`) : son état à part,
+    que `un_tour` ne récrit pas ; ce qu'il fait se dit dans un seul nœud de sa membrane, récrit."""
+    import mise_a_jour
+    memoire = lire_json(ETAT / "mise-a-jour.json", {})
+    dire = lambda texte: ecrire("relais-maj-claude", texte, dans="relais", largeur=700)  # noqa: E731
+    mise_a_jour.veiller(memoire, time.time(), dire, journal)
+    ecrire_json(ETAT / "mise-a-jour.json", memoire)
+
+
 def veiller():
     verrou = un_seul_veilleur()  # gardé ouvert tant qu'il vit : le verrou meurt avec lui
     journal(f"veilleur démarré (verrou {verrou.name})")
     while True:
-        try:
-            un_tour()
-        except Exception as e:  # le service ne meurt pas d'une erreur : il la dit, et recommence
-            journal(f"erreur : {e!r}")
+        for geste in (un_tour, mettre_a_jour):
+            try:
+                geste()
+            except Exception as e:  # le service ne meurt pas d'une erreur : il la dit, et recommence
+                journal(f"erreur ({geste.__name__}) : {e!r}")
         time.sleep(60)
 
 
