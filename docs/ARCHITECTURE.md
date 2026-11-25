@@ -149,7 +149,11 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   sous-dossier se lit au moment d'y entrer (`lire_le_miroir_ou_l_on_entre`, avant chaque image, qui ne
   fait rien tant que le tableau regardé ne change pas). La lecture est **un geste** (`remplir_le_miroir`),
   disposé par la loi de COLONNES-1. Une photo reste sur le disque **tant qu'elle vit dans le tableau d'un
-  miroir** (`tableaux_du_disque`, lu par `persist/ecriture.rs`) : sortie, elle se scelle.
+  miroir** (`tableaux_du_disque`, lu par `persist/ecriture.rs`) : sortie, elle se scelle. La lecture qui
+  remplit un miroir pose sa **première vue** (`premiere_vue` : tout, jamais plus grand que nature).
+* **La taille d'une photo sur le disque** (`interactions/dimensions.rs`, fiche 164 § 8) : l'en-tête seul —
+  un JPEG de segment en segment jusqu'à son `SOFn` (`into_dimensions` d'`image` lit tout le fichier).
+  Le miroir et le dépôt d'une photo (`place_image_file`) passent par elle.
 * **Tracer un rectangle** (TRACE-1, `interactions/trace.rs`, fiche 65) : sous l'outil Membrane
   ou Dossier et sous la grille armée du Storyboard, l'appui ne pose rien ; un clic (la main
   dans le tremblement d'un double-clic) pose comme avant, un glisser trace la taille — la loi

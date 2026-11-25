@@ -216,3 +216,78 @@ fn test_une_photo_liee_ne_se_scelle_pas_dans_le_document() {
         "sortie du miroir, elle est sienne"
     );
 }
+
+/// Où le contenu du tableau regardé paraît, en pixels de la fenêtre : (gauche, haut, droite, bas).
+fn contenu_a_l_ecran(app: &GlucoseApp) -> (f64, f64, f64, f64) {
+    let tableau = app.store.project.active_board_id.clone();
+    let c = app.store.content_bounds(&tableau).expect("un miroir lu");
+    let v = app.store.viewport();
+    let x = |m: f64| m * v.scale + v.x;
+    let y = |m: f64| m * v.scale + v.y;
+    (
+        x(c.left),
+        y(c.top),
+        x(c.left + c.width),
+        y(c.top + c.height),
+    )
+}
+
+#[test]
+fn test_la_premiere_vue_d_un_miroir_montre_tout_sans_grossir_puis_ne_se_reprend_plus() {
+    let grande = {
+        let mut p = tiny_skia::Pixmap::new(800, 600).expect("pixmap");
+        p.fill(tiny_skia::Color::from_rgba8(30, 90, 200, 255));
+        p.encode_png().expect("png")
+    };
+    let peu = Bac::neuf("vue-peu");
+    peu.png("seule.png");
+    let beaucoup = Bac::neuf("vue-beaucoup");
+    for k in 0..40 {
+        beaucoup.ecrit(&format!("p{k:02}.png"), &grande);
+    }
+    for (bac, grossirait) in [(&peu, true), (&beaucoup, false)] {
+        let mut app = app();
+        let (l, h) = app.taille_de_la_fenetre();
+        let (l, h, bande) = (
+            f64::from(l),
+            f64::from(h),
+            f64::from(app.ui.header_height()),
+        );
+        lache_et_entre(&mut app, &bac.0);
+        let vue = app.store.viewport();
+        let (g, haut, d, bas) = contenu_a_l_ecran(&app);
+        assert!(
+            g >= 0.0 && d <= l && haut >= bande && bas <= h,
+            "tout se voit, sous la bande : {:?} dans {l} × {h}",
+            (g, haut, d, bas)
+        );
+        assert!(
+            ((g + d) / 2.0 - l / 2.0).abs() < 1.0
+                && ((haut + bas) / 2.0 - (bande + h) / 2.0).abs() < 1.0,
+            "au centre de ce qui reste sous la bande : {:?}",
+            (g, haut, d, bas)
+        );
+        if grossirait {
+            assert_eq!(vue.scale, 1.0, "jamais plus grand que nature");
+        } else {
+            assert!(vue.scale < 1.0, "40 grandes photos : on recule ({vue:?})");
+        }
+    }
+
+    // Une vue qu'on s'est faite ne se reprend jamais : ressortir puis revenir ne relit rien.
+    let mut app = app();
+    lache_et_entre(&mut app, &beaucoup.0);
+    let tableau = app.store.project.active_board_id.clone();
+    let la_sienne = Viewport {
+        x: 12.0,
+        y: 34.0,
+        scale: 0.5,
+    };
+    app.store.set_viewport(&tableau, la_sienne);
+    app.store.exit_folder();
+    app.lire_le_miroir_ou_l_on_entre();
+    let dossier = app.store.active_board().expect("ici").folders[0].id.clone();
+    app.store.try_enter_folder(&dossier).expect("on revient");
+    app.lire_le_miroir_ou_l_on_entre();
+    assert_eq!(app.store.viewport(), la_sienne);
+}

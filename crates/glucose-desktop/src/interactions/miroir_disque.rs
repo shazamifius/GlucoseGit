@@ -11,15 +11,22 @@
 //!   dit quand le disque a été lu ; elle n'a lieu **qu'au moment d'entrer** — un `Ctrl+Z` qui vide le
 //!   dossier où l'on se trouve ne le relit pas aussitôt, et ne s'y enferme donc jamais.
 //!
+//! * **La première vue d'un miroir lu montre tout ce qu'il contient**, jamais plus grand que nature :
+//!   sans elle, la caméra d'un tableau neuf posait l'origine sous la bande, et le haut du dossier s'y
+//!   cachait (vu au pilote le 25/11) ; 600 photos n'en montraient que six.
+//!
 //! La loi (ce qui se tait, l'ordre, la disposition) est dans le noyau ; ici, le disque.
 
 use crate::app::GlucoseApp;
+use crate::interactions::vol::cadrage_du_contenu;
 use glucose_core::file_kind;
+use glucose_core::geometry::Rect;
+use glucose_core::membrane_focus::ScreenSize;
 use glucose_core::miroir_disque::{masquee, source_en_attente, trier, Entree, Sorte};
 use glucose_core::store::miroir_disque::Niveau;
-use glucose_core::types::{AssetRef, BoardImage, CanvasFolder, FolderSortMode};
+use glucose_core::types::{AssetRef, BoardImage, CanvasFolder, FolderSortMode, Viewport};
 use std::path::Path;
-use std::time::UNIX_EPOCH;
+use std::time::{Instant, UNIX_EPOCH};
 
 /// **Le tableau regardé à l'image d'avant** : entrer, c'est le voir changer.
 #[derive(Debug, Default)]
@@ -71,13 +78,28 @@ fn sorte_de(chemin: &Path, nom: &str, est_un_dossier: bool) -> Sorte {
     if file_kind::readable(nom).is_some() {
         return Sorte::Lisible;
     }
-    let dimensions = image::ImageReader::open(chemin)
-        .ok()
-        .and_then(|r| r.with_guessed_format().ok())
-        .and_then(|r| r.into_dimensions().ok());
-    match dimensions {
-        Some((largeur, hauteur)) => Sorte::Photo { largeur, hauteur },
-        None => Sorte::Autre,
+    match super::dimensions::dimensions_du_fichier(chemin) {
+        Ok((largeur, hauteur)) => Sorte::Photo { largeur, hauteur },
+        Err(_) => Sorte::Autre,
+    }
+}
+
+/// **Tout le contenu, jamais plus grand que nature** : le cadrage de `Alt+F`, ramené à l'échelle 1
+/// quand il grossirait — une seule photo ne remplit pas l'écran pour avoir été lue. Le centre du
+/// contenu reste au centre de l'écran utile.
+pub(crate) fn premiere_vue(contenu: Rect, ecran: ScreenSize, bandeau: f64) -> Viewport {
+    let vue = cadrage_du_contenu(contenu, ecran, bandeau);
+    if vue.scale <= 1.0 {
+        return vue;
+    }
+    let centre = (
+        contenu.left + contenu.width / 2.0,
+        contenu.top + contenu.height / 2.0,
+    );
+    Viewport {
+        scale: 1.0,
+        x: vue.x + centre.0 * (vue.scale - 1.0),
+        y: vue.y + centre.1 * (vue.scale - 1.0),
     }
 }
 
@@ -96,7 +118,7 @@ impl GlucoseApp {
         chemin: &Path,
         (x, y): (f64, f64),
     ) -> bool {
-        let Ok(entrees) = lire_un_niveau(chemin, None) else {
+        let Ok(niveau) = self.lire_le_niveau(chemin, None) else {
             return false;
         };
         let nom = super::drop::file_name_of(chemin);
@@ -106,10 +128,7 @@ impl GlucoseApp {
         let id = self
             .store
             .create_folder_with_content(board, dossier, Vec::new());
-        let niveau = self.niveau_de(&entrees, None);
-        let proportion = self.proportion_de_l_ecran();
-        self.store
-            .remplir_le_miroir(board, &id, niveau, proportion, maintenant())
+        self.remplir(board, &id, niveau)
     }
 
     /// **« Dossier du disque… »** : le sélecteur du système, et le dossier choisi se lâche là où
@@ -134,8 +153,8 @@ impl GlucoseApp {
         let Some((parent, id, source)) = self.store.miroir_a_lire() else {
             return;
         };
-        let entrees = match lire_un_niveau(Path::new(&source.root_path), source.sort_by) {
-            Ok(entrees) => entrees,
+        let niveau = match self.lire_le_niveau(Path::new(&source.root_path), source.sort_by) {
+            Ok(niveau) => niveau,
             Err(raison) => {
                 // Il reste « à lire » : y revenir, le disque rebranché, le lira. Le message est
                 // celui du dépôt — lire un sous-dossier à l'entrée, c'est la suite du dépôt du
@@ -145,20 +164,47 @@ impl GlucoseApp {
                 return;
             }
         };
-        let niveau = self.niveau_de(&entrees, source.sort_by);
-        let proportion = self.proportion_de_l_ecran();
-        if self
-            .store
-            .remplir_le_miroir(&parent, &id, niveau, proportion, maintenant())
-        {
+        if self.remplir(&parent, &id, niveau) {
             self.mark_dirty();
         }
     }
 
-    /// Les nœuds d'un niveau lu, chacun né comme au dépôt ; la disposition est celle du noyau.
-    fn niveau_de(&mut self, entrees: &[Entree], tri: Option<FolderSortMode>) -> Niveau {
+    /// **Un niveau lu remplit son miroir**, et la caméra de son tableau prend sa première vue —
+    /// au dépôt comme à l'entrée. Elle ne se pose qu'à la lecture qui le remplit : une vue qu'on
+    /// s'est faite ne se reprend jamais.
+    fn remplir(&mut self, parent: &str, dossier: &str, niveau: Niveau) -> bool {
+        let proportion = self.proportion_de_l_ecran();
+        let Some(tableau) =
+            self.store
+                .remplir_le_miroir(parent, dossier, niveau, proportion, maintenant())
+        else {
+            return false;
+        };
+        let Some(contenu) = self.store.content_bounds(&tableau) else {
+            return true;
+        };
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
+        let ecran = ScreenSize {
+            width: f64::from(largeur),
+            height: f64::from(hauteur),
+        };
+        let vue = premiere_vue(contenu, ecran, f64::from(self.ui.header_height()));
+        self.store.set_viewport(&tableau, vue);
+        true
+    }
+
+    /// **Un niveau du disque, lu en nœuds**, chacun né comme au dépôt ; la disposition est celle du
+    /// noyau. Lu sur le fil de l'image, au dépôt comme à l'entrée : `GLUCOSE_PERF=1` dit ce que la
+    /// lecture lui coûte (`miroir_lu`).
+    fn lire_le_niveau(
+        &mut self,
+        dossier: &Path,
+        tri: Option<FolderSortMode>,
+    ) -> std::io::Result<Niveau> {
+        let debut = Instant::now();
+        let entrees = lire_un_niveau(dossier, tri)?;
         let mut niveau = Niveau::default();
-        for e in entrees {
+        for e in &entrees {
             let chemin = Path::new(&e.chemin);
             match e.sorte {
                 Sorte::Dossier => {
@@ -176,7 +222,8 @@ impl GlucoseApp {
                 Sorte::Autre => niveau.tuiles.push(self.tuile(chemin, &e.nom, (0.0, 0.0))),
             }
         }
-        niveau
+        crate::perf::event("miroir_lu", debut);
+        Ok(niveau)
     }
 
     /// **Une photo du disque, liée** : sa clé est son chemin, comme une photo déposée ; son `asset`

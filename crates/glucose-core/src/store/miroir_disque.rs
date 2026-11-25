@@ -52,8 +52,9 @@ impl Store {
 
     /// **Remplit le tableau de ce dossier miroir avec ce niveau**, disposé pour approcher
     /// `proportion` (largeur sur hauteur), et le dit lu à l'heure `maintenant` (secondes depuis
-    /// 1970). Un seul geste, ou une part du geste déjà ouvert (le dépôt d'un dossier). Rend
-    /// `false` si le dossier n'existe pas ou n'attend aucune lecture : rien ne change.
+    /// 1970). Un seul geste, ou une part du geste déjà ouvert (le dépôt d'un dossier). Rend le
+    /// tableau rempli — sa première vue reste à poser —, ou `None` si le dossier n'existe pas ou
+    /// n'attend aucune lecture : rien ne change.
     pub fn remplir_le_miroir(
         &mut self,
         parent: &str,
@@ -61,18 +62,15 @@ impl Store {
         niveau: Niveau,
         proportion: f64,
         maintenant: i64,
-    ) -> bool {
-        let Some(enfant) = self
+    ) -> Option<String> {
+        let enfant = self
             .project
             .boards
             .iter()
             .find(|b| b.id == parent)
             .and_then(|b| b.folders.iter().find(|f| f.id == dossier))
             .filter(|f| f.mirror_source.as_ref().is_some_and(|s| s.pending_scan))
-            .map(|f| f.child_board_id.clone())
-        else {
-            return false;
-        };
+            .map(|f| f.child_board_id.clone())?;
         let niveau = disposer_le_niveau(niveau, proportion);
         let ouvert = self.journal.is_open();
         if !ouvert {
@@ -93,7 +91,7 @@ impl Store {
         if !ouvert && self.journal.end() {
             self.bump_version();
         }
-        true
+        Some(enfant)
     }
 
     /// Pose ces photos et ces nœuds dans ce tableau, sans toucher à la sélection, et rend ce qui

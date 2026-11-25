@@ -39,7 +39,9 @@ fn test_un_miroir_se_remplit_en_un_geste_et_se_dit_lu() {
     let avant = store.undo_depth();
 
     let niveau = un_niveau(&mut store);
-    assert!(store.remplir_le_miroir("main", &id, niveau, 16.0 / 9.0, 1_700_000_000));
+    assert!(store
+        .remplir_le_miroir("main", &id, niveau, 16.0 / 9.0, 1_700_000_000)
+        .is_some());
     assert_eq!(contenu(&store), (1, 6, 2));
     assert_eq!(store.undo_depth(), avant + 1, "un seul geste");
     assert!(store.miroir_a_lire().is_none(), "lu, il n'attend plus");
@@ -64,7 +66,9 @@ fn test_un_miroir_se_remplit_en_un_geste_et_se_dit_lu() {
     assert!(store.redo());
     assert_eq!(contenu(&store), (1, 6, 2));
     let encore = un_niveau(&mut store);
-    assert!(!store.remplir_le_miroir("main", &id, encore, 1.0, 0));
+    assert!(store
+        .remplir_le_miroir("main", &id, encore, 1.0, 0)
+        .is_none());
     assert_eq!(contenu(&store), (1, 6, 2));
 }
 
@@ -76,7 +80,9 @@ fn test_un_dossier_ordinaire_ne_se_remplit_pas() {
     store.try_enter_folder(&id).expect("on entre");
     assert!(store.miroir_a_lire().is_none());
     let niveau = un_niveau(&mut store);
-    assert!(!store.remplir_le_miroir("main", &id, niveau, 1.0, 0));
+    assert!(store
+        .remplir_le_miroir("main", &id, niveau, 1.0, 0)
+        .is_none());
     assert_eq!(contenu(&store), (0, 0, 0));
 }
 
@@ -84,7 +90,9 @@ fn test_un_dossier_ordinaire_ne_se_remplit_pas() {
 fn test_le_niveau_se_dispose_sans_qu_aucun_noeud_n_en_couvre_un_autre() {
     let (mut store, id) = entre_dans_un_miroir();
     let niveau = un_niveau(&mut store);
-    assert!(store.remplir_le_miroir("main", &id, niveau, 16.0 / 9.0, 0));
+    assert!(store
+        .remplir_le_miroir("main", &id, niveau, 16.0 / 9.0, 0)
+        .is_some());
     let b = store.active_board().expect("ici");
     let mut boites: Vec<Rect> = b
         .folders
@@ -122,7 +130,9 @@ fn test_remplir_dans_un_geste_ouvert_n_en_fait_qu_un() {
     f.mirror_source = Some(source_en_attente("/d", None));
     let id = store.create_folder_with_content("main", f, Vec::new());
     let niveau = un_niveau(&mut store);
-    assert!(store.remplir_le_miroir("main", &id, niveau, 1.0, 0));
+    assert!(store
+        .remplir_le_miroir("main", &id, niveau, 1.0, 0)
+        .is_some());
     store.end_live_edit();
     assert_eq!(
         store.undo_depth(),

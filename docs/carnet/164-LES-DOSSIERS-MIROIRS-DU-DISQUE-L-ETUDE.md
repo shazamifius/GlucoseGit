@@ -158,7 +158,54 @@ Suite entière verte (3 742) ; Windows, Mac et Android verts (`verifier_cibles.s
 `saboter.py` joue dans l'arbre du dépôt — l'éditer pendant qu'il tourne fait tomber un sabotage en
 « ne compile pas » ; attendre sa fin.
 
-**Pas encore** : le lire hors du fil de l'image (un niveau se lit sur le fil de l'image : à mesurer
-sur un grand dossier avant de décider) ; le pilote et son écran ; DISQUE-2 (le vivant) ; le partage (les photos des gestes partent par B1,
+**Pas encore** : le lire hors du fil de l'image (mesuré au § 8 : à faire avec DISQUE-2) ; son écran ; DISQUE-2 (le vivant) ; le partage (les photos des gestes partent par B1,
 lues à leur clé — ici leur chemin : à essayer).
 
+
+## 8. DISQUE-1 au pilote : la première vue, et l'en-tête seul (25/11 vers 7 h 50, compte a)
+
+Le vrai Glucose hors écran (`piloter.sh presse-fichiers` puis `Ctrl+V`) : un petit dossier (4 photos,
+2 textes, 2 sous-dossiers, un `.zip`, un `.env`) se lit comme prévu — le `.env` se tait, le `.zip` en
+tuile, les sous-dossiers lus à l'entrée, le fil d'Ariane suit. **Deux défauts trouvés, corrigés :**
+
+1. **La caméra d'un miroir lu posait l'origine sous la bande** : un tableau neuf n'a jamais eu de
+   vue, et le haut du dossier se cachait sous le fil d'Ariane ; 600 photos n'en montraient que six.
+   **La première vue d'un miroir lu montre tout son contenu, jamais plus grand que nature**
+   (`premiere_vue` : le cadrage d'`Alt+F`, ramené à l'échelle 1 quand il grossirait, centré sous la
+   bande), posée par la lecture qui le remplit — au dépôt comme à l'entrée ; une vue qu'on s'est faite
+   ne se reprend jamais. `remplir_le_miroir` (le noyau) rend le tableau rempli au lieu d'un booléen :
+   le bureau n'a pas à le chercher dans le modèle (le cliquet 1 le refusait).
+2. **`into_dimensions` lit tout un JPEG pour en dire la taille** : le décodeur JPEG d'`image` 0.25
+   commence par `read_to_end` (`codecs/jpeg/decoder.rs`, lu dans les sources ; `imagesize` existe pour
+   cela, [docs.rs](https://docs.rs/crate/imagesize/latest/source/src/lib.rs)). Mesuré
+   (`GLUCOSE_PERF=1`, la mesure `miroir_lu`, neuve) sur 150 photos d'appareil de 7,8 Mo : **540 ms
+   d'image figée à froid** sur le disque NVMe de son poste (le cache chassé par `posix_fadvise`), 46 ms
+   à chaud. La taille d'un JPEG est dans son marqueur `SOFn`, avant les données : **on y va de segment
+   en segment en sautant chaque charge** (`interactions/dimensions.rs`, ITU T.81 annexe B ; une
+   quarantaine de lignes, aucune dépendance). Les autres formats passaient déjà par leur en-tête. Un
+   JPEG que la marche ne comprend pas (hauteur différée au marqueur DNL) retombe sur le décodeur entier.
+   **Après : 17,6 ms à froid, 1,3 ms à chaud** (30 fois moins) ; 600 JPEG : 63,5 ms à froid, 4,8 à
+   chaud. Le dépôt d'une photo seule (`place_image_file`) en profite aussi : lâcher 50 photos de
+   téléphone ne lit plus 400 Mo sur le fil de l'image.
+
+Épreuves : 1 de la première vue (une photo seule à l'échelle 1, 40 grandes photos en recul, tout sous
+la bande et centré, une vue à soi gardée), 4 de l'en-tête (un squelette d'appareil — EXIF de 60 Ko,
+remplissage, table de Huffman dans la plage des SOF, SOF progressif, 2 Mo de données — lu en moins de
+64 Ko ; ce qui n'a pas de taille n'en invente pas ; un vrai JPEG a la taille du décodeur entier ; un
+fichier sur le disque se mesure par la marche). Sabotages : `disque-1-vue.json` (3 sur 3),
+`en-tete-jpeg.json` (6 sur 6). Suite verte (3 747), Windows, Mac et Android verts.
+
+**Ce qui reste, et l'argument pour la suite** : 63 ms à froid pour 600 photos, c'est six images
+perdues sur un NVMe — et des secondes sur un disque dur, une clé ou un partage réseau (aucune machine
+exclue). **La lecture d'un niveau doit quitter le fil de l'image** : DISQUE-2 relira à chaque entrée,
+elle deviendra fréquente ; c'est là qu'elle passe sur un fil (le dossier montré « en lecture » le
+temps qu'il lise, le niveau posé comme un geste à son retour). À concevoir avec DISQUE-2.
+
+**Vu au passage, sans rapport avec DISQUE-1** : une image de 12 ms à l'arrivée de 600 vignettes
+(`textures` 10,2 ms, 443 faites dans la même image) — le budget de la cascade suit la période de
+l'écran (16,7 ms à 60 Hz), pas le plancher de 10 ms de la charte. Rien n'a sauté de battement.
+
+**Piège payé** : `~/.cache/glucose-bancs/cible-q12` s'était abîmé (une dépendance compilée illisible :
+le compilateur panique en lisant ses métadonnées, « invalid enum variant tag while decoding
+`Constness` », même sur le code commité). Un dossier de compilation neuf (`cible-q13`) compile ; l'ancien
+est effacé.

@@ -69,7 +69,11 @@
   Windows aussi, vérifiée ici, jamais lancée (fiche 156 § 6) ; **CIBLES-1** — Windows, le Mac et
   Android se vérifient sur ce poste (fiche 156) ; **LIEN-JOURNAL** — sa sortie dit si le canevas
   partagé revient après une coupure, et pourquoi il ne revient pas (LIEN-JOURNAL-2, § 5), et le profil de développement compile en lignes seules (~20 % plus
-  vite ; fiche 157).
+  vite ; fiche 157) ; **DISQUE-1** — un dossier de son PC lâché sur Glucose (ou « Dossier du disque… »)
+  devient son miroir, lu un niveau à la fois, ses photos laissées sur le disque ; essayé au pilote
+  (fiche 164 § 7-8) : sa première vue montre tout, et la taille d'un JPEG se lit dans son en-tête
+  (150 photos d'appareil : 540 ms d'image figée avant, 17,6 ms après). Reste : lire hors du fil de
+  l'image, avec DISQUE-2 (le dossier vivant) ; sa question `relais-q-dossier-disque`.
 * **Le relais met Claude à jour seul** (MAJ-1, fiche 162, sa demande du 24/11) : toutes les six heures, la
   version neuve de l'extension s'installe et s'essaie sans un jeton (l'invite, sans question), refusée
   sinon ; `relais-maj-claude` le dit. La 2.1.332 installée le 25/11 à 5 h 33.

@@ -1,0 +1,116 @@
+[
+ {
+  "nom": "EN-TETE — une table de Huffman prise pour la taille",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "!matches!(marqueur, 0xC4 | 0xC8 | 0xCC)",
+  "apres": "!matches!(marqueur, 0xC8 | 0xCC)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EN-TETE — un seul octet de remplissage",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "while marqueur == 0xFF {",
+  "apres": "if marqueur == 0xFF {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EN-TETE — la longueur sans ses deux octets",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "i64::from(longueur.checked_sub(2)?)",
+  "apres": "i64::from(longueur)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EN-TETE — les données prises pour un segment",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "0xD9 | 0xDA => return None,",
+  "apres": "0xD9 => return None,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EN-TETE — le décodeur entier pour tout",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "if lecteur.format() != Some(ImageFormat::Jpeg) {",
+  "apres": "if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EN-TETE — une taille nulle acceptée",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "(largeur > 0 && hauteur > 0).then_some",
+  "apres": "true.then_some",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ }
+]

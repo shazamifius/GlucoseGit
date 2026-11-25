@@ -117,10 +117,8 @@ impl GlucoseApp {
         // ce qui est courant sur ce qui vient du web — lui est illisible. `with_guessed_format`
         // lit l'en-tête et tranche pour de bon, ce qui est la seule façon de tenir la
         // promesse du glisser-déposer : c'est le décodeur qui dit ce qui est une image.
-        let dimensions = image::ImageReader::open(path)
-            .and_then(image::ImageReader::with_guessed_format)
-            .map_err(image::ImageError::IoError)
-            .and_then(image::ImageReader::into_dimensions);
+        // L'en-tête seul : `into_dimensions` lit tout un JPEG (fiche 164 § 8).
+        let dimensions = super::dimensions::dimensions_du_fichier(path);
         let (w, h) = match dimensions {
             Ok((w, h)) => (f64::from(w), f64::from(h)),
             Err(err) => {

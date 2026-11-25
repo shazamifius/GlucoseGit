@@ -1,0 +1,59 @@
+[
+ {
+  "nom": "DISQUE-1 vue — la caméra d'un miroir lu reste à l'origine, sous la bande",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "avant": "self.store.set_viewport(&tableau, vue);",
+  "apres": "let _ = (&tableau, vue);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-1 vue — une seule photo remplit l'écran",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "avant": "if vue.scale <= 1.0 {",
+  "apres": "if vue.scale <= f64::MAX {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ },
+ {
+  "nom": "DISQUE-1 vue — ramenée à l'échelle 1 sans recentrer",
+  "fichier": "crates/glucose-desktop/src/interactions/miroir_disque.rs",
+  "avant": "x: vue.x + centre.0 * (vue.scale - 1.0),",
+  "apres": "x: vue.x,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "miroir_disque"
+  ]
+ }
+]

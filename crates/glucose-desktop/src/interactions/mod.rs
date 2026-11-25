@@ -18,6 +18,7 @@ pub mod cursor;
 pub mod dater;
 pub mod depot_web;
 pub mod detourer;
+pub(crate) mod dimensions;
 pub mod domains;
 pub mod drag;
 pub mod drop;
