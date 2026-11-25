@@ -152,7 +152,9 @@ couleurs comptées : **par la carte graphique**, vert, vert, bleu, bleu, jaune, 
 processeur** (`moteurs.txt`), vert, bleu, bleu, jaune, jaune, rouge — la vignette ne fige plus
 rien. **Le coût au repos**, GIF à l'écran : 0,8 % d'un cœur (carte graphique), 1,2 % (processeur),
 sur 10 s ; **le GIF sorti de l'écran** (la vue déplacée au clic molette) : son fil s'arrête (24 → 23
-fils), 0,3 %.
+fils), 0,3 %. **La mémoire**, GIF à l'écran sur 30 s (une cinquantaine de toiles, une texture
+neuve par génération) : 92 Mio sur la carte graphique et 258 Mo pour le processus, sans bouger — la
+cascade réécrit la même texture, rien ne s'accumule (`nvidia-smi`, `VmRSS`, 25/11 vers 4 h 50).
 
 **Reste** : GIF-3 (réduire les animations).
 
