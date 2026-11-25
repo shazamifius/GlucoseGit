@@ -1,0 +1,142 @@
+[
+ {
+  "nom": "HEIC-2 — la signature oubliée",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "            image::hooks::register_format_detection_hook(\"heic\".into(), signature, Some(MASQUE));",
+  "apres": "            let _ = signature;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — décoder dès la construction (le dépôt bloquerait l'image)",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "        Ok(Self { octets, dimensions })",
+  "apres": "        heifer::decode(&octets).map_err(|e| erreur(&e.to_string()))?;\n        Ok(Self { octets, dimensions })",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — le quart de tour oublié",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "            Property::Rotation(quarts) if quarts % 2 == 1 => taille = (taille.1, taille.0),",
+  "apres": "            Property::Rotation(_) => {}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — un demi-tour pris pour un quart",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "if quarts % 2 == 1 =>",
+  "apres": "if quarts > 0 =>",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — le recadrage oublié",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "                taille = (\n                    recadrer(taille.0, width, horiz_offset)?,",
+  "apres": "                let _ = (width, height, horiz_offset, vert_offset);\n                taille = (\n                    taille.0.max(recadrer(taille.0, width, horiz_offset)?),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — le recadrage non borné par l'image",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "    Some((voulu.round() as u32).min(cote - debut))",
+  "apres": "    Some(voulu.round() as u32)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ },
+ {
+  "nom": "HEIC-2 — des dimensions fausses acceptées",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic.rs",
+  "avant": "        if (image.width, image.height) != self.dimensions || image.data.len() != tampon.len() {",
+  "apres": "        if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic"
+  ]
+ }
+]

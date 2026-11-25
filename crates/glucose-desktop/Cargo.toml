@@ -26,6 +26,8 @@ ttf-parser = { version = "0.25", default-features = false }
 # La vérification des mises à jour : minisign, par son auteur, sans aucune dépendance (fiche 44 § 4).
 minisign-verify = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
+# Les photos HEIC de l'iPhone (HEIC-2, decisions/20) : HEIF et HEVC en Rust, lecture seule.
+heifer = { version = "0.5", default-features = false }
 # L'export en image écrit son PNG bande après bande, sans tenir l'image entière en mémoire
 # (EXPORT-PNG-1, decisions/12). Déjà là par `image`, même version.
 png = "0.18"
@@ -82,6 +84,8 @@ winit = { version = "0.30", features = ["android-game-activity"] }
 libc = "0.2"
 
 [dev-dependencies]
+# L'encodeur de `heifer` fabrique les HEIC des épreuves : jamais dans l'application.
+heifer = "0.5"
 # L'oracle de notre lecteur des documents de Glucose Tauri (`src/tauri/automerge.rs`) : la
 # bibliothèque de référence, dans les épreuves et les exemples SEULEMENT. Elle n'entre jamais
 # dans l'application (decisions/03).

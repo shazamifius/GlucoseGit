@@ -16,6 +16,8 @@ pub fn lancer(
     document: Option<std::path::PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     event_loop.set_control_flow(ControlFlow::Wait);
+    // Les photos HEIC, à toutes les portes des images (HEIC-2, fiche 161 § 6).
+    crate::renderer::photo::heic::enregistrer();
     // Où se posent les installeurs d'une mise à jour, et ce qu'on y range (fiche 48).
     let installeurs = dossier.join("mises-a-jour");
     let mut app = GlucoseApp::new();

@@ -64,6 +64,7 @@
 //! pyramide ne décide rien, elle dit ce qu'on lui a demandé.
 
 mod decodage;
+pub mod heic;
 mod niveau;
 mod pixels;
 pub use niveau::{Etat, Retour, Transit};
