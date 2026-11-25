@@ -6,6 +6,7 @@
 use super::Lecteur;
 use crate::persist::objets::Objets;
 use crate::plateforme::Reveil;
+use crate::renderer::atelier::admission;
 use crate::renderer::photo::Pyramide;
 use std::sync::mpsc::{sync_channel, Receiver, TryRecvError};
 use std::sync::Arc;
@@ -34,11 +35,21 @@ impl Joueur {
                 Some(o) => o.lire(&src),
                 None => std::fs::read(&src).ok(),
             };
-            let Some(mut lecteur) = octets.and_then(|o| Lecteur::nouveau(o.into())) else {
+            let Some(octets) = octets else {
                 return;
             };
+            let encodes = octets.len() as u64;
+            let Some(mut lecteur) = Lecteur::nouveau(octets.into()) else {
+                return;
+            };
+            // Chaque toile entre par l'admission, comme un décodage : sa pyramide ne se construit
+            // que si elle tient dans ce que la machine laisse (MEMOIRE-3, fiche 159 § 7).
+            let porte = admission::de_la_machine();
             while let Some(t) = lecteur.suivante() {
-                let Some(p) = Pyramide::depuis_rgba(t.largeur, t.hauteur, &t.rgba) else {
+                let pic = admission::pic(encodes, (t.largeur, t.hauteur));
+                let pyramide =
+                    porte.pendant(pic, || Pyramide::depuis_rgba(t.largeur, t.hauteur, &t.rgba));
+                let Some(p) = pyramide else {
                     return;
                 };
                 if envoi.send((p, t.delai)).is_err() {

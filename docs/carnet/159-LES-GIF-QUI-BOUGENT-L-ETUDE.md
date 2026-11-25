@@ -130,9 +130,12 @@ finissant**, chacun gardé par une épreuve et un sabotage (`outils/sabotages/gi
   construire aucune ; arrêté, il retrouve la sienne).
 
 **Écarts au § 6, et doutes** :
-* Le joueur construit ses pyramides **hors de l'admission** de l'atelier : trois toiles au plus
-  par GIF à l'écran (la prête, celle du canal, celle qu'il fait), jamais comptées dans la borne de
-  mémoire. Un GIF de 2 000 × 2 000 pèse 16 Mo la toile : à surveiller, pas encore mesuré.
+* Le joueur construisait ses pyramides **hors de l'admission** de l'atelier : chaque toile y entre
+  désormais, comme un décodage (`admission::pic` : ses octets encodés, sa pyramide, ses pixels) —
+  sa pyramide ne se construit que si elle tient dans ce que la machine laisse. Restent hors
+  compte, comme pour un décodage, les toiles faites qui attendent (deux au plus par GIF). **Aucune
+  épreuve ne garde ce passage** : l'admission est celle de la machine, une seule pour tout le
+  processus — la garder demanderait de l'injecter dans le joueur.
 * La première toile se repose une fois quand le GIF paraît (la même que celle du décodage) : un
   envoi de texture de trop, accepté — un GIF qui revient à l'écran doit, lui, repartir du début.
 * **NETTETE-2, hors des GIF** (`magasin.rs`, `accueillir`) : une vignette faite sur l'**aperçu**
