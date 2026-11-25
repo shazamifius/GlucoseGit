@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 24/11/2026, 8 h** (fiches 108-140). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
+> **Au 25/11/2026, 5 h 40** (fiches 108-162 ; le détail des fiches 141-158 vit dans le carnet). **Le présent, en une page** : ce qui est publié, ce qui marche, ce
 > qui ne va pas, ce qu'on sait de ses utilisateurs. Il se **réécrit** quand la réalité change — il ne
 > garde pas l'histoire, qui vit dans le [carnet](carnet/00-INDEX.md) (une fiche par session). La
 > direction et ses paroles : [VISION](VISION.md). Ce qu'on fait ensuite : [SUITE](SUITE.md). Chaque
@@ -70,6 +70,9 @@
   Android se vérifient sur ce poste (fiche 156) ; **LIEN-JOURNAL** — sa sortie dit si le canevas
   partagé revient après une coupure, et le profil de développement compile en lignes seules (~20 % plus
   vite ; fiche 157).
+* **Le relais met Claude à jour seul** (MAJ-1, fiche 162, sa demande du 24/11) : toutes les six heures, la
+  version neuve de l'extension s'installe et s'essaie sans un jeton (l'invite, sans question), refusée
+  sinon ; `relais-maj-claude` le dit. La 2.1.332 installée le 25/11 à 5 h 33.
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai
@@ -114,7 +117,7 @@ Le détail, fonction par fonction et bouton par bouton : [INVENTAIRE](INVENTAIRE
 |---|---|
 | **Naviguer** | canevas infini, zoom jusqu'à ×256 ; souris, pavé (pincement sous Windows, Linux et macOS), doigts ; `F` cadre la sélection, `Alt+F` tout ; **`Alt+Z`** le `Ctrl+Z` de la caméra ; signets ; minimap ; onglets ; **`Ctrl+F`** cherche dans tout le document ; le mode Focus par un geste choisi |
 | **Le document** | `.glucose` écrit geste après geste, brouillons, reprise au lancement, Time Machine (`Ctrl+H`) — **chaque geste signé**, ses écrits, **le journal des rectifications** de l'IA de Glucose —, les documents de Tauri lus ; au terminal, `glucose document.glucose` et une commande par outil des agents (`glucose aide`) |
-| **Images** | PNG, JPEG, WebP, **GIF, WebP et PNG animés** (GIF-1 et 2, `c947e97`, fiche 159 § 7 : il bouge à l'écran, sur les deux voies, regardé au pilote ; il se fige quand le système demande moins de mouvement, sur les quatre systèmes ; pas encore dans son Glucose), BMP ; coller, déposer ; rotation, recadrage, **retourner** (`Alt+Maj+H`, `Alt+Maj+V`) ; **détourer** la forme principale, **retirer le fond uni** ; la mémoire par étages |
+| **Images** | PNG, JPEG, WebP, **GIF, WebP et PNG animés** (GIF-1 et 2, `c947e97`, fiche 159 § 7 : il bouge à l'écran, sur les deux voies, regardé au pilote ; il se fige quand le système demande moins de mouvement, sur les quatre systèmes ; pas encore dans son Glucose), **HEIC**, les photos d'iPhone (HEIC-2 et 3, fiche 161 : par `heifer`, en Rust ; sa vignette montrée d'abord, l'image entière ensuite ; regardé au pilote ; pas encore dans son Glucose), BMP ; coller, déposer ; rotation, recadrage, **retourner** (`Alt+Maj+H`, `Alt+Maj+V`) ; **détourer** la forme principale, **retirer le fond uni** ; la mémoire par étages |
 | **Texte** | Markdown, **tableaux qui tiennent dans leur nœud**, leurs rangées séparées d'un filet, **listes imbriquées**, liens, LaTeX ; net à tout zoom (de près, la carte graphique dessine les lettres depuis leur forme) ; de loin, le gris de ses lignes ; son papier toujours le gris sombre des blocs ; **sa lueur dit sa parenté** (une IA du sens embarquée, sans réseau) ; un texte qui grandit pousse sa carte, **et sa membrane** ; **les émojis en couleur** (Twemoji), un caractère à la fois |
 | **Flèches** | droites ou courbes, six relations, coudes (« Retirer ce coude », « Redresser la flèche »), bouts qu'on prend, contournement, ancres de texte ; la couleur des lueurs qu'elles relient ; de loin, une trace ; leur présence suit leur nombre et la souris (PARENTE-4) ; `Ctrl`+clic suit un lien ; la fenêtre des liens (`B`) |
 | **Organiser** | membranes **en carte** (la plus petite région l'emporte), dossiers (renommés par `F2`, **on y range en lâchant dessus**), **domaines** (qui traversent les fichiers), `Ctrl+G` grouper, disposer en colonnes, aimant, Ordonner, Mood board, Storyboard, les opérateurs des post-it ; la barre de couleur et la roue (Oklch) ; **dater** un nœud (`Maj+T`), la frise chronologique (`Maj+R`), regarder un domaine — deux lentilles qui estompent, jamais ne cachent |
