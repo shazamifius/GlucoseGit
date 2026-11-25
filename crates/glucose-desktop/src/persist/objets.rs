@@ -240,6 +240,34 @@ impl Objets {
         }
     }
 
+    /// **Les `n` premiers octets d'une image** — sa signature, pour la reconnaître sans la lire
+    /// entière (un GIF, GIF-2, fiche 159 § 6). L'empreinte ne se vérifie pas : ce début ne sert
+    /// qu'à choisir ; ce qui se montre passe toujours par [`Objets::lire`], qui la vérifie.
+    pub fn debut(&self, cle: &str, n: usize) -> Option<Vec<u8>> {
+        let tranche = |fichier: &std::path::Path, offset: u64, longueur: u64| {
+            let mut f = std::fs::File::open(fichier).ok()?;
+            f.seek(SeekFrom::Start(offset)).ok()?;
+            let mut octets = vec![0u8; n.min(usize::try_from(longueur).ok()?)];
+            f.read_exact(&mut octets).ok()?;
+            Some(octets)
+        };
+        match self.source(cle) {
+            Some(Source::Tranche {
+                offset, longueur, ..
+            }) => tranche(&self.document()?, offset, longueur),
+            Some(Source::Ailleurs {
+                fichier,
+                offset,
+                longueur,
+                ..
+            }) => tranche(&fichier, offset, longueur),
+            Some(Source::Memoire(octets)) => Some(octets.iter().take(n).copied().collect()),
+            Some(Source::Promise(p)) => p.deja().map(|o| o.iter().take(n).copied().collect()),
+            Some(Source::Fichier(chemin)) => tranche(&chemin, 0, u64::MAX),
+            None => tranche(std::path::Path::new(cle), 0, u64::MAX),
+        }
+    }
+
     /// Les octets d'une image, **en attendant** ceux qu'un ouvrier a promis. Pour un fil qui a
     /// le droit d'attendre — la copie d'un lot (fiche 51 § 2) —, jamais pour l'atelier, qui est
     /// celui qui tient la promesse.

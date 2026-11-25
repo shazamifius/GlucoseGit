@@ -37,6 +37,7 @@ mod fenetre_d_ancrage;
 mod fils;
 pub mod focus;
 pub mod folder;
+pub(crate) mod gif;
 pub mod grille;
 pub mod halo;
 pub mod handles;

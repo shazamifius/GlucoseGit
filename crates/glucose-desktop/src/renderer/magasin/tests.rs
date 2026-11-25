@@ -197,6 +197,7 @@ fn test_l_eviction_s_arrete_des_que_la_borne_est_tenue() {
 }
 
 mod etages;
+mod gifs;
 
 /// **Une image reconduite garde ses photos à l'abri de l'éviction** (LOT-1) : elle ne les réclame
 /// pas, mais elle reprend le numéro de l'image qui les a réclamées. À l'envers : une image ouverte

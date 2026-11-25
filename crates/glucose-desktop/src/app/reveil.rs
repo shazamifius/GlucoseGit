@@ -245,12 +245,13 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 16] = [
+        let attentes: [(Raison, Attente); 17] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
             (Raison::Animation, Self::attente_de_la_designation),
             (Raison::Animation, Self::attente_de_la_lecture),
+            (Raison::Animation, Self::attente_des_gifs),
             (Raison::Elan, Self::attente_de_l_elan),
             (Raison::Vol, Self::attente_du_vol),
             (Raison::Decodage, Self::attente_du_decodage),
@@ -431,6 +432,20 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         Some(self.animation_interval_ms())
+    }
+
+    /// **Un GIF bouge à l'écran** (GIF-2, fiche 159) : revenir à l'heure de sa toile suivante,
+    /// et ne demander une image qu'à cette heure-là — un GIF de dix toiles par seconde en coûte
+    /// dix. Une toile encore en préparation n'attend rien d'ici : son fil réveille la boucle en la
+    /// tendant. Une animation parmi les autres : le masque des raisons est plein (seize bits, la
+    /// chronique avec lui).
+    fn attente_des_gifs(&mut self) -> Option<u64> {
+        let heure = self.renderer.magasin.prochaine_toile()?;
+        let reste = heure.saturating_duration_since(std::time::Instant::now());
+        if reste.is_zero() {
+            self.mark_dirty();
+        }
+        Some(u64::try_from(reste.as_millis()).unwrap_or(u64::MAX))
     }
 
     /// Des images se décodent sur les fils de fond (DECODE-1).

@@ -899,7 +899,7 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
     let pretee = photo(4, [1, 2, 3, 255]);
     let minimap = photo(16, [9, 9, 9, 255]);
     let demandes = [
-        a_poser(Cle::Niveau(numero, 1), Cle::Photo(numero)),
+        a_poser(Cle::Niveau(numero, 1, 0), Cle::Photo(numero)),
         a_poser("carte".into(), "carte".into()),
         a_poser("chrome:minimap".into(), "chrome:minimap".into()),
     ];
@@ -1762,7 +1762,7 @@ fn test_lot_2_la_minimap_qui_change_ne_vide_pas_l_image() {
     );
     let photo_de = |n, x| APoser {
         repli: None,
-        cle: Cle::Niveau(n, 1),
+        cle: Cle::Niveau(n, 1, 0),
         identite: Cle::Photo(n),
         pose: pose_de(x, 8.0, 16.0, 16.0),
     };
@@ -1776,7 +1776,7 @@ fn test_lot_2_la_minimap_qui_change_ne_vide_pas_l_image() {
     let gris = photo(16, [50, 50, 50, 255]);
     let source = |cle: &Cle| {
         Some(Pixels::Pretes(match cle {
-            Cle::Niveau(n, _) if *n == na => rouge.as_ref(),
+            Cle::Niveau(n, ..) if *n == na => rouge.as_ref(),
             Cle::Niveau(..) => bleu.as_ref(),
             _ => gris.as_ref(),
         }))

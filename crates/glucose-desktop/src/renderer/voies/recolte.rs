@@ -154,12 +154,12 @@ pub(in crate::renderer) fn poses_des_photos(
                     .echelles
                     .resserrer(tenue.echelles.0, tenue.echelles.1);
                 photos.posees.push(APoser {
-                    cle: Cle::Niveau(tenue.numero, tenue.facteur),
+                    cle: Cle::Niveau(tenue.numero, tenue.facteur, tenue.generation),
                     identite: Cle::Photo(tenue.numero),
                     pose: estompee(tenue.pose),
                     repli: tenue.repli.map(|(facteur, pose)| {
                         Box::new(APoser {
-                            cle: Cle::Niveau(tenue.numero, facteur),
+                            cle: Cle::Niveau(tenue.numero, facteur, tenue.generation),
                             identite: Cle::Repli(tenue.numero),
                             pose: estompee(pose),
                             repli: None,

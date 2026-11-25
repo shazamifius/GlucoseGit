@@ -365,3 +365,34 @@ fn test_un_mouvement_continu_ne_laisse_aucun_chantier() {
     }
     assert_eq!(atelier(&mut v, &pyr), 0, "l'atelier n'a rien a faire");
 }
+
+/// **GIF-2 (fiche 159)** : la toile suivante d'un GIF oublie sa vignette — la voie processeur la
+/// reposait, figée sur la toile qui l'avait faite — et tant qu'il joue, aucune ne se construit.
+#[test]
+fn gif_2_une_toile_neuve_oublie_la_vignette() {
+    let mut v = Vignettes::new();
+    let pyr = Pyramide::nouvelle(bicolore(64, 64));
+    let forme = Forme::posee(10.0, 20.0, 32.0, 32.0);
+    for _ in 0..3 {
+        v.ouvrir();
+        v.pour("n", "a.gif", forme, 1024.0);
+        atelier(&mut v, &pyr);
+        v.fermer();
+    }
+    assert!(v.a_prete("n", forme), "la vignette de la première toile");
+    for _ in 0..5 {
+        v.oublier_la_source("a.gif");
+        v.ouvrir();
+        assert!(
+            v.pour("n", "a.gif", forme, 1024.0).is_none(),
+            "plus de vignette"
+        );
+        atelier(&mut v, &pyr);
+        v.fermer();
+    }
+    assert_eq!(
+        v.faites(),
+        1,
+        "un GIF qui joue ne fait construire aucune vignette"
+    );
+}

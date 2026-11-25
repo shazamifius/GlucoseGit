@@ -118,6 +118,10 @@ fn brancher_les_reveils(app: &mut GlucoseApp, event_loop: &EventLoop<()>) {
         .sens_des_textes
         .parente
         .demarrer(reveil_de(event_loop));
+    // Quand le fil d'un GIF tend sa toile suivante (GIF-2, fiche 159).
+    app.renderer
+        .magasin
+        .brancher_le_reveil(reveil_de(event_loop));
     // Quand un sélecteur de fichiers rend son choix (DIAL-2).
     crate::dialogue::brancher(reveil_de(event_loop));
     // Quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).

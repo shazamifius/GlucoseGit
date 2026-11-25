@@ -46,7 +46,7 @@ fn test_une_image_se_decode_sur_un_fil_de_fond() {
 
     let moisson = moisson_complete(&mut atelier);
     assert_eq!(moisson.len(), 1, "une demande, une réponse");
-    let (rendu, image, cout) = &moisson[0];
+    let (rendu, image, cout, _) = &moisson[0];
     assert_eq!(rendu, &src);
     let pyramide = image.as_ref().expect("l'image témoin est lisible");
     assert_eq!(pyramide.dimensions_natives(), (64, 48));
@@ -121,7 +121,7 @@ fn test_un_lot_entier_se_decode_sans_qu_aucune_demande_se_perde() {
         assert!(
             moisson
                 .iter()
-                .any(|(rendu, img, _)| rendu == src && img.is_some()),
+                .any(|(rendu, img, ..)| rendu == src && img.is_some()),
             "{src} n'est pas revenu"
         );
     }

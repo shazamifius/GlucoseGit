@@ -26,7 +26,8 @@ pub(super) fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Par
                     .and_then(|d| apercu::lire(&apercu::chemin(&d, &src, empreinte)?))
                     .and_then(Pyramide::depuis_apercu)
                     .or_else(|| decoder(&src, objets.as_deref(), admission::de_la_machine()));
-                Fait::Decodee((src, pyramide, debut.elapsed()))
+                let gif = est_un_gif(&src, objets.as_deref());
+                Fait::Decodee((src, pyramide, debut.elapsed(), gif))
             }
             Travail::Adopter(src, rgba, (l, h), parole) => {
                 let debut = Instant::now();
@@ -35,7 +36,7 @@ pub(super) fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Par
                 // (COLLER-2) ; une promesse ne se lit qu'entière.
                 let tenue = encoder_en_png(&rgba, (l, h)).map(|png| parole.tenir(png));
                 let pyramide = tenue.and_then(|()| Pyramide::depuis_rgba(l, h, &rgba));
-                Fait::Decodee((src, pyramide, debut.elapsed()))
+                Fait::Decodee((src, pyramide, debut.elapsed(), false))
             }
             Travail::Ecrire(src, dossier, a, empreinte) => {
                 // Un aperçu qui ne s'écrit pas n'est qu'un aperçu de moins : la source reste.
@@ -128,4 +129,19 @@ fn encoder_en_png(rgba: &[u8], (l, h): (u32, u32)) -> Option<Vec<u8>> {
         .write_image(rgba, l, h, image::ExtendedColorType::Rgba8)
         .ok()?;
     Some(png)
+}
+
+/// **Ces octets sont-ils ceux d'un GIF ?** Sa signature, six octets lus sans l'image entière : une
+/// image rouverte vient de son aperçu et ne passe jamais par le décodeur (GIF-2, fiche 159 § 6).
+fn est_un_gif(src: &str, objets: Option<&crate::persist::objets::Objets>) -> bool {
+    use std::io::Read;
+    let debut = match objets {
+        Some(o) => o.debut(src, 6),
+        None => std::fs::File::open(src).ok().and_then(|f| {
+            let mut debut = Vec::new();
+            f.take(6).read_to_end(&mut debut).ok()?;
+            Some(debut)
+        }),
+    };
+    debut.is_some_and(|d| d.starts_with(b"GIF8"))
 }

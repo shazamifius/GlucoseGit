@@ -30,6 +30,7 @@ mod attentes;
 mod cache;
 mod comptes;
 mod etagement;
+mod gifs;
 pub use cache::{Cache, Numero};
 
 /// Ce que le magasin sait de la couleur moyenne d'une image.
@@ -83,6 +84,12 @@ impl Entree {
             a_revoir: false,
             reglee: None,
         }
+    }
+
+    /// **Quelle pyramide** : elle change quand une neuve la remplace — un redécodage, l'image
+    /// suivante d'un GIF (GIF-2).
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// Une entree fabriquee de toutes pieces, pour les tests.
@@ -144,6 +151,12 @@ pub struct Magasin {
     mouvements: Mouvements,
     /// **Les photos d'un canevas partagé qui attendent quelqu'un qui les a** (Q18, fiche 150).
     attentes: Option<attentes::Attentes>,
+    /// **Les images dont les octets sont ceux d'un GIF** (GIF-2), et le joueur de chacune qui est
+    /// à l'écran.
+    gifs: HashSet<String>,
+    joueurs: std::collections::HashMap<String, crate::renderer::gif::joueur::Joueur>,
+    /// Ce qui réveille la boucle quand un joueur tend sa toile.
+    reveil: Option<crate::plateforme::Reveil>,
 }
 
 impl Magasin {
@@ -368,13 +381,16 @@ impl Magasin {
             match fait {
                 // La pyramide arrive **faite** : il ne reste ici qu'un déplacement de
                 // pointeurs. La construire ici coûtait 73 ms en pleine image (DECODE-1).
-                Fait::Decodee((src, Some(pyramide), cout)) => {
+                Fait::Decodee((src, Some(pyramide), cout, gif)) => {
                     self.arrives.remove(&src);
-                    self.accueillir(src, pyramide, cout);
+                    if gif {
+                        self.gifs.insert(src.clone());
+                    }
+                    self.accueillir(src, pyramide, cout, false);
                 }
                 // Absent, illisible, ou trop grand pour tenir en mémoire : les trois se
                 // constatent de la même façon, et aucun ne se redemande.
-                Fait::Decodee((src, None, _)) => {
+                Fait::Decodee((src, None, ..)) => {
                     self.changements += 1;
                     if !self.arrives.remove(&src) {
                         self.echecs.insert(src);
@@ -383,20 +399,30 @@ impl Magasin {
                 Fait::Deplace(d) => self.rentrer(d),
             }
         }
+        self.avancer_les_gifs(std::time::Instant::now());
     }
 
     /// Une pyramide neuve : entièrement tenue, et à revoir — la fermeture offrira ce que
     /// l'écran ne demande pas. Née d'un décodage entier, elle garde sa vue d'ensemble sur le
     /// disque ; née d'un aperçu, elle en vient.
-    fn accueillir(&mut self, src: String, pyramide: Pyramide, cout: Duration) {
+    fn accueillir(&mut self, src: String, pyramide: Pyramide, cout: Duration, toile: bool) {
         self.generations += 1;
         self.changements += 1;
-        let a_ecrire = self.atelier.garde_les_apercus() && pyramide.entiere();
+        // L'aperçu d'un GIF reste sa première toile : les suivantes ne le réécrivent pas.
+        let a_ecrire = !toile && self.atelier.garde_les_apercus() && pyramide.entiere();
         let mut entree = Entree::nouvelle(pyramide, cout, self.image, self.generations);
         entree.apercu_a_ecrire = a_ecrire;
-        // Une image redécodée garde ce qu'on savait de sa vue d'ensemble.
+        // Une image redécodée garde ce qu'on savait de sa vue d'ensemble ; une toile, en plus,
+        // la dernière image qui l'a vue — se poser n'est pas être vue : sinon un GIF sorti de
+        // l'écran se gardait lui-même en vie, de toile en toile (GIF-2).
         if let Some(ancienne) = self.cache.get(&src) {
             (entree.queue, entree.queue_vue) = (ancienne.queue, ancienne.queue_vue);
+            if toile {
+                entree.vue = ancienne.vue;
+            }
+        }
+        if toile {
+            self.vignettes.oublier_la_source(&src);
         }
         let numero = self.cache.numero(&src);
         if let Some(ancienne) = self.cache.insert(src, entree) {

@@ -184,8 +184,12 @@ impl Confie {
         use crate::present::scene_gpu::Pixels;
         // Un niveau offert au système ne se prête pas (ETAGES-1) : la texture attend qu'il
         // soit repris, et l'ancienne se pose en attendant.
-        if let Cle::Niveau(numero, facteur) = cle {
+        if let Cle::Niveau(numero, facteur, generation) = cle {
             let entree = renderer.magasin.cache.par_numero(*numero)?;
+            // Une clé d'une autre génération ne reçoit pas les pixels de celle-ci (GIF-2).
+            if entree.generation() != *generation {
+                return None;
+            }
             return entree.pyramide.niveau(*facteur).map(Pixels::Pretes);
         }
         if let Some(chrome) = cle.nom().and_then(|nom| self.chrome.pixels(nom)) {

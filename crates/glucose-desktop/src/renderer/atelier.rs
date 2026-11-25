@@ -83,7 +83,9 @@ use std::time::Duration;
 ///
 /// `None` n'est pas une erreur à signaler : un fichier absent ou illisible est un cas normal
 /// du document, et l'appelant en fait un cache négatif.
-pub type Decodee = (String, Option<Pyramide>, Duration);
+/// Une image décodée : sa source, sa pyramide (rien si elle ne se lit pas), ce qu'elle a coûté,
+/// et si ses octets sont ceux d'un GIF — qui peut bouger (GIF-2, fiche 159 § 6).
+pub type Decodee = (String, Option<Pyramide>, Duration, bool);
 
 /// **Un niveau qui voyage** : de quelle image, de quelle pyramide, quel rang — et ce qu'il
 /// porte, à l'aller comme au retour.
@@ -335,6 +337,11 @@ impl Atelier {
     pub fn partager_avec(&mut self, partage: Partage) {
         self.objets = partage.objets;
         self.apercus = partage.apercus;
+    }
+
+    /// **Où lire les octets des images** — pour un joueur de GIF (GIF-2).
+    pub(crate) fn objets(&self) -> Option<Arc<crate::persist::objets::Objets>> {
+        self.objets.clone()
     }
 
     /// Les aperçus sont-ils gardés ?

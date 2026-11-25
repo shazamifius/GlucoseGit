@@ -217,6 +217,19 @@ impl Vignettes {
             .sum()
     }
 
+    /// **Une pyramide neuve pour ce fichier** — la toile suivante d'un GIF (GIF-2, fiche 159) :
+    /// ses vignettes, faites ou à demi, montrent l'ancienne. Elles s'oublient, et leur forme ne
+    /// compte plus comme répétée : un GIF qui joue ne fait construire aucune vignette, qu'il
+    /// quitterait à la toile suivante ; arrêté, il retrouve la sienne.
+    pub fn oublier_la_source(&mut self, src: &str) {
+        for e in self.par_noeud.values_mut().filter(|e| e.src == src) {
+            (e.demandee, e.prete, e.en_chantier) = (None, None, None);
+        }
+        if self.en_cours.as_ref().is_some_and(|c| c.src == src) {
+            self.en_cours = None;
+        }
+    }
+
     /// La vignette prête pour ce nœud à cette forme, s'il y en a une.
     ///
     /// **Ne construit jamais.** Rend `None` tant que la vignette n'est pas prête, et l'appelant

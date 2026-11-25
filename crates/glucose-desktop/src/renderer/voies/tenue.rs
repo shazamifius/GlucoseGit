@@ -13,6 +13,8 @@ pub(super) struct PhotoTenue {
     pub facteur: u32,
     pub pose: Pose,
     pub repli: Option<(u32, Pose)>,
+    /// La génération de sa pyramide : elle entre dans la clé de la carte (GIF-2).
+    pub generation: u64,
     /// **Les échelles où ce niveau reste le voulu** (LOT-1).
     pub echelles: (f64, f64),
 }
@@ -80,6 +82,7 @@ pub(super) fn pose_tenue(
         facteur: voulu,
         pose: pose(voulu),
         repli: (tenu != voulu).then(|| (tenu, pose(tenu))),
+        generation: entree.generation(),
         echelles,
     })
 }

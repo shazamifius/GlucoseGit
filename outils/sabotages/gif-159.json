@@ -1,0 +1,182 @@
+[
+ {
+  "nom": "GIF-1 — la règle des 10 ms oubliée",
+  "fichier": "crates/glucose-desktop/src/renderer/gif.rs",
+  "avant": "    if delai <= PLANCHER {",
+  "apres": "    if delai < Duration::ZERO {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_1"
+  ]
+ },
+ {
+  "nom": "GIF-1 — un tour sans fin pour tous",
+  "fichier": "crates/glucose-desktop/src/renderer/gif.rs",
+  "avant": "        LoopCount::Finite(n) => Some(n.get() - 1),",
+  "apres": "        LoopCount::Finite(_) => None,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_1"
+  ]
+ },
+ {
+  "nom": "GIF-1 — un GIF d'une image se rejoue",
+  "fichier": "crates/glucose-desktop/src/renderer/gif.rs",
+  "avant": "                if self.lues < 2 {\n                    return None;\n                }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_1"
+  ]
+ },
+ {
+  "nom": "GIF-1 — les tours ne se décomptent pas",
+  "fichier": "crates/glucose-desktop/src/renderer/gif.rs",
+  "avant": "                    Some(n) => *n -= 1,",
+  "apres": "                    Some(_) => {}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_1"
+  ]
+ },
+ {
+  "nom": "GIF-2 — une toile posée compte comme une vue (le GIF sorti de l'écran se garde en vie)",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "            if toile {\n                entree.vue = ancienne.vue;\n            }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_2"
+  ]
+ },
+ {
+  "nom": "GIF-2 — les toiles ne se posent pas",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/gifs.rs",
+  "avant": "            self.accueillir(src, pyramide, std::time::Duration::ZERO, true);",
+  "apres": "            drop(pyramide);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_2"
+  ]
+ },
+ {
+  "nom": "GIF-2 — la signature n'est pas retenue",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "                        self.gifs.insert(src.clone());",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_2"
+  ]
+ },
+ {
+  "nom": "GIF-2 — la vignette de la voie processeur reste figée sur sa toile",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin.rs",
+  "avant": "        if toile {\n            self.vignettes.oublier_la_source(&src);\n        }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_2"
+  ]
+ },
+ {
+  "nom": "GIF-2 — oublier la source n'oublie rien",
+  "fichier": "crates/glucose-desktop/src/renderer/vignette.rs",
+  "avant": "            (e.demandee, e.prete, e.en_chantier) = (None, None, None);",
+  "apres": "            e.en_chantier = None;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_2"
+  ]
+ }
+]

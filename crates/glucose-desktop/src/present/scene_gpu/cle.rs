@@ -14,8 +14,10 @@ use crate::renderer::magasin::Numero;
 /// La clé d'une texture ou son identité : ce qu'elle montre, ou ce qu'elle est.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Cle {
-    /// **Ce niveau de cette photo** — ce qu'elle montre : le fichier, réduit tant de fois.
-    Niveau(Numero, u32),
+    /// **Ce niveau de cette photo** — ce qu'elle montre : le fichier, réduit tant de fois, dans
+    /// sa génération — une pyramide remplacée (l'image suivante d'un GIF, GIF-2) est un contenu
+    /// neuf, que la carte réécrit sous la même identité.
+    Niveau(Numero, u32, u64),
     /// **Cette photo** — ce qu'elle est : ses niveaux sont le même objet à deux finesses, et
     /// l'ancien se pose pendant que le nouveau se téléverse.
     Photo(Numero),
