@@ -20,10 +20,15 @@ pub(super) fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>, partis: &Par
                 // c'est exactement son utilité dans un cache, et elle se mesure ici plutôt
                 // que de s'estimer ailleurs (ADAPT-1). Un aperçu coûte peu : l'image qui en
                 // naît se rend la première si la mémoire manque, et c'est juste.
+                //
+                // Un aperçu n'est permis qu'à la première demande (`apercus`), jamais à un
+                // redécodage : celui du disque, sinon la vignette d'une photo d'iPhone (HEIC-3).
                 let debut = Instant::now();
                 let empreinte = objets.as_deref().and_then(|o| o.empreinte(&src));
+                let permis = apercus.is_some();
                 let pyramide = apercus
                     .and_then(|d| apercu::lire(&apercu::chemin(&d, &src, empreinte)?))
+                    .or_else(|| permis.then(|| par_sa_vignette(&src, objets.as_deref()))?)
                     .and_then(Pyramide::depuis_apercu)
                     .or_else(|| decoder(&src, objets.as_deref(), admission::de_la_machine()));
                 let gif = est_anime(&src, objets.as_deref());
@@ -131,22 +136,43 @@ fn encoder_en_png(rgba: &[u8], (l, h): (u32, u32)) -> Option<Vec<u8>> {
     Some(png)
 }
 
-/// **Cette image bouge-t-elle ?** Un GIF, un WebP ou un PNG animés, à leur signature : son début
-/// seulement, autant qu'il en faut pour le dire (fiche 159 § 9) — une image rouverte vient de son
-/// aperçu et ne passe jamais par le décodeur (GIF-2).
-pub(super) fn est_anime(src: &str, objets: Option<&crate::persist::objets::Objets>) -> bool {
+/// **L'aperçu d'une photo d'iPhone par sa vignette** (HEIC-3, fiche 161 § 8) : son début dit si
+/// c'est un HEIC ; une autre image n'est pas lue une fois de plus.
+fn par_sa_vignette(
+    src: &str,
+    objets: Option<&crate::persist::objets::Objets>,
+) -> Option<apercu::Apercu> {
+    use crate::renderer::photo::heic;
+    if !heic::est_heic(&debut(src, objets, 12)?) {
+        return None;
+    }
+    let octets = match objets {
+        Some(o) => o.lire(src)?,
+        None => std::fs::read(src).ok()?,
+    };
+    heic::vignette::apercu(&octets)
+}
+
+/// Les `n` premiers octets d'une image — moins, si elle finit avant.
+fn debut(src: &str, objets: Option<&crate::persist::objets::Objets>, n: usize) -> Option<Vec<u8>> {
     use std::io::Read;
-    let lire = |n: usize| match objets {
+    match objets {
         Some(o) => o.debut(src, n),
         None => std::fs::File::open(src).ok().and_then(|f| {
             let mut debut = Vec::new();
             f.take(n as u64).read_to_end(&mut debut).ok()?;
             Some(debut)
         }),
-    };
+    }
+}
+
+/// **Cette image bouge-t-elle ?** Un GIF, un WebP ou un PNG animés, à leur signature : son début
+/// seulement, autant qu'il en faut pour le dire (fiche 159 § 9) — une image rouverte vient de son
+/// aperçu et ne passe jamais par le décodeur (GIF-2).
+pub(super) fn est_anime(src: &str, objets: Option<&crate::persist::objets::Objets>) -> bool {
     let mut n = 64;
     loop {
-        let Some(debut) = lire(n) else {
+        let Some(debut) = debut(src, objets, n) else {
             return false;
         };
         match crate::renderer::gif::signature::animee(&debut) {

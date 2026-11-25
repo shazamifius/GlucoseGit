@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "HEIC-3 — une vignette d'autres proportions acceptée",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic/vignette.rs",
+  "avant": "    if ecart > nl.max(nh) {",
+  "apres": "    if ecart > u64::MAX - 1 {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic_3"
+  ]
+ },
+ {
+  "nom": "HEIC-3 — la vignette prise pour l'image entière (rang 0)",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic/vignette.rs",
+  "avant": "    (1..)",
+  "apres": "    (0..)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic_3"
+  ]
+ },
+ {
+  "nom": "HEIC-3 — un seul côté couvert (la vignette agrandie)",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic/vignette.rs",
+  "avant": "l <= vl && h <= vh",
+  "apres": "l <= vl",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic_3"
+  ]
+ },
+ {
+  "nom": "HEIC-3 — l'image première désignée au mauvais endroit",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/heic/vignette.rs",
+  "avant": "    let champ = pitm.start + 4;",
+  "apres": "    let champ = pitm.start + 2;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic_3"
+  ]
+ },
+ {
+  "nom": "HEIC-3 — la vignette aussi au redécodage (jamais nette)",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/ouvrier.rs",
+  "avant": ".or_else(|| permis.then(",
+  "apres": ".or_else(|| true.then(",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic_3"
+  ]
+ },
+ {
+  "nom": "HEIC-3 — la vignette oubliée",
+  "fichier": "crates/glucose-desktop/src/renderer/atelier/ouvrier.rs",
+  "avant": ".or_else(|| permis.then(|| par_sa_vignette(&src, objets.as_deref()))?)",
+  "apres": ".or_else(|| None)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "heic_3"
+  ]
+ }
+]

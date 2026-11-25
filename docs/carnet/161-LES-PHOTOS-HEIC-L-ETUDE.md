@@ -148,3 +148,46 @@ enregistrée, plus `.bin`) ; 9 sabotages sur 9 (`outils/sabotages/heic-161.json`
 P3) ; l'appel au démarrage (le pilote le prouvera) ; `max_threads = 1`.
 **Reste** : le pilote — une photo d'iPhone glissée dans un Glucose piloté, regardée debout et
 nette, sa mémoire mesurée contre la borne `pic` ; l'aperçu par la vignette `thmb`.
+
+## 8. HEIC-2 au pilote, puis HEIC-3 : la vignette d'abord (25/11, compte a)
+
+**HEIC-2 au pilote** (le vrai Glucose, hors écran) : `arrow.heic` (photo d'iPhone, 3024 × 4032,
+tournée par son `irot`) posée par la porte du dépôt (`glucose poser-page … capture=`) — **debout,
+nette, aux couleurs naturelles**. L'appel au démarrage est donc prouvé. **La mémoire, contre la
+borne** : 257,3 Mo au repos, une pointe à 367,1 Mo pendant le décodage (échantillonnée toutes les
+20 ms : la montée dure ~0,5 s), soit **+109,8 Mo** — la borne `pic` (le fichier, 0,8 Mo, plus
+9,3 octets par pixel sur 12,2 Mpx) en prévoit **114,2** : elle tient, à 4 % près. Puis 340 Mo
+(l'image posée et sa pyramide).
+
+**HEIC-3, la vignette d'abord** (`renderer/photo/heic/vignette.rs`). À la **première** demande
+d'une photo (jamais à un redécodage), quand le disque n'a pas son aperçu, l'ouvrier lit les
+douze premiers octets ; un HEIC qui porte une vignette (`thmb`) en fait son **aperçu** : réduite
+au premier niveau de la pyramide qu'elle couvre sans s'agrandir (240 × 320 → 189 × 252, le
+rang 4 d'une photo d'iPhone), les niveaux plus grands **perdus**. C'est exactement le chemin des
+aperçus du disque (ETAGES-4) : l'écran qui veut un niveau perdu fait décoder l'image entière, qui
+remplace la pyramide. Rien de neuf dans le magasin ; une autre image n'est pas lue une fois de plus.
+
+* **Ses couleurs** : `heifer::decode_thumbnail` rend la vignette dans les couleurs du fichier
+  (Display P3, le même profil de 548 octets que la photo, sur `arrow.heic`), sans la convertir ;
+  sa conversion en sRGB n'est pas publique. Elle se fait donc sur une **copie du fichier dont
+  l'image première (`pitm`) est la vignette** — le chemin de l'image entière, au bit près. Sur
+  `arrow.heic` (une feuille grise) la conversion change jusqu'à 3 niveaux ; sur une photo
+  saturée, bien plus. Une fonction publique de `heifer` pour cela serait plus propre : à proposer
+  en amont, la copie s'effacera alors.
+* **Ce qui se refuse** : une vignette d'autres proportions (son petit côté à plus d'un pixel de
+  ce que son grand côté dit) — ce n'est pas la même image ; une vignette qui ne couvrirait que
+  l'image entière (jamais le rang 0 : une pyramide « entière » faite d'une vignette ne se
+  redécoderait plus). `pug.heic` n'a pas de vignette : rien ne change pour lui.
+* **Mesuré** : l'aperçu en 6 ms (décodage, copie, réduction, pyramide) ; son niveau contre celui
+  de l'image entière, 2,4 niveaux d'écart en moyenne (la vignette est codée à part, en moins bien).
+* **Au pilote** : la vignette paraît **0,1 s** après la pose, debout, aux bonnes couleurs, plus
+  douce ; cinq captures identiques en 0,4 s, puis la photo nette (les PNG des captures : 193 puis
+  257 Ko, le détail arrivé). Sur ce tableau de deux nœuds, la vue d'ensemble demande un grand
+  niveau : l'image entière se décode tout de suite. Sur un grand tableau, la vignette suffit tant
+  qu'on ne s'approche pas.
+* **Épreuves** : 6 (le rang et ses refus, l'aperçu et ses pixels, l'image première désignée —
+  les mêmes pixels que `decode_thumbnail` —, un fichier abîmé sans panique, l'atelier : la
+  vignette d'abord puis l'image entière au redécodage) ; **6 sabotages sur 6**
+  (`outils/sabotages/heic-3-161.json`) ; la suite entière verte (3 727), clippy vert.
+  **Non gardé** : la conversion des couleurs (il faudrait un HEIC portant un profil P3 —
+  regardée sur `arrow.heic`).

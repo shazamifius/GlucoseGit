@@ -13,6 +13,8 @@
 //! et converti en sRGB (le Display P3 de l'iPhone, sinon terne), sur un seul fil : l'atelier en
 //! décode déjà plusieurs à la fois.
 
+pub mod vignette;
+
 use heifer::heifer_isobmff::{boxes::Property, HeifFile};
 use image::error::{DecodingError, ImageFormatHint};
 use image::{ColorType, ImageDecoder, ImageError, ImageResult};

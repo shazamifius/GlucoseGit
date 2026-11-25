@@ -365,3 +365,35 @@ fn gif_4_la_signature_se_lit_aussi_loin_qu_il_faut() {
     let _ = std::fs::remove_file(&chemin);
     assert!(anime, "acTL après 3 Ko de profil : un PNG animé");
 }
+
+#[test]
+fn heic_3_une_photo_d_iphone_parait_par_sa_vignette_puis_entiere() {
+    use crate::renderer::photo::{heic, Etat};
+    heic::enregistrer();
+    let dossier = std::env::temp_dir().join(format!("glucose-heic-3-{}", std::process::id()));
+    std::fs::create_dir_all(&dossier).unwrap();
+    let rgba: Vec<u8> = (0..800 * 600)
+        .flat_map(|i| [(i % 251) as u8, 90, 160, 255])
+        .collect();
+    let octets = heifer::encode_rgba8(800, 600, &rgba, &heifer::EncodeOptions::new()).unwrap();
+    let chemin = dossier.join("iphone.heic");
+    std::fs::write(&chemin, octets).unwrap();
+    let src = chemin.to_string_lossy().to_string();
+
+    let mut atelier = Atelier::nouveau();
+    atelier.brancher_les_apercus(dossier.join("apercus"));
+    // La première vue : la vignette (320 × 240) couvre le rang 2 ; les plus grands sont perdus.
+    assert!(atelier.demander(&src));
+    let premiere = moisson_complete(&mut atelier).pop().unwrap().1.unwrap();
+    assert_eq!(premiere.dimensions_natives(), (800, 600));
+    assert!(!premiere.entiere());
+    assert_eq!(
+        (premiere.etat(1), premiere.etat(2)),
+        (Etat::Perdu, Etat::Tenu)
+    );
+    // Le redécodage, que l'écran demande pour un niveau perdu : l'image entière.
+    assert!(atelier.redecoder(&src));
+    let entiere = moisson_complete(&mut atelier).pop().unwrap().1.unwrap();
+    assert!(entiere.entiere());
+    let _ = std::fs::remove_dir_all(&dossier);
+}
