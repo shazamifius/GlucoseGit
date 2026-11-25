@@ -55,6 +55,7 @@ mod importer;
 pub mod journal;
 mod lot;
 mod membranes;
+pub mod miroir_disque;
 mod navigation;
 mod order;
 pub mod participation;

@@ -178,14 +178,10 @@ fn test_an_unknown_extension_still_gets_a_launcher() {
     assert_eq!(bg_color.as_deref(), Some("#1a1a2e"));
 }
 
-/// Un **dossier** devient un lanceur, et non une erreur : on ne sait pas le lire, on sait
-/// y mener.
-///
-/// Le miroir de dossier est un chantier à part entière (fiche 12, 2.C.3). En attendant,
-/// une tuile qui ouvre le dossier dans l'explorateur est vraie et utile ; ne rien faire du
-/// tout ne l'était pas.
+/// Un **dossier** devient son miroir (DISQUE-1, fiche 164), jamais une carte : c'est `is_dir`
+/// qui tranche, pas l'extension de son nom.
 #[test]
-fn test_a_folder_becomes_a_launcher_rather_than_an_error() {
+fn test_a_folder_becomes_its_mirror_rather_than_a_markdown() {
     let bac = Bac::neuf("dossier");
     // Le nom porte une extension lisible, pour vérifier que c'est bien `is_dir` qui tranche
     // et non l'extension : un dossier nommé « travaux.md » n'est pas un Markdown.
@@ -193,13 +189,18 @@ fn test_a_folder_becomes_a_launcher_rather_than_an_error() {
     let mut app = app();
     app.drop_files(std::slice::from_ref(&dossier));
 
-    let posees = annotations(&app);
-    let Annotation::Sticky { source_file, .. } = &posees[0] else {
-        panic!("un dossier doit donner une tuile, pas {posees:?}");
-    };
+    assert!(
+        annotations(&app).is_empty(),
+        "ni carte ni tuile : {:?}",
+        annotations(&app)
+    );
+    let b = app.store.active_board().expect("le tableau");
+    let miroir = b.folders.iter().find(|f| f.name == "travaux.md");
+    let source = miroir.and_then(|f| f.mirror_source.as_ref());
     assert_eq!(
-        source_file.as_deref(),
-        Some(dossier.to_str().expect("chemin"))
+        source.map(|s| s.root_path.as_str()),
+        dossier.to_str(),
+        "son miroir (DISQUE-1)"
     );
 }
 

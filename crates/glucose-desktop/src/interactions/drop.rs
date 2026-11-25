@@ -16,7 +16,11 @@
 //!    d'extensions diverge toujours de ce que le décodeur sait lire, et la divergence se
 //!    voit à l'écran ;
 //! 3. **le reste** — un lanceur : une tuile carrée, teintée par son extension, qui mène au
-//!    fichier. Un dossier en fait partie : on ne sait pas le *lire*, on sait y *mener*.
+//!    fichier.
+//!
+//! **Un dossier** devient son miroir ([`super::miroir_disque`], DISQUE-1, fiche 164) — un dossier
+//! de Glucose qui montre ce qu'il contient, lu un niveau à la fois ; un dossier qu'on ne peut pas
+//! lire reste une tuile qui y mène.
 //!
 //! # Pourquoi un lanceur **révèle** au lieu d'ouvrir
 //!
@@ -198,7 +202,7 @@ impl Lot {
 }
 
 /// Le nom d'un fichier, sans son chemin.
-fn file_name_of(path: &Path) -> String {
+pub(crate) fn file_name_of(path: &Path) -> String {
     path.file_name()
         .and_then(|n| n.to_str())
         .map_or_else(|| path.to_string_lossy().into_owned(), str::to_string)
@@ -361,6 +365,10 @@ impl GlucoseApp {
     fn place_dropped(&mut self, board: &str, path: &Path, (x, y): (f64, f64)) -> bool {
         let name = file_name_of(path);
 
+        // 0. Un dossier : son miroir (DISQUE-1, fiche 164) ; illisible, la tuile qui y mène.
+        if path.is_dir() && self.poser_un_miroir(board, path, (x, y)) {
+            return true;
+        }
         // 1. Lisible : le noyau le dit, sans toucher au disque.
         if !path.is_dir() && file_kind::readable(&name).is_some() {
             return self.place_readable(board, path, &name, (x, y));
@@ -370,7 +378,7 @@ impl GlucoseApp {
         if !path.is_dir() && self.place_image_file(board, path, (x, y)).is_ok() {
             return true;
         }
-        // 3. Le reste — un dossier compris : une tuile qui mène au fichier.
+        // 3. Le reste — un dossier qu'on ne lit pas compris : une tuile qui mène au fichier.
         self.place_launcher(board, path, &name, (x, y));
         true
     }
@@ -438,11 +446,24 @@ impl GlucoseApp {
     }
 
     /// Le contenu d'un fichier lisible, posé en Markdown sur une carte.
-    fn place_readable(&mut self, board: &str, path: &Path, name: &str, (x, y): (f64, f64)) -> bool {
+    fn place_readable(&mut self, board: &str, path: &Path, name: &str, ou: (f64, f64)) -> bool {
         // Un échec ne parle pas ici : c'est le compte-rendu du lot qui le dira.
-        let Ok(raw) = std::fs::read(path) else {
+        let Some(card) = self.carte_lisible(path, name, ou) else {
             return false;
         };
+        self.store.add_annotation(board, card);
+        true
+    }
+
+    /// **La carte d'un fichier lisible** : son contenu en Markdown, son chemin gardé — le dépôt
+    /// et le miroir d'un dossier (DISQUE-1) la font de la même façon. `None` s'il ne se lit pas.
+    pub(crate) fn carte_lisible(
+        &mut self,
+        path: &Path,
+        name: &str,
+        (x, y): (f64, f64),
+    ) -> Option<Annotation> {
+        let raw = std::fs::read(path).ok()?;
         let truncated = raw.len() > file_kind::INLINE_MAX_BYTES;
         // Un fichier « lisible » peut très bien ne pas être de l'UTF-8 valide : un `.txt`
         // hérité d'une autre époque, par exemple. On ne le refuse pas — on remplace ce qui
@@ -474,12 +495,17 @@ impl GlucoseApp {
             // y revenir même quand le contenu a été tronqué.
             *source_file = Some(path.to_string_lossy().into_owned());
         }
-        self.store.add_annotation(board, card);
-        true
+        Some(card)
     }
 
     /// Une tuile qui mène au fichier, teintée par son extension.
-    fn place_launcher(&mut self, board: &str, path: &Path, name: &str, (x, y): (f64, f64)) {
+    fn place_launcher(&mut self, board: &str, path: &Path, name: &str, ou: (f64, f64)) {
+        let tile = self.tuile(path, name, ou);
+        self.store.add_annotation(board, tile);
+    }
+
+    /// **La tuile d'un fichier**, qui le révèle au double-clic — le dépôt et le miroir d'un dossier.
+    pub(crate) fn tuile(&mut self, path: &Path, name: &str, (x, y): (f64, f64)) -> Annotation {
         let id = self.store.generate_id("src");
         let mut tile = Annotation::sticky(id, x, y, name);
         if let Annotation::Sticky {
@@ -499,7 +525,7 @@ impl GlucoseApp {
             *bg_color = Some(accent_of(&file_kind::extension(name)).to_string());
             *source_file = Some(path.to_string_lossy().into_owned());
         }
-        self.store.add_annotation(board, tile);
+        tile
     }
 
     /// Ce qu'un double-clic ouvre sur un **lanceur** : son fichier, révélé dans l'explorateur.

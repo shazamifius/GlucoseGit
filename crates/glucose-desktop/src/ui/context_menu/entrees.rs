@@ -223,6 +223,7 @@ fn entrees_des_operateurs() -> [Def; 6] {
 fn entrees_du_vide() -> Vec<Def> {
     vec![
         Some((MenuAction::AjouterDesImages, "Ajouter des images…", "")),
+        Some((MenuAction::DossierDuDisque, "Dossier du disque…", "")),
         None,
         Some((MenuAction::Paste, "Coller", "")),
         Some((MenuAction::SelectAll, "Tout sélectionner", "")),

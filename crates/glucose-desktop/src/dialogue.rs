@@ -98,6 +98,8 @@ pub enum Mode {
     Plusieurs,
     /// Où enregistrer.
     Enregistrer,
+    /// Un dossier (DISQUE-1).
+    Dossier,
 }
 
 /// **Un sélecteur de fichier** : ses filtres, et le nom qu'il propose.
@@ -221,6 +223,10 @@ impl GlucoseApp {
                 Mode::Plusieurs => Box::pin(d.pick_files()),
                 Mode::Enregistrer => {
                     let f = d.save_file();
+                    Box::pin(async move { f.await.map(|h| vec![h]) })
+                }
+                Mode::Dossier => {
+                    let f = d.pick_folder();
                     Box::pin(async move { f.await.map(|h| vec![h]) })
                 }
             };

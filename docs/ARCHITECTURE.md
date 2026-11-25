@@ -144,6 +144,12 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
   pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6) ; la première
   copie qui arrive se pose tout de suite, et l'original prend sa place (`depot_web/apercu.rs`).
+* **Un dossier de son PC** (DISQUE-1, fiche 164 ; `interactions/miroir_disque.rs`, `core/miroir_disque.rs`,
+  `core/store/miroir_disque.rs`) : lâché, il devient un dossier miroir, lu **un niveau à la fois** — un
+  sous-dossier se lit au moment d'y entrer (`lire_le_miroir_ou_l_on_entre`, avant chaque image, qui ne
+  fait rien tant que le tableau regardé ne change pas). La lecture est **un geste** (`remplir_le_miroir`),
+  disposé par la loi de COLONNES-1. Une photo reste sur le disque **tant qu'elle vit dans le tableau d'un
+  miroir** (`tableaux_du_disque`, lu par `persist/ecriture.rs`) : sortie, elle se scelle.
 * **Tracer un rectangle** (TRACE-1, `interactions/trace.rs`, fiche 65) : sous l'outil Membrane
   ou Dossier et sous la grille armée du Storyboard, l'appui ne pose rien ; un clic (la main
   dans le tremblement d'un double-clic) pose comme avant, un glisser trace la taille — la loi

@@ -35,6 +35,7 @@ impl GlucoseApp {
             Commande::EnregistrerSous => self.enregistrer_sous_depuis_le_menu(),
             Commande::Exporter => self.export_board(),
             Commande::ImporterDesImages => self.pick_and_import_images(),
+            Commande::DossierDuDisque => self.choisir_un_dossier_du_disque(),
             Commande::TimeMachine => self.basculer_la_machine(),
             Commande::Frise => self.basculer_la_frise(),
             Commande::NePlusRegarder => self.store.set_domaine_regarde(None),
@@ -67,9 +68,7 @@ impl GlucoseApp {
             Commande::AllerAuNoeud => return self.aller_au_noeud_montre(),
             Commande::DisposerEnColonnes => self.disposer_la_selection_en_colonnes(),
             Commande::EntrerDansLaMembrane => self.entrer_dans_la_membrane(),
-            Commande::SortirDeLaMembrane => {
-                self.sortir_de_la_membrane();
-            }
+            Commande::SortirDeLaMembrane => _ = self.sortir_de_la_membrane(),
             Commande::ModeReference => self.basculer_le_mode_reference(),
             Commande::PleinEcran => self.basculer_le_plein_ecran(),
             Commande::BarreDuSysteme => self.basculer_la_barre_du_systeme(),

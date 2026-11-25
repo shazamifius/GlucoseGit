@@ -243,6 +243,8 @@ pub struct GlucoseApp {
     /// **Ce qui arrive du système par glisser-déposer** : les fichiers de `winit`, le pont
     /// natif, et les images annoncées qui ne sont pas encore livrées.
     pub depot: crate::interactions::depot_web::Arrivees,
+    /// Le tableau regardé à l'image d'avant : un dossier miroir se lit quand on y entre (DISQUE-1).
+    pub miroirs: crate::interactions::miroir_disque::Miroirs,
     /// **Les entrées au doigt** : le pavé de précision (fiche 53) et les doigts sur un écran
     /// (fiche 54).
     pub toucher: crate::interactions::toucher::Toucher,
@@ -414,6 +416,7 @@ impl GlucoseApp {
             text_drag: None,
             last_click: None,
             depot: Default::default(),
+            miroirs: Default::default(),
             toucher: Default::default(),
             echanges: Default::default(),
             pick_cycle: None,

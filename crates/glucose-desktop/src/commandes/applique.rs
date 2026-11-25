@@ -83,6 +83,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::ModeReference
         | C::PleinEcran
         | C::BarreDuSysteme
+        | C::DossierDuDisque
         | C::RenommerLeDossier
         | C::JournalTechnique
         | C::VoirCeQuiPart
@@ -205,6 +206,8 @@ fn selon_le_document(store: &Store, commande: Commande) -> bool {
         C::RenommerLeDossier => store.dossier_choisi_et_son_nom().is_some(),
         // La barre blanche n'existe que sous Windows, où la bande la remplace (BARRE-1).
         C::BarreDuSysteme => cfg!(windows),
+        // Le téléphone choisira un dossier par le sien (le SAF), plus tard (fiche 164 § 4).
+        C::DossierDuDisque => !cfg!(target_os = "android"),
         // Sans serveur, rien ne part, et il n'y a rien à voir partir ; le téléphone n'a pas
         // d'explorateur où ouvrir le dossier (fiche 56).
         C::JournalTechnique => crate::telemetrie::serveur().is_some(),

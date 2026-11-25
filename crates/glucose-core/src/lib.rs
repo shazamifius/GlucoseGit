@@ -37,6 +37,7 @@ pub mod membrane_forme;
 pub mod membrane_space;
 pub mod membrane_stretch;
 pub mod membrane_titre;
+pub mod miroir_disque;
 pub mod mirror_graph;
 pub mod occlusion;
 pub mod persist;

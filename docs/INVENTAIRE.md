@@ -161,7 +161,7 @@ bouton, au PC et au téléphone, le jour où il existe.
 | **Rideaux** (un tableau entier dans une membrane, privé ou partagé) | Tauri | membrane, en mode Focus | noyau écrit (`curtain_model`), à brancher ; **à sa parole** |
 | **Export HTML** : une page web autonome — glisser, molette, **deux doigts**, une flèche se lit (de quoi montrer un canevas sur un iPad) | Tauri | Exporter, le format « Page web » | **fait** (fiche 115 § 7 ter, dans `main` à la fiche 117) — reste l'iPad : Safari jamais essayé |
 | **Miroirs** (un même nœud à deux endroits) | Tauri (`Ctrl+Maj+M`) | menu de la sélection | noyau en partie (`mirror_graph`) |
-| **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | outil Dossier | — |
+| **Dossiers miroirs du disque** (un dossier du PC, vivant) | Tauri | lâcher un dossier, ou « Dossier du disque… » (menu du vide, palette) | **DISQUE-1 fait** (fiche 164 § 7) : un dossier lâché devient son miroir, lu un niveau à la fois, ses photos restent sur le disque ; le vivant (DISQUE-2) et sa question (`relais-q-dossier-disque`) à suivre |
 | **Opérateurs des post-it** : ET, OU, MAIS, PARCE QUE | Tauri (`Alt+0…4`) | menu d'un post-it, palette, `Alt+0…4` ; une IA par `operateur=` | **faits** (fiche 98, OPERATEUR-1 et 2) — attendent son écran |
 | **Couleur d'un post-it**, sélecteur de couleur | Tauri | la barre de couleur, au-dessus de la barre d'action ; la palette | **le nuancier est fait** (fiche 98, COULEUR-1 : textes, post-it, membranes, dossiers) ; **la roue est faite** (fiche 99, ROUE-1, dans Oklch), avec le code qu'on tape et la pipette |
 | **Couleur des domaines sur le canevas** | Tauri, fiche 03 § 11 | panneau Domaines | — (la visualisation des domaines : l'ergonomie, sa parole du 22/10) |

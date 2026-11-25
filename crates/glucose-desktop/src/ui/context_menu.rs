@@ -65,6 +65,7 @@ impl MenuAction {
     pub fn commande(self) -> Option<Commande> {
         Some(match self {
             MenuAction::AjouterDesImages => Commande::ImporterDesImages,
+            MenuAction::DossierDuDisque => Commande::DossierDuDisque,
             MenuAction::Copier => Commande::Copier,
             MenuAction::NouveauDocument => Commande::NouveauDocument,
             MenuAction::OuvrirUnDocument => Commande::OuvrirUnDocument,
@@ -154,6 +155,8 @@ pub enum MenuAction {
     /// Des images de l'appareil : le sélecteur de fichiers du bureau, celui des photos du
     /// téléphone (fiche 56).
     AjouterDesImages,
+    /// Un dossier de son PC, en miroir (DISQUE-1).
+    DossierDuDisque,
     /// La sélection entière vers le presse-papiers (fiche 51 § 2).
     Copier,
     /// Un document vierge, à la place de celui-ci (fiche 51 § 4).

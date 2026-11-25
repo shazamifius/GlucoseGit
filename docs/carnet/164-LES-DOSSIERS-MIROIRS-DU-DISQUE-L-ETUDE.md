@@ -38,8 +38,8 @@ d'abord **les dossiers miroirs du disque** : un dossier du PC, vivant, dans le c
   ce qu'une photo liée d'un dossier vivant demande.
 * **Le nœud du problème** : toute image qui a un `src` est **scellée** dans le document à
   l'enregistrement (`persist/ecriture.rs`, `sceller`) — ses octets entrent dans l'histoire. Un
-  dossier de 2 000 photos ferait un document de plusieurs gigaoctets. Une image du miroir doit
-  porter `asset = Link`, et `sceller` la laisser dehors.
+  dossier de 2 000 photos ferait un document de plusieurs gigaoctets. `sceller` doit laisser les
+  photos du miroir dehors — **par leur lieu, pas par `asset = Link`** (§ 7).
 
 ## 3. Ce que la recherche dit (25/11)
 
@@ -90,8 +90,8 @@ Tauri, étendu à chaque entrée), la fenêtre qui reprend la main (`WindowEvent
 seul niveau ouvert (une surveillance, pas une par sous-dossier ; une note `decisions/21`).
 
 **Jamais d'écriture sur son disque.** Retirer un nœud du miroir ne supprime aucun fichier ;
-déplacer un nœud ne déplace rien. **Les photos liées** (`asset = Link`) ne se scellent pas ; leurs
-aperçus vivent dans le cache, comme aujourd'hui.
+déplacer un nœud ne déplace rien. **Les photos du miroir** ne se scellent pas ; leurs aperçus
+vivent dans le cache, comme aujourd'hui.
 
 **Ce qui reste ouvert, technique, décidé plus tard** : le partage (un miroir vit sur une machine :
 dans un canevas partagé, l'autre voit les nœuds, et les photos liées doivent voyager comme les
@@ -119,3 +119,46 @@ dans ses fichiers depuis Glucose ferait de Glucose un éditeur de son disque (le
 une autre ambition, à décider par lui. Et : à quoi lui servira-t-il — des références, des rendus
 qui tombent pendant qu'il travaille, un projet entier ? La réponse dit si DISQUE-3 vient tout de
 suite.
+
+## 7. DISQUE-1, fait (25/11 vers 6 h 40, compte a)
+
+**Un dossier lâché devient son miroir**, son premier niveau lu dans le geste du dépôt (un seul
+`Ctrl+Z`) ; un dossier qu'on ne peut pas lire reste la tuile qui y mène. Un sous-dossier se lit au
+moment d'y entrer. Le code : `core/miroir_disque.rs` (ce qui se tait, l'ordre), `core/store/
+miroir_disque.rs` (le remplissage, un geste), `desktop/interactions/miroir_disque.rs` (le disque).
+Ce qui a changé en codant, et pourquoi :
+
+* **Le signe d'une photo qui reste sur le disque est son lieu**, pas `asset = Link` : la suite l'a
+  dit — un document *portable* de Tauri marque ses images `Link` (`asset:…`), et elles doivent se
+  sceller (`test_un_document_tauri_portable_…`). Une photo reste dehors **tant qu'elle vit dans le
+  tableau d'un miroir** (`tableaux_du_disque`) ; glissée ou copiée sur son canevas, elle devient
+  sienne et se scelle. `Transaction::images_posees_et_ou` donne le tableau de chaque photo posée.
+* **La lecture à l'entrée est un geste** de l'histoire (on verra dans la Time Machine quand le
+  disque a été lu ; elle s'enregistre et se partage), **déclenchée au moment d'entrer seulement** :
+  déclenchée par l'état (« ce dossier attend »), un `Ctrl+Z` qui vide le dossier où l'on est l'aurait
+  relu à l'image suivante — la main enfermée, sans pouvoir défaire plus loin. Épreuve et sabotage.
+* **La disposition est COLONNES-1** (la loi des membranes, la proportion de l'écran) : la croix de
+  Tauri et ses quatre constantes ont disparu. À regarder à son écran.
+* **Tout ce qui commence par un point se tait**, `.env` compris (Tauri le montrait) : un canevas se
+  partage et des IA le lisent.
+* Un dossier illisible à l'entrée le dit par le message du dépôt (le cliquet 2 refuse un site de
+  plus ; lire un sous-dossier est la suite différée du dépôt) et reste « à lire ».
+* **« Dossier du disque… »**, au menu du vide et à la palette : le sélecteur du système
+  (`rfd::pick_folder`, `dialogue::Mode::Dossier`), puis le dossier choisi se lâche là où l'on
+  regarde — le même geste que le dépôt. Pas sur le téléphone (le SAF, plus tard).
+* Les photos à sceller : `images_hors_du_disque` (le noyau) — le cliquet 1 refusait que l'écriture
+  lise les tableaux elle-même.
+
+Épreuves : 8 dans le noyau, 5 dans le bureau ; l'épreuve du dépôt d'un dossier réécrite (« son
+miroir, pas une carte »). Sabotages : `outils/sabotages/disque-1.json`. **Piège payé encore** : deux
+sabotages « ne compilent pas » — le cache incrémental (`target/debug/incremental/glucose_desktop-*`),
+vidé, ils tombent.
+
+Suite entière verte (3 742) ; Windows, Mac et Android verts (`verifier_cibles.sh`). **Piège payé** :
+`saboter.py` joue dans l'arbre du dépôt — l'éditer pendant qu'il tourne fait tomber un sabotage en
+« ne compile pas » ; attendre sa fin.
+
+**Pas encore** : le lire hors du fil de l'image (un niveau se lit sur le fil de l'image : à mesurer
+sur un grand dossier avant de décider) ; le pilote et son écran ; DISQUE-2 (le vivant) ; le partage (les photos des gestes partent par B1,
+lues à leur clé — ici leur chemin : à essayer).
+

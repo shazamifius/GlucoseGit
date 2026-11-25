@@ -258,6 +258,7 @@ fn systeme(c: Commande) -> bool {
             | Commande::ModeReference
             | Commande::PleinEcran
             | Commande::BarreDuSysteme
+            | Commande::DossierDuDisque
     )
 }
 

@@ -64,6 +64,8 @@ pub enum Commande {
     EnregistrerSous,
     Exporter,
     ImporterDesImages,
+    /// **Un dossier de son PC en miroir** (DISQUE-1, fiche 164) : le choisir revient à le lâcher.
+    DossierDuDisque,
     TimeMachine,
     /// **La frise chronologique** (`Maj+R`) : une période gardée, le reste daté s'estompe (FRISE-1).
     Frise,
@@ -194,7 +196,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 64] = [
+const SIMPLES: [(Commande, &str, &str); 65] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -208,6 +210,11 @@ const SIMPLES: [(Commande, &str, &str); 64] = [
         "Enregistrer sous…",
     ),
     (Commande::Exporter, "exporter", "Exporter…"),
+    (
+        Commande::DossierDuDisque,
+        "dossier-du-disque",
+        "Dossier du disque…",
+    ),
     (
         Commande::ImporterDesImages,
         "importer-des-images",

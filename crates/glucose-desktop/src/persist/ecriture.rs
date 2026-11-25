@@ -38,6 +38,7 @@
 
 use super::objets::{Objets, Source};
 use super::scribe::{chemin_de_saisie, Depart, Octets, Ordre, Scribe};
+use glucose_core::miroir_disque::{images_hors_du_disque, tableaux_du_disque};
 use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Saisie, Vue};
 use glucose_core::persist::histoire::{Auteur, Note, NoteVisee, Retrait};
 use glucose_core::store::journal::{Ecrit, Main};
@@ -210,12 +211,15 @@ impl Ecriture {
         instant: i64,
     ) -> usize {
         let premier = self.gestes;
+        let disque = tableaux_du_disque(projet);
         for Ecrit {
             transaction, main, ..
         } in ecrits
         {
-            for img in transaction.images_posees() {
-                self.sceller(img, objets);
+            for (board, img) in transaction.images_posees_et_ou() {
+                if !disque.contains(board) {
+                    self.sceller(img, objets);
+                }
             }
             let auteur = self.signer(&main);
             let contenu = histoire::contenu_geste(&Geste {
@@ -365,7 +369,8 @@ impl Ecriture {
     /// Scelle chaque image du projet qui ne l'est pas encore : un document ouvert dont
     /// certaines images vivaient encore hors de lui, un document importé.
     pub fn sceller_tout(&mut self, projet: &Project, objets: &Objets) {
-        for img in projet.toutes_les_images() {
+        // Une photo d'un miroir du disque y reste (DISQUE-1, fiche 164).
+        for img in images_hors_du_disque(projet) {
             self.sceller(img, objets);
         }
     }

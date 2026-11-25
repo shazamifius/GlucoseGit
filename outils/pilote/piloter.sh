@@ -15,8 +15,9 @@
 #   lâche au milieu du geste).
 #   bash outils/pilote/piloter.sh taper <texte> | touche <nom> | ctrl <t> | alt <t> | maj <t> | altmaj <t> | ctrlmaj <t>
 #   bash outils/pilote/piloter.sh capture <f.png> | arreter
-#   bash outils/pilote/piloter.sh presse-lire | presse-ecrire <texte> | presse-image <f.png>
-#        (le presse-papiers de son compositeur)
+#   bash outils/pilote/piloter.sh presse-lire | presse-ecrire <texte> | presse-image <f.png> | presse-fichiers <chemin>
+#        (le presse-papiers de son compositeur ; `presse-fichiers` : un fichier ou un dossier copié,
+#        comme dans un gestionnaire de fichiers — `Ctrl+V` le pose comme un dépôt)
 #
 # `PILOTE_ETAT=<dossier>` (par défaut /tmp/glucose-pilote) : l'état d'un pilote — deux dossiers, deux
 # Glucose à la fois, chacun dans son compositeur (le canevas partagé, fiche 117).
@@ -129,6 +130,7 @@ capture) wl grim "$2" ;;
 presse-lire) wl timeout 5 "$(outil wl-clipboard)/bin/wl-paste" --no-newline ;;
 presse-ecrire) printf '%s' "$2" | wl "$(outil wl-clipboard)/bin/wl-copy" ;;
 presse-image) wl "$(outil wl-clipboard)/bin/wl-copy" --type image/png < "$2" ;;
+presse-fichiers) printf 'file://%s\r\n' "$2" | wl "$(outil wl-clipboard)/bin/wl-copy" --type text/uri-list ;;
 arreter)
   c=$(compo)
   ordre 'fin\n' 2>/dev/null

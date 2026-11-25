@@ -30,6 +30,7 @@ pub mod gabarit;
 pub mod grouper;
 pub mod lecture;
 pub mod links;
+pub mod miroir_disque;
 pub mod mouse;
 pub mod onglets;
 pub mod operateurs;

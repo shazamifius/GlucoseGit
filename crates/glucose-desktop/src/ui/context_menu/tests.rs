@@ -59,6 +59,7 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
         [
             MenuAction::Annuler,
             MenuAction::AjouterDesImages,
+            MenuAction::DossierDuDisque,
             MenuAction::Paste,
             MenuAction::SelectAll,
             MenuAction::ToutCadrer,
@@ -343,6 +344,7 @@ fn test_acces_1_chaque_geste_du_clavier_a_son_entree() {
         MenuAction::EnregistrerSous,
         MenuAction::Exporter,
         MenuAction::AjouterDesImages,
+        MenuAction::DossierDuDisque,
     ] {
         assert!(
             vide.contains(&attendue),

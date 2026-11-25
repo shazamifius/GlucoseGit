@@ -19,6 +19,8 @@ pub enum Demande {
     AjouterUnDocument,
     /// Poser ces images.
     ImporterDesImages,
+    /// Lâcher ce dossier là où l'on regarde : son miroir (DISQUE-1).
+    DossierDuDisque,
     /// Enregistrer le document ici, puis ce qui suit.
     Enregistrer(Puis),
     /// Écrire ces octets d'image ici, sous cette extension s'il n'en a pas.
@@ -47,6 +49,7 @@ impl GlucoseApp {
             Demande::Ouvrir => self.laisser_puis(Ensuite::Ouvrir(premier)),
             Demande::AjouterUnDocument => self.ajouter_un_document(&premier),
             Demande::ImporterDesImages => self.import_image_files(&chemins),
+            Demande::DossierDuDisque => self.drop_files(&chemins),
             Demande::Enregistrer(puis) => {
                 self.save_to(crate::persist::with_glucose_extension(premier));
                 self.apres_l_enregistrement(puis);

@@ -245,13 +245,24 @@ impl Transaction {
     /// une image ajoutée ou changée, et les images d'un tableau rétabli. C'est ce qu'il faut
     /// savoir pour mettre leurs octets dans le fichier (HISTOIRE-1).
     pub fn images_posees(&self) -> Vec<&crate::types::BoardImage> {
+        self.images_posees_et_ou()
+            .into_iter()
+            .map(|(_, i)| i)
+            .collect()
+    }
+
+    /// Les mêmes, chacune avec le tableau où elle se pose : une photo d'un miroir du disque ne se
+    /// scelle pas (DISQUE-1, [`crate::miroir_disque::tableaux_du_disque`]).
+    pub fn images_posees_et_ou(&self) -> Vec<(&str, &crate::types::BoardImage)> {
         let mut out = Vec::new();
         for e in &self.edits {
             match e {
-                Edit::Image { slot, .. } => out.extend(slot.after.as_deref()),
+                Edit::Image { board, slot } => {
+                    out.extend(slot.after.as_deref().map(|i| (board.as_str(), i)));
+                }
                 Edit::Board { slot } => {
                     if let Some(b) = slot.after.as_deref() {
-                        out.extend(b.images.iter());
+                        out.extend(b.images.iter().map(|i| (b.id.as_str(), i)));
                     }
                 }
                 _ => {}
