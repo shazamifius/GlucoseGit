@@ -198,5 +198,45 @@
    "--",
    "video_1"
   ]
+ },
+ {
+  "nom": "VIDEO-1 — les greffons de Glucose derrière ceux déjà annoncés",
+  "fichier": "crates/glucose-desktop/src/renderer/video.rs",
+  "avant": "    let mut chemins = std::ffi::OsString::from(greffons);\n    if let Some(deja) = deja.filter(|d| !d.is_empty()) {\n        chemins.push(\":\");\n        chemins.push(deja);\n    }\n",
+  "apres": "    let mut chemins = deja.unwrap_or_default();\n    if !chemins.is_empty() {\n        chemins.push(\":\");\n    }\n    chemins.push(greffons);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-1 — main n'annonce plus les greffons",
+  "fichier": "crates/glucose-desktop/src/main.rs",
+  "avant": "    glucose_desktop::renderer::annoncer_les_greffons();\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_1"
+  ]
  }
 ]

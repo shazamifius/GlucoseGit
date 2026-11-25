@@ -35,6 +35,9 @@
           # recette (nix/glucose.nix), une seule liste.
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath recette.passthru.ouvertes;
           GLUCOSE_GREFFONS_GST = recette.passthru.cheminDesGreffons;
+          # Les épreuves ne passent pas par `main` : leurs greffons, GStreamer les lit d'ici (et
+          # les garde dans son cache, fiche 169 § 4).
+          GST_PLUGIN_PATH_1_0 = recette.passthru.cheminDesGreffons;
         };
       });
     };

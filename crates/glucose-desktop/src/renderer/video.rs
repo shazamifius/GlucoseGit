@@ -24,6 +24,31 @@ mod lieu;
 #[cfg(target_os = "linux")]
 pub(crate) use lieu::Lieu;
 
+/// **Annonce à GStreamer les greffons connus à la compilation** (sous Nix), avant qu'aucun fil ne
+/// parte : à appeler en tête de `main`. `gst_init` lit `GST_PLUGIN_PATH_1_0` et range ce qu'il y
+/// trouve dans son registre en cache : le premier lancement lit les greffons (~1 s), les suivants
+/// trouvent le cache (~9 ms). Ajoutés après l'ouverture (`gst_registry_scan_path`), ils n'entraient
+/// jamais dans ce cache : chaque lancement les relisait — une seconde de fenêtre figée au premier
+/// dépôt d'une vidéo (fiche 169 § 4).
+pub fn annoncer_les_greffons() {
+    #[cfg(target_os = "linux")]
+    if let Some(greffons) = gst::GREFFONS {
+        const NOM: &str = "GST_PLUGIN_PATH_1_0";
+        std::env::set_var(NOM, chemins_des_greffons(greffons, std::env::var_os(NOM)));
+    }
+}
+
+/// Les greffons de Glucose d'abord, puis ceux qu'on avait déjà annoncés.
+#[cfg(target_os = "linux")]
+fn chemins_des_greffons(greffons: &str, deja: Option<std::ffi::OsString>) -> std::ffi::OsString {
+    let mut chemins = std::ffi::OsString::from(greffons);
+    if let Some(deja) = deja.filter(|d| !d.is_empty()) {
+        chemins.push(":");
+        chemins.push(deja);
+    }
+    chemins
+}
+
 /// **Ce système sait-il lire une vidéo ?** Sous Linux, si GStreamer est là ; ailleurs, pas
 /// encore (leur porte suit, fiche 169).
 pub(crate) fn lisible_ici() -> bool {
@@ -51,5 +76,33 @@ pub(crate) fn image_fixe(
     {
         let _ = (src, objets);
         None
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    #[test]
+    fn video_1_les_greffons_de_glucose_passent_devant_ceux_deja_annonces() {
+        let chemins =
+            |deja: Option<&str>| super::chemins_des_greffons("/g/a:/g/b", deja.map(Into::into));
+        assert_eq!(chemins(None), "/g/a:/g/b");
+        assert_eq!(chemins(Some("")), "/g/a:/g/b");
+        assert_eq!(chemins(Some("/autre")), "/g/a:/g/b:/autre");
+    }
+
+    /// Les greffons s'annoncent **avant tout fil** : la première chose que fait `main`. Plus tard,
+    /// changer l'environnement pendant qu'un autre fil le lit est une course ; jamais, et chaque
+    /// lancement relit les greffons (une seconde de fenêtre figée).
+    #[test]
+    fn video_1_main_annonce_les_greffons_avant_tout() {
+        let main = include_str!("../main.rs");
+        let corps = main.split("fn main()").nth(1).expect("main");
+        let premiere = (corps.lines().skip(1))
+            .map(str::trim)
+            .find(|l| !l.is_empty() && !l.starts_with("//"));
+        assert_eq!(
+            premiere,
+            Some("glucose_desktop::renderer::annoncer_les_greffons();")
+        );
     }
 }

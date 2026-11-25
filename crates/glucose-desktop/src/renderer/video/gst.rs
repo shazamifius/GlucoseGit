@@ -82,8 +82,6 @@ macro_rules! table {
 table! {
     [gstreamer]
         gst_init_check: fn(*mut c_int, *mut c_void, *mut c_void) -> c_int;
-        gst_registry_get: fn() -> Ptr;
-        gst_registry_scan_path: fn(Ptr, *const c_char) -> c_int;
         gst_element_factory_make: fn(*const c_char, *const c_char) -> Ptr;
         gst_element_set_state: fn(Ptr, c_int) -> c_int;
         gst_element_get_state: fn(Ptr, *mut c_int, *mut c_int, u64) -> c_int;
@@ -122,7 +120,8 @@ const BIBLIOTHEQUES: [&str; 3] = [
 ];
 
 /// Où les greffons ont été trouvés à la compilation (sous NixOS, `nix/glucose.nix`) ; ailleurs,
-/// GStreamer cherche dans ceux du système, et ce chemin n'existe pas.
+/// GStreamer cherche dans ceux du système. Ils lui sont annoncés au lancement
+/// ([`super::annoncer_les_greffons`]).
 pub(super) const GREFFONS: Option<&str> = option_env!("GLUCOSE_GREFFONS_GST");
 
 /// **GStreamer, ouvert une fois pour tout le processus** — ou rien, s'il manque ici.
@@ -152,25 +151,18 @@ fn ouvrir() -> Option<Gst> {
         .collect::<Option<Vec<_>>>()?;
     let gst = Gst::ouvrir(bibliotheques)?;
     // SAFETY : `gst_init_check` accepte des arguments nuls ; appelé une seule fois (OnceLock).
-    unsafe {
-        if (gst.gst_init_check)(
+    let debut = std::time::Instant::now();
+    let pret = unsafe {
+        (gst.gst_init_check)(
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
-        ) == 0
-        {
-            return None;
-        }
-        if let Some(chemins) = GREFFONS {
-            let registre = (gst.gst_registry_get)();
-            for chemin in chemins.split(':').filter(|c| !c.is_empty()) {
-                if let Ok(c) = CString::new(chemin) {
-                    (gst.gst_registry_scan_path)(registre, c.as_ptr());
-                }
-            }
-        }
-    }
-    Some(gst)
+        )
+    };
+    // Une seconde ici, c'est son registre refait (des greffons neufs) ; quelques millisecondes,
+    // c'est son cache (fiche 169 § 4).
+    crate::dire!("[video] GStreamer prêt en {:?}", debut.elapsed());
+    (pret != 0).then_some(gst)
 }
 
 /// Une chaîne C pour un nom de propriété ou d'élément (jamais d'octet nul : des littéraux).

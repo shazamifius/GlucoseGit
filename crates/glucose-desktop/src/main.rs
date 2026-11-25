@@ -15,6 +15,8 @@ use glucose_desktop::mise_a_jour::cycle;
 use winit::event_loop::EventLoop;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Avant tout fil : l'environnement ne se change sans risque que seul (fiche 169 § 4).
+    glucose_desktop::renderer::annoncer_les_greffons();
     // `glucose --mcp` : le relais d'un client MCP vers le Glucose ouvert (fiche 75) — avant
     // tout, sans fenêtre, et rien d'autre sur sa sortie que le protocole.
     #[cfg(not(target_os = "android"))]

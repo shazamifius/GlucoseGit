@@ -62,6 +62,7 @@ pub mod svg;
 pub mod tuiles;
 pub(crate) mod vectoriel;
 pub(crate) mod video;
+pub use video::annoncer_les_greffons;
 pub mod vignette;
 pub mod wrap;
 pub mod zone;
