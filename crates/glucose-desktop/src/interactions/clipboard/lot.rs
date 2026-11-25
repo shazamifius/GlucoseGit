@@ -153,17 +153,23 @@ impl GlucoseApp {
     /// **L'image où les nœuds sont revenus se peint avant de partir** : pendant le geste,
     /// `winit` ne peut rien livrer à cette fenêtre, et elle resterait figée sur les nœuds tenus
     /// au bord — ce qui ressemble à des nœuds perdus (`plateforme::glisser_windows`).
-    pub(crate) fn emporter_hors_de_la_fenetre(&mut self) {
-        self.abandonner_le_glisser();
+    ///
+    /// `ecran` : où est la main ; l'ombre des nœuds la suit (Q10, fiche 155).
+    pub(crate) fn emporter_hors_de_la_fenetre(&mut self, ecran: (f64, f64)) {
         let board = self.store.project.active_board_id.clone();
+        let prise = self.prise_des_noeuds(&board, ecran);
+        self.abandonner_le_glisser();
         let (Some(fenetre), Some(depart)) = (self.window.clone(), self.preparer_le_depart(&board))
         else {
             return;
         };
         let formes =
             super::formes::rassembler(&depart.lot, &self.disque.objets, (depart.texte, false));
+        let ombre = prise
+            .filter(|_| crate::plateforme::sait_montrer_une_ombre())
+            .and_then(|p| self.ombre_des_noeuds(&board, p, fenetre.scale_factor()));
         self.redraw();
-        if let Err(e) = crate::plateforme::glisser_la_selection(&fenetre, formes) {
+        if let Err(e) = crate::plateforme::glisser_la_selection(&fenetre, formes, ombre) {
             crate::dire_erreur!(
                 "[Glucose] le glisser vers une autre fenetre n'a pas pu partir : {e}"
             );

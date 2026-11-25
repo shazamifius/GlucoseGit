@@ -102,7 +102,7 @@ impl GlucoseApp {
         } else if self.is_dragging_item && self.part_ailleurs(position) {
             // Les nœuds tenus partent vers une autre fenêtre (fiche 51 § 2) : au bord, ou
             // tout de suite avec `Ctrl` (Q10).
-            self.emporter_hors_de_la_fenetre();
+            self.emporter_hors_de_la_fenetre((position.x, position.y));
         } else if self.is_dragging_item {
             self.handle_item_drag_move(position.x, position.y);
         } else if self.selection_box.is_some() {

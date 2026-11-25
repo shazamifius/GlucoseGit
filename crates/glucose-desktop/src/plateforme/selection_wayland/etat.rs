@@ -33,20 +33,22 @@ pub(super) struct Etat {
     depots: (Sender<Depot>, crate::plateforme::Reveil),
 }
 
+/// Ce que le fil rend : de quoi poser une sélection, et de quoi dessiner l'ombre d'un glisser.
+pub(super) struct Lance {
+    pub gestionnaire: WlDataDeviceManager,
+    pub appareil: wl_data_device::WlDataDevice,
+    pub qh: QueueHandle<Etat>,
+    /// Sans compositeur ni mémoire partagée — jamais vu —, le glisser part sans ombre.
+    pub fabrique: Option<super::icone::Fabrique>,
+}
+
 /// **Lance le fil** sur une file à lui, et rend de quoi poser une sélection.
 pub(super) fn lancer(
     connexion: &Connection,
     partage: &Arc<Partage>,
     facteur: Box<dyn Fn() -> f64 + Send>,
     depots: (Sender<Depot>, crate::plateforme::Reveil),
-) -> Result<
-    (
-        WlDataDeviceManager,
-        wl_data_device::WlDataDevice,
-        QueueHandle<Etat>,
-    ),
-    String,
-> {
+) -> Result<Lance, String> {
     let (globaux, mut file) = registry_queue_init::<Etat>(connexion)
         .map_err(|e| format!("la liste du compositeur ne se lit pas ({e})"))?;
     let qh = file.handle();
@@ -57,6 +59,14 @@ pub(super) fn lancer(
         .bind(&qh, 1..=7, ())
         .map_err(|e| format!("aucun siège ({e})"))?;
     let appareil = gestionnaire.get_data_device(&siege, &qh, ());
+    let compositeur = globaux.bind(&qh, 1..=6, ()).ok();
+    let memoire = globaux.bind(&qh, 1..=1, ()).ok();
+    let fabrique = compositeur
+        .zip(memoire)
+        .map(|(compositeur, memoire)| super::icone::Fabrique {
+            compositeur,
+            memoire,
+        });
     let mut etat = Etat {
         partage: Arc::clone(partage),
         connexion: connexion.clone(),
@@ -70,7 +80,12 @@ pub(super) fn lancer(
         .name("glucose-presse-papiers".into())
         .spawn(move || while file.blocking_dispatch(&mut etat).is_ok() {})
         .map_err(|e| format!("le fil du presse-papiers ne naît pas ({e})"))?;
-    Ok((gestionnaire, appareil, qh))
+    Ok(Lance {
+        gestionnaire,
+        appareil,
+        qh,
+        fabrique,
+    })
 }
 
 impl Etat {
@@ -246,7 +261,10 @@ impl Dispatch<wl_data_source::WlDataSource, Servie> for Etat {
                 });
             }
             // **Un glisser est fini** : la source ne servira plus.
-            wl_data_source::Event::DndFinished => source.destroy(),
+            wl_data_source::Event::DndFinished => {
+                servie.retirer_l_icone();
+                source.destroy();
+            }
             // **Une autre application a pris la sélection**, ou le glisser est abandonné : celle-ci
             // ne servira plus.
             wl_data_source::Event::Cancelled => {
@@ -259,6 +277,7 @@ impl Dispatch<wl_data_source::WlDataSource, Servie> for Etat {
                     courant.notre = None;
                 }
                 drop(courant);
+                servie.retirer_l_icone();
                 source.destroy();
             }
             _ => {}

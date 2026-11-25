@@ -72,6 +72,10 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
+**L'ombre sous la main** (OMBRE-1, fiche 155 ; à sa prochaine relance) : `Ctrl` tenu, glisser un nœud
+— son ombre, réduite et translucide, suit la main jusqu'à Discord ou un navigateur ; au lâcher, elle
+disparaît.
+
 **Collaborer en trois portes** (PORTES-1, fiche 154 ; à sa prochaine relance) : Collaborer → « Porte
 humain… », « Porte IA… », « Sécurité… » ; « Retour » remonte. Depuis, les chemins ci-dessous passent par
 une porte : partager, rejoindre et son nom sous **Porte humain** ; la porte aux IA publiques et l'API

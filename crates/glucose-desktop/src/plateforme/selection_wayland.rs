@@ -43,6 +43,7 @@
 
 mod depot;
 mod etat;
+mod icone;
 #[cfg(test)]
 mod tests;
 mod tuyau;
@@ -106,6 +107,16 @@ impl Mimes {
 pub(super) struct Servie {
     offre: Arc<Offre<String>>,
     marque: String,
+    /// L'ombre d'un glisser, qui part avec lui (Q10, fiche 155).
+    icone: OnceLock<icone::Icone>,
+}
+
+impl Servie {
+    fn retirer_l_icone(&self) {
+        if let Some(icone) = self.icone.get() {
+            icone.retirer();
+        }
+    }
 }
 
 /// Ce que le fil de Wayland tient à jour, et que les autres lisent.
@@ -141,6 +152,7 @@ struct Pont {
     gestionnaire: WlDataDeviceManager,
     appareil: WlDataDevice,
     partage: Arc<Partage>,
+    fabrique: Option<icone::Fabrique>,
 }
 
 /// Le pont de la fenêtre, posé une fois.
@@ -164,13 +176,14 @@ pub(super) fn installer(
     };
     let connexion = Connection::from_backend(backend);
     let partage = Arc::new(Partage::default());
-    let (gestionnaire, appareil, qh) = etat::lancer(&connexion, &partage, facteur, depots)?;
+    let lance = etat::lancer(&connexion, &partage, facteur, depots)?;
     PONT.set(Pont {
         connexion,
-        qh,
-        gestionnaire,
-        appareil,
+        qh: lance.qh,
+        gestionnaire: lance.gestionnaire,
+        appareil: lance.appareil,
         partage,
+        fabrique: lance.fabrique,
     })
     .map_err(|_| "le pont de Wayland est déjà posé".to_string())
 }
@@ -191,7 +204,7 @@ pub(super) fn confier(formes: Formes) -> Result<(), String> {
 }
 
 /// **Glisse ces formes hors de la fenêtre** dont `surface` est la surface Wayland : le compositeur
-/// prend la main, et l'application où l'on lâche les demande.
+/// prend la main, et l'application où l'on lâche les demande ; l'ombre des nœuds suit la main.
 ///
 /// # Sûreté
 ///
@@ -199,6 +212,7 @@ pub(super) fn confier(formes: Formes) -> Result<(), String> {
 pub(super) fn glisser(
     surface: std::ptr::NonNull<std::ffi::c_void>,
     formes: Formes,
+    ombre: Option<crate::plateforme::Ombre>,
 ) -> Result<(), String> {
     use wayland_client::protocol::wl_surface::WlSurface;
     use wayland_client::Proxy;
@@ -215,9 +229,17 @@ pub(super) fn glisser(
     if source.version() >= 3 {
         source.set_actions(wayland_client::protocol::wl_data_device_manager::DndAction::Copy);
     }
+    let icone = pont.icone(&source, ombre.as_ref());
     let bouton = pont.partage.courant().bouton;
-    pont.appareil
-        .start_drag(Some(&source), &origine, None, bouton);
+    pont.appareil.start_drag(
+        Some(&source),
+        &origine,
+        icone.map(icone::Icone::surface),
+        bouton,
+    );
+    if let (Some(icone), Some(ombre)) = (icone, &ombre) {
+        icone.montrer(ombre);
+    }
     pont.connexion.flush().map_err(|e| e.to_string())
 }
 
@@ -344,6 +366,7 @@ impl Pont {
         let servie = Servie {
             offre: Arc::clone(&offre),
             marque: marque.clone(),
+            icone: OnceLock::new(),
         };
         let source: WlDataSource = self.gestionnaire.create_data_source(&self.qh, servie);
         for cible in offre.cibles() {
@@ -351,6 +374,28 @@ impl Pont {
         }
         source.offer(marque.clone());
         (source, (marque, offre))
+    }
+
+    /// **L'icône de ce glisser**, tenue par sa source jusqu'à la fin du geste. Une ombre qui ne
+    /// se fait pas se dit, et le glisser part sans elle.
+    fn icone<'s>(
+        &self,
+        source: &'s WlDataSource,
+        ombre: Option<&crate::plateforme::Ombre>,
+    ) -> Option<&'s icone::Icone> {
+        use wayland_client::Proxy;
+        let (fabrique, ombre) = (self.fabrique.as_ref()?, ombre?);
+        let servie = source.data::<Servie>()?;
+        match icone::Icone::nouvelle(fabrique, &self.qh, ombre) {
+            Ok(i) => {
+                let _ = servie.icone.set(i);
+                servie.icone.get()
+            }
+            Err(e) => {
+                crate::dire!("[Glucose] l'ombre du glisser ne se fait pas : {e}");
+                None
+            }
+        }
     }
 
     /// **Pose cette offre comme sélection**, et attend que le compositeur l'annonce.

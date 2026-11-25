@@ -1,0 +1,162 @@
+[
+ {
+  "nom": "OMBRE-1 — l'ombre n'est plus translucide",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "        .map(|o| (f32::from(*o) * OPACITE).round() as u8)",
+  "apres": "        .map(|o| *o)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — le canevas se peint autour",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "        moteur.theme.bg_canvas = tiny_skia::Color::TRANSPARENT;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — aucun plafond",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "        if (cote + 2.0 * unite) * echelle > plafond {",
+  "apres": "        if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — le plafond oublie les marges",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "            echelle = plafond / (cote + 2.0 * unite);",
+  "apres": "            echelle = plafond / cote;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — des pixels impairs à la densité 2",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "            pixels.div_ceil(d) * d",
+  "apres": "            pixels",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — la main oublie la marge",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "        let point = |p: f64| (p * echelle + marge).round() as i32;",
+  "apres": "        let point = |p: f64| (p * echelle).round() as i32;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — la densité oubliée",
+  "fichier": "crates/glucose-desktop/src/interactions/clipboard/ombre.rs",
+  "avant": "        let mut echelle = self.store.viewport().scale / facteur * densite;",
+  "apres": "        let mut echelle = self.store.viewport().scale / facteur;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ },
+ {
+  "nom": "OMBRE-1 — Wayland reçoit rouge et bleu inversés",
+  "fichier": "crates/glucose-desktop/src/plateforme/selection_wayland/icone.rs",
+  "avant": "[b, g, r, a]).collect()",
+  "apres": "[r, g, b, a]).collect()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ombre_1"
+  ]
+ }
+]

@@ -64,7 +64,8 @@
   premier morceau d'une courbe mord un bloc (fiche 152) ; **RETRAIT-1** — dans la Time Machine, « Retirer »
   l'écrit d'une IA (l'histoire le garde, « Remettre » le défait), l'onglet « ÉCRITS DES IA » les réunit,
   et `glucose_histoire` ne rend plus ce qu'il a retiré (fiche 153) ; **PORTES-1** — Collaborer en trois
-  portes (« Porte humain… », « Porte IA… », « Sécurité… » ; fiche 154).
+  portes (« Porte humain… », « Porte IA… », « Sécurité… » ; fiche 154) ; **OMBRE-1** — sous Wayland,
+  `Ctrl` + glisser montre l'ombre des nœuds emportés sous la main (fiche 155).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai

@@ -156,15 +156,40 @@ pub fn echanger(requete: &Requete, limite: usize) -> Result<Reponse, String> {
     voie(&adresse, requete, limite)
 }
 
+/// **Un glisser montre-t-il l'ombre des nœuds ?** Sous Wayland, par le pont (Q10, fiche 155) ;
+/// ailleurs, pas encore : la dessiner serait du travail perdu.
+pub fn sait_montrer_une_ombre() -> bool {
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    return selection_wayland::actif();
+    #[cfg(not(all(unix, not(any(target_os = "macos", target_os = "android")))))]
+    false
+}
+
+/// **L'ombre des nœuds qu'un glisser emporte** (Q10, fiche 155) : leurs pixels, rouge, vert, bleu
+/// et alpha prémultipliés, rangée après rangée ; le point sous la main, en pixels de l'ombre ; et
+/// combien de ses pixels font un point de l'écran — un entier, comme l'échelle d'une surface de
+/// Wayland.
+pub struct Ombre {
+    pub rgba: Vec<u8>,
+    pub largeur: u32,
+    pub hauteur: u32,
+    pub point: (i32, i32),
+    pub densite: u32,
+}
+
 /// **Glisse la sélection hors de cette fenêtre** (fiche 51 § 2), sous toutes ses formes
 /// (COPIER-1) — le lot pour Glucose, les images en fichiers pour tout le reste —, jusqu'au
 /// lâcher : rend vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine
 /// pendant le geste. Sous Windows, et sous Wayland par le pont du presse-papiers (fiche 100) —
 /// où le compositeur mène le glisser et rend la main aussitôt : vrai y dit « parti ». Ailleurs,
 /// le glisser de `winit` ne sait porter que des fichiers, et rien ne part.
+///
+/// `ombre` : les nœuds emportés, dessinés sous la main (Q10, fiche 155) — sous Wayland ; sous
+/// Windows, le curseur seul dit encore le glisser.
 pub fn glisser_la_selection(
     fenetre: &winit::window::Window,
     formes: crate::interactions::clipboard::Formes,
+    ombre: Option<Ombre>,
 ) -> Result<bool, String> {
     #[cfg(windows)]
     {
@@ -173,6 +198,7 @@ pub fn glisser_la_selection(
         let RawWindowHandle::Win32(w) = poignee.as_raw() else {
             return Err("une fenetre Windows sans poignee Win32".into());
         };
+        let _ = ombre;
         glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, formes)
     }
     // Sous Wayland, le pont du presse-papiers glisse aussi (fiche 100).
@@ -183,11 +209,11 @@ pub fn glisser_la_selection(
         let RawWindowHandle::Wayland(w) = poignee.as_raw() else {
             return Ok(false);
         };
-        return selection_wayland::glisser(w.surface, formes).map(|()| true);
+        return selection_wayland::glisser(w.surface, formes, ombre).map(|()| true);
     }
     #[cfg(not(windows))]
     {
-        let _ = (fenetre, formes);
+        let _ = (fenetre, formes, ombre);
         Ok(false)
     }
 }
