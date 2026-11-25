@@ -11,10 +11,21 @@
 //! # La spline
 //!
 //! Chaque morceau va d'un point `p₁` au suivant `p₂`, et ses deux points de contrôle
-//! regardent les voisins : `p₁ + (p₂ − p₀)/6` et `p₂ − (p₃ − p₁)/6`. Aux deux bouts, le
-//! voisin manquant est le **reflet** du point intérieur (`2·p₀ − p₁`), ce qui fait partir et
-//! arriver la courbe dans l'axe de son premier et de son dernier tronçon. Ce sont les
-//! nombres de Tauri : une flèche de ses documents se dessine ici à l'identique.
+//! regardent les voisins. Aux deux bouts, le voisin manquant est le **reflet** du point
+//! intérieur (`2·p₀ − p₁`), ce qui fait partir et arriver la courbe dans l'axe de son premier
+//! et de son dernier tronçon.
+//!
+//! Tauri donnait à chaque tronçon **la même durée** — la spline « uniforme » : `p₁ + (p₂ − p₀)/6`
+//! et `p₂ − (p₃ − p₁)/6`. Elle ne tient que si les points sont à peu près également espacés. Le
+//! contournement (FLECHE-5) en pose de très inégaux : à la sortie de sa carte, un tronçon de
+//! 38 unités jusqu'au coin du nœud du dessous, puis un de 1 950. La tangente au coin, la moitié
+//! du grand, tirait le petit en une boucle qui remontait à travers le texte de sa source (son
+//! nœud « URGENT IMPORTANT », 25/11 ; fiche 152). Ici, chaque tronçon dure **la racine de sa
+//! longueur** — la paramétrisation **centripète**, la seule de la famille sans rebroussement
+//! ni boucle dans un tronçon (Yuksel, Schaefer et Keyser, *Parameterization and applications of
+//! Catmull–Rom curves*, Computer-Aided Design 43, 2011). Des points également espacés gardent
+//! exactement les nombres de Tauri : une flèche de ses documents se dessine ici à l'identique
+//! tant qu'elle ne bouclait pas.
 //!
 //! # Aplatir sans choisir de pas — la formule de Wang
 //!
@@ -122,18 +133,53 @@ pub fn morceaux(points: &[Point], courbe: bool) -> Vec<Morceau> {
             points[i as usize]
         }
     };
+    let tangente = |i: isize| tangente(voisin(i - 1), voisin(i), voisin(i + 1));
     (0..n - 1)
         .map(|i| {
             let i = i as isize;
-            let (p0, p1, p2, p3) = (voisin(i - 1), voisin(i), voisin(i + 1), voisin(i + 2));
+            let (p1, p2) = (voisin(i), voisin(i + 1));
+            let (m1, m2) = (tangente(i), tangente(i + 1));
+            // Une cubique d'Hermite en Bézier : un tiers de la durée du tronçon.
+            let tiers = duree(p1, p2) / 3.0;
             Morceau::Courbe {
                 de: p1,
-                c1: (p1.0 + (p2.0 - p0.0) / 6.0, p1.1 + (p2.1 - p0.1) / 6.0),
-                c2: (p2.0 - (p3.0 - p1.0) / 6.0, p2.1 - (p3.1 - p1.1) / 6.0),
+                c1: (p1.0 + m1.0 * tiers, p1.1 + m1.1 * tiers),
+                c2: (p2.0 - m2.0 * tiers, p2.1 - m2.1 * tiers),
                 a: p2,
             }
         })
         .collect()
+}
+
+/// **La durée d'un tronçon** : la racine de sa longueur — la paramétrisation centripète.
+fn duree(p: Point, q: Point) -> f64 {
+    (q.0 - p.0).hypot(q.1 - p.1).sqrt()
+}
+
+/// La vitesse moyenne de `p` à `q` en `duree`. Nulle pour un tronçon nul : c'est sa limite, la
+/// corde s'annulant plus vite que la racine de sa longueur — deux points confondus ne comptent
+/// pour rien, sans aucun seuil.
+fn vitesse(p: Point, q: Point, duree: f64) -> Point {
+    if duree == 0.0 {
+        return (0.0, 0.0);
+    }
+    ((q.0 - p.0) / duree, (q.1 - p.1) / duree)
+}
+
+/// **La tangente de la spline en `p1`**, entre ses voisins `p0` et `p2` (la pyramide de Barry et
+/// Goldman dérivée en `p1`) : les vitesses des deux tronçons, moins celle qui les enjambe. Pour
+/// deux tronçons de même durée, c'est `(p2 − p0) / 2` par unité de durée : les nombres de Tauri.
+fn tangente(p0: Point, p1: Point, p2: Point) -> Point {
+    let (d0, d1) = (duree(p0, p1), duree(p1, p2));
+    let (avant, enjambee, apres) = (
+        vitesse(p0, p1, d0),
+        vitesse(p0, p2, d0 + d1),
+        vitesse(p1, p2, d1),
+    );
+    (
+        avant.0 - enjambee.0 + apres.0,
+        avant.1 - enjambee.1 + apres.1,
+    )
 }
 
 /// La ligne brisée qui suit ces morceaux à `tolerance` près — pour viser, jamais pour

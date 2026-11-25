@@ -72,7 +72,10 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
-**Déplacer une grosse membrane** (GLISSER-2, fiche 151 ; à sa prochaine relance) : de près, glisser par
+**La flèche courbe de « URGENT IMPORTANT »** (COURBE-1, fiche 152 ; à sa prochaine relance) : elle sort
+par le bas de la carte et s'infléchit au coin du nœud du dessous, sans plus remonter à travers le texte.
+
+**Déplacer une grosse membrane** (GLISSER-2, fiche 151 ; dans son Glucose depuis le 25/11 à 0 h 36) : de près, glisser par
 son titre une membrane pleine de textes — l'image doit suivre la main sans à-coup, à 165 Hz.
 
 **Son nom et sa couleur** (Q19, fiche 140 ; son Glucose relancé le 24/11 à 7 h 58) : Collaborer →

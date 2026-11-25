@@ -81,3 +81,5 @@ de 451 × 188,8, un nœud 30 unités dessous, une cible loin en bas à gauche, l
 pilote vient donc de ce qui diffère dans l'application : la mémoire des itinéraires
 (`contournement: Some`, une route retenue d'avant ?), la flèche **courbe** (`est_courbe`, `resserrer`),
 ou la boîte vivante (`NoeudsDuRendu::vivante`). L'épreuve, qui ne reproduisait rien, n'est pas gardée.
+
+**Compris (25/11, 1 h)** : aucun passage ; une seule des deux est fausse, **la courbe** — la spline uniforme bouclait à travers le texte. Réparé : fiche 152 (COURBE-1).

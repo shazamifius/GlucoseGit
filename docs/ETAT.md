@@ -54,11 +54,14 @@
   « Quitter » garde le code, « Partager » revient dans la même salle, un arrêt net revient aussi, par la
   fusion à trois (REVENIR-1 et 2, fiches 147 § 6 et 148).
   Ce qui a changé des deux côtés : la salle l'emporte, la version d'ici est posée à côté.
-* **Sur `main` depuis le 25/11, pas encore dans son Glucose** (vérifié ici) : **Q18** — Collaborer compte
-  les photos qui attendent quelqu'un qui les a, et chaque cadre gris dit de qui est la photo et s'il est
-  là (fiche 150 § 3) ; **GLISSER-2** — ce qu'on glisse avance de pixels entiers : une main fractionnaire
-  (Wayland) refaisait chaque texte d'une membrane qu'on déplace, à chaque image (fiche 151 ; en 4K à
-  150 %, 6,9 → 4,1 ms par image).
+* **Dans son Glucose depuis le 25/11 à 0 h 36** : **Q18** — Collaborer compte les photos qui attendent
+  quelqu'un qui les a, et chaque cadre gris dit de qui est la photo et s'il est là (fiche 150 § 3) ;
+  **GLISSER-2** — ce qu'on glisse avance de pixels entiers : une main fractionnaire (Wayland) refaisait
+  chaque texte d'une membrane qu'on déplace, à chaque image (fiche 151 ; en 4K à 150 %, 6,9 → 4,1 ms).
+* **Sur `main`, pas encore dans son Glucose** (vérifié ici) : **TRONQUER-1** — un long résultat de Ctrl+F
+  tient dans sa case (fiche 151 § 5) ; **COURBE-1** — une flèche courbe ne boucle plus à travers sa
+  source (Catmull-Rom centripète, identique à Tauri à pas égaux) et **RESSERRER-1**, le plantage quand le
+  premier morceau d'une courbe mord un bloc (fiche 152).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai

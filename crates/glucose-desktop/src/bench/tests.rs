@@ -284,7 +284,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// et « tableau » — 192 pixels sur une rangée (1284-1476 × 384), au plus 82 niveaux ; regardé avant/après,
 /// agrandi quatre fois : de toute la largeur du texte, plus discret que celui de l'en-tête. Les
 /// émojis en couleur (EMOJI-2) ne changent rien à la scène : sans le filet, l'empreinte est l'ancienne.
-const EMPREINTE_TEMOIN: &str = "d2e2a45d469f4808";
+/// **Puis, le 25/11** (COURBE-1, fiche 152) : la flèche courbe en centripète — 59 pixels, tous sur
+/// elle (972-1120 × 621-703) ; regardée avant/après, agrandie quatre fois : la même arche, à peine
+/// plus régulière à droite.
+const EMPREINTE_TEMOIN: &str = "2fd936a2d77f623f";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -411,7 +414,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis, le 24/11** (GESTE-19, fiche 146) : le bouton « Écrire sur la flèche » au bout de la barre
 /// d'une flèche choisie — regardé (fiche 147) ; la vérification GitHub de `b4d257b` l'a dit, la même
 /// empreinte sous Linux, Windows et Mac.
-const EMPREINTE_TEMOIN_SELECTION: &str = "d16e5daf3b5226ed";
+/// **Puis, le 25/11** (COURBE-1, fiche 152) : la flèche courbe en centripète — 59 pixels, tous sur
+/// elle (972-1120 × 621-703) ; regardée avant/après, agrandie quatre fois : la même arche, à peine
+/// plus régulière à droite.
+const EMPREINTE_TEMOIN_SELECTION: &str = "d0b8995a2e0f1779";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -526,7 +532,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 24/11** (GESTE-19, fiche 146) : le bouton « Écrire sur la flèche » au bout de la barre
 /// d'une flèche choisie — regardé (fiche 147) ; la vérification GitHub de `b4d257b` l'a dit, la même
 /// empreinte sous Linux, Windows et Mac.
-const EMPREINTE_TEMOIN_MENU: &str = "87b107f95029976b";
+/// **Puis, le 25/11** (COURBE-1, fiche 152) : la flèche courbe en centripète — 59 pixels, tous sur
+/// elle (972-1120 × 621-703) ; regardée avant/après, agrandie quatre fois : la même arche, à peine
+/// plus régulière à droite.
+const EMPREINTE_TEMOIN_MENU: &str = "4efa84bcc5148bf2";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -344,11 +344,12 @@ fn test_le_budget_borne_le_travail() {
     assert!(etapes.is_empty(), "droit : {etapes:?}");
 }
 
-/// **Une courbe qui mordrait se resserre**, et ne mord plus : l'épingle à cheveux de
-/// Catmull-Rom déborde de sa ligne brisée, sur un bloc posé juste derrière.
+/// **Une courbe qui mordrait se resserre**, et ne mord plus : avant l'épingle à cheveux, la
+/// courbe s'écarte de sa ligne brisée de 13 unités (centripète, fiche 152 ; l'uniforme de Tauri
+/// débordait de 125 au-delà du virage), sur un bloc posé 8 unités sous elle.
 #[test]
 fn test_une_courbe_qui_mordrait_se_resserre() {
-    let bloc = Rect::new(1020.0, -60.0, 100.0, 130.0);
+    let bloc = Rect::new(700.0, -40.0, 200.0, 32.0);
     let obstacles = [bloc];
     let mut requete = requete_sur(&obstacles);
     let (debut, fin) = ((0.0, 0.0), (0.0, 10.0));

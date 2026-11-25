@@ -95,3 +95,60 @@ fn test_fleche_1_le_milieu_d_une_courbe_est_sur_elle() {
     );
     assert_eq!(milieu, m.point(0.5));
 }
+
+/// **Des points également espacés gardent les nombres de Tauri** : `p₁ + (p₂ − p₀)/6` et
+/// `p₂ − (p₃ − p₁)/6`, la spline uniforme — une flèche de ses documents se dessine à l'identique.
+#[test]
+fn test_fleche_courbe_egale_tauri_a_pas_egaux() {
+    let points = [(0.0, 0.0), (300.0, 400.0), (800.0, 400.0), (1100.0, 0.0)];
+    let m = morceaux(&points, true);
+    let Morceau::Courbe { c1, c2, .. } = m[1] else {
+        panic!("une courbe");
+    };
+    let (p0, p1, p2, p3) = (points[0], points[1], points[2], points[3]);
+    let tauri_c1 = (p1.0 + (p2.0 - p0.0) / 6.0, p1.1 + (p2.1 - p0.1) / 6.0);
+    let tauri_c2 = (p2.0 - (p3.0 - p1.0) / 6.0, p2.1 - (p3.1 - p1.1) / 6.0);
+    for (ici, tauri) in [(c1, tauri_c1), (c2, tauri_c2)] {
+        assert!(
+            (ici.0 - tauri.0).hypot(ici.1 - tauri.1) < 1e-9,
+            "{ici:?} au lieu de {tauri:?}"
+        );
+    }
+}
+
+/// **Une courbe ne remonte pas à travers sa source** (fiche 152) : sa flèche courbe de « URGENT
+/// IMPORTANT » (`arrow-g420-2318`, 25/11), ses points tels que le contournement les rend — la
+/// sortie sous la carte, le coin du nœud du dessous 38 unités plus loin, puis 1 950 d'un coup.
+/// La spline uniforme y faisait une boucle qui montait jusqu'à sa troisième ligne.
+#[test]
+fn test_fleche_courbe_ne_boucle_pas_dans_sa_source() {
+    let (gauche, haut, droite, bas) = (-1577.17, -1446.47, -1126.15, -1257.67);
+    let points = [
+        (-1555.18, -1252.39),
+        (-1589.17, -1235.74),
+        (-2602.03, 425.57),
+        (-2629.41, 3238.52),
+    ];
+    for m in morceaux(&points, true) {
+        for k in 0..=1000 {
+            let (x, y) = m.point(f64::from(k) / 1000.0);
+            let dedans = gauche < x && x < droite && haut < y && y < bas;
+            assert!(!dedans, "({x:.1}, {y:.1}) est dans sa source");
+        }
+    }
+}
+
+/// **Deux points confondus ne cassent rien** : un tronçon nul ne compte pour rien (sa limite),
+/// jamais un `NaN` qui effacerait la flèche.
+#[test]
+fn test_fleche_courbe_un_point_double_reste_fini() {
+    let points = [(0.0, 0.0), (100.0, 50.0), (100.0, 50.0), (200.0, 0.0)];
+    for m in morceaux(&points, true) {
+        let Morceau::Courbe { de, c1, c2, a } = m else {
+            panic!("une courbe");
+        };
+        for p in [de, c1, c2, a] {
+            assert!(p.0.is_finite() && p.1.is_finite(), "{m:?}");
+        }
+    }
+}

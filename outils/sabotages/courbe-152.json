@@ -1,0 +1,97 @@
+[
+ {
+  "nom": "COURBE-1 — la spline redevient uniforme (chaque tronçon dure 1)",
+  "fichier": "crates/glucose-core/src/arrow/trace.rs",
+  "avant": "    (q.0 - p.0).hypot(q.1 - p.1).sqrt()\n",
+  "apres": "    let _ = (p, q);\n    1.0\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "arrow::"
+  ]
+ },
+ {
+  "nom": "COURBE-1 — un tronçon nul divise par zéro",
+  "fichier": "crates/glucose-core/src/arrow/trace.rs",
+  "avant": "    if duree == 0.0 {\n        return (0.0, 0.0);\n    }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "arrow::"
+  ]
+ },
+ {
+  "nom": "COURBE-1 — la conversion d'Hermite en Bézier oublie le tiers",
+  "fichier": "crates/glucose-core/src/arrow/trace.rs",
+  "avant": "    let tiers = duree(p1, p2) / 3.0;",
+  "apres": "    let tiers = duree(p1, p2) / 2.0;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "arrow::"
+  ]
+ },
+ {
+  "nom": "COURBE-1 — la tangente oublie le tronçon qui enjambe",
+  "fichier": "crates/glucose-core/src/arrow/trace.rs",
+  "avant": "        avant.0 - enjambee.0 + apres.0,",
+  "apres": "        avant.0 + apres.0 - enjambee.0 * 0.0,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "arrow::"
+  ]
+ },
+ {
+  "nom": "RESSERRER-1 — le premier tronçon cherche son voisin au rang usize::MAX",
+  "fichier": "crates/glucose-core/src/arrow/contour.rs",
+  "avant": "        for k in (i.saturating_sub(1)..=i + 1).rev() {",
+  "apres": "        for k in [i + 1, i, i.wrapping_sub(1)] {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "arrow::"
+  ]
+ }
+]

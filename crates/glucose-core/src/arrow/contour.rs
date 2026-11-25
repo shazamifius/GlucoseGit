@@ -423,8 +423,10 @@ pub fn resserrer(
         let Some(i) = fautif else {
             return;
         };
-        // Du dernier au premier : une insertion ne décale pas les tronçons qui la précèdent.
-        for k in [i + 1, i, i.wrapping_sub(1)] {
+        // Du dernier au premier : une insertion ne décale pas les tronçons qui la précèdent. Le
+        // premier tronçon n'a pas de voisin d'avant (`wrapping_sub` le cherchait au rang
+        // `usize::MAX` : un plantage, fiche 152).
+        for k in (i.saturating_sub(1)..=i + 1).rev() {
             if k + 1 < points.len() {
                 let (p, q) = (points[k], points[k + 1]);
                 etapes.insert(k, ((p.0 + q.0) / 2.0, (p.1 + q.1) / 2.0));
