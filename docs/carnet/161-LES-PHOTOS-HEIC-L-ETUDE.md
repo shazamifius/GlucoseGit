@@ -12,11 +12,14 @@ HEIF ; l'iPhone l'écrit par défaut depuis 2017, beaucoup d'Android aussi.
 ## 2. Les chemins (recherche du 25/11)
 
 * **Un décodeur en Rust pur** :
-  * [`heifer`](https://docs.rs/crate/heifer/0.3.26) (0.3.x) — HEIF et HEVC écrits de zéro en Rust
-    sûr, **validé sur les fichiers de conformité officiels** ; il écrit aussi le HEIC, et documente
-    le passage depuis `libheif-rs`.
+  * [`heifer`](https://docs.rs/crate/heifer/0.3.26) — HEIF et HEVC écrits de zéro en Rust sûr,
+    **validé sur les fichiers de conformité officiels** ; il écrit aussi le HEIC, et documente le
+    passage depuis `libheif-rs`. **crates.io, lu le 25/11** : 0.5.1 du 14/11/2026, MIT ou
+    Apache-2.0, Rust 1.85, quatre caisses à lui (`heifer-hevc-dec`, `heifer-isobmff`, l'encodeur
+    et `image`, facultatifs) et `thiserror` — vivant, et peu de dépendances.
   * [`heic`](https://docs.rs/crate/heic/0.2.0/source/README.md) (imazen) — sans une ligne
-    `unsafe`, mais partiel : 118 fichiers de test sur 162, les seules tranches I du HEVC.
+    `unsafe`, mais partiel : 118 fichiers de test sur 162, les seules tranches I du HEVC ; **sous
+    AGPL-3.0 ou licence commerciale** (crates.io, 0.1.6) : Glucose est sous MIT, l'AGPL imposerait la sienne au tout — écarté pour cela seul.
   * [`heic-decoder`](https://github.com/ente-io/heic-decoder) (ente) — HEIF, HEIC, AVIF, branché
     sur `image`.
 * **`libheif` en C** ([`heif-rs`](https://docs.rs/crate/heif-rs/26.6.0), lié statiquement avec
