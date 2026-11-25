@@ -213,3 +213,14 @@ l'ouverture, et le signal `SettingChanged` suit un changement en cours de route.
   pour 255, toléré), les signatures, la lecture qui s'allonge. Quatre sabotages de plus
   (`gif-159.json`, 15 sur 15). Pas regardé au pilote : le chemin d'après la signature est celui
   des GIF, qui l'a été.
+
+## 10. GIF-5, la cadence sans dérive (25/11, compte a, à la relecture)
+
+Le joueur comptait la toile suivante depuis l'heure où la précédente **paraissait** : l'image
+d'écran de retard (jusqu'à 16,7 ms à 60 Hz, 6,9 à 144 Hz) s'ajoutait à chaque toile — un GIF à
+20 ms par toile jouait aux deux tiers de sa vitesse, un GIF à 100 ms 8 à 17 % trop lentement.
+Désormais la suivante est due **un délai après l'heure où celle-ci l'était** ; la première reste
+son délai entier dès qu'elle paraît ; un retard de plus d'un délai (une fenêtre cachée) repart de
+maintenant, sans rafale. Une épreuve (`gif_5_…`, des heures données, sans horloge), **3 sabotages
+sur 3** (`outils/sabotages/gif-5-159.json`). Pas regardé au pilote : la vitesse ne se juge pas sur
+une capture.

@@ -17,6 +17,8 @@ pub(crate) struct Joueur {
     recu: Receiver<(Pyramide, Duration)>,
     prete: Option<(Pyramide, Duration)>,
     echeance: Instant,
+    /// Aucune toile encore montrée : la première reste son délai entier dès qu'elle paraît.
+    premiere: bool,
     fini: bool,
 }
 
@@ -64,6 +66,7 @@ impl Joueur {
             recu,
             prete: None,
             echeance: maintenant,
+            premiere: true,
             fini: false,
         }
     }
@@ -86,7 +89,19 @@ impl Joueur {
             return None;
         }
         let (pyramide, delai) = self.prete.take()?;
-        self.echeance = maintenant + delai;
+        // **La cadence du GIF, pas celle de l'écran** : la toile suivante est due un délai après
+        // l'heure où celle-ci l'était. Comptée depuis l'heure où elle paraît, l'image d'écran de
+        // retard (jusqu'à 16,7 ms à 60 Hz) s'ajoutait à chaque toile — un GIF à 20 ms jouait aux
+        // deux tiers de sa vitesse. Un retard plus long qu'un délai (une fenêtre cachée, un fil en
+        // retard) repart de maintenant : rien ne se rattrape en rafale.
+        let en_cadence = !self.premiere && maintenant.duration_since(self.echeance) < delai;
+        let base = if en_cadence {
+            self.echeance
+        } else {
+            maintenant
+        };
+        self.echeance = base + delai;
+        self.premiere = false;
         Some(pyramide)
     }
 
@@ -99,5 +114,42 @@ impl Joueur {
     /// **Son fil a tout joué** (les tours demandés, ou un GIF d'une seule image) et rien n'attend.
     pub(crate) fn fini(&self) -> bool {
         self.fini && self.prete.is_none()
+    }
+}
+
+#[cfg(test)]
+mod epreuves {
+    use super::*;
+
+    fn toile() -> Pyramide {
+        Pyramide::depuis_rgba(1, 1, &[0, 0, 0, 255]).unwrap()
+    }
+
+    #[test]
+    fn gif_5_la_cadence_ne_derive_pas_avec_le_retard_de_l_ecran() {
+        let (envoi, recu) = sync_channel(4);
+        let t0 = Instant::now();
+        let ms = |n: u64| t0 + Duration::from_millis(n);
+        let cent = Duration::from_millis(100);
+        let mut joueur = Joueur {
+            recu,
+            prete: None,
+            echeance: t0,
+            premiere: true,
+            fini: false,
+        };
+        // La première paraît quand elle est prête (30 ms), et reste son délai entier.
+        envoi.send((toile(), cent)).unwrap();
+        assert!(joueur.a_poser(ms(30)).is_some());
+        assert_eq!(joueur.echeance, ms(130));
+        // La deuxième, posée 15 ms en retard : la troisième reste due à 230, pas à 245.
+        envoi.send((toile(), cent)).unwrap();
+        assert!(joueur.a_poser(ms(129)).is_none());
+        assert!(joueur.a_poser(ms(145)).is_some());
+        assert_eq!(joueur.echeance, ms(230));
+        // Un retard de plus d'un délai (la fenêtre cachée) repart de maintenant.
+        envoi.send((toile(), cent)).unwrap();
+        assert!(joueur.a_poser(ms(500)).is_some());
+        assert_eq!(joueur.echeance, ms(600));
     }
 }

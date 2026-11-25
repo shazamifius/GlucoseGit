@@ -1,0 +1,62 @@
+[
+ {
+  "nom": "GIF-5 — la toile suivante comptée depuis l'heure où elle paraît",
+  "fichier": "crates/glucose-desktop/src/renderer/gif/joueur.rs",
+  "avant": "let base = if en_cadence {",
+  "apres": "let base = if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_5"
+  ]
+ },
+ {
+  "nom": "GIF-5 — la première toile raccourcie de son retard",
+  "fichier": "crates/glucose-desktop/src/renderer/gif/joueur.rs",
+  "avant": "let en_cadence = !self.premiere && ",
+  "apres": "let en_cadence = ",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_5"
+  ]
+ },
+ {
+  "nom": "GIF-5 — un long retard rattrapé en rafale",
+  "fichier": "crates/glucose-desktop/src/renderer/gif/joueur.rs",
+  "avant": "maintenant.duration_since(self.echeance) < delai;",
+  "apres": "maintenant.duration_since(self.echeance) < Duration::MAX;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "gif_5"
+  ]
+ }
+]
