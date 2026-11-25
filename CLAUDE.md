@@ -45,7 +45,7 @@ Puis : prendre le premier chantier ouvert du plan — **son ordre vit dans son G
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 168.**
+fiche. **La prochaine porte le numéro 169.**
 
 ## Avec lui
 
