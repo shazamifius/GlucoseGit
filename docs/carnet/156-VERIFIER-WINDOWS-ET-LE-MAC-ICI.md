@@ -122,7 +122,7 @@ ses `aarch64-linux-android21-clang`, `clang++` et `llvm-ar`. 45 s à froid.
   variante `os_local`, qui produit toujours un `__init()` ; la règle s'y trompe (rust-clippy #12186, qui
   devait le corriger). Écartée pour Android seul, dans l'outil.
 
-**2 sabotages de plus, 2 sur 2** (`cibles-156.json`) : une faute de type dans la porte du téléphone ;
+**La suite entière, 3 697 épreuves vertes** sur Linux après OMBRE-2 et CIBLES-2. **2 sabotages de plus, 2 sur 2** (`cibles-156.json`) : une faute de type dans la porte du téléphone ;
 une épreuve de la vraie porte rendue au téléphone (ce que `--all-targets` garde).
 
 Sources : [rust-clippy #12186](https://github.com/rust-lang/rust-clippy/pull/12186) ;
