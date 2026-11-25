@@ -177,15 +177,15 @@ l'ouverture, et le signal `SettingChanged` suit un changement en cours de route.
   l'interrupteur de GNOME (`ashpd` et `pollster`, déjà là par `rfd` : `decisions/19`, aucune
   compilation de plus). **Le portail de son poste est en version 2, sans la clé** : l'interrupteur
   de GNOME répond (`Some(false)`, lu par le code le 25/11 — une épreuve ignorée, qu'on lance à la
-  main : `cargo test -- --ignored gif_3_le_portail`). Windows : `SPI_GETCLIENTAREAANIMATION`
-  (vérifié par `verifier_cibles.sh`, jamais lancé sous Windows).
+  main : `cargo test -- --ignored gif_3_le_portail`). Windows : `SPI_GETCLIENTAREAANIMATION` ; le
+  Mac : `NSWorkspace.accessibilityDisplayShouldReduceMotion` (`objc2-app-kit`, déjà là ; deux
+  fonctions de plus). Vérifiés par `verifier_cibles.sh`, jamais lancés sous Windows ni sur un Mac.
 * **L'effet** : l'application porte le réglage au magasin (`suivre_le_systeme`, avec les marges et
   le clavier) ; moins de mouvement, chaque GIF reste sur la toile qu'il montre et plus rien ne
   réveille ; le réglage levé, il repart. Deux épreuves, deux sabotages (`gif-159.json`, 11 sur 11).
 * **Pas suivi en direct** : un réglage changé pendant que Glucose garde le premier plan ne vaut
   qu'au retour de la fenêtre. Le portail sait l'annoncer (`SettingChanged`) : un fil à l'écoute
   pour toujours, et une caisse de flux de plus — écarté tant que personne ne le demande.
-* **Restent le Mac et Android**, qui ne le lisent pas encore (pour eux, le système « n'a rien
-  dit ») : le Mac par `NSWorkspace.accessibilityDisplayShouldReduceMotion`, Android par l'échelle
-  des animations (`Settings.Global.ANIMATOR_DURATION_SCALE` à zéro) — chacun demande une liaison
-  au système qui n'est pas encore là (fiche 156 pour les vérifier ici).
+* **Reste Android**, qui ne le lit pas encore (pour lui, le système « n'a rien dit ») : l'échelle
+  des animations (`Settings.Global.ANIMATOR_DURATION_SCALE` à zéro) — par JNI, une liaison qui
+  n'est pas encore là (fiche 156 pour la vérifier ici).

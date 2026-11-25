@@ -2,8 +2,9 @@
 //! d'animations — les GIF restent alors sur la toile qu'ils montrent. Relu au lancement, puis
 //! chaque fois que la fenêtre revient au premier plan : c'est là qu'on revient d'avoir changé le
 //! réglage. Linux : le portail du bureau (`org.freedesktop.appearance`, `reduced-motion`), sinon
-//! l'interrupteur de GNOME ; Windows : `SPI_GETCLIENTAREAANIMATION`. Le Mac et Android ne le
-//! lisent pas encore (fiche 159 § 8) : pour eux, le système n'a rien dit.
+//! l'interrupteur de GNOME ; Windows : `SPI_GETCLIENTAREAANIMATION` ; le Mac : « réduire les
+//! animations » (`NSWorkspace`). Android ne le lit pas encore (fiche 159 § 8) : pour lui, le
+//! système n'a rien dit.
 
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Mutex, PoisonError};
@@ -90,7 +91,16 @@ mod natif {
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "android"))]
+#[cfg(target_os = "macos")]
+mod natif {
+    /// « Réduire les animations » (Accessibilité, Affichage).
+    pub fn lire() -> Option<bool> {
+        let espace = objc2_app_kit::NSWorkspace::sharedWorkspace();
+        Some(espace.accessibilityDisplayShouldReduceMotion())
+    }
+}
+
+#[cfg(target_os = "android")]
 mod natif {
     pub fn lire() -> Option<bool> {
         None

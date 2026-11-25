@@ -69,6 +69,11 @@ wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 
 # Android : la fenêtre et la boucle par `GameActivity`, la seule porte où le clavier virtuel
 # marche (fiche 50 § 3) — une fonctionnalité de `winit`, aucune caisse de plus.
+# Le réglage « réduire les animations » du Mac (GIF-3, decisions/19) : `objc2-app-kit` est déjà là
+# par `winit` et `rfd`, même version ; deux fonctions de plus, compilées pour le Mac seulement.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAccessibility", "NSWorkspace"] }
+
 [target.'cfg(target_os = "android")'.dependencies]
 winit = { version = "0.30", features = ["android-game-activity"] }
 

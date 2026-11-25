@@ -15,3 +15,7 @@ toujours là, et un processus par lecture) ; ne rien lire (la charte d'accessibi
 navigateurs fait de ce réglage un devoir : `prefers-reduced-motion`).
 
 **Si `rfd` quittait `ashpd`** : la lecture tient en un appel D-Bus ; `zbus` seul suffirait.
+
+**Le Mac** (même jour) : `objc2-app-kit` 0.3, déjà là par `winit` et `rfd` — deux fonctions de
+plus (`NSAccessibility`, `NSWorkspace`) pour `NSWorkspace.accessibilityDisplayShouldReduceMotion`,
+compilées pour le Mac seulement. Vérifié par `verifier_cibles.sh mac`, jamais lancé sur un Mac.
