@@ -50,3 +50,47 @@ libre et gratuite est l'usage courant (VLC, libde265), mais c'est à dire, pas �
    le poids ; puis la note `decisions/`.
 2. **HEIC-2** : la signature, le décodeur de l'atelier, l'aperçu — le format du document ne change
    pas (les octets d'origine sont gardés, comme pour un GIF).
+
+## 5. HEIC-1, la mesure (25/11, compte b)
+
+**Le banc** : `outils/heic/` (hors de l'espace de travail : il ne compile rien dans Glucose),
+`heifer` 0.5.1 sans encodeur, `decode_srgb_rgba8` — ce que Glucose montrerait : huit bits, le
+profil Display P3 de l'iPhone converti en sRGB. Un décodage par processus, `time -f %M`, sur ce
+poste (Ryzen 5 7600X, six cœurs). **Les fichiers** : ceux des épreuves de
+[`pillow_heif`](https://github.com/bigcat88/pillow_heif) (`benchmarks/`, `tests/images/`), dont
+deux photos d'iPhone de 12 Mpx — jamais commités.
+
+| fichier | taille | un fil | tous les cœurs | pic (un fil) |
+|---|---|---|---|---|
+| `pug.heic`, iPhone, 4032×3024 | 1,3 Mo | 423 ms | 235 ms | 100 Mo |
+| `arrow.heic`, iPhone, 3024×4032 (tourné) | 0,8 Mo | 430-440 ms | 260 ms | 100 Mo |
+| `spatial_photo.heic`, 2560×2560 | 1,3 Mo | 229 ms | 131 ms | 56 Mo |
+| `image_large.heic`, 8000×6000 (48 Mpx) | 8,7 Mo | 1 269 ms | 248 ms | 387 Mo |
+
+* **Le poids** : 627 Ko de plus au binaire (dépouillé : `banc-heic` 1 026 Ko, un programme vide
+  399 Ko).
+* **La vignette** de l'iPhone (l'élément `thmb`, 240×320) : **2 ms** — `decode_thumbnail`. Le
+  reste des fichiers n'en a pas (0,03 ms pour le savoir).
+* **La signature** (`check_file_type`) : quelques microsecondes.
+* **La mémoire** : le pic, moins l'image rendue (4 octets par pixel), le fichier et le processus
+  (~3 Mo), laisse **3,8 octets par pixel** de travail au décodeur (3,9 sur tous les cœurs). La
+  borne de l'admission (`admission::pic` : la pyramide, plus **4 octets par pixel** de travail)
+  le couvre — de justesse : 5 % de marge, à garder sous les yeux si `heifer` change.
+* **Les couleurs, regardées** : `pug.heic` réduit huit fois (`apercu`) — des teintes naturelles,
+  aucune jointure entre les tuiles de 512 px de l'iPhone ; `arrow.heic` sort debout (la rotation
+  du fichier appliquée).
+* **Les fichiers d'épreuve** : les 31 de `pillow_heif` (8, 10 et 12 bits, alpha, gris, ICC vide,
+  identifiant invalide, paire stéréo) se décodent tous.
+* **Une photo abîmée** : 60 copies de `pug.heic` (10 tronquées, 50 avec 1 à 32 octets changés) —
+  58 refusées par une erreur, 2 décodées, **aucune panique, aucune au-delà de 20 s**. `heifer`
+  refuse une image plutôt que d'en montrer une moitié : Glucose la mettrait au cache négatif
+  (R-29), comme un JPEG illisible.
+
+**Ce que cela dit** : la proposition tient. 235 à 440 ms pour une photo d'iPhone, c'est sur un
+ouvrier (la charte : rien ne bloque l'image) — mais c'est trois à cinq fois un JPEG de même taille,
+et sur une petite machine, plutôt une seconde. **D'où la vignette d'abord** : l'aperçu de l'atelier
+prendrait le `thmb` (2 ms), l'image entière suivrait. **Les fils** : l'atelier décode déjà plusieurs
+photos à la fois ; `max_threads = 1` évite d'en lancer six de plus par photo (le gain de tous les
+cœurs ne vaut que pour une photo seule). Choix pour HEIC-2 : un fil, et la vignette.
+
+**Le brevet** : ce qu'en dit le § 3 reste vrai et se dit dans `decisions/20`.

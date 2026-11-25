@@ -1,0 +1,14 @@
+[package]
+name = "banc-heic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+heifer = { version = "0.5", default-features = false }
+png = "0.17"
+
+[profile.release]
+debug = false
+
+# Hors de l'espace de travail de Glucose : ce banc ne compile rien dans l'application.
+[workspace]
