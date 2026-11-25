@@ -84,5 +84,5 @@ conversation neuve en écrit ~30 000 une fois : passé une dizaine de réponses,
 « renouveler ») et le crochet demandent la passation, puis le relais lance une conversation neuve, comme
 au seuil des jetons. La session en juge seule, d'après ce que le chantier suivant doit lire (MODE-EMPLOI).
 1 épreuve, 4 sabotages (17 sur 17 dans `reserve-163.json`) ; veilleur relancé. **Essayé en vrai par la
-session qui l'a écrit**, le 25/11 vers 6 h 30 : le journal du relais le dira (« une conversation neuve
+session qui l'a écrit**, le 25/11 à 6 h 08 : le journal du relais le dira (« une conversation neuve
 demandée »).
