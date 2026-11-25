@@ -77,3 +77,23 @@ glissé après le SOI — une dizaine de lignes de Python.
 
 **EXIF-1** : § 3.1 à 3.4, et les épreuves ; au pilote, la photo marquée paraît debout. **EXIF-2** : le
 HEIC (§ 3.5). § 3.3 tranché : le redressement fait partie d'EXIF-1.
+
+## 5. EXIF-1, première moitié : le décodage et le dépôt (25/11 vers 8 h 50, compte a)
+
+* **Le décodage tourne** (`renderer/photo/orientation.rs`, `Niveau::oriente`) : `depuis_le_decodeur`
+  lit l'orientation du décodeur avant `read_image`, et le niveau natif se tourne avant que la pyramide
+  se bâtisse ; le chemin des seize bits passe par `apply_orientation` d'`image`. Une page neuve, quand
+  le travail du décodeur est rendu : le pic d'admission ne change pas (ses quatre octets par pixel
+  couvrent la page tournée, qui ne vit pas en même temps).
+* **Le dépôt et le miroir disent la taille de la photo droite** (`interactions/dimensions.rs`) : la
+  marche du JPEG lit l'orientation dans le seul IFD0 de l'EXIF (l'en-tête TIFF, ses entrées ; la
+  vignette se saute — moins de 32 Ko lus d'un JPEG d'un Mo à EXIF de 50 Ko) ; les autres formats par
+  `orientation()` du décodeur, l'en-tête seul.
+* Épreuves : les huit orientations comparées pixel à pixel à `apply_orientation` ; un JPEG marqué « 6 »
+  décodé debout (30 × 40, le haut noir passé à droite) ; un portrait mesuré debout en `II` comme en
+  `MM`, une orientation hors norme ignorée ; un vrai JPEG marqué que le décodeur d'`image` lit
+  « Rotate90 ». Sabotages : `outils/sabotages/exif-1.json` (6 sur 6). Suite verte (3 751).
+
+**Pas encore, et rien de cela ne part dans son Glucose sans elle** : la seconde moitié — le
+redressement des nœuds déjà posés (§ 3.3), les aperçus en cache (§ 3.4, leur nom à changer), le HEIC
+(EXIF-2), et la photo marquée au pilote.

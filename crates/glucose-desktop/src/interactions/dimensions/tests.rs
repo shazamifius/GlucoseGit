@@ -124,3 +124,92 @@ fn test_une_photo_du_disque_se_mesure_par_son_en_tete() {
         "la marche, pas le décodeur entier"
     );
 }
+
+/// La charge d'un `APP1` d'appareil : l'EXIF, son IFD0 (la marque, puis l'orientation), et une vignette
+/// de `vignette` octets derrière — dans l'ordre des octets du Mac (`MM`) ou d'Intel (`II`).
+fn exif(gros: bool, orientation: u16, vignette: usize) -> Vec<u8> {
+    let u16_ = |v: u16| {
+        if gros {
+            v.to_be_bytes()
+        } else {
+            v.to_le_bytes()
+        }
+    };
+    let u32_ = |v: u32| {
+        if gros {
+            v.to_be_bytes()
+        } else {
+            v.to_le_bytes()
+        }
+    };
+    let mut c = b"Exif\0\0".to_vec();
+    c.extend_from_slice(if gros { b"MM\0*" } else { b"II*\0" });
+    c.extend(u32_(8));
+    c.extend(u16_(2));
+    // La marque (0x010F, ASCII, 4 octets tenus dans l'entrée), puis l'orientation (SHORT).
+    c.extend(u16_(0x010F));
+    c.extend(u16_(2));
+    c.extend(u32_(4));
+    c.extend_from_slice(b"Moi\0");
+    c.extend(u16_(0x0112));
+    c.extend(u16_(3));
+    c.extend(u32_(1));
+    c.extend(u16_(orientation));
+    c.extend([0, 0]);
+    c.extend(u32_(0));
+    c.extend(vec![0x33u8; vignette]);
+    c
+}
+
+fn photo_de_telephone(gros: bool, orientation: u16) -> Vec<u8> {
+    let mut f = vec![0xFF, 0xD8];
+    f.extend(segment(0xE1, &exif(gros, orientation, 50_000)));
+    f.extend(segment(0xC0, &sof(3000, 4000)));
+    f.extend(segment(0xDA, &[0; 8]));
+    f.extend(vec![0x55u8; 1_000_000]);
+    f
+}
+
+#[test]
+fn test_un_portrait_de_telephone_se_mesure_debout_sans_lire_sa_vignette() {
+    for gros in [false, true] {
+        for (orientation, attendu) in [
+            (1, (4000, 3000)),
+            (3, (4000, 3000)),
+            (6, (3000, 4000)),
+            (8, (3000, 4000)),
+            (5, (3000, 4000)),
+            (9, (4000, 3000)), // hors de la norme : ignorée
+        ] {
+            let mut r = BufReader::new(Compte {
+                dedans: Cursor::new(photo_de_telephone(gros, orientation)),
+                lus: 0,
+            });
+            assert_eq!(
+                dimensions_jpeg(&mut r),
+                Some(attendu),
+                "orientation {orientation}, {}",
+                if gros { "MM" } else { "II" }
+            );
+            let lus = r.into_inner().lus;
+            assert!(lus < 32 * 1024, "{lus} octets lus : la vignette se saute");
+        }
+    }
+}
+
+#[test]
+fn test_un_vrai_jpeg_marque_a_la_taille_que_dit_le_decodeur_entier_tourne() {
+    let mut octets = Vec::new();
+    let pixels = vec![90u8; 37 * 23 * 3];
+    image::codecs::jpeg::JpegEncoder::new(&mut octets)
+        .encode(&pixels, 37, 23, image::ExtendedColorType::Rgb8)
+        .expect("encodé");
+    let mut marque = octets[..2].to_vec();
+    marque.extend(segment(0xE1, &exif(false, 6, 100)));
+    marque.extend_from_slice(&octets[2..]);
+    let mut decodeur = ImageReader::with_format(Cursor::new(&marque), ImageFormat::Jpeg)
+        .into_decoder()
+        .expect("le décodeur entier");
+    assert_eq!(decodeur.orientation().ok(), Some(Orientation::Rotate90));
+    assert_eq!(dimensions_jpeg(&mut Cursor::new(&marque)), Some((23, 37)));
+}

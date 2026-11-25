@@ -397,3 +397,44 @@ fn heic_3_une_photo_d_iphone_parait_par_sa_vignette_puis_entiere() {
     assert!(entiere.entiere());
     let _ = std::fs::remove_dir_all(&dossier);
 }
+
+/// **Une photo de téléphone tenue en portrait** (EXIF-1, fiche 165) : ses pixels écrits en paysage, sa
+/// balise « orientation 6 » ; décodée, elle est debout — le haut de l'image (noir) passe à droite.
+#[test]
+fn test_une_photo_marquee_d_une_orientation_se_decode_debout() {
+    let (l, h) = (40u32, 30u32);
+    let mut rgb = Vec::with_capacity((l * h * 3) as usize);
+    for y in 0..h {
+        for _ in 0..l {
+            rgb.extend(if y < h / 2 {
+                [0, 0, 0]
+            } else {
+                [255, 255, 255]
+            });
+        }
+    }
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 95)
+        .encode(&rgb, l, h, image::ExtendedColorType::Rgb8)
+        .expect("encodé");
+    // Un APP1 « Exif » d'une seule entrée, l'orientation (0x0112) à 6, glissé après le SOI.
+    let mut tiff = b"Exif\0\0II*\0\x08\0\0\0\x01\0".to_vec();
+    tiff.extend_from_slice(&[0x12, 0x01, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0]);
+    let mut marque = jpeg[..2].to_vec();
+    marque.extend_from_slice(&[0xFF, 0xE1]);
+    marque.extend_from_slice(&u16::try_from(tiff.len() + 2).expect("court").to_be_bytes());
+    marque.extend_from_slice(&tiff);
+    marque.extend_from_slice(&jpeg[2..]);
+    let dir = std::env::temp_dir().join(format!("glucose-debout-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dossier");
+    let chemin = dir.join("portrait.jpg");
+    std::fs::write(&chemin, &marque).expect("écrit");
+    let pyramide = decoder(&chemin.to_string_lossy(), None, admission::de_la_machine());
+    let _ = std::fs::remove_dir_all(&dir);
+    let pyramide = pyramide.expect("décodée");
+    assert_eq!(pyramide.dimensions_natives(), (h, l), "debout : 30 × 40");
+    let natif = pyramide.native().expect("tenue");
+    let gris = |x: u32, y: u32| natif.pixel(x, y).expect("dedans").red();
+    assert!(gris(h - 3, l / 2) < 60, "le haut, noir, est passé à droite");
+    assert!(gris(2, l / 2) > 200, "le bas, blanc, à gauche");
+}

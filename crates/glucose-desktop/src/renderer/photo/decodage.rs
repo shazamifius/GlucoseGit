@@ -22,6 +22,7 @@
 //! octets, au bit près, et une épreuve le vérifie.
 
 use super::{Niveau, Pyramide};
+use image::metadata::Orientation;
 use image::{ColorType, ImageDecoder};
 
 impl Pyramide {
@@ -40,8 +41,10 @@ impl Pyramide {
     /// **Une image décodée dans la page de son niveau natif**, sans autre copie pleine taille.
     ///
     /// `None` quand le système refuse la place, quand le décodeur échoue, ou quand sa couleur
-    /// ne s'étale pas sur place ([`Self::octets_par_pixel`]) — l'appelant le sait d'avance.
-    pub fn depuis_le_decodeur(decodeur: impl ImageDecoder) -> Option<Self> {
+    /// ne s'étale pas sur place ([`Self::octets_par_pixel`]) — l'appelant le sait d'avance. Le niveau
+    /// natif se tourne comme la photo le demande (EXIF-1, fiche 165) avant que la pyramide se bâtisse.
+    pub fn depuis_le_decodeur(mut decodeur: impl ImageDecoder) -> Option<Self> {
+        let orientation = decodeur.orientation().unwrap_or(Orientation::NoTransforms);
         let k = Self::octets_par_pixel(decodeur.color_type())?;
         let (largeur, hauteur) = decodeur.dimensions();
         let mut niveau = Niveau::vide(largeur, hauteur)?;
@@ -49,7 +52,7 @@ impl Pyramide {
         let pixels = largeur as usize * hauteur as usize;
         decodeur.read_image(page.get_mut(..pixels * k)?).ok()?;
         etaler(page, pixels, k);
-        Self::batir(niveau)
+        Self::batir(niveau.oriente(orientation)?)
     }
 }
 

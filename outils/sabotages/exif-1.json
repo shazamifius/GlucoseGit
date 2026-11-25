@@ -1,0 +1,116 @@
+[
+ {
+  "nom": "EXIF-1 — le quart de tour à l'envers",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/orientation.rs",
+  "avant": "Orientation::Rotate90 => (h - 1 - y, x),",
+  "apres": "Orientation::Rotate90 => (y, l - 1 - x),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "renderer::photo::orientation"
+  ]
+ },
+ {
+  "nom": "EXIF-1 — la transposée sans son miroir",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/orientation.rs",
+  "avant": "Orientation::Rotate270FlipH => (h - 1 - y, l - 1 - x),",
+  "apres": "Orientation::Rotate270FlipH => (y, x),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "renderer::photo::orientation"
+  ]
+ },
+ {
+  "nom": "EXIF-1 — le décodage ignore la balise",
+  "fichier": "crates/glucose-desktop/src/renderer/photo/decodage.rs",
+  "avant": "Self::batir(niveau.oriente(orientation)?)",
+  "apres": "Self::batir(niveau)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "renderer::atelier"
+  ]
+ },
+ {
+  "nom": "EXIF-1 — le dépôt garde la taille couchée",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "| Orientation::Rotate270FlipH => (hauteur, largeur),",
+  "apres": "| Orientation::Rotate270FlipH => (largeur, hauteur),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EXIF-1 — l'ordre des octets de Motorola lu comme Intel",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "u16::from_be_bytes(o)\n        } else {",
+  "apres": "u16::from_le_bytes(o)\n        } else {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ },
+ {
+  "nom": "EXIF-1 — la balise de l'orientation manquée",
+  "fichier": "crates/glucose-desktop/src/interactions/dimensions.rs",
+  "avant": "if u16_de([entree[0], entree[1]]) == 0x0112 {",
+  "apres": "if u16_de([entree[0], entree[1]]) == 0x0113 {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "interactions::dimensions"
+  ]
+ }
+]

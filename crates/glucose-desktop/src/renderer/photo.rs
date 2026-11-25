@@ -66,6 +66,7 @@
 mod decodage;
 pub mod heic;
 mod niveau;
+mod orientation;
 mod pixels;
 pub use niveau::{Etat, Retour, Transit};
 

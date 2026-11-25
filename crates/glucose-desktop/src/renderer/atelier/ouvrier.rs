@@ -121,8 +121,15 @@ pub(super) fn decoder(
         if Pyramide::octets_par_pixel(decodeur.color_type()).is_some() {
             return Pyramide::depuis_le_decodeur(decodeur);
         }
-        let rgba = image::DynamicImage::from_decoder(decodeur).ok()?.to_rgba8();
-        Pyramide::depuis_rgba(l, h, rgba.as_raw())
+        // Seize bits, flottants : le chemin général, tourné de même (EXIF-1, fiche 165).
+        let mut decodeur = decodeur;
+        let orientation = decodeur
+            .orientation()
+            .unwrap_or(image::metadata::Orientation::NoTransforms);
+        let mut image = image::DynamicImage::from_decoder(decodeur).ok()?;
+        image.apply_orientation(orientation);
+        let rgba = image.to_rgba8();
+        Pyramide::depuis_rgba(rgba.width(), rgba.height(), rgba.as_raw())
     })
 }
 
