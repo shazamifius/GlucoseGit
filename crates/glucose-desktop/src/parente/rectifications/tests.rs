@@ -146,6 +146,37 @@ fn rectif_1_colorer_un_texte_de_famille_s_ecrit() {
         .and_then(Json::as_liste)
         .unwrap_or_default();
     assert_eq!(sujets.first().and_then(Json::as_str), Some("a"));
+    // RETRAIT-1 (fiche 153) : l'humain le retire — l'IA ne le relit plus, la Time Machine le
+    // garde, éteint ; remis, il revient. Le fichier le dit, relu d'un bout à l'autre.
+    let ecrits_lus = |app: &mut GlucoseApp| {
+        let lue = app
+            .executer_pour_un_agent("glucose_histoire", &Json::objet([]))
+            .expect("l'histoire se lit");
+        let gestes = lue
+            .get("gestes")
+            .and_then(Json::as_liste)
+            .unwrap_or_default();
+        gestes
+            .iter()
+            .map(|g| {
+                g.get("ecrits")
+                    .and_then(Json::as_liste)
+                    .unwrap_or_default()
+                    .len()
+            })
+            .sum::<usize>()
+    };
+    app.agir_dans_le_temps(crate::dock::temps::TempsIntent::Retirer(0));
+    assert_eq!(ecrits_lus(&mut app), 0, "retiré : l'IA ne le relit plus");
+    assert_eq!(
+        app.dock_manager.temps.ecrits.len(),
+        1,
+        "la Time Machine le garde"
+    );
+    assert!(app.dock_manager.temps.ecrits[0].retire, "éteint");
+    app.agir_dans_le_temps(crate::dock::temps::TempsIntent::Retirer(0));
+    assert_eq!(ecrits_lus(&mut app), 1, "remis : il revient");
+    assert!(!app.dock_manager.temps.ecrits[0].retire);
 }
 
 /// **Retoucher ou retirer une flèche d'agent que l'IA jugeait s'écrit**, au rang du geste, avec sa

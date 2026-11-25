@@ -72,6 +72,9 @@ deux sont faits ; ce qui suit les termine, puis reprend le reste du tableau.
 
 ## 3. Ce qui attend son écran
 
+**Retirer l'écrit d'une IA** (RETRAIT-1, fiche 153 ; à sa prochaine relance) : `Ctrl+H` → l'onglet
+« ÉCRITS DES IA » ; « Retirer » éteint la ligne, « Remettre » la rallume.
+
 **La flèche courbe de « URGENT IMPORTANT »** (COURBE-1, fiche 152 ; à sa prochaine relance) : elle sort
 par le bas de la carte et s'infléchit au coin du nœud du dessous, sans plus remonter à travers le texte.
 
@@ -202,9 +205,8 @@ Glucose ouvert (FIN-SESSION-1), un dépôt posé sous le curseur.
 « ce qui attend ma parole » (`~/Downloads/ce qui attend ma parole.glucose`), lu et écrit par sa porte
 (`outils/porte/claude_code.mjs`) ; ses réponses vont dans VISION, et sortent d'ici. **Ouvertes** : **le H24 et les quotas** (fiche 141 § 5 : deux comptes Pro ≈ 22 à 25 h de travail par semaine — renouveler la conversation vers 200 000 à 450 000 jetons au lieu de 90 %, contre sa règle du 23/11, +25 % à deux fois plus de travail, à mesurer ; Sonnet pour le relais ; un abonnement plus grand, son choix) ; **une 2.0.4-beta.6** (posée le 24/11 à 8 h, `relais-q-beta6` : les onze corrections
 depuis la beta.5 sur tous ses appareils ; à son oui, la CI puis le brouillon, le clic reste le sien ;
-TEXT-FIT-3 après) ; **ce qu'une IA écrit
-dans la Time Machine** (sa note `text-321`, notre proposition `relais-rep-321` : « Retirer » un écrit,
-des notes jamais des ordres pour les IA suivantes, la liste de tous les écrits — fiche 139 § 7) ;
+TEXT-FIT-3 après) ; ~~ce qu'une IA écrit
+dans la Time Machine~~ — **fait le 25/11** (son « carrément », RETRAIT-1, fiche 153) ;
 **les accès à ce document en un seul endroit** (sa demande `demande-codes-actifs`, notre proposition
 `relais-rep-codes`) ; le
 compte Cloudflare de Glucose (son clic, et le nom — posée le 19/11 à 14 h, à droite de la porte) ;

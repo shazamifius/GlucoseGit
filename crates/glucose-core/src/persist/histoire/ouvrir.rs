@@ -18,7 +18,7 @@ use super::super::container::{
 };
 use super::super::manifest::{self, Manifest};
 use super::{lire_auteur, lire_geste, lire_instantane, lire_jalon, lire_lien, lire_note};
-use super::{nature, suivante, vue, Auteur, Chaine, Jalon, Note, Vue, ENTETE};
+use super::{nature, suivante, vue, Auteur, Chaine, Jalon, Note, NoteVisee, Vue, ENTETE};
 use crate::error::{CoreError, CoreResult};
 use crate::hash::sha256;
 use crate::persist::bytes::Reader;
@@ -70,6 +70,9 @@ pub struct Ouvert {
     pub auteurs: HashMap<u64, Auteur>,
     /// **Les écrits attachés aux gestes** (NOTE-1), dans l'ordre où ils ont été écrits.
     pub notes: Vec<Note>,
+    /// **Les écrits que l'humain a retirés** de ce que les IA relisent (RETRAIT-1, fiche 153) :
+    /// toujours dans [`Self::notes`], pour la Time Machine.
+    pub retires: HashSet<NoteVisee>,
     /// **Les nœuds qu'un agent a posés et que l'humain n'a pas touchés depuis** (MAIN-1), relus
     /// dans l'histoire — seulement quand un agent y est déclaré : un document où seul l'humain a
     /// travaillé n'en relit aucun geste de plus.
@@ -126,6 +129,7 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         jalons: Vec::new(),
         auteurs: HashMap::new(),
         notes: Vec::new(),
+        retires: HashSet::new(),
         des_agents: HashSet::new(),
         instantanes: Vec::new(),
         fin: base.fin,
@@ -421,6 +425,14 @@ fn ranger(
             o.auteurs.insert(auteur.id, auteur);
         }
         nature::NOTE => o.notes.push(lire_note(&mut Reader::new(&contenu))?),
+        nature::RETRAIT => {
+            let r = super::lire_retrait(&mut Reader::new(&contenu))?;
+            if r.retire {
+                o.retires.insert(r.note);
+            } else {
+                o.retires.remove(&r.note);
+            }
+        }
         // PERSIST-5 : une nature facultative qu'on ne connaît pas s'enjambe — sa chaîne est
         // vérifiée, et ce qu'elle dit ne change pas le document.
         autre if autre & nature::FACULTATIVE != 0 => {}

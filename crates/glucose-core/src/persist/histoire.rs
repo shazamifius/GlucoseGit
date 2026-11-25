@@ -84,6 +84,10 @@ pub mod nature {
     /// **Un écrit attaché à un geste** (NOTE-1) : ce qu'une IA ou l'humain en comprend, et
     /// pourquoi il compte — sans toucher le geste, comme une note de git sur un commit.
     pub const NOTE: u8 = 0x82;
+    /// **Un écrit retiré, ou remis** (RETRAIT-1, fiche 153) : l'humain retire l'écrit d'une IA de
+    /// ce que les IA relisent. L'écrit reste dans l'histoire, et ce retrait aussi : rien ne
+    /// disparaît en silence. Une version qui ne le connaît pas montre l'écrit, comme avant.
+    pub const RETRAIT: u8 = 0x83;
 }
 
 /// Longueur de l'en-tête d'une entrée.
@@ -269,6 +273,36 @@ pub struct Note {
     pub sujets: Vec<String>,
 }
 
+impl Note {
+    /// **Ce qui désigne cet écrit** : son auteur, son geste, son instant.
+    pub fn visee(&self) -> NoteVisee {
+        NoteVisee {
+            auteur: self.auteur,
+            geste: self.geste,
+            instant: self.instant,
+        }
+    }
+}
+
+/// **Ce qui désigne un écrit** (RETRAIT-1) : un écrit n'a pas d'identifiant, mais son auteur, le
+/// geste qu'il commente et l'instant où il l'a écrit le distinguent de tout autre.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoteVisee {
+    pub auteur: u64,
+    pub geste: u64,
+    pub instant: i64,
+}
+
+/// **L'humain retire un écrit de ce que les IA relisent, ou l'y remet** (RETRAIT-1) — le dernier
+/// mot l'emporte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Retrait {
+    pub instant: i64,
+    pub note: NoteVisee,
+    /// Retiré ; `false` : remis.
+    pub retire: bool,
+}
+
 /// Qui a posé un jalon.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Genre {
@@ -323,6 +357,28 @@ pub fn contenu_note(n: &Note) -> Vec<u8> {
     w.text(&n.texte);
     w.seq(&n.sujets, |w, s| w.text(s));
     w.into_bytes()
+}
+
+pub fn contenu_retrait(r: &Retrait) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.i64(r.instant);
+    w.u64(r.note.auteur);
+    w.u64(r.note.geste);
+    w.i64(r.note.instant);
+    w.u8(u8::from(r.retire));
+    w.into_bytes()
+}
+
+pub(crate) fn lire_retrait(r: &mut Reader<'_>) -> CoreResult<Retrait> {
+    Ok(Retrait {
+        instant: r.i64()?,
+        note: NoteVisee {
+            auteur: r.u64()?,
+            geste: r.u64()?,
+            instant: r.i64()?,
+        },
+        retire: r.u8()? != 0,
+    })
 }
 
 fn lire_auteur(r: &mut Reader<'_>) -> CoreResult<Auteur> {

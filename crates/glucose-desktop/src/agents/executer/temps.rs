@@ -90,10 +90,11 @@ fn geste_en_json(o: &Ouvert, rang: usize, fichier: &mut std::fs::File) -> Json {
     let fait = relire(fichier, repere)
         .map(|g| g.transaction.en_mots())
         .unwrap_or_default();
+    // Ce que l'humain a retiré ne se relit plus (RETRAIT-1, fiche 153).
     let ecrits = o
         .notes
         .iter()
-        .filter(|n| n.geste == rang as u64)
+        .filter(|n| n.geste == rang as u64 && !o.retires.contains(&n.visee()))
         .map(|n| {
             let sujets = n.sujets.iter().map(|s| Json::texte(s.clone())).collect();
             Json::objet([

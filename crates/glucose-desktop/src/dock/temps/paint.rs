@@ -1,11 +1,11 @@
 //! Le dessin du panneau TIME MACHINE : l'en-tête et son badge, la réglette, les boutons de
-//! l'aperçu, les jalons, le pied.
+//! l'aperçu, le détail du geste regardé, les jalons ou les écrits des IA, le pied.
 //!
 //! Deux couleurs seulement disent l'état, comme chez Glucose Tauri : le **vert** du présent
 //! (le succès du thème) et l'**ambre** du passé (fiche 06 § 1 : les jalons de la Time
 //! Machine). Pas d'émoji : la police n'en a pas (R-51).
 
-use super::{il_y_a, layout_temps_panel, TempsLayout, TempsUi};
+use super::{il_y_a, layout_temps_panel, EcritVu, TempsLayout, TempsUi, RETRAIT};
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::dock::WidgetRect;
 use crate::params::ScaledRect;
@@ -45,7 +45,7 @@ pub fn render_temps_panel(pixmap: &mut PixmapMut, brush: &Brush, frame: ScaledRe
         );
     }
     detail(pixmap, brush, &layout, ui);
-    jalons(pixmap, brush, &layout, ui);
+    liste(pixmap, brush, &layout, ui);
     pied(pixmap, brush, layout.pied, ui);
 }
 
@@ -55,31 +55,110 @@ fn detail(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &Temp
     let Some((maintenant, _)) = layout.boutons else {
         return;
     };
+    let theme = brush.theme;
     let (x, largeur) = (layout.reglette.x, layout.reglette.w);
     let mut y = maintenant.y + maintenant.h + brush.px(10.0);
+    let ecrits: Vec<&EcritVu> = ui.ecrits_du_geste().map(|i| &ui.ecrits[i]).collect();
     for (i, ligne) in ui.detail().iter().enumerate() {
-        let (corps, couleur) = if i == 0 {
-            (9.5, brush.theme.text_secondary)
-        } else {
-            (10.0, brush.theme.text_primary)
+        // Un écrit laisse la place de « Retirer » au bout de sa ligne ; retiré, il s'éteint.
+        let (corps, couleur, place) = match i.checked_sub(1).and_then(|j| ecrits.get(j)) {
+            None => (9.5, theme.text_secondary, largeur),
+            Some(e) => (
+                10.0,
+                if e.retire {
+                    theme.text_muted
+                } else {
+                    theme.text_primary
+                },
+                largeur - brush.px(RETRAIT + 6.0),
+            ),
         };
-        let texte = tenir_dans(brush, ligne, corps, largeur);
+        let texte = tenir_dans(brush, ligne, corps, place);
         brush.text(pixmap, &texte, (x, y), corps, couleur, Face::Regular);
         y += brush.px(super::LIGNE_DU_DETAIL);
     }
+    for (bouton, i) in &layout.retraits {
+        let libelle = retrait(&ui.ecrits[*i]);
+        brush.button(pixmap, *bouton, libelle, 9.0, ButtonLook::default());
+    }
 }
 
-/// Le texte, coupé de « … » s'il dépasse cette largeur.
+/// Ce que le bouton d'un écrit propose : le retirer, ou le remettre.
+fn retrait(e: &EcritVu) -> &'static str {
+    if e.retire {
+        "Remettre"
+    } else {
+        "Retirer"
+    }
+}
+
+/// Le texte, coupé de « … » s'il dépasse cette largeur — la loi de TRONQUER-1.
 fn tenir_dans(brush: &Brush, texte: &str, corps: f32, largeur: f32) -> String {
-    let large = |t: &str| brush.typo.measure_text(t, brush.px(corps), Face::Regular).0;
-    if large(texte) <= largeur {
-        return texte.to_string();
+    let taille = brush.px(corps);
+    crate::renderer::wrap::tronquer(texte, largeur, |c| {
+        brush.typo.advance(c, taille, Face::Regular)
+    })
+}
+
+/// **Les deux onglets de la liste** — « JALONS », « ÉCRITS DES IA » et leur nombre —, puis ce
+/// que montre le choisi (RETRAIT-1, fiche 153).
+fn liste(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &TempsUi) {
+    let theme = brush.theme;
+    let (jalons_, ecrits_) = layout.onglets;
+    let des_ecrits = format!("ÉCRITS DES IA · {}", ui.ecrits.len());
+    for (r, texte, actif) in [
+        (jalons_, "JALONS", !ui.liste_des_ecrits),
+        (ecrits_, des_ecrits.as_str(), ui.liste_des_ecrits),
+    ] {
+        if brush.hovered(r) {
+            brush.fill(pixmap, r, brush.px(3.0), theme.bg_hover);
+        }
+        let couleur = if actif {
+            theme.text_primary
+        } else {
+            theme.text_muted
+        };
+        let at = (r.x + brush.px(4.0), layout.liste_y);
+        brush.text(pixmap, texte, at, 9.5, couleur, Face::Bold);
     }
-    let mut coupe: String = texte.to_string();
-    while !coupe.is_empty() && large(&format!("{coupe}…")) > largeur {
-        coupe.pop();
+    if ui.liste_des_ecrits {
+        ecrits(pixmap, brush, layout, ui);
+    } else {
+        jalons(pixmap, brush, layout, ui);
     }
-    format!("{coupe}…")
+}
+
+/// **Les écrits des IA, tous** (RETRAIT-1) : qui, sur quel geste, ce qu'il dit, et « Retirer »
+/// — un clic sur la ligne regarde son geste.
+fn ecrits(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &TempsUi) {
+    let theme = brush.theme;
+    if ui.ecrits.is_empty() {
+        let at = (layout.reglette.x, layout.liste_y + brush.px(20.0));
+        let vide = "Aucun écrit d'une IA dans ce document.";
+        brush.text(pixmap, vide, at, 9.5, theme.text_muted, Face::Regular);
+        return;
+    }
+    for (ligne, bouton, i) in &layout.ecrits {
+        let e = &ui.ecrits[*i];
+        if ui.regarde == Some(e.geste + 1) || brush.hovered(*ligne) {
+            brush.fill(pixmap, *ligne, brush.px(4.0), theme.bg_hover);
+        }
+        let (titre, corps) = if e.retire {
+            (theme.text_muted, theme.text_muted)
+        } else {
+            (theme.text_primary, theme.text_secondary)
+        };
+        let largeur = bouton.x - ligne.x - brush.px(8.0);
+        let retire = if e.retire { "retiré · " } else { "" };
+        let entete = format!("{retire}{} · geste {}", e.auteur, e.geste + 1);
+        let entete = tenir_dans(brush, &entete, 11.0, largeur);
+        let at = (ligne.x, ligne.y + brush.px(2.0));
+        brush.text(pixmap, &entete, at, 11.0, titre, Face::Bold);
+        let texte = tenir_dans(brush, &e.texte, 9.0, largeur);
+        let at = (ligne.x, ligne.y + brush.px(17.0));
+        brush.text(pixmap, &texte, at, 9.0, corps, Face::Regular);
+        brush.button(pixmap, *bouton, retrait(e), 9.5, ButtonLook::default());
+    }
 }
 
 /// « EN DIRECT » au présent, « APERÇU » dans le passé.
@@ -185,7 +264,6 @@ fn reglette(pixmap: &mut PixmapMut, brush: &Brush, r: WidgetRect, ui: &TempsUi) 
 fn jalons(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &TempsUi) {
     let theme = brush.theme;
     let x = layout.reglette.x;
-    brush.caption(pixmap, (x, layout.liste_y), "JALONS");
     if ui.jalons.is_empty() {
         brush.text(
             pixmap,

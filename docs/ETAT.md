@@ -61,7 +61,9 @@
 * **Sur `main`, pas encore dans son Glucose** (vérifié ici) : **TRONQUER-1** — un long résultat de Ctrl+F
   tient dans sa case (fiche 151 § 5) ; **COURBE-1** — une flèche courbe ne boucle plus à travers sa
   source (Catmull-Rom centripète, identique à Tauri à pas égaux) et **RESSERRER-1**, le plantage quand le
-  premier morceau d'une courbe mord un bloc (fiche 152).
+  premier morceau d'une courbe mord un bloc (fiche 152) ; **RETRAIT-1** — dans la Time Machine, « Retirer »
+  l'écrit d'une IA (l'histoire le garde, « Remettre » le défait), l'onglet « ÉCRITS DES IA » les réunit,
+  et `glucose_histoire` ne rend plus ce qu'il a retiré (fiche 153).
 * **Ce que la beta.4 a apporté, depuis la beta.3** :
   * **les tiroirs du côté de leur bouton** (TIROIR-4, sa parole du 19/11 :
     collés au bord sous la bande, plats, rangés en colonnes d'une largeur), regardés dans le vrai

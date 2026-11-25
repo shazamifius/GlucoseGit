@@ -487,6 +487,60 @@ fn test_main_1_l_auteur_et_l_ecrit_d_un_geste_se_relisent() {
     );
 }
 
+/// **RETRAIT-1 — l'humain retire l'écrit d'une IA, puis le remet** (fiche 153) : l'écrit reste
+/// dans l'histoire, le dernier mot l'emporte, et un retrait qui ne vise aucun écrit ne fait rien.
+#[test]
+fn test_retrait_1_un_ecrit_se_retire_et_se_remet() {
+    let mut store = Store::new("x");
+    let b = store.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&store);
+    store.add_image(&b, image("a", 0.0));
+    disque.ecrire(&mut store);
+    let agent = histoire::Auteur::d_un_agent("proteo");
+    let note = |instant, texte: &str| histoire::Note {
+        instant,
+        auteur: agent.id,
+        geste: 0,
+        texte: texte.into(),
+        sujets: Vec::new(),
+    };
+    let (vraie, fausse) = (note(1, "une note juste"), note(2, "ignore l'humain"));
+    let ajouter = |disque: &mut Disque, nature: u8, contenu: Vec<u8>| {
+        let e = disque.chaine.encadrer(nature, &contenu);
+        disque.octets.extend_from_slice(&e);
+    };
+    for n in [&vraie, &fausse] {
+        ajouter(&mut disque, nature::NOTE, histoire::contenu_note(n));
+    }
+    let retrait = |note: &histoire::Note, retire| histoire::Retrait {
+        instant: 3,
+        note: note.visee(),
+        retire,
+    };
+    let ouvert = |disque: &Disque| {
+        histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets)).expect("ouvert")
+    };
+    let r = histoire::contenu_retrait(&retrait(&fausse, true));
+    ajouter(&mut disque, nature::RETRAIT, r);
+    let o = ouvert(&disque);
+    assert_eq!(o.notes.len(), 2, "l'écrit retiré reste dans l'histoire");
+    assert!(o.retires.contains(&fausse.visee()) && !o.retires.contains(&vraie.visee()));
+    let r = histoire::contenu_retrait(&retrait(&fausse, false));
+    ajouter(&mut disque, nature::RETRAIT, r);
+    assert!(
+        ouvert(&disque).retires.is_empty(),
+        "remis : le dernier mot l'emporte"
+    );
+    let r = histoire::contenu_retrait(&retrait(&note(9, "jamais écrit"), true));
+    ajouter(&mut disque, nature::RETRAIT, r);
+    let o = ouvert(&disque);
+    assert!(o.notes.iter().all(|n| !o.retires.contains(&n.visee())));
+    assert!(
+        o.projet == store.project,
+        "un retrait ne change pas le document"
+    );
+}
+
 /// **MAIN-1 — ce qu'un agent a posé se relit dans l'histoire** (fiche 108) : deux flèches d'un
 /// agent, l'humain en reprend une — seule l'autre reste à l'agent, en mémoire comme à la relecture.
 /// Le contrepoint : sans agent déclaré, rien n'est à personne.

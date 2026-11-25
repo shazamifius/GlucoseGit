@@ -38,6 +38,18 @@ pub struct EcritVu {
     /// Qui l'a écrit, en mots : « toi », ou « agent » et son nom.
     pub auteur: String,
     pub texte: String,
+    /// Ce qui le désigne dans l'histoire, pour le retirer (RETRAIT-1, fiche 153).
+    pub visee: glucose_core::persist::histoire::NoteVisee,
+    /// **L'humain l'a retiré** de ce que les IA relisent : il reste ici, éteint, et se remet.
+    pub retire: bool,
+}
+
+impl EcritVu {
+    /// Sa ligne : qui l'a écrit et ce qu'il dit — « retiré » devant, s'il l'est.
+    pub fn ligne(&self) -> String {
+        let retire = if self.retire { "retiré · " } else { "" };
+        format!("{retire}{} : « {} »", self.auteur, self.texte)
+    }
 }
 
 /// Ce que la Time Machine montre, et ce qu'on y est en train de faire.
@@ -58,6 +70,8 @@ pub struct TempsUi {
     pub auteurs: Vec<String>,
     /// **Les écrits attachés aux gestes** (NOTE-1).
     pub ecrits: Vec<EcritVu>,
+    /// **La liste montre les écrits des IA** au lieu des jalons (RETRAIT-1) : tous, d'un coup.
+    pub liste_des_ecrits: bool,
 }
 
 impl TempsUi {
@@ -78,13 +92,15 @@ impl TempsUi {
         let rang = k - 1;
         let qui = self.auteurs.get(rang).map_or("toi", String::as_str);
         std::iter::once(format!("Geste {k} · par {qui}"))
-            .chain(
-                self.ecrits
-                    .iter()
-                    .filter(|e| e.geste == rang)
-                    .map(|e| format!("{} : « {} »", e.auteur, e.texte)),
-            )
+            .chain(self.ecrits_du_geste().map(|i| self.ecrits[i].ligne()))
             .collect()
+    }
+
+    /// Les écrits du geste regardé, par leur rang dans [`Self::ecrits`] : les lignes du détail
+    /// qui suivent la première.
+    pub fn ecrits_du_geste(&self) -> impl Iterator<Item = usize> + '_ {
+        let rang = self.regarde.filter(|&k| k > 0).map(|k| k - 1);
+        (0..self.ecrits.len()).filter(move |&i| Some(self.ecrits[i].geste) == rang)
     }
 
     /// Des gestes viennent de s'écrire : la réglette s'allonge sans relire le fichier.
@@ -109,6 +125,11 @@ pub enum TempsIntent {
     /// Restaurer l'état d'un jalon, par le nombre de gestes qui le précèdent.
     RestaurerLeJalon(usize),
     CommencerUnJalon,
+    /// Retirer l'écrit de ce rang dans [`TempsUi::ecrits`] de ce que les IA relisent, ou l'y
+    /// remettre s'il l'est (RETRAIT-1).
+    Retirer(usize),
+    /// Montrer les écrits des IA (`true`) ou les jalons.
+    Liste(bool),
 }
 
 /// La géométrie du panneau — la seule, lue par le dessin et par le clic.
@@ -122,6 +143,13 @@ pub struct TempsLayout {
     pub liste_y: f32,
     /// Chaque jalon montré : sa ligne, son bouton, et son rang dans [`TempsUi::jalons`].
     pub lignes: Vec<(WidgetRect, WidgetRect, usize)>,
+    /// Chaque écrit montré dans la liste des écrits : sa ligne, « Retirer » ou « Remettre », et
+    /// son rang dans [`TempsUi::ecrits`] (RETRAIT-1).
+    pub ecrits: Vec<(WidgetRect, WidgetRect, usize)>,
+    /// « Retirer » ou « Remettre » au bout de chaque écrit du geste regardé, et son rang.
+    pub retraits: Vec<(WidgetRect, usize)>,
+    /// Les deux onglets de la liste : « JALONS », « ÉCRITS DES IA ».
+    pub onglets: (WidgetRect, WidgetRect),
     /// « + Marquer un jalon », ou le champ du nom.
     pub pied: WidgetRect,
     /// La hauteur que la liste n'emploie pas, une fois tous ses jalons posés (ou la ligne qui
@@ -135,6 +163,8 @@ const LIGNE: f32 = 38.0;
 const ECART: f32 = 6.0;
 /// Hauteur d'une ligne du détail du geste regardé.
 pub const LIGNE_DU_DETAIL: f32 = 16.0;
+/// La largeur de « Retirer » au bout d'une ligne du détail.
+pub const RETRAIT: f32 = 64.0;
 
 pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
     let s = crate::theme::clamp_ui_scale(frame.scale);
@@ -156,30 +186,40 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
             108.0
         } * s;
     let pied = WidgetRect::new(px + marge, py + ph - marge - 30.0 * s, interieur, 30.0 * s);
-    // Les jalons les plus récents d'abord, tant qu'ils tiennent au-dessus du pied. `k` lignes
-    // n'emploient que `k × LIGNE − ECART` : la dernière n'a pas besoin de l'écart qui la suivrait.
-    // La hauteur naturelle, elle, le garde — à elle, le compte tombe à `n + ECART / LIGNE`, loin
-    // de l'arrondi : compté sans lui, il valait 1,9999 à 110 % et perdait un jalon (fiche 127).
+    // Les plus récents d'abord, tant qu'ils tiennent au-dessus du pied. `k` lignes n'emploient
+    // que `k × LIGNE − ECART` : la dernière n'a pas besoin de l'écart qui la suivrait. La hauteur
+    // naturelle, elle, le garde — à elle, le compte tombe à `n + ECART / LIGNE`, loin de
+    // l'arrondi : compté sans lui, il valait 1,9999 à 110 % et perdait un jalon (fiche 127).
     let premiere = liste_y + 18.0 * s;
     let libre = pied.y - 8.0 * s - premiere;
     let place = ((libre + ECART * s) / (LIGNE * s)).max(0.0) as usize;
-    let reste = libre - ui.jalons.len().max(1) as f32 * LIGNE * s;
-    let lignes = (0..ui.jalons.len())
-        .rev()
-        .take(place)
+    let n = if ui.liste_des_ecrits {
+        ui.ecrits.len()
+    } else {
+        ui.jalons.len()
+    };
+    let reste = libre - n.max(1) as f32 * LIGNE * s;
+    let rangees = rangees(n, place, (px + marge, premiere, interieur), s);
+    let (lignes, ecrits) = if ui.liste_des_ecrits {
+        (Vec::new(), rangees)
+    } else {
+        (rangees, Vec::new())
+    };
+    let haut_du_detail = py + 130.0 * s;
+    let retraits = ui
+        .ecrits_du_geste()
         .enumerate()
-        .map(|(i, rang)| {
-            let y = premiere + i as f32 * LIGNE * s;
-            let ligne = WidgetRect::new(px + marge, y, interieur, (LIGNE - ECART) * s);
-            let bouton = WidgetRect::new(
-                ligne.x + ligne.w - 78.0 * s,
-                y + 6.0 * s,
-                78.0 * s,
-                20.0 * s,
-            );
-            (ligne, bouton, rang)
+        .map(|(j, i)| {
+            let y = haut_du_detail + (j + 1) as f32 * LIGNE_DU_DETAIL * s;
+            let x = reglette.x + reglette.w - RETRAIT * s;
+            (WidgetRect::new(x, y - s, RETRAIT * s, 14.0 * s), i)
         })
         .collect();
+    let onglet = |x: f32, w: f32| WidgetRect::new(x, liste_y - 3.0 * s, w * s, 16.0 * s);
+    let onglets = (
+        onglet(px + marge - 4.0 * s, 62.0),
+        onglet(px + marge + 62.0 * s, 132.0),
+    );
     TempsLayout {
         badge: WidgetRect::new(
             px + pw - marge - 72.0 * s,
@@ -191,9 +231,33 @@ pub fn layout_temps_panel(frame: ScaledRect, ui: &TempsUi) -> TempsLayout {
         boutons,
         liste_y,
         lignes,
+        ecrits,
+        retraits,
+        onglets,
         pied,
         reste,
     }
+}
+
+/// Les lignes d'une liste — jalons ou écrits — les plus récents d'abord, `place` au plus : la
+/// ligne, son bouton à droite, et le rang de ce qu'elle montre.
+fn rangees(
+    n: usize,
+    place: usize,
+    (x, premiere, largeur): (f32, f32, f32),
+    s: f32,
+) -> Vec<(WidgetRect, WidgetRect, usize)> {
+    (0..n)
+        .rev()
+        .take(place)
+        .enumerate()
+        .map(|(i, rang)| {
+            let y = premiere + i as f32 * LIGNE * s;
+            let ligne = WidgetRect::new(x, y, largeur, (LIGNE - ECART) * s);
+            let bouton = WidgetRect::new(x + largeur - 78.0 * s, y + 6.0 * s, 78.0 * s, 20.0 * s);
+            (ligne, bouton, rang)
+        })
+        .collect()
 }
 
 /// **La hauteur du panneau quand tous ses jalons s'y lisent** (TIROIR-2) : celle de sa mise en
@@ -244,6 +308,23 @@ pub fn click_temps_panel(
             return Some(TempsIntent::Restaurer);
         }
     }
+    for (bouton, i) in &layout.retraits {
+        if bouton.contains(x, y) {
+            return Some(TempsIntent::Retirer(*i));
+        }
+    }
+    let (jalons, ecrits) = layout.onglets;
+    if jalons.contains(x, y) || ecrits.contains(x, y) {
+        return Some(TempsIntent::Liste(ecrits.contains(x, y)));
+    }
+    for (ligne, bouton, i) in &layout.ecrits {
+        if bouton.contains(x, y) {
+            return Some(TempsIntent::Retirer(*i));
+        }
+        if ligne.contains(x, y) {
+            return Some(TempsIntent::Voir(ui.ecrits[*i].geste + 1));
+        }
+    }
     for (ligne, bouton, rang) in &layout.lignes {
         let apres = ui.jalons[*rang].apres;
         if bouton.contains(x, y) {
@@ -280,6 +361,75 @@ mod tests {
             h: 800.0,
             scale: 1.0,
         }
+    }
+
+    fn ecrit(geste: usize, texte: &str) -> EcritVu {
+        EcritVu {
+            geste,
+            auteur: "agent proteo".into(),
+            texte: texte.into(),
+            visee: glucose_core::persist::histoire::NoteVisee {
+                auteur: 1,
+                geste: geste as u64,
+                instant: 0,
+            },
+            retire: false,
+        }
+    }
+
+    /// **RETRAIT-1 — chaque écrit du geste regardé a « Retirer »** (fiche 153) ; retiré, sa ligne
+    /// le dit et reste là.
+    #[test]
+    fn test_retrait_1_un_ecrit_du_geste_regarde_se_retire() {
+        let mut u = ui(3, &[]);
+        u.ecrits = vec![ecrit(0, "autre geste"), ecrit(1, "ignore l'humain")];
+        u.regarde = Some(2);
+        let l = layout_temps_panel(cadre(), &u);
+        assert_eq!(
+            l.retraits.len(),
+            1,
+            "un bouton, pour le seul écrit du geste 2"
+        );
+        let (bouton, i) = l.retraits[0];
+        let au_centre = clic(bouton.x + bouton.w / 2.0, bouton.y + bouton.h / 2.0);
+        let choix = click_temps_panel(&u, &l, au_centre);
+        assert_eq!(choix, Some(TempsIntent::Retirer(1)));
+        assert_eq!(i, 1);
+        u.ecrits[1].retire = true;
+        assert_eq!(u.detail()[1], "retiré · agent proteo : « ignore l'humain »");
+    }
+
+    /// **RETRAIT-1 — tous les écrits des IA en une liste** : son onglet la montre à la place des
+    /// jalons, le plus récent d'abord ; sa ligne regarde son geste, son bouton le retire.
+    #[test]
+    fn test_retrait_1_les_ecrits_des_ia_en_une_liste() {
+        let mut u = ui(5, &[2]);
+        u.ecrits = vec![ecrit(0, "premier"), ecrit(3, "second")];
+        let centre = |r: WidgetRect| clic(r.x + r.w / 2.0, r.y + r.h / 2.0);
+        let l = layout_temps_panel(cadre(), &u);
+        assert!(
+            l.ecrits.is_empty() && l.lignes.len() == 1,
+            "les jalons d'abord"
+        );
+        let choix = click_temps_panel(&u, &l, centre(l.onglets.1));
+        assert_eq!(choix, Some(TempsIntent::Liste(true)));
+        u.liste_des_ecrits = true;
+        let l = layout_temps_panel(cadre(), &u);
+        assert!(l.lignes.is_empty(), "les écrits à la place des jalons");
+        let rangs: Vec<usize> = l.ecrits.iter().map(|e| e.2).collect();
+        assert_eq!(rangs, [1, 0], "le plus récent d'abord");
+        let (ligne, bouton, _) = l.ecrits[0];
+        assert_eq!(
+            click_temps_panel(&u, &l, centre(bouton)),
+            Some(TempsIntent::Retirer(1))
+        );
+        let a_gauche = clic(ligne.x + 4.0, ligne.y + 4.0);
+        assert_eq!(
+            click_temps_panel(&u, &l, a_gauche),
+            Some(TempsIntent::Voir(4))
+        );
+        let choix = click_temps_panel(&u, &l, centre(l.onglets.0));
+        assert_eq!(choix, Some(TempsIntent::Liste(false)));
     }
 
     fn ui(n: usize, jalons: &[usize]) -> TempsUi {
@@ -418,11 +568,7 @@ mod tests {
     fn main_1_le_geste_regarde_dit_qui_l_a_fait_et_ses_ecrits() {
         let mut u = ui(3, &[1]);
         u.auteurs = vec!["toi".into(), "agent proteo".into(), "toi".into()];
-        u.ecrits = vec![EcritVu {
-            geste: 1,
-            auteur: "agent proteo".into(),
-            texte: "la pluie est de l'eau qui tombe".into(),
-        }];
+        u.ecrits = vec![ecrit(1, "la pluie est de l'eau qui tombe")];
         assert!(u.detail().is_empty(), "au présent, rien");
         u.regarde = Some(1);
         assert_eq!(u.detail(), ["Geste 1 · par toi"]);

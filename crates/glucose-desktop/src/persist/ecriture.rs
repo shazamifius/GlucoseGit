@@ -39,7 +39,7 @@
 use super::objets::{Objets, Source};
 use super::scribe::{chemin_de_saisie, Depart, Octets, Ordre, Scribe};
 use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Saisie, Vue};
-use glucose_core::persist::histoire::{Auteur, Note};
+use glucose_core::persist::histoire::{Auteur, Note, NoteVisee, Retrait};
 use glucose_core::store::journal::{Ecrit, Main};
 use glucose_core::text::Selection;
 use glucose_core::types::{BoardImage, Project};
@@ -295,6 +295,17 @@ impl Ecriture {
         };
         self.envoyer(nature::NOTE, histoire::contenu_note(&note));
         Ok(rang)
+    }
+
+    /// **Retire un écrit de ce que les IA relisent, ou l'y remet** (RETRAIT-1, fiche 153) : une
+    /// entrée de plus — l'écrit, lui, reste dans l'histoire.
+    pub fn retirer(&self, note: NoteVisee, retire: bool, instant: i64) {
+        let r = Retrait {
+            instant,
+            note,
+            retire,
+        };
+        self.envoyer(nature::RETRAIT, histoire::contenu_retrait(&r));
     }
 
     /// **Écrit une rectification** (RECTIF-1, fiche 110) : signée de l'IA de Glucose — déclarée

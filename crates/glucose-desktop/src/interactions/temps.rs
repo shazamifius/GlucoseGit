@@ -69,8 +69,25 @@ impl GlucoseApp {
             TempsIntent::CommencerUnJalon => {
                 self.dock_manager.temps.nom = Some(TextEntry::default());
             }
+            TempsIntent::Retirer(i) => self.retirer_l_ecrit(i),
+            TempsIntent::Liste(ecrits) => self.dock_manager.temps.liste_des_ecrits = ecrits,
         }
         self.mark_dirty();
+    }
+
+    /// **Retire l'écrit `i` de ce que les IA relisent, ou l'y remet** (RETRAIT-1, fiche 153) :
+    /// une entrée de l'histoire — l'écrit y reste, éteint dans la Time Machine, et se remet d'un
+    /// clic. Une IA qui y aurait écrit une erreur, ou une consigne cachée, ne la transmet plus.
+    fn retirer_l_ecrit(&mut self, i: usize) {
+        let Some(e) = self.dock_manager.temps.ecrits.get(i) else {
+            return;
+        };
+        let (visee, retire) = (e.visee, !e.retire);
+        let Some(ecriture) = self.disque.ecriture.as_ref() else {
+            return;
+        };
+        ecriture.retirer(visee, retire, now_millis());
+        self.dock_manager.temps.ecrits[i].retire = retire;
     }
 
     /// Un autre document devient le document courant : la Time Machine, si elle est ouverte,
@@ -132,6 +149,8 @@ impl GlucoseApp {
                 geste: n.geste as usize,
                 auteur: qui(n.auteur),
                 texte: n.texte.clone(),
+                visee: n.visee(),
+                retire: o.retires.contains(&n.visee()),
             })
             .collect();
         t.jalons = o

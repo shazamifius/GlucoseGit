@@ -1,0 +1,147 @@
+[
+ {
+  "nom": "RETRAIT-1 — un retrait relu ne retire rien",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "                o.retires.insert(r.note);",
+  "apres": "                let _ = r.note;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "histoire_suite",
+   "retrait"
+  ]
+ },
+ {
+  "nom": "RETRAIT-1 — remettre ne remet rien",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "                o.retires.remove(&r.note);",
+  "apres": "                let _ = r.note;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--test",
+   "histoire_suite",
+   "retrait"
+  ]
+ },
+ {
+  "nom": "RETRAIT-1 — l'IA relit encore l'écrit retiré",
+  "fichier": "crates/glucose-desktop/src/agents/executer/temps.rs",
+  "avant": "n.geste == rang as u64 && !o.retires.contains(&n.visee())",
+  "apres": "n.geste == rang as u64",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps",
+   "rectif"
+  ]
+ },
+ {
+  "nom": "RETRAIT-1 — la Time Machine oublie qu'il est retiré",
+  "fichier": "crates/glucose-desktop/src/interactions/temps.rs",
+  "avant": "                retire: o.retires.contains(&n.visee()),",
+  "apres": "                retire: false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps",
+   "rectif"
+  ]
+ },
+ {
+  "nom": "RETRAIT-1 — le bouton retire toujours, ne remet jamais",
+  "fichier": "crates/glucose-desktop/src/interactions/temps.rs",
+  "avant": "let (visee, retire) = (e.visee, !e.retire);",
+  "apres": "let (visee, retire) = (e.visee, true);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps",
+   "rectif"
+  ]
+ },
+ {
+  "nom": "RETRAIT-1 — « Retirer » du détail ne répond pas",
+  "fichier": "crates/glucose-desktop/src/dock/temps.rs",
+  "avant": "            return Some(TempsIntent::Retirer(*i));\n        }\n    }\n    let (jalons, ecrits)",
+  "apres": "            let _ = i;\n        }\n    }\n    let (jalons, ecrits)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps",
+   "rectif"
+  ]
+ },
+ {
+  "nom": "RETRAIT-1 — l'onglet des écrits ne montre que les jalons",
+  "fichier": "crates/glucose-desktop/src/dock/temps.rs",
+  "avant": "    let (lignes, ecrits) = if ui.liste_des_ecrits {",
+  "apres": "    let (lignes, ecrits) = if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "temps",
+   "rectif"
+  ]
+ }
+]
