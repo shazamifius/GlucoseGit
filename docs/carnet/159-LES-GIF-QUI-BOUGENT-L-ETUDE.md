@@ -85,7 +85,7 @@ machine, ou une bibliothèque) — une dépendance, donc sa note dans `decisions
   `accueillir` ne doit pas réécrire l'aperçu du disque pour une image de GIF (l'aperçu reste la
   première), et `changements` doit croître, sans quoi LOT-1 reconduit la récolte d'avant.
 
-## 6. Les décisions prises en lisant (25/11 vers 3 h 45, pour GIF-1 et 2)
+## 6. Les décisions prises en lisant (25/11 vers 3 h 25, pour GIF-1 et 2)
 
 * **Fait d'abord : OUVRIER-1** (`87611c8`) — `atelier.rs` touchait son plafond (594 lignes sur
   600) : la vie d'un ouvrier (`ouvrier`, `attendre`, `decoder`, `encoder_en_png`) est passée dans
