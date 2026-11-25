@@ -109,3 +109,49 @@ machine, ou une bibliothèque) — une dépendance, donc sa note dans `decisions
 * **La clé de la carte** : `Cle::Niveau(numero, facteur)` porte aussi la **génération** de l'entrée
   (`Entree::generation`, qu'`accueillir` fait déjà croître) — la même règle sert alors à toute
   pyramide remplacée, pas seulement aux GIF.
+
+## 7. GIF-1 et GIF-2 faits (`c947e97`, 25/11 vers 4 h 30, compte b)
+
+Le lecteur, le joueur, le magasin et la clé de la carte suivent le § 6. **Trois défauts trouvés en
+finissant**, chacun gardé par une épreuve et un sabotage (`outils/sabotages/gif-159.json` : **9 sur 9 tombent** ; l'oubli de la vignette par le magasin était aveugle au premier passage, gardé depuis par l'épreuve du magasin) :
+
+* **Le réveil redessinait à chaque image** tant qu'un GIF était à l'écran : `attente_des_gifs`
+  salissait la vue à chaque calcul du délai, donc à chaque tour de boucle (`ControlFlow` relancé
+  par la demande d'image elle-même). Il ne demande plus une image qu'à l'heure d'une toile ; une
+  toile en préparation n'attend rien de lui : **le fil du joueur réveille la boucle** en la
+  tendant (`Magasin::brancher_le_reveil`, branché avec les autres dans `demarrage.rs`). Un GIF à
+  dix toiles par seconde coûte dix images par seconde, plus aucune autre.
+* **Une toile posée comptait comme une vue** (`Entree::nouvelle` date l'entrée de l'image en
+  cours) : un GIF sorti de l'écran se gardait en vie de toile en toile. `accueillir(…, toile)`
+  garde la vue d'avant.
+* **La voie processeur reposait la vignette de la première toile** : une vignette ne connaît que
+  son nœud, sa forme et son fichier. `Vignettes::oublier_la_source` l'oublie à chaque toile (la
+  vignette faite, celle à demi construite, et la forme demandée : un GIF qui joue n'en fait
+  construire aucune ; arrêté, il retrouve la sienne).
+
+**Écarts au § 6, et doutes** :
+* Le joueur construit ses pyramides **hors de l'admission** de l'atelier : trois toiles au plus
+  par GIF à l'écran (la prête, celle du canal, celle qu'il fait), jamais comptées dans la borne de
+  mémoire. Un GIF de 2 000 × 2 000 pèse 16 Mo la toile : à surveiller, pas encore mesuré.
+* La première toile se repose une fois quand le GIF paraît (la même que celle du décodage) : un
+  envoi de texture de trop, accepté — un GIF qui revient à l'écran doit, lui, repartir du début.
+* **À vérifier, hors des GIF** : une vignette faite sur l'**aperçu** d'une photo survit-elle au
+  décodage entier qui le remplace ? Rien ne l'oublie (même mécanisme que ci-dessus) ; si oui, la
+  voie processeur garde une photo floue à l'arrêt. Le geste serait le même, à chaque `accueillir`
+  — mais son coût (un tour des vignettes par photo qui arrive) est à mesurer d'abord.
+
+**Reste** : regarder un GIF bouger au pilote (`outils/pilote/piloter.sh`), sur les deux voies ;
+puis GIF-3 (réduire les animations).
+
+**Pour GIF-3, lu le 25/11** : sous Linux, le réglage vit dans le portail du bureau, `Settings`,
+espace `org.freedesktop.appearance`, clé **`reduced-motion`** (xdg-desktop-portal 1.21, janvier
+2026 ; GNOME et KDE y branchent leur interrupteur) ; repli sur `org.gnome.desktop.interface
+enable-animations` quand la clé manque (c'est ce que fait la caisse `mundy`). **Aucune lecture des
+réglages du système n'existe dans Glucose** ; `ashpd` 0.11 (et `zbus` 5) sont déjà compilés, par
+`rfd` : s'en servir directement coûte une ligne de `Cargo.toml` et sa note dans `decisions/`, pas
+une compilation de plus — mais `ashpd` est asynchrone : la lecture se fait sur un fil, à
+l'ouverture, et le signal `SettingChanged` suit un changement en cours de route. Sources :
+[Phoronix, xdg-desktop-portal 1.21](https://phoronix.com/news/xdg-desktop-portal-1.21),
+[gpui-base, reduce_motion.rs](https://docs.rs/crate/gpui-base/0.7.0/source/src/reduce_motion.rs),
+[mundy, freedesktop](https://docs.rs/crate/mundy/0.2.3/source/src/freedesktop/mod.rs),
+[GNOME, « reduced motion »](https://gitlab.gnome.org/GNOME/gnome-control-center/-/merge_requests/3253).

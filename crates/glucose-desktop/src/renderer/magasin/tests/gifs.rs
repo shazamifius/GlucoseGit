@@ -2,6 +2,7 @@
 //! l'heure de chaque toile ; hors de l'écran, son joueur est lâché.
 
 use super::*;
+use crate::renderer::photo::{Forme, Pyramide};
 use image::codecs::gif::{GifEncoder, Repeat};
 use image::{Delay, Frame, Rgba, RgbaImage};
 use std::time::{Duration, Instant};
@@ -43,11 +44,24 @@ fn gif_2_un_gif_vu_change_de_pyramide_a_l_heure_de_ses_toiles() {
     }
     assert!(magasin.gifs.contains(&src), "sa signature est lue");
     let premiere = generation(&magasin, &src);
+    // Une vignette faite sur la première toile, celle que la voie processeur repose.
+    let forme = Forme::posee(0.0, 0.0, 4.0, 4.0);
+    let pyr = Pyramide::nouvelle(tiny_skia::Pixmap::new(4, 4).expect("une toile"));
+    for _ in 0..3 {
+        magasin.vignettes.ouvrir();
+        let _ = magasin.vignettes.pour("n", &src, forme, 16.0);
+        (magasin.vignettes).avancer_le_chantier(Duration::from_secs(3600), |_| Some(&pyr));
+    }
+    assert!(
+        magasin.vignettes.a_prete("n", forme),
+        "sa vignette est faite"
+    );
     // Le rendu, image après image : réclamer, récolter — trois toiles de plus en moins de 5 s.
     let depart = Instant::now();
     while generation(&magasin, &src) < premiere + 3 && depart.elapsed() < Duration::from_secs(5) {
         magasin.ouvrir();
         let _ = magasin.pyramide(&src);
+        let _ = magasin.vignettes.pour("n", &src, forme, 16.0);
         magasin.recolter();
         // Ce que le réveil attendrait : l'heure de la toile suivante, jamais dépassée de beaucoup.
         if let Some(heure) = magasin.prochaine_toile() {
@@ -61,6 +75,10 @@ fn gif_2_un_gif_vu_change_de_pyramide_a_l_heure_de_ses_toiles() {
         "un GIF à l'écran doit changer de pyramide à chaque toile"
     );
     assert_eq!(magasin.joueurs.len(), 1, "un joueur, le sien");
+    assert!(
+        !magasin.vignettes.a_prete("n", forme),
+        "une toile neuve oublie la vignette de la précédente"
+    );
 
     // Deux images qui ne le réclament plus : son joueur est lâché, et plus rien ne réveille.
     for _ in 0..2 {
