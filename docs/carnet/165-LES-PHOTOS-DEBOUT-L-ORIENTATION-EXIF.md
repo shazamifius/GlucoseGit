@@ -47,6 +47,20 @@ ferait d'un détail de stockage un geste qu'on peut défaire : écartée.
    décodage quand ses `original_width`/`original_height` sont ceux de la photo transposée (un geste
    silencieux ? une migration à l'ouverture ?), ou laisser ces nœuds tels quels. **À concevoir avant
    de coder** — c'est la seule partie qui touche ses documents.
+
+   **Tranché (25/11 vers 8 h 25) : les redresser, par un geste de Glucose, à l'arrivée des pixels.**
+   Après EXIF-1, `original_width`/`original_height` d'un nœud sont toujours ceux de la photo droite ;
+   un nœud dont ils sont **la transposée** des pixels décodés (et pas un carré) ne peut donc venir que
+   d'avant — le signe est dans ses propres données, sans champ neuf ni lecture d'en-tête à
+   l'ouverture. Quand l'atelier rend une photo, chaque nœud qui la montre ainsi se redresse : sa boîte
+   tourne d'un quart autour de son centre (largeur et hauteur échangées), ses dimensions d'origine
+   aussi, son recadrage suit la même orientation. **Un seul geste signé « Glucose »** : écrit dans le
+   document, partagé aux autres mains, défaisable. Écartés : laisser ces nœuds écrasés dans leur boîte
+   (ce qu'il verrait au premier lancement) ; les montrer couchés comme avant (une règle de rendu de
+   plus, et l'erreur gardée) ; relire l'en-tête de chaque photo à l'ouverture (du disque pour rien).
+   Les orientations 2, 3 et 4 ne changent pas la boîte : la photo paraît enfin droite ; seul un
+   recadrage posé avant tomberait sur la région miroir — rare, à transformer de même.
+   **EXIF-1 ne part dans son Glucose qu'avec ce redressement** (rien à moitié).
 4. **Les aperçus en cache** (`renderer::apercu`, nommés par la taille et la date du fichier) : ceux
    faits avant seraient couchés — changer leur nom (une version) pour qu'ils se refassent.
 5. **Le HEIC** (fiche 161) : ses transformations `irot`/`imir` passent par `heifer`, à vérifier à part ;
@@ -62,4 +76,4 @@ glissé après le SOI — une dizaine de lignes de Python.
 ## 4. Le chemin
 
 **EXIF-1** : § 3.1 à 3.4, et les épreuves ; au pilote, la photo marquée paraît debout. **EXIF-2** : le
-HEIC (§ 3.5). Avant de coder EXIF-1, trancher § 3.3.
+HEIC (§ 3.5). § 3.3 tranché : le redressement fait partie d'EXIF-1.
