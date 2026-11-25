@@ -35,7 +35,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent))
 from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES,  # noqa: E402
                  REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES, contexte_plein,
-                 decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, raison_continuer,
+                 decider, depart, dernier_geste, dire_session, en_pause, heure, humaine, il_ecrit, raison_continuer,
                  raison_entendre, raison_passation, raison_prevenir, ses_fleches, ses_paroles, signee)
 from loi import MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (pour les épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
@@ -549,7 +549,7 @@ def surveiller(memoire, histoire, maintenant):
 def entendre(memoire, histoire):
     """Ce qu'il écrit pendant qu'une session travaille lui est tapé **une fois qu'il a fini
     d'écrire** — un tour du veilleur sans un geste de lui —, en un seul message."""
-    if memoire.get("paroles") and not any(humaine(g.get("auteur")) for g in histoire.get("gestes", [])):
+    if memoire.get("paroles") and not il_ecrit(histoire):
         taper(raison_entendre(memoire.pop("paroles")))
         journal("ses notes tapées dans la session")
 
@@ -585,8 +585,9 @@ def battre(memoire, compte, dit, maintenant):
     memoire["battu"] = maintenant
 
 
-def attendre(memoire, ok, pause, humaine_la, maintenant):
-    """Aucune session du relais ne vit : en lancer une, ou dire pourquoi pas."""
+def attendre(memoire, ok, pause, humaine_la, maintenant, ecrit=False):
+    """Aucune session du relais ne vit : en lancer une, ou dire pourquoi pas — ses notes, une fois
+    qu'il a fini de les écrire (`ecrit` : un geste de sa main dans ce tour, `il_ecrit`)."""
     if humaine_la:
         return (f"en retrait : une session de Claude à toi travaille sur le dépôt (son dernier signe : "
                 f"{heure(humaine_la)}) — je reprends {SILENCE // 60} minutes après, ou dès qu'elle me rend "
@@ -595,6 +596,8 @@ def attendre(memoire, ok, pause, humaine_la, maintenant):
         return "en attente : une IA a changé la consigne après toi — retouche-la pour qu'elle reparte"
     if pause:
         return "en pause (première ligne de la consigne)"
+    if ecrit and memoire.get("paroles"):
+        return "tu écris : une session partira quand tu auras fini (une minute sans geste de toi)"
     compte, libre_a = choisir(memoire.get("compte", "a"), maintenant, bool(memoire.get("paroles")))
     if not compte:
         garde = [c for c in COMPTES if connecte(c) and gardee(c, maintenant) and not plein(c, maintenant, MUR)[0]]
@@ -634,7 +637,7 @@ def un_tour():
             relancer(session, n.get("texte", ""), ok, pause, memoire["textes"].get(TEXTE_RELANCE))
         dit = dire_session(session, memoire, maintenant)
     else:
-        dit = attendre(memoire, ok, pause, humaine_la, maintenant)
+        dit = attendre(memoire, ok, pause, humaine_la, maintenant, il_ecrit(histoire))
     if neufs is not None:
         memoire["vu"] = neufs["total"]
     if maintenant - memoire.get("battu", 0) >= 600 or dit != memoire.get("dit"):

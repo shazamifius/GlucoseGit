@@ -370,7 +370,7 @@
  {
   "nom": "SES-NOTES — tapées pendant qu'il écrit encore",
   "fichier": "outils/relais/relais.py",
-  "avant": "    if memoire.get(\"paroles\") and not any(humaine(g.get(\"auteur\")) for g in histoire.get(\"gestes\", [])):",
+  "avant": "    if memoire.get(\"paroles\") and not il_ecrit(histoire):",
   "apres": "    if memoire.get(\"paroles\"):",
   "cmd": [
    "python3",

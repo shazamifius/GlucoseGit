@@ -380,6 +380,8 @@ class Veilleur(unittest.TestCase):
                  {"rang": 4, "auteur": "agent claude-code", "fait": ["pose le texte « sa-reponse »"]}]
         with self.histoire(*notes, total=5), mock.patch.object(r, "ecran", lambda: None):
             r.un_tour()
+            self.lancer.assert_not_called()  # il écrit encore : un tour sans geste de lui d'abord
+            r.un_tour()
         self.lancer.assert_called_once_with("a", ["note-1"], None, [])
         memoire = r.lire_json(r.ETAT / "veilleur.json", {})
         self.assertEqual((memoire["vu"], memoire["paroles"]), (5, []))
@@ -492,6 +494,10 @@ class Veilleur(unittest.TestCase):
             with mock.patch.object(r, "gestes_neufs", lambda memoire: {"total": 3, "gestes": [
                     {"auteur": "humain", "fait": ["pose le texte « sa-note »"]}]}):
                 r.un_tour()
+            # Il écrit encore : la session attend qu'il ait fini (le 25/11, 8 h 15 et 8 h 18).
+            self.lancer.assert_not_called()
+            self.assertIn("tu écris", r.lire_json(r.ETAT / "veilleur.json", {})["dit"])
+            r.un_tour()
         self.lancer.assert_called_once_with("b", ["sa-note"], None, [])
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "notes": True, "depuis": self.maintenant})
         dire, session = self.crochet()
@@ -671,6 +677,18 @@ class Mains(unittest.TestCase):
         ]}
         self.assertEqual(r.ses_paroles(h, ["vieille", "avant"]), ["avant", "note-1", "urgent"])
 
+    def test_un_collage_n_est_pas_une_note(self):
+        """Le 25/11, ses treize nœuds rangés dans l'archive, d'un seul geste, furent donnés à lire
+        comme neufs. Un nœud collé qu'il retouche redevient sa parole ; une flèche seule en est une."""
+        h = {"gestes": [
+            {"auteur": "Aigle Émeraude", "fait": ["retire le texte « q-12 »"]},
+            {"auteur": "Aigle Émeraude", "fait": ["retire le texte « vieille »", "pose la photo « img-1 »",
+                                                   "pose le texte « t-1 »", "pose le texte « t-2 »"]},
+            {"auteur": "Aigle Émeraude", "fait": ["change le texte « t-2 »"]},
+            {"auteur": "Aigle Émeraude", "fait": ["pose la flèche « f-1 »"]},
+        ]}
+        self.assertEqual(r.ses_paroles(h, ["vieille"]), ["t-2", "f-1"])
+
     def test_un_dossier_n_est_pas_un_identifiant(self):
         # Le 23/11, l'histoire disait « pose le dossier « Dossier » » : la session recevait ids=Dossier.
         h = {"gestes": [
@@ -686,6 +704,14 @@ class Mains(unittest.TestCase):
         self.assertIn("avant toute autre tâche", r.depart("a", ["note-1"]))
         self.assertNotIn("Depuis la dernière session", r.depart("a"))
         self.assertIn(r.MODE_EMPLOI, r.depart("a"))
+        self.assertIn("seulement si ton travail touche au relais", r.depart("a"))
+
+    def test_la_passation_se_remplace_sans_recit(self):
+        """Sa note du 25/11 (text-bmgs-2413) : pas de récapitulatif ; elle ne s'allonge jamais."""
+        texte = r.raison_passation()
+        for exige in ("remplace tout le texte", "sans jamais l'allonger", "Ni ce qui est fait"):
+            self.assertIn(exige, texte)
+        self.assertNotIn("ajoute seulement en tête", texte)
 
     def test_la_conversation_neuve_vient_au_seuil_en_jetons(self):
         """Fiche 142 : à 90 % d'un million de jetons, chaque réponse relisait 900 000 jetons."""

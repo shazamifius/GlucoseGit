@@ -61,16 +61,22 @@ TEXTES = {
     # le démarrage d'une conversation lisait 110 000 jetons, et chaque réponse les relisait (fiche 142).
     TEXTE_DEPART: (
         f"Lis dans son Glucose sa consigne et la passation (glucose lire tableau=main ids={CONSIGNE} "
-        f"ids={PASSATION}), puis le mode d'emploi du relais ({MODE_EMPLOI}). Tes règles et l'index de "
-        "tes mémoires sont déjà chargés : de ~/Projets/LISEZ-MOI.md, d'une mémoire, de VISION, ÉTAT, "
-        "SUITE ou MÉTHODE, ne lis que la section dont ton travail a besoin — les jetons sont sa "
-        "priorité (24/11). Puis travaille selon la consigne."),
+        f"ids={PASSATION}). Tes règles et l'index de tes mémoires sont déjà chargés : du mode d'emploi "
+        f"du relais ({MODE_EMPLOI}, seulement si ton travail touche au relais), de ~/Projets/LISEZ-MOI.md, "
+        "d'une mémoire, de VISION, ÉTAT, SUITE ou MÉTHODE, ne lis que la section dont ton travail a "
+        "besoin — les jetons sont sa priorité (24/11). Puis travaille selon la consigne."),
+    # Sa note du 25/11 (text-bmgs-2413) : *« c'est nul le fait qu'il met les récaps de ce qui s'est
+    # passé, ça tu le vois par toi-même grâce au MCP »*. Ce qui est fait, `git log` et son Glucose le
+    # disent ; la passation de ce matin-là, allongée de session en session, pesait 1 500 mots relus à
+    # chaque démarrage. Elle ne garde que ce qui n'est écrit nulle part ailleurs, et se remplace.
     TEXTE_PASSATION: (
-        f"Écris MAINTENANT la passation dans son Glucose : remplace le texte du nœud {PASSATION} "
-        f"(glucose poser-texte tableau=main id={PASSATION} texte=-) par l'état exact — fait, en cours, "
-        "non commité, prochaine étape, pièges payés. Si tu n'as rien changé depuis celle qui y est, "
-        "garde-la et ajoute seulement en tête une ligne qui la confirme, avec l'heure. Puis termine ton "
-        "tour."),
+        f"Écris MAINTENANT la passation dans son Glucose : remplace tout le texte du nœud {PASSATION} "
+        f"(glucose poser-texte tableau=main id={PASSATION} texte=-), sans jamais l'allonger. Une "
+        "première ligne (le compte, le jour, l'heure lue par date), puis seulement ce que la session "
+        "suivante ne voit nulle part ailleurs : le travail non commité (où, ce qui manque), la prochaine "
+        "étape, un piège payé — dix lignes au plus. Ni ce qui est fait (git log le dit), ni ses questions "
+        "en attente (son Glucose les montre). Rien de changé : récris-la avec sa première ligne remise à "
+        "l'heure. Puis termine ton tour."),
     TEXTE_RELANCE: (
         "Ne t'arrête pas : continue selon sa consigne et le plan (SUITE § 2, la passation). Si tu "
         "attends une réponse de lui, écris la question dans son Glucose et prends une autre tâche."),
@@ -160,7 +166,13 @@ def ses_paroles(histoire, avant=()):
     for geste in (histoire or {}).get("gestes", []):
         if not humaine(geste.get("auteur")):
             continue
+        # **Un collage n'est pas une note** : ce qu'il écrit se pose un nœud à la fois ; un geste qui en
+        # pose plusieurs colle ce qui existait (le 25/11, treize nœuds rangés dans son archive furent
+        # donnés à lire comme neufs). Un nœud collé qu'il retouche ensuite redevient sa parole.
+        collage = sum(f.startswith("pose ") for f in geste.get("fait", [])) > 1
         for fait in geste.get("fait", []):
+            if collage and fait.startswith("pose "):
+                continue
             # L'histoire nomme un dossier par son NOM (« Dossier ») : ce n'est pas un identifiant, et
             # le dossier se lit avec son tableau (fiche 133 ; le 23/11, « ids=Dossier » ne lisait rien).
             if " dossier " in fait:
@@ -171,6 +183,14 @@ def ses_paroles(histoire, avant=()):
                 elif ident not in ids and ident not in (BATTEMENT, REPONSE):
                     ids.append(ident)
     return ids
+
+
+def il_ecrit(histoire):
+    """**Il écrit encore** : un geste de sa main dans ce tour du veilleur. Ce qu'il écrit attend qu'il
+    ait fini — tapé dans la session qui vit (`entendre`), ou la session lancée pour lui (`attendre`) :
+    le 25/11 à 8 h 15, une session partit sur le seul titre de sa note, une seconde trois minutes plus
+    tard sur son texte, deux démarrages sur la fin d'une semaine."""
+    return any(humaine(g.get("auteur")) for g in (histoire or {}).get("gestes", []))
 
 
 # ── Ce que dit le crochet « Stop » ────────────────────────────────────────────────────────────

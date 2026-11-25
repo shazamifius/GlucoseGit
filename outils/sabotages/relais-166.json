@@ -1,0 +1,98 @@
+[
+ {
+  "nom": "COLLAGE — un collage redevient une note",
+  "fichier": "outils/relais/loi.py",
+  "avant": "collage = sum(f.startswith(\"pose \") for f in geste.get(\"fait\", [])) > 1",
+  "apres": "collage = sum(f.startswith(\"pose \") for f in geste.get(\"fait\", [])) > 99",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "COLLAGE — un nœud collé puis retouché reste muet",
+  "fichier": "outils/relais/loi.py",
+  "avant": "if collage and fait.startswith(\"pose \"):",
+  "apres": "if collage:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "FINI — le veilleur lance pendant qu'il écrit",
+  "fichier": "outils/relais/relais.py",
+  "avant": "if ecrit and memoire.get(\"paroles\"):",
+  "apres": "if False:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "FINI — il_ecrit ne voit jamais sa main",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return any(humaine(g.get(\"auteur\")) for g in (histoire or {}).get(\"gestes\", []))",
+  "apres": "return False",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "PASSATION — elle s'allonge de nouveau",
+  "fichier": "outils/relais/loi.py",
+  "avant": "(glucose poser-texte tableau=main id={PASSATION} texte=-), sans jamais l'allonger. Une \"",
+  "apres": "(glucose poser-texte tableau=main id={PASSATION} texte=-), et ajoute en tête. Une \"",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ },
+ {
+  "nom": "DEPART — le mode d'emploi lu à chaque démarrage",
+  "fichier": "outils/relais/loi.py",
+  "avant": "{MODE_EMPLOI}, seulement si ton travail touche au relais)",
+  "apres": "{MODE_EMPLOI}, à lire d'abord)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_relais.py"
+  ]
+ }
+]

@@ -25,8 +25,10 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    de l'appareil, « Aigle Émeraude »). Jamais une IA (« agent … », « l'IA de Glucose »). **⏸ PAUSE**
    en première ligne arrête le relais.
 3. **Ce qu'il écrit est lu.** Chaque nœud qu'il pose ou change, de n'importe quel appareil, est
-   donné à la session qui travaille (tapé quand il a fini d'écrire) ou à la suivante (dans son
-   premier message). **Elle lui répond dans son Glucose avant toute autre tâche.**
+   donné à la session qui travaille ou à la suivante (dans son premier message), **une fois qu'il a
+   fini d'écrire** (un tour du veilleur sans geste de sa main : `loi.il_ecrit`). Un collage — un geste
+   qui pose plusieurs nœuds, comme un rangement dans son archive — n'en est pas une (fiche 166).
+   **Elle lui répond dans son Glucose avant toute autre tâche.**
 4. **Les jauges** (la barre d'état, `relais.py jauges`) : un compte à 90 % sur 5 h ou sur la semaine
    passe la main **si l'autre peut la prendre** ; sinon il continue jusqu'au mur (100 %), prévenu une
    fois — commiter chaque étape, tenir la passation à jour. Au mur, la session est close. **Sauf la fin
@@ -52,7 +54,8 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
 
 Lire sa consigne, la passation (`relais-passation`), puis ses notes si le premier message en donne.
 Une question pour lui : un texte dans son Glucose, et passer à autre chose. Quand le relais demande
-la passation, la récrire (ou la confirmer d'une ligne datée), puis finir le tour. Ne jamais écrire
+la passation, la **remplacer**, jamais l'allonger : ce qu'aucune autre source ne dit (le non commité, la
+prochaine étape, un piège), sans le récit de ce qui est fait (sa note du 25/11, fiche 166) ; puis finir le tour. Ne jamais écrire
 dans `relais-consigne`. **Un chantier fini, et le suivant n'a que faire de ce qu'elle a lu** : écrire la
 passation, puis `python3 -I outils/relais/relais.py renouveler` — une conversation neuve reprend, au lieu de
 relire à chaque réponse ce qui ne sert plus (RENOUVELER-1, fiche 163 § 6).
