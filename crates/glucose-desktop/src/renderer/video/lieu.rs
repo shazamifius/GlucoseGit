@@ -71,3 +71,94 @@ impl Lieu {
         }
     }
 }
+
+/// **Les octets d'un lieu, ouverts** : lus à une position, là où ils sont, par les lecteurs qui les
+/// demandent eux-mêmes (le flot de Windows, le chargeur du Mac).
+#[cfg(any(windows, target_os = "macos"))]
+pub(crate) struct Octets {
+    source: SourceOuverte,
+    longueur: u64,
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+enum SourceOuverte {
+    Fichier { fichier: std::fs::File, debut: u64 },
+    Memoire(Arc<[u8]>),
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+impl Lieu {
+    /// **Ouvre ses octets** ; `None` si le fichier ne s'ouvre pas.
+    pub(crate) fn ouvrir(&self) -> Option<Octets> {
+        Some(match self {
+            Self::Fichier {
+                chemin,
+                debut,
+                longueur,
+            } => {
+                let fichier = std::fs::File::open(chemin).ok()?;
+                let longueur = match longueur {
+                    Some(l) => *l,
+                    None => fichier.metadata().ok()?.len().saturating_sub(*debut),
+                };
+                let debut = *debut;
+                Octets {
+                    source: SourceOuverte::Fichier { fichier, debut },
+                    longueur,
+                }
+            }
+            Self::Octets(octets) => Octets {
+                source: SourceOuverte::Memoire(octets.clone()),
+                longueur: octets.len() as u64,
+            },
+        })
+    }
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+impl Octets {
+    pub(crate) fn longueur(&self) -> u64 {
+        self.longueur
+    }
+
+    /// **Lit à partir de `a`**, tant qu'il y a de la place et des octets ; rend le nombre lu.
+    pub(crate) fn lire(&self, a: u64, tampon: &mut [u8]) -> std::io::Result<usize> {
+        let n = (tampon.len() as u64).min(self.longueur.saturating_sub(a)) as usize;
+        let tampon = &mut tampon[..n];
+        match &self.source {
+            SourceOuverte::Memoire(octets) => {
+                tampon.copy_from_slice(&octets[a as usize..a as usize + n]);
+                Ok(n)
+            }
+            SourceOuverte::Fichier { fichier, debut } => {
+                let mut lus = 0;
+                while lus < n {
+                    match lire_a(fichier, &mut tampon[lus..], debut + a + lus as u64)? {
+                        0 => break,
+                        k => lus += k,
+                    }
+                }
+                Ok(lus)
+            }
+        }
+    }
+
+    /// **L'extension que sa signature dit** (`mp4`, `mov`…) : le lecteur du système choisit son
+    /// démultiplexeur par elle.
+    pub(crate) fn extension(&self) -> Option<&'static str> {
+        let mut tete = [0; super::signature::LONGUEUR];
+        let lus = self.lire(0, &mut tete).ok()?;
+        super::signature::extension(&tete[..lus])
+    }
+}
+
+/// Lit à une position du fichier, sans curseur partagé.
+#[cfg(windows)]
+fn lire_a(fichier: &std::fs::File, tampon: &mut [u8], a: u64) -> std::io::Result<usize> {
+    std::os::windows::fs::FileExt::seek_read(fichier, tampon, a)
+}
+
+#[cfg(target_os = "macos")]
+fn lire_a(fichier: &std::fs::File, tampon: &mut [u8], a: u64) -> std::io::Result<usize> {
+    std::os::unix::fs::FileExt::read_at(fichier, tampon, a)
+}

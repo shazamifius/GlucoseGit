@@ -10,10 +10,14 @@ use crate::renderer::photo::Pyramide;
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 
-/// Ce que le magasin peut dire au fil. Sur le Mac, aucun lecteur ne l'écoute encore (sa porte
-/// suit, fiche 175) : l'attente tombera le jour où il l'écoutera.
+/// Ce que le magasin peut dire au fil. Là où aucun lecteur n'existe, personne ne l'écoute.
 #[cfg_attr(
-    not(any(target_os = "linux", target_os = "android", windows)),
+    not(any(
+        target_os = "linux",
+        target_os = "android",
+        windows,
+        target_os = "macos"
+    )),
     expect(dead_code)
 )]
 enum Ordre {
@@ -131,7 +135,12 @@ fn jouer(
     a_faire: &Receiver<Ordre>,
     reveil: Option<&Reveil>,
 ) {
-    #[cfg(any(target_os = "linux", target_os = "android", windows))]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        windows,
+        target_os = "macos"
+    ))]
     {
         use crate::renderer::atelier::admission;
         use crate::renderer::video::{Fin, LecteurVideo, Lieu};
@@ -171,7 +180,12 @@ fn jouer(
             }
         }
     }
-    #[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        windows,
+        target_os = "macos"
+    )))]
     {
         let _ = (src, objets, en_boucle, envoi, a_faire, reveil);
     }
@@ -180,7 +194,7 @@ fn jouer(
 /// **La lecture automatique joue en boucle** (VIDEO-2, fiche 170) : sur la vraie vidéo de
 /// téléphone en miniature (dix images en une seconde), le joueur en boucle ne finit jamais ; l'autre
 /// finit au bout.
-#[cfg(all(test, any(target_os = "linux", windows)))]
+#[cfg(all(test, any(target_os = "linux", windows, target_os = "macos")))]
 mod epreuves {
     use super::*;
     use std::time::{Duration, Instant};

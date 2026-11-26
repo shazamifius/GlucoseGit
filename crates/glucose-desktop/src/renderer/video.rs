@@ -5,8 +5,8 @@
 //!
 //! Les décodeurs sont ceux du système (la voie A de la fiche 160) : aucun poids livré, aucune
 //! licence de codec à porter, la carte graphique décode. Linux (GStreamer), Android
-//! (`MediaPlayer`, VIDEO-ANDROID-1, fiche 172) et Windows (Media Foundation, VIDEO-WINDOWS-1,
-//! fiche 175) ; sur le Mac, en attendant sa porte, une vidéo n'a pas d'image fixe et ne joue pas.
+//! (`MediaPlayer`, VIDEO-ANDROID-1, fiche 172), Windows (Media Foundation, VIDEO-WINDOWS-1, fiche
+//! 175) et le Mac (AVFoundation, VIDEO-MAC-1, fiche 175 § 7).
 
 use crate::persist::objets::Objets;
 
@@ -14,9 +14,9 @@ pub(crate) mod commandes;
 pub(crate) mod joueur;
 pub(crate) mod signature;
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "macos", test))]
 mod bgra;
-#[cfg(all(test, any(target_os = "linux", windows)))]
+#[cfg(all(test, any(target_os = "linux", windows, target_os = "macos")))]
 mod epreuves;
 #[cfg(target_os = "linux")]
 mod gst;
@@ -24,13 +24,27 @@ mod gst;
 mod lecteur_gst;
 #[cfg(target_os = "linux")]
 pub(crate) use lecteur_gst::LecteurVideo;
+#[cfg(target_os = "macos")]
+mod lecteur_mac;
+#[cfg(target_os = "macos")]
+pub(crate) use lecteur_mac::LecteurVideo;
 #[cfg(windows)]
 mod lecteur_mf;
 #[cfg(windows)]
 pub(crate) use lecteur_mf::LecteurVideo;
-#[cfg(any(target_os = "linux", target_os = "android", windows))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    windows,
+    target_os = "macos"
+))]
 mod lieu;
-#[cfg(any(target_os = "linux", target_os = "android", windows))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    windows,
+    target_os = "macos"
+))]
 pub(crate) use lieu::Lieu;
 #[cfg(windows)]
 mod mf;
@@ -43,11 +57,24 @@ mod yuv;
 
 /// **Le temps que le système a pour préparer la première image** (démultiplexer, ouvrir le
 /// décodeur) : au-delà, la vidéo est tenue pour illisible ici.
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(target_os = "linux", windows, target_os = "macos"))]
 const PREPARATION: std::time::Duration = std::time::Duration::from_secs(10);
 
+/// **Regarder deux fois par image, à 100 images par seconde** (la charte) : les lecteurs de
+/// Windows (`OnVideoStreamTick`) et du Mac (`hasNewPixelBufferForItemTime`) ne préviennent pas
+/// d'une image neuve, ils se demandent — « à chaque balayage de l'écran », dit Microsoft. Le fil du
+/// joueur n'a pas d'écran : il demande à ce pas.
+#[cfg(any(windows, target_os = "macos"))]
+const REGARD: std::time::Duration = std::time::Duration::from_millis(5);
+
 /// **Pourquoi une vidéo ne donne plus d'image.**
-#[cfg(any(target_os = "linux", target_os = "android", windows, test))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    windows,
+    target_os = "macos",
+    test
+))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Fin {
     /// Elle est allée au bout.
@@ -81,17 +108,22 @@ fn chemins_des_greffons(greffons: &str, deja: Option<std::ffi::OsString>) -> std
     chemins
 }
 
-/// **Ce système a-t-il un lecteur de vidéos ?** Linux (GStreamer), Android (MediaPlayer) et
-/// Windows (Media Foundation) ; le Mac, pas encore (fiche 175). Le nom de « Ajouter des images… » et le filtre de
+/// **Ce système a-t-il un lecteur de vidéos ?** Linux (GStreamer), Android (MediaPlayer),
+/// Windows (Media Foundation) et le Mac (AVFoundation) (fiche 175). Le nom de « Ajouter des images… » et le filtre de
 /// son dialogue le suivent (fiche 172 § 6) : ils ne promettent une vidéo que là où elle peut
 /// jouer. [`lisible_ici`] le dit au moment de la poser — sans GStreamer, elle devient un
 /// lanceur, comme déposée — : l'interroger pour un nom, c'était charger GStreamer sur le fil qui
 /// dessine, à l'ouverture d'un menu.
-pub(crate) const PREVUES_ICI: bool = cfg!(any(target_os = "linux", target_os = "android", windows));
+pub(crate) const PREVUES_ICI: bool = cfg!(any(
+    target_os = "linux",
+    target_os = "android",
+    windows,
+    target_os = "macos"
+));
 
 /// **Ce système sait-il lire une vidéo ?** Sous Linux, si GStreamer est là ; sous Android, si sa
 /// porte est branchée ; sous Windows, si Media Foundation l'est et décode le H.264 ; sur le Mac,
-/// pas encore (sa porte suit, fiche 175).
+/// toujours (AVFoundation).
 pub(crate) fn lisible_ici() -> bool {
     #[cfg(target_os = "linux")]
     {
@@ -105,7 +137,16 @@ pub(crate) fn lisible_ici() -> bool {
     {
         lecteur_mf::lisible_ici()
     }
-    #[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
+    #[cfg(target_os = "macos")]
+    {
+        lecteur_mac::lisible_ici()
+    }
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        windows,
+        target_os = "macos"
+    )))]
     {
         false
     }
@@ -117,7 +158,7 @@ pub(crate) fn image_fixe(
     src: &str,
     objets: Option<&Objets>,
 ) -> Option<crate::renderer::gif::Toile> {
-    #[cfg(any(target_os = "linux", windows))]
+    #[cfg(any(target_os = "linux", windows, target_os = "macos"))]
     {
         LecteurVideo::ouvrir(Lieu::de(src, objets)?, false)?.image_arretee()
     }
@@ -125,7 +166,12 @@ pub(crate) fn image_fixe(
     {
         telephone::image_fixe(Lieu::de(src, objets)?)
     }
-    #[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        windows,
+        target_os = "macos"
+    )))]
     {
         let _ = (src, objets);
         None

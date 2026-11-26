@@ -67,9 +67,9 @@
  },
  {
   "nom": "VIDEO-WINDOWS-1 — la tranche lue depuis le début du fichier",
-  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf/flot.rs",
-  "avant": "fichier.seek_read(&mut tampon[lus..], debut + a + lus as u64)",
-  "apres": "fichier.seek_read(&mut tampon[lus..], a + lus as u64)",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lieu.rs",
+  "avant": "lire_a(fichier, &mut tampon[lus..], debut + a + lus as u64)",
+  "apres": "lire_a(fichier, &mut tampon[lus..], a + lus as u64)",
   "cmd": [
    "bash",
    "outils/essai_wine.sh",

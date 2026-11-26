@@ -13,7 +13,7 @@
 mod flot;
 
 use super::mf::{mf, Demarre, Mf};
-use super::{bgra, Fin, Lieu, PREPARATION};
+use super::{bgra, Fin, Lieu, PREPARATION, REGARD};
 use crate::renderer::gif::Toile;
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
@@ -32,11 +32,6 @@ use windows::Win32::Media::MediaFoundation::{
     MF_MEDIA_ENGINE_FORCEMUTE, MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT,
 };
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
-
-/// **Regarder deux fois par image, à 100 images par seconde** (la charte) : `OnVideoStreamTick`
-/// ne prévient pas, il se demande — « à chaque balayage de l'écran », dit Microsoft. Le fil du
-/// joueur n'a pas d'écran : il regarde à ce pas, et la fin ou une faute le réveillent aussitôt.
-const REGARD: Duration = Duration::from_millis(5);
 
 /// **Ce que le moteur dit de lui-même**, depuis ses fils à lui.
 #[derive(Default)]

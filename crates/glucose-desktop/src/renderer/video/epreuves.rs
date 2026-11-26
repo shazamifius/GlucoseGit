@@ -1,5 +1,6 @@
 //! **Les épreuves de chaque lecteur du système** (fiche 169, fiche 175) : les mêmes sous Linux
-//! (GStreamer) et sous Windows (Media Foundation ; ici, sous Wine : `outils/essai_wine.sh video`),
+//! (GStreamer), sous Windows (Media Foundation ; ici, sous Wine : `outils/essai_wine.sh video`) et
+//! sur le Mac (AVFoundation ; à la CI seulement),
 //! sur une vraie vidéo de téléphone en miniature : H.264 et AAC dans un MP4, 64 × 48, rouge, dix
 //! images en une seconde (`tests/donnees/rouge-64x48.mp4`, 3,8 Ko, faite par FFmpeg).
 
@@ -17,7 +18,7 @@ pub(super) fn present() -> bool {
     let la = super::lisible_ici();
     #[cfg(target_os = "linux")]
     let exige = super::gst::GREFFONS.is_some();
-    #[cfg(windows)]
+    #[cfg(not(target_os = "linux"))]
     let exige = false;
     let exige = exige || std::env::var_os("GLUCOSE_EXIGER_LES_VIDEOS").is_some();
     assert!(

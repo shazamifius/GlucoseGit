@@ -75,6 +75,15 @@ wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 # par `winit` et `rfd`, même version ; deux fonctions de plus, compilées pour le Mac seulement.
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAccessibility", "NSWorkspace"] }
+# Les vidéos du Mac (VIDEO-MAC-1, decisions/22) : AVFoundation, ses temps et ses images, trois
+# caisses de la famille `objc2` ; `objc2`, `objc2-foundation` et `dispatch2` sont déjà là par
+# `winit`, même version.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL", "NSData", "NSDictionary", "NSValue", "NSObject"] }
+dispatch2 = { version = "0.3", default-features = false, features = ["std", "objc2"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVAsset", "AVAssetResourceLoader", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVVideoComposition", "dispatch2", "objc2-core-media", "objc2-core-video"] }
+objc2-core-media = { version = "0.3", default-features = false, features = ["std", "CMTime"] }
+objc2-core-video = { version = "0.3", default-features = false, features = ["std", "CVBase", "CVBuffer", "CVImageBuffer", "CVPixelBuffer", "CVReturn"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 winit = { version = "0.30", features = ["android-game-activity"] }
