@@ -21,7 +21,9 @@
 //!   Glucose figé reste tuable, sans qu'aucun délai ait à être choisi.
 //! * **macOS** annonce la fin par AppKit (`applicationWillTerminate:`), que `winit` transmet
 //!   déjà à `exiting`. **Android** a sa propre vie (VIE-1) : le système y tue sans prévenir une
-//!   application passée derrière, et la boîte noire le sait.
+//!   application passée derrière, et la boîte noire le sait. Mais il **détruit** aussi
+//!   l'activité (le retour, un réglage du système qui change), et `winit` 0.30 ne le transmet
+//!   pas : `MainActivity.onDestroy` le dit ([`l_activite_finit`], VIE-3, fiche 173).
 //!
 //! Partout, ce qui finit est la même chose : [`crate::app::GlucoseApp::finir`].
 
@@ -119,7 +121,7 @@ impl Demande {
         let _ = self.reveil.set(reveil);
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     fn reveiller(&self) {
         if let Some(reveil) = self.reveil.get() {
             reveil();
@@ -127,14 +129,45 @@ impl Demande {
     }
 }
 
-/// **Écoute `SIGTERM`, `SIGINT` et `SIGHUP`** — sous Linux. Rend `None` ailleurs, ou si le
-/// système refuse.
+/// **La fin que l'activité d'Android annonce** : une seule par processus, née au premier qui
+/// la touche — la destruction peut venir avant que la boucle ne l'écoute.
+#[cfg(target_os = "android")]
+static DE_L_ACTIVITE: OnceLock<Demande> = OnceLock::new();
+
+/// **VIE-3 — l'activité d'Android est détruite** (fiche 173) : appelé par `MainActivity.onDestroy`,
+/// sur le fil d'Android, avant qu'il n'attende que le fil de Glucose sorte.
+///
+/// Le retour ferme l'activité ; `winit` 0.30 ignore cette destruction (« TODO: forward onDestroy
+/// notification »), sa boucle attendait toujours, et Android aussi, qui attend qu'elle sorte :
+/// rouvrir Glucose montrait son logo jusqu'à ce que le système tue le processus. Désormais la
+/// boucle finit comme pour `SIGTERM` (`exiting`, [`crate::app::GlucoseApp::finir`]), et le
+/// processus s'en va : `winit` ne sait pas recréer sa boucle dans le même (VIE-2).
+#[cfg(target_os = "android")]
+pub fn l_activite_finit() {
+    let demande = DE_L_ACTIVITE.get_or_init(Demande::default);
+    match demande.recevoir(SIGTERM) {
+        Issue::Finir => demande.reveiller(),
+        Issue::Partir(code) => std::process::exit(code),
+    }
+}
+
+/// Le numéro de `SIGTERM` : la fin qu'on demande poliment.
+#[cfg(target_os = "android")]
+const SIGTERM: i32 = 15;
+
+/// **Écoute `SIGTERM`, `SIGINT` et `SIGHUP`** — sous Linux ; sous Android, la destruction de
+/// l'activité ([`l_activite_finit`]). Rend `None` ailleurs, ou si le système refuse.
 pub fn ecouter_les_signaux(reveil: super::Reveil) -> Option<Demande> {
+    #[cfg(target_os = "android")]
+    let demande = DE_L_ACTIVITE.get_or_init(Demande::default).clone();
+    #[cfg(not(target_os = "android"))]
     let demande = Demande::default();
     demande.brancher(reveil);
     #[cfg(target_os = "linux")]
     return signaux::ecouter(demande);
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "android")]
+    return Some(demande);
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
         let _ = demande;
         None

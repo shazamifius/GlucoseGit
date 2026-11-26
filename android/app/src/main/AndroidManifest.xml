@@ -23,12 +23,15 @@
         android:theme="@style/Theme.Glucose">
 
         <!-- Une seule activité, que Glucose dessine entièrement. Elle survit à la rotation et au
-             clavier sans être recréée : sa surface change de taille, et `winit` le dit. -->
+             clavier sans être recréée : sa surface change de taille, et `winit` le dit. Et à
+             chaque réglage du système (VIE-3, fiche 173) : la taille du texte, la langue, le
+             sens d'écriture… Glucose ne lit aucune ressource d'Android qui en dépende, et
+             `winit` ne sait pas recréer sa boucle — une activité recréée fermait Glucose. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode|fontScale|fontWeightAdjustment|locale|layoutDirection|mcc|mnc|touchscreen|colorMode|grammaticalGender"
             android:windowSoftInputMode="adjustResize">
 
             <meta-data

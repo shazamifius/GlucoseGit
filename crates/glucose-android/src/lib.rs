@@ -55,6 +55,29 @@ fn android_main(app: AndroidApp) {
     if let Err(e) = glucose_desktop::demarrage::lancer(boucle, &dossier, None) {
         eprintln!("[Glucose] le lancement a echoue : {e}");
     }
+    // La boucle ne finit que si l'activité est détruite (VIE-3, `MainActivity.onDestroy`), et
+    // Glucose a fini avec elle. Le processus s'en va : `winit` ne recréerait pas sa boucle pour
+    // l'activité suivante (VIE-2), et le prochain toucher sur l'icône repart d'un processus neuf.
+    partir()
+}
+
+/// **Le processus part, sans rien défaire** (VIE-3, fiche 173) : `_exit`, et non `exit`, qui
+/// détruit les objets statiques des bibliothèques C++ pendant que leurs fils tournent encore —
+/// `hwuiTask0`, un fil de dessin d'Android, y prenait un verrou détruit, et le processus tombait
+/// en `SIGABRT` : Android comptait un plantage (« APP CRASH(NATIVE) », vu au téléphone virtuel).
+/// Ce qui devait finir a fini : le scribe a synchronisé chaque geste, `finir` a clos le reste.
+fn partir() -> ! {
+    // SAFETY : `_exit` termine le processus, sans rien lire ni écrire de ce qui est à nous.
+    unsafe { libc::_exit(0) }
+}
+
+/// **VIE-3 — `MainActivity.onDestroy`** (fiche 173) : Glucose finit, puis le processus part.
+#[no_mangle]
+pub extern "system" fn Java_com_glucose_app_MainActivity_recevoirLaFin(
+    _env: jni::EnvUnowned<'_>,
+    _classe: jni::objects::JClass<'_>,
+) {
+    glucose_desktop::plateforme::fin::l_activite_finit();
 }
 
 /// **VIE-2 — une activité recréée dans un processus qui vit encore** (fiche 72).
@@ -73,7 +96,7 @@ fn android_main(app: AndroidApp) {
 /// par le système.
 fn repartir() -> ! {
     eprintln!("[Glucose] une activite neuve dans un processus vivant : le processus repart");
-    std::process::exit(0)
+    partir()
 }
 
 /// **Ce qu'une autre application partage vers Glucose** (PARTAGE-1, fiche 56) : l'activité

@@ -67,6 +67,9 @@ public class MainActivity extends GameActivity {
      */
     private static native void connaitreLeDossier(String dossier);
 
+    /** **VIE-3** (fiche 173) : l'activité est détruite — Glucose finit, puis son processus part. */
+    private static native void recevoirLaFin();
+
     /**
      * Où en est une mise à jour confiée à Android (MAJ-ANDROID-1, fiche 58) : 1, il faut
      * autoriser Glucose à installer des applications ; 2, Android demande la confirmation ;
@@ -369,6 +372,15 @@ public class MainActivity extends GameActivity {
             apkEnAttente = null;
             new Thread(() -> confier(chemin), "installation").start();
         }
+    }
+
+    /** **VIE-3** (fiche 173) : le retour, ou un réglage du système, détruit l'activité.
+     *  `GameActivity` attend alors que le fil de Glucose sorte, et `winit` ne le lui dit pas :
+     *  Glucose finit d'abord, puis son processus part. */
+    @Override
+    protected void onDestroy() {
+        recevoirLaFin();
+        super.onDestroy();
     }
 
     @Override
