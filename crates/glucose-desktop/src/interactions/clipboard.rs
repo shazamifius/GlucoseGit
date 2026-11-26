@@ -15,10 +15,20 @@ pub use formes::{Fichier, Forme, Formes, Pour};
 pub use lot::Echanges;
 pub use menu_image::ImagePosee;
 
-/// Extensions proposees par le dialogue d'import d'images — celui du bureau : le telephone a son
-/// selecteur de photos (fiche 56).
+/// Extensions proposées par le dialogue d'import — celui du bureau : le téléphone a son
+/// sélecteur de photos (fiche 56). Le filtre seulement : c'est le décodeur qui dit ce qui est une
+/// image, comme au dépôt. HEIC et HEIF depuis HEIC-2 (fiche 161).
 #[cfg(not(target_os = "android"))]
-const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
+const IMAGE_EXTENSIONS: [&str; 8] = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "heic", "heif"];
+
+/// **Le nom de « Ajouter des images… »** : les vidéos y entrent là où elles jouent (fiche 172
+/// § 6) ; ailleurs, le bouton ne promet pas ce que Glucose ne sait pas encore montrer. Son filtre
+/// suit le même drapeau : le nom et le dialogue changent ensemble.
+pub(crate) const NOM_DE_L_IMPORT: &str = if crate::renderer::video::PREVUES_ICI {
+    "Ajouter des images et des vidéos…"
+} else {
+    "Ajouter des images…"
+};
 
 /// La plus grande dimension d'une image qu'on pose : au-delà, elle se réduit à cette taille.
 const POSE_MAX: f64 = 600.0;
@@ -43,8 +53,21 @@ pub(crate) fn taille_d_un_apercu((w, h): (f64, f64)) -> (f64, f64) {
     taille_posee((w * agrandir, h * agrandir))
 }
 
+/// **Le filtre du dialogue d'import** : les images, et les vidéos là où elles jouent — sous le
+/// même drapeau que [`NOM_DE_L_IMPORT`].
+#[cfg(not(target_os = "android"))]
+fn filtre_de_l_import() -> crate::dialogue::Fichier {
+    let dialogue = crate::dialogue::fichier();
+    if !crate::renderer::video::PREVUES_ICI {
+        return dialogue.filtre("Images", &IMAGE_EXTENSIONS);
+    }
+    let video = crate::renderer::video::signature::EXTENSIONS;
+    let toutes: Vec<&str> = IMAGE_EXTENSIONS.iter().chain(&video).copied().collect();
+    dialogue.filtre("Images et vidéos", &toutes)
+}
+
 impl GlucoseApp {
-    /// Ouvre le dialogue natif d'import d'images (Ctrl+I, bouton « Ajouter » de la barre).
+    /// Ouvre le dialogue natif d'import (Ctrl+I, bouton « Ajouter » de la barre).
     pub fn pick_and_import_images(&mut self) {
         // **Sous Android, le sélecteur de photos du système** (fiche 56) : ce qu'on y choisit
         // revient comme un partage, par le même chemin qu'une image envoyée de la galerie.
@@ -54,40 +77,24 @@ impl GlucoseApp {
         }
         #[cfg(not(target_os = "android"))]
         self.demander_un_fichier(
-            crate::dialogue::fichier().filtre("Images", &IMAGE_EXTENSIONS),
+            filtre_de_l_import(),
             crate::dialogue::Mode::Plusieurs,
             crate::persist::choix::Demande::ImporterDesImages,
         );
     }
 
-    /// Importe une liste de chemins de fichiers image dans le board actif.
-    pub fn import_image_files(&mut self, paths: &[PathBuf]) {
-        let active_bid = self.store.project.active_board_id.clone();
-        let vp = self.store.viewport();
-        let (mut cur_wx, mut cur_wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
-
-        if self.mouse_pos.1 < self.ui.header_height() as f64 {
-            cur_wx = 0.0;
-            cur_wy = 0.0;
-        }
-
-        let mut count = 0;
-        for path_buf in paths {
-            // Ici, on a promis des images : le dialogue est filtré, le collage a vérifié le
-            // chemin. Un échec est donc une faute, et elle se dit.
-            match self.place_image_file(&active_bid, path_buf, (cur_wx, cur_wy)) {
-                Ok(posee) => {
-                    cur_wx += posee + 30.0;
-                    count += 1;
-                }
-                Err(err) => self.ui.show_toast(err.to_string()),
-            }
-        }
-
-        if count > 0 {
-            self.ui.show_toast(format!("{} image(s) ajoutée(s)", count));
-            self.mark_dirty();
-        }
+    /// **Pose les fichiers choisis au dialogue d'import**, comme s'ils étaient déposés sous le
+    /// curseur (fiche 172 § 6) : une image se pose, une vidéo pose sa question (VIDEO-2), un
+    /// fichier qui n'est ni l'une ni l'autre devient un lanceur — un geste, un compte-rendu.
+    /// Il avait sa propre boucle, qui ne savait poser que des images : une vidéo choisie y était
+    /// une erreur. Le curseur sur la barre du haut : à l'origine du monde.
+    pub fn importer_des_fichiers(&mut self, paths: &[PathBuf]) {
+        let origine = if self.mouse_pos.1 < self.ui.header_height() as f64 {
+            (0.0, 0.0)
+        } else {
+            screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &self.store.viewport())
+        };
+        self.deposer(paths, Vec::new(), &[], origine, None);
     }
 
     /// Pose une image à un point du monde, et rend la **largeur** qu'elle occupe.
@@ -210,13 +217,22 @@ impl GlucoseApp {
         }
     }
 
-    /// **Pose un texte collé** en ce point du monde — ou, s'il nomme un fichier qui existe, ce
-    /// fichier.
+    /// **Pose un texte collé** en ce point du monde — ou, s'il est le chemin absolu d'une image
+    /// ou d'une vidéo, elle (fiche 172 § 6).
+    ///
+    /// Tout fichier existant passait pour une image : « Cargo.toml », relatif au dossier d'où
+    /// Glucose est parti, n'était plus collé, et une erreur le remplaçait. Un texte qui n'est pas
+    /// une image ni une vidéo reste un texte : rien de ce qu'on colle ne se perd. Un fichier
+    /// copié dans l'explorateur arrive par sa propre forme (1 bis), pas par ici.
     fn coller_un_texte(&mut self, board: &str, (wx, wy): (f64, f64), text: &str) {
         let trimmed = text.trim();
         let path = Path::new(trimmed);
-        if path.exists() && path.is_file() {
-            self.import_image_files(&[path.to_path_buf()]);
+        if path.is_absolute()
+            && path.is_file()
+            && (self.place_image_file(board, path, (wx, wy)).is_ok()
+                || self.poser_une_video(board, path, (wx, wy)))
+        {
+            self.mark_dirty();
             return;
         }
 

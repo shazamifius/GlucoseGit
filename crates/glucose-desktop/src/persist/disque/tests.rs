@@ -90,7 +90,7 @@ fn test_une_image_deposee_est_scellee_et_survit_a_son_fichier() {
     let octets = std::fs::read(&source).unwrap();
     let mut app = application(&d);
     app.save_to(chemin.clone());
-    app.import_image_files(std::slice::from_ref(&source));
+    app.importer_des_fichiers(std::slice::from_ref(&source));
     image_suivante(&mut app);
     let cle = source.to_string_lossy().into_owned();
     assert!(

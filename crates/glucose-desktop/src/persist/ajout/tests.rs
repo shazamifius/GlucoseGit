@@ -15,7 +15,7 @@ fn un_ancien_document(d: &Path) -> (PathBuf, Vec<u8>, String) {
     let mut app = application(d);
     noter(&mut app, "c-ancien", "une idée ancienne");
     app.save_to(chemin.clone());
-    app.import_image_files(std::slice::from_ref(&photo));
+    app.importer_des_fichiers(std::slice::from_ref(&photo));
     image_suivante(&mut app);
     assert!(app.fermer_le_document());
     (chemin, octets, photo.to_string_lossy().into_owned())
@@ -50,7 +50,7 @@ fn test_un_document_ajoute_emporte_ses_images_meme_sous_une_cle_prise() {
     let courant = d.join("courant.glucose");
     let mut app = application(&d);
     app.save_to(courant.clone());
-    app.import_image_files(std::slice::from_ref(&photo));
+    app.importer_des_fichiers(std::slice::from_ref(&photo));
     image_suivante(&mut app);
 
     app.ajouter_un_document(&ancien);
@@ -97,7 +97,7 @@ fn test_une_meme_image_garde_sa_cle_et_l_ajout_se_defait() {
     let (ancien, _, cle) = un_ancien_document(&d);
     let mut app = application(&d);
     app.save_to(d.join("courant.glucose"));
-    app.import_image_files(&[PathBuf::from(&cle)]);
+    app.importer_des_fichiers(&[PathBuf::from(&cle)]);
     image_suivante(&mut app);
 
     app.ajouter_un_document(&ancien);

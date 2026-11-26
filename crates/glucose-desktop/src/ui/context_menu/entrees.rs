@@ -250,7 +250,11 @@ fn entrees_des_operateurs() -> [Def; 6] {
 /// Les entrées d'un menu ouvert sur le vide : ce qu'on y apporte, et le document.
 fn entrees_du_vide() -> Vec<Def> {
     vec![
-        Some((MenuAction::AjouterDesImages, "Ajouter des images…", "")),
+        Some((
+            MenuAction::AjouterDesImages,
+            crate::interactions::clipboard::NOM_DE_L_IMPORT,
+            "",
+        )),
         Some((MenuAction::DossierDuDisque, "Dossier du disque…", "")),
         None,
         Some((MenuAction::Paste, "Coller", "")),

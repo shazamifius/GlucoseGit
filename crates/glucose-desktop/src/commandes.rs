@@ -222,7 +222,7 @@ const SIMPLES: [(Commande, &str, &str); 65] = [
     (
         Commande::ImporterDesImages,
         "importer-des-images",
-        "Ajouter des images…",
+        crate::interactions::clipboard::NOM_DE_L_IMPORT,
     ),
     (Commande::TimeMachine, "time-machine", "Time Machine"),
     (

@@ -336,7 +336,21 @@ fn test_acces_1_annuler_et_retablir_n_existent_que_s_ils_ont_un_objet() {
 /// sélection se cadre aussi d'une entrée.
 #[test]
 fn test_acces_1_chaque_geste_du_clavier_a_son_entree() {
-    let vide = actions(&menu(&store_with(1, 0, false), (100.0, 100.0)));
+    let m = menu(&store_with(1, 0, false), (100.0, 100.0));
+    // Fiche 172 § 6 : l'entrée d'import dit ce que dit la palette — les vidéos là où elles jouent.
+    let ajouter = m.rows.iter().find_map(|r| match r {
+        MenuRow::Item {
+            action: MenuAction::AjouterDesImages,
+            label,
+            ..
+        } => Some(*label),
+        _ => None,
+    });
+    assert_eq!(
+        ajouter.map(str::to_string),
+        Some(crate::commandes::Commande::ImporterDesImages.nom())
+    );
+    let vide = actions(&m);
     for attendue in [
         MenuAction::ToutCadrer,
         MenuAction::Signets,

@@ -154,3 +154,96 @@ fn test_coller_un_texte_pose_une_carte() {
         "un collage réussi se tait"
     );
 }
+
+/// Fiche 172 § 6 — **« Ajouter des images… » s'ouvre aux vidéos là où elles jouent** : son nom
+/// (à la palette comme au menu du vide) et son filtre suivent le même drapeau. Les HEIC y sont,
+/// et chaque extension aussi en majuscules : `IMG_0001.JPG`, le nom d'un appareil photo, restait
+/// caché sous Linux.
+#[cfg(not(target_os = "android"))]
+#[test]
+fn import_1_le_nom_et_le_filtre_suivent_les_videos() {
+    use crate::renderer::video::PREVUES_ICI;
+    let fichier = filtre_de_l_import();
+    let [(nom, extensions)] = fichier.filtres() else {
+        panic!("un seul filtre : {:?}", fichier.filtres());
+    };
+    let a = |e: &str| extensions.iter().any(|x| x == e);
+    for e in ["jpg", "JPG", "png", "PNG", "heic", "HEIC", "heif"] {
+        assert!(a(e), "{e} : {extensions:?}");
+    }
+    let uniques: std::collections::HashSet<_> = extensions.iter().collect();
+    assert_eq!(
+        uniques.len(),
+        extensions.len(),
+        "aucune extension deux fois"
+    );
+    assert_eq!(["mp4", "MP4", "mov", "webm"].map(a), [PREVUES_ICI; 4]);
+    assert_eq!(nom.contains("vidéos"), PREVUES_ICI, "{nom}");
+    assert_eq!(NOM_DE_L_IMPORT.contains("vidéos"), PREVUES_ICI);
+    assert_eq!(
+        crate::commandes::Commande::ImporterDesImages.nom(),
+        NOM_DE_L_IMPORT
+    );
+}
+
+/// Fiche 172 § 6 — **Coller un chemin** : celui, absolu, d'une image la pose ; tout autre texte
+/// se colle tel quel — « Cargo.toml », qui existe pourtant là d'où l'épreuve part, comme le
+/// chemin absolu d'un fichier qui n'est pas une image. Avant, les deux se perdaient sous une
+/// erreur.
+#[test]
+fn import_1_coller_un_chemin_pose_l_image_ou_garde_le_texte() {
+    let d = crate::epreuve::Dossier::nouveau("coller-un-chemin");
+    let photo = crate::persist::disque::tests::png(&d, "photo.png", 40);
+    let manifeste = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
+    assert!(
+        Path::new("Cargo.toml").is_file(),
+        "l'épreuve part de la caisse"
+    );
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    app.coller_un_texte(&board, (0.0, 0.0), "Cargo.toml");
+    app.coller_un_texte(&board, (0.0, 200.0), manifeste);
+    app.coller_un_texte(&board, (0.0, 400.0), &format!(" {}\n", photo.display()));
+    let b = app.store.active_board().expect("le tableau");
+    let textes: Vec<String> = b
+        .annotations
+        .iter()
+        .filter_map(Annotation::own_text)
+        .collect();
+    assert_eq!(textes, ["Cargo.toml", manifeste]);
+    assert_eq!(b.images.len(), 1, "la photo");
+}
+
+/// Fiche 172 § 6 — **Une vidéo choisie au dialogue d'import, ou nommée par un chemin collé**,
+/// pose la question d'une vidéo déposée (VIDEO-2) ; l'image choisie avec elle se pose, et le
+/// compte-rendu ne compte qu'elle. Avant, la vidéo n'était qu'une erreur. Un chemin relatif,
+/// lui, reste un texte.
+#[cfg(target_os = "linux")]
+#[test]
+fn import_1_une_video_choisie_ou_collee_pose_sa_question() {
+    use crate::ui::question::Reponse;
+    if !crate::renderer::video::lisible_ici() {
+        return;
+    }
+    let video = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/donnees/rouge-64x48.mp4");
+    let d = crate::epreuve::Dossier::nouveau("importer-une-video");
+    let photo = crate::persist::disque::tests::png(&d, "photo.png", 40);
+    let mut app = app();
+    app.ui.current_toast = None;
+    crate::dialogue::epreuve::choisir(Some(vec![photo, PathBuf::from(video)]));
+    app.pick_and_import_images();
+    app.suivre_les_fichiers_choisis();
+    let images = |app: &GlucoseApp| app.store.active_board().expect("tableau").images.clone();
+    assert_eq!(images(&app).len(), 1, "la photo, la vidéo attend");
+    assert_eq!(app.videos_en_question(), 1);
+    assert_eq!(app.ui.toast_message(), Some("1 élément posé"));
+    app.repondre_a_la_question(Some(Reponse::Oui));
+    assert_eq!(images(&app).iter().filter(|i| i.is_video).count(), 1);
+
+    // Relatif, le chemin dépendrait du dossier d'où Glucose est parti : il reste un texte.
+    let board = app.store.project.active_board_id.clone();
+    app.coller_un_texte(&board, (0.0, 0.0), "tests/donnees/rouge-64x48.mp4");
+    assert_eq!(app.videos_en_question(), 0, "relatif : un texte");
+    app.coller_un_texte(&board, (0.0, 0.0), video);
+    assert_eq!(app.videos_en_question(), 1, "collée, la même question");
+}

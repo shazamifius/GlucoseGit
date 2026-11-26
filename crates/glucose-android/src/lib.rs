@@ -177,8 +177,8 @@ mod partage {
     }
 }
 
-/// **Le sélecteur de photos du système** (fiche 56) : « Ajouter des images… » appelle
-/// `MainActivity.choisirDesImages`, et ce qu'on y choisit revient comme un partage.
+/// **Le sélecteur de photos du système** (fiche 56) : « Ajouter des images et des vidéos… »
+/// appelle `MainActivity.choisirDesImages`, et ce qu'on y choisit revient comme un partage.
 mod selecteur {
     use winit::platform::android::activity::AndroidApp;
 

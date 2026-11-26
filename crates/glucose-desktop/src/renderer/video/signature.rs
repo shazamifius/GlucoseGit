@@ -14,6 +14,12 @@ const MARQUES_D_IMAGE: [&[u8; 4]; 12] = [
 /// Les premières boîtes d'un vieux QuickTime, écrit avant que `ftyp` n'existe.
 const BOITES_QUICKTIME: [&[u8; 4]; 5] = [b"moov", b"mdat", b"wide", b"free", b"skip"];
 
+/// **Les extensions du dialogue d'import** (fiche 172 § 6) : les conteneurs que [`est_video`]
+/// reconnaît, et rien d'autre — un MPEG-TS ou un Ogg choisi y deviendrait un lanceur. Un filtre
+/// seulement : la signature décide, jamais le nom. Le téléphone a son sélecteur de photos.
+#[cfg(not(target_os = "android"))]
+pub(crate) const EXTENSIONS: [&str; 7] = ["mp4", "m4v", "mov", "3gp", "mkv", "webm", "avi"];
+
 /// Les octets qu'il faut pour le dire.
 pub(crate) const LONGUEUR: usize = 12;
 

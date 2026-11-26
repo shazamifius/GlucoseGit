@@ -66,6 +66,14 @@ fn chemins_des_greffons(greffons: &str, deja: Option<std::ffi::OsString>) -> std
     chemins
 }
 
+/// **Ce système a-t-il un lecteur de vidéos ?** Linux (GStreamer) et Android (MediaPlayer) ;
+/// Windows et le Mac, pas encore (fiche 169). Le nom de « Ajouter des images… » et le filtre de
+/// son dialogue le suivent (fiche 172 § 6) : ils ne promettent une vidéo que là où elle peut
+/// jouer. [`lisible_ici`] le dit au moment de la poser — sans GStreamer, elle devient un
+/// lanceur, comme déposée — : l'interroger pour un nom, c'était charger GStreamer sur le fil qui
+/// dessine, à l'ouverture d'un menu.
+pub(crate) const PREVUES_ICI: bool = cfg!(any(target_os = "linux", target_os = "android"));
+
 /// **Ce système sait-il lire une vidéo ?** Sous Linux, si GStreamer est là ; sous Android, si sa
 /// porte est branchée ; ailleurs, pas encore (leur porte suit, fiche 169).
 pub(crate) fn lisible_ici() -> bool {

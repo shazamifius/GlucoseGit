@@ -48,7 +48,7 @@ impl GlucoseApp {
         match demande {
             Demande::Ouvrir => self.laisser_puis(Ensuite::Ouvrir(premier)),
             Demande::AjouterUnDocument => self.ajouter_un_document(&premier),
-            Demande::ImporterDesImages => self.import_image_files(&chemins),
+            Demande::ImporterDesImages => self.importer_des_fichiers(&chemins),
             Demande::DossierDuDisque => self.drop_files(&chemins),
             Demande::Enregistrer(puis) => {
                 self.save_to(crate::persist::with_glucose_extension(premier));

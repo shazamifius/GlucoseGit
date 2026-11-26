@@ -110,11 +110,30 @@ pub struct Fichier {
 }
 
 impl Fichier {
-    /// N'y montre que ces extensions, sous ce nom.
+    /// N'y montre que ces extensions, sous ce nom — en minuscules **et** en majuscules.
+    ///
+    /// Sous Linux, le portail reçoit des motifs `*.jpg`, et GTK ne les lit sans casse que sous
+    /// Windows : `IMG_0001.JPG`, le nom que donnent les appareils photo et les iPhone, restait
+    /// caché. Ailleurs, le doublon ne change rien.
     pub fn filtre(mut self, nom: &str, extensions: &[&str]) -> Self {
-        let extensions = extensions.iter().map(|e| e.to_string()).collect();
-        self.filtres.push((nom.to_string(), extensions));
+        let mut toutes: Vec<String> = Vec::with_capacity(extensions.len() * 2);
+        for casse in [str::to_lowercase, str::to_uppercase] {
+            for e in extensions {
+                let e = casse(e);
+                if !toutes.contains(&e) {
+                    toutes.push(e);
+                }
+            }
+        }
+        self.filtres.push((nom.to_string(), toutes));
         self
+    }
+
+    /// Ses filtres, pour une épreuve : sous elle, aucun sélecteur ne s'ouvre. Le téléphone n'a
+    /// que son sélecteur de photos.
+    #[cfg(all(test, not(target_os = "android")))]
+    pub(crate) fn filtres(&self) -> &[(String, Vec<String>)] {
+        &self.filtres
     }
 
     /// Le nom qu'il propose.

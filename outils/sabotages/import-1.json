@@ -1,0 +1,202 @@
+[
+  {
+    "nom": "IMPORT-1 — le filtre sans majuscules",
+    "fichier": "crates/glucose-desktop/src/dialogue.rs",
+    "avant": "for casse in [str::to_lowercase, str::to_uppercase] {",
+    "apres": "for casse in [str::to_lowercase] {",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — les HEIC oubliés",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "\"bmp\", \"heic\", \"heif\"]",
+    "apres": "\"bmp\", \"heif\", \"bmp\"]",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — le filtre sans vidéos",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "    if !crate::renderer::video::PREVUES_ICI {\n        return dialogue",
+    "apres": "    if true {\n        return dialogue",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — le nom qui ne suit pas",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "\"Ajouter des images et des vidéos…\"",
+    "apres": "\"Ajouter des images…\"",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — la palette garde l'ancien nom",
+    "fichier": "crates/glucose-desktop/src/commandes.rs",
+    "avant": "crate::interactions::clipboard::NOM_DE_L_IMPORT,",
+    "apres": "\"Ajouter des images…\",",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — l'import ne pose que des images",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "        self.deposer(paths, Vec::new(), &[], origine, None);",
+    "apres": "        let b = self.store.project.active_board_id.clone();\n        for p in paths {\n            let _ = self.place_image_file(&b, p, origine);\n        }",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — un chemin relatif accepté",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "        if path.is_absolute()\n            && path.is_file()",
+    "apres": "        if path.is_file()",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — un texte qui n'est pas une image perdu",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "                || self.poser_une_video(board, path, (wx, wy)))",
+    "apres": "                || true)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — une vidéo collée restée texte",
+    "fichier": "crates/glucose-desktop/src/interactions/clipboard.rs",
+    "avant": "                || self.poser_une_video(board, path, (wx, wy)))",
+    "apres": "                || false)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "import_1"
+    ]
+  },
+  {
+    "nom": "IMPORT-1 — le menu garde l'ancien nom",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu/entrees.rs",
+    "avant": "            crate::interactions::clipboard::NOM_DE_L_IMPORT,",
+    "apres": "            \"Ajouter des images…\",",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "acces_1_chaque_geste"
+    ]
+  }
+]

@@ -204,7 +204,7 @@ fn test_reprise_1_ce_que_le_lancement_rouvre_s_ecrit() {
     let sources: Vec<_> = (0..3u8)
         .map(|i| png(&d, &format!("{i}.png"), 40 * i))
         .collect();
-    tuee.import_image_files(&sources);
+    tuee.importer_des_fichiers(&sources);
     image_suivante(&mut tuee);
     // Ce qu'un processus tué laisse : rien n'est fermé, le brouillon reste.
     drop(tuee);
@@ -240,7 +240,7 @@ fn test_libere_1_un_brouillon_tenu_au_lancement_revient_quand_on_le_lache() {
     let sources: Vec<_> = (0..3u8)
         .map(|i| png(&d, &format!("{i}.png"), 40 * i))
         .collect();
-    mourant.import_image_files(&sources);
+    mourant.importer_des_fichiers(&sources);
     image_suivante(&mut mourant);
 
     let mut neuf = application(&d);

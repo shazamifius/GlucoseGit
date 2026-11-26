@@ -99,14 +99,15 @@ public class MainActivity extends GameActivity {
                         }
                     });
 
-    /** Ouvre le sélecteur de photos. Appelé par Rust, du fil de Glucose : on passe à celui de
-     *  l'interface, le seul d'où une activité se lance. */
+    /** Ouvre le sélecteur de photos, les vidéos comprises (fiche 172 § 6 : elles reviennent
+     *  comme un partage, copiées sans passer par la mémoire). Appelé par Rust, du fil de
+     *  Glucose : on passe à celui de l'interface, le seul d'où une activité se lance. */
     public void choisirDesImages() {
         runOnUiThread(
                 () -> selecteur.launch(
                         new PickVisualMediaRequest.Builder()
                                 .setMediaType(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                                        ActivityResultContracts.PickVisualMedia.ImageAndVideo.INSTANCE)
                                 .build()));
     }
 
