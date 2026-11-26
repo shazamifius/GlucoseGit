@@ -382,7 +382,10 @@ fn video_1_une_video_revient_de_l_atelier_en_video_avec_sa_premiere_image() {
     let (_, image, _, sorte) = moisson.first().expect("une réponse");
     assert_eq!(*sorte, Sorte::Video);
     let dimensions = image.as_ref().map(Pyramide::dimensions_natives);
-    let attendu = crate::renderer::video::lisible_ici().then_some((64, 48));
+    // Sur le Mac, la première image passe par la file principale, que le harnais ne sert pas :
+    // `tests/videos_mac_suite.rs` l'éprouve, servie (fiche 175 § 9).
+    let servie = !cfg!(target_os = "macos");
+    let attendu = (crate::renderer::video::lisible_ici() && servie).then_some((64, 48));
     assert_eq!(
         dimensions, attendu,
         "l'image fixe : la première image, ou rien"

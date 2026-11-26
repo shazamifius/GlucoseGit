@@ -29,9 +29,13 @@ use windows::Win32::Media::MediaFoundation::{
     IMFMediaEngineNotify, IMFMediaEngineNotify_Impl, MFARGB, MF_MEDIA_ENGINE_CALLBACK,
     MF_MEDIA_ENGINE_EVENT, MF_MEDIA_ENGINE_EVENT_ENDED, MF_MEDIA_ENGINE_EVENT_ERROR,
     MF_MEDIA_ENGINE_EVENT_FIRSTFRAMEREADY, MF_MEDIA_ENGINE_EVENT_LOADEDDATA,
-    MF_MEDIA_ENGINE_FORCEMUTE, MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT,
+    MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT,
 };
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+
+/// **Ce que Windows a pour préparer l'image fixe, la vidéo arrêtée**, avant qu'elle joue, muette,
+/// jusqu'à elle (Wine ne la prépare jamais : chaque image fixe y attend ce temps de plus).
+const AVANT_PLAY: Duration = Duration::from_millis(500);
 
 /// **Ce que le moteur dit de lui-même**, depuis ses fils à lui.
 #[derive(Default)]
@@ -106,7 +110,6 @@ pub(crate) struct LecteurVideo {
     taille: (u32, u32),
     /// Ses octets, gardés pour revenir au début par un moteur neuf.
     lieu: Lieu,
-    avec_le_son: bool,
     mf: &'static Mf,
     _demarre: Demarre,
 }
@@ -116,9 +119,9 @@ pub(crate) struct LecteurVideo {
 ///
 /// # Safety
 /// COM et Media Foundation démarrés sur ce fil, jusqu'à la fin du moteur.
-unsafe fn preparer(mf: &Mf, lieu: &Lieu, avec_le_son: bool) -> Option<(Moteur, Arc<Etat>)> {
+unsafe fn preparer(mf: &Mf, lieu: &Lieu) -> Option<(Moteur, Arc<Etat>)> {
     let etat = Arc::new(Etat::default());
-    let moteur = Moteur(unsafe { creer(mf, &etat, avec_le_son) }.ok()?);
+    let moteur = Moteur(unsafe { creer(mf, &etat) }.ok()?);
     unsafe { charger(mf, &moteur.0, lieu) }?;
     etat.attendre(PREPARATION, |n| !n.chargee && !n.faute);
     etat.lire(|n| n.chargee && !n.faute)
@@ -127,14 +130,15 @@ unsafe fn preparer(mf: &Mf, lieu: &Lieu, avec_le_son: bool) -> Option<(Moteur, A
 
 impl LecteurVideo {
     /// **Ouvre la vidéo** de ce lieu, prête à jouer, son coupé ; `None` si Media Foundation manque,
-    /// ne sait pas la lire, ou ne l'a pas préparée à temps.
-    pub(crate) fn ouvrir(lieu: Lieu, avec_le_son: bool) -> Option<Self> {
+    /// ne sait pas la lire, ou ne l'a pas préparée à temps. Avec le son ou sans, le moteur est le
+    /// même, muet jusqu'au clic : voir [`creer`].
+    pub(crate) fn ouvrir(lieu: Lieu, _avec_le_son: bool) -> Option<Self> {
         let mf = mf()?;
         let demarre = Demarre::de(mf)?;
         // SAFETY : COM et Media Foundation sont démarrés sur ce fil, et le restent jusqu'à la fin
         // de `demarre`, qui part après le moteur (les locales partent à rebours, les champs dans
         // l'ordre).
-        let (moteur, etat) = unsafe { preparer(mf, &lieu, avec_le_son) }?;
+        let (moteur, etat) = unsafe { preparer(mf, &lieu) }?;
         let taille = unsafe { taille(&moteur.0) }?;
         let image = unsafe { bitmap(taille) }.ok()?;
         Some(Self {
@@ -143,17 +147,18 @@ impl LecteurVideo {
             image,
             taille,
             lieu,
-            avec_le_son,
             mf,
             _demarre: demarre,
         })
     }
 
     /// **L'image où la vidéo est arrêtée** : la première. Windows la prépare avant `Play`, comme
-    /// le poster d'une balise `<video>` (d'après les épreuves de Wine) : elle se lit tout de
-    /// suite. Wine non : la vidéo joue, muette, jusqu'à sa première image, puis s'arrête.
+    /// le poster d'une balise `<video>` — mais seulement quand on la demande (`OnVideoStreamTick`,
+    /// d'après les épreuves de Wine) : peinte sans la demander, elle était noire sur le vrai Windows
+    /// de la CI (fiche 175 § 9). Wine ne la prépare jamais : la vidéo joue alors, muette, jusqu'à sa
+    /// première image, puis s'arrête.
     pub(crate) fn image_arretee(&self) -> Option<Toile> {
-        if let Some(toile) = self.toile() {
+        if let Ok(Some(toile)) = self.suivante(AVANT_PLAY) {
             return Some(toile);
         }
         self.jouer(true);
@@ -194,7 +199,7 @@ impl LecteurVideo {
         // SAFETY : comme `ouvrir` ; l'ancien moteur s'arrête quand le neuf le remplace.
         unsafe {
             let muet = self.moteur.0.GetMuted().as_bool();
-            let Some((moteur, etat)) = preparer(self.mf, &self.lieu, self.avec_le_son) else {
+            let Some((moteur, etat)) = preparer(self.mf, &self.lieu) else {
                 return false;
             };
             self.moteur = moteur;
@@ -272,16 +277,14 @@ impl LecteurVideo {
     }
 }
 
-/// **Le moteur**, en serveur d'images BGRA, à l'écoute ; muet pour toujours sans le son (l'image
-/// fixe n'en a que faire).
+/// **Le moteur**, en serveur d'images BGRA, à l'écoute. Jamais `MF_MEDIA_ENGINE_FORCEMUTE`, même
+/// pour l'image fixe : sur le vrai Windows de la CI, un moteur ainsi muet pour toujours ne jouait
+/// plus — aucune image, jamais au bout —, quand le même, muet par `SetMuted` ([`charger`]), jouait
+/// (fiche 175 § 9). Wine, lui, jouait les deux.
 ///
 /// # Safety
 /// COM et Media Foundation démarrés sur ce fil.
-unsafe fn creer(
-    mf: &Mf,
-    etat: &Arc<Etat>,
-    avec_le_son: bool,
-) -> windows::core::Result<IMFMediaEngine> {
+unsafe fn creer(mf: &Mf, etat: &Arc<Etat>) -> windows::core::Result<IMFMediaEngine> {
     unsafe {
         let fabrique: IMFMediaEngineClassFactory =
             CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)?;
@@ -290,11 +293,7 @@ unsafe fn creer(
         attributs.SetUnknown(&MF_MEDIA_ENGINE_CALLBACK, &ecoute)?;
         let bgra = DXGI_FORMAT_B8G8R8A8_UNORM.0 as u32;
         attributs.SetUINT32(&MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT, bgra)?;
-        let drapeaux = match avec_le_son {
-            true => 0,
-            false => MF_MEDIA_ENGINE_FORCEMUTE.0 as u32,
-        };
-        fabrique.CreateInstance(drapeaux, &attributs)
+        fabrique.CreateInstance(0, &attributs)
     }
 }
 

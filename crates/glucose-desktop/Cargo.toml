@@ -121,3 +121,9 @@ resvg = { version = "0.46", default-features = false, features = ["raster-images
 # seulement.
 [target.'cfg(windows)'.dev-dependencies]
 windows = { version = "0.62", features = ["Win32_System_Diagnostics_Debug", "Win32_UI_WindowsAndMessaging"] }
+
+# Les vidéos du Mac s'éprouvent hors du harnais de `cargo test`, la file principale servie
+# comme Glucose la sert (fiche 175 § 9) ; ailleurs, la suite n'a rien à faire.
+[[test]]
+name = "videos_mac_suite"
+harness = false

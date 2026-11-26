@@ -3,7 +3,13 @@
 //! sur le Mac (AVFoundation ; à la CI seulement),
 //! sur une vraie vidéo de téléphone en miniature : H.264 et AAC dans un MP4, 64 × 48, rouge, dix
 //! images en une seconde (`tests/donnees/rouge-64x48.mp4`, 3,8 Ko, faite par FFmpeg).
+//!
+//! **Sur le Mac, hors du harnais de `cargo test`** (fiche 175 § 9) : AVPlayer ne devient « prêt »
+//! qu'en passant par la file principale, que Glucose sert par la boucle de sa fenêtre et le harnais
+//! jamais. Ces épreuves y sont donc de simples fonctions, que `tests/videos_mac_suite.rs` passe sur
+//! un autre fil, la file principale servie ([`TOUTES`]).
 
+use super::joueur::JoueurVideo;
 use super::{Fin, LecteurVideo, Lieu, PREPARATION};
 use crate::renderer::gif::Toile;
 use std::time::{Duration, Instant};
@@ -14,7 +20,7 @@ const ROUGE: &[u8] = include_bytes!("../../../tests/donnees/rouge-64x48.mp4");
 /// portés) et sous Wine (`outils/essai_wine.sh` pose `GLUCOSE_EXIGER_LES_VIDEOS`), il doit
 /// l'être : son absence est une faute. Ailleurs (une machine sans GStreamer, un Windows sans
 /// décodeur H.264), l'épreuve n'a rien à éprouver.
-pub(super) fn present() -> bool {
+pub(crate) fn present() -> bool {
     let la = super::lisible_ici();
     #[cfg(target_os = "linux")]
     let exige = super::gst::GREFFONS.is_some();
@@ -33,8 +39,8 @@ fn rouge(toile: &Toile) -> bool {
     p[0] > 200 && p[1] < 60 && p[2] < 60 && p[3] == 255
 }
 
-#[test]
-fn video_1_l_image_fixe_est_la_premiere_image() {
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_1_l_image_fixe_est_la_premiere_image() {
     if !present() {
         return;
     }
@@ -47,8 +53,8 @@ fn video_1_l_image_fixe_est_la_premiere_image() {
 
 /// La vidéo scellée dans un document se lit dans sa tranche, là où elle est : des octets
 /// étrangers avant et après ne la troublent pas.
-#[test]
-fn video_1_une_tranche_du_document_se_lit_sans_copie() {
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_1_une_tranche_du_document_se_lit_sans_copie() {
     if !present() {
         return;
     }
@@ -73,8 +79,8 @@ fn video_1_une_tranche_du_document_se_lit_sans_copie() {
     let _ = std::fs::remove_dir_all(dossier);
 }
 
-#[test]
-fn video_1_la_video_joue_ses_images_jusqu_au_bout() {
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_1_la_video_joue_ses_images_jusqu_au_bout() {
     if !present() {
         return;
     }
@@ -105,8 +111,8 @@ fn video_1_la_video_joue_ses_images_jusqu_au_bout() {
     assert!(etalees >= Duration::from_millis(500), "{etalees:?}");
 }
 
-#[test]
-fn video_1_des_octets_qui_ne_sont_pas_une_video_n_ouvrent_rien() {
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_1_des_octets_qui_ne_sont_pas_une_video_n_ouvrent_rien() {
     if !present() {
         return;
     }
@@ -118,8 +124,8 @@ fn video_1_des_octets_qui_ne_sont_pas_une_video_n_ouvrent_rien() {
 
 /// **La lecture automatique joue en boucle** (VIDEO-2) : au bout, elle revient au début et les
 /// images reprennent.
-#[test]
-fn video_2_au_bout_la_video_revient_au_debut() {
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_2_au_bout_la_video_revient_au_debut() {
     if !present() {
         return;
     }
@@ -143,3 +149,73 @@ fn video_2_au_bout_la_video_revient_au_debut() {
     // Deux tours de dix images : plus d'un tour en a été vu.
     assert!(images > 12, "{images} images en deux tours");
 }
+
+/// **La lecture automatique joue en boucle** (VIDEO-2, fiche 170) : sur la vraie vidéo de
+/// téléphone en miniature (dix images en une seconde), le joueur en boucle ne finit jamais ; l'autre
+/// finit au bout.
+fn jouer_pendant(en_boucle: bool, duree: Duration) -> Option<(usize, bool)> {
+    if !present() {
+        return None;
+    }
+    let chemin = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/donnees/rouge-64x48.mp4");
+    let mut joueur = JoueurVideo::lancer(chemin.to_string(), None, None, en_boucle);
+    let (debut, mut images) = (Instant::now(), 0);
+    while debut.elapsed() < duree && !joueur.fini() {
+        images += usize::from(joueur.a_poser().is_some());
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    Some((images, joueur.fini()))
+}
+
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_2_en_boucle_le_joueur_repart_au_bout() {
+    let Some((images, fini)) = jouer_pendant(true, Duration::from_millis(2600)) else {
+        return;
+    };
+    assert!(!fini, "la boucle a fini");
+    assert!(
+        images > 12,
+        "{images} images en plus de deux tours d'une seconde"
+    );
+}
+
+#[cfg_attr(not(target_os = "macos"), test)]
+pub fn video_2_sans_boucle_le_joueur_finit_au_bout() {
+    let Some((_, fini)) = jouer_pendant(false, Duration::from_secs(5)) else {
+        return;
+    };
+    assert!(fini, "jamais finie");
+}
+
+/// **Toutes, pour la suite du Mac** : leur nom et elles.
+#[cfg(target_os = "macos")]
+pub const TOUTES: [(&str, fn()); 7] = [
+    (
+        "video_1_l_image_fixe_est_la_premiere_image",
+        video_1_l_image_fixe_est_la_premiere_image,
+    ),
+    (
+        "video_1_une_tranche_du_document_se_lit_sans_copie",
+        video_1_une_tranche_du_document_se_lit_sans_copie,
+    ),
+    (
+        "video_1_la_video_joue_ses_images_jusqu_au_bout",
+        video_1_la_video_joue_ses_images_jusqu_au_bout,
+    ),
+    (
+        "video_1_des_octets_qui_ne_sont_pas_une_video_n_ouvrent_rien",
+        video_1_des_octets_qui_ne_sont_pas_une_video_n_ouvrent_rien,
+    ),
+    (
+        "video_2_au_bout_la_video_revient_au_debut",
+        video_2_au_bout_la_video_revient_au_debut,
+    ),
+    (
+        "video_2_en_boucle_le_joueur_repart_au_bout",
+        video_2_en_boucle_le_joueur_repart_au_bout,
+    ),
+    (
+        "video_2_sans_boucle_le_joueur_finit_au_bout",
+        video_2_sans_boucle_le_joueur_finit_au_bout,
+    ),
+];

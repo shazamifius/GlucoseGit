@@ -73,6 +73,10 @@ pub mod plateforme;
 pub mod present;
 pub mod recensement;
 pub mod renderer;
+/// Les épreuves vidéo partagées, pour la suite du Mac qui sert la file principale (fiche 175 § 9).
+#[cfg(target_os = "macos")]
+#[doc(hidden)]
+pub use renderer::video::epreuves as epreuves_video;
 pub mod resolution;
 pub mod salissure;
 pub mod salle;

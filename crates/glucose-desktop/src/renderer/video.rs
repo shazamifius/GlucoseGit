@@ -16,8 +16,10 @@ pub(crate) mod signature;
 
 #[cfg(any(windows, target_os = "macos", test))]
 mod bgra;
-#[cfg(all(test, any(target_os = "linux", windows, target_os = "macos")))]
-mod epreuves;
+// Sur le Mac, hors de `cfg(test)` : la suite `tests/videos_mac_suite.rs` les passe (fiche 175 § 9).
+#[cfg(any(all(test, any(target_os = "linux", windows)), target_os = "macos"))]
+#[doc(hidden)]
+pub mod epreuves;
 #[cfg(target_os = "linux")]
 mod gst;
 #[cfg(target_os = "linux")]

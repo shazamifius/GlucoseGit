@@ -47,7 +47,10 @@ fn ombre_1_a_la_taille_ou_on_le_voit_et_la_main_a_sa_place() {
 }
 
 /// **Un grand nœud tient dans 400 points**, et sur un écran à 150 %, ses pixels vont deux par
-/// point — un nombre pair, comme Wayland l'exige d'un tampon à l'échelle 2.
+/// point — un nombre pair, comme Wayland l'exige d'un tampon à l'échelle 2. Sous Windows, qui
+/// montre l'ombre pixel pour pixel, un et demi : 600 pixels ([`densite_de_l_ombre`]).
+///
+/// [`densite_de_l_ombre`]: crate::plateforme::densite_de_l_ombre
 #[test]
 fn ombre_1_un_grand_noeud_tient_dans_400_points_a_la_densite_de_l_ecran() {
     let (app, board) = un_texte_choisi(2000.0, 1.0);
@@ -60,17 +63,28 @@ fn ombre_1_un_grand_noeud_tient_dans_400_points_a_la_densite_de_l_ecran() {
     let ombre = app
         .ombre_des_noeuds(&board, (0.0, 0.0), 1.5)
         .expect("une ombre");
-    assert_eq!(ombre.densite, 2);
-    assert!((780..=800).contains(&ombre.largeur), "{}", ombre.largeur);
-    assert_eq!(ombre.largeur % 2, 0, "{}", ombre.largeur);
-    assert_eq!(ombre.hauteur % 2, 0, "{}", ombre.hauteur);
+    let densite = crate::plateforme::densite_de_l_ombre(1.5);
+    let plafond = (400.0 * densite) as u32;
+    assert!(
+        (plafond - 20..=plafond).contains(&ombre.largeur),
+        "{}",
+        ombre.largeur
+    );
+    if cfg!(windows) {
+        assert_eq!((densite, ombre.densite), (1.5, 1), "pixel pour pixel");
+    } else {
+        assert_eq!(ombre.densite, 2);
+        assert_eq!(ombre.largeur % 2, 0, "{}", ombre.largeur);
+        assert_eq!(ombre.hauteur % 2, 0, "{}", ombre.hauteur);
+    }
 }
 
 /// **Un écran à 150 %** : la main se compte en pixels de l'ombre, deux par point, et une
-/// largeur brute impaire devient paire.
+/// largeur brute impaire devient paire. Sous Windows, un et demi par point, et rien n'a à être
+/// pair.
 #[test]
 fn ombre_1_la_main_se_compte_en_pixels_de_l_ombre() {
-    let echelle = 1.0 / 1.5 * 2.0;
+    let echelle = 1.0 / 1.5 * crate::plateforme::densite_de_l_ombre(1.5);
     let marge = debord(echelle);
     let mut impaires = 0;
     for largeur in [100.0, 101.0, 102.0] {
@@ -79,11 +93,14 @@ fn ombre_1_la_main_se_compte_en_pixels_de_l_ombre() {
             .ombre_des_noeuds(&board, (30.0, 15.0), 1.5)
             .expect("une ombre");
         assert_eq!(ombre.point.0, (30.0 * echelle + marge).round() as i32);
+        if cfg!(windows) {
+            continue;
+        }
         assert_eq!(ombre.largeur % 2, 0, "{}", ombre.largeur);
         impaires += ((largeur * echelle + 2.0 * marge).ceil() as u32) % 2;
     }
     assert!(
-        impaires > 0,
+        impaires > 0 || cfg!(windows),
         "sans largeur brute impaire, l'épreuve serait aveugle"
     );
 }
