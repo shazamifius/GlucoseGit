@@ -153,6 +153,52 @@ fn le_resultat_se_lit_de_la_reponse() {
     assert_eq!(resultat_de(erreur), Err("pas d'outil".into()));
 }
 
+/// **Une image rendue s'écrit dans un fichier** que la réponse nomme (MCP-VOIR, fiche 179) : ses
+/// octets mêmes, sous le nom de la photo, sans qu'un nom puisse sortir du dossier.
+#[test]
+fn mcp_voir_l_image_s_ecrit_dans_un_fichier() {
+    let appel = crate::agents::protocole::Appel {
+        id: Json::from(1.0),
+        nom: "glucose_voir".into(),
+        arguments: Json::objet([]),
+        client: CLIENT.into(),
+        moderne: true,
+        portee: Default::default(),
+    };
+    let dossier = std::env::temp_dir().join(format!("glucose-voir-{}", std::process::id()));
+    std::fs::create_dir_all(&dossier).expect("un dossier");
+    let dit = Json::objet([
+        ("id", Json::from("../ca/pture")),
+        ("largeur", Json::from(2.0)),
+    ]);
+    let ligne = protocole::reponse_d_image(&appel, &dit, &[1, 2, 3, 250], "image/jpeg");
+    let reponse = Json::lire(&ligne).expect("JSON");
+    let resultat = reponse.get("result").expect("un résultat");
+    let rendu = ecrire_l_image(resultat, dit.clone(), &dossier);
+    let fichier = rendu
+        .get("fichier")
+        .and_then(Json::as_str)
+        .expect("le fichier");
+    assert_eq!(
+        fichier,
+        dossier
+            .join("glucose-voir-___ca_pture.jpg")
+            .to_string_lossy()
+    );
+    assert_eq!(std::fs::read(fichier).ok(), Some(vec![1, 2, 3, 250]));
+    assert_eq!(rendu.get("largeur"), dit.get("largeur"));
+    // Sans image, la réponse reste la sienne.
+    let sans = protocole::reponse_d_outil(&appel, Ok(dit.clone()));
+    let sans = Json::lire(&sans).expect("JSON");
+    let rendu = ecrire_l_image(
+        sans.get("result").expect("un résultat"),
+        dit.clone(),
+        &dossier,
+    );
+    assert_eq!(rendu, dit);
+    let _ = std::fs::remove_dir_all(&dossier);
+}
+
 /// **L'aide d'une commande** dit chacun de ses arguments, et celui qu'elle exige.
 #[test]
 fn l_aide_d_une_commande_dit_ses_arguments() {

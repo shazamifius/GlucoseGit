@@ -90,6 +90,10 @@ const EN_FACE: &[(&str, Main)] = &[
         Main::Manque("la Time Machine montre l'histoire, sans marquer où il l'avait laissée"),
     ),
     (
+        "glucose_voir",
+        Main::Par(&["tout-cadrer"], "regarder la photo"),
+    ),
+    (
         "glucose_noter",
         Main::Par(
             &["time-machine"],

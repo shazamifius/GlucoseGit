@@ -233,7 +233,52 @@ pub fn resultat_de(ligne: &str) -> Result<Json, String> {
     if resultat.get("isError").and_then(Json::as_bool) == Some(true) {
         return Err(texte.to_string());
     }
-    Ok(Json::lire(texte).unwrap_or_else(|_| Json::from(texte)))
+    let rendu = Json::lire(texte).unwrap_or_else(|_| Json::from(texte));
+    Ok(ecrire_l_image(resultat, rendu, &std::env::temp_dir()))
+}
+
+/// **Une image dans la réponse** (`glucose voir`, fiche 179) : une ligne de commande ne la montre
+/// pas, et ses centaines de Ko en base64 ne se lisent pas. Elle s'écrit dans `dossier`, un fichier
+/// par photo, que la réponse nomme (« fichier ») ; une session de Claude l'ouvre et la voit.
+fn ecrire_l_image(resultat: &Json, mut rendu: Json, dossier: &std::path::Path) -> Json {
+    let blocs = resultat
+        .get("content")
+        .and_then(Json::as_liste)
+        .unwrap_or_default();
+    let est_une_image = |b: &&Json| b.get("type").and_then(Json::as_str) == Some("image");
+    let Some(image) = blocs.iter().find(est_une_image) else {
+        return rendu;
+    };
+    let png = image.get("mimeType").and_then(Json::as_str) == Some("image/png");
+    let id = rendu.get("id").and_then(Json::as_str).unwrap_or("photo");
+    let nom: String = (id.chars().take(64))
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let chemin = dossier.join(format!(
+        "glucose-voir-{nom}.{}",
+        if png { "png" } else { "jpg" }
+    ));
+    let octets = image.get("data").and_then(Json::as_str);
+    let ecrit = (octets.and_then(glucose_core::encodage::base64))
+        .ok_or_else(|| "ses octets ne se lisent pas".to_string())
+        .and_then(|o| std::fs::write(&chemin, o).map_err(|e| e.to_string()));
+    let dit = match ecrit {
+        Ok(()) => ("fichier", Json::from(chemin.to_string_lossy().as_ref())),
+        Err(e) => (
+            "fichier",
+            Json::from(format!("l'image ne s'écrit pas : {e}").as_str()),
+        ),
+    };
+    if let Json::Objet(champs) = &mut rendu {
+        champs.push((dit.0.to_string(), dit.1));
+    }
+    rendu
 }
 
 #[cfg(test)]

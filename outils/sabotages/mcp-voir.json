@@ -1,0 +1,182 @@
+[
+ {
+  "nom": "MCP-VOIR — l'image n'est jamais réduite au budget de jetons",
+  "fichier": "crates/glucose-desktop/src/agents/voir.rs",
+  "avant": "jetons(taille(cote_voulu)) > JETONS",
+  "apres": "false",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — une petite photo est agrandie",
+  "fichier": "crates/glucose-desktop/src/agents/voir.rs",
+  "avant": ".clamp(1, grand.min(COTE_FIN))",
+  "apres": ".clamp(1, COTE_FIN)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — « cote » demande plus que le modèle le plus fin",
+  "fichier": "crates/glucose-desktop/src/agents/voir.rs",
+  "avant": "grand.min(COTE_FIN)",
+  "apres": "grand",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — la photo n'est pas réduite, seulement coupée",
+  "fichier": "crates/glucose-desktop/src/agents/voir.rs",
+  "avant": "Transform::from_scale(l as f32 / sl, h as f32 / sh)",
+  "apres": "Transform::identity()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — une photo transparente part en JPEG",
+  "fichier": "crates/glucose-desktop/src/agents/voir.rs",
+  "avant": "if !opaque {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — la boucle sert glucose_voir comme un autre outil",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "if d.appel.nom == \"glucose_voir\" {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — la réponse ne porte pas l'image",
+  "fichier": "crates/glucose-desktop/src/agents/protocole.rs",
+  "avant": "Json::Liste(vec![texte, image])",
+  "apres": "Json::Liste(vec![texte])",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — la ligne de commande ne nomme pas le fichier",
+  "fichier": "crates/glucose-desktop/src/agents/terminal.rs",
+  "avant": "champs.push((dit.0.to_string(), dit.1));",
+  "apres": "let _ = (champs, dit);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ },
+ {
+  "nom": "MCP-VOIR — un nom de photo sort du dossier",
+  "fichier": "crates/glucose-desktop/src/agents/terminal.rs",
+  "avant": "if c.is_ascii_alphanumeric() || c == '-' {",
+  "apres": "if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_voir"
+  ]
+ }
+]

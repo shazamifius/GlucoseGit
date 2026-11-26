@@ -263,6 +263,29 @@ pub fn reponse_d_outil(appel: &Appel, issue: Result<Json, String>) -> String {
     resultat(&appel.id, r, appel.moderne)
 }
 
+/// **La réponse qui montre une image** (MCP-VOIR, fiche 179) : ce qu'elle est, en texte JSON, puis
+/// l'image elle-même — un bloc `image` du protocole (ses octets en base64 et leur type), que le
+/// modèle voit.
+pub fn reponse_d_image(appel: &Appel, dit: &Json, octets: &[u8], sorte: &str) -> String {
+    let texte = Json::objet([
+        ("type", Json::from("text")),
+        ("text", Json::from(dit.ecrire())),
+    ]);
+    let image = Json::objet([
+        ("type", Json::from("image")),
+        (
+            "data",
+            Json::from(glucose_core::encodage::base64_ecrire(octets)),
+        ),
+        ("mimeType", Json::from(sorte)),
+    ]);
+    let r = Json::objet([
+        ("content", Json::Liste(vec![texte, image])),
+        ("isError", Json::Bool(false)),
+    ]);
+    resultat(&appel.id, r, appel.moderne)
+}
+
 fn identite() -> Json {
     Json::objet([
         ("name", Json::from("glucose")),

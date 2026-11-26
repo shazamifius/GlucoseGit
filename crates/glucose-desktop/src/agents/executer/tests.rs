@@ -514,7 +514,8 @@ fn une_couleur_qui_n_en_est_pas_une_est_refusee() {
 #[test]
 fn chaque_outil_annonce_s_execute() {
     let mut app = GlucoseApp::new();
-    for nom in crate::agents::outils::noms() {
+    // glucose_voir se sert sur un fil, qui répond lui-même : voir/tests.rs le prouve par la porte.
+    for nom in crate::agents::outils::noms().filter(|n| *n != "glucose_voir") {
         let issue = app.executer_pour_un_agent(nom, &Json::objet([]));
         if let Err(e) = issue {
             assert!(

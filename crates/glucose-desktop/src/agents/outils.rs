@@ -220,6 +220,14 @@ const OUTILS: &[(&str, &str, &str)] = &[
         r##"{"type":"object","properties":{"depuis":{"type":"number","description":"le rang d'où partir : le « jusqu_a » de ta lecture d'avant ; par défaut ton dernier geste"}}}"##,
     ),
     (
+        "glucose_voir",
+        "Montre une photo du tableau (id) : l'image elle-même, à la taille qu'un modèle de Claude \
+         lit sans la réduire (au plus 1 568 px de long et 1 568 jetons), avec sa taille vraie \
+         (native). « cote » en demande une autre, en pixels de son plus long côté — plus petite \
+         pour un coup d'œil. Pour une capture d'écran, un schéma, ce qu'un texte ne dit pas.",
+        r##"{"type":"object","properties":{"id":{"type":"string","description":"la photo à voir"},"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"cote":{"type":"number","description":"le plus long côté voulu, en pixels"}},"required":["id"]}"##,
+    ),
+    (
         "glucose_noter",
         "Attache un écrit à un geste de l'histoire, sans le changer — comme une note sur un \
          commit : ce que tu comprends de ce geste, et pourquoi il compte. Par défaut ton dernier \
@@ -293,8 +301,9 @@ impl Portee {
 
 /// **Les outils qui ne font que lire** : « Lire seulement » ne donne qu'eux. Une liste qui
 /// permet, jamais une qui interdit : un outil neuf écrit, jusqu'à preuve du contraire.
-const LECTEURS: [&str; 5] = [
+const LECTEURS: [&str; 6] = [
     "glucose_lire",
+    "glucose_voir",
     "glucose_domaines",
     "glucose_chercher",
     "glucose_histoire",

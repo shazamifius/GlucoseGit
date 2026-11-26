@@ -51,6 +51,7 @@ pub mod relais;
 #[cfg(not(target_os = "android"))]
 pub mod terminal;
 pub mod toujours;
+pub mod voir;
 
 use crate::plateforme::Reveil;
 use std::collections::VecDeque;

@@ -114,7 +114,7 @@ fn attendre(commandes: &Commandes) -> Option<Travail> {
 /// page du niveau natif ([`Pyramide::depuis_le_decodeur`]) : ni l'image décodée à part, ni sa
 /// copie en RGBA, deux copies pleine taille de moins. Les couleurs qui ne s'étalent pas sur
 /// place — seize bits, flottants — gardent le chemin d'avant, qui donne les mêmes octets.
-pub(super) fn decoder(
+pub(crate) fn decoder(
     src: &str,
     objets: Option<&crate::persist::objets::Objets>,
     porte: &admission::Admission,

@@ -238,6 +238,10 @@ impl GlucoseApp {
         let Some(d) = self.lancement.agents.attente.remove(rang) else {
             return;
         };
+        // Une photo se lit sur un fil, qui répond lui-même (MCP-VOIR).
+        if d.appel.nom == "glucose_voir" {
+            return self.voir_pour_un_agent(d);
+        }
         if !d.appel.portee.machine {
             // L'onglet que l'appel vise : le sien, ou celui qu'il regarde.
             let onglet = d.appel.arguments.get("tableau").and_then(Json::as_str);
