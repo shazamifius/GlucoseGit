@@ -39,6 +39,8 @@ pub struct Demande<'a> {
     pub cherche: Option<&'a str>,
     /// Le sommaire, le texte entier de tous les nœuds, ou le seul plan des membranes.
     pub niveau: Niveau,
+    /// **Avec `ids`, leurs flèches** (MCP-FLECHES) : celles qui les touchent, et leur autre bout.
+    pub fleches: bool,
 }
 
 /// **Le niveau d'une lecture.**
@@ -97,10 +99,14 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
         // Le plan est la géographie : les membranes, et les dossiers, ces portes vers ailleurs.
         .filter(|n| dans(n) && (!plan || matches!(n.sorte, Sorte::Membrane | Sorte::Dossier)));
     if let Some(ids) = &d.ids {
-        return pris
+        let demandes = pris
             .filter(|n| ids.contains(&n.id.as_str()))
             .map(|n| (n, Rendu::Entier))
             .collect();
+        if d.fleches {
+            return avec_leurs_fleches(decrits, ids, demandes);
+        }
+        return demandes;
     }
     if let Some(c) = d.cherche {
         return pris
@@ -115,6 +121,45 @@ pub fn choisir<'d>(decrits: &'d [Decrit], d: &Demande<'_>) -> Vec<(&'d Decrit, R
         Niveau::Sommaire | Niveau::Plan => Rendu::Sommaire,
     };
     pris.map(|n| (n, rendu())).collect()
+}
+
+/// **MCP-FLECHES — un nœud et ses flèches, d'une lecture** (fiche 178 ; `relais-rep-mcp`, point 3 :
+/// *« ton bloc URGENT et tout ce qu'il désigne, en une lecture »*) : chaque flèche qui part de ces
+/// nœuds ou y arrive, puis son autre bout — **en entier ce qu'ils désignent**, sa première phrase
+/// pour ce qui pointe vers eux (une réponse, un commentaire : savoir qu'il existe suffit, le lire
+/// est un autre appel). Un pas seulement : une chaîne de flèches ne déroule pas tout le tableau.
+fn avec_leurs_fleches<'d>(
+    decrits: &'d [Decrit],
+    ids: &[&str],
+    mut pris: Vec<(&'d Decrit, Rendu)>,
+) -> Vec<(&'d Decrit, Rendu)> {
+    let demande = |bout: Option<&str>| bout.is_some_and(|b| ids.contains(&b));
+    let bout = |id: Option<&str>| decrits.iter().find(|n| Some(n.id.as_str()) == id);
+    for f in decrits.iter().filter(|f| f.sorte == Sorte::Fleche) {
+        let part = demande(f.source.as_deref());
+        if !part && !demande(f.cible.as_deref()) {
+            continue;
+        }
+        prendre(&mut pris, f, Rendu::Entier);
+        let (autre, rendu) = if part {
+            (bout(f.cible.as_deref()), Rendu::Entier)
+        } else {
+            (bout(f.source.as_deref()), Rendu::Sommaire)
+        };
+        if let Some(n) = autre {
+            prendre(&mut pris, n, rendu);
+        }
+    }
+    pris
+}
+
+/// Prend ce nœud une seule fois ; lu en entier dès qu'une de ses flèches le demande.
+fn prendre<'d>(pris: &mut Vec<(&'d Decrit, Rendu)>, n: &'d Decrit, rendu: Rendu) {
+    match pris.iter_mut().find(|(x, _)| x.id == n.id) {
+        Some((_, r)) if rendu == Rendu::Entier => *r = Rendu::Entier,
+        Some(_) => {}
+        None => pris.push((n, rendu)),
+    }
 }
 
 #[cfg(test)]

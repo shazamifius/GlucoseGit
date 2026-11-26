@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "MCP-FLECHES — l'outil ne transmet pas « fleches »",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "fleches: a.oui(\"fleches\"),",
+  "apres": "fleches: false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_fleches"
+  ]
+ },
+ {
+  "nom": "MCP-FLECHES — les flèches ne se suivent jamais",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "if d.fleches {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_fleches"
+  ]
+ },
+ {
+  "nom": "MCP-FLECHES — ce qui pointe vers lui se lit en entier",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "(bout(f.source.as_deref()), Rendu::Sommaire)",
+  "apres": "(bout(f.source.as_deref()), Rendu::Entier)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_fleches"
+  ]
+ },
+ {
+  "nom": "MCP-FLECHES — un nœud désigné reste en sommaire",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "Some((_, r)) if rendu == Rendu::Entier => *r = Rendu::Entier,",
+  "apres": "Some((_, r)) if false => *r = Rendu::Entier,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_fleches"
+  ]
+ },
+ {
+  "nom": "MCP-FLECHES — un nœud se prend deux fois",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": ".find(|(x, _)| x.id == n.id)",
+  "apres": ".find(|(x, _)| x.id == n.id && false)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_fleches"
+  ]
+ },
+ {
+  "nom": "MCP-FLECHES — toute flèche du tableau vient",
+  "fichier": "crates/glucose-desktop/src/agents/lecture.rs",
+  "avant": "if !part && !demande(f.cible.as_deref()) {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_fleches"
+  ]
+ }
+]

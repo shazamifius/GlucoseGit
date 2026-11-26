@@ -72,6 +72,7 @@ fn le_sommaire_d_abord_puis_ce_qu_on_choisit() {
             } else {
                 Niveau::Sommaire
             },
+            fleches: false,
         };
     let ids_de = |v: Vec<(&Decrit, Rendu)>| {
         v.into_iter()
@@ -152,6 +153,7 @@ fn domaine_ne_garde_que_ses_porteurs() {
         ids: None,
         cherche,
         niveau: Niveau::Sommaire,
+        fleches: false,
     };
     let ids = |pris: Vec<(&Decrit, Rendu)>| -> Vec<String> {
         pris.into_iter().map(|(n, _)| n.id.clone()).collect()
@@ -159,4 +161,62 @@ fn domaine_ne_garde_que_ses_porteurs() {
     assert_eq!(ids(choisir(&tous, &demande(None, None))), ["a", "b"]);
     assert_eq!(ids(choisir(&tous, &demande(Some("bulle"), None))), ["a"]);
     assert_eq!(ids(choisir(&tous, &demande(None, Some("H2O")))), ["b"]);
+}
+
+/// Une flèche de `source` à `cible`.
+fn fleche(id: &str, source: &str, cible: &str) -> Decrit {
+    Decrit {
+        sorte: Sorte::Fleche,
+        texte: None,
+        source: Some(source.into()),
+        cible: Some(cible.into()),
+        ..texte(id, None, "")
+    }
+}
+
+/// **MCP-FLECHES — un nœud et ses flèches, d'une lecture** : ce qu'il désigne en entier, ce qui le
+/// désigne en une phrase, un pas seulement ; un nœud désigné ET qui désigne se lit en entier.
+/// Sans `fleches`, les seuls nœuds demandés.
+#[test]
+fn mcp_fleches_un_noeud_et_ce_qu_il_designe() {
+    let n = [
+        texte("consigne", None, "Ta consigne. Fixe tout."),
+        texte("urgent", None, "URGENT. Les jetons."),
+        texte("reponse", None, "Réponse de Claude. Fait."),
+        texte("loin", None, "Deux pas plus loin."),
+        texte("seul", None, "Sans lien."),
+        fleche("f-urgent", "consigne", "urgent"),
+        fleche("f-reponse", "reponse", "consigne"),
+        fleche("f-loin", "urgent", "loin"),
+        fleche("f-ailleurs", "seul", "loin"),
+    ];
+    let demande = |fleches| Demande {
+        domaine: None,
+        dans: None,
+        ids: Some(vec!["consigne"]),
+        cherche: None,
+        niveau: Niveau::Sommaire,
+        fleches,
+    };
+    let rendus = |pris: Vec<(&Decrit, Rendu)>| -> Vec<(String, Rendu)> {
+        pris.into_iter().map(|(n, r)| (n.id.clone(), r)).collect()
+    };
+    let e = |id: &str| (id.to_string(), Rendu::Entier);
+    assert_eq!(rendus(choisir(&n, &demande(false))), [e("consigne")]);
+    assert_eq!(
+        rendus(choisir(&n, &demande(true))),
+        [
+            e("consigne"),
+            e("f-urgent"),
+            e("urgent"),
+            e("f-reponse"),
+            ("reponse".to_string(), Rendu::Sommaire),
+        ]
+    );
+    // Désigné aussi par la consigne : la réponse se lit alors en entier, une seule fois.
+    let mut aussi = n.to_vec();
+    aussi.push(fleche("f-aussi", "consigne", "reponse"));
+    let pris = rendus(choisir(&aussi, &demande(true)));
+    let reponses: Vec<_> = pris.iter().filter(|(id, _)| id == "reponse").collect();
+    assert_eq!(reponses, [&e("reponse")]);
 }

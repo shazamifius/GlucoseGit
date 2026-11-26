@@ -43,7 +43,9 @@ const OUTILS: &[(&str, &str, &str)] = &[
          nœud (id, sorte, boîte, membrane, bouts et relation d'une flèche, adresse d'une photo), \
          la première phrase de son texte (debut), sa taille et son empreinte (qui change quand \
          le texte change), sans le texte entier. « ids » rend le texte entier de ces nœuds ; \
-         « cherche » rend la phrase (passage) de chaque nœud qui contient ces mots ; « dans » ne \
+         « fleches » (avec « ids ») y ajoute chaque flèche qui touche ces nœuds et son autre bout — en \
+         entier ce qu'ils désignent, en sommaire ce qui pointe vers eux ; « cherche » rend la phrase \
+         (passage) de chaque nœud qui contient ces mots ; « dans » ne \
          garde qu'une membrane ; « domaine » ne garde que les nœuds qui le portent ; niveau \
          « complet » rend tous les textes ; niveau « plan » rend seulement les membranes et ce que \
          chacune contient — la carte d'un grand tableau, d'où descendre ensuite par « dans ». Chaque nœud dit ses domaines et leur poids ; chaque texte, sa parenté (parente) : la famille de sens que l'IA de Glucose lui trouve — des textes de la même famille se ressemblent sûrement, et l'humain voit leur halo de la même couleur ; absente s'il est seul et sans lien — et sa sûreté, de 0 à 1 (l'opacité de son halo) ; chaque flèche entre deux textes, la sûreté que ses deux textes parlent de la même chose (sa famille est toujours vide) — quand les liens abondent, l'humain voit les flèches sûres garder leur force et les autres s'effacer. Un dossier (sorte « dossier ») dit son nom, le tableau qu'il ouvre (ouvre) et combien il contient (contient) : lis ce tableau avec « tableau » pour voir dedans. Rend aussi où est le tableau lu (ou : son onglet, puis les dossiers traversés), \
@@ -51,7 +53,7 @@ const OUTILS: &[(&str, &str, &str)] = &[
          demandés qui ne sont pas sur ce tableau (introuvables), la liste des onglets et les \
          domaines de ce document (domaines) — une lecture par « ids » ou « cherche » ne redit ni \
          le document, ni la partie visible, ni les onglets, ni les domaines.",
-        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet","plan"]}}}"##,
+        r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet","plan"]},"fleches":{"type":"boolean","description":"avec ids : leurs flèches, et ce qu'elles relient"}}}"##,
     ),
     (
         "glucose_poser_texte",

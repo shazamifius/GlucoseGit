@@ -38,6 +38,7 @@ impl GlucoseApp {
             ids,
             cherche: a.texte("cherche"),
             niveau: Niveau::lire(a.texte("niveau"))?,
+            fleches: a.oui("fleches"),
         };
         let noeuds = self.noeuds_en_json(board, &decrits, &demande);
         // **Une lecture ciblée ne répète pas le paysage** (fiche 142, sa priorité du 24/11 : les
