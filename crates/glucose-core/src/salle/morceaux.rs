@@ -31,6 +31,12 @@ use std::collections::HashMap;
 pub const MORCEAU: usize = 1 << 20;
 /// Une lettre ne dépasse pas soixante-quatre morceaux : soixante-quatre mébioctets.
 pub const MORCEAUX_MAX: usize = 64;
+/// **Le plus gros curseur que la salle passe**, en signes base64 (`outils/porte/src/messages.js` :
+/// `m.o.length <= 4096`) ; au-delà, elle le refuse.
+pub const CURSEUR_MAX: usize = 4096;
+/// **Ce qu'un curseur porte en clair** : scellé, nonce et sceau compris, il tient en base64 sous
+/// [`CURSEUR_MAX`].
+pub const CURSEUR_CLAIR: usize = CURSEUR_MAX / 4 * 3 - NONCE - chiffre::SCEAU;
 /// Le nom des données associées d'un curseur, qui ne se garde ni ne se numérote.
 const CURSEUR: &str = "curseur";
 

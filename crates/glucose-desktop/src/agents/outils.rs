@@ -212,8 +212,9 @@ const OUTILS: &[(&str, &str, &str)] = &[
          (le « jusqu_a » de ta lecture d'avant) : chaque nœud une fois, posé, changé ou retiré, par \
          qui (« humain », un autre appareil, « agent » et son nom), quand, sur quel tableau, dans \
          quelle membrane, avec sa première phrase ; puis le reste en mots (« déplace des nœuds »). \
-         Les plus récents d'abord. Lis-le en revenant, avant de relire le tableau : relis ensuite \
-         seulement ces nœuds (glucose_lire, ids).",
+         Les plus récents d'abord. Puis « regards » : la dernière sélection de l'humain sur chaque \
+         appareil (« ici », ou le nom d'un autre), sur quoi il se concentre. Lis-le en revenant, \
+         avant de relire le tableau : relis ensuite seulement ces nœuds (glucose_lire, ids).",
         r##"{"type":"object","properties":{"depuis":{"type":"number","description":"le rang d'où partir : le « jusqu_a » de ta lecture d'avant ; par défaut ton dernier geste"}}}"##,
     ),
     (

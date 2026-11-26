@@ -11,6 +11,7 @@ pub mod identite;
 pub mod nommer;
 pub mod photos;
 mod portes;
+pub mod regard;
 mod rejoindre;
 pub mod reprise;
 mod revenir;
@@ -66,6 +67,8 @@ pub struct Pair {
     pub couleur: u8,
     /// Le tableau qu'il regarde et le point du monde où est sa souris.
     pub curseur: Option<(String, f64, f64)>,
+    /// Ce qu'il a choisi en dernier (REGARD-1).
+    pub regard: Option<regard::Regard>,
     pub vu: Instant,
 }
 
@@ -378,6 +381,10 @@ impl GlucoseApp {
             return;
         };
         cp.photos.dire_bonjour();
+        self.dire_mon_regard();
+        let Some(cp) = self.lancement.agents.partage.as_mut() else {
+            return;
+        };
         if cp.entree == Entree::Revient {
             return self.revenir_quand_la_salle_est_la(n);
         }
@@ -400,6 +407,7 @@ impl GlucoseApp {
             nom: lettre.nom.clone(),
             couleur: lettre.couleur,
             curseur: None,
+            regard: None,
             vu: Instant::now(),
         });
         pair.nom.clone_from(&lettre.nom);
@@ -427,8 +435,14 @@ impl GlucoseApp {
                 main,
                 geste: GestePartage::default(),
             }),
-            // Un curseur, une photo, une demande ne viennent jamais numérotés.
-            (_, Corps::Curseur { .. } | Corps::Objet { .. } | Corps::Demande { .. }) => {}
+            // Un curseur, une sélection, une photo, une demande ne viennent jamais numérotés.
+            (
+                _,
+                Corps::Curseur { .. }
+                | Corps::Selection { .. }
+                | Corps::Objet { .. }
+                | Corps::Demande { .. },
+            ) => {}
         }
     }
 
@@ -447,7 +461,7 @@ impl GlucoseApp {
     fn un_curseur(&mut self, lettre: Lettre) {
         self.un_pair(&lettre);
         let Corps::Curseur { tableau, x, y } = lettre.corps else {
-            return;
+            return self.un_regard(&lettre.marque, lettre.corps);
         };
         if let Some(p) = self
             .lancement

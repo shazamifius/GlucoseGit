@@ -149,6 +149,7 @@ fn identite_2_dans_un_partage_la_couleur_prise_se_dit_et_le_nom_part() {
         nom: "Loup Vert".into(),
         couleur: 6,
         curseur: None,
+        regard: None,
         vu: std::time::Instant::now(),
     };
     cp.pairs.insert("l0up".into(), loup);

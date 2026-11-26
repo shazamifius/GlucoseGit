@@ -39,6 +39,7 @@ fn partager(app: &mut GlucoseApp, code: Code, gens: &[&str]) {
             nom: (*nom).into(),
             couleur: 0,
             curseur: None,
+            regard: None,
             vu: Instant::now(),
         };
         cp.pairs.insert(format!("p{i}"), pair);

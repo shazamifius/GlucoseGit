@@ -93,12 +93,18 @@ impl GlucoseApp {
                 })
             })
             .collect();
-        Ok(Json::objet([
+        let mut champs = vec![
             ("depuis", Json::Nombre(depuis as f64)),
             ("jusqu_a", Json::Nombre(o.gestes.len() as f64)),
             ("noeuds", Json::Liste(noeuds)),
             ("autres", Json::Liste(autres)),
-        ]))
+        ];
+        // Sur quoi il se concentre (REGARD-1, fiche 177), seulement s'il a choisi quelque chose.
+        let regards = self.regards_en_json();
+        if !regards.is_empty() {
+            champs.push(("regards", Json::Liste(regards)));
+        }
+        Ok(Json::objet(champs))
     }
 
     /// Le rang qui suit le dernier geste de cet agent ; sans geste de lui, les derniers gestes.

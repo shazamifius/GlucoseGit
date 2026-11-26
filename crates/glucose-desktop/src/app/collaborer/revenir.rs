@@ -115,7 +115,10 @@ impl GlucoseApp {
             Corps::Base(base) if r.base.is_none() => r.base = Some(*base),
             Corps::Base(_) => r.gestes.push((n, GestePartage::default())),
             Corps::Geste(g) => r.gestes.push((n, g)),
-            Corps::Curseur { .. } | Corps::Objet { .. } | Corps::Demande { .. } => {}
+            Corps::Curseur { .. }
+            | Corps::Selection { .. }
+            | Corps::Objet { .. }
+            | Corps::Demande { .. } => {}
         }
     }
 

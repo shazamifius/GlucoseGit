@@ -1,15 +1,16 @@
 //! **La lettre** (fiche 117) : ce qu'un participant dit à la salle, en clair, avant d'être scellé —
 //! qui parle (sa marque, son nom, et la main : lui, ou un de ses agents), puis **la base** du
-//! canevas, **un geste**, ou **son curseur**.
+//! canevas, **un geste**, **son curseur**, ou **ce qu'il a choisi**.
 //!
 //! Écrite dans la forme du disque (`persist::bytes`), préfixée du schéma de document de l'émetteur :
 //! un geste et une base se relisent au schéma où ils ont été écrits, comme l'histoire d'un fichier.
 //! Un schéma plus récent que le sien se refuse en le disant — l'autre a une version plus neuve.
 
 use crate::error::{CoreError, CoreResult};
-use crate::persist::bytes::Reader;
+use crate::persist::bytes::{Reader, Writer};
 use crate::persist::histoire::geste::{ecrire_partage, lire_partage};
 use crate::persist::{decode_document_v, DOCUMENT_VERSION};
+use crate::salle::morceaux;
 use crate::store::journal::partage::GestePartage;
 use crate::store::journal::Main;
 use crate::types::Project;
@@ -19,6 +20,7 @@ const GESTE: u8 = 2;
 const CURSEUR: u8 = 3;
 const OBJET: u8 = 4;
 const DEMANDE: u8 = 5;
+const SELECTION: u8 = 6;
 
 /// **Ce que dit la lettre.**
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +45,19 @@ pub enum Corps {
     Demande {
         cles: Vec<String>,
         bonjour: bool,
+    },
+    /// **Ce qu'il a choisi en dernier** (REGARD-1, fiche 177 ; sa note du 24/11 dans
+    /// `relais-rep-mcp` : *« les derniers éléments sélectionnés par les utilisateurs, même à
+    /// distance, pour savoir sur quoi ils se sont focalisés »*) : le tableau, les nœuds dans
+    /// l'ordre du choix — ceux qui tiennent dans un curseur ([`Lettre::tenir_dans_un_curseur`]),
+    /// sur `en_tout` —, et depuis combien de secondes. Elle passe comme un curseur, ni gardée ni
+    /// numérotée : une version qui ne la connaît pas l'ignore sans bruit (la beta.6 jette tout
+    /// curseur qu'elle ne sait pas lire).
+    Selection {
+        tableau: String,
+        ids: Vec<String>,
+        en_tout: usize,
+        age: u64,
     },
 }
 
@@ -104,6 +119,18 @@ impl Lettre {
                     w.flag(*bonjour);
                     w.seq(cles, |w, c| w.text(c));
                 }
+                Corps::Selection {
+                    tableau,
+                    ids,
+                    en_tout,
+                    age,
+                } => {
+                    w.u8(SELECTION);
+                    w.text(tableau);
+                    w.seq(ids, |w, id| w.text(id));
+                    w.count(*en_tout);
+                    w.uvarint(*age);
+                }
             }
         })
         .1
@@ -153,6 +180,12 @@ impl Lettre {
                     cles: r.seq(|r| r.text())?,
                 }
             }
+            SELECTION => Corps::Selection {
+                tableau: r.text()?,
+                ids: r.seq(|r| r.text())?,
+                en_tout: r.count()?,
+                age: r.uvarint()?,
+            },
             s => {
                 return Err(CoreError::DeserializationError(format!(
                     "une lettre inconnue ({s})"
@@ -167,6 +200,25 @@ impl Lettre {
             main,
             corps,
         })
+    }
+
+    /// **Une sélection qui tient dans un curseur** : la salle n'en passe qu'un morceau
+    /// ([`morceaux::CURSEUR_CLAIR`]). Les derniers choisis s'en vont jusqu'à ce qu'elle tienne ;
+    /// `en_tout` garde leur nombre. Toute autre lettre reste telle quelle.
+    pub fn tenir_dans_un_curseur(mut self) -> Self {
+        let trop = self.ecrire().len().saturating_sub(morceaux::CURSEUR_CLAIR);
+        if let Corps::Selection { ids, .. } = &mut self.corps {
+            // Chaque nœud retiré rend son nom et sa longueur ; le compte de la suite ne fait que
+            // rétrécir, `en_tout` ne bouge pas.
+            let mut rendu = 0;
+            while rendu < trop {
+                let Some(id) = ids.pop() else { break };
+                let mut w = Writer::new();
+                w.text(&id);
+                rendu += w.into_bytes().len();
+            }
+        }
+        self
     }
 
     /// **La main qui signe ce geste chez celui qui le reçoit** : un autre humain y est un

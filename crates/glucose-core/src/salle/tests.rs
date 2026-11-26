@@ -119,6 +119,16 @@ fn lettre_une_lettre_se_relit_et_signe_chez_l_autre() {
                 bonjour: false,
             },
         ),
+        // Ce qu'il a choisi en dernier (REGARD-1) : passé comme un curseur.
+        (
+            Main::Humain,
+            Corps::Selection {
+                tableau: "main".into(),
+                ids: vec!["relais-plan".into(), "img-1".into()],
+                en_tout: 2,
+                age: 75,
+            },
+        ),
     ] {
         let l = Lettre {
             marque: "a7".into(),
@@ -249,4 +259,46 @@ fn scelle_1_un_curseur_n_est_pas_un_morceau() {
         .recevoir(&cle, &salle, "curseur", &o)
         .is_err());
     assert!(morceaux::ouvrir_curseur(&Code::neuf(hasard(5)).cle(), &salle, &o).is_none());
+}
+
+/// **REGARD-1 — une sélection tient dans un curseur** : la salle refuse un curseur de plus de 4 096
+/// signes. Choisir tout un grand tableau garde les premiers choisis, autant qu'il en passe, et dit
+/// combien il y en avait ; une petite sélection part entière.
+#[test]
+fn regard_1_une_selection_tient_dans_un_curseur() {
+    let code = Code::neuf(hasard(6));
+    let (cle, salle) = (code.cle(), code.salle());
+    let selection = |ids: Vec<String>| Lettre {
+        marque: "a7".into(),
+        nom: "Aigle Émeraude".into(),
+        couleur: 4,
+        main: Main::Humain,
+        corps: Corps::Selection {
+            tableau: "main".into(),
+            en_tout: ids.len(),
+            ids,
+            age: 3,
+        },
+    };
+    let tous: Vec<String> = (0..8000)
+        .map(|i| format!("img-1732540000000-{i}"))
+        .collect();
+    let tenue = selection(tous.clone()).tenir_dans_un_curseur();
+    let clair = tenue.ecrire();
+    assert!(
+        clair.len() <= morceaux::CURSEUR_CLAIR,
+        "{} octets",
+        clair.len()
+    );
+    let o = morceaux::sceller_curseur(&cle, &salle, &clair, [2; 12]);
+    assert!(o.len() <= morceaux::CURSEUR_MAX, "{} signes", o.len());
+    let Corps::Selection { ids, en_tout, .. } = Lettre::lire(&clair).expect("relue").corps else {
+        panic!("une sélection");
+    };
+    assert_eq!(en_tout, 8000);
+    assert!(ids.len() > 50, "{} nœuds seulement", ids.len());
+    assert_eq!(ids[..], tous[..ids.len()], "les premiers choisis restent");
+    // Une sélection qui tient part entière.
+    let petite = selection(tous[..3].to_vec());
+    assert_eq!(petite.clone().tenir_dans_un_curseur(), petite);
 }

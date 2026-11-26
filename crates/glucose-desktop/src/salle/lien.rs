@@ -154,16 +154,24 @@ struct Fil {
 /// **Un lien d'épreuve, relié** : ce que la salle apporte, l'épreuve l'envoie par la file rendue.
 #[cfg(test)]
 pub fn d_epreuve() -> (Lien, mpsc::Sender<Nouvelle>) {
+    let (lien, envoi, _) = a_l_ecoute();
+    (lien, envoi)
+}
+
+/// **Un lien d'épreuve qui laisse lire ce qu'on lui confie** : la troisième file rend ses ordres.
+#[cfg(test)]
+pub fn a_l_ecoute() -> (Lien, mpsc::Sender<Nouvelle>, mpsc::Receiver<Ordre>) {
     let (envoi, nouvelles) = mpsc::channel();
+    let (ordres, confies) = mpsc::channel();
     let lien = Lien {
         arret: Arc::new(AtomicBool::new(false)),
         presse: Arc::new(AtomicBool::new(false)),
-        ordres: mpsc::channel().0,
+        ordres,
         passes: mpsc::sync_channel(1).0,
         nouvelles,
         etat: Arc::new(Mutex::new(EtatDuLien::Relie)),
     };
-    (lien, envoi)
+    (lien, envoi, confies)
 }
 
 /// **Relie ce Glucose à la salle de ce code**, depuis le numéro `depuis` (zéro : depuis la base).

@@ -8,6 +8,7 @@ fn pair(nom: &str, couleur: u8, curseur: Option<(&str, f64, f64)>) -> Pair {
         nom: nom.into(),
         couleur,
         curseur: curseur.map(|(t, x, y)| (t.to_string(), x, y)),
+        regard: None,
         vu: Instant::now(),
     }
 }

@@ -158,3 +158,43 @@ fn test_mcp_neuf_dit_la_membrane() {
         .expect("t");
     assert_eq!(t.get("membrane").and_then(Json::as_str), Some("m"));
 }
+
+/// **REGARD-1 — sur quoi il se concentre** (fiche 177) : sa dernière sélection, avec l'appareil et
+/// l'heure ; rien choisi, rien de dit.
+#[test]
+fn test_regard_1_quoi_de_neuf_dit_sur_quoi_il_se_concentre() {
+    let dossier = Dossier::nouveau("mcp-regard");
+    let mut app = GlucoseApp::new();
+    app.habiter(&dossier);
+    sous(
+        &mut app,
+        Main::Humain,
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"Là."}"#,
+    );
+    app.suivre_le_regard();
+    app.store.journal.main = proteo();
+    let j = appeler(&mut app, "glucose_quoi_de_neuf", "{}");
+    assert_eq!(j.get("regards"), None, "rien de choisi : {j:?}");
+    app.store.clear_selection();
+    if app
+        .store
+        .active_board()
+        .is_some_and(|b| b.images.iter().any(|i| i.id == "a"))
+    {
+        app.store.select_image("a".into(), false);
+    } else {
+        app.store.select_annotation("a".into(), false);
+    }
+    app.suivre_le_regard();
+    let j = appeler(&mut app, "glucose_quoi_de_neuf", "{}");
+    let Some(Json::Liste(regards)) = j.get("regards") else {
+        panic!("{j:?}")
+    };
+    let r = &regards[..];
+    assert_eq!(r.len(), 1, "{j:?}");
+    assert_eq!(r[0].get("appareil").and_then(Json::as_str), Some("ici"));
+    assert_eq!(r[0].get("ids"), Some(&Json::Liste(vec![Json::from("a")])));
+    let quand = r[0].get("quand").and_then(Json::as_str).unwrap_or_default();
+    assert!(!quand.is_empty(), "l'heure est dite : {j:?}");
+}

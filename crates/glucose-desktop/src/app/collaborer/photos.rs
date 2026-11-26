@@ -237,6 +237,8 @@ impl GlucoseApp {
                 }
                 if bonjour {
                     cp.photos.a_demander = cp.photos.a_demander.max(Demander::Relancer);
+                    // Qui arrive ne sait pas encore sur quoi l'on se concentre (REGARD-1).
+                    self.dire_mon_regard();
                 }
             }
             _ => {}

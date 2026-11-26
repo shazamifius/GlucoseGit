@@ -56,6 +56,8 @@ pub struct Agents {
     /// **Le canevas partagé**, s'il l'est (fiche 117) : le fil vers sa salle, son code, les autres
     /// — Collaborer reçoit les humains comme les IA du nuage, par le même relais.
     pub(crate) partage: Option<crate::app::collaborer::CanevasPartage>,
+    /// **Sa dernière sélection** (REGARD-1, fiche 177) : ce qu'une IA lit de son attention.
+    pub(crate) regards: crate::app::collaborer::regard::Regards,
     /// **La portée de l'appel en cours** : ce que l'outil peut atteindre — toute la machine, ou
     /// le document ouvert pour une IA du nuage (C1, fiche 116).
     pub(crate) portee: crate::agents::outils::Portee,
