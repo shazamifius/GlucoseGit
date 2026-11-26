@@ -159,14 +159,17 @@ impl GlucoseApp {
     }
 
     /// **Un appui long sur une question** n'y répond rien : la réponse pressée s'oublie — sauf
-    /// sur un document de la liste, qui demande alors ce qu'on en fait (DOCUMENTS-2). Rend
-    /// `true` s'il y avait une question.
+    /// sur un document de la palette, au téléphone, qui demande alors ce qu'on en fait
+    /// (DOCUMENTS-2, RECENTS-2). Rend `true` s'il y avait une question.
     pub(crate) fn appui_long_sur_la_question(&mut self) -> bool {
         let Some((question, suite)) = &mut self.ui.question else {
             return false;
         };
         let document = match (suite, question.sous_le_doigt.take()) {
-            (Suite::Ouvrir(chemins), Some(Reponse::Choix(i))) => chemins.get(i).cloned(),
+            (Suite::Palette(etat), Some(Reponse::Choix(i))) => {
+                let etat = etat.clone();
+                self.document_a_gerer(&etat, i)
+            }
             _ => None,
         };
         if let Some(chemin) = document {
@@ -214,11 +217,6 @@ impl GlucoseApp {
             Suite::PortePublique => self.repondre_a_la_porte(reponse),
             Suite::RetirerUneIa => self.retirer_une_ia(reponse),
             Suite::AccordPublic(demande) => self.repondre_a_l_ia(&demande, reponse),
-            Suite::Ouvrir(chemins) => {
-                if let Some(chemin) = reponse_choisie(reponse).and_then(|i| chemins.get(i)) {
-                    self.laisser_puis(Ensuite::Ouvrir(chemin.clone()));
-                }
-            }
             Suite::Gerer(chemin) => self.suivre_la_gestion(chemin, reponse),
             Suite::Oublier(chemin) => self.repondre_a_l_oubli(&chemin, oui),
             Suite::Renommer(chemin) => match (reponse, champ) {

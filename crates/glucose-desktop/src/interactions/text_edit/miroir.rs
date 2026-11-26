@@ -81,10 +81,11 @@ impl Miroir {
         self.systeme.as_ref().map(|c| c.lire()).unwrap_or_default()
     }
 
-    /// Une saisie neuve : le clavier sort sur elle.
-    fn ouvrir(&mut self, cible: Cible, etat: EtatDuClavier) {
+    /// Une saisie neuve : le clavier la tient, et sort sur elle — sauf s'il attend qu'on touche
+    /// le champ (RECENTS-2) : le toucher le redemande.
+    fn ouvrir(&mut self, cible: Cible, etat: EtatDuClavier, sortir: bool) {
         let avant = self.lire();
-        if let Some(c) = &self.systeme {
+        if let Some(c) = self.systeme.as_ref().filter(|_| sortir) {
             c.montrer(&etat);
         }
         let perime = (!avant.meme_saisie(&etat)).then_some(avant);
@@ -158,7 +159,9 @@ impl GlucoseApp {
         };
         let accord = self.lancement.clavier.accord.as_ref();
         if accord.is_none_or(|a| a.cible != cible) {
-            self.lancement.clavier.ouvrir(cible, etat);
+            let attend = cible == Cible::Champ
+                && (self.ui.question.as_ref()).is_some_and(|(q, _)| q.clavier_au_toucher);
+            self.lancement.clavier.ouvrir(cible, etat, !attend);
             return;
         }
         let lu = self.lancement.clavier.lire();

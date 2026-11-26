@@ -39,6 +39,9 @@ pub struct Etat {
     /// Tous les documents (`Ctrl+O`, RECENTS-1), et la trouvaille de la fouille qu'ils comptent.
     pub documents: Vec<crate::persist::recents::Document>,
     pub fouillee: u64,
+    /// **Ce qui vient d'arriver à un document** — renommé, dupliqué, supprimé (DOCUMENTS-2) : dit
+    /// en tête de la liste, là où l'on regarde.
+    pub note: Option<String>,
 }
 
 /// **Ce que la palette fait de la commande choisie** (P4, fiche 74).
@@ -59,12 +62,20 @@ pub enum But {
 impl GlucoseApp {
     /// **Ouvre la palette**, le champ vide : toutes les commandes, dans l'ordre de la table.
     pub(crate) fn ouvrir_la_palette(&mut self, but: But) {
-        let mut etat = Etat {
+        self.poser_une_palette(Etat {
             but,
             ..Etat::default()
-        };
+        });
+    }
+
+    /// **Pose une palette neuve** dans cet état, le champ vide.
+    fn poser_une_palette(&mut self, mut etat: Etat) {
+        let but = etat.but;
+        // Au téléphone, la liste se lit d'abord : le clavier attend le doigt (RECENTS-2).
+        let au_doigt = but == But::Ouvrir && self.ui.documents_ranges;
         if but == But::Ouvrir {
-            // Ce qu'elle trouvera paraîtra en chemin (RECENTS-1).
+            // Ce qu'elle trouvera paraîtra en chemin (RECENTS-1) ; au téléphone, elle ne cherche
+            // nulle part (`fouille::racine`).
             self.disque.fouille.lancer();
             etat.documents = self.composer_les_documents();
             etat.fouillee = self.disque.fouille.version();
@@ -90,6 +101,7 @@ impl GlucoseApp {
             focus,
             precisions,
             champ: Some(Champ::default()),
+            clavier_au_toucher: au_doigt,
             ..Default::default()
         };
         self.ui.reste_de_la_molette = 0.0;
@@ -181,15 +193,15 @@ impl GlucoseApp {
     /// s'il en reste dessous ; pour les documents, ce qui situe chacun, et « Parcourir ce PC… »
     /// tout en bas.
     fn rangees_de_la_palette(&self, etat: &Etat) -> Rangees {
-        let personnel = ouvrir::personnel();
-        let documents = ouvrir::trouves_pour(&etat.filtre, &etat.documents);
+        let dossier_de = self.lecteur();
+        let documents = ouvrir::trouves_pour(&etat.filtre, &etat.documents, &dossier_de);
         let mut precisions = Vec::new();
         let toutes: Vec<String> = match etat.but {
             But::Ouvrir => documents
                 .iter()
                 .enumerate()
                 .map(|(i, d)| {
-                    let (nom, precision) = ouvrir::rangee(d, personnel.as_deref());
+                    let (nom, precision) = ouvrir::rangee(d, dossier_de(&d.chemin));
                     precisions.push((Reponse::Choix(i), precision));
                     nom
                 })
@@ -235,9 +247,13 @@ impl GlucoseApp {
         }
         let focus = premiere + etat.choisie.saturating_sub(etat.debut);
         let focus = focus.min(rangees.len().saturating_sub(1));
-        // Au téléphone, aucun sélecteur ne voit plus loin que les documents de Glucose.
-        if etat.but == But::Ouvrir && !self.ui.documents_ranges {
-            rangees.push(("Parcourir ce PC…".into(), ouvrir::PARCOURIR));
+        // Au téléphone, aucun sélecteur ne voit plus loin que les documents de Glucose ; et le
+        // geste retour n'est pas le seul moyen d'en sortir (DOCUMENTS-1).
+        if etat.but == But::Ouvrir {
+            rangees.push(match self.ui.documents_ranges {
+                true => ("Annuler".into(), Reponse::Annuler),
+                false => ("Parcourir ce PC…".into(), ouvrir::PARCOURIR),
+            });
         }
         (rangees, focus, precisions)
     }
@@ -263,7 +279,9 @@ impl GlucoseApp {
     pub(crate) fn total_de_la_palette(&self, etat: &Etat) -> usize {
         match etat.but {
             But::Chercher => etat.trouves.len(),
-            But::Ouvrir => ouvrir::trouves_pour(&etat.filtre, &etat.documents).len(),
+            But::Ouvrir => {
+                ouvrir::trouves_pour(&etat.filtre, &etat.documents, &self.lecteur()).len()
+            }
             _ => trouvees_pour(&etat.filtre, etat.but, &|c| self.s_applique(c)).len(),
         }
     }

@@ -41,6 +41,12 @@ pub(crate) const MONTRES: usize = 10;
 
 /// **Les documents de ce dossier**, du plus récemment touché au plus ancien.
 pub(crate) fn les_documents(dossier: &Path) -> Vec<PathBuf> {
+    let documents = les_documents_dates(dossier).into_iter();
+    documents.map(|(_, p)| p).collect()
+}
+
+/// Les mêmes, chacun avec l'instant où il a été touché.
+pub(crate) fn les_documents_dates(dossier: &Path) -> Vec<(std::time::SystemTime, PathBuf)> {
     let Ok(entrees) = std::fs::read_dir(dossier) else {
         return Vec::new();
     };
@@ -59,50 +65,15 @@ pub(crate) fn les_documents(dossier: &Path) -> Vec<PathBuf> {
         })
         .collect();
     documents.sort_by_key(|(quand, _)| std::cmp::Reverse(*quand));
-    documents.into_iter().map(|(_, p)| p).collect()
+    documents
 }
 
 impl GlucoseApp {
-    /// **« Ouvrir un document… »** : au bureau, la palette de ses documents — les récents, les
-    /// introuvables, ceux qu'il n'a jamais ouverts, et « Parcourir ce PC… » (RECENTS-1) ; au
-    /// téléphone, la liste des documents rangés, du plus récent au plus ancien (DOCUMENTS-1).
+    /// **« Ouvrir un document… »** : la palette de ses documents (RECENTS-1) — au bureau, les
+    /// récents, les introuvables, ceux qu'il n'a jamais ouverts, et « Parcourir ce PC… » ; au
+    /// téléphone, les documents rangés, du plus récent au plus ancien (DOCUMENTS-1, RECENTS-2).
     pub(crate) fn choisir_un_document(&mut self) {
-        if !self.ui.documents_ranges {
-            self.ouvrir_la_palette(crate::commandes::palette::But::Ouvrir);
-            return;
-        }
         self.montrer_les_documents(None);
-    }
-
-    /// **La liste des documents**, et en tête ce qui vient d'arriver à l'un d'eux — renommé,
-    /// dupliqué, supprimé (DOCUMENTS-2) : la liste revient après chaque geste, et le dit là où
-    /// l'on regarde, plutôt que dans un message posé par-dessus.
-    pub(crate) fn montrer_les_documents(&mut self, arrive: Option<String>) {
-        use crate::ui::question::{Question, Reponse, Suite};
-        let mut documents = les_documents(&self.disque.documents);
-        // L'appui long ne se devine pas : la liste le dit (DOCUMENTS-2).
-        const APPUI: &str =
-            "Un appui long sur l'un d'eux : le renommer, le dupliquer, le supprimer.";
-        let compte = match documents.len() {
-            0 => "Aucun document rangé pour l'instant.".to_string(),
-            n if n > MONTRES => format!("Les {MONTRES} plus récents, sur {n}. {APPUI}"),
-            _ => APPUI.to_string(),
-        };
-        let texte = arrive.map_or(compte.clone(), |a| format!("{a}\n{compte}"));
-        documents.truncate(MONTRES);
-        let mut choix: Vec<(String, Reponse)> = documents
-            .iter()
-            .enumerate()
-            .map(|(i, p)| (nom_de(p), Reponse::Choix(i)))
-            .collect();
-        choix.push(("Annuler".into(), Reponse::Annuler));
-        let question = Question {
-            titre: "Documents".into(),
-            texte,
-            choix,
-            ..Default::default()
-        };
-        self.demander(question, Suite::Ouvrir(documents));
     }
 
     /// **« Importer un document… » au téléphone** (ACCES-1) : les documents rangés, sauf celui

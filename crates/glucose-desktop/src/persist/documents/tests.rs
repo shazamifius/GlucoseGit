@@ -105,9 +105,10 @@ fn test_la_liste_du_telephone_rouvre_un_document_range() {
     app.consigner();
 
     app.choisir_un_document();
-    let Some((question, Suite::Ouvrir(chemins))) = app.ui.question.clone() else {
+    let Some((question, Suite::Palette(etat))) = app.ui.question.clone() else {
         panic!("la liste est posée");
     };
+    let chemins: Vec<_> = etat.documents.iter().map(|d| d.chemin.clone()).collect();
     assert_eq!(
         chemins,
         vec![bac.0.join("documents").join("Canevas 1.glucose")]

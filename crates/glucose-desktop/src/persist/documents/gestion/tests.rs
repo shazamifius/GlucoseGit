@@ -45,6 +45,14 @@ fn avec_un_document_ouvert(bac: &Bac) -> (GlucoseApp, PathBuf) {
 }
 
 /// Le texte `id` est-il dans le document de ce fichier ? Lu par une autre application.
+/// **La liste des documents, si elle est posée** : la palette des documents (RECENTS-2).
+pub(super) fn la_liste(app: &GlucoseApp) -> Option<&crate::ui::question::Question> {
+    match &app.ui.question {
+        Some((q, Suite::Palette(e))) if e.but == crate::commandes::palette::But::Ouvrir => Some(q),
+        _ => None,
+    }
+}
+
 fn porte(chemin: &Path, id: &str) -> bool {
     let mut lecteur = GlucoseApp::new();
     lecteur.open_from(chemin.to_path_buf());
@@ -101,7 +109,7 @@ fn test_documents_2_renommer_un_document_ferme() {
         "le fichier a changé de nom"
     );
     assert!(porte(&cible, "t1"), "son contenu l'a suivi");
-    let Some((liste, Suite::Ouvrir(_))) = &app.ui.question else {
+    let Some(liste) = la_liste(&app) else {
         panic!("la liste revient");
     };
     assert!(
@@ -182,10 +190,7 @@ fn test_documents_2_supprimer() {
         app.project_path.is_none(),
         "un document vierge l'a remplacé"
     );
-    assert!(
-        matches!(app.ui.question, Some((_, Suite::Ouvrir(_)))),
-        "la liste revient"
-    );
+    assert!(la_liste(&app).is_some(), "la liste revient");
 }
 
 /// **Un appui long sur un document de la liste** demande ce qu'on en fait — sans l'ouvrir.
@@ -244,7 +249,7 @@ fn test_documents_2_seul_le_oui_supprime() {
     assert!(matches!(app.ui.question, Some((_, Suite::Supprimer(_)))));
     repondre(&mut app, Reponse::Annuler);
     assert!(chemin.exists(), "« Annuler » ne supprime rien");
-    assert!(matches!(app.ui.question, Some((_, Suite::Ouvrir(_)))));
+    assert!(la_liste(&app).is_some(), "la liste revient");
     app.gerer_un_document(chemin.clone());
     repondre(&mut app, Reponse::Choix(2));
     repondre(&mut app, Reponse::Oui);

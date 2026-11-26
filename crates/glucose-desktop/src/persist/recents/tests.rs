@@ -148,7 +148,7 @@ fn recents_1_la_precision_dit_le_dossier_et_le_temps() {
         touche: Some(maintenant - std::time::Duration::from_secs(il_y_a)),
     };
     let moi = Some(Path::new("/home/lui"));
-    let dire = |doc: &Document| precision(doc, moi, maintenant);
+    let dire = |doc: &Document| precision(doc, Some(dossier_court(&doc.chemin, moi)), maintenant);
     assert_eq!(
         dire(&document(
             "/home/lui/Images/refs/a.glucose",
@@ -169,6 +169,9 @@ fn recents_1_la_precision_dit_le_dossier_et_le_temps() {
         dire(&document("/home/lui/x/a.glucose", Sorte::JamaisOuvert, 0)),
         "jamais ouvert · ~/x"
     );
+    // Au téléphone, aucun dossier : le dossier privé de Glucose ne se lit pas (RECENTS-2).
+    let au_telephone = document("/data/user/0/glucose/a.glucose", Sorte::Recent, 120);
+    assert_eq!(precision(&au_telephone, None, maintenant), "il y a 2 min");
 }
 
 /// **La fouille, de bout en bout** : branchée sur un dossier, elle trouve, réveille la boucle à

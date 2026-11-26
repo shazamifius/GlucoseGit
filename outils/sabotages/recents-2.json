@@ -1,0 +1,222 @@
+[
+ {
+  "nom": "RECENTS-2 — le clavier sort à l'ouverture",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/miroir.rs",
+  "avant": "self.lancement.clavier.ouvrir(cible, etat, !attend);",
+  "apres": "self.lancement.clavier.ouvrir(cible, etat, true);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — la palette n'attend pas le doigt",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "clavier_au_toucher: au_doigt,",
+  "apres": "clavier_au_toucher: false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — le téléphone compose comme le bureau",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "if self.ui.documents_ranges {\n            return recents::ranges(",
+  "apres": "if false {\n            return recents::ranges(",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — le dossier privé se lit et filtre",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "let personnel = (!self.ui.documents_ranges).then(personnel);",
+  "apres": "let personnel = Some(personnel());",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — « Parcourir ce PC… » au téléphone",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "true => (\"Annuler\".into(), Reponse::Annuler),",
+  "apres": "true => (\"Parcourir ce PC…\".into(), ouvrir::PARCOURIR),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — l'appui long gère au bureau",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": ".filter(|_| self.ui.documents_ranges)?;",
+  "apres": ".filter(|_| true)?;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — l'appui long sur la palette ne gère rien",
+  "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+  "avant": "self.document_a_gerer(&etat, i)",
+  "apres": "self.document_a_gerer(&etat, i).filter(|_| false)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — ce qui vient d'arriver se tait",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": ".map_or(compte.clone(), |n| format!(\"{n}\\n{compte}\"))",
+  "apres": ".map_or(compte.clone(), |_| compte.clone())",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — l'aide du bureau au téléphone",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "true => AIDE_AU_DOIGT,",
+  "apres": "true => AIDE,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ },
+ {
+  "nom": "RECENTS-2 — l'âge sans son dossier vide",
+  "fichier": "crates/glucose-desktop/src/persist/recents.rs",
+  "avant": "[etat, dossier, age]",
+  "apres": "[etat, dossier.or(Some(String::new())), age]",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_2",
+   "documents_2",
+   "la_liste_du_telephone"
+  ]
+ }
+]

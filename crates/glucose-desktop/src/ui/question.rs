@@ -77,8 +77,6 @@ pub enum Suite {
     NouveauDocument,
     /// Le journal technique : « oui » l'envoie, « non » l'arrête et l'efface.
     Telemetrie,
-    /// Ouvrir l'un de ces documents (DOCUMENTS-1), dans l'ordre de la liste.
-    Ouvrir(Vec<std::path::PathBuf>),
     /// Retirer ce document introuvable de la liste des documents (RECENTS-1).
     Oublier(std::path::PathBuf),
     /// Ce qu'on fait de ce document, après un appui long dans la liste (DOCUMENTS-2).
@@ -192,6 +190,9 @@ pub struct Question {
     pub sous_le_doigt: Option<Reponse>,
     /// Le champ où l'on écrit, sous le texte, s'il y en a un.
     pub champ: Option<Champ>,
+    /// **Le clavier du système n'en sort qu'au toucher du champ** (RECENTS-2) : au téléphone, la
+    /// liste des documents se lit d'abord — sorti dès l'ouverture, le clavier en couvrait la moitié.
+    pub clavier_au_toucher: bool,
     /// Les couleurs qu'on choisit, sous le champ, s'il y en a (PASTILLES-1).
     pub pastilles: Option<pastilles::Pastilles>,
     /// **La réponse qu'Entrée donne** (POPUP-1), le rang de l'un des choix, cerné d'un filet :

@@ -25,7 +25,7 @@ fn marges(w: u32, clavier: f32) -> Marges {
         ..Marges::default()
     }
 }
-use glucose_desktop::ui::question::{Champ, Question, Reponse, Suite};
+use glucose_desktop::ui::question::{Champ, Precision, Question, Reponse, Suite};
 
 fn document() -> Store {
     let mut store = Store::new("apercu");
@@ -87,7 +87,8 @@ fn main() {
         let png = bench::capture_with(&store, 720, 1600, |ui| {
             ui.scale_factor = 2.0;
             ui.marges = marges(720, clavier);
-            ui.question = Some((question, Suite::Ouvrir(Vec::new())));
+            // La suite ne se dessine pas.
+            ui.question = Some((question, Suite::Telemetrie));
         });
         ecrire(&format!("{dossier}/telephone-debout-{nom}.png"), &png);
     }
@@ -171,18 +172,34 @@ fn supprimer() -> Question {
 }
 
 /// La liste de quatre documents rangés.
+/// La palette des documents au téléphone (RECENTS-2) : chacun avec son âge, « Annuler » en bas.
 fn liste() -> Question {
-    let mut choix: Vec<(String, Reponse)> =
-        ["Canevas 3", "Planches Mary", "Canevas 2", "Canevas 1"]
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (n.to_string(), Reponse::Choix(i)))
-            .collect();
+    let documents = [
+        ("Canevas 3", "il y a 2 min"),
+        ("Planches Mary", "il y a 3 h"),
+        ("Canevas 2", "il y a 4 j"),
+        ("Canevas 1", "il y a 12 j"),
+    ];
+    let mut choix: Vec<(String, Reponse)> = (documents.iter().enumerate())
+        .map(|(i, (n, _))| (n.to_string(), Reponse::Choix(i)))
+        .collect();
     choix.push(("Annuler".into(), Reponse::Annuler));
+    let precisions = (documents.iter().enumerate())
+        .map(|(i, (_, age))| {
+            let texte = age.to_string();
+            let introuvable = false;
+            (Reponse::Choix(i), Precision { texte, introuvable })
+        })
+        .collect();
     Question {
-        titre: "Documents".into(),
-        texte: "Un appui long sur l'un d'eux : le renommer, le dupliquer, le supprimer.".into(),
+        titre: "Ouvrir un document".into(),
+        texte: "Touche le champ pour chercher. Un appui long sur un document : le renommer, le \
+            dupliquer, le supprimer."
+            .into(),
         choix,
+        champ: Some(Champ::default()),
+        clavier_au_toucher: true,
+        precisions,
         ..Default::default()
     }
 }

@@ -165,3 +165,62 @@ fn recents_1_la_trouvaille_de_la_fouille_parait() {
     let noms: Vec<String> = rangees(&app).into_iter().map(|(l, _)| l).collect();
     assert_eq!(noms, ["Lointain", "Parcourir ce PC…"]);
 }
+
+/// **Au téléphone, la palette montre les documents rangés** (RECENTS-2) : rien qu'eux — un connu
+/// d'ailleurs n'y est pas —, du plus récemment touché au plus ancien, chacun avec son âge et sans
+/// dossier ; le clavier attend le doigt, « Annuler » ferme en bas. Le dossier privé de Glucose ne
+/// filtre rien ; l'appui long y gère un document, jamais au bureau.
+#[test]
+fn recents_2_au_telephone_les_documents_ranges() {
+    let (glucose, ailleurs) = (
+        Dossier::nouveau("telephone-glucose"),
+        Dossier::nouveau("telephone-ailleurs"),
+    );
+    let ranges = glucose.join("documents");
+    std::fs::create_dir_all(&ranges).expect("le dossier");
+    let (vieux, recent) = (
+        ranges.join("Vieux.glucose"),
+        ranges.join("Planches.glucose"),
+    );
+    let connu = ailleurs.join("Connu.glucose");
+    for d in [&vieux, &recent, &connu] {
+        document(d);
+    }
+    let il_y_a_deux_jours = std::time::SystemTime::now() - std::time::Duration::from_secs(172_800);
+    let fichier = std::fs::File::options().write(true).open(&vieux);
+    (fichier.expect("ouvert").set_modified(il_y_a_deux_jours)).expect("daté");
+    let mut app = application(&glucose, &[&connu]);
+    app.ui.documents_ranges = true;
+    app.choisir_un_document();
+
+    assert_eq!(
+        rangees(&app),
+        [
+            ("Planches".to_string(), false),
+            ("Vieux".to_string(), false),
+            ("Annuler".to_string(), false)
+        ]
+    );
+    let Some((q, Suite::Palette(etat))) = app.ui.question.clone() else {
+        panic!("la palette");
+    };
+    assert!(q.clavier_au_toucher, "le clavier attend le doigt");
+    assert_eq!(q.texte, super::AIDE_AU_DOIGT);
+    let ages: Vec<&str> = q.precisions.iter().map(|(_, p)| p.texte.as_str()).collect();
+    assert_eq!(
+        ages,
+        ["à l'instant", "il y a 2 j"],
+        "leur âge, sans dossier"
+    );
+    assert_eq!(app.document_a_gerer(&etat, 1), Some(vieux.clone()));
+
+    ecrire(&mut app, "documents");
+    assert_eq!(rangees(&app), [("Annuler".to_string(), false)], "aucun");
+    ecrire(&mut app, "vieu");
+    assert_eq!(rangees(&app)[0].0, "Vieux");
+    app.repondre_a_la_question(Some(Reponse::Annuler));
+    assert!(app.ui.question.is_none() && app.project_path.is_none());
+
+    app.ui.documents_ranges = false;
+    assert_eq!(app.document_a_gerer(&etat, 1), None, "au bureau, rien");
+}

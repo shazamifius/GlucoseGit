@@ -163,10 +163,9 @@ pub fn dossier_court(chemin: &Path, personnel: Option<&Path>) -> String {
     })
 }
 
-/// **Ce qu'une rangée dit à droite du nom** : son dossier, raccourci par `~`, et depuis quand
-/// il n'a pas été touché — ou ce qui lui arrive.
-pub fn precision(document: &Document, personnel: Option<&Path>, maintenant: SystemTime) -> String {
-    let dossier = dossier_court(&document.chemin, personnel);
+/// **Ce qu'une rangée dit à droite du nom** : son dossier tel qu'on le lit (raccourci par `~`,
+/// aucun au téléphone), et depuis quand il n'a pas été touché — ou ce qui lui arrive.
+pub fn precision(document: &Document, dossier: Option<String>, maintenant: SystemTime) -> String {
     let depuis = |quand: SystemTime| {
         let ms = |t: SystemTime| {
             t.duration_since(std::time::UNIX_EPOCH)
@@ -174,12 +173,30 @@ pub fn precision(document: &Document, personnel: Option<&Path>, maintenant: Syst
         };
         crate::dock::temps::il_y_a(ms(maintenant), ms(quand))
     };
-    match (document.sorte, document.touche) {
-        (Sorte::Introuvable, _) => format!("introuvable · {dossier}"),
-        (Sorte::JamaisOuvert, _) => format!("jamais ouvert · {dossier}"),
-        (Sorte::Recent, Some(quand)) => format!("{dossier} · {}", depuis(quand)),
-        (Sorte::Recent, None) => dossier,
-    }
+    let etat = match (document.sorte, document.touche) {
+        (Sorte::Introuvable, _) => Some("introuvable".to_string()),
+        (Sorte::JamaisOuvert, _) => Some("jamais ouvert".to_string()),
+        (Sorte::Recent, _) => None,
+    };
+    let age = document.touche.filter(|_| etat.is_none()).map(depuis);
+    [etat, dossier, age]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
+/// **Les documents que Glucose range** (DOCUMENTS-1, au téléphone), du plus récemment touché au
+/// plus ancien : tous des récents, chacun avec son âge.
+pub fn ranges(dossier: &Path) -> Vec<Document> {
+    crate::persist::documents::les_documents_dates(dossier)
+        .into_iter()
+        .map(|(quand, chemin)| Document {
+            chemin,
+            sorte: Sorte::Recent,
+            touche: Some(quand),
+        })
+        .collect()
 }
 
 #[cfg(test)]

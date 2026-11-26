@@ -328,3 +328,38 @@ fn test_clavier_1_toucher_le_champ_ressort_le_clavier() {
     assert!(faux.sorti(), "le clavier ressort");
     assert!(app.ui.question.is_some(), "et la question attend toujours");
 }
+
+/// **La palette des documents attend le doigt** (RECENTS-2) : au téléphone, le clavier ne sort
+/// pas quand elle s'ouvre — il en couvrait la moitié —, mais quand on touche son champ.
+#[test]
+fn test_recents_2_le_clavier_attend_qu_on_touche_le_champ() {
+    use crate::ui::question::placer;
+    let bac = crate::epreuve::Dossier::nouveau("clavier-documents");
+    let mut app = GlucoseApp::new();
+    app.ui.documents_ranges = true;
+    app.disque.documents = bac.join("documents");
+    let faux = Faux::default();
+    app.lancement.clavier.brancher(Box::new(faux.clone()));
+    app.choisir_un_document();
+    app.suivre_le_clavier();
+    faux.servir();
+    assert!(!faux.sorti(), "le clavier attend");
+    let (question, _) = app.ui.question.clone().expect("la palette");
+    let (w, h) = app.taille_de_la_fenetre();
+    let placee = placer(
+        &question,
+        &app.renderer.typography,
+        (w, h),
+        app.ui.scale_factor,
+    );
+    let ((x, y, cw, ch), _) = placee.champ.expect("le champ");
+    app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(
+        f64::from(x + cw / 2.0),
+        f64::from(y + ch / 2.0),
+    ));
+    app.handle_mouse_down(winit::event::MouseButton::Left, w, h);
+    app.handle_mouse_up(winit::event::MouseButton::Left);
+    app.suivre_le_clavier();
+    assert!(faux.sorti(), "touché, le champ le sort");
+    assert!(app.ui.question.is_some(), "et la palette attend toujours");
+}
