@@ -610,3 +610,33 @@ fn test_grouper_1_le_menu_propose_de_grouper() {
         "une flèche seule"
     );
 }
+
+/// Fiche 172 § 6 — **Le menu se range dans l'écran que le système laisse au doigt** : ni sous la
+/// barre d'état, ni sous la navigation, ni sous une encoche. Au téléphone, sa première entrée
+/// passait sous la barre d'état, qui prend le toucher : elle ne se touchait plus.
+#[test]
+fn test_bord_le_menu_evite_les_barres_du_systeme() {
+    let store = store_with(1, 0, false);
+    let typo = Typography::new();
+    let ui = crate::ui::UiState {
+        marges: crate::plateforme::marges::Marges {
+            gauche: 30.0,
+            haut: 120.0,
+            droite: 40.0,
+            bas: 90.0,
+            clavier: 0.0,
+        },
+        ..Default::default()
+    };
+    for at in [(0.0, 0.0), SCREEN, (SCREEN.0 / 2.0, 130.0)] {
+        let m = layout_context_menu(&store, (&typo, &ui), (at, None), SCREEN, 1.0, true)
+            .expect("un menu");
+        let (x, y, w, h) = m.rect;
+        assert!(x >= 30.0 && y >= 120.0, "ouvert en {at:?} : {:?}", m.rect);
+        assert!(
+            x + w <= SCREEN.0 - 40.0 && y + h <= SCREEN.1 - 90.0,
+            "ouvert en {at:?} : {:?}",
+            m.rect
+        );
+    }
+}

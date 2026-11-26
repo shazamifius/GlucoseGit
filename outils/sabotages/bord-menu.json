@@ -1,0 +1,102 @@
+[
+  {
+    "nom": "BORD-MENU — sous la barre d'état",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+    "avant": "let (gauche, haut) = (m.gauche, m.haut);",
+    "apres": "let (gauche, haut) = (m.gauche, 0.0);",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_bord_le_menu"
+    ]
+  },
+  {
+    "nom": "BORD-MENU — sous l'encoche de gauche",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+    "avant": "let (gauche, haut) = (m.gauche, m.haut);",
+    "apres": "let (gauche, haut) = (0.0, m.haut);",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_bord_le_menu"
+    ]
+  },
+  {
+    "nom": "BORD-MENU — sous la navigation",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+    "avant": "(screen.1 - m.sous()).max(haut)",
+    "apres": "screen.1.max(haut)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_bord_le_menu"
+    ]
+  },
+  {
+    "nom": "BORD-MENU — sous l'encoche de droite",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+    "avant": "(screen.0 - m.droite).max(gauche)",
+    "apres": "screen.0.max(gauche)",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_bord_le_menu"
+    ]
+  },
+  {
+    "nom": "BORD-MENU — ouvert dans la marge, il y reste",
+    "fichier": "crates/glucose-desktop/src/ui/context_menu.rs",
+    "avant": "(at.0.clamp(gauche, droite), at.1.clamp(haut, bas))",
+    "apres": "(at.0.max(gauche), at.1.max(haut))",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "test_bord_le_menu"
+    ]
+  }
+]

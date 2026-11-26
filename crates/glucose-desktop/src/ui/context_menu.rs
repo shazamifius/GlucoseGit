@@ -36,6 +36,7 @@ use crate::interactions::echelle::Vers;
 use crate::interactions::video::Choix;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use colonnes::{en_colonnes, hauteur_de, poser};
 use entrees::entrees;
 use glucose_core::raccourcis::Clavier;
 
@@ -131,6 +132,7 @@ impl MenuAction {
 use glucose_core::store::Store;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
+mod colonnes;
 mod entrees;
 
 /// Marges intérieures du menu.
@@ -320,7 +322,17 @@ pub fn layout_context_menu(
         a + SHORTCUT_GAP * s + b + ROW_PAD_X * s * 2.0
     };
     let (pad, filet) = (PAD * s, SEPARATOR * s);
-    let colonnes = en_colonnes(defs, screen.1 - pad * 2.0, (rangee, filet));
+    // **L'écran que le système laisse au doigt** (BORD-1) : la barre d'état prend le toucher en
+    // haut, la navigation ou le clavier en bas. Le menu se rangeait dans la fenêtre entière : au
+    // téléphone, sa première entrée passait sous la barre d'état et ne se touchait plus (fiche
+    // 172 § 6). Sur un bureau, les marges sont nulles.
+    let m = &ui.marges;
+    let (gauche, haut) = (m.gauche, m.haut);
+    let (droite, bas) = (
+        (screen.0 - m.droite).max(gauche),
+        (screen.1 - m.sous()).max(haut),
+    );
+    let colonnes = en_colonnes(defs, bas - haut - pad * 2.0, (rangee, filet));
     let largeurs: Vec<f32> = colonnes
         .iter()
         .map(|c| {
@@ -340,15 +352,16 @@ pub fn layout_context_menu(
     // Le menu reste dans la fenêtre : s'il déborde, il bascule de l'autre côté du curseur,
     // comme n'importe quel menu système. Sans cela, un clic droit près du bord ouvrirait un
     // menu dont la moitié est hors de l'écran.
-    let x = if at.0 + largeur <= screen.0 {
-        at.0
+    let (ax, ay) = (at.0.clamp(gauche, droite), at.1.clamp(haut, bas));
+    let x = if ax + largeur <= droite {
+        ax
     } else {
-        (at.0 - largeur).max(0.0)
+        (ax - largeur).max(gauche)
     };
-    let y = if at.1 + hauteur <= screen.1 {
-        at.1
+    let y = if ay + hauteur <= bas {
+        ay
     } else {
-        (at.1 - hauteur).max(0.0)
+        (ay - hauteur).max(haut)
     };
 
     Some(ContextMenu {
@@ -356,86 +369,6 @@ pub fn layout_context_menu(
         rows: poser(colonnes, &largeurs, (x, y), (pad, rangee, filet)),
         font,
     })
-}
-
-/// **Les rangées, posées colonne après colonne** depuis le coin `(x, y)` du menu. Chaque
-/// colonne a la largeur de sa plus longue entrée ; ses entrées, cette largeur moins les marges
-/// — la mesure d'une seule colonne, inchangée.
-fn poser(
-    colonnes: Vec<Vec<Ligne>>,
-    largeurs: &[f32],
-    (x, y): (f32, f32),
-    (pad, rangee, filet): (f32, f32, f32),
-) -> Vec<MenuRow> {
-    let mut rows = Vec::new();
-    let mut gauche = x;
-    for (colonne, &l) in colonnes.into_iter().zip(largeurs) {
-        let mut curseur = y + pad;
-        for def in colonne {
-            match def {
-                Some((action, label, shortcut)) => {
-                    rows.push(MenuRow::Item {
-                        action,
-                        label,
-                        shortcut,
-                        rect: (gauche + pad, curseur, l - pad * 2.0, rangee),
-                    });
-                    curseur += rangee;
-                }
-                None => {
-                    rows.push(MenuRow::Separator {
-                        y: curseur + filet / 2.0,
-                        x: gauche + pad,
-                        largeur: l - pad * 2.0,
-                    });
-                    curseur += filet;
-                }
-            }
-        }
-        gauche += l;
-    }
-    rows
-}
-
-/// La hauteur d'une colonne d'entrées : une rangée par entrée, un filet par séparation.
-fn hauteur_de(colonne: &[Ligne], (rangee, filet): (f32, f32)) -> f32 {
-    colonne
-        .iter()
-        .map(|d| if d.is_some() { rangee } else { filet })
-        .sum()
-}
-
-/// **Les entrées, en colonnes qui tiennent dans `hauteur`** (ACCES-1) — la règle du rail :
-/// colonne après colonne, quand la place manque. Un menu plus haut que l'écran en perdait le
-/// bas : au doigt, sur un téléphone de cinq pouces, il n'en tient qu'une douzaine.
-///
-/// Une colonne se ferme **à une séparation** quand le groupe qui suit ne tiendrait pas entier
-/// sous elle : les gestes d'un même groupe restent ensemble. Seul un groupe plus haut qu'une
-/// colonne se coupe entre deux entrées. Une séparation ne commence ni ne finit une colonne.
-fn en_colonnes(defs: Vec<Ligne>, hauteur: f32, (rangee, filet): (f32, f32)) -> Vec<Vec<Ligne>> {
-    let groupes: Vec<&[Ligne]> = defs.split(Option::is_none).collect();
-    let mut colonnes: Vec<Vec<Ligne>> = vec![Vec::new()];
-    for groupe in groupes.into_iter().filter(|g| !g.is_empty()) {
-        let colonne = colonnes.last_mut().expect("au moins une colonne");
-        let sous = if colonne.is_empty() { 0.0 } else { filet };
-        let deja = hauteur_de(colonne, (rangee, filet));
-        if !colonne.is_empty() && deja + sous + hauteur_de(groupe, (rangee, filet)) > hauteur {
-            colonnes.push(Vec::new());
-        } else if !colonne.is_empty() {
-            colonne.push(None);
-        }
-        for def in groupe {
-            let colonne = colonnes.last_mut().expect("au moins une colonne");
-            if !colonne.is_empty() && hauteur_de(colonne, (rangee, filet)) + rangee > hauteur {
-                colonnes.push(Vec::new());
-            }
-            colonnes
-                .last_mut()
-                .expect("au moins une colonne")
-                .push(def.clone());
-        }
-    }
-    colonnes
 }
 
 /// L'entrée visée en `(px, py)`, s'il y en a une.
