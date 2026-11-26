@@ -8,9 +8,11 @@ Le JSON : [{"nom":..., "fichier":..., "avant":..., "apres":..., "cmd":[...]}]
 Plusieurs passages cassés ensemble (deux gardes qui se couvrent l'une l'autre, fiche 100) :
           [{"nom":..., "remplacements":[{"fichier":..., "avant":..., "apres":...}, ...], "cmd":[...]}]
 """
+import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,9 +26,26 @@ def jouer(cmd):
     compilée tant que la date (à la seconde) et la taille du source n'ont pas bougé — « min » pour
     « max », rétabli dans la même seconde, rejouait le sabotage sur le code intact, et le code intact
     à la place du sabotage (le 23/11, fiche 132 : une garde prise pour aveugle)."""
+    code, sortie = jouer_une_fois(cmd, {})
+    # **Le compilateur plante sur son cache incrémental** au fil des sabotages (rustc 1.98.1,
+    # `dep_graph/serialized.rs`, fiche 174 § 3) : chaque sabotage suivant « ne compilait pas ».
+    # Le cache vidé, la commande se rejoue sans lui ; ce n'est jamais la garde qui l'a fait planter.
+    if PLANTAGE_DE_RUSTC in sortie:
+        for incremental in glob.glob(os.path.join(RACINE, "target", "*", "incremental")):
+            shutil.rmtree(incremental, ignore_errors=True)
+        print("    (le compilateur a planté sur son cache : vidé, rejoué sans lui)", flush=True)
+        code, sortie = jouer_une_fois(cmd, {"CARGO_INCREMENTAL": "0"})
+    return code, sortie
+
+
+PLANTAGE_DE_RUSTC = "the compiler unexpectedly panicked"
+
+
+def jouer_une_fois(cmd, env):
     with tempfile.TemporaryDirectory() as vierge:
         r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", env={**os.environ, "PYTHONPYCACHEPREFIX": vierge})
+                           errors="replace",
+                           env={**os.environ, **env, "PYTHONPYCACHEPREFIX": vierge})
     return r.returncode, r.stdout + r.stderr
 
 
