@@ -152,6 +152,7 @@ impl Store {
         // Ce que les agents avaient posé appartient à l'autre document (MAIN-1) ; celui qu'on
         // ouvre dit le sien, lu dans son histoire.
         self.journal.des_agents.clear();
+        self.journal.provenances.clear();
         // RETOUR-1 : les lieux de l'autre document ne mènent nulle part dans celui-ci.
         self.histoire_de_la_vue.oublier();
         self.clear_selection();
@@ -236,6 +237,29 @@ mod tests {
             "{:?}",
             store.journal.des_agents
         );
+    }
+
+    /// **MCP-AUTEUR — un document chargé oublie qui a écrit l'autre** (fiche 181) : un nœud du
+    /// même nom n'y hérite pas des mains d'un autre.
+    #[test]
+    fn mcp_auteur_un_document_charge_oublie_qui_a_ecrit_l_autre() {
+        use crate::store::journal::{suivre_l_ecriture, Edit, Slot, Transaction};
+        use crate::types::Annotation;
+        let mut store = Store::new("P");
+        let pose = Transaction {
+            edits: vec![Edit::Annotation {
+                board: store.project.active_board_id.clone(),
+                slot: Slot {
+                    index: 0,
+                    before: None,
+                    after: Some(Box::new(Annotation::text("a", 0.0, 0.0, "Eau"))),
+                },
+            }],
+        };
+        suivre_l_ecriture(&mut store.journal.provenances, &pose, "agent proteo", 1);
+        assert!(!store.journal.provenances.is_empty());
+        store.load_project(Project::new("Autre"));
+        assert!(store.journal.provenances.is_empty());
     }
 
     #[test]

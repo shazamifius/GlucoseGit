@@ -218,6 +218,8 @@ mod mains;
 pub mod partage;
 mod partir;
 mod pas;
+mod provenance;
+pub use provenance::{suivre_l_ecriture, Provenance, Provenances, HUMAIN};
 
 pub use edit::{Bouts, Edit};
 pub use mains::{suivre_les_mains, Ecrit, Main};
@@ -324,6 +326,9 @@ pub struct Journal {
     /// comprenne leur importance »*). Suivi geste après geste ([`suivre_les_mains`]), relu dans
     /// l'histoire à l'ouverture.
     pub des_agents: HashSet<String>,
+    /// **Qui a écrit chaque nœud, et quand** (MCP-AUTEUR, fiche 181) : relu dans l'histoire à
+    /// l'ouverture, suivi à chaque geste écrit au disque — là où il reçoit son instant.
+    pub provenances: Provenances,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
     /// Combien de gestes se sont ouverts : le numéro du geste en cours. Celui qui suit ce
@@ -345,6 +350,7 @@ impl Journal {
             ecrits: Vec::new(),
             main: Main::Humain,
             des_agents: HashSet::new(),
+            provenances: Provenances::new(),
             max_depth,
             ouverts: 0,
             partage: false,

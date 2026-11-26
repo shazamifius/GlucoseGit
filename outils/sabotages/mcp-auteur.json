@@ -1,0 +1,191 @@
+[
+ {
+  "nom": "MCP-AUTEUR — déplacer compte pour écrire",
+  "fichier": "crates/glucose-core/src/store/journal/provenance.rs",
+  "avant": "if t.avant && t.textes[0] == t.textes[1] {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — une main redite à chaque fois",
+  "fichier": "crates/glucose-core/src/store/journal/provenance.rs",
+  "avant": "if !p.par.iter().any(|m| m == qui) {",
+  "apres": "if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — retiré, il garde sa provenance",
+  "fichier": "crates/glucose-core/src/store/journal/provenance.rs",
+  "avant": "tableau.remove(&t.id);",
+  "apres": "let _ = tableau;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — la date ne suit pas",
+  "fichier": "crates/glucose-core/src/store/journal/provenance.rs",
+  "avant": "p.le = instant;",
+  "apres": "p.le = p.le.max(0);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — l'histoire ne se relit pas à l'ouverture",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "suivre_l_ecriture(&mut o.provenances, &g.transaction, qui, instant);",
+  "apres": "let _ = (qui, instant);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — le document chargé ne la reçoit pas",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "self.store.journal.provenances = ouvert.provenances.clone();",
+  "apres": "let _ = &ouvert.provenances;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — un geste écrit ne la suit pas",
+  "fichier": "crates/glucose-desktop/src/persist/disque.rs",
+  "avant": "&mut self.store.journal.provenances,\n                &e.transaction,",
+  "apres": "&mut Default::default(),\n                &e.transaction,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — la lecture ne la dit pas",
+  "fichier": "crates/glucose-desktop/src/agents/executer/lire.rs",
+  "avant": "ecrit_en_json(ecrits.and_then(|e| e.get(&d.id)), &mut j);",
+  "apres": "let _ = ecrits;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ },
+ {
+  "nom": "MCP-AUTEUR — un autre document garde les mains du premier",
+  "fichier": "crates/glucose-core/src/store/ids.rs",
+  "avant": "        self.journal.provenances.clear();\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "-p",
+   "glucose-desktop",
+   "--",
+   "mcp_auteur"
+  ]
+ }
+]

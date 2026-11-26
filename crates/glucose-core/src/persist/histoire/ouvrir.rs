@@ -22,7 +22,7 @@ use super::{nature, suivante, vue, Auteur, Chaine, Jalon, Note, NoteVisee, Vue, 
 use crate::error::{CoreError, CoreResult};
 use crate::hash::sha256;
 use crate::persist::bytes::Reader;
-use crate::store::journal::suivre_les_mains;
+use crate::store::journal::{suivre_l_ecriture, suivre_les_mains, Provenances, HUMAIN};
 use crate::types::Project;
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek, SeekFrom};
@@ -77,6 +77,8 @@ pub struct Ouvert {
     /// dans l'histoire — seulement quand un agent y est déclaré : un document où seul l'humain a
     /// travaillé n'en relit aucun geste de plus.
     pub des_agents: HashSet<String>,
+    /// **Qui a écrit chaque nœud, et quand** (MCP-AUTEUR, fiche 181), relu geste après geste.
+    pub provenances: Provenances,
     pub instantanes: Vec<Instantane>,
     /// Là où la prochaine entrée s'écrira, et la chaîne à y reprendre.
     pub fin: u64,
@@ -131,6 +133,7 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         notes: Vec::new(),
         retires: HashSet::new(),
         des_agents: HashSet::new(),
+        provenances: Provenances::new(),
         instantanes: Vec::new(),
         fin: base.fin,
         chaine: base.graine,
@@ -366,14 +369,18 @@ fn ranger_un_geste(
         instant,
         auteur,
     });
-    // La provenance (MAIN-1) : le geste d'un agent la change ; celui de l'humain, seulement
-    // s'il reste quelque chose à un agent. Un document de l'humain seul — même avec les
-    // rectifications de l'IA de Glucose, qui ne fait aucun geste — n'en relit aucun.
-    let agent = o.auteurs.get(&auteur).is_some_and(|a| a.agent);
-    if agent || !o.des_agents.is_empty() {
-        if let Ok(g) = lire_geste(&contenu) {
+    // Qui a écrit quoi (MCP-AUTEUR) : chaque geste se relit — ~25 ms pour les 2 793 gestes de
+    // son document (19 Mo, mesuré le 26/11). La provenance de MAIN-1 : le geste d'un agent la
+    // change ; celui de l'humain, seulement s'il reste quelque chose à un agent.
+    if let Ok(g) = lire_geste(&contenu) {
+        let qui = o.auteurs.get(&auteur);
+        let agent = qui.is_some_and(|a| a.agent);
+        if agent || !o.des_agents.is_empty() {
             suivre_les_mains(&mut o.des_agents, &g.transaction, agent);
         }
+        let qui = qui.and_then(Auteur::en_mots);
+        let qui = qui.as_deref().unwrap_or(HUMAIN);
+        suivre_l_ecriture(&mut o.provenances, &g.transaction, qui, instant);
     }
     o.dernier_geste = o.chaine;
     o.octets_depuis_l_instantane += tranche.longueur;

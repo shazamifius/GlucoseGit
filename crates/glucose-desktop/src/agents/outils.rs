@@ -52,7 +52,9 @@ const OUTILS: &[(&str, &str, &str)] = &[
          ce que l'utilisateur a sélectionné (selection), la partie visible à l'écran, les identifiants \
          demandés qui ne sont pas sur ce tableau (introuvables), la liste des onglets et les \
          domaines de ce document (domaines) — une lecture par « ids » ou « cherche » ne redit ni \
-         le document, ni la partie visible, ni les onglets, ni les domaines.",
+         le document, ni la partie visible, ni les onglets, ni les domaines. Chaque nœud dit qui \
+         l'a écrit (ecrit : par, les mains qui l'ont posé ou ont changé son texte, la première \
+         d'abord ; le, la dernière fois) — le déplacer n'est pas l'écrire.",
         r##"{"type":"object","properties":{"tableau":{"type":"string","description":"identifiant d'un tableau ; par défaut celui qu'il regarde"},"dans":{"type":"string","description":"identifiant d'une membrane"},"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à lire en entier"},"cherche":{"type":"string","description":"des mots à trouver dans les textes"},"domaine":{"type":"string","description":"le nom d'un domaine de ce document"},"niveau":{"type":"string","enum":["sommaire","complet","plan"]},"fleches":{"type":"boolean","description":"avec ids : leurs flèches, et ce qu'elles relient"}}}"##,
     ),
     (

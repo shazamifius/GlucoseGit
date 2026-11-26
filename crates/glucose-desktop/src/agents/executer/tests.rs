@@ -1,6 +1,7 @@
 //! Chaque outil, joué sur une application d'épreuve — sans fenêtre, sans porte.
 
 mod agent_8;
+mod auteur;
 mod couleur_2;
 mod courte;
 mod date_1;

@@ -7,6 +7,7 @@ use crate::agents::json::Json;
 use crate::agents::lecture::{empreinte, premiere_phrase, Rendu};
 use glucose_core::geometry::Rect;
 use glucose_core::store::agents::Decrit;
+use glucose_core::store::journal::Provenance;
 use glucose_core::timeline::format_anchor;
 use glucose_core::types::TemporalAnchor;
 
@@ -48,6 +49,20 @@ pub(super) fn parente_en_json(avis: Option<&crate::parente::AvisDUnNoeud>, noeud
     let surete = Json::Nombre((f64::from(a.surete) * 100.0).round() / 100.0);
     let parente = Json::objet([("famille", famille), ("surete", surete)]);
     champs.push(("parente".to_string(), parente));
+}
+
+/// **Qui l'a écrit, et quand** (MCP-AUTEUR, fiche 181 ; `relais-rep-mcp`, point 8) : les mains
+/// qui l'ont posé ou ont changé son texte, la première d'abord, et la dernière fois — celle de la
+/// Time Machine. Rien pour un nœud que l'histoire n'a jamais vu écrire.
+pub(super) fn ecrit_en_json(p: Option<&Provenance>, noeud: &mut Json) {
+    let (Some(p), Json::Objet(champs)) = (p, noeud) else {
+        return;
+    };
+    let par = Json::Liste(p.par.iter().map(|m| Json::from(m.as_str())).collect());
+    let le =
+        crate::plateforme::heure::heure_locale(p.le).map_or_else(String::new, |h| h.to_string());
+    let ecrit = Json::objet([("par", par), ("le", Json::texte(le))]);
+    champs.push(("ecrit".to_string(), ecrit));
 }
 
 /// Un nœud pour l'agent : son texte entier, ou sa première phrase et sa taille (le sommaire), ou

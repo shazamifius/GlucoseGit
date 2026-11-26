@@ -12,7 +12,7 @@
 //! l'humain voit en haut de l'écran) ; un identifiant demandé qui n'existe pas est **dit
 //! introuvable**, jamais tu ; et un dossier ou un onglet se renomme.
 
-use super::decrit::{boite_en_json, decrit_en_json, parente_en_json};
+use super::decrit::{boite_en_json, decrit_en_json, ecrit_en_json, parente_en_json};
 use super::Args;
 use crate::agents::json::Json;
 use crate::agents::lecture::{choisir, Demande, Niveau};
@@ -77,11 +77,13 @@ impl GlucoseApp {
     fn noeuds_en_json(&self, board: &str, decrits: &[Decrit], demande: &Demande<'_>) -> Vec<Json> {
         let plan = demande.niveau == Niveau::Plan;
         let avis = self.renderer.sens_des_textes.avis_du_tableau(board);
+        let ecrits = self.store.journal.provenances.get(board);
         choisir(decrits, demande)
             .into_iter()
             .map(|(d, rendu)| {
                 let mut j = decrit_en_json(d, &rendu);
                 parente_en_json(avis.and_then(|a| a.get(&d.id)), &mut j);
+                ecrit_en_json(ecrits.and_then(|e| e.get(&d.id)), &mut j);
                 // Le plan dit ce que chaque membrane porte, sans le porter (fiche 90) ; un dossier
                 // dit toujours le chiffre de son badge (MCP-DOSSIER-1).
                 let contient = match (d.sorte, d.ouvre.as_deref()) {

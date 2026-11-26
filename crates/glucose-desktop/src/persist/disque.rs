@@ -18,7 +18,8 @@ use super::ecriture::{nouveau_brouillon, Ecriture};
 use super::now_millis;
 use super::objets::{Objets, Source};
 use crate::app::GlucoseApp;
-use glucose_core::persist::histoire;
+use glucose_core::persist::histoire::{self, Auteur};
+use glucose_core::store::journal::{suivre_l_ecriture, HUMAIN};
 use glucose_core::types::Project;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -136,6 +137,17 @@ impl GlucoseApp {
             return;
         };
         let nombre = transactions.len();
+        // Qui a écrit quoi (MCP-AUTEUR), à l'instant même que l'histoire donne à ces gestes.
+        for e in &transactions {
+            let qui = Auteur::d_une_main(&e.main).and_then(|a| a.en_mots());
+            let qui = qui.as_deref().unwrap_or(HUMAIN);
+            suivre_l_ecriture(
+                &mut self.store.journal.provenances,
+                &e.transaction,
+                qui,
+                instant,
+            );
+        }
         let premier = ecriture.consigner(
             transactions,
             &self.store.project,
@@ -325,6 +337,8 @@ impl GlucoseApp {
         let repares = self.store.load_project(ouvert.projet.clone());
         // Ce que les agents y ont posé, lu dans son histoire (MAIN-1).
         self.store.journal.des_agents = ouvert.des_agents.clone();
+        // Qui a écrit quoi, et quand (MCP-AUTEUR), lu de même.
+        self.store.journal.provenances = ouvert.provenances.clone();
         // Ce que le chargement a pu mettre dans la file de sortie n'appartient à personne :
         // l'état qu'on vient de lire est déjà sur le disque.
         self.store.journal.prendre_les_ecrits();
