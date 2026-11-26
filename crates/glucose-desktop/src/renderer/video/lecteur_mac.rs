@@ -26,13 +26,13 @@ use crate::renderer::gif::Toile;
 use chargeur::{uti, Chargeur};
 use dispatch2::{DispatchQueue, DispatchRetained};
 use objc2::rc::Retained;
-use objc2::runtime::{AnyObject, ProtocolObject};
+use objc2::runtime::{AnyObject, Bool, ProtocolObject};
 use objc2::{AllocAnyThread, MainThreadMarker};
 use objc2_av_foundation::{
     AVPlayer, AVPlayerActionAtItemEnd, AVPlayerItem, AVPlayerItemStatus, AVPlayerItemVideoOutput,
     AVURLAsset, AVVideoComposition,
 };
-use objc2_core_media::kCMTimeZero;
+use objc2_core_media::{kCMTimeZero, CMTime};
 use objc2_core_video::{
     kCVPixelBufferPixelFormatTypeKey, kCVPixelFormatType_32BGRA, CVPixelBuffer,
     CVPixelBufferGetBaseAddress, CVPixelBufferGetBytesPerRow, CVPixelBufferGetHeight,
@@ -40,8 +40,16 @@ use objc2_core_video::{
     CVPixelBufferUnlockBaseAddress,
 };
 use objc2_foundation::{NSDictionary, NSNumber, NSString, NSURL};
+use std::cell::Cell;
 use std::panic::AssertUnwindSafe;
+use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+/// Où en est le saut au début ([`LecteurVideo::revenir_au_debut`]), que son rappel dit.
+const SAUT_EN_COURS: u8 = 0;
+const SAUT_FINI: u8 = 1;
+const SAUT_INTERROMPU: u8 = 2;
 
 /// L'adresse de toute vidéo : son schéma est inconnu d'AVFoundation, qui demande donc ses octets
 /// au chargeur.
@@ -54,6 +62,10 @@ pub(crate) struct LecteurVideo {
     sortie: Retained<AVPlayerItemVideoOutput>,
     /// Muette pour toujours : l'image fixe n'a que faire du son.
     muette: bool,
+    /// L'heure d'affichage de la dernière image rendue : la même ne se rend pas deux fois. La
+    /// composition posée une fois la vidéo prête ([`Self::redresser`]) repeint l'image du début, que
+    /// la sortie redonne pour neuve (onze images pour dix, la CI de `3ed83a2`, fiche 175 § 10).
+    derniere: Cell<Option<CMTime>>,
     /// Le chargeur d'AVFoundation ne le tient que faiblement.
     _chargeur: Retained<Chargeur>,
     _file: DispatchRetained<DispatchQueue>,
@@ -98,6 +110,7 @@ impl LecteurVideo {
                 element,
                 sortie,
                 muette: !avec_le_son,
+                derniere: Cell::new(None),
                 _chargeur: chargeur,
                 _file: file,
             })
@@ -179,25 +192,52 @@ impl LecteurVideo {
             }
             let maintenant = self.element.currentTime();
             if self.sortie.hasNewPixelBufferForItemTime(maintenant) {
-                let image = (self.sortie).copyPixelBufferForItemTime_itemTimeForDisplay(
-                    maintenant,
-                    std::ptr::null_mut(),
-                );
-                return Some(image.and_then(|i| toile(&i)).map(Some).ok_or(Fin::Faute));
+                let mut affichee = kCMTimeZero;
+                let image = (self.sortie)
+                    .copyPixelBufferForItemTime_itemTimeForDisplay(maintenant, &mut affichee);
+                if self.derniere.replace(Some(affichee)) != Some(affichee) {
+                    return Some(image.and_then(|i| toile(&i)).map(Some).ok_or(Fin::Faute));
+                }
             }
             // Au bout, le joueur s'arrête là (`AVPlayerActionAtItemEnd::Pause`).
             (maintenant.compare(self.element.duration()) >= 0).then_some(Err(Fin::AuBout))
         }
     }
 
-    /// **Revient au début**, pour une vidéo qui joue en boucle (VIDEO-2).
+    /// **Revient au début**, pour une vidéo qui joue en boucle (VIDEO-2). Le saut est asynchrone :
+    /// `play` lancé avant sa fin, la vidéo encore au bout, l'y remettait aussitôt en pause
+    /// (`AVPlayerActionAtItemEnd::Pause`) — elle restait figée au début, une image puis rien (la CI
+    /// de `3ed83a2`, fiche 175 § 10). La lecture repart donc quand le saut le dit fini.
     pub(crate) fn revenir_au_debut(&mut self) -> bool {
-        // SAFETY : le joueur vit autant que le lecteur.
-        sans_exception("le retour au début", || unsafe {
-            self.joueur.seekToTime(kCMTimeZero);
-            self.joueur.play();
-        })
-        .is_some()
+        let fait = Arc::new(AtomicU8::new(SAUT_EN_COURS));
+        let rappel = {
+            let fait = fait.clone();
+            block2::RcBlock::new(move |fini: Bool| {
+                let etat = if fini.as_bool() {
+                    SAUT_FINI
+                } else {
+                    SAUT_INTERROMPU
+                };
+                fait.store(etat, Ordering::Release);
+            })
+        };
+        // SAFETY : le joueur vit autant que le lecteur ; le rappel ne tient qu'un compteur partagé.
+        let parti = sans_exception("le retour au début", || unsafe {
+            self.joueur
+                .seekToTime_completionHandler(kCMTimeZero, &rappel);
+        });
+        let debut = Instant::now();
+        while parti.is_some() && debut.elapsed() < PREPARATION {
+            match fait.load(Ordering::Acquire) {
+                SAUT_EN_COURS => std::thread::sleep(REGARD),
+                etat => {
+                    self.derniere.set(None);
+                    self.jouer(true);
+                    return etat == SAUT_FINI;
+                }
+            }
+        }
+        false
     }
 
     pub(crate) fn jouer(&self, oui: bool) {

@@ -347,6 +347,69 @@ mod tests {
 
     const ROUGE: &[u8] = include_bytes!("../../../tests/donnees/rouge-64x48.mp4");
 
+    /// **Ce que dit le moteur, un fichier joué deux fois** (fiche 175 § 10) : sur le vrai Windows de
+    /// la CI, le joueur (qui lit un fichier) ne rendait aucune image, et le retour au début ne
+    /// repartait pas, quand des octets en mémoire jouaient jusqu'au bout. Chaque étape se dit dans
+    /// la sortie, avec son heure — de quoi trancher : lenteur de l'ouverture, ou moteur figé.
+    #[test]
+    fn video_windows_1_un_fichier_joue_deux_fois_et_le_dit() {
+        if !crate::renderer::video::epreuves::present() {
+            return;
+        }
+        let chemin = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/donnees/rouge-64x48.mp4");
+        let debut = Instant::now();
+        let lieu = Lieu::de(chemin, None).expect("un lieu");
+        let mut lecteur = LecteurVideo::ouvrir(lieu, true).expect("ouverte");
+        crate::dire_erreur!("vidéo (Windows) : ouverte en {:?}", debut.elapsed());
+        for tour in 1..=2 {
+            let (depart, mut images, mut dit) = (Instant::now(), 0, Instant::now());
+            lecteur.jouer(true);
+            loop {
+                match lecteur.suivante(Duration::from_millis(50)) {
+                    Ok(Some(_)) => images += 1,
+                    Ok(None) => {}
+                    Err(fin) => {
+                        crate::dire_erreur!(
+                            "vidéo (Windows) : tour {tour}, {fin:?} après {:?}, {images} images",
+                            depart.elapsed()
+                        );
+                        assert_eq!(fin, Fin::AuBout);
+                        break;
+                    }
+                }
+                if dit.elapsed() >= Duration::from_millis(500) {
+                    dit = Instant::now();
+                    let m = &lecteur.moteur.0;
+                    // SAFETY : le moteur vit autant que le lecteur.
+                    let (t, pause, bout, pret) = unsafe {
+                        (
+                            m.GetCurrentTime(),
+                            m.IsPaused(),
+                            m.IsEnded(),
+                            m.GetReadyState(),
+                        )
+                    };
+                    crate::dire_erreur!(
+                        "vidéo (Windows) : tour {tour}, {:?} : {images} images, heure {t}, \
+                         pause {}, au bout {}, prête {pret}",
+                        depart.elapsed(),
+                        pause.as_bool(),
+                        bout.as_bool()
+                    );
+                }
+                assert!(
+                    depart.elapsed() < Duration::from_secs(20),
+                    "tour {tour} figé"
+                );
+            }
+            if tour == 1 {
+                let retour = Instant::now();
+                assert!(lecteur.revenir_au_debut());
+                crate::dire_erreur!("vidéo (Windows) : revenue en {:?}", retour.elapsed());
+            }
+        }
+    }
+
     /// Revenue au début par un moteur neuf, la vidéo garde le son qu'on lui avait rendu.
     #[test]
     fn video_windows_1_le_son_reste_tel_qu_il_etait_au_retour() {

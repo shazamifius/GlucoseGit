@@ -83,7 +83,10 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 objc2 = { version = "0.6", features = ["exception"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL", "NSData", "NSDictionary", "NSValue", "NSObject", "NSError"] }
 dispatch2 = { version = "0.3", default-features = false, features = ["std", "objc2"] }
-objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVAsset", "AVAssetResourceLoader", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVVideoComposition", "dispatch2", "objc2-core-media", "objc2-core-video"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVAsset", "AVAssetResourceLoader", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVVideoComposition", "block2", "dispatch2", "objc2-core-media", "objc2-core-video"] }
+# Le rappel du saut au début (`seekToTime:completionHandler:`, fiche 175 § 10) : déjà compilée pour
+# le Mac par `objc2-app-kit` (decisions/22).
+block2 = "0.6"
 objc2-core-media = { version = "0.3", default-features = false, features = ["std", "CMTime"] }
 objc2-core-video = { version = "0.3", default-features = false, features = ["std", "CVBase", "CVBuffer", "CVImageBuffer", "CVPixelBuffer", "CVReturn"] }
 
