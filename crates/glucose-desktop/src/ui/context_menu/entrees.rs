@@ -131,6 +131,8 @@ fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
             "Enregistrer l'image sous…",
             "",
         )),
+        // Un nœud dont le fichier a bougé le retrouve (ABSENT-1).
+        Some((MenuAction::RetrouverLeFichier, "Retrouver le fichier…", "")),
         // Un dépôt replié en lien se rattrape là où il est (DEPOT-WEB-6).
         Some((MenuAction::RemplacerParLImage, "Remplacer par l'image", "")),
     ];

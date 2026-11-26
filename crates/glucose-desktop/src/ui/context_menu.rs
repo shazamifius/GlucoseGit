@@ -81,6 +81,7 @@ impl MenuAction {
             MenuAction::Couper => Commande::Couper,
             MenuAction::Duplicate => Commande::Dupliquer,
             MenuAction::EnregistrerLImage => Commande::EnregistrerLImage,
+            MenuAction::RetrouverLeFichier => Commande::RetrouverLeFichier,
             MenuAction::RemplacerParLImage => Commande::RemplacerParLImage,
             MenuAction::Dater => Commande::Dater,
             MenuAction::ToggleLock => Commande::Verrouiller,
@@ -186,6 +187,7 @@ pub enum MenuAction {
     Duplicate,
     /// Ses octets d'origine, dans un fichier.
     EnregistrerLImage,
+    RetrouverLeFichier,
     /// Les liens choisis repartent chercher leur image, et lui laissent leur place (DEPOT-WEB-6).
     RemplacerParLImage,
     /// Une année, une plage, une ère pour ce qui est choisi (DATE-1, fiche 113).

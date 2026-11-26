@@ -25,6 +25,8 @@ pub enum Demande {
     Enregistrer(Puis),
     /// Écrire ces octets d'image ici, sous cette extension s'il n'en a pas.
     EnregistrerLImage(Vec<u8>, &'static str),
+    /// Relier ce nœud, dont le fichier lié est introuvable, à celui-ci (ABSENT-1).
+    Retrouver { board: String, id: String },
     /// Exporter le tableau ici.
     Exporter,
     /// Exporter le storyboard courant en planches ici — un PDF, ou des images (fiche 68).
@@ -50,6 +52,7 @@ impl GlucoseApp {
             Demande::AjouterUnDocument => self.ajouter_un_document(&premier),
             Demande::ImporterDesImages => self.importer_des_fichiers(&chemins),
             Demande::DossierDuDisque => self.drop_files(&chemins),
+            Demande::Retrouver { board, id } => self.relier_au_fichier(&board, &id, &premier),
             Demande::Enregistrer(puis) => {
                 self.save_to(crate::persist::with_glucose_extension(premier));
                 self.apres_l_enregistrement(puis);

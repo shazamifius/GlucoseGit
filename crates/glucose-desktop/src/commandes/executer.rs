@@ -28,6 +28,7 @@ impl GlucoseApp {
 
     /// **Le geste de chaque commande** : un seul `match`, sans joker.
     pub(super) fn faire(&mut self, commande: Commande) -> bool {
+        use Commande as C;
         match commande {
             Commande::NouveauDocument => self.nouveau_document(),
             Commande::OuvrirUnDocument => self.choisir_un_document(),
@@ -50,12 +51,11 @@ impl GlucoseApp {
             Commande::Supprimer => self.delete_selection(),
             Commande::PremierPlan => self.restack(StackMove::Front),
             Commande::ArrierePlan => self.restack(StackMove::Back),
-            Commande::RetirerLesBordures => self.retirer_les_bordures_de_la_selection(),
-            Commande::RetournerHorizontalement => self.retourner(Retournement::Horizontal),
-            Commande::RetournerVerticalement => self.retourner(Retournement::Vertical),
-            Commande::Video(choix) => self.choisir_pour_les_videos(choix),
-            Commande::Detourer => self.detourer_la_selection(Maniere::FormePrincipale),
-            Commande::RetirerLeFondUni => self.detourer_la_selection(Maniere::FondUni),
+            // Les gestes sur les images choisies, faits à part (le cliquet des 80 lignes).
+            C::RetirerLesBordures | C::RetournerHorizontalement => self.sur_les_images(commande),
+            C::RetournerVerticalement | C::Video(_) | C::Detourer => self.sur_les_images(commande),
+            C::RetirerLeFondUni | C::EnregistrerLImage => self.sur_les_images(commande),
+            C::RetrouverLeFichier | C::RemplacerParLImage => self.sur_les_images(commande),
             Commande::Echelle(vers) => self.changer_l_echelle(vers),
             Commande::Verrouiller => self.toggle_lock(),
             Commande::Pousser(sens, dix) => self.nudge(sens.pas(), dix),
@@ -80,8 +80,6 @@ impl GlucoseApp {
             Commande::PoserLeSignet(n) => self.geste_du_signet(n, true),
             Commande::AllerAuSignet(n) => self.geste_du_signet(n, false),
             Commande::Outil(outil) => self.prendre_l_outil(outil),
-            Commande::EnregistrerLImage => self.enregistrer_l_image_sous(),
-            Commande::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
             Commande::Dater => self.demander_la_date(),
             Commande::StoryboardDeLaSelection => self.storyboard_de_la_selection(),
             Commande::LireLeStoryboard => self.lire_depuis_la_case_choisie(),
@@ -106,6 +104,23 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         true
+    }
+
+    /// **Les gestes sur les images choisies** : leurs octets, leur fichier, leur lecture —
+    /// [`Self::faire`] n'envoie ici que ceux-là.
+    fn sur_les_images(&mut self, commande: Commande) {
+        match commande {
+            Commande::RetirerLesBordures => self.retirer_les_bordures_de_la_selection(),
+            Commande::RetournerHorizontalement => self.retourner(Retournement::Horizontal),
+            Commande::RetournerVerticalement => self.retourner(Retournement::Vertical),
+            Commande::Video(choix) => self.choisir_pour_les_videos(choix),
+            Commande::Detourer => self.detourer_la_selection(Maniere::FormePrincipale),
+            Commande::RetirerLeFondUni => self.detourer_la_selection(Maniere::FondUni),
+            Commande::EnregistrerLImage => self.enregistrer_l_image_sous(),
+            Commande::RetrouverLeFichier => self.retrouver_le_fichier(),
+            Commande::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
+            _ => {}
+        }
     }
 
     /// Prendre un outil de la bande : le curseur le dit.

@@ -48,6 +48,7 @@ pub mod reference;
 pub mod renommer;
 pub mod resize;
 pub mod retour;
+pub mod retrouver;
 pub mod roue;
 pub mod selection;
 pub mod shortcuts;

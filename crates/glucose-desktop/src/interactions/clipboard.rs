@@ -19,7 +19,8 @@ pub use menu_image::ImagePosee;
 /// sélecteur de photos (fiche 56). Le filtre seulement : c'est le décodeur qui dit ce qui est une
 /// image, comme au dépôt. HEIC et HEIF depuis HEIC-2 (fiche 161).
 #[cfg(not(target_os = "android"))]
-const IMAGE_EXTENSIONS: [&str; 8] = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "heic", "heif"];
+pub(crate) const IMAGE_EXTENSIONS: [&str; 8] =
+    ["png", "jpg", "jpeg", "webp", "gif", "bmp", "heic", "heif"];
 
 /// **Le nom de « Ajouter des images… »** : les vidéos y entrent là où elles jouent (fiche 172
 /// § 6) ; ailleurs, le bouton ne promet pas ce que Glucose ne sait pas encore montrer. Son filtre

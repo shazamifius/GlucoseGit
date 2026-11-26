@@ -1,0 +1,262 @@
+[
+ {
+  "nom": "ABSENT-1 — le fichier présent pris pour introuvable",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/cadre.rs",
+  "avant": "if !std::path::Path::new(&src).exists() {",
+  "apres": "if std::path::Path::new(&src).exists() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — un nœud scellé dit introuvable",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/cadre.rs",
+  "avant": "let lie = matches!(img.asset, Some(AssetRef::Link { .. }));",
+  "apres": "let lie = true;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — un échec oublié reste introuvable",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/cadre.rs",
+  "avant": "lie && self.echecs.contains(*s) && self.introuvables.contains(*s)",
+  "apres": "lie && self.introuvables.contains(*s)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — le trait sans pointillés",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/image/ornement.rs",
+  "avant": "    stroke.dash = StrokeDash::new(vec![4.0, 3.0], 0.0);\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — le trait gris",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/image/ornement.rs",
+  "avant": "    (stroke, theme.danger)",
+  "apres": "    (stroke, theme.border_accent)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — les formes en gris",
+  "fichier": "crates/glucose-desktop/src/renderer/scene/image/ornement.rs",
+  "avant": "v.chemin(&trait_, couleur);",
+  "apres": "v.chemin(&trait_, kit.theme.border_accent);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — retrouver un fichier présent",
+  "fichier": "crates/glucose-desktop/src/interactions/retrouver.rs",
+  "avant": "(!Path::new(href).exists()).then_some(img)",
+  "apres": "Some(img)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — retrouver dans un miroir",
+  "fichier": "crates/glucose-desktop/src/interactions/retrouver.rs",
+  "avant": "if !disque.contains_key(board) =>",
+  "apres": "if disque.len() < usize::MAX =>",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — le choix revenu sans suite",
+  "fichier": "crates/glucose-desktop/src/persist/choix.rs",
+  "avant": "Demande::Retrouver { board, id } => self.relier_au_fichier(&board, &id, &premier),",
+  "apres": "Demande::Retrouver { .. } => {}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — une introuvable mise dans le document",
+  "fichier": "crates/glucose-desktop/src/commandes/applique.rs",
+  "avant": "i.video.a_cote && (i.src.as_deref()).is_some_and(|s| std::path::Path::new(s).exists())",
+  "apres": "i.video.a_cote",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — un nœud scellé relié",
+  "fichier": "crates/glucose-core/src/store/retrouver.rs",
+  "avant": ".is_some_and(|i| matches!(i.asset, Some(AssetRef::Link { .. })));",
+  "apres": ".is_some();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — le ▶ touché sur une vidéo en échec",
+  "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+  "avant": "        if magasin.echecs.contains(&src) {\n            return false;\n        }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ },
+ {
+  "nom": "ABSENT-1 — le ▶ dessiné sur une vidéo en échec",
+  "fichier": "crates/glucose-desktop/src/renderer/video/commandes.rs",
+  "avant": "for img in images.filter(|i| i.is_video).filter(jouable) {",
+  "apres": "for img in images.filter(|i| i.is_video).filter(|i| jouable(i) || true) {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "absent_1"
+  ]
+ }
+]

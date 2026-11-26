@@ -203,6 +203,10 @@ impl GlucoseApp {
             return false;
         };
         let magasin = &mut self.renderer.magasin;
+        // En échec, elle n'a pas de ▶ (ABSENT-1) : le clic va au nœud.
+        if magasin.echecs.contains(&src) {
+            return false;
+        }
         let lancee = magasin.etat_video(&src).is_some();
         match touche(img, self.mouse_pos, &vp, lancee) {
             Some(Touche::Lecture) => magasin.basculer_la_video(&src),

@@ -190,10 +190,10 @@ pub(in crate::renderer) fn draw_images(
                 let r = sw.hypot(sh) / 2.0;
                 let (cx, cy) = (sx + sw / 2.0, sy + sh / 2.0);
                 let boite = (cx - r, cy - r, 2.0 * r, 2.0 * r);
-                let texte = magasin.cadre(img.src.as_deref(), &img.id);
+                let cadre = magasin.cadre(img);
                 crate::renderer::estompe::en_groupe(pixmap, presence, boite, |p, (ox, oy)| {
                     let at = (sx - ox, sy - oy);
-                    draw_missing_image(typography, theme, p, at, (sw, sh), &texte, img.rotation);
+                    draw_missing_image(typography, theme, p, at, (sw, sh), &cadre, img.rotation);
                 });
             }
         }

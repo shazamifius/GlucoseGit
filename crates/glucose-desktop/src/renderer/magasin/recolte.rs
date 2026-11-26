@@ -36,7 +36,7 @@ impl Magasin {
                 Fait::Decodee((src, None, ..)) => {
                     self.changements += 1;
                     if !self.arrives.remove(&src) {
-                        self.echecs.insert(src);
+                        self.echoue(src);
                     }
                 }
                 Fait::Deplace(d) => self.rentrer(d),

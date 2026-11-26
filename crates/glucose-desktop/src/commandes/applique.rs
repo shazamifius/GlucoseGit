@@ -63,6 +63,7 @@ pub(crate) fn s_applique(store: &Store, ui: &UiState, commande: Commande) -> boo
         | C::Verrouiller
         | C::StoryboardDeLaSelection
         | C::EnregistrerLImage
+        | C::RetrouverLeFichier
         | C::RemplacerParLImage
         | C::Dater
         | C::SuivreLeLien
@@ -153,11 +154,16 @@ fn selon_le_choix(store: &Store, ui: &UiState, commande: Commande) -> bool {
         C::Detourer | C::RetirerLeFondUni => images_a_detourer(store),
         // Une photo n'a pas de lecture ; une vidéo déjà dans le document n'a pas à y entrer.
         C::Video(Choix::LectureAutomatique) => videos_choisies(store).next().is_some(),
-        C::Video(Choix::DansLeDocument) => videos_choisies(store).any(|i| i.video.a_cote),
+        // Introuvable, elle n'a pas d'octets à y faire entrer (ABSENT-1).
+        C::Video(Choix::DansLeDocument) => videos_choisies(store).any(|i| {
+            i.video.a_cote && (i.src.as_deref()).is_some_and(|s| std::path::Path::new(s).exists())
+        }),
         C::EnregistrerLImage => {
             store.selected_image_ids.len() == 1 && store.selected_annotation_ids.is_empty()
         }
         C::RemplacerParLImage => !liens_choisis(store).is_empty(),
+        // Seulement là où il y a quelque chose à retrouver : le proposer ailleurs mentirait.
+        C::RetrouverLeFichier => crate::interactions::retrouver::a_retrouver(store).is_some(),
         C::Dater => noeuds,
         C::SuivreLeLien => une_fleche_seule(store),
         // Une flèche sans coude n'a rien à redresser : la proposer mentirait.

@@ -28,6 +28,8 @@ use std::time::Duration;
 
 mod attentes;
 mod cache;
+mod cadre;
+pub use cadre::Cadre;
 mod comptes;
 mod etagement;
 mod gifs;
@@ -126,6 +128,10 @@ pub struct Magasin {
     /// Les fichiers dont on sait qu'ils ne donneront rien : absents, corrompus, trop grands.
     /// Cache négatif (R-29) — on ne les redemande jamais.
     pub echecs: HashSet<String>,
+    /// Les images dont le fichier n'existait pas ici quand elles ont échoué (ABSENT-1, fiche
+    /// 176) : tant qu'elles restent des échecs, leur cadre les dit introuvables. Constaté une
+    /// fois, à l'échec ; un échec oublié se redemande, et se constatera de nouveau.
+    introuvables: HashSet<String>,
     /// Les images dont les octets sont arrivés pendant leur décodage (B1) : l'échec qu'il rendra
     /// est d'avant eux, il ne compte pas.
     arrives: HashSet<String>,

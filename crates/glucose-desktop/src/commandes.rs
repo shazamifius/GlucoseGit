@@ -153,6 +153,8 @@ pub enum Commande {
     // Ce que le menu porte aussi (ACCES-1) : chaque action du menu qui ne dépend pas d'un
     // onglet est une commande — la palette les porte toutes.
     EnregistrerLImage,
+    /// Relier un nœud au fichier qu'il montrait, introuvable (ABSENT-1, fiche 176).
+    RetrouverLeFichier,
     RemplacerParLImage,
     StoryboardDeLaSelection,
     LireLeStoryboard,
@@ -200,7 +202,7 @@ const OPERATEURS: [Option<StickyOperator>; 5] = [
     None,
 ];
 
-const SIMPLES: [(Commande, &str, &str); 65] = [
+const SIMPLES: [(Commande, &str, &str); 66] = [
     (
         Commande::NouveauDocument,
         "nouveau-document",
@@ -339,6 +341,11 @@ const SIMPLES: [(Commande, &str, &str); 65] = [
         Commande::EnregistrerLImage,
         "enregistrer-l-image",
         "Enregistrer l'image sous…",
+    ),
+    (
+        Commande::RetrouverLeFichier,
+        "retrouver-le-fichier",
+        "Retrouver le fichier…",
     ),
     (
         Commande::RemplacerParLImage,

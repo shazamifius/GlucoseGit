@@ -98,7 +98,9 @@ pub(crate) fn poser(
         return;
     };
     let images = Visibles::nouvelles(pass.visibles, board).images();
-    for img in images.filter(|i| i.is_video) {
+    // Une vidéo en échec — introuvable, illisible — ne joue pas : son ▶ mentirait (ABSENT-1).
+    let jouable = |i: &&BoardImage| (i.src.as_deref()).is_some_and(|s| !magasin.echecs.contains(s));
+    for img in images.filter(|i| i.is_video).filter(jouable) {
         let etat = img.src.as_deref().and_then(|s| magasin.etat_video(s));
         let boite = boite_a_l_ecran(img, &pass.vp);
         let Some(commandes) = Commandes::de(boite) else {
@@ -254,4 +256,47 @@ mod tests {
         assert_eq!(touche(&img, (310.0, 115.0), &vp, true), Some(Touche::Son));
         assert_eq!(touche(&img, (215.0, 390.0), &vp, true), None);
     }
+}
+
+/// **ABSENT-1 — une vidéo en échec n'a pas de ▶** : rendue comme l'application la rend, le blanc
+/// du triangle paraît au milieu du nœud tant qu'elle peut jouer, plus du tout en échec. Son image
+/// fixe est une photo bleue (comme `video_partie` du magasin) : elle se décode sans lecteur de
+/// vidéo, et rien n'y est blanc que le ▶. Un fichier qui n'existe pas n'irait pas : le magasin le
+/// découvrirait introuvable, et le cas « jouable » serait lui-même en échec.
+#[cfg(test)]
+#[test]
+fn absent_1_une_video_en_echec_n_a_pas_de_bouton() {
+    let chemin = std::env::temp_dir().join(format!("glucose-absent-1-{}.mp4", std::process::id()));
+    (image::RgbaImage::from_pixel(8, 6, image::Rgba([40, 90, 160, 255])))
+        .save_with_format(&chemin, image::ImageFormat::Png)
+        .expect("l'image fixe");
+    let src = chemin.to_string_lossy().to_string();
+    let mut store = Store::new("v");
+    let board = store.project.active_board_id.clone();
+    let mut img = BoardImage::new("v", 400.0, 300.0, 400.0, 300.0);
+    (img.src, img.is_video) = (Some(src.clone()), true);
+    store.add_image(&board, img);
+    store.selected_image_ids = Vec::<String>::new().into();
+    let blanc_au_milieu = |echec: bool| {
+        let mut renderer = crate::renderer::Renderer::new();
+        if echec {
+            renderer.magasin.echecs.insert(src.clone());
+        }
+        let mut ui = crate::ui::UiState::new();
+        let pixmap = crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 600);
+        assert_eq!(renderer.magasin.echecs.contains(&src), echec);
+        let (cx, cy) = world_to_screen(400.0, 300.0, &store.viewport());
+        let (cx, cy) = (cx as u32, cy as u32);
+        (cx - 12..cx + 12).any(|x| {
+            (cy - 12..cy + 12).any(|y| {
+                pixmap
+                    .pixel(x, y)
+                    .is_some_and(|p| p.red() > 230 && p.green() > 230 && p.blue() > 230)
+            })
+        })
+    };
+    let (jouable, en_echec) = (blanc_au_milieu(false), blanc_au_milieu(true));
+    let _ = std::fs::remove_file(&chemin);
+    assert!(jouable, "une vidéo qui peut jouer a son ▶");
+    assert!(!en_echec, "en échec, pas de ▶");
 }

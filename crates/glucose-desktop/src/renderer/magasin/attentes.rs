@@ -46,8 +46,8 @@ impl Magasin {
         }
     }
 
-    /// **Ce que dit le cadre de cette photo**, qui n'est pas là.
-    pub fn cadre(&self, src: Option<&str>, id: &str) -> String {
+    /// **Ce que dit le cadre de cette photo**, qui n'est pas là (hors introuvable, `cadre.rs`).
+    pub(super) fn libelle(&self, src: Option<&str>, id: &str) -> String {
         let attend = |cle: &&str| self.echecs.contains(*cle);
         let (Some(a), Some(cle)) = (&self.attentes, src.filter(attend)) else {
             return format!("Image [{id}]");
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn q18_hors_partage_le_cadre_garde_son_libelle() {
         let m = magasin_qui_attend();
-        assert_eq!(m.cadre(Some(CLE), "chat"), "Image [chat]");
+        assert_eq!(m.libelle(Some(CLE), "chat"), "Image [chat]");
     }
 
     #[test]
@@ -99,28 +99,28 @@ mod tests {
         let mut m = magasin_qui_attend();
         m.presents(BTreeSet::new());
         assert_eq!(
-            m.cadre(Some(CLE), "chat"),
+            m.libelle(Some(CLE), "chat"),
             "Cette photo attend quelqu'un qui l'a"
         );
         let avant = m.changements;
         m.posee_par(CLE, "l0up", "Loup Émeraude");
         assert!(m.changements > avant, "le lot des photos se refait");
         assert_eq!(
-            m.cadre(Some(CLE), "chat"),
+            m.libelle(Some(CLE), "chat"),
             "La photo de Loup Émeraude, hors ligne"
         );
         let avant = m.changements;
         m.presents(BTreeSet::from(["l0up".to_string()]));
         assert!(m.changements > avant, "il arrive : le lot se refait");
         assert_eq!(
-            m.cadre(Some(CLE), "chat"),
+            m.libelle(Some(CLE), "chat"),
             "La photo de Loup Émeraude arrive…"
         );
         let avant = m.changements;
         m.presents(BTreeSet::from(["l0up".to_string()]));
         assert_eq!(m.changements, avant, "rien n'a changé : rien ne se refait");
         m.hors_partage();
-        assert_eq!(m.cadre(Some(CLE), "chat"), "Image [chat]");
+        assert_eq!(m.libelle(Some(CLE), "chat"), "Image [chat]");
     }
 
     #[test]
@@ -135,6 +135,6 @@ mod tests {
     fn q18_une_photo_qu_on_decode_encore_n_attend_personne() {
         let mut m = Magasin::nouveau();
         m.posee_par(CLE, "l0up", "Loup Émeraude");
-        assert_eq!(m.cadre(Some(CLE), "chat"), "Image [chat]");
+        assert_eq!(m.libelle(Some(CLE), "chat"), "Image [chat]");
     }
 }

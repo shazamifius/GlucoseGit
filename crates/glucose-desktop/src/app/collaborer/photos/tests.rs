@@ -356,7 +356,9 @@ fn q18_le_cadre_dit_qui_a_pose_la_photo() {
     app.renderer.magasin.echecs.insert(CLE.into());
     let cadre = |app: &mut GlucoseApp| {
         app.dire_qui_est_la();
-        app.renderer.magasin.cadre(Some(CLE), "chat")
+        let mut chat = glucose_core::types::BoardImage::new("chat", 0.0, 0.0, 10.0, 10.0);
+        chat.src = Some(CLE.into());
+        app.renderer.magasin.cadre(&chat).texte
     };
     assert_eq!(cadre(&mut app), "La photo d'Alice arrive…");
     let cp = app.lancement.agents.partage.as_mut().expect("le partage");

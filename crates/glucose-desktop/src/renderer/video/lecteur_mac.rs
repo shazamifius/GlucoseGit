@@ -120,7 +120,7 @@ impl LecteurVideo {
         // SAFETY : comme plus haut.
         let erreur = sans_exception("l'erreur", || unsafe { self.element.error() }).flatten();
         let pourquoi = erreur.map(|e| e.localizedDescription().to_string());
-        eprintln!(
+        crate::dire_erreur!(
             "vidéo (Mac) : pas prête après {:?} — statut {:?}, {}",
             debut.elapsed(),
             statut(),
@@ -226,7 +226,7 @@ pub(super) fn sans_exception<R>(quoi: &str, f: impl FnOnce() -> R) -> Option<R> 
         Ok(r) => Some(r),
         Err(exception) => {
             let dit = exception.map_or("une exception sans objet".into(), |e| e.to_string());
-            eprintln!("vidéo (Mac) : {quoi} a levé {dit}");
+            crate::dire_erreur!("vidéo (Mac) : {quoi} a levé {dit}");
             None
         }
     }

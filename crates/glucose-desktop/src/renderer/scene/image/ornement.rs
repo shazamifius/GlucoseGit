@@ -15,11 +15,14 @@ use super::super::super::handles::{draw_rotated_handles, part_des_ornements};
 use super::super::super::scale::fill_crisp;
 use super::super::super::scale::WorldScale;
 use super::super::super::PaintKit;
+use crate::renderer::magasin::Cadre;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
-use tiny_skia::{BlendMode, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use tiny_skia::{
+    BlendMode, Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, StrokeDash, Transform,
+};
 
 /// Comment reporter une image sur le canevas : en remplaçant, ou en composant.
 ///
@@ -43,19 +46,21 @@ pub(super) fn mode_de_report(opaque: bool, rotation: f64, presence: f32) -> Blen
 
 /// Une image dont les octets ne sont pas (encore) là : un cadre gris de la chrome, son libellé
 /// dedans — son identifiant, ou de qui elle attend ses octets (Q18, `Magasin::cadre`).
-/// Monochrome — ce n'est pas du contenu, c'est son absence.
+/// Monochrome — ce n'est pas du contenu, c'est son absence ; sauf un fichier introuvable, dont le
+/// trait est le rouge des liens rompus ([`trait_du_cadre`]).
 pub(in crate::renderer) fn draw_missing_image(
     typography: &Typography,
     theme: &Theme,
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     size: (f32, f32),
-    texte: &str,
+    cadre: &Cadre,
     rotation: f64,
 ) {
     let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) else {
         return;
     };
+    let texte = cadre.texte.as_str();
     // Le carré de remplacement tourne comme tournerait la texture : sans cela, une image
     // introuvable et penchée se dessinerait droite dans un cadre incliné.
     let ts = rotation_at(rotation, at, size);
@@ -71,11 +76,8 @@ pub(in crate::renderer) fn draw_missing_image(
         anti_alias: true,
         ..Default::default()
     };
-    border.set_color(theme.border_accent);
-    let stroke = Stroke {
-        width: 1.0,
-        ..Default::default()
-    };
+    let (stroke, couleur) = trait_du_cadre(theme, cadre);
+    border.set_color(couleur);
     pixmap.stroke_path(&path, &border, &stroke, ts, None);
 
     if let Some(((x, y), style)) = libelle(typography, theme, (at, size), texte) {
@@ -111,9 +113,10 @@ pub(in crate::renderer) fn cadre_manquant_en_vecteurs(
     kit: PaintKit<'_>,
     v: &mut crate::renderer::vectoriel::Releve,
     (at, size): ((f32, f32), (f32, f32)),
-    (texte, rotation): (&str, f64),
+    (cadre, rotation): (&Cadre, f64),
 ) {
     use crate::renderer::vectoriel::Vectoriel;
+    let texte = cadre.texte.as_str();
     let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) else {
         return;
     };
@@ -122,16 +125,28 @@ pub(in crate::renderer) fn cadre_manquant_en_vecteurs(
     if let Some(plein) = path.clone().transform(ts) {
         v.chemin(&plein, kit.theme.bg_hover);
     }
-    let stroke = Stroke {
-        width: 1.0,
-        ..Default::default()
-    };
+    let (stroke, couleur) = trait_du_cadre(kit.theme, cadre);
     if let Some(trait_) = path.stroke(&stroke, 1.0).and_then(|t| t.transform(ts)) {
-        v.chemin(&trait_, kit.theme.border_accent);
+        v.chemin(&trait_, couleur);
     }
     if let Some((at, style)) = libelle(kit.typography, kit.theme, (at, size), texte) {
         v.texte(kit.typography, at, texte, style);
     }
+}
+
+/// **Le trait d'un cadre en chemin**, le même pour les deux voies : gris, d'un pixel ; rouge et
+/// pointillé quand son fichier est introuvable (ABSENT-1 ; « liens rompus : bordure pointillée
+/// rouge », fiche 08 § 8). Les tirets se comptent en pixels de l'écran, à tout zoom.
+fn trait_du_cadre(theme: &Theme, cadre: &Cadre) -> (Stroke, Color) {
+    let mut stroke = Stroke {
+        width: 1.0,
+        ..Default::default()
+    };
+    if !cadre.introuvable {
+        return (stroke, theme.border_accent);
+    }
+    stroke.dash = StrokeDash::new(vec![4.0, 3.0], 0.0);
+    (stroke, theme.danger)
 }
 
 /// La transformation qui fait tourner une boîte écran autour de son propre centre.

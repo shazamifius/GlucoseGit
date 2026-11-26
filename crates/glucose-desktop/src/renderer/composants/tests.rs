@@ -31,7 +31,7 @@ use tiny_skia::Pixmap;
 /// Le composant d'une photo en chemin, rendu à part et reposé sur un pixel entier, donne les
 /// pixels que le processeur écrit en place — au bit près, puisque c'est le même code à la
 /// même phase.
-fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
+fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64, introuvable: bool) -> (u8, usize) {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let mut img = BoardImage::new("p".to_string(), x, y, 180.0, 120.0);
@@ -44,8 +44,15 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
     let taille = (400u32, 300u32);
     let regime = Regime::de((vp, 1.0), Regard::immobile(), taille, 0.0);
 
-    // En place, comme la voie processeur, avec le libellé que le magasin donne hors partage.
-    let libelle = format!("Image [{}]", img.id);
+    // En place, comme la voie processeur, avec le libellé que le magasin donne hors partage — ou
+    // celui d'un fichier introuvable, au trait rouge et pointillé (ABSENT-1).
+    let cadre = crate::renderer::magasin::Cadre {
+        texte: match introuvable {
+            true => "Introuvable : clip.mp4".into(),
+            false => format!("Image [{}]", img.id),
+        },
+        introuvable,
+    };
     let mut en_place = Pixmap::new(taille.0, taille.1).expect("pixmap");
     let (sx, sy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &vp);
     draw_missing_image(
@@ -57,13 +64,13 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
             (img.width * vp.scale) as f32,
             (img.height * vp.scale) as f32,
         ),
-        &libelle,
+        &cadre,
         img.rotation,
     );
 
     // A part, puis repose la ou la pose le dit.
     let composant = regime
-        .photo_en_chemin(kit, &img, libelle)
+        .photo_en_chemin(kit, &img, cadre)
         .expect("un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -96,7 +103,7 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
 
 #[test]
 fn test_une_photo_en_chemin_droite_se_repose_au_bit_pres() {
-    let (pire, canaux) = ecart_photo_en_chemin(150.3, 100.7, 0.0);
+    let (pire, canaux) = ecart_photo_en_chemin(150.3, 100.7, 0.0, false);
     assert!(
         pire <= 1 && canaux == 0,
         "photo droite : pire {pire}, {canaux} canaux au-dela de 1"
@@ -105,7 +112,7 @@ fn test_une_photo_en_chemin_droite_se_repose_au_bit_pres() {
 
 #[test]
 fn test_une_photo_en_chemin_penchee_se_repose_au_bit_pres() {
-    let (pire, canaux) = ecart_photo_en_chemin(150.3, 100.7, std::f64::consts::FRAC_PI_8);
+    let (pire, canaux) = ecart_photo_en_chemin(150.3, 100.7, std::f64::consts::FRAC_PI_8, false);
     assert!(
         pire <= 1 && canaux == 0,
         "photo penchee : pire {pire}, {canaux} canaux au-dela de 1"
@@ -681,7 +688,11 @@ fn test_repos_4_chaque_composant_se_pose_par_le_passage_exact() {
             ("Un texte", (96, 165, 250)),
             (None, None),
         );
-        let photo = regime.photo_en_chemin(kit, &img, format!("Image [{}]", img.id));
+        let cadre = crate::renderer::magasin::Cadre {
+            texte: format!("Image [{}]", img.id),
+            introuvable: false,
+        };
+        let photo = regime.photo_en_chemin(kit, &img, cadre);
         [
             carte.and_then(|p| p.posee).expect("la carte"),
             regime.titre(kit, &titre),
@@ -714,4 +725,82 @@ fn test_repos_4_chaque_composant_se_pose_par_le_passage_exact() {
             a.identite
         );
     }
+}
+
+/// **ABSENT-1 — le cadre d'un fichier introuvable**, rouge et pointillé, sort de la carte
+/// graphique comme du processeur, droit ou penché.
+#[test]
+fn absent_1_le_cadre_introuvable_au_bit_pres_dans_les_deux_voies() {
+    for rotation in [0.0, std::f64::consts::FRAC_PI_8] {
+        let (pire, canaux) = ecart_photo_en_chemin(150.3, 100.7, rotation, true);
+        assert!(
+            pire <= 1 && canaux == 0,
+            "introuvable, {rotation} rad : pire {pire}, {canaux} canaux au-dela de 1"
+        );
+    }
+}
+
+/// **ABSENT-1 — le trait d'un introuvable est rouge et pointillé**, au processeur comme en
+/// formes : sur le bord haut du cadre, des pixels du rouge des liens rompus, et des trous entre
+/// eux ; et le relevé vectoriel pose la même encre.
+#[test]
+fn absent_1_le_trait_introuvable_est_rouge_et_pointille() {
+    use crate::renderer::scene::image::ornement::cadre_manquant_en_vecteurs;
+    let renderer = Renderer::new();
+    let kit = renderer.kit();
+    let cadre = |introuvable| crate::renderer::magasin::Cadre {
+        texte: String::new(),
+        introuvable,
+    };
+    // Le trait d'un pixel chevauche deux rangées, à moitié couvertes : le rouge domine.
+    let rouge = |p: &tiny_skia::PremultipliedColorU8| p.red() > 60 && p.red() > 2 * p.green();
+    let bord_haut = |introuvable| {
+        let mut pixmap = Pixmap::new(200, 100).expect("pixmap");
+        let c = cadre(introuvable);
+        draw_missing_image(
+            kit.typography,
+            kit.theme,
+            &mut pixmap.as_mut(),
+            (20.0, 20.0),
+            (160.0, 60.0),
+            &c,
+            0.0,
+        );
+        let ligne: Vec<bool> = (30..170)
+            .map(|x| rouge(&pixmap.pixel(x, 20).expect("le bord")))
+            .collect();
+        (
+            ligne.iter().filter(|r| **r).count(),
+            ligne.iter().filter(|r| !**r).count(),
+        )
+    };
+    let (rouges, trous) = bord_haut(true);
+    assert!(
+        rouges > 40 && trous > 30,
+        "rouge et pointillé : {rouges} rouges, {trous} trous"
+    );
+    assert_eq!(bord_haut(false).0, 0, "un cadre ordinaire reste gris");
+
+    let encre = |c: tiny_skia::Color| {
+        [
+            c.red() * c.alpha(),
+            c.green() * c.alpha(),
+            c.blue() * c.alpha(),
+            c.alpha(),
+        ]
+    };
+    let mut releve = crate::renderer::vectoriel::Releve::nouveau((400.0, 300.0));
+    cadre_manquant_en_vecteurs(
+        kit,
+        &mut releve,
+        ((20.0, 20.0), (160.0, 60.0)),
+        (&cadre(true), 0.0),
+    );
+    assert!(
+        releve
+            .primitives
+            .iter()
+            .any(|p| p.couleur == encre(kit.theme.danger)),
+        "les formes posent le rouge des liens rompus"
+    );
 }

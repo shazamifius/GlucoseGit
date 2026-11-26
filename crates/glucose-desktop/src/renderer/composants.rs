@@ -444,12 +444,12 @@ impl Regime {
     ///
     /// La texture est la boîte englobante du cadre **tourné** : le libellé, lui, reste droit,
     /// comme le processeur le dessine — la texture se pose donc sans angle.
-    /// `libelle` : ce que son cadre dit (`Magasin::cadre`, Q18).
+    /// `cadre` : ce que son cadre dit (`Magasin::cadre`, Q18, ABSENT-1).
     pub(super) fn photo_en_chemin(
         &self,
         kit: PaintKit<'_>,
         img: &BoardImage,
-        libelle: String,
+        cadre: crate::renderer::magasin::Cadre,
     ) -> Option<Pieces> {
         let vue_des_textures = self.textures.0;
         let (sx, sy) = world_to_screen(
@@ -493,7 +493,7 @@ impl Regime {
             coin,
             &mesure,
             Contenu::PhotoEnChemin {
-                libelle,
+                cadre,
                 centre: (img.x, img.y),
                 taille,
                 rotation: img.rotation,
@@ -539,7 +539,7 @@ impl Composant {
             }
             Contenu::Titre { .. } => titre::rendre(kit, self, &mut pixmap),
             Contenu::PhotoEnChemin {
-                libelle,
+                cadre,
                 taille,
                 rotation,
                 ..
@@ -557,7 +557,7 @@ impl Composant {
                     &mut pixmap.as_mut(),
                     at,
                     taille,
-                    libelle,
+                    cadre,
                     *rotation,
                 );
             }
