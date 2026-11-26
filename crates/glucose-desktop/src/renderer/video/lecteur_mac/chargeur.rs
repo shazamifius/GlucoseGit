@@ -52,8 +52,8 @@ define_class!(
             _chargeur: &AVAssetResourceLoader,
             demande: &AVAssetResourceLoadingRequest,
         ) -> bool {
-            servir(self.ivars(), demande);
-            true
+            // Une exception levée ici tuerait Glucose depuis la file d'AVFoundation.
+            super::sans_exception("le chargeur", || servir(self.ivars(), demande)).is_some()
         }
     }
 );
