@@ -31,8 +31,9 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{Mutex, PoisonError};
 
-/// Le nom d'un fichier partagé : le système en donne un qu'on ne lit pas, parce que c'est
-/// l'en-tête des octets qui dit ce qu'ils sont, jamais un nom.
+/// Le nom d'un fichier partagé dont on ne sait pas le nom. Celui que le système donne ne dit
+/// jamais ce que sont ses octets — leur en-tête le dit ; il ne sert qu'à nommer la copie d'une
+/// vidéo (RECU-2).
 const NOM: &str = "partage";
 
 /// Ce que dit un partage qui n'apporte ni image ni adresse — un texte nu.
@@ -74,12 +75,13 @@ pub enum Lu {
 /// **Une vidéo se copie dans `dossier`**, de son descripteur au disque, sans jamais tenir en
 /// mémoire ni connaître de borne (VIDEO-ANDROID-2) : une minute filmée en 4K dépasse les
 /// [`OCTETS_MAX`] d'un fichier lu. Ses premiers octets le disent, jamais un nom ; le reste —
-/// une image, que le document scelle depuis la mémoire — se lit, jusqu'à la borne.
+/// une image, que le document scelle depuis la mémoire — se lit, jusqu'à la borne. `nom` est
+/// celui qu'il portait chez l'application qui le partage, s'il est connu.
 pub fn lire(
     mut fichier: impl Read + Seek,
-    debut: u64,
-    longueur: Option<u64>,
+    (debut, longueur): (u64, Option<u64>),
     dossier: Option<&Path>,
+    nom: Option<&str>,
 ) -> Option<Lu> {
     if debut > 0 {
         fichier.seek(SeekFrom::Start(debut)).ok()?;
@@ -95,8 +97,7 @@ pub fn lire(
             sortie.write_all(&octets)?;
             std::io::copy(&mut fichier, sortie).map(drop)
         };
-        // Son extension, d'après sa signature : enregistrée ailleurs, elle dit ce qu'elle est.
-        let nom = format!("{NOM}.{extension}");
+        let nom = nom_de_la_copie(nom, extension);
         return telechargements::poser_en_flux(dossier, &nom, copier).map(Lu::Fichier);
     }
     let reste = (OCTETS_MAX as u64 + 1).saturating_sub(octets.len() as u64);
@@ -107,23 +108,53 @@ pub fn lire(
     Recu::nouveau(NOM, octets).map(Lu::Octets)
 }
 
+/// **Le nom de la copie d'une vidéo reçue** : celui qu'elle portait chez l'application qui la
+/// partage (`DISPLAY_NAME`, RECU-2), assaini comme tout nom reçu, sans son extension ni point de
+/// tête (un fichier caché) ; puis celle de sa signature — enregistrée ailleurs, elle dit ce qu'elle
+/// est. Sans nom, « partage ». Le tout tient dans les 255 octets d'un nom de fichier, la place
+/// d'un rang de [`telechargements::poser_en_flux`] (« (12) ») comprise.
+fn nom_de_la_copie(nom: Option<&str>, extension: &str) -> String {
+    const OCTETS_D_UN_NOM: usize = 255;
+    let place = OCTETS_D_UN_NOM - " (99999).".len() - extension.len();
+    let sur = (nom.map(str::trim).filter(|n| !n.is_empty())).map(super::moisson::nom_sur);
+    let souche = sur
+        .as_deref()
+        .and_then(|n| Path::new(n).file_stem()?.to_str());
+    let souche = souche.unwrap_or("").trim_start_matches('.').trim();
+    let mut fin = souche.len().min(place);
+    while !souche.is_char_boundary(fin) {
+        fin -= 1;
+    }
+    let souche = match souche[..fin].trim_end() {
+        "" => NOM,
+        souche => souche,
+    };
+    format!("{souche}.{extension}")
+}
+
 impl Partage {
-    /// **Ajoute un fichier ouvert** (son descripteur, son début, sa longueur) — ou le compte
-    /// illisible, que le système ne l'ait pas laissé ouvrir ou qu'il ne se lise pas. Une vidéo
-    /// se copie dans le dossier de l'application ([`telechargements::de_l_application`]).
-    pub fn ajouter(&mut self, ouvert: Option<(impl Read + Seek, u64, Option<u64>)>) {
+    /// **Ajoute un fichier ouvert** (son descripteur, son début, sa longueur) et le nom qu'il
+    /// portait — ou le compte illisible, que le système ne l'ait pas laissé ouvrir ou qu'il ne se
+    /// lise pas. Une vidéo se copie dans le dossier de l'application
+    /// ([`telechargements::de_l_application`]).
+    pub fn ajouter(
+        &mut self,
+        ouvert: Option<(impl Read + Seek, u64, Option<u64>)>,
+        nom: Option<&str>,
+    ) {
         let dossier = telechargements::de_l_application();
-        self.ajouter_dans(ouvert, dossier.as_deref());
+        self.ajouter_dans(ouvert, nom, dossier.as_deref());
     }
 
     /// [`Partage::ajouter`], une vidéo copiée dans ce dossier.
     pub(crate) fn ajouter_dans(
         &mut self,
         ouvert: Option<(impl Read + Seek, u64, Option<u64>)>,
+        nom: Option<&str>,
         dossier: Option<&Path>,
     ) {
-        match ouvert.and_then(|(fichier, debut, longueur)| lire(fichier, debut, longueur, dossier))
-        {
+        let lu = ouvert.and_then(|(f, debut, longueur)| lire(f, (debut, longueur), dossier, nom));
+        match lu {
             Some(Lu::Octets(recu)) => self.recus.push(recu),
             Some(Lu::Fichier(chemin)) => self.chemins.push(chemin),
             None => self.illisibles += 1,

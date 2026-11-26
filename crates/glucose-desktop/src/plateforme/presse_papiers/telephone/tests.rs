@@ -149,7 +149,7 @@ fn presse_android_un_collage_de_fichiers_devient_un_partage_au_point_du_geste() 
     let chemin = partages.join("une-image");
     std::fs::write(&chemin, b"ENTETE et les octets").expect("écrite");
     let ouvert = std::fs::File::open(&chemin).expect("ouverte");
-    let collage = partage_du_collage(vec![Some((ouvert, 7, Some(6))), None], (12.0, 34.0));
+    let collage = partage_du_collage(vec![Some((ouvert, 7, Some(6))), None], &[], (12.0, 34.0));
     assert_eq!(collage.ou, Some((12.0, 34.0)));
     assert_eq!(collage.illisibles, 1);
     assert_eq!(collage.texte, None);

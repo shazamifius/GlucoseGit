@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "RECU-2 — le nom reçu oublié",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": "let nom = nom_de_la_copie(nom, extension);",
+  "apres": "let nom = nom_de_la_copie(None, extension);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recu_2"
+  ]
+ },
+ {
+  "nom": "RECU-2 — un point de tête gardé (un fichier caché)",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": ".trim_start_matches('.')",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recu_2"
+  ]
+ },
+ {
+  "nom": "RECU-2 — le nom jamais coupé",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": "let mut fin = souche.len().min(place);",
+  "apres": "let mut fin = souche.len();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recu_2"
+  ]
+ },
+ {
+  "nom": "RECU-2 — coupé au milieu d'un caractère",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": "        fin -= 1;\n",
+  "apres": "        break;\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recu_2"
+  ]
+ },
+ {
+  "nom": "RECU-2 — un nom vide reste vide",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": "\"\" => NOM,",
+  "apres": "\"\" => \"\",",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recu_2"
+  ]
+ },
+ {
+  "nom": "RECU-2 — le nom reçu non assaini",
+  "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+  "avant": ".map(super::moisson::nom_sur)",
+  "apres": ".map(str::to_string)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recu_2"
+  ]
+ }
+]

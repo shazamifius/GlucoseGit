@@ -32,7 +32,7 @@ fn video_android_2_une_video_se_copie_sur_le_disque() {
     fichier.extend(video(70_000));
     fichier.extend(b"QUEUE");
     let longueur = Some(video(70_000).len() as u64);
-    let lu = lire(Cursor::new(fichier), 6, longueur, Some(&d));
+    let lu = lire(Cursor::new(fichier), (6, longueur), Some(&d), None);
     let Some(Lu::Fichier(chemin)) = lu else {
         panic!("une vidéo se copie : {lu:?}");
     };
@@ -90,7 +90,7 @@ fn video_android_2_une_video_ne_connait_pas_la_borne() {
         zeros: OCTETS_MAX as u64,
         echoue: false,
     };
-    let lu = lire(lourde, 0, None, Some(&d));
+    let lu = lire(lourde, (0, None), Some(&d), None);
     let Some(Lu::Fichier(chemin)) = lu else {
         panic!("une vidéo lourde se copie : {lu:?}");
     };
@@ -104,7 +104,7 @@ fn video_android_2_une_video_ne_connait_pas_la_borne() {
 #[test]
 fn video_android_2_une_image_reste_en_memoire() {
     let d = dossier_d_epreuve("image");
-    let lu = lire(Cursor::new(png()), 0, None, Some(&d));
+    let lu = lire(Cursor::new(png()), (0, None), Some(&d), None);
     assert!(matches!(lu, Some(Lu::Octets(_))), "{lu:?}");
     assert_eq!(fichiers(&d), 0);
 }
@@ -112,7 +112,7 @@ fn video_android_2_une_image_reste_en_memoire() {
 /// **Sans dossier, une vidéo se lit comme avant** : en mémoire, jusqu'à la borne.
 #[test]
 fn video_android_2_sans_dossier_une_video_se_lit() {
-    let lu = lire(Cursor::new(video(100)), 0, None, None);
+    let lu = lire(Cursor::new(video(100)), (0, None), None, None);
     assert!(
         matches!(lu, Some(Lu::Octets(ref r)) if r.octets == video(100)),
         "{lu:?}"
@@ -129,7 +129,7 @@ fn video_android_2_une_copie_interrompue_ne_laisse_rien() {
         zeros: 0,
         echoue: true,
     };
-    assert_eq!(lire(coupee, 0, None, Some(&d)), None);
+    assert_eq!(lire(coupee, (0, None), Some(&d), None), None);
     assert_eq!(fichiers(&d), 0, "rien ne reste du fichier réservé");
     let _ = std::fs::remove_dir_all(&d);
 }
@@ -140,9 +140,9 @@ fn video_android_2_une_copie_interrompue_ne_laisse_rien() {
 fn video_android_2_un_partage_pose_ses_videos() {
     let d = dossier_d_epreuve("partage");
     let mut partage = Partage::default();
-    partage.ajouter_dans(Some((Cursor::new(png()), 0, None)), Some(&d));
-    partage.ajouter_dans(Some((Cursor::new(video(10)), 0, None)), Some(&d));
-    partage.ajouter_dans(None::<(Cursor<Vec<u8>>, u64, Option<u64>)>, Some(&d));
+    partage.ajouter_dans(Some((Cursor::new(png()), 0, None)), None, Some(&d));
+    partage.ajouter_dans(Some((Cursor::new(video(10)), 0, None)), None, Some(&d));
+    partage.ajouter_dans(None::<(Cursor<Vec<u8>>, u64, Option<u64>)>, None, Some(&d));
     assert_eq!(
         (
             partage.recus.len(),
@@ -164,4 +164,48 @@ fn video_android_2_un_partage_pose_ses_videos() {
         "une vidéo seule n'est pas un partage vide"
     );
     let _ = std::fs::remove_dir_all(&d);
+}
+
+/// **Une vidéo reçue garde le nom qu'elle portait** (RECU-2, fiche 172 § 9) : `partage.mp4` ne
+/// disait rien. Son extension reste celle de ses octets, jamais celle du nom ; deux du même nom
+/// ne s'écrasent pas.
+#[test]
+fn recu_2_la_copie_garde_son_nom() {
+    let d = dossier_d_epreuve("nom");
+    let nom = |lu: Option<Lu>| match lu {
+        Some(Lu::Fichier(chemin)) => chemin.file_name().map(|n| n.to_string_lossy().into_owned()),
+        autre => panic!("une vidéo se copie : {autre:?}"),
+    };
+    let lire_sous = |n| lire(Cursor::new(video(100)), (0, None), Some(&d), n);
+    let premiere = nom(lire_sous(Some("Vacances à Nice.MOV")));
+    assert_eq!(premiere.as_deref(), Some("Vacances à Nice.mp4"));
+    let seconde = nom(lire_sous(Some("Vacances à Nice.MOV")));
+    assert_eq!(seconde.as_deref(), Some("Vacances à Nice (1).mp4"));
+    assert_eq!(nom(lire_sous(None)).as_deref(), Some("partage.mp4"));
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// **Le nom reçu s'assainit** : rien qui remonte d'un dossier, ni fichier caché, ni caractère que
+/// Windows refuse ; un nom vide redevient « partage » ; un nom trop long se coupe entre deux
+/// caractères, sous les 255 octets d'un nom de fichier, la place d'un rang comprise.
+#[test]
+fn recu_2_le_nom_recu_s_assainit() {
+    let copie = |n| nom_de_la_copie(Some(n), "mp4");
+    assert_eq!(copie("../../etc/clip.mov"), "clip.mp4");
+    assert_eq!(copie(".cache.mov"), "cache.mp4");
+    assert_eq!(copie("a<b>?.mov"), "a_b__.mp4");
+    assert_eq!(copie("   "), "partage.mp4");
+    assert_eq!(copie("..."), "depose.mp4");
+    assert_eq!(nom_de_la_copie(None, "mkv"), "partage.mkv");
+    let long = "é".repeat(300);
+    let coupe = copie(&long);
+    assert!(
+        coupe.len() + " (99999)".len() <= 255,
+        "{} octets",
+        coupe.len()
+    );
+    assert!(
+        coupe.starts_with("éé") && coupe.ends_with("é.mp4"),
+        "coupé entre deux caractères"
+    );
 }

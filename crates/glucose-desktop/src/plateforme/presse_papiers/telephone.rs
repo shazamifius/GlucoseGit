@@ -41,6 +41,8 @@ pub struct Lu {
     pub fichiers: Vec<Option<Ouvert>>,
     /// Son texte, s'il en porte un.
     pub texte: Option<String>,
+    /// Le nom de chaque fichier, quand le système le dit (RECU-2).
+    pub noms: Vec<Option<String>>,
 }
 
 /// Une adresse ouverte : le fichier, son début, sa longueur (celles d'un `AssetFileDescriptor`).
@@ -193,25 +195,30 @@ pub fn coller(ou: (f64, f64)) -> Option<Colle> {
     if lu.fichiers.is_empty() {
         return Some(lu.texte.map_or(Colle::Rien, Colle::Texte));
     }
-    let fichiers = lu.fichiers;
+    let (fichiers, noms) = (lu.fichiers, lu.noms);
     let lance = std::thread::Builder::new()
         .name("collage".into())
-        .spawn(move || partage::recevoir(partage_du_collage(fichiers, ou)));
+        .spawn(move || partage::recevoir(partage_du_collage(fichiers, &noms, ou)));
     if let Err(e) = lance {
         crate::dire_erreur!("[Glucose] collage : {e}");
     }
     Some(Colle::Fichiers)
 }
 
-/// **Le partage d'un collage** : ses fichiers lus — un illisible se compte —, son point, et
-/// aucun texte (une adresse qui l'accompagne n'irait pas chercher d'image).
-fn partage_du_collage(fichiers: Vec<Option<Ouvert>>, ou: (f64, f64)) -> Partage {
+/// **Le partage d'un collage** : ses fichiers lus, chacun sous son nom — un illisible se
+/// compte —, son point, et aucun texte (une adresse qui l'accompagne n'irait pas chercher
+/// d'image).
+fn partage_du_collage(
+    fichiers: Vec<Option<Ouvert>>,
+    noms: &[Option<String>],
+    ou: (f64, f64),
+) -> Partage {
     let mut collage = Partage {
         ou: Some(ou),
         ..Partage::default()
     };
-    for ouvert in fichiers {
-        collage.ajouter(ouvert);
+    for (i, ouvert) in fichiers.into_iter().enumerate() {
+        collage.ajouter(ouvert, noms.get(i).cloned().flatten().as_deref());
     }
     collage
 }

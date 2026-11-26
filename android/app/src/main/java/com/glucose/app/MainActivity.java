@@ -10,12 +10,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInstaller;
 import android.content.res.AssetFileDescriptor;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.StatFs;
+import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
@@ -53,11 +55,12 @@ public class MainActivity extends GameActivity {
 
     /**
      * Un partage, confié à Rust : un descripteur par fichier (-1 s'il n'a pas pu s'ouvrir),
-     * où le fichier commence dans ce descripteur, sa longueur (-1 : jusqu'au bout), et le texte.
-     * Rust prend les descripteurs : c'est lui qui les ferme.
+     * où le fichier commence dans ce descripteur, sa longueur (-1 : jusqu'au bout), le nom qu'il
+     * porte (null s'il est inconnu, RECU-2), et le texte. Rust prend les descripteurs : c'est lui
+     * qui les ferme.
      */
     private static native void recevoirUnPartage(
-            int[] fichiers, long[] debuts, long[] longueurs, String texte);
+            int[] fichiers, long[] debuts, long[] longueurs, String[] noms, String texte);
 
     /**
      * **Le dossier privé de Glucose** (VIDEO-ANDROID-2, fiche 172 § 5) : ce qu'il reçoit et qui
@@ -240,7 +243,8 @@ public class MainActivity extends GameActivity {
     /**
      * **Ce que porte le presse-papiers** : ses adresses ouvertes si `ouvrir` (trois nombres
      * chacune, comme `ouvrirLesAdresses`), puis le texte du premier élément qui en a un — une
-     * adresse seule n'en a pas. `null` s'il ne porte rien. Appelé par Rust.
+     * adresse seule n'en a pas —, puis leurs noms (`lesNoms`, RECU-2). `null` s'il ne porte rien.
+     * Appelé par Rust.
      */
     public Object[] lireLePressePapiers(boolean ouvrir) {
         ClipData clip = presse.getPrimaryClip();
@@ -262,7 +266,8 @@ public class MainActivity extends GameActivity {
                 texte = t.toString();
             }
         }
-        return new Object[] {ouvrirLesAdresses(ouvrir ? adresses : new ArrayList<>()), texte};
+        List<Uri> ouvertes = ouvrir ? adresses : new ArrayList<>();
+        return new Object[] {ouvrirLesAdresses(ouvertes), texte, lesNoms(ouvertes)};
     }
 
     /** **Ouvre une vidéo** (VIDEO-ANDROID-1, fiche 172) : `LecteurVideo`, que Rust lit. Appelé
@@ -466,7 +471,27 @@ public class MainActivity extends GameActivity {
             debuts[i] = ouverts[i * 3 + 1];
             longueurs[i] = ouverts[i * 3 + 2];
         }
-        recevoirUnPartage(fichiers, debuts, longueurs, texte);
+        recevoirUnPartage(fichiers, debuts, longueurs, lesNoms(adresses), texte);
+    }
+
+    /**
+     * **Le nom de chaque fichier** chez l'application qui le partage (`DISPLAY_NAME`, RECU-2) :
+     * une vidéo reçue garde le sien — `partage.mp4` ne disait rien. Null si le fournisseur ne le
+     * dit pas ; jamais le type, que ses octets disent.
+     */
+    private String[] lesNoms(List<Uri> adresses) {
+        String[] noms = new String[adresses.size()];
+        String[] colonne = {OpenableColumns.DISPLAY_NAME};
+        for (int i = 0; i < adresses.size(); i++) {
+            try (Cursor c = getContentResolver().query(adresses.get(i), colonne, null, null, null)) {
+                if (c != null && c.moveToFirst() && !c.isNull(0)) {
+                    noms[i] = c.getString(0);
+                }
+            } catch (Exception e) {
+                // Sans nom, la copie s'appelle « partage ».
+            }
+        }
+        return noms;
     }
 
     /**

@@ -10,6 +10,7 @@
 use winit::platform::android::activity::AndroidApp;
 use winit::platform::android::EventLoopBuilderExtAndroid;
 
+mod partage;
 mod presse_papiers;
 mod video;
 
@@ -97,107 +98,6 @@ pub extern "system" fn Java_com_glucose_app_MainActivity_recevoirLaFin(
 fn repartir() -> ! {
     eprintln!("[Glucose] une activite neuve dans un processus vivant : le processus repart");
     partir()
-}
-
-/// **Ce qu'une autre application partage vers Glucose** (PARTAGE-1, fiche 56) : l'activité
-/// Java a ouvert les fichiers, Rust les lit et les confie au dépôt de Glucose.
-mod partage {
-    use glucose_desktop::plateforme::partage::{recevoir, Partage};
-    use jni::objects::{JClass, JIntArray, JLongArray, JString};
-    use jni::refs::Reference;
-    use jni::{Env, EnvUnowned};
-    use std::os::fd::FromRawFd;
-
-    /// Les arguments de Java, copiés en Rust : les descripteurs, leurs débuts, leurs
-    /// longueurs, le texte.
-    type Arguments = (Vec<i32>, Vec<i64>, Vec<i64>, Option<String>);
-
-    /// `MainActivity.recevoirUnPartage`, sur le fil de Java qui a ouvert les fichiers — jamais
-    /// celui de l'interface : la lecture peut prendre son temps.
-    #[no_mangle]
-    pub extern "system" fn Java_com_glucose_app_MainActivity_recevoirUnPartage<'l>(
-        mut env: EnvUnowned<'l>,
-        _classe: JClass<'l>,
-        fichiers: JIntArray<'l>,
-        debuts: JLongArray<'l>,
-        longueurs: JLongArray<'l>,
-        texte: JString<'l>,
-    ) {
-        let lus = env
-            .with_env(|env| -> jni::errors::Result<_> {
-                Ok(copier(env, (&fichiers, &debuts, &longueurs), &texte)
-                    .map_err(|e| eprintln!("[Glucose] partage : {e}"))
-                    .ok())
-            })
-            .resolve::<jni::errors::LogErrorAndDefault>();
-        // Un partage dont les arguments ne se lisent pas laisse ses descripteurs ouverts : ils
-        // partent avec le processus. Il n'arrive que si Java et Rust ne s'accordent plus.
-        let Some((fichiers, debuts, longueurs, texte)) = lus else {
-            return;
-        };
-        let mut partage = Partage {
-            texte,
-            ..Partage::default()
-        };
-        for ((fd, debut), longueur) in fichiers.into_iter().zip(debuts).zip(longueurs) {
-            partage.ajouter((fd >= 0).then(|| {
-                // SAFETY : Java a détaché ce descripteur pour nous (`detachFd`) : il est à
-                // Rust seul, et `File` le fermera.
-                let fichier = unsafe { std::fs::File::from_raw_fd(fd) };
-                let longueur = u64::try_from(longueur).ok();
-                (fichier, u64::try_from(debut).unwrap_or(0), longueur)
-            }));
-        }
-        println!(
-            "[Glucose] partage : {} image(s) lue(s), {} fichier(s) copie(s), {} illisible(s), {}",
-            partage.recus.len(),
-            partage.chemins.len(),
-            partage.illisibles,
-            if partage.texte.is_some() {
-                "un texte"
-            } else {
-                "sans texte"
-            }
-        );
-        recevoir(partage);
-    }
-
-    /// `MainActivity.connaitreLeDossier`, avant que le fil de Glucose naisse (VIDEO-ANDROID-2,
-    /// fiche 172 § 5) : où va ce qu'il reçoit et qui n'est pas une image — le dossier privé,
-    /// celui de ses documents, jamais le cache que le système vide.
-    #[no_mangle]
-    pub extern "system" fn Java_com_glucose_app_MainActivity_connaitreLeDossier<'l>(
-        mut env: EnvUnowned<'l>,
-        _classe: JClass<'l>,
-        dossier: JString<'l>,
-    ) {
-        let lu = env
-            .with_env(|env| -> jni::errors::Result<String> { dossier.try_to_string(env) })
-            .resolve::<jni::errors::LogErrorAndDefault>();
-        if !lu.is_empty() {
-            let application = std::path::Path::new(&lu).join(super::DOSSIER);
-            glucose_desktop::plateforme::telechargements::habiter(&application);
-        }
-    }
-
-    /// Les tableaux et le texte de Java, en Rust.
-    fn copier(
-        env: &mut Env,
-        (fichiers, debuts, longueurs): (&JIntArray, &JLongArray, &JLongArray),
-        texte: &JString,
-    ) -> jni::errors::Result<Arguments> {
-        let n = fichiers.len(env)?;
-        let (mut f, mut d, mut l) = (vec![0; n], vec![0; n], vec![0; n]);
-        fichiers.get_region(env, 0, &mut f)?;
-        debuts.get_region(env, 0, &mut d)?;
-        longueurs.get_region(env, 0, &mut l)?;
-        let texte = if texte.is_null() {
-            None
-        } else {
-            Some(texte.try_to_string(env)?)
-        };
-        Ok((f, d, l, texte))
-    }
 }
 
 /// **Le sélecteur de photos du système** (fiche 56) : « Ajouter des images et des vidéos… »

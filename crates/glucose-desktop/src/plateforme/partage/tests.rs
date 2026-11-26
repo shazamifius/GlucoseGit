@@ -15,7 +15,7 @@ fn png() -> Vec<u8> {
 /// Lu en mémoire, sans dossier où copier une vidéo : ce que les épreuves d'avant VIDEO-ANDROID-2
 /// éprouvent.
 fn en_memoire(fichier: impl Read + Seek, debut: u64, longueur: Option<u64>) -> Option<Recu> {
-    match lire(fichier, debut, longueur, None)? {
+    match lire(fichier, (debut, longueur), None, None)? {
         Lu::Octets(recu) => Some(recu),
         Lu::Fichier(chemin) => panic!("copié sans dossier : {chemin:?}"),
     }

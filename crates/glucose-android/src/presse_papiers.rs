@@ -98,9 +98,17 @@ impl Porte for DuTelephone {
                 ouverts.get_region(env, 0, &mut v)?;
                 let texte = tableau.get_element(env, 1)?;
                 let texte = lue(env, texte)?;
+                let noms = tableau.get_element(env, 2)?;
+                let noms = env.cast_local::<JObjectArray>(noms)?;
+                let mut lus = Vec::new();
+                for i in 0..noms.len(env)? {
+                    let nom = noms.get_element(env, i)?;
+                    lus.push(lue(env, nom)?);
+                }
                 Ok(Some(Lu {
                     fichiers: v.as_chunks::<3>().0.iter().map(ouvert).collect(),
                     texte,
+                    noms: lus,
                 }))
             },
             "presse-papiers",
