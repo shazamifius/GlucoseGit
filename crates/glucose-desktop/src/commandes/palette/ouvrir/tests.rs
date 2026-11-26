@@ -145,11 +145,15 @@ fn recents_1_la_trouvaille_de_la_fouille_parait() {
     std::fs::create_dir_all(loin.parent().expect("son dossier")).expect("le dossier");
     document(&loin);
     let mut app = application(&glucose, &[]);
+    // La palette d'abord, la fouille ensuite : lancée avec elle, la fouille d'un dossier si petit
+    // pouvait finir avant que la palette se compose — rien à redessiner, et l'épreuve tombait sur
+    // le Mac à puce de la CI (`8786629`), sans que Glucose soit en cause.
+    app.executer(Commande::OuvrirUnDocument);
     let reveil = std::sync::Arc::new(|| {});
     app.disque
         .fouille
         .brancher(Some(maison.to_path_buf()), reveil);
-    app.executer(Commande::OuvrirUnDocument);
+    app.disque.fouille.lancer();
     let debut = std::time::Instant::now();
     while app.disque.fouille.en_cours() && debut.elapsed() < std::time::Duration::from_secs(10) {
         std::thread::yield_now();

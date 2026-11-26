@@ -1,0 +1,44 @@
+[
+ {
+  "nom": "VIDEO-2 — le joueur en boucle ne revient pas au début",
+  "fichier": "crates/glucose-desktop/src/renderer/video/joueur.rs",
+  "avant": "Err(Fin::AuBout) if en_boucle && lecteur.revenir_au_debut() => continue,",
+  "apres": "Err(Fin::AuBout) if false && lecteur.revenir_au_debut() => continue,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2_en_boucle",
+   "video_2_sans_boucle"
+  ]
+ },
+ {
+  "nom": "VIDEO-2 — le joueur sans boucle revient au début",
+  "fichier": "crates/glucose-desktop/src/renderer/video/joueur.rs",
+  "avant": "Err(Fin::AuBout) if en_boucle && lecteur.revenir_au_debut() => continue,",
+  "apres": "Err(Fin::AuBout) if lecteur.revenir_au_debut() => continue,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_2_en_boucle",
+   "video_2_sans_boucle"
+  ]
+ }
+]

@@ -153,45 +153,57 @@ pub fn video_2_au_bout_la_video_revient_au_debut() {
 /// **La lecture automatique joue en boucle** (VIDEO-2, fiche 170) : sur la vraie vidéo de
 /// téléphone en miniature (dix images en une seconde), le joueur en boucle ne finit jamais ; l'autre
 /// finit au bout.
-fn jouer_pendant(en_boucle: bool, duree: Duration) -> Option<(usize, bool)> {
+///
+/// Sans horloge : on joue **jusqu'à** ce que la preuve soit là (`assez`, du compte des images et de
+/// la fin), et [`PATIENCE`] ne borne qu'un joueur figé. Le fil du joueur cède au fil qui dessine
+/// (CEDER-1 : sous Windows, en dessous de la normale et sans dopage) ; sur les quatre cœurs de la
+/// CI, que les autres épreuves occupent, il attend son tour des secondes durant — 5 images en
+/// 2,6 s, quand le même lecteur sur un fil normal en rendait dix par seconde (fiche 175 § 12).
+fn jouer_jusqu_a(
+    en_boucle: bool,
+    assez: impl Fn(usize, bool) -> bool,
+) -> Option<(usize, bool, Vec<Duration>)> {
     if !present() {
         return None;
     }
     let chemin = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/donnees/rouge-64x48.mp4");
     let mut joueur = JoueurVideo::lancer(chemin.to_string(), None, None, en_boucle);
-    // L'ouverture a son propre temps (PREPARATION) : sur le Windows de la CI, sans carte son, un
-    // moteur s'ouvre en près de 6 s (fiche 175 § 11). La durée se compte de la première image.
-    let (ouverture, mut images) = (Instant::now(), 0);
-    while images == 0 && ouverture.elapsed() < PREPARATION && !joueur.fini() {
-        images += usize::from(joueur.a_poser().is_some());
+    let (debut, mut vues) = (Instant::now(), Vec::new());
+    while !assez(vues.len(), joueur.fini()) && debut.elapsed() < PATIENCE {
+        if joueur.a_poser().is_some() {
+            vues.push(debut.elapsed());
+        }
         std::thread::sleep(Duration::from_millis(5));
     }
-    let debut = Instant::now();
-    while debut.elapsed() < duree && !joueur.fini() {
-        images += usize::from(joueur.a_poser().is_some());
-        std::thread::sleep(Duration::from_millis(5));
-    }
-    Some((images, joueur.fini()))
+    crate::dire_erreur!("vidéo : {} images en {:?}", vues.len(), debut.elapsed());
+    Some((vues.len(), joueur.fini(), vues))
 }
+
+/// Au-delà, le joueur est tenu pour figé : l'ouverture ([`PREPARATION`]) et des secondes d'attente
+/// de son tour, sous charge.
+const PATIENCE: Duration = Duration::from_secs(30);
 
 #[cfg_attr(not(target_os = "macos"), test)]
 pub fn video_2_en_boucle_le_joueur_repart_au_bout() {
-    let Some((images, fini)) = jouer_pendant(true, Duration::from_millis(2600)) else {
+    // Un tour rend au plus dix images (video_1_la_video_joue_ses_images_jusqu_au_bout) : une
+    // onzième prouve le retour au début.
+    let assez = |images, fini| images > 10 || fini;
+    let Some((images, fini, vues)) = jouer_jusqu_a(true, assez) else {
         return;
     };
-    assert!(!fini, "la boucle a fini");
     assert!(
-        images > 12,
-        "{images} images en plus de deux tours d'une seconde"
+        !fini,
+        "la boucle a fini après {images} images, vues à {vues:?}"
     );
+    assert!(images > 10, "{images} images, vues à {vues:?}");
 }
 
 #[cfg_attr(not(target_os = "macos"), test)]
 pub fn video_2_sans_boucle_le_joueur_finit_au_bout() {
-    let Some((_, fini)) = jouer_pendant(false, Duration::from_secs(5)) else {
+    let Some((images, fini, vues)) = jouer_jusqu_a(false, |_, fini| fini) else {
         return;
     };
-    assert!(fini, "jamais finie");
+    assert!(fini, "jamais finie : {images} images, vues à {vues:?}");
 }
 
 /// **Toutes, pour la suite du Mac** : leur nom et elles.

@@ -33,7 +33,14 @@ case "$FORME" in
   deb)
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
-    apt-get install -y -qq "$TAURI" > /dev/null
+    # Un miroir d'Ubuntu qui se met à jour retire un paquet que son index annonce encore (404 :
+    # libtiff5, CI de 8786629, fiche 175 § 12) : l'index relu, une seconde chance.
+    apt-get install -y -qq "$TAURI" > /dev/null || {
+      echo "    un paquet manquait au miroir : l'index relu dans 30 s"
+      sleep 30
+      apt-get update -qq
+      apt-get install -y -qq "$TAURI" > /dev/null
+    }
     GLUCOSE=/usr/bin/glucose
     version_du_paquet() { dpkg-query -W -f='${Version}' glucose; }
     basculer() { dpkg -i "$PAQUET_N" > /dev/null; }
