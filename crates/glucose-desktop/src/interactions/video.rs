@@ -66,7 +66,12 @@ impl GlucoseApp {
         }
         let mut poses = match self.ui.question.take() {
             Some((_, Suite::Videos { board: b, poses })) if b == board => poses,
-            _ => Vec::new(),
+            autre => {
+                if let Some((_, suite)) = autre {
+                    self.laisser(suite);
+                }
+                Vec::new()
+            }
         };
         poses.push((path.to_path_buf(), (Fx::from_f64(ou.0), Fx::from_f64(ou.1))));
         let question = question_des_videos(&poses);
@@ -92,14 +97,57 @@ impl GlucoseApp {
         let a_cote = match reponse {
             Reponse::Oui => false,
             Reponse::Non => true,
-            _ => return,
+            _ => return self.rendre_les_copies_recues(poses),
         };
         self.store.begin_live_edit();
         for (path, (x, y)) in poses {
             self.poser_la_video(board, path, (x.to_f64(), y.to_f64()), a_cote);
         }
         self.store.end_live_edit();
+        // Dans le document, une copie reçue y est deux fois : elle se retire une fois scellée.
+        if !a_cote {
+            let recues: Vec<PathBuf> = (poses.iter().map(|(p, _)| p))
+                .filter(|p| self.est_recue(p))
+                .cloned()
+                .collect();
+            self.depot.a_retirer.extend(recues);
+        }
         self.mark_dirty();
+    }
+
+    /// **RECUE-1 — une copie reçue que plus rien ne désigne se retire** (fiche 172 § 8). Une
+    /// vidéo partagée au téléphone se copie dans le dossier privé de Glucose, que l'utilisateur ne
+    /// voit pas : « Annuler », ou la question fermée sans réponse, l'y laissaient pour rien.
+    pub(crate) fn rendre_les_copies_recues(&mut self, poses: &[Pose]) {
+        for (chemin, _) in poses.iter().filter(|(p, _)| self.est_recue(p)) {
+            retirer(chemin);
+        }
+    }
+
+    /// **Une suite qu'aucune réponse ne suivra** — la question fermée, ou remplacée : ce
+    /// qu'elle tenait se rend.
+    pub(crate) fn laisser(&mut self, suite: Suite) {
+        if let Suite::Videos { poses, .. } = suite {
+            self.rendre_les_copies_recues(&poses);
+        }
+    }
+
+    /// Les copies mises dans le document, retirées dès que le scribe les a scellées : le
+    /// document ne dépend plus d'elles. Une copie dont le document s'est fermé avant reste.
+    pub(crate) fn retirer_les_copies_scellees(&mut self) {
+        let objets = &self.disque.objets;
+        self.depot.a_retirer.retain(|chemin| {
+            let scellee = chemin.to_str().is_some_and(|cle| objets.est_scellee(cle));
+            if scellee {
+                retirer(chemin);
+            }
+            !scellee
+        });
+    }
+
+    /// Ce fichier est-il une copie reçue, à Glucose seul ?
+    fn est_recue(&self, chemin: &Path) -> bool {
+        (self.depot.recues.as_deref()).is_some_and(|dossier| chemin.starts_with(dossier))
     }
 
     fn poser_la_video(&mut self, board: &str, path: &Path, ou: (f64, f64), a_cote: bool) {
@@ -163,6 +211,15 @@ impl GlucoseApp {
         }
         self.mark_dirty();
         true
+    }
+}
+
+/// Retire une copie reçue ; déjà partie, rien à dire.
+fn retirer(chemin: &Path) {
+    match std::fs::remove_file(chemin) {
+        Ok(()) => crate::dire!("[video] copie reçue retirée : {}", chemin.display()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => crate::dire_erreur!("[video] copie reçue gardée ({e}) : {}", chemin.display()),
     }
 }
 
@@ -274,5 +331,61 @@ mod tests {
         };
         app.repondre_a_la_question(Some(Reponse::Annuler));
         assert!(videos(&app).is_empty(), "Annuler n'en pose aucune");
+    }
+
+    /// RECUE-1 (fiche 172 § 8) — **Une copie reçue que plus rien ne désigne se retire** :
+    /// « Annuler », la question fermée sans réponse ou remplacée par une autre la retirent tout de
+    /// suite ; « À côté » la garde, le document la désigne ; « Dans le document » la retire une
+    /// fois scellée, pas avant. Un fichier hors du dossier des copies reçues — celui de
+    /// l'utilisateur — ne se touche jamais.
+    #[test]
+    fn recue_1_une_copie_recue_que_rien_ne_designe_se_retire() {
+        use crate::persist::disque::tests::{application, dossier, image_suivante};
+        if !crate::renderer::video::lisible_ici() {
+            return;
+        }
+        let d = dossier("recue-1");
+        let recues = d.join("telechargements");
+        std::fs::create_dir_all(&recues).expect("le dossier des copies");
+        let copie = |dossier: &Path, nom: &str| {
+            let c = dossier.join(nom);
+            std::fs::write(&c, std::fs::read(ROUGE).expect("la vidéo")).expect("une copie");
+            c
+        };
+        let mut app = application(&d);
+        app.save_to(d.join("doc.glucose"));
+        app.depot.recues = Some(recues.clone());
+        let deposer = |app: &mut GlucoseApp, chemin: &Path, reponse| {
+            app.drop_files(&[chemin.to_path_buf()]);
+            assert_eq!(app.videos_en_question(), 1);
+            app.repondre_a_la_question(reponse);
+        };
+
+        let a_lui = copie(&d, "a-lui.mp4");
+        deposer(&mut app, &a_lui, Some(Reponse::Annuler));
+        assert!(a_lui.exists(), "le sien ne se touche jamais");
+        let annulee = copie(&recues, "partage");
+        deposer(&mut app, &annulee, Some(Reponse::Annuler));
+        assert!(!annulee.exists(), "Annuler la retire");
+        let fermee = copie(&recues, "partage (1)");
+        deposer(&mut app, &fermee, None);
+        assert!(!fermee.exists(), "la question fermée sans réponse aussi");
+        let remplacee = copie(&recues, "partage (2)");
+        app.drop_files(std::slice::from_ref(&remplacee));
+        app.demander(Question::default(), Suite::NouveauDocument);
+        assert!(!remplacee.exists(), "la question remplacée aussi");
+        app.repondre_a_la_question(None);
+
+        let a_cote = copie(&recues, "partage (3)");
+        deposer(&mut app, &a_cote, Some(Reponse::Non));
+        let dedans = copie(&recues, "partage (4)");
+        deposer(&mut app, &dedans, Some(Reponse::Oui));
+        app.retirer_les_copies_scellees();
+        assert!(dedans.exists(), "pas avant d'être scellée");
+        image_suivante(&mut app);
+        app.retirer_les_copies_scellees();
+        assert!(!dedans.exists(), "scellée, elle se retire");
+        assert!(a_cote.exists(), "à côté, le document la désigne");
+        assert_eq!(videos(&app).len(), 2, "les deux vidéos sont posées");
     }
 }

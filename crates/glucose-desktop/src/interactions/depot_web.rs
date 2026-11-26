@@ -51,6 +51,13 @@ pub struct Arrivees {
     /// de l'utilisateur, que **seul le vrai lancement** donne ([`GlucoseApp::habiter`]) — une
     /// épreuve n'écrit jamais chez lui.
     pub telechargements: Option<std::path::PathBuf>,
+    /// **Le dossier des copies reçues** (RECUE-1, fiche 172 § 8) : celui de l'application, sous
+    /// Android, où une vidéo partagée se copie ; aucun sur un bureau — les Téléchargements sont à
+    /// l'utilisateur, Glucose n'y efface rien. Comme [`Self::telechargements`], seul le vrai
+    /// lancement le donne.
+    pub recues: Option<std::path::PathBuf>,
+    /// Les copies reçues mises dans le document : elles se retirent une fois scellées.
+    pub a_retirer: Vec<std::path::PathBuf>,
     /// **Les liens qui repartent chercher leur image** (DEPOT-WEB-6), au clic droit.
     pub relances: Relances,
     /// Les images que le dernier dépôt a posées, dans l'ordre : ce que la pose rend.

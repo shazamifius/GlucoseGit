@@ -1,0 +1,182 @@
+[
+  {
+    "nom": "RECUE-1 — Annuler garde la copie",
+    "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+    "avant": "_ => return self.rendre_les_copies_recues(poses),",
+    "apres": "_ => return,",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — la question fermée garde la copie",
+    "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+    "avant": "None => self.laisser(suite),",
+    "apres": "None => drop(suite),",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — la question remplacée garde la copie",
+    "fichier": "crates/glucose-desktop/src/interactions/question.rs",
+    "avant": "            self.laisser(remplacee);",
+    "apres": "            drop(remplacee);",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — dans le document, jamais retirée",
+    "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+    "avant": "self.depot.a_retirer.extend(recues);",
+    "apres": "drop(recues);",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — retirée avant d'être scellée",
+    "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+    "avant": "let scellee = chemin.to_str().is_some_and(|cle| objets.est_scellee(cle));",
+    "apres": "let scellee = chemin.to_str().is_some();",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — le fichier de l'utilisateur pris pour une copie",
+    "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+    "avant": "chemin.starts_with(dossier)",
+    "apres": "dossier.exists()",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — une vidéo QuickTime nommée mp4",
+    "fichier": "crates/glucose-desktop/src/renderer/video/signature.rs",
+    "avant": "(Some(b\"ftyp\"), Some(b\"qt \")) => \"mov\",",
+    "apres": "(Some(b\"ftyp\"), Some(b\"qt \")) => \"mp4\",",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — une photo prise pour une vidéo",
+    "fichier": "crates/glucose-desktop/src/renderer/video/signature.rs",
+    "avant": "    if !est_video(debut) {\n        return None;\n    }\n    Some(match",
+    "apres": "    Some(match",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "recue_1"
+    ]
+  },
+  {
+    "nom": "RECUE-1 — la copie reçue sans extension",
+    "fichier": "crates/glucose-desktop/src/plateforme/partage.rs",
+    "avant": "let nom = format!(\"{NOM}.{extension}\");",
+    "apres": "let nom = format!(\"{NOM}\");",
+    "cmd": [
+      "bash",
+      "outils/borne.sh",
+      "nix",
+      "develop",
+      "-c",
+      "cargo",
+      "test",
+      "-p",
+      "glucose-desktop",
+      "--lib",
+      "--",
+      "video_android_2_une_video_se_copie"
+    ]
+  }
+]

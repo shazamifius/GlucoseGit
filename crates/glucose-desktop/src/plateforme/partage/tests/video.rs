@@ -37,6 +37,12 @@ fn video_android_2_une_video_se_copie_sur_le_disque() {
         panic!("une vidéo se copie : {lu:?}");
     };
     assert_eq!(chemin.parent(), Some(d.as_path()));
+    let extension = chemin.extension().and_then(|e| e.to_str());
+    assert_eq!(
+        extension,
+        Some("mp4"),
+        "son nom dit ce qu'elle est (RECUE-1)"
+    );
     assert_eq!(std::fs::read(&chemin).expect("copiée"), video(70_000));
     let _ = std::fs::remove_dir_all(&d);
 }

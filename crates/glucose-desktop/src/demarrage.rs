@@ -29,6 +29,7 @@ pub fn lancer(
     // (DEPOT-4). Pas dans `habiter`, que `new` ouvre sur un dossier temporaire : ce dossier-ci
     // ne dérive pas de celui de l'application, et seul le vrai lancement le connaît.
     app.depot.telechargements = crate::plateforme::telechargements::dossier();
+    app.depot.recues = crate::plateforme::telechargements::de_l_application();
     // Le presse-papiers du système, pour l'application seule : les épreuves ont le leur.
     crate::interactions::presse_papiers::prendre_celui_du_systeme();
     // Le clavier du système, s'il y en a un à demander — sous Android (CLAVIER-1).

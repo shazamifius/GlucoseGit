@@ -26,7 +26,9 @@ pub(crate) mod frappe;
 impl GlucoseApp {
     /// **Pose cette question** ; sa réponse déclenchera `suite`.
     pub(crate) fn demander(&mut self, question: Question, suite: Suite) {
-        self.ui.question = Some((question, suite));
+        if let Some((_, remplacee)) = self.ui.question.replace((question, suite)) {
+            self.laisser(remplacee);
+        }
         self.mark_dirty();
     }
 
@@ -186,9 +188,12 @@ impl GlucoseApp {
         let Some((question, suite)) = self.ui.question.take() else {
             return;
         };
-        if let Some(reponse) = reponse {
-            let pastille = question.pastilles.as_ref().map(|p| p.choisie);
-            self.suivre(suite, reponse, (question.champ.map(|c| c.texte), pastille));
+        match reponse {
+            Some(reponse) => {
+                let pastille = question.pastilles.as_ref().map(|p| p.choisie);
+                self.suivre(suite, reponse, (question.champ.map(|c| c.texte), pastille));
+            }
+            None => self.laisser(suite),
         }
     }
 

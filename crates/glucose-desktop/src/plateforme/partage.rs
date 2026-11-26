@@ -90,12 +90,14 @@ pub fn lire(
         .take(signature::LONGUEUR as u64)
         .read_to_end(&mut octets)
         .ok()?;
-    if let Some(dossier) = dossier.filter(|_| signature::est_video(&octets)) {
+    if let (Some(dossier), Some(extension)) = (dossier, signature::extension(&octets)) {
         let copier = |sortie: &mut std::io::BufWriter<std::fs::File>| {
             sortie.write_all(&octets)?;
             std::io::copy(&mut fichier, sortie).map(drop)
         };
-        return telechargements::poser_en_flux(dossier, NOM, copier).map(Lu::Fichier);
+        // Son extension, d'après sa signature : enregistrée ailleurs, elle dit ce qu'elle est.
+        let nom = format!("{NOM}.{extension}");
+        return telechargements::poser_en_flux(dossier, &nom, copier).map(Lu::Fichier);
     }
     let reste = (OCTETS_MAX as u64 + 1).saturating_sub(octets.len() as u64);
     fichier.take(reste).read_to_end(&mut octets).ok()?;

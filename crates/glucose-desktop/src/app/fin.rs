@@ -24,6 +24,8 @@ impl GlucoseApp {
         // Une réponse a déjà réglé le sort du document quand la fenêtre a le droit de partir :
         // fermé, enregistré, ou abandonné — et un brouillon qu'on vient d'abandonner ne doit
         // pas renaître ici. Sinon, c'est le système qui finit : le document se ferme lui-même.
+        // Les copies reçues déjà scellées n'ont plus de raison d'être (RECUE-1).
+        self.retirer_les_copies_scellees();
         if !self.ui.fermer_la_fenetre {
             self.fermer_le_document();
         }
