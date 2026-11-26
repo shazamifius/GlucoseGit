@@ -15,6 +15,7 @@ mod flot;
 use super::mf::{mf, Demarre, Mf};
 use super::{bgra, Fin, Lieu, PREPARATION, REGARD};
 use crate::renderer::gif::Toile;
+use std::cell::Cell;
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use windows::core::{implement, Interface, BSTR};
@@ -34,7 +35,8 @@ use windows::Win32::Media::MediaFoundation::{
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
 
 /// **Ce que Windows a pour préparer l'image fixe, la vidéo arrêtée**, avant qu'elle joue, muette,
-/// jusqu'à elle (Wine ne la prépare jamais : chaque image fixe y attend ce temps de plus).
+/// jusqu'à elle (Wine ne la prépare jamais : chaque image fixe y attend ce temps de plus) ; et la
+/// première image d'un retour au début sur place, avant un moteur neuf.
 const AVANT_PLAY: Duration = Duration::from_millis(500);
 
 /// **Ce que le moteur dit de lui-même**, depuis ses fils à lui.
@@ -110,6 +112,8 @@ pub(crate) struct LecteurVideo {
     taille: (u32, u32),
     /// Ses octets, gardés pour revenir au début par un moteur neuf.
     lieu: Lieu,
+    /// La première image d'un retour au début sur place, rendue à la prochaine demande.
+    retenue: Cell<Option<Toile>>,
     mf: &'static Mf,
     _demarre: Demarre,
 }
@@ -147,6 +151,7 @@ impl LecteurVideo {
             image,
             taille,
             lieu,
+            retenue: Cell::new(None),
             mf,
             _demarre: demarre,
         })
@@ -170,6 +175,9 @@ impl LecteurVideo {
     /// **L'image suivante**, attendue au plus `delai` : `Ok(None)` si elle n'est pas encore là,
     /// `Err` à la fin de la vidéo ou à la première faute.
     pub(crate) fn suivante(&self, delai: Duration) -> Result<Option<Toile>, Fin> {
+        if let Some(toile) = self.retenue.take() {
+            return Ok(Some(toile));
+        }
         let limite = Instant::now() + delai;
         loop {
             if self.etat.lire(|n| n.faute) {
@@ -191,11 +199,24 @@ impl LecteurVideo {
         }
     }
 
-    /// **Revient au début**, pour une vidéo qui joue en boucle (VIDEO-2) : un moteur neuf sur les
-    /// mêmes octets, le son tel qu'il était ; `false` si le système refuse. Sous Wine, un moteur
-    /// allé au bout ne rend plus d'image — ni par `SetCurrentTime(0)` puis `Play`, ni par
-    /// `SetLoop`, ni sa source rechargée — ; un neuf, si (fiche 175 § 2).
+    /// **Revient au début**, pour une vidéo qui joue en boucle (VIDEO-2) ; `false` si le système
+    /// refuse. Sur place d'abord, comme une balise `<video>` : le temps remis à zéro, puis `Play` —
+    /// rien ne se rouvre (un moteur neuf prenait 4 s sur le Windows de la CI, sans carte son :
+    /// fiche 175 § 11). Sa première image vient d'elle-même, et la boucle ne bégaie pas ; elle est
+    /// gardée pour [`Self::suivante`]. Sous Wine, un moteur allé au bout ne rend plus d'image — ni
+    /// par `SetCurrentTime(0)` puis `Play`, ni par `SetLoop`, ni sa source rechargée — ; un neuf, si
+    /// (fiche 175 § 2) : sans image après [`AVANT_PLAY`], un moteur neuf sur les mêmes octets, le son
+    /// tel qu'il était.
     pub(crate) fn revenir_au_debut(&mut self) -> bool {
+        self.etat.lire(|n| n.au_bout = false);
+        // SAFETY : le moteur vit autant que le lecteur.
+        if unsafe { self.moteur.0.SetCurrentTime(0.0) }.is_ok() {
+            self.jouer(true);
+            if let Ok(Some(toile)) = self.suivante(AVANT_PLAY) {
+                self.retenue.set(Some(toile));
+                return true;
+            }
+        }
         // SAFETY : comme `ouvrir` ; l'ancien moteur s'arrête quand le neuf le remplace.
         unsafe {
             let muet = self.moteur.0.GetMuted().as_bool();

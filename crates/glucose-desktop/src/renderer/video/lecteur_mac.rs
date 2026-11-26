@@ -29,8 +29,8 @@ use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, Bool, ProtocolObject};
 use objc2::{AllocAnyThread, MainThreadMarker};
 use objc2_av_foundation::{
-    AVPlayer, AVPlayerActionAtItemEnd, AVPlayerItem, AVPlayerItemStatus, AVPlayerItemVideoOutput,
-    AVURLAsset, AVVideoComposition,
+    AVMediaTypeVideo, AVPlayer, AVPlayerActionAtItemEnd, AVPlayerItem, AVPlayerItemStatus,
+    AVPlayerItemVideoOutput, AVURLAsset, AVVideoComposition,
 };
 use objc2_core_media::{kCMTimeZero, CMTime};
 use objc2_core_video::{
@@ -147,13 +147,24 @@ impl LecteurVideo {
     /// Linux. Posée une fois la vidéo prête — ses pistes lues ; si AVFoundation la refuse, la
     /// vidéo joue telle qu'elle est rangée. Sa remplaçante (`…completionHandler:`) n'existe que
     /// depuis macOS 15.
+    ///
+    /// **Seulement une vidéo tournée** : la composition rend ses images sur toute la durée de la
+    /// vidéo, que le son allonge au-delà de la dernière image — une onzième pour dix (la CI de
+    /// `ed5df14`, fiche 175 § 11) —, et le compositeur coûte. Une piste droite s'en passe.
     fn redresser(&self) {
-        // SAFETY : l'élément vit autant que le lecteur.
+        // SAFETY : l'élément vit autant que le lecteur ; la piste, autant que sa vidéo.
         sans_exception("la composition", || unsafe {
+            let asset = self.element.asset();
             #[allow(deprecated)]
-            let composition =
-                AVVideoComposition::videoCompositionWithPropertiesOfAsset(&self.element.asset());
+            let pistes = asset.tracksWithMediaType(AVMediaTypeVideo?);
+            let t = pistes.firstObject()?.preferredTransform();
+            if (t.a, t.b, t.c, t.d) == (1.0, 0.0, 0.0, 1.0) {
+                return None;
+            }
+            #[allow(deprecated)]
+            let composition = AVVideoComposition::videoCompositionWithPropertiesOfAsset(&asset);
             self.element.setVideoComposition(Some(&composition));
+            Some(())
         });
     }
 
@@ -195,7 +206,9 @@ impl LecteurVideo {
                 let mut affichee = kCMTimeZero;
                 let image = (self.sortie)
                     .copyPixelBufferForItemTime_itemTimeForDisplay(maintenant, &mut affichee);
-                if self.derniere.replace(Some(affichee)) != Some(affichee) {
+                // Comparées comme Core Media les compare : la même heure s'écrit 0/1 ou 0/600.
+                let avant = self.derniere.replace(Some(affichee));
+                if avant.is_none_or(|a| a.compare(affichee) != 0) {
                     return Some(image.and_then(|i| toile(&i)).map(Some).ok_or(Fin::Faute));
                 }
             }

@@ -159,7 +159,14 @@ fn jouer_pendant(en_boucle: bool, duree: Duration) -> Option<(usize, bool)> {
     }
     let chemin = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/donnees/rouge-64x48.mp4");
     let mut joueur = JoueurVideo::lancer(chemin.to_string(), None, None, en_boucle);
-    let (debut, mut images) = (Instant::now(), 0);
+    // L'ouverture a son propre temps (PREPARATION) : sur le Windows de la CI, sans carte son, un
+    // moteur s'ouvre en près de 6 s (fiche 175 § 11). La durée se compte de la première image.
+    let (ouverture, mut images) = (Instant::now(), 0);
+    while images == 0 && ouverture.elapsed() < PREPARATION && !joueur.fini() {
+        images += usize::from(joueur.a_poser().is_some());
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let debut = Instant::now();
     while debut.elapsed() < duree && !joueur.fini() {
         images += usize::from(joueur.a_poser().is_some());
         std::thread::sleep(Duration::from_millis(5));

@@ -81,9 +81,9 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 # `exception` : une exception d'Objective-C attrapée au lieu de tuer Glucose (un fichier en C de
 # plus, `objc2-exception-helper`).
 objc2 = { version = "0.6", features = ["exception"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL", "NSData", "NSDictionary", "NSValue", "NSObject", "NSError"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL", "NSData", "NSDictionary", "NSValue", "NSObject", "NSError", "NSArray"] }
 dispatch2 = { version = "0.3", default-features = false, features = ["std", "objc2"] }
-objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVAsset", "AVAssetResourceLoader", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVVideoComposition", "block2", "dispatch2", "objc2-core-media", "objc2-core-video"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVAsset", "AVAssetResourceLoader", "AVAssetTrack", "AVMediaFormat", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVVideoComposition", "block2", "dispatch2", "objc2-core-foundation", "objc2-core-media", "objc2-core-video"] }
 # Le rappel du saut au début (`seekToTime:completionHandler:`, fiche 175 § 10) : déjà compilée pour
 # le Mac par `objc2-app-kit` (decisions/22).
 block2 = "0.6"
