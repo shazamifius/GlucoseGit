@@ -198,3 +198,53 @@ fn test_regard_1_quoi_de_neuf_dit_sur_quoi_il_se_concentre() {
     let quand = r[0].get("quand").and_then(Json::as_str).unwrap_or_default();
     assert!(!quand.is_empty(), "l'heure est dite : {j:?}");
 }
+
+/// **Ce qui a changé dans un texte** (MCP-CHANGE, fiche 180) : sa réponse ajoutée sous une question
+/// se lit seule, à sa ligne, en deux gestes ou un ; un texte récrit se relit entier ; un nœud
+/// seulement déplacé ne dit rien de son texte.
+#[test]
+fn test_mcp_change_quoi_de_neuf_dit_ce_qui_a_change() {
+    let dossier = Dossier::nouveau("mcp-change");
+    let mut app = GlucoseApp::new();
+    app.habiter(&dossier);
+    let (moi, h) = (proteo(), Main::Humain);
+    let q = r#"{"id":"q","texte":"**Une question**\n\nTon avis ?\n\nTa réponse :"}"#;
+    sous(&mut app, moi.clone(), "glucose_poser_texte", q);
+    let c = r#"{"id":"c","texte":"un\ndeux"}"#;
+    sous(&mut app, moi.clone(), "glucose_poser_texte", c);
+    sous(
+        &mut app,
+        moi.clone(),
+        "glucose_poser_texte",
+        r#"{"id":"d","texte":"Reste."}"#,
+    );
+    let oui = r#"{"id":"q","texte":"\nOui.","ajouter":true}"#;
+    sous(&mut app, h.clone(), "glucose_ecrire", oui);
+    let vraiment = r#"{"id":"q","texte":"\nVraiment.","ajouter":true}"#;
+    sous(&mut app, h.clone(), "glucose_ecrire", vraiment);
+    let recrit = r#"{"id":"c","texte":"trois\nquatre"}"#;
+    sous(&mut app, h.clone(), "glucose_ecrire", recrit);
+    sous(
+        &mut app,
+        h,
+        "glucose_deplacer",
+        r#"{"id":"d","x":900,"y":900}"#,
+    );
+
+    app.store.journal.main = moi;
+    let j = appeler(&mut app, "glucose_quoi_de_neuf", "{}");
+    let Some(Json::Liste(l)) = j.get("noeuds") else {
+        panic!("pas de nœuds : {j:?}")
+    };
+    let changements = |id: &str| {
+        let n = l
+            .iter()
+            .find(|n| n.get("id").and_then(Json::as_str) == Some(id));
+        n.and_then(|n| n.get("changements").cloned())
+    };
+    let q = changements("q").expect("ce qui a changé dans q").ecrire();
+    assert_eq!(q, r#"[{"ligne":6,"apres":"Oui.\nVraiment."}]"#);
+    let c = changements("c").expect("ce qui a changé dans c");
+    assert!(c.as_str().is_some_and(|t| t.starts_with("récrit")), "{c:?}");
+    assert_eq!(changements("d"), None, "déplacé, son texte est le même");
+}

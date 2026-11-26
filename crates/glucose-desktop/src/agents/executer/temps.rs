@@ -40,7 +40,9 @@ impl GlucoseApp {
     }
 
     /// **Relit l'histoire du document** : ses gestes les plus récents (rang, date, auteur, ce
-    /// qu'ils ont fait, les écrits qui s'y attachent), ses jalons, et combien elle en compte.
+    /// qu'ils ont fait, les écrits qui s'y attachent), les jalons parmi eux, et combien elle en
+    /// compte. Les jalons d'avant ne se redisent pas : sur un long document, des dizaines
+    /// d'enregistrements sans nom pour un seul geste lu (ses jetons, sa priorité du 24/11).
     pub(super) fn agent_histoire(&mut self, a: &Args<'_>) -> Result<Json, String> {
         let nombre = a.nombre("nombre").map_or(DERNIERS, |n| n.max(1.0) as usize);
         let o = self
@@ -57,9 +59,8 @@ impl GlucoseApp {
         let gestes = (depuis..o.gestes.len())
             .map(|rang| geste_en_json(&o, rang, &mut fichier))
             .collect();
-        let jalons = o
-            .jalons
-            .iter()
+        let jalons = (o.jalons.iter())
+            .filter(|(apres, _)| *apres > depuis)
             .map(|(apres, j)| {
                 Json::objet([
                     ("apres", Json::Nombre(*apres as f64)),

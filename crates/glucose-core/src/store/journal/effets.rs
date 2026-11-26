@@ -17,6 +17,9 @@ pub struct Touche {
     pub avant: bool,
     /// Il existe après ce geste.
     pub apres: bool,
+    /// Son texte avant et après ce geste — un texte, un post-it, le titre d'une membrane
+    /// (MCP-CHANGE, fiche 180) : de quoi dire ce qui y a changé sans le relire entier.
+    pub textes: [Option<String>; 2],
 }
 
 /// **Un effet d'un geste** : sur un nœud, ou autre chose, en mots (« déplace des nœuds »).
@@ -35,11 +38,16 @@ impl Transaction {
 
 fn effet(edit: &Edit) -> Effet {
     let touche = match edit {
-        Edit::Image { board, slot } => toucher(board, slot, |i| ("photo", i.id.clone())),
-        Edit::Annotation { board, slot } => {
-            toucher(board, slot, |a| (sorte(a), a.id().to_string()))
+        Edit::Image { board, slot } => toucher(board, slot, |i| ("photo", i.id.clone()), |_| None),
+        Edit::Annotation { board, slot } => toucher(
+            board,
+            slot,
+            |a| (sorte(a), a.id().to_string()),
+            Annotation::own_text,
+        ),
+        Edit::Folder { board, slot } => {
+            toucher(board, slot, |d| ("dossier", d.id.clone()), |_| None)
         }
-        Edit::Folder { board, slot } => toucher(board, slot, |d| ("dossier", d.id.clone())),
         _ => None,
     };
     match touche {
@@ -52,6 +60,7 @@ fn toucher<T>(
     board: &str,
     slot: &Slot<T>,
     nommer: impl Fn(&T) -> (&'static str, String),
+    ecrit: impl Fn(&T) -> Option<String>,
 ) -> Option<Touche> {
     let (sorte, id) = slot
         .after
@@ -64,6 +73,7 @@ fn toucher<T>(
         sorte,
         avant: slot.before.is_some(),
         apres: slot.after.is_some(),
+        textes: [&slot.before, &slot.after].map(|n| n.as_deref().and_then(&ecrit)),
     })
 }
 
@@ -110,21 +120,23 @@ mod tests {
                 },
             ],
         };
-        let touche = |id: &str, sorte, avant, apres| {
+        let eau = || Some("Eau".to_string());
+        let touche = |id: &str, sorte, avant, apres, textes| {
             Effet::Noeud(Touche {
                 board: "b".to_string(),
                 id: id.to_string(),
                 sorte,
                 avant,
                 apres,
+                textes,
             })
         };
         assert_eq!(
             t.effets(),
             vec![
-                touche("a-12", "texte", false, true),
-                touche("f-3", "flèche", true, false),
-                touche("a-12", "texte", true, true),
+                touche("a-12", "texte", false, true, [None, eau()]),
+                touche("f-3", "flèche", true, false, [None, None]),
+                touche("a-12", "texte", true, true, [eau(), eau()]),
                 Effet::Autre("change de tableau".to_string()),
             ]
         );

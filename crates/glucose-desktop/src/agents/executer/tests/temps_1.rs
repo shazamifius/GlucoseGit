@@ -163,3 +163,29 @@ fn note_1_un_ecrit_sans_objet_est_refuse() {
     let o = relu(&app);
     assert_eq!((o.auteurs.len(), o.notes.len()), (1, 1));
 }
+
+/// **Les jalons parmi les gestes lus, seulement** (fiche 180 § 4) : sur un long document, les
+/// enregistrements d'avant ne se redisent pas à chaque lecture.
+#[test]
+fn histoire_les_jalons_parmi_les_gestes_lus() {
+    let dossier = Dossier::nouveau("histoire-jalons");
+    let mut app = GlucoseApp::new();
+    app.habiter(&dossier);
+    let board = app.store.project.active_board_id.clone();
+    for k in 0..4 {
+        let id = format!("t{k}");
+        app.store
+            .add_annotation(&board, Annotation::text(&id, 0.0, 0.0, "x"));
+        app.consigner();
+        let e = app.disque.ecriture.as_mut().expect("un fichier");
+        let genre = glucose_core::persist::histoire::Genre::Enregistrement;
+        e.jalon(&app.store.project, genre, "", 1_000 + k)
+            .expect("un jalon");
+    }
+    let j = appeler(&mut app, "glucose_histoire", r#"{"nombre":2}"#);
+    let apres: Vec<f64> = match j.get("jalons") {
+        Some(Json::Liste(l)) => l.iter().filter_map(|n| n.get("apres")?.as_f64()).collect(),
+        _ => panic!("pas de jalons : {j:?}"),
+    };
+    assert_eq!(apres, vec![3.0, 4.0], "les jalons des deux derniers gestes");
+}

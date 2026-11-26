@@ -1,0 +1,222 @@
+[
+ {
+  "nom": "MCP-CHANGE — les débuts communs ne s'apparient pas",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": "while !ra.is_empty() && !rb.is_empty() && a[ra.start] == b[rb.start] {",
+  "apres": "while !ra.is_empty() && !rb.is_empty() && a[ra.start] != a[ra.start] {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — aucune ancre",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": "for (x, y) in ancres(&a[ra.clone()], &b[rb.clone()]) {",
+  "apres": "for (x, y) in Vec::<(usize, usize)>::new() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — une ligne répétée sert d'ancre",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": ".filter(|[x, y]| x.0 == 1 && y.0 == 1)",
+  "apres": ".filter(|[x, y]| x.0 >= 1 && y.0 >= 1)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — ce qui suit la dernière ancre est oublié",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": "regions.push((i..ra.end, j..rb.end));",
+  "apres": "let _ = (i, j);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — la ligne comptée de 0",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": "ligne: j + 1,",
+  "apres": "ligne: j,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — un changement plus long que le texte se dit quand même",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": "(poids < apres.len()).then_some(rendus)",
+  "apres": "Some(rendus)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — la suite croissante ne garde que le dernier",
+  "fichier": "crates/glucose-desktop/src/agents/difference.rs",
+  "avant": "dessous[k] = p.checked_sub(1).map(|q| sommets[q]);",
+  "apres": "dessous[k] = None;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — le texte d'avant n'est pas le premier",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "n.textes[1] = t.textes[1].clone();",
+  "apres": "n.textes = t.textes.clone();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — quoi de neuf ne dit pas les changements",
+  "fichier": "crates/glucose-desktop/src/agents/executer/neuf.rs",
+  "avant": "if avant != apres {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "MCP-CHANGE — le geste ne garde pas le texte",
+  "fichier": "crates/glucose-core/src/store/journal/effets.rs",
+  "avant": "textes: [&slot.before, &slot.after].map(|n| n.as_deref().and_then(&ecrit)),",
+  "apres": "textes: [None, None],",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "mcp_change"
+  ]
+ },
+ {
+  "nom": "HISTOIRE — tous les jalons redits",
+  "fichier": "crates/glucose-desktop/src/agents/executer/temps.rs",
+  "avant": ".filter(|(apres, _)| *apres > depuis)",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "histoire_les_jalons"
+  ]
+ }
+]

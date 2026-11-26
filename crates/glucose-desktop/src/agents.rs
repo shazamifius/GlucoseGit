@@ -39,6 +39,7 @@
 //! machine qui aurait pris le nom le premier ne reçoit rien. Ailleurs, la prise vit dans un
 //! dossier que seul l'utilisateur peut ouvrir.
 
+pub mod difference;
 pub mod executer;
 pub mod json;
 pub mod lecture;

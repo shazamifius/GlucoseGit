@@ -28,6 +28,8 @@ struct Neuf {
     apres: bool,
     par: Vec<Json>,
     dernier: usize,
+    /// Son texte avant le premier de ces gestes, et après le dernier.
+    textes: [Option<String>; 2],
 }
 
 impl GlucoseApp {
@@ -59,6 +61,7 @@ impl GlucoseApp {
                         Some(n) => {
                             n.apres = t.apres;
                             n.dernier = rang;
+                            n.textes[1] = t.textes[1].clone();
                             if !n.par.contains(&qui) {
                                 n.par.push(qui.clone());
                             }
@@ -71,6 +74,7 @@ impl GlucoseApp {
                             apres: t.apres,
                             par: vec![qui.clone()],
                             dernier: rang,
+                            textes: t.textes,
                         }),
                     },
                     Effet::Autre(mots) => match autres.iter_mut().find(|(m, _)| *m == mots) {
@@ -147,8 +151,29 @@ impl GlucoseApp {
                     champs.push(("debut".to_string(), Json::texte(p)));
                 }
             }
+            if let ([Some(avant), Some(apres)], true) = (&n.textes, n.avant && n.apres) {
+                if avant != apres {
+                    champs.push(("changements".to_string(), changements(avant, apres)));
+                }
+            }
             rendus.push(Json::Objet(champs));
         }
         rendus
     }
+}
+
+/// **Ce qui a changé dans son texte** (MCP-CHANGE, fiche 180 ; `relais-rep-mcp`, point 6) :
+/// chaque changement à sa ligne, ce qu'elle disait et ce qu'elle dit — sa réponse sous une
+/// question se lit seule. Plus long que le texte, il se relit entier.
+fn changements(avant: &str, apres: &str) -> Json {
+    let Some(changes) = crate::agents::difference::changements(avant, apres) else {
+        return Json::texte("récrit : relis-le entier (glucose_lire, ids)");
+    };
+    let en_json = |c: crate::agents::difference::Changement| {
+        let mut champs = vec![("ligne".to_string(), Json::Nombre(c.ligne as f64))];
+        champs.extend(c.avant.map(|t| ("avant".to_string(), Json::texte(t))));
+        champs.extend(c.apres.map(|t| ("apres".to_string(), Json::texte(t))));
+        Json::Objet(champs)
+    };
+    Json::Liste(changes.into_iter().map(en_json).collect())
 }
