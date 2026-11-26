@@ -47,7 +47,7 @@ mod android {
             issue(attente, toile)
         }
 
-        pub(crate) fn revenir_au_debut(&self) -> bool {
+        pub(crate) fn revenir_au_debut(&mut self) -> bool {
             self.0.revenir_au_debut()
         }
 

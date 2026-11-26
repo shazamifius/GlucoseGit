@@ -6,7 +6,7 @@
 //! la mémoire, lus là où ils sont — aucune copie sur le disque, et un seul chemin pour les trois.
 
 use super::gst::{c, gst, Gst, MapInfo, Ptr, RappelsSource};
-use super::{Fin, Lieu};
+use super::{Fin, Lieu, PREPARATION};
 use crate::renderer::gif::Toile;
 use std::ffi::{c_int, c_uint};
 use std::sync::{Arc, Mutex};
@@ -31,10 +31,6 @@ const DRAPEAUX_JOUER: c_int = 0x1 | 0x2 | 0x10 | 0x200;
 const DRAPEAUX_IMAGE_FIXE: c_int = 0x1 | 0x200;
 /// Ce qu'un `need-data` sans taille demande.
 const MORCEAU: usize = 64 * 1024;
-
-/// **Le temps que GStreamer a pour préparer la première image** (démultiplexer, ouvrir le
-/// décodeur) : au-delà, la vidéo est tenue pour illisible ici.
-const PREPARATION: Duration = Duration::from_secs(10);
 
 /// **Une vidéo ouverte**, en pause sur sa première image.
 pub(crate) struct LecteurVideo {
@@ -156,7 +152,7 @@ impl LecteurVideo {
 
     /// **Revient au début**, pour une vidéo qui joue en boucle (VIDEO-2) ; `false` si le système
     /// refuse.
-    pub(crate) fn revenir_au_debut(&self) -> bool {
+    pub(crate) fn revenir_au_debut(&mut self) -> bool {
         // SAFETY : le pipeline vit autant que le lecteur ; la source en accès libre sait chercher.
         unsafe {
             (self.gst.gst_element_seek_simple)(self.pipeline, FORMAT_TEMPS, CHERCHER_EN_VIDANT, 0)

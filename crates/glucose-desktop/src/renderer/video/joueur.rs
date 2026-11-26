@@ -10,10 +10,10 @@ use crate::renderer::photo::Pyramide;
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 
-/// Ce que le magasin peut dire au fil. Hors Linux et Android, aucun lecteur ne l'écoute encore
-/// (leur porte suit, fiche 169) : l'attente tombera le jour où l'un l'écoutera.
+/// Ce que le magasin peut dire au fil. Sur le Mac, aucun lecteur ne l'écoute encore (sa porte
+/// suit, fiche 175) : l'attente tombera le jour où il l'écoutera.
 #[cfg_attr(
-    not(any(target_os = "linux", target_os = "android")),
+    not(any(target_os = "linux", target_os = "android", windows)),
     expect(dead_code)
 )]
 enum Ordre {
@@ -131,12 +131,12 @@ fn jouer(
     a_faire: &Receiver<Ordre>,
     reveil: Option<&Reveil>,
 ) {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(any(target_os = "linux", target_os = "android", windows))]
     {
         use crate::renderer::atelier::admission;
         use crate::renderer::video::{Fin, LecteurVideo, Lieu};
         use std::time::Duration;
-        let Some(lecteur) = Lieu::de(src, objets).and_then(|l| LecteurVideo::ouvrir(l, true))
+        let Some(mut lecteur) = Lieu::de(src, objets).and_then(|l| LecteurVideo::ouvrir(l, true))
         else {
             return;
         };
@@ -171,7 +171,7 @@ fn jouer(
             }
         }
     }
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
     {
         let _ = (src, objets, en_boucle, envoi, a_faire, reveil);
     }
@@ -180,7 +180,7 @@ fn jouer(
 /// **La lecture automatique joue en boucle** (VIDEO-2, fiche 170) : sur la vraie vidéo de
 /// téléphone en miniature (dix images en une seconde), le joueur en boucle ne finit jamais ; l'autre
 /// finit au bout.
-#[cfg(all(test, target_os = "linux"))]
+#[cfg(all(test, any(target_os = "linux", windows)))]
 mod epreuves {
     use super::*;
     use std::time::{Duration, Instant};
@@ -189,12 +189,7 @@ mod epreuves {
 
     /// Joue pendant `duree` ; rend le nombre d'images tendues, et si le fil a fini.
     fn jouer_pendant(en_boucle: bool, duree: Duration) -> Option<(usize, bool)> {
-        let gst = crate::renderer::video::gst::gst().is_some();
-        assert!(
-            gst || crate::renderer::video::gst::GREFFONS.is_none(),
-            "GStreamer manque alors que nix develop le porte"
-        );
-        if !gst {
+        if !crate::renderer::video::epreuves::present() {
             return None;
         }
         let mut joueur = JoueurVideo::lancer(ROUGE.to_string(), None, None, en_boucle);

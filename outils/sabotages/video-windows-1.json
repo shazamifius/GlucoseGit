@@ -1,0 +1,130 @@
+[
+ {
+  "nom": "VIDEO-WINDOWS-1 — une image par regard (S_FALSE pris pour une image neuve)",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf.rs",
+  "avant": "(moteur.as_raw(), &mut quand) == S_OK",
+  "apres": "(moteur.as_raw(), &mut quand).is_ok()",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — le retour au début garde le moteur allé au bout",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf.rs",
+  "avant": "            self.moteur = moteur;\n",
+  "apres": "            drop(moteur);\n",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — l'image fixe sans jouer jusqu'à elle",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf.rs",
+  "avant": "        self.jouer(true);\n        let toile = self.suivante(PREPARATION)",
+  "apres": "        let toile = self.suivante(PREPARATION)",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — le son recoupé au retour",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf.rs",
+  "avant": "            let _ = self.moteur.0.SetMuted(muet);\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — la faute du moteur ignorée",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf.rs",
+  "avant": "MF_MEDIA_ENGINE_EVENT_ERROR => n.faute = true,",
+  "apres": "MF_MEDIA_ENGINE_EVENT_ERROR => {}",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — la fin du moteur ignorée",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf.rs",
+  "avant": "MF_MEDIA_ENGINE_EVENT_ENDED => n.au_bout = true,",
+  "apres": "MF_MEDIA_ENGINE_EVENT_ENDED => {}",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — la tranche lue depuis le début du fichier",
+  "fichier": "crates/glucose-desktop/src/renderer/video/lecteur_mf/flot.rs",
+  "avant": "fichier.seek_read(&mut tampon[lus..], debut + a + lus as u64)",
+  "apres": "fichier.seek_read(&mut tampon[lus..], a + lus as u64)",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — Media Foundation jamais vu",
+  "fichier": "crates/glucose-desktop/src/renderer/video/mf.rs",
+  "avant": "charger().filter(decode_le_h264)",
+  "apres": "charger().filter(|_| false)",
+  "cmd": [
+   "bash",
+   "outils/essai_wine.sh",
+   "video"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — le bleu et le rouge gardés",
+  "fichier": "crates/glucose-desktop/src/renderer/video/bgra.rs",
+  "avant": "rgba.extend_from_slice(&[p[2], p[1], p[0], 255]);",
+  "apres": "rgba.extend_from_slice(&[p[0], p[1], p[2], 255]);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_windows_1"
+  ]
+ },
+ {
+  "nom": "VIDEO-WINDOWS-1 — la marge des rangées gardée",
+  "fichier": "crates/glucose-desktop/src/renderer/video/bgra.rs",
+  "avant": "for p in rangee[..ligne].as_chunks::<4>().0 {",
+  "apres": "for p in rangee.as_chunks::<4>().0 {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "video_windows_1"
+  ]
+ }
+]
