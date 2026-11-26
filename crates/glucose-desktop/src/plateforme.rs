@@ -44,6 +44,7 @@ pub mod journal;
 pub mod marges;
 pub mod moisson;
 pub mod mouvement;
+pub mod numero;
 pub mod offre;
 pub mod partage;
 pub mod partager;

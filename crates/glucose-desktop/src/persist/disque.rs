@@ -71,6 +71,8 @@ pub struct Disque {
     pub miroirs: PathBuf,
     /// Ce que les autres fichiers disent de leurs domaines, lu sans y écrire (fiche 88).
     pub recenseur: crate::recensement::Recenseur,
+    /// **Les documents jamais ouverts de ce PC**, cherchés quand on demande la liste (RECENTS-1).
+    pub fouille: crate::persist::recents::fouille::Fouille,
 }
 
 impl Disque {
@@ -95,6 +97,7 @@ impl Disque {
                 .join(crate::app::collaborer::reprise::FICHIER),
             miroirs: crate::app::accueil::dossier_hors_lancement().join("miroirs"),
             recenseur: crate::recensement::Recenseur::default(),
+            fouille: Default::default(),
         }
     }
 }

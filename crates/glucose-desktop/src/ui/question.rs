@@ -34,7 +34,10 @@ use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::text::Selection;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
+mod boutons;
 pub mod pastilles;
+
+pub use boutons::Precision;
 
 /// L'écart minimal entre la carte et le bord de l'écran.
 const MARGE_ECRAN: f32 = 16.0;
@@ -76,6 +79,8 @@ pub enum Suite {
     Telemetrie,
     /// Ouvrir l'un de ces documents (DOCUMENTS-1), dans l'ordre de la liste.
     Ouvrir(Vec<std::path::PathBuf>),
+    /// Retirer ce document introuvable de la liste des documents (RECENTS-1).
+    Oublier(std::path::PathBuf),
     /// Ce qu'on fait de ce document, après un appui long dans la liste (DOCUMENTS-2).
     Gerer(std::path::PathBuf),
     /// Le renommer, du nom écrit dans le champ.
@@ -193,6 +198,9 @@ pub struct Question {
     /// la première, sauf quand elle détruit — « Supprimer » laisse l'évidence à « Annuler »,
     /// comme le veut le motif de dialogue du W3C.
     pub focus: usize,
+    /// **Ce que certaines réponses disent de plus**, à droite de leur nom (RECENTS-1) : le dossier
+    /// et l'âge d'un document, en rouge s'il est introuvable.
+    pub precisions: Vec<(Reponse, Precision)>,
 }
 
 /// **La réponse qu'Échap donne** : « Annuler », s'il est parmi les choix (POPUP-1). Sans lui, la
@@ -237,6 +245,8 @@ pub struct Placee {
     pub pastilles: Option<pastilles::Placees>,
     /// Le rang de la réponse en évidence (POPUP-1).
     pub focus: usize,
+    /// Ce que certaines réponses disent de plus (RECENTS-1).
+    pub precisions: Vec<(Reponse, Precision)>,
     /// Les corps du titre et du texte, et le bord gauche du texte.
     pub corps: (f32, f32),
     pub gauche: f32,
@@ -246,7 +256,12 @@ pub struct Placee {
 pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -> Placee {
     let s = crate::theme::clamp_ui_scale(scale);
     let (corps_titre, corps_texte) = (TITRE * s, CORPS * s);
-    let largeur = (w - 2.0 * MARGE_ECRAN * s).min(LARGEUR_MAX * s).max(1.0);
+    // Une liste qui situe ses réponses s'élargit : un nom à gauche, sa précision à droite.
+    let max = match q.precisions.is_empty() {
+        true => LARGEUR_MAX,
+        false => boutons::LARGEUR_LISTE,
+    };
+    let largeur = (w - 2.0 * MARGE_ECRAN * s).min(max * s).max(1.0);
     let interieur = (largeur - 2.0 * PAD * s).max(1.0);
     let titre = lignes(typo, &q.titre, (corps_titre, Face::Bold), interieur);
     let mut texte = lignes(typo, &q.texte, (corps_texte, Face::Regular), interieur);
@@ -295,7 +310,11 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
             let rangee = (x, haut, largeur, BOUTON * s);
             haut += BOUTON * s;
             let avance = |c| typo.advance(c, corps_texte, Face::Regular);
-            let libelle = crate::renderer::wrap::tronquer(libelle, interieur, avance);
+            // Une réponse précisée se coupe au dessin, à la place que sa précision lui laisse.
+            let libelle = match q.precisions.iter().any(|(r, _)| r == reponse) {
+                true => libelle.clone(),
+                false => crate::renderer::wrap::tronquer(libelle, interieur, avance),
+            };
             (rangee, libelle, *reponse)
         })
         .collect();
@@ -307,6 +326,7 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
         champ,
         pastilles,
         focus: q.focus,
+        precisions: q.precisions.clone(),
         corps: (corps_titre, corps_texte),
         gauche: x + PAD * s,
     }
@@ -379,7 +399,6 @@ pub fn dessiner(
     if let Some(tout) = Rect::from_xywh(0.0, 0.0, w, h) {
         crate::renderer::scale::fill_crisp(pixmap, tout, Color::from_rgba8(0, 0, 0, 150));
     }
-    let (x, _, largeur, _) = p.carte;
     remplir(
         pixmap,
         p.carte,
@@ -412,30 +431,7 @@ pub fn dessiner(
     if let Some(pastilles) = &p.pastilles {
         pastilles::dessiner(pixmap, pastilles, theme.selection_frame, s);
     }
-    for (rang, (rangee, libelle, _)) in p.boutons.iter().enumerate() {
-        filet(pixmap, (x, rangee.1, largeur), theme.border_medium);
-        if dans(*rangee, pointer.0, pointer.1) {
-            remplir(pixmap, *rangee, 0.0, theme.bg_hover, None);
-        }
-        // Ce qu'Entrée donnerait : le filet blanc de la sélection, en retrait des filets.
-        if rang == p.focus {
-            cerner(pixmap, *rangee, (3.0 * s).round(), theme.selection_frame);
-        }
-        let encre = if rang == 0 {
-            theme.text_primary
-        } else {
-            theme.text_secondary
-        };
-        let (lw, _) = typo.measure_text(libelle, p.corps.1, Face::Regular);
-        let gauche = rangee.0 + (rangee.2 - lw) / 2.0;
-        let haut = rangee.1 + (rangee.3 - p.corps.1) / 2.0;
-        let style = TextStyle {
-            size: p.corps.1,
-            color: encre,
-            face: Face::Regular,
-        };
-        ecrire(pixmap, libelle, (gauche, haut), style);
-    }
+    boutons::dessiner(pixmap, p, (typo, theme), pointer, s);
 }
 
 /// **Le champ** : un cadre plat, le texte qui glisse pour garder la tête de la sélection en

@@ -63,11 +63,12 @@ pub(crate) fn les_documents(dossier: &Path) -> Vec<PathBuf> {
 }
 
 impl GlucoseApp {
-    /// **« Ouvrir un document… »** : le sélecteur de fichiers au bureau ; au téléphone, la
-    /// liste des documents rangés, du plus récent au plus ancien (DOCUMENTS-1).
+    /// **« Ouvrir un document… »** : au bureau, la palette de ses documents — les récents, les
+    /// introuvables, ceux qu'il n'a jamais ouverts, et « Parcourir ce PC… » (RECENTS-1) ; au
+    /// téléphone, la liste des documents rangés, du plus récent au plus ancien (DOCUMENTS-1).
     pub(crate) fn choisir_un_document(&mut self) {
         if !self.ui.documents_ranges {
-            self.open_project();
+            self.ouvrir_la_palette(crate::commandes::palette::But::Ouvrir);
             return;
         }
         self.montrer_les_documents(None);

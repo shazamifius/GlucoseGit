@@ -23,6 +23,7 @@ use crate::ui::question::{Champ, Question, Reponse, Suite};
 
 mod chercher;
 mod defiler;
+mod ouvrir;
 
 /// **L'état de la palette** : le filtre que ses rangées montrent, la première commande de sa
 /// fenêtre, et celle en évidence — des rangs dans toutes les commandes trouvées.
@@ -35,6 +36,9 @@ pub struct Etat {
     pub but: But,
     /// Ce que la recherche a trouvé pour ce filtre (`Ctrl+F`, fiche 89) : vide pour les commandes.
     pub trouves: Vec<glucose_core::recherche::Trouve>,
+    /// Tous les documents (`Ctrl+O`, RECENTS-1), et la trouvaille de la fouille qu'ils comptent.
+    pub documents: Vec<crate::persist::recents::Document>,
+    pub fouillee: u64,
 }
 
 /// **Ce que la palette fait de la commande choisie** (P4, fiche 74).
@@ -48,16 +52,25 @@ pub enum But {
     /// **Chercher dans le document** (`Ctrl+F`, fiche 89) : ses rangées sont des nœuds, et Entrée y
     /// va. La même palette, une autre source — comme `Ctrl+P` et `Ctrl+Maj+P` dans VS Code.
     Chercher,
+    /// **Ouvrir un document** (`Ctrl+O`, RECENTS-1, fiche 174) : ses rangées sont les documents.
+    Ouvrir,
 }
 
 impl GlucoseApp {
     /// **Ouvre la palette**, le champ vide : toutes les commandes, dans l'ordre de la table.
     pub(crate) fn ouvrir_la_palette(&mut self, but: But) {
-        let etat = Etat {
+        let mut etat = Etat {
             but,
             ..Etat::default()
         };
-        let (choix, focus) = self.rangees_de_la_palette(&etat);
+        if but == But::Ouvrir {
+            // Ce qu'elle trouvera paraîtra en chemin (RECENTS-1).
+            self.disque.fouille.lancer();
+            etat.documents = self.composer_les_documents();
+            etat.fouillee = self.disque.fouille.version();
+        }
+        let (choix, focus, precisions) = self.rangees_de_la_palette(&etat);
+        let compte = (but == But::Ouvrir).then(|| self.compte_des_documents(&etat));
         let (titre, texte) = match but {
             But::Lancer => (
                 "Palette de commandes",
@@ -68,12 +81,14 @@ impl GlucoseApp {
                 "Choisis la commande dont tu veux changer le raccourci.",
             ),
             But::Chercher => ("Chercher", chercher::AIDE),
+            But::Ouvrir => ("Ouvrir un document", ouvrir::AIDE),
         };
         let question = Question {
             titre: titre.into(),
-            texte: texte.into(),
+            texte: compte.unwrap_or_else(|| texte.into()),
             choix,
             focus,
+            precisions,
             champ: Some(Champ::default()),
             ..Default::default()
         };
@@ -82,8 +97,18 @@ impl GlucoseApp {
     }
 
     /// **La palette suit son champ** : un texte qui a changé depuis l'image d'avant refait ses
-    /// rangées depuis le début, l'évidence sur la première.
+    /// rangées depuis le début, l'évidence sur la première. Celle des documents suit aussi la
+    /// fouille : ce qu'elle trouve paraît, l'évidence à sa place.
     pub(crate) fn suivre_la_palette(&mut self) {
+        let fouillee = self.disque.fouille.version();
+        if let Some((_, Suite::Palette(etat))) = &self.ui.question {
+            if etat.but == But::Ouvrir && etat.fouillee != fouillee {
+                let mut etat = etat.clone();
+                etat.documents = self.composer_les_documents();
+                etat.fouillee = fouillee;
+                self.poser_la_palette(etat);
+            }
+        }
         let ecrit = match &self.ui.question {
             Some((q, Suite::Palette(etat))) => {
                 let ecrit = q
@@ -98,30 +123,29 @@ impl GlucoseApp {
             }
             _ => return,
         };
-        let but = match &self.ui.question {
-            Some((_, Suite::Palette(etat))) => etat.but,
-            _ => But::Lancer,
+        let Some((_, Suite::Palette(avant))) = &self.ui.question else {
+            return;
         };
-        let trouves = match but {
-            But::Chercher => self.chercher_dans_le_document(&ecrit),
-            _ => Vec::new(),
-        };
-        self.poser_la_palette(Etat {
-            filtre: ecrit,
-            debut: 0,
-            choisie: 0,
-            but,
-            trouves,
-        });
+        let mut etat = avant.clone();
+        if etat.but == But::Chercher {
+            etat.trouves = self.chercher_dans_le_document(&ecrit);
+        }
+        (etat.filtre, etat.debut, etat.choisie) = (ecrit, 0, 0);
+        self.poser_la_palette(etat);
     }
 
     /// **Pose cet état** : ses rangées, son évidence, et lui-même dans la question.
     pub(super) fn poser_la_palette(&mut self, etat: Etat) {
-        let (choix, focus) = self.rangees_de_la_palette(&etat);
-        let dit = (etat.but == But::Chercher).then(|| chercher::compte(&etat));
+        let (choix, focus, precisions) = self.rangees_de_la_palette(&etat);
+        let dit = match etat.but {
+            But::Chercher => Some(chercher::compte(&etat)),
+            But::Ouvrir => Some(self.compte_des_documents(&etat)),
+            _ => None,
+        };
         if let Some((q, suite)) = &mut self.ui.question {
             q.choix = choix;
             q.focus = focus;
+            q.precisions = precisions;
             if let Some(dit) = dit {
                 q.texte = dit;
             }
@@ -132,6 +156,10 @@ impl GlucoseApp {
 
     /// **La réponse de la palette** : la commande de ce rang, parmi celles que ce filtre trouve.
     pub(crate) fn lancer_depuis_la_palette(&mut self, etat: &Etat, reponse: Reponse) {
+        if etat.but == But::Ouvrir {
+            self.ouvrir_depuis_la_palette(etat, reponse);
+            return;
+        }
         if let Reponse::Choix(i) = reponse {
             if etat.but == But::Chercher {
                 self.aller_au_resultat(&etat.filtre, &etat.trouves, i);
@@ -143,16 +171,29 @@ impl GlucoseApp {
                     self.executer(commande);
                 }
                 (Some(&commande), But::ChangerLeRaccourci) => self.demander_le_raccourci(commande),
-                (Some(_), But::Chercher) | (None, _) => {}
+                (Some(_), But::Chercher | But::Ouvrir) | (None, _) => {}
             }
         }
     }
 
     /// **Les rangées de la palette** et celle en évidence : « ↑ n plus haut » s'il y a des
     /// commandes au-dessus de la fenêtre, ses commandes avec leur raccourci, « ↓ n plus bas »
-    /// s'il en reste dessous.
-    fn rangees_de_la_palette(&self, etat: &Etat) -> (Vec<(String, Reponse)>, usize) {
+    /// s'il en reste dessous ; pour les documents, ce qui situe chacun, et « Parcourir ce PC… »
+    /// tout en bas.
+    fn rangees_de_la_palette(&self, etat: &Etat) -> Rangees {
+        let personnel = ouvrir::personnel();
+        let documents = ouvrir::trouves_pour(&etat.filtre, &etat.documents);
+        let mut precisions = Vec::new();
         let toutes: Vec<String> = match etat.but {
+            But::Ouvrir => documents
+                .iter()
+                .enumerate()
+                .map(|(i, d)| {
+                    let (nom, precision) = ouvrir::rangee(d, personnel.as_deref());
+                    precisions.push((Reponse::Choix(i), precision));
+                    nom
+                })
+                .collect(),
             // La phrase d'un résultat ne se calcule que pour les rangées montrées (fiche 89).
             But::Chercher => etat
                 .trouves
@@ -193,7 +234,12 @@ impl GlucoseApp {
             ));
         }
         let focus = premiere + etat.choisie.saturating_sub(etat.debut);
-        (rangees.clone(), focus.min(rangees.len().saturating_sub(1)))
+        let focus = focus.min(rangees.len().saturating_sub(1));
+        // Au téléphone, aucun sélecteur ne voit plus loin que les documents de Glucose.
+        if etat.but == But::Ouvrir && !self.ui.documents_ranges {
+            rangees.push(("Parcourir ce PC…".into(), ouvrir::PARCOURIR));
+        }
+        (rangees, focus, precisions)
     }
 
     /// Le nom d'une commande, et son raccourci lu dans le clavier.
@@ -205,11 +251,19 @@ impl GlucoseApp {
     }
 }
 
+/// Les rangées d'une palette, celle en évidence, et ce que certaines disent de plus.
+type Rangees = (
+    Vec<(String, Reponse)>,
+    usize,
+    Vec<(Reponse, crate::ui::question::Precision)>,
+);
+
 impl GlucoseApp {
     /// **Combien de rangées cet état porte** : les nœuds trouvés, ou les commandes.
     pub(crate) fn total_de_la_palette(&self, etat: &Etat) -> usize {
         match etat.but {
             But::Chercher => etat.trouves.len(),
+            But::Ouvrir => ouvrir::trouves_pour(&etat.filtre, &etat.documents).len(),
             _ => trouvees_pour(&etat.filtre, etat.but, &|c| self.s_applique(c)).len(),
         }
     }
@@ -223,7 +277,7 @@ pub(crate) fn trouvees_pour(
     but: But,
     s_applique: &dyn Fn(Commande) -> bool,
 ) -> Vec<Commande> {
-    if but == But::Chercher {
+    if matches!(but, But::Chercher | But::Ouvrir) {
         return Vec::new();
     }
     let mut v: Vec<(u8, usize, Commande)> = Commande::toutes()

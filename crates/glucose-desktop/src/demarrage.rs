@@ -116,6 +116,9 @@ fn brancher_les_reveils(app: &mut GlucoseApp, event_loop: &EventLoop<()>) {
     app.ouvrir_la_porte_des_agents(reveil_de(event_loop));
     // Quand un fichier connu dit quelque chose de neuf de ses domaines (fiche 88).
     app.demarrer_le_recensement(reveil_de(event_loop));
+    // Quand la fouille trouve un document jamais ouvert (RECENTS-1).
+    let racine = crate::persist::recents::fouille::racine();
+    app.disque.fouille.brancher(racine, reveil_de(event_loop));
     // Quand l'IA a lu les textes du tableau (PARENTE-2, fiche 106).
     app.renderer
         .sens_des_textes

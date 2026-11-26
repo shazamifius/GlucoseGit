@@ -1,0 +1,342 @@
+[
+ {
+  "nom": "RECENTS-1 — le numéro ne nomme plus l'inode",
+  "fichier": "crates/glucose-desktop/src/plateforme/numero.rs",
+  "avant": "let numero = format!(\"{}-{}\", m.dev(), m.ino());",
+  "apres": "let numero = format!(\"{}-0\", m.dev());",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — le numéro sans sa naissance (l'inode réutilisé)",
+  "fichier": "crates/glucose-desktop/src/plateforme/numero.rs",
+  "avant": "Some(ne) => format!(\"{numero}-{}\", ne.as_nanos()),",
+  "apres": "Some(_) => numero,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — une tabulation du nom prise pour un numéro",
+  "fichier": "crates/glucose-desktop/src/recensement/connus.rs",
+  "avant": "Some((chemin, numero)) if est_un_numero(numero) => Connu {",
+  "apres": "Some((chemin, numero)) if !numero.is_empty() => Connu {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — le déplacé jamais retrouvé",
+  "fichier": "crates/glucose-desktop/src/persist/recents.rs",
+  "avant": ".find(|(p, n)| n.as_ref() == Some(numero) && !deja.contains(p) && !pris.contains(p))",
+  "apres": ".find(|(p, n)| n.as_ref() == Some(numero) && deja.contains(p) && !pris.contains(p))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — le numéro appris oublié",
+  "fichier": "crates/glucose-desktop/src/persist/recents.rs",
+  "avant": "                    appris = true;\n                }\n                (Sorte::Recent, Some(quand))",
+  "apres": "                }\n                (Sorte::Recent, Some(quand))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — un jamais ouvert compté deux fois",
+  "fichier": "crates/glucose-desktop/src/persist/recents.rs",
+  "avant": "!pris.contains(p) && vus.insert(p.clone()))",
+  "apres": "!pris.contains(p) && (vus.insert(p.clone()) || true))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — les jamais ouverts dans l'ordre de la fouille",
+  "fichier": "crates/glucose-desktop/src/persist/recents.rs",
+  "avant": "    jamais.sort_by_key(|d| Reverse(d.touche));\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — le redessin oublié quand la fouille trouve",
+  "fichier": "crates/glucose-desktop/src/persist/recents.rs",
+  "avant": "            if etat.but == But::Ouvrir && etat.fouillee != self.disque.fouille.version() {",
+  "apres": "            if etat.but == But::Ouvrir && etat.fouillee == self.disque.fouille.version() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — la fin de la fouille muette",
+  "fichier": "crates/glucose-desktop/src/persist/recents/fouille.rs",
+  "avant": "                partage.en_cours.store(false, Ordering::Release);\n                partage.version.fetch_add(1, Ordering::AcqRel);\n",
+  "apres": "                partage.en_cours.store(false, Ordering::Release);\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — la fouille entre dans un cache",
+  "fichier": "crates/glucose-desktop/src/persist/recents/fouille.rs",
+  "avant": "cache |= nom == \"CACHEDIR.TAG\";",
+  "apres": "cache |= nom == \"PAS-UN-CACHE\";",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — la fouille entre dans un dossier caché",
+  "fichier": "crates/glucose-desktop/src/persist/recents/fouille.rs",
+  "avant": "if nom.to_string_lossy().starts_with('.') {",
+  "apres": "if nom.to_string_lossy().starts_with('~') {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — la palette ne suit pas la fouille",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "if etat.but == But::Ouvrir && etat.fouillee != fouillee {",
+  "apres": "if etat.but == But::Ouvrir && etat.fouillee == fouillee {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — la palette ne corrige pas la liste",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "        if let Some(liste) = a_recrire {\n            self.disque.recenseur.ecrire_la_liste(&liste);",
+  "apres": "        if let Some(liste) = a_recrire {\n            drop(liste);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — un introuvable s'ouvre",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "Sorte::Introuvable => self.demander_d_oublier(&document.chemin),",
+  "apres": "Sorte::Introuvable => self.laisser_puis(Ensuite::Ouvrir(document.chemin.clone())),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — l'oubli ne retire rien",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "liste.retain(|c| c.chemin != chemin);",
+  "apres": "liste.retain(|_| true);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — les lettres éparses du dossier",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "filter(|&q| q < 3);",
+  "apres": "filter(|&q| q < 4);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ },
+ {
+  "nom": "RECENTS-1 — l'introuvable pas en rouge",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/ouvrir.rs",
+  "avant": "introuvable: document.sorte == Sorte::Introuvable,",
+  "apres": "introuvable: false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recents_1"
+  ]
+ }
+]

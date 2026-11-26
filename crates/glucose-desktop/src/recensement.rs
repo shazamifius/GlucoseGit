@@ -36,6 +36,9 @@ use std::time::SystemTime;
 /// Le fichier des documents connus, dans le dossier de Glucose.
 pub const FICHIER: &str = "documents-connus.txt";
 
+pub mod connus;
+pub use connus::Connu;
+
 /// Ce qu'une passe doit regarder.
 struct Passe {
     /// Son rang : la passe finie qui porte le dernier rang demandé dit que tout est lu.
@@ -99,23 +102,33 @@ impl Recenseur {
     }
 
     fn connus(&self) -> Vec<PathBuf> {
+        self.la_liste().into_iter().map(|c| c.chemin).collect()
+    }
+
+    /// **La liste des documents connus**, du plus récent au plus ancien, numéros compris.
+    pub fn la_liste(&self) -> Vec<Connu> {
         self.fichier
             .as_deref()
             .and_then(|f| std::fs::read_to_string(f).ok())
-            .map(|texte| lire_les_connus(&texte))
+            .map(|texte| connus::lire(&texte))
             .unwrap_or_default()
     }
 
-    /// **Retient ce document**, en tête de la liste, et le fait lire.
-    pub fn connaitre(&mut self, chemin: &Path) {
+    /// **Récrit la liste** — un document retrouvé à sa nouvelle place, un autre qu'on oublie
+    /// (RECENTS-1) —, et la fait relire.
+    pub fn ecrire_la_liste(&mut self, liste: &[Connu]) {
         let Some(fichier) = self.fichier.clone() else {
             return;
         };
-        let liste = avec_en_tete(self.connus(), chemin);
-        let texte: String = liste.iter().map(|p| format!("{}\n", p.display())).collect();
         // Perdue, cette liste se refait : on ne fait pas d'une écriture ratée une faute.
-        let _ = crate::persist::atomic::write_atomic(&fichier, texte.as_bytes());
+        let _ = crate::persist::atomic::write_atomic(&fichier, connus::ecrire(liste).as_bytes());
         self.relancer();
+    }
+
+    /// **Retient ce document**, en tête de la liste avec son numéro, et le fait lire.
+    pub fn connaitre(&mut self, chemin: &Path) {
+        let liste = connus::en_tete(self.la_liste(), Connu::numerote(chemin));
+        self.ecrire_la_liste(&liste);
     }
 
     /// **Demande une passe.** Elle ne bloque rien : ce qu'elle trouve arrive plus tard.
@@ -167,22 +180,6 @@ impl Recenseur {
         }
         neuf
     }
-}
-
-/// La liste écrite : une ligne par chemin.
-fn lire_les_connus(texte: &str) -> Vec<PathBuf> {
-    texte
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(PathBuf::from)
-        .collect()
-}
-
-/// Ce chemin en tête, sans doublon.
-fn avec_en_tete(liste: Vec<PathBuf>, chemin: &Path) -> Vec<PathBuf> {
-    std::iter::once(chemin.to_path_buf())
-        .chain(liste.into_iter().filter(|p| p != chemin))
-        .collect()
 }
 
 /// Un document de Glucose, à son extension.

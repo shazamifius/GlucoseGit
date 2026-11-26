@@ -36,6 +36,7 @@ pub mod import;
 pub mod nouveau;
 pub mod objets;
 mod partages;
+pub mod recents;
 pub mod recuperation;
 pub mod reprise;
 pub mod scribe;

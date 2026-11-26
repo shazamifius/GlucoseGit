@@ -220,6 +220,7 @@ impl GlucoseApp {
                 }
             }
             Suite::Gerer(chemin) => self.suivre_la_gestion(chemin, reponse),
+            Suite::Oublier(chemin) => self.repondre_a_l_oubli(&chemin, oui),
             Suite::Renommer(chemin) => match (reponse, champ) {
                 (Reponse::Oui, Some(nom)) => self.renommer_le_document(&chemin, &nom),
                 _ => self.choisir_un_document(),

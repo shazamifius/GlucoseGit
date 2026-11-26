@@ -223,7 +223,7 @@ impl GlucoseApp {
             event_loop.exit();
             return;
         }
-        self.retirer_les_copies_scellees();
+        self.suivre_le_disque();
         // Le système a peut-être changé ce qu'il accorde à la carte : le veilleur a réveillé
         // la boucle pour cela, et ce qui dépasse se rend sans attendre une image (ETAGES-2).
         if let Some(presenter) = self.presenter.as_mut() {

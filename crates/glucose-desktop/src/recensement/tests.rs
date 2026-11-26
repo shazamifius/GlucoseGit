@@ -205,14 +205,6 @@ fn sans_demarrage_rien_ne_se_lit() {
     assert!(r.etat.vue(None).is_empty());
 }
 
-#[test]
-fn la_liste_garde_le_plus_recent_en_tete_sans_doublon() {
-    let liste = lire_les_connus("/a\n\n/b\n");
-    assert_eq!(liste, [PathBuf::from("/a"), PathBuf::from("/b")]);
-    let liste = avec_en_tete(liste, Path::new("/b"));
-    assert_eq!(liste, [PathBuf::from("/b"), PathBuf::from("/a")]);
-}
-
 /// **Le fichier ouvert ne se lit pas** : vivant dans Glucose, c'est de là que la vue le prend. Quand on
 /// en ouvre un autre, il se lit tel qu'on l'a laissé. La preuve à l'envers : sans le dire ouvert, il
 /// est lu.
