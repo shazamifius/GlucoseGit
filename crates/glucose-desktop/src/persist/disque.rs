@@ -403,6 +403,9 @@ pub(crate) mod coller_tests;
 #[path = "disque/fin_tests.rs"]
 mod fin_tests;
 #[cfg(test)]
+#[path = "disque/histoire_tests.rs"]
+mod histoire_tests;
+#[cfg(test)]
 mod lot_tests;
 #[cfg(test)]
 #[path = "disque/promesse_tests.rs"]

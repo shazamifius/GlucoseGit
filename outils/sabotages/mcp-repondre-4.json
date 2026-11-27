@@ -1,0 +1,102 @@
+[
+ {
+  "nom": "MCP-REPONDRE-4 — pas de voie à gauche",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "            glisser(&obstacles, Rect::new(t.left - ECART - l, t.top, l, h), |o, r| {\n                r.left = o.left - ECART - r.width;\n            }),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — pas de voie au-dessus",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "            glisser(&obstacles, Rect::new(t.left, t.top - ECART - h, l, h), |o, r| {\n                r.top = o.top - ECART - r.height;\n            }),\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — la plus loin des voies",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": ".min_by(|a, b| ecart(t, *a).total_cmp(&ecart(t, *b)))",
+  "apres": ".max_by(|a, b| ecart(t, *a).total_cmp(&ecart(t, *b)))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — un écart négatif",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "    horizontal.max(vertical).max(0.0)",
+  "apres": "    horizontal.max(vertical)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — à gauche, sans glisser",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "                r.left = o.left - ECART - r.width;",
+  "apres": "                r.left = o.left - ECART;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ }
+]

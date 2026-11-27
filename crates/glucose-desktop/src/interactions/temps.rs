@@ -24,12 +24,13 @@ use glucose_core::persist::histoire::{self, Genre, Ouvert, Vue};
 use glucose_core::store::journal::Journal;
 use glucose_core::store::UNDO_DEPTH;
 use glucose_core::types::Project;
+use std::sync::Arc;
 use winit::keyboard::{Key, NamedKey};
 
 /// Ce qu'un aperçu du passé a mis de côté pour revenir.
 pub struct Voyage {
     /// L'index de l'histoire, lu à l'entrée dans le passé.
-    pub ouvert: Ouvert,
+    pub ouvert: Arc<Ouvert>,
     present: Project,
     journal: Journal,
     /// **Le canevas partagé**, mis de côté avec le présent (CLIENT-1) : le passé ne part pas, et ce
@@ -123,15 +124,12 @@ impl GlucoseApp {
 
     /// Relit l'histoire du fichier : ce que la réglette et les jalons montrent. Rien, tant
     /// que le document n'a pas de fichier — il n'a pas encore d'histoire.
-    pub fn lire_l_histoire(&mut self) -> Option<Ouvert> {
+    pub fn lire_l_histoire(&mut self) -> Option<Arc<Ouvert>> {
         self.consigner();
         let t = &mut self.dock_manager.temps;
         t.gestes.clear();
         t.jalons.clear();
-        let ecriture = self.disque.ecriture.as_ref()?;
-        ecriture.synchroniser().ok()?;
-        let fichier = std::fs::File::open(&ecriture.chemin).ok()?;
-        let o = histoire::ouvrir(&mut std::io::BufReader::new(fichier)).ok()?;
+        let o = self.disque.ecriture.as_mut()?.histoire()?;
         let t = &mut self.dock_manager.temps;
         t.gestes = o.gestes.iter().map(|g| g.instant).collect();
         // Qui a fait chaque geste, et ce qu'on en a écrit (MAIN-1, NOTE-1).

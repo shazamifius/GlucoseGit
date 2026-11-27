@@ -17,10 +17,13 @@ pub struct PlaceDeReponse {
 
 impl Store {
     /// **La place libre la plus proche** d'une réponse de `taille` au nœud `cible` : à sa droite,
-    /// ou sous lui, glissée au-delà de chaque nœud qu'elle chevaucherait ; la plus proche des deux,
-    /// la droite à égalité (on lit de gauche à droite). Les membranes qui entourent la cible ne
-    /// gênent pas : la réponse y entre. Aucune distance à régler : l'écart est celui de tout ce
-    /// qu'une IA pose (`ECART`).
+    /// dessous, à sa gauche ou au-dessus, glissée au-delà de chaque nœud qu'elle chevaucherait ;
+    /// la plus proche des quatre, dans cet ordre à égalité (on lit de gauche à droite, de haut en
+    /// bas). Les quatre, pas deux : le 27/11, à droite et dessous seulement, deux réponses sont
+    /// tombées à 5 900 unités de sa note — une membrane de 6 000 de large à droite, une colonne
+    /// pleine dessous, et le vide juste au-dessus. Les membranes qui entourent la cible ne gênent
+    /// pas : la réponse y entre. Aucune distance à régler : l'écart est celui de tout ce qu'une IA
+    /// pose (`ECART`).
     pub fn place_pour_une_reponse(
         &self,
         board_id: &str,
@@ -37,31 +40,54 @@ impl Store {
             .filter(|d| !(d.sorte == Sorte::Membrane && d.boite.contains_rect(t)))
             .map(|d| d.boite)
             .collect();
-        let a_droite = glisser(
-            &obstacles,
-            Rect::new(t.right() + ECART, t.top, largeur, hauteur),
-            |o, r| {
-                r.left = o.right() + ECART;
-            },
-        );
-        let dessous = glisser(
-            &obstacles,
-            Rect::new(t.left, t.bottom() + ECART, largeur, hauteur),
-            |o, r| {
-                r.top = o.bottom() + ECART;
-            },
-        );
-        let place = if dessous.top - t.bottom() < a_droite.left - t.right() {
-            dessous
-        } else {
-            a_droite
-        };
+        let (l, h) = (largeur, hauteur);
+        let voies = [
+            glisser(
+                &obstacles,
+                Rect::new(t.right() + ECART, t.top, l, h),
+                |o, r| {
+                    r.left = o.right() + ECART;
+                },
+            ),
+            glisser(
+                &obstacles,
+                Rect::new(t.left, t.bottom() + ECART, l, h),
+                |o, r| {
+                    r.top = o.bottom() + ECART;
+                },
+            ),
+            glisser(
+                &obstacles,
+                Rect::new(t.left - ECART - l, t.top, l, h),
+                |o, r| {
+                    r.left = o.left - ECART - r.width;
+                },
+            ),
+            glisser(
+                &obstacles,
+                Rect::new(t.left, t.top - ECART - h, l, h),
+                |o, r| {
+                    r.top = o.top - ECART - r.height;
+                },
+            ),
+        ];
+        // `min_by` rend la première des plus proches : l'ordre des voies tranche l'égalité.
+        let place = (voies.into_iter())
+            .min_by(|a, b| ecart(t, *a).total_cmp(&ecart(t, *b)))
+            .unwrap_or(t);
         Ok(PlaceDeReponse {
             x: place.left,
             y: place.top,
             membrane: noeud.membrane.clone(),
         })
     }
+}
+
+/// **L'écart entre deux boîtes** : la largeur du vide qui les sépare, nul si elles se touchent.
+fn ecart(a: Rect, b: Rect) -> f64 {
+    let horizontal = (b.left - a.right()).max(a.left - b.right());
+    let vertical = (b.top - a.bottom()).max(a.top - b.bottom());
+    horizontal.max(vertical).max(0.0)
 }
 
 /// **Pousse `r` au-delà de chaque obstacle qu'il chevauche**, dans un seul sens : il n'y revient

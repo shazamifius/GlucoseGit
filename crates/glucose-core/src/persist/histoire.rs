@@ -45,7 +45,7 @@ pub mod saisie;
 pub mod vue;
 
 pub use geste::Geste;
-pub use ouvrir::{etat_au_geste, ouvrir, retour_au_geste, Ouvert};
+pub use ouvrir::{etat_au_geste, ouvrir, prolonger, retour_au_geste, Ouvert};
 pub use saisie::Saisie;
 pub use vue::Vue;
 

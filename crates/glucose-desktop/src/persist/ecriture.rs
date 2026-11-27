@@ -74,6 +74,10 @@ pub struct Ecriture {
     /// `Ctrl+S` sans rien de nouveau depuis n'en pose pas un de plus.
     gestes: usize,
     dernier_jalon: Option<usize>,
+    /// **L'histoire déjà relue** (fiche 183) : la Time Machine et les IA la relisent à chaque
+    /// appel ; elle se prolonge des seules entrées écrites depuis. Elle meurt avec l'écriture :
+    /// un autre fichier, une autre écriture.
+    histoire: Option<Arc<Ouvert>>,
 }
 
 impl Ecriture {
@@ -170,6 +174,7 @@ impl Ecriture {
             saisie: None,
             gestes: 0,
             dernier_jalon: None,
+            histoire: None,
         }
     }
 
@@ -416,6 +421,26 @@ impl Ecriture {
 
     pub fn synchroniser(&self) -> Result<(), String> {
         self.scribe.synchroniser()
+    }
+
+    /// **L'histoire du fichier, tout ce que le scribe a écrit compris** (fiche 183) : celle déjà
+    /// relue, prolongée de ce qui s'est écrit depuis — ou relue entière la première fois, et
+    /// quand la prolonger échoue ou bute sur une fin qui ne suit pas la chaîne (ce qu'une
+    /// écriture qui ne fait qu'ajouter ne laisse jamais).
+    pub fn histoire(&mut self) -> Option<Arc<Ouvert>> {
+        self.synchroniser().ok()?;
+        let fichier = std::fs::File::open(&self.chemin).ok()?;
+        let mut r = std::io::BufReader::new(fichier);
+        let prolongee = self.histoire.take().and_then(|mut o| {
+            histoire::prolonger(&mut r, Arc::make_mut(&mut o)).ok()?;
+            (o.fin_ignoree == 0).then_some(o)
+        });
+        let o = match prolongee {
+            Some(o) => o,
+            None => Arc::new(histoire::ouvrir(&mut r).ok()?),
+        };
+        self.histoire = Some(Arc::clone(&o));
+        Some(o)
     }
 
     /// Le même, sans l'attendre : la réponse viendra par là.

@@ -35,7 +35,7 @@ fn application(nom: &str) -> (GlucoseApp, Dossier, String) {
 }
 
 /// Les écrits de l'IA de Glucose dans l'histoire relue du fichier.
-fn rectifications(app: &mut GlucoseApp) -> (Vec<Note>, Ouvert) {
+fn rectifications(app: &mut GlucoseApp) -> (Vec<Note>, std::sync::Arc<Ouvert>) {
     let o = app.lire_l_histoire().expect("l'histoire se relit");
     let ia = Auteur::de_glucose().id;
     let notes = o.notes.iter().filter(|n| n.auteur == ia).cloned().collect();

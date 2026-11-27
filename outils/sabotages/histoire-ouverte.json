@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "HISTOIRE-OUVERTE — un fichier raccourci se prolonge",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "    if taille < o.fin {\n        return Err(super::tronque(\"l'histoire déjà lue\"));\n    }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "histoire::ouvrir"
+  ]
+ },
+ {
+  "nom": "HISTOIRE-OUVERTE — un instantané ne reprend pas le rejeu",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "            o.geste_en_echec = None;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "histoire::ouvrir"
+  ]
+ },
+ {
+  "nom": "HISTOIRE-OUVERTE — le rejeu continue après un échec",
+  "fichier": "crates/glucose-core/src/persist/histoire/ouvrir.rs",
+  "avant": "    if o.geste_en_echec.is_some() {\n        return;\n    }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "histoire::ouvrir"
+  ]
+ },
+ {
+  "nom": "HISTOIRE-OUVERTE — l'histoire se relit toujours entière",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "let prolongee = self.histoire.take().and_then(",
+  "apres": "let prolongee = None::<Arc<Ouvert>>.and_then(",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "histoire_ouverte"
+  ]
+ },
+ {
+  "nom": "HISTOIRE-OUVERTE — une fin qui ne suit pas la chaîne est crue",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "(o.fin_ignoree == 0).then_some(o)",
+  "apres": "Some(o)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "histoire_ouverte"
+  ]
+ },
+ {
+  "nom": "HISTOIRE-OUVERTE — l'histoire relue n'est pas gardée",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "        self.histoire = Some(Arc::clone(&o));\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "histoire_ouverte"
+  ]
+ }
+]

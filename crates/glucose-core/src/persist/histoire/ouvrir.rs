@@ -52,7 +52,7 @@ pub struct Instantane {
 }
 
 /// Ce qu'un fichier ouvert a rendu.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ouvert {
     /// L'état du document : la base ou le dernier instantané, et ce qui les suit.
     pub projet: Project,
@@ -143,9 +143,23 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         octets_depuis_l_instantane: 0,
         geste_en_echec: None,
     };
-    let a_rejouer = lire_la_queue(r, taille, &mut ouvert)?;
-    rejouer(&mut ouvert, a_rejouer);
+    prolonger(r, &mut ouvert)?;
     Ok(ouvert)
+}
+
+/// **Prolonge une histoire ouverte** des seules entrées écrites depuis (fiche 183) : ce que
+/// [`ouvrir`] rendrait du fichier d'aujourd'hui, sans relire ce qui précède `o.fin` — sur son
+/// document, ~115 ms pour tout rouvrir, presque rien pour deux gestes neufs. Le fichier ne
+/// fait que grandir derrière sa chaîne ; s'il a raccourci, ce n'est plus celui qu'on a lu, et
+/// l'erreur le dit. Une erreur laisse `o` à moitié prolongé : le jeter, et rouvrir.
+pub fn prolonger<R: Read + Seek>(r: &mut R, o: &mut Ouvert) -> CoreResult<()> {
+    let taille = r.seek(SeekFrom::End(0)).map_err(io)?;
+    if taille < o.fin {
+        return Err(super::tronque("l'histoire déjà lue"));
+    }
+    let a_rejouer = lire_la_queue(r, taille, o)?;
+    rejouer(o, a_rejouer);
+    Ok(())
 }
 
 fn io(e: std::io::Error) -> CoreError {
@@ -414,6 +428,8 @@ fn ranger(
                 tranche,
             });
             o.projet = lire_instantane(&contenu)?;
+            // Le rejeu repart de lui : un échec d'avant ne l'arrête plus.
+            o.geste_en_echec = None;
             o.taille_de_l_instantane = tranche.longueur;
             o.octets_depuis_l_instantane = 0;
             a_rejouer.clear();
@@ -453,8 +469,12 @@ fn ranger(
     Ok(())
 }
 
-/// Applique, dans l'ordre, ce qui suit le dernier instantané.
+/// Applique, dans l'ordre, ce qui suit le dernier instantané — rien, si un geste a déjà
+/// échoué depuis : l'état reste le dernier cohérent, quoi qu'on ait écrit après.
 fn rejouer(o: &mut Ouvert, a_rejouer: Vec<ARejouer>) {
+    if o.geste_en_echec.is_some() {
+        return;
+    }
     for entree in a_rejouer {
         match entree {
             ARejouer::Vue(v) => v.poser(&mut o.projet),
@@ -525,3 +545,6 @@ pub fn retour_au_geste<R: Read + Seek>(
     }
     Ok(retour)
 }
+
+#[cfg(test)]
+mod tests;
