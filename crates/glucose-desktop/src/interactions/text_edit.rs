@@ -16,6 +16,9 @@ pub(crate) mod keys;
 pub mod miroir;
 mod montrer;
 pub mod poussee;
+#[cfg(test)]
+#[path = "text_edit/titre_tests.rs"]
+mod titre_tests;
 
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;

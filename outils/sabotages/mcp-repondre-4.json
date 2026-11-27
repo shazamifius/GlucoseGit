@@ -2,8 +2,8 @@
  {
   "nom": "MCP-REPONDRE-4 — pas de voie à gauche",
   "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
-  "avant": "            glisser(&obstacles, Rect::new(t.left - ECART - l, t.top, l, h), |o, r| {\n                r.left = o.left - ECART - r.width;\n            }),\n",
-  "apres": "",
+  "avant": "Rect::new(t.left - ECART - l, t.top, l, h)",
+  "apres": "Rect::new(t.left - 1e9, t.top, l, h)",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -22,8 +22,8 @@
  {
   "nom": "MCP-REPONDRE-4 — pas de voie au-dessus",
   "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
-  "avant": "            glisser(&obstacles, Rect::new(t.left, t.top - ECART - h, l, h), |o, r| {\n                r.top = o.top - ECART - r.height;\n            }),\n",
-  "apres": "",
+  "avant": "Rect::new(t.left, t.top - ECART - h, l, h)",
+  "apres": "Rect::new(t.left, t.top - 1e9, l, h)",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -84,6 +84,66 @@
   "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
   "avant": "                r.left = o.left - ECART - r.width;",
   "apres": "                r.left = o.left - ECART;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — une membrane grandie peut recouvrir sa voisine",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": ".filter(|r| croissance_libre(&chaine, *r, &obstacles))",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — ce qu'elle touchait déjà compte",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "neuf.overlaps(*o) && !cadre.overlaps(*o)",
+  "apres": "neuf.overlaps(*o)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "mcp_repondre"
+  ]
+ },
+ {
+  "nom": "MCP-REPONDRE-4 — seule la membrane la plus proche grandit",
+  "fichier": "crates/glucose-core/src/store/agents/repondre.rs",
+  "avant": "        boite = neuf;\n",
+  "apres": "        return true;\n",
   "cmd": [
    "bash",
    "outils/borne.sh",

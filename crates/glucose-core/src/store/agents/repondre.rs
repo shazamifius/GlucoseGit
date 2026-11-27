@@ -71,8 +71,19 @@ impl Store {
                 },
             ),
         ];
+        // **Aucun chevauchement neuf** : ni la réponse, ni ses membranes qui grandiront pour elle.
+        // Si les quatre voies en créent un, la plus proche quand même — comme avant.
+        let chaine = self.cadres_autour_de(board_id, noeud.membrane.as_deref());
+        let libres: Vec<Rect> = (voies.iter().copied())
+            .filter(|r| croissance_libre(&chaine, *r, &obstacles))
+            .collect();
+        let candidates = if libres.is_empty() {
+            voies.to_vec()
+        } else {
+            libres
+        };
         // `min_by` rend la première des plus proches : l'ordre des voies tranche l'égalité.
-        let place = (voies.into_iter())
+        let place = (candidates.into_iter())
             .min_by(|a, b| ecart(t, *a).total_cmp(&ecart(t, *b)))
             .unwrap_or(t);
         Ok(PlaceDeReponse {
@@ -81,6 +92,46 @@ impl Store {
             membrane: noeud.membrane.clone(),
         })
     }
+}
+
+impl Store {
+    /// Les cadres de `membrane` et de chacune de celles qui la contiennent, de la plus proche à
+    /// la plus large : ceux qu'`agrandir_la_membrane_pour` fera grandir.
+    fn cadres_autour_de(&self, board_id: &str, membrane: Option<&str>) -> Vec<Rect> {
+        let (mut cadres, mut vues) = (Vec::new(), Vec::new());
+        let mut suivante = membrane.map(str::to_string);
+        while let Some(m) = suivante.filter(|m| !vues.contains(m)) {
+            let Ok(cadre) = self.boite_d_un_noeud(board_id, &m) else {
+                break;
+            };
+            cadres.push(cadre);
+            suivante = (self.project.annotation(board_id, &m))
+                .and_then(crate::types::Annotation::membrane_id)
+                .map(str::to_string);
+            vues.push(m);
+        }
+        cadres
+    }
+}
+
+/// **Les membranes peuvent-elles grandir pour `r` sans rien recouvrir de neuf ?** Chacune grandit
+/// comme `agrandir_la_membrane_pour` le fera (la loi du cadre, `cadre_autour`) ; un obstacle
+/// qu'elle ne touchait pas et que son cadre grandi toucherait la ferme. Ceux qu'elle touchait déjà
+/// — son contenu, ou un désordre d'avant — ne comptent pas : on ne juge que ce que la réponse
+/// change.
+fn croissance_libre(chaine: &[Rect], r: Rect, obstacles: &[Rect]) -> bool {
+    let mut boite = r;
+    for cadre in chaine {
+        let neuf = cadre.union(Store::cadre_autour(boite));
+        if neuf == *cadre {
+            return true;
+        }
+        if (obstacles.iter()).any(|o| neuf.overlaps(*o) && !cadre.overlaps(*o)) {
+            return false;
+        }
+        boite = neuf;
+    }
+    true
 }
 
 /// **L'écart entre deux boîtes** : la largeur du vide qui les sépare, nul si elles se touchent.

@@ -59,7 +59,8 @@ const OUTILS: &[(&str, &str, &str)] = &[
     ),
     (
         "glucose_poser_texte",
-        "Pose un texte (Markdown, LaTeX entre $…$) ou un post-it — qui peut être un opérateur \
+        "Pose un texte (Markdown, LaTeX entre $…$) ou un post-it — en texte brut, sans Markdown, \
+         exprès : une note courte, lue d'un coup d'œil ; il peut être un opérateur \
          (ET, OU, MAIS, PARCE QUE) —, ou met à jour celui qui porte déjà cet identifiant : seul \
          ce que l'appel nomme change. Rend son identifiant et sa boîte. Les émojis s'affichent \
          en couleur ; mais un sens qui tient à une couleur passe par « couleur » (la teinte du \

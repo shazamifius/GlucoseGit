@@ -1,4 +1,5 @@
 use super::super::{Refus, ECART};
+use crate::geometry::Rect;
 use crate::store::Store;
 use crate::types::Annotation;
 
@@ -167,5 +168,115 @@ fn mcp_repondre_a_gauche_glisse_derriere_son_voisin() {
         (p.x, p.y),
         (v.left - ECART - 240.0, t.top),
         "derrière le voisin"
+    );
+}
+
+/// La membrane « a » autour de la note « n », un voisin sous la note, et trois membranes posées
+/// **dans la marge** que « a » prendrait en grandissant pour une réponse à droite, à gauche ou
+/// au-dessus — hors de la réponse elle-même. Avec `enveloppe`, « a » est dans une membrane « p »,
+/// et la voisine de droite est hors de « p », dans la seule marge que « p » prendrait en grandissant.
+fn entre_ses_voisines(enveloppe: bool) -> (Store, String, Rect, Rect) {
+    use super::super::TITRE_DE_MEMBRANE as TITRE;
+    let mut store = Store::new("repondre");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(
+        &board,
+        Annotation::membrane("a", -50.0, -60.0, 400.0, 300.0),
+    );
+    store.add_annotation(&board, Annotation::text("n", 0.0, 0.0, "ma note"));
+    let t = store
+        .project
+        .annotation(&board, "n")
+        .expect("la note")
+        .bounds();
+    let v = Annotation::text("voisin", 0.0, t.bottom() + ECART, "un voisin");
+    store.add_annotation(&board, v);
+    let v = store
+        .project
+        .annotation(&board, "voisin")
+        .expect("le voisin")
+        .bounds();
+    let (l, h) = (240.0, 100.0);
+    let droite = t.right() + ECART + l; // le bord droit d'une réponse à droite
+    let gauche = t.left - ECART - l;
+    let haut = t.top - ECART - h;
+    let x_droite = if enveloppe {
+        droite + 1.5 * ECART
+    } else {
+        droite + ECART / 2.0
+    };
+    store.add_annotation(
+        &board,
+        Annotation::membrane("droite", x_droite, -60.0, 400.0, 400.0),
+    );
+    let x_gauche = gauche - ECART / 2.0 - 400.0;
+    store.add_annotation(
+        &board,
+        Annotation::membrane("gauche", x_gauche, -60.0, 400.0, 400.0),
+    );
+    let y_dessus = haut - TITRE / 2.0 - 400.0;
+    store.add_annotation(
+        &board,
+        Annotation::membrane("dessus", -50.0, y_dessus, 400.0, 400.0),
+    );
+    if enveloppe {
+        // « p » contient « a », « gauche » et « dessus » ; son bord droit, un écart après « a ».
+        let (gauche_p, haut_p) = (x_gauche - ECART, y_dessus - TITRE);
+        let p = Rect::new(
+            gauche_p,
+            haut_p,
+            350.0 + ECART - gauche_p,
+            240.0 + ECART - haut_p,
+        );
+        store.add_annotation(
+            &board,
+            Annotation::membrane("p", p.left, p.top, p.width, p.height),
+        );
+        for id in ["a", "gauche", "dessus"] {
+            store.update_annotation(&board, id, |a| a.set_membrane_id(Some("p".into())));
+        }
+    }
+    (store, board, t, v)
+}
+
+/// **Sa membrane ne déborde pas sur ses voisines** (le 27/11, « 29 · post-it » a grandi sur
+/// « 30 ») : la réponse à droite serait la plus proche, mais « a », en grandissant, recouvrirait
+/// sa voisine ; de même à gauche et au-dessus. Elle va dessous, derrière le voisin.
+#[test]
+fn mcp_repondre_sa_membrane_ne_deborde_pas_sur_ses_voisines() {
+    let (mut store, board, t, v) = entre_ses_voisines(false);
+    let p = store
+        .place_pour_une_reponse(&board, "n", (240.0, 100.0))
+        .expect("une place");
+    assert_eq!(
+        (p.x, p.y),
+        (t.left, v.bottom() + ECART),
+        "dessous, derrière le voisin"
+    );
+    assert_eq!(p.membrane.as_deref(), Some("a"));
+    // Et en vrai : posée, sa membrane grandie ne touche aucune voisine.
+    let r = Rect::new(p.x, p.y, 240.0, 100.0);
+    store
+        .agrandir_la_membrane_pour(&board, "a", r)
+        .expect("elle grandit");
+    let a = store.boite_d_un_noeud(&board, "a").expect("la membrane");
+    for id in ["droite", "gauche", "dessus"] {
+        let o = store.boite_d_un_noeud(&board, id).expect("une voisine");
+        assert!(!a.overlaps(o), "{a:?} recouvre {id}");
+    }
+}
+
+/// **Les membranes qui l'entourent non plus** : « a » grandirait sans toucher la voisine de
+/// droite, mais « p », qui grandit à son tour, la recouvrirait.
+#[test]
+fn mcp_repondre_ses_membranes_englobantes_ne_debordent_pas() {
+    let (store, board, t, v) = entre_ses_voisines(true);
+    let p = store
+        .place_pour_une_reponse(&board, "n", (240.0, 100.0))
+        .expect("une place");
+    assert_eq!(
+        (p.x, p.y),
+        (t.left, v.bottom() + ECART),
+        "dessous, derrière le voisin"
     );
 }
