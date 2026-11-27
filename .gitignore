@@ -34,9 +34,6 @@ desktop.ini
 # Tests
 coverage/
 
-# Claude Code (état local des tâches)
-.claude/scheduled_tasks.lock
-.claude/projects/
 
 # Les captures de travail (scène témoin, vitrine) se régénèrent par
 #   cargo run -p glucose-desktop --example capture_temoin -- docs/screenshots
@@ -72,5 +69,5 @@ __pycache__/
 /docs/
 
 
+# Les fichiers de Claude Code (ses compétences, l'état de ses tâches) : de cette machine, jamais publics.
 /.claude/
-/skills/
