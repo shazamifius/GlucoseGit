@@ -206,5 +206,37 @@
    "-p",
    "test_*.py"
   ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — le battement se récrit à chaque minute",
+  "fichier": "outils/relais/loi.py",
+  "avant": "re.sub(r\"\\d{1,2}:\\d{2}\", \"\", texte or \"\")",
+  "apres": "(texte or \"\")",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — le battement ne se récrit plus quand l'état change",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return sans(dit) == sans(avant)",
+  "apres": "return True",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
  }
 ]

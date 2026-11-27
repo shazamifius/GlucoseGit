@@ -150,5 +150,16 @@ class Relire(unittest.TestCase):
         self.assertEqual(r.charge("a", self.maintenant)["five_hour"][0], 11.0)
 
 
+class Battement(unittest.TestCase):
+    def test_l_heure_seule_ne_change_pas_l_etat(self):
+        """Le 27/11 : le battement récrit chaque minute pendant qu'une session à lui travaillait."""
+        retrait = "en retrait : une session de Claude à toi travaille (son dernier signe : {})"
+        self.assertTrue(r.meme_etat(retrait.format("17:52"), retrait.format("17:53")))
+        self.assertTrue(r.meme_etat(retrait.format("9:05"), retrait.format("10:41")))
+        self.assertFalse(r.meme_etat(retrait.format("17:52"), "session lancée sur le compte a"))
+        self.assertFalse(r.meme_etat("session lancée sur le compte a", "session lancée sur le compte b"))
+        self.assertFalse(r.meme_etat("x", None))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent))
 from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, FERMEE_ENDORMIE, INVITE_REPONSE, NOTIFICATIONS,  # noqa: E402
                  PASSATION, REGLES, REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES,
-                 contexte_plein, decider, depart, dernier_geste, dire_session, en_pause, endormie, heure, humaine,
+                 contexte_plein, decider, depart, dernier_geste, dire_session, en_pause, endormie, heure, humaine, meme_etat,
                  il_ecrit, raison_continuer, raison_entendre, raison_passation, ses_fleches, ses_paroles, signee)
 from loi import ENDORMIE, MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
@@ -713,7 +713,7 @@ def un_tour():
         dit = attendre(memoire, ok, pause, humaine_la, maintenant, il_ecrit(histoire))
     if neufs is not None:
         memoire["vu"] = neufs["total"]
-    if maintenant - memoire.get("battu", 0) >= 600 or dit != memoire.get("dit"):
+    if maintenant - memoire.get("battu", 0) >= 600 or not meme_etat(dit, memoire.get("dit")):
         memoire["dit"] = dit
         battre(memoire, session.get("compte") if vivante else None, dit, maintenant)
     ecrire_json(ETAT / "veilleur.json", memoire)

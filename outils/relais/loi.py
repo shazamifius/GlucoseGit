@@ -45,6 +45,15 @@ REGLES = (
     "fichier, grep avant cat, jamais deux fois la même chose).")
 
 
+def meme_etat(dit, avant):
+    """**Le même état, à l'heure près** : « en retrait : … son dernier signe : 17:52 » ne change pas
+    d'état à 17:53. Le battement se récrivait à chaque minute qu'une session à lui travaillait — un
+    geste de plus dans son document chaque minute (le 27/11, de 17:47 à 17:53) ; il ne se récrit
+    plus que quand l'état change, ou au bout de dix minutes."""
+    sans = lambda texte: re.sub(r"\d{1,2}:\d{2}", "", texte or "")  # noqa: E731
+    return sans(dit) == sans(avant)
+
+
 def heure(t):
     """L'heure ; et le jour quand ce n'est pas aujourd'hui (une semaine se remet dans deux jours)."""
     meme_jour = time.localtime(t)[:3] == time.localtime()[:3]
