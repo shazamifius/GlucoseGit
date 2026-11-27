@@ -208,6 +208,19 @@ impl Store {
             .unwrap_or_default()
     }
 
+    /// **Un cadre jamais plus serré que son contenu** (fiche 184 § 6, fiche 185 § 4) : la boîte
+    /// `voulue` pour la membrane `membrane`, agrandie de ce qu'il faut pour contenir chacun de ses
+    /// nœuds selon la loi du cadre (`cadre_autour` : l'écart sur les côtés, le titre au-dessus).
+    /// Le 27/11, un cadre posé à la main avec 15 d'écart au lieu de 30 a fait grandir la bulle sur
+    /// ses voisines à la pose suivante : un cadre trop serré se paie plus tard.
+    pub fn cadre_tenu(&self, board_id: &str, membrane: &str, voulue: Rect) -> Result<Rect, Refus> {
+        let contenu = (self.decrire_pour_un_agent(board_id)?.into_iter())
+            .filter(|d| d.sorte != Sorte::Fleche && d.membrane.as_deref() == Some(membrane))
+            .map(|d| d.boite)
+            .reduce(|a, b| a.union(b));
+        Ok(contenu.map_or(voulue, |c| voulue.union(Store::cadre_autour(c))))
+    }
+
     /// Les cadres de `membrane` et de chacune de celles qui la contiennent, de la plus proche à
     /// la plus large : ceux qu'`agrandir_la_membrane_pour` fera grandir.
     pub(super) fn cadres_autour_de(

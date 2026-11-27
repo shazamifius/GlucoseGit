@@ -72,7 +72,8 @@ const OUTILS: &[(&str, &str, &str)] = &[
     (
         "glucose_poser_membrane",
         "Pose une membrane — une bulle qui regroupe des nœuds, avec un titre — ou met à jour celle \
-         qui porte cet identifiant : seul ce que l'appel nomme change.",
+         qui porte cet identifiant : seul ce que l'appel nomme change. Déplacée, elle emporte ce \
+         qu'elle contient ; son cadre n'est jamais plus serré que son contenu plus sa marge.",
         r##"{"type":"object","properties":{"id":{"type":"string"},"titre":{"type":"string"},"dans":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"largeur":{"type":"number"},"hauteur":{"type":"number"},"couleur":{"type":"string","description":"#rrggbb"},"domaines":{"type":"array","description":"les domaines de ce nœud, posés dans le même geste : [{\"domaine\":\"eau\",\"poids\":0.8}] s'il existe, [{\"nouveau\":\"eau chaude\"}] pour le créer","items":{}},"tableau":{"type":"string"}}}"##,
     ),
     (

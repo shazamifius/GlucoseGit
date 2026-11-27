@@ -12,6 +12,7 @@ mod mcp_dossier;
 mod neuf;
 mod operateur_2;
 mod parente_3;
+mod place_1;
 mod plan;
 mod ranger_1;
 mod repondre;

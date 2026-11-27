@@ -238,5 +238,65 @@
    "--",
    "verifier_1"
   ]
+ },
+ {
+  "nom": "PLACE-1 — le cadre plus serré que son contenu",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "Ok(contenu.map_or(voulue, |c| voulue.union(Store::cadre_autour(c))))",
+  "apres": "Ok(contenu.map_or(voulue, |_| voulue))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "place_1"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — le cadre déplacé seul",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "(Some(xy), Some(_)) => s.deplacer_pour_un_agent(board, &id, xy)?,",
+  "apres": "(Some(xy), Some(_)) if xy.0.is_nan() => s.deplacer_pour_un_agent(board, &id, xy)?,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "place_1"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — le cadre agrandi sans le dire",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "let libre = p.libre && (ici.x, ici.y) == (boite.left, boite.top);",
+  "apres": "let libre = p.libre || (ici.x, ici.y) == (boite.left, boite.top);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "place_1"
+  ]
  }
 ]

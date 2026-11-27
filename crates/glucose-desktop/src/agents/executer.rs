@@ -219,9 +219,25 @@ impl GlucoseApp {
         let (boite, libre) = self
             .store
             .geste_d_agent(|s| {
-                let taille = (largeur, hauteur);
-                let p = placer(s, board, (demandee, avant), taille, dans, &[&id])?;
-                let boite = Rect::new(p.x, p.y, largeur, hauteur);
+                // Une membrane qui existe se déplace comme la main la déplace : ce qu'elle porte
+                // la suit (DEPLACER-1) — son cadre déplacé seul laissait son contenu dehors.
+                let p = match (demandee, avant) {
+                    (Some(xy), Some(_)) => s.deplacer_pour_un_agent(board, &id, xy)?,
+                    _ => placer(
+                        s,
+                        board,
+                        (demandee, avant),
+                        (largeur, hauteur),
+                        dans,
+                        &[&id],
+                    )?,
+                };
+                // Puis son cadre, jamais plus serré que son contenu (fiche 185 § 4) ; et s'il
+                // grandit sur un voisin, l'IA le sait.
+                let boite = s.cadre_tenu(board, &id, Rect::new(p.x, p.y, largeur, hauteur))?;
+                let maison = dans.map_or(Maison::OuIlTombe, Maison::Dite);
+                let ici = s.place_libre(board, boite, maison, &[&id])?;
+                let libre = p.libre && (ici.x, ici.y) == (boite.left, boite.top);
                 if let Some(m) = dans {
                     s.agrandir_la_membrane_pour(board, m, boite)?;
                 }
@@ -229,7 +245,7 @@ impl GlucoseApp {
                 let ann = partir::une_membrane(s, board, &id, boite, dit);
                 s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
-                Ok((boite, p.libre))
+                Ok((boite, libre))
             })
             .map_err(|r| r.to_string())?;
         Ok(posee(&id, boite, libre))
