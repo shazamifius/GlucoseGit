@@ -70,3 +70,6 @@ __pycache__/
 
 # Les docs de travail vivent dans leur propre dépôt, privé (GlucoseGit-docs), cloné ici.
 /docs/
+
+
+.claude/
