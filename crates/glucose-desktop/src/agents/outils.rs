@@ -240,6 +240,17 @@ const OUTILS: &[(&str, &str, &str)] = &[
          Time Machine, et une autre IA dans glucose_histoire.",
         r##"{"type":"object","properties":{"texte":{"type":"string"},"geste":{"type":"number","description":"le rang du geste dans l'histoire ; par défaut ton dernier geste"}},"required":["texte"]}"##,
     ),
+    (
+        "glucose_verifier",
+        "Contrôle un tableau comme l'œil le voit, ce que tu ne vois pas : les nœuds qui se \
+         chevauchent (un nœud à cheval sur une membrane compris), ceux qu'une membrane contient à \
+         l'œil alors que tu les lis dans une autre (a_l_oeil, pour_l_ia), et les flèches qui \
+         traversent un texte, un post-it, une photo ou un dossier qu'elles ne relient pas, sur leur \
+         tracé dessiné. « qui » dit qui a écrit chaque nœud en cause. Lance-le après avoir posé ou \
+         déplacé, et avant de partir : ce que tu as posé doit être propre ; ce que l'humain a posé, \
+         ne le déplace pas sans lui.",
+        r##"{"type":"object","properties":{"tableau":{"type":"string"}}}"##,
+    ),
 ];
 
 /// Les noms des outils, dans l'ordre de la liste.
@@ -306,8 +317,9 @@ impl Portee {
 
 /// **Les outils qui ne font que lire** : « Lire seulement » ne donne qu'eux. Une liste qui
 /// permet, jamais une qui interdit : un outil neuf écrit, jusqu'à preuve du contraire.
-const LECTEURS: [&str; 6] = [
+const LECTEURS: [&str; 7] = [
     "glucose_lire",
+    "glucose_verifier",
     "glucose_voir",
     "glucose_domaines",
     "glucose_chercher",
@@ -318,8 +330,9 @@ const LECTEURS: [&str; 6] = [
 /// **Les outils ouverts à une IA du nuage** : ceux qui ne regardent que le document ouvert.
 /// `glucose_domaines` lit les autres fichiers et dit leurs chemins : il reste à cette machine.
 /// Un outil neuf n'est ouvert au nuage que quand on l'ajoute ici, exprès.
-const DU_DOCUMENT: [&str; 20] = [
+const DU_DOCUMENT: [&str; 21] = [
     "glucose_lire",
+    "glucose_verifier",
     "glucose_repondre",
     "glucose_renommer",
     "glucose_ranger",

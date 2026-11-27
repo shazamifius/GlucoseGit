@@ -132,6 +132,20 @@ fn anchor_of(
     }
 }
 
+/// **La boîte qu'une flèche contourne**, si ce nœud en est un : une carte, une note, une
+/// photo (tournée comprise), un dossier. Une flèche n'en contourne pas une autre, et elle sort
+/// d'une membrane pour relier deux domaines. Le dessin et le contrôleur du tableau (fiche 184)
+/// lisent la même règle.
+pub fn obstacle(noeud: crate::quadtree::Noeud<'_>) -> Option<Rect> {
+    use crate::quadtree::Noeud;
+    match noeud {
+        Noeud::Image(i) => Some(i.bounds()),
+        Noeud::Annotation(a @ (Annotation::Text { .. } | Annotation::Sticky { .. })) => a.rect(),
+        Noeud::Annotation(_) => None,
+        Noeud::Dossier(f) => Some(f.rect()),
+    }
+}
+
 /// La boîte d'un nœud du tableau, quelle que soit sa nature.
 pub fn node_rect(board: &Board, id: &str) -> Option<Rect> {
     crate::quadtree::noeud_par_id(board, id)?.rect()

@@ -463,7 +463,8 @@ fn la_portee_borne_les_outils_d_une_ia_du_nuage() {
             "glucose_lire",
             "glucose_chercher",
             "glucose_histoire",
-            "glucose_quoi_de_neuf"
+            "glucose_quoi_de_neuf",
+            "glucose_verifier"
         ]
     );
     let (s, j) = b.mcp(

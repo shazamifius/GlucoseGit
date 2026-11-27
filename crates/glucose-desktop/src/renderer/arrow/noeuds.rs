@@ -11,7 +11,7 @@ use crate::renderer::card::{card_text_layout, text_box, TEXT_ORIGIN};
 use crate::renderer::math::MathRenderer;
 use crate::renderer::richtext::{TextLayout, TextMode};
 use crate::typography::Typography;
-use glucose_core::arrow::{node_rect, node_rect_indexe, Itineraire, Noeuds};
+use glucose_core::arrow::{node_rect, node_rect_indexe, obstacle, Itineraire, Noeuds};
 use glucose_core::geometry::Rect;
 use glucose_core::quadtree::{noeud_au_rang, noeud_par_id, Noeud, SpatialHash, SuiviDuGeste};
 use glucose_core::text_anchors::resolve_anchors;
@@ -106,18 +106,6 @@ impl NoeudsDuRendu<'_> {
             .and_then(|i| noeud_au_rang(self.board, i.rang_de(id)?))
             .filter(|n| n.id() == id);
         obstacle(par_l_index.or_else(|| noeud_par_id(self.board, id))?)
-    }
-}
-
-/// **La boîte qu'une flèche contourne**, si ce nœud en est un : une carte, une note, une
-/// photo (tournée comprise), un dossier. Une flèche n'en contourne pas une autre, et elle sort
-/// d'une membrane pour relier deux domaines.
-pub(crate) fn obstacle(noeud: Noeud<'_>) -> Option<Rect> {
-    match noeud {
-        Noeud::Image(i) => Some(i.bounds()),
-        Noeud::Annotation(a @ (Annotation::Text { .. } | Annotation::Sticky { .. })) => a.rect(),
-        Noeud::Annotation(_) => None,
-        Noeud::Dossier(f) => Some(f.rect()),
     }
 }
 

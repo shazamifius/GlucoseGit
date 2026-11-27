@@ -40,11 +40,13 @@ mod deplacer;
 pub mod domaines;
 mod rattacher;
 mod repondre;
+mod verifier;
 
 pub(crate) use decrit::decrire_le_tableau;
 pub use decrit::{Decrit, Herite};
 pub use domaines::{sigle_de, DomaineDecrit, Naissance, Voulu};
 pub use repondre::PlaceDeReponse;
+pub use verifier::{Appartenance, Constat};
 
 use super::Store;
 use crate::geometry::Rect;

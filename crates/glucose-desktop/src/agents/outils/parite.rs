@@ -100,6 +100,13 @@ const EN_FACE: &[(&str, Main)] = &[
             "un jalon nomme un moment ; une note sur un geste, IA seulement",
         ),
     ),
+    (
+        "glucose_verifier",
+        Main::Par(
+            &["tout-cadrer"],
+            "regarder le tableau : l'œil voit ce qui se chevauche",
+        ),
+    ),
 ];
 
 /// **Chaque outil annoncé a sa ligne, une seule ; aucune ligne pour un outil qui n'existe pas.**

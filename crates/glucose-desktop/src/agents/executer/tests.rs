@@ -16,6 +16,7 @@ mod plan;
 mod ranger_1;
 mod repondre;
 mod temps_1;
+mod verifier;
 
 use crate::agents::json::Json;
 use crate::app::GlucoseApp;

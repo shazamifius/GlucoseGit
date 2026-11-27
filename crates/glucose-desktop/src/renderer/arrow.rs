@@ -403,9 +403,10 @@ pub(crate) fn fleche_en_svg(
 mod itineraires;
 mod noeuds;
 pub(crate) mod presence;
+pub(crate) use glucose_core::arrow::obstacle;
 pub use itineraires::{Epoque, Itineraires};
 pub use noeuds::Contournement;
-pub(crate) use noeuds::{obstacle, NoeudsDuRendu};
+pub(crate) use noeuds::NoeudsDuRendu;
 pub(crate) use presence::Main;
 
 #[cfg(test)]

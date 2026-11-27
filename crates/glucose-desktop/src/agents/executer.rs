@@ -16,6 +16,7 @@ mod neuf;
 mod partir;
 mod repondre;
 mod temps;
+mod verifier;
 
 use super::json::Json;
 use crate::app::GlucoseApp;
@@ -99,6 +100,7 @@ impl GlucoseApp {
             "glucose_quoi_de_neuf" => self.agent_quoi_de_neuf(&a),
             "glucose_noter" => self.agent_noter(&a),
             "glucose_dater" => self.agent_dater(&board, &a),
+            "glucose_verifier" => self.agent_verifier(&board),
             _ => Err(format!("Glucose n'a pas d'outil « {nom} »")),
         };
         // Ce qu'un agent pose apparaît à l'image suivante, sans attendre un geste de la main.

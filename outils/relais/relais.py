@@ -637,9 +637,6 @@ def jauge_en_mots(compte, maintenant):
     au_seuil, libre_a = plein(compte, maintenant)
     if au_seuil and libre_a:
         mots.append(f"libre à {heure(libre_a)}")
-    garde = lire_json(ETAT / f"jauges-{compte}.json", {})
-    if garde.get("lu"):
-        mots.append(f"lu {'au serveur' if garde.get('serveur') == garde['lu'] else 'en session'} à {heure(garde['lu'])}")
     echec = lire_json(ETAT / "serveur.json", {}).get(compte, {}).get("echec")
     if echec and au_seuil:
         mots.append(f"serveur : {echec}")

@@ -1,0 +1,142 @@
+[
+ {
+  "nom": "VERIFIER-1 — ce qui contient compte pour un chevauchement",
+  "fichier": "crates/glucose-core/src/store/agents/verifier.rs",
+  "avant": "p.overlaps(q) && !p.contains_rect(q) && !q.contains_rect(p)",
+  "apres": "p.overlaps(q)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "verifier"
+  ]
+ },
+ {
+  "nom": "VERIFIER-1 — une appartenance contredite se tait",
+  "fichier": "crates/glucose-core/src/store/agents/verifier.rs",
+  "avant": "if a_l_oeil != n.membrane {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "verifier"
+  ]
+ },
+ {
+  "nom": "VERIFIER-1 — la plus grande membrane pour l'œil",
+  "fichier": "crates/glucose-core/src/store/agents/verifier.rs",
+  "avant": ".min_by(|a, b| a.boite.area().total_cmp(&b.boite.area()))",
+  "apres": ".max_by(|a, b| a.boite.area().total_cmp(&b.boite.area()))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "verifier"
+  ]
+ },
+ {
+  "nom": "VERIFIER-1 — une membrane se traverse comme un texte",
+  "fichier": "crates/glucose-core/src/store/agents/verifier.rs",
+  "avant": "Sorte::Texte | Sorte::PostIt | Sorte::Photo | Sorte::Dossier",
+  "apres": "Sorte::Texte | Sorte::PostIt | Sorte::Photo | Sorte::Dossier | Sorte::Membrane",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "verifier"
+  ]
+ },
+ {
+  "nom": "VERIFIER-1 — le tracé ne contourne rien",
+  "fichier": "crates/glucose-core/src/store/agents/verifier.rs",
+  "avant": "            obstacles: noeuds.filter_map(arrow::obstacle).collect(),",
+  "apres": "            obstacles: noeuds.filter_map(arrow::obstacle).take(0).collect(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "verifier"
+  ]
+ },
+ {
+  "nom": "VERIFIER-1 — longer un bord, c'est traverser",
+  "fichier": "crates/glucose-core/src/store/agents/verifier.rs",
+  "avant": "    t0 < t1\n",
+  "apres": "    t0 <= t1\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "verifier"
+  ]
+ },
+ {
+  "nom": "VERIFIER-1 — le contrôleur passe pour un outil qui écrit",
+  "fichier": "crates/glucose-desktop/src/agents/outils.rs",
+  "avant": "const LECTEURS: [&str; 7] = [\n    \"glucose_lire\",\n    \"glucose_verifier\",",
+  "apres": "const LECTEURS: [&str; 7] = [\n    \"glucose_lire\",\n    \"glucose_ecrire\",",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "verifier_1"
+  ]
+ }
+]
