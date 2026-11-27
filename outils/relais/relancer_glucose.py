@@ -59,6 +59,13 @@ def partage_apres(depuis, attente=60):
     return dit
 
 
+def place(lu):
+    """**Sa bulle se choisit à sa naissance** ; ensuite, la place qu'il lui a donnée (fiche 184 § 3).
+    Réécrit « dans relais » à chaque relance, le nœud qu'il avait glissé dans « passation » y restait
+    pour l'œil et retournait dans « relais » pour l'IA."""
+    return [] if (lu or {}).get("noeuds") else ["dans=relais", "largeur=640"]
+
+
 def main():
     raison = " ".join(sys.argv[1:]).strip()
     if not raison:
@@ -71,8 +78,7 @@ def main():
     lignes = [l for l in ancien.splitlines() if l.startswith("•")]
     ligne = f"• {time.strftime('%d/%m %H h %M')} — {raison} — {partage}"
     texte = "\n\n".join([TITRE, "\n".join([ligne, *lignes][:GARDEES])])
-    pose = glucose("poser-texte", "tableau=main", f"id={NOEUD}", "dans=relais", "largeur=640",
-                   "texte=-", entree=texte)
+    pose = glucose("poser-texte", "tableau=main", f"id={NOEUD}", *place(lu), "texte=-", entree=texte)
     print(ligne if "erreur" not in pose else f"{ligne}\n(pas écrit dans son Glucose : {pose['erreur']})")
 
 

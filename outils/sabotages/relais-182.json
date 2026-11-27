@@ -238,5 +238,37 @@
    "-p",
    "test_*.py"
   ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — la relance force la bulle relais",
+  "fichier": "outils/relais/relancer_glucose.py",
+  "avant": "return [] if (lu or {}).get(\"noeuds\") else [\"dans=relais\", \"largeur=640\"]",
+  "apres": "return [\"dans=relais\", \"largeur=640\"]",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — la mise à jour force la bulle relais",
+  "fichier": "outils/relais/relais.py",
+  "avant": "place = {} if noeud(\"relais-maj-claude\") else {\"dans\": \"relais\", \"largeur\": 700}",
+  "apres": "place = {\"dans\": \"relais\", \"largeur\": 700}",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
  }
 ]

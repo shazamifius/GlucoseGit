@@ -721,7 +721,9 @@ def mettre_a_jour():
     que `un_tour` ne récrit pas ; ce qu'il fait se dit dans un seul nœud de sa membrane, récrit."""
     import mise_a_jour
     memoire = lire_json(ETAT / "mise-a-jour.json", {})
-    dire = lambda texte: ecrire("relais-maj-claude", texte, dans="relais", largeur=700)  # noqa: E731
+    # Sa bulle se choisit à sa naissance ; ensuite, la place qu'il lui a donnée (fiche 184 § 3).
+    place = {} if noeud("relais-maj-claude") else {"dans": "relais", "largeur": 700}
+    dire = lambda texte: ecrire("relais-maj-claude", texte, **place)  # noqa: E731
     mise_a_jour.veiller(memoire, time.time(), dire, journal)
     ecrire_json(ETAT / "mise-a-jour.json", memoire)
 

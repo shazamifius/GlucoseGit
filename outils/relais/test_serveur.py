@@ -161,5 +161,25 @@ class Battement(unittest.TestCase):
         self.assertFalse(r.meme_etat("x", None))
 
 
+class SaPlace(unittest.TestCase):
+    """Fiche 184 § 3 : la bulle d'un nœud du relais se choisit à sa naissance, jamais après."""
+
+    def test_la_relance_respecte_la_place_qu_il_a_donnee(self):
+        import relancer_glucose as g
+        self.assertEqual(g.place({"noeuds": []}), ["dans=relais", "largeur=640"])
+        self.assertEqual(g.place(None), ["dans=relais", "largeur=640"])
+        self.assertEqual(g.place({"noeuds": [{"id": g.NOEUD}]}), [])
+
+    def test_la_mise_a_jour_respecte_la_place_qu_il_a_donnee(self):
+        import mise_a_jour
+        for existe, attendu in (({"id": "relais-maj-claude"}, {}), (None, {"dans": "relais", "largeur": 700})):
+            with tempfile.TemporaryDirectory() as d, mock.patch.object(r, "ETAT", Path(d)), \
+                    mock.patch.object(r, "noeud", return_value=existe), \
+                    mock.patch.object(r, "ecrire") as ecrire, \
+                    mock.patch.object(mise_a_jour, "veiller", lambda m, t, dire, j: dire("x")):
+                r.mettre_a_jour()
+            self.assertEqual(ecrire.call_args.kwargs, attendu)
+
+
 if __name__ == "__main__":
     unittest.main()
