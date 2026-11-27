@@ -38,6 +38,7 @@
 mod decrit;
 mod deplacer;
 pub mod domaines;
+mod place;
 mod rattacher;
 mod repondre;
 mod verifier;
@@ -45,6 +46,7 @@ mod verifier;
 pub(crate) use decrit::decrire_le_tableau;
 pub use decrit::{Decrit, Herite};
 pub use domaines::{sigle_de, DomaineDecrit, Naissance, Voulu};
+pub use place::{Maison, Place};
 pub use repondre::PlaceDeReponse;
 pub use verifier::{Appartenance, Constat};
 

@@ -131,17 +131,6 @@ fn mcp_repondre_a_gauche_quand_droite_et_dessous_sont_pris() {
     assert_eq!((p.x, p.y), (t.left - ECART - 240.0, t.top));
 }
 
-/// L'écart de deux boîtes : le vide qui les sépare, de côté, d'en haut, ou nul.
-#[test]
-fn mcp_repondre_l_ecart_de_deux_boites() {
-    use crate::geometry::Rect;
-    let a = Rect::new(0.0, 0.0, 100.0, 100.0);
-    assert_eq!(super::ecart(a, Rect::new(130.0, 50.0, 10.0, 10.0)), 30.0);
-    assert_eq!(super::ecart(a, Rect::new(-50.0, 0.0, 10.0, 10.0)), 40.0);
-    assert_eq!(super::ecart(a, Rect::new(0.0, -70.0, 10.0, 20.0)), 50.0);
-    assert_eq!(super::ecart(a, Rect::new(50.0, 50.0, 10.0, 10.0)), 0.0);
-}
-
 /// **À gauche, elle glisse derrière son voisin** : à droite, dessous et au-dessus, de grandes
 /// membranes ; à gauche, un voisin collé — la réponse passe derrière lui, sans le chevaucher.
 #[test]

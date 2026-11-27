@@ -1,0 +1,242 @@
+[
+ {
+  "nom": "PLACE-1 — toute membrane qui le contient l'accueille",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "!(o.membrane && self.accueille && o.boite.contains_rect(r))",
+  "apres": "!(o.membrane && o.boite.contains_rect(r))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — aucune membrane n'accueille",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "accueille: maison == Maison::OuIlTombe,",
+  "apres": "accueille: false,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — sa propre membrane gêne",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "            .filter(|d| !chaine.iter().any(|(id, _)| *id == d.id))\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — ce qu'elle emporte gêne",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "d.sorte != Sorte::Fleche && !emportes.contient(&d.id)",
+  "apres": "d.sorte != Sorte::Fleche && !emportes.contient(\"\")",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — la croissance n'est jamais jugée",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "        let mut boite = r;\n        for cadre",
+  "apres": "        let mut boite = r;\n        if !boite.left.is_nan() {\n            return true;\n        }\n        for cadre",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — la plus loin",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": ".min_by(|a, b| distance(a).total_cmp(&distance(b)))",
+  "apres": ".max_by(|a, b| distance(a).total_cmp(&distance(b)))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — toujours libre",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "let libre = !libres.is_empty();",
+  "apres": "let libre = !libres.is_empty() || true;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — pas de voie à gauche",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "Voie::Gauche => r.left = o.left - ECART - r.width,",
+  "apres": "Voie::Gauche => r.left = o.left - 1e9,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — la distance sans le vertical",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "(r.left - d.left).abs() + (r.top - d.top).abs()",
+  "apres": "(r.left - d.left).abs()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — déplacer où il demande",
+  "fichier": "crates/glucose-core/src/store/agents/deplacer.rs",
+  "avant": "self.move_selected(board_id, place.x - boite.left, place.y - boite.top);",
+  "apres": "self.move_selected(board_id, x - boite.left, y - boite.top);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "place_libre",
+   "mcp_repondre",
+   "deplacer"
+  ]
+ },
+ {
+  "nom": "PLACE-1 — poser où il demande",
+  "fichier": "crates/glucose-desktop/src/agents/executer.rs",
+  "avant": "    s.place_libre(board, Rect::new(x, y, l, h), maison, bougent)",
+  "apres": "    let _ = (maison, bougent);\n    Ok(Place { x, y, libre: true })",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "verifier_1"
+  ]
+ }
+]

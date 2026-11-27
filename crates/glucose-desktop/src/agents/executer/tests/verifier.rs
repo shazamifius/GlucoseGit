@@ -41,16 +41,28 @@ fn verifier_1_dit_ce_qui_se_chevauche() {
         "{}",
         dit.ecrire()
     );
-    appeler(
+    // Une IA qui pose sur un voisin glisse à la place libre la plus proche (PLACE-1, fiche 185).
+    let pose = appeler(
         &mut app,
         "glucose_poser_texte",
         r#"{"id":"c","texte":"Trois.","x":620,"y":10}"#,
     );
     let dit = appeler(&mut app, "glucose_verifier", "{}");
+    assert_eq!(
+        dit.get("propre"),
+        Some(&Json::Bool(true)),
+        "{}",
+        pose.ecrire()
+    );
+    // Ce qui chevauche quand même — la main de l'humain —, le contrôleur le nomme.
+    let board = app.store.project.active_board_id.clone();
+    let d = glucose_core::types::Annotation::text("d", 620.0, 10.0, "Quatre.");
+    app.store.add_annotation(&board, d);
+    let dit = appeler(&mut app, "glucose_verifier", "{}");
     assert_eq!(dit.get("propre"), Some(&Json::Bool(false)));
     let paire = &liste(&dit, "chevauchements")[0];
     assert_eq!(paire.get("a"), Some(&Json::from("b")));
-    assert_eq!(paire.get("b"), Some(&Json::from("c")));
+    assert_eq!(paire.get("b"), Some(&Json::from("d")));
     assert!(
         matches!(dit.get("qui"), Some(Json::Objet(_))),
         "{}",

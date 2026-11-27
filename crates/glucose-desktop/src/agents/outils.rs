@@ -21,7 +21,9 @@ sélectionnés : quand il parle de « ça », c'est eux. L'empreinte d'un nœud 
 change : garde-la, et à la lecture suivante, relis seulement ceux dont l'empreinte a changé — \
 l'utilisateur les a récrits. Les positions sont en unités du canevas, l'origine en haut \
 à gauche, y vers le bas. Si tu ne donnes pas de position, le nœud se pose sous le contenu de sa \
-membrane (dans), ou à droite de tout le tableau : range ton travail dans des membranes. Donne \
+membrane (dans), ou à droite de tout le tableau : range ton travail dans des membranes. Une \
+place qui chevaucherait un nœud, serait à cheval sur une membrane ou en ferait déborder une \
+glisse à la place libre la plus proche : la boîte rendue dit où le nœud est vraiment. Donne \
 tes propres identifiants (« proteo-rapport ») : poser deux fois le même met à jour au lieu de \
 dupliquer. Une flèche peut partir d'une phrase exacte d'un texte et arriver à une phrase exacte \
 d'un autre (passage_source, passage_cible) : ces phrases sont surlignées, et doivent s'y trouver \
@@ -97,7 +99,8 @@ const OUTILS: &[(&str, &str, &str)] = &[
     (
         "glucose_deplacer",
         "Déplace un nœud comme la main de l'utilisateur : le coin haut gauche de sa boîte va en \
-         (x, y) ; une membrane emporte ce qu'elle contient, les flèches accrochées suivent, un \
+         (x, y) — ou, si cette place chevauche un nœud ou une membrane, à la place libre la plus \
+         proche, que la réponse dit (place) ; une membrane emporte ce qu'elle contient, les flèches accrochées suivent, un \
          dossier se déplace aussi. Il appartient ensuite à la membrane où il tombe. Une photo \
          verrouillée ne bouge pas.",
         r##"{"type":"object","properties":{"id":{"type":"string"},"x":{"type":"number"},"y":{"type":"number"},"tableau":{"type":"string"}},"required":["id","x","y"]}"##,

@@ -23,7 +23,8 @@ use crate::app::GlucoseApp;
 use crate::renderer::card::text_card_fit_height;
 use decrit::boite_en_json;
 use glucose_core::geometry::Rect;
-use glucose_core::store::agents::Lien;
+use glucose_core::store::agents::{Lien, Maison, Place, Refus};
+use glucose_core::store::Store;
 use glucose_core::types::{Annotation, ArrowPredicate, BoardImage, DEFAULT_TEXT_CARD_WIDTH};
 
 /// Les arguments d'un appel, lus par leur nom.
@@ -169,14 +170,13 @@ impl GlucoseApp {
             texte,
             largeur,
         );
-        let (dans, voulu) = (a.texte("dans"), position(a, avant));
-        let boite = self
+        let (dans, demandee) = (a.texte("dans"), demandee(a));
+        let (boite, libre) = self
             .store
             .geste_d_agent(|s| {
-                let (x, y) = match voulu {
-                    Some(p) => p,
-                    None => s.place_pour_un_agent(board, dans)?,
-                };
+                let taille = (largeur, hauteur);
+                let p = placer(s, board, (demandee, avant), taille, dans, &[&id])?;
+                let (x, y) = (p.x, p.y);
                 let boite = Rect::new(x, y, largeur, hauteur);
                 if let Some(m) = dans {
                     s.agrandir_la_membrane_pour(board, m, boite)?;
@@ -193,10 +193,11 @@ impl GlucoseApp {
                     s.colorer(board, std::slice::from_ref(&id), Some(c));
                 }
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
-                partir::l_operateur(s, board, &id, operateur)
+                let boite = partir::l_operateur(s, board, &id, operateur)?;
+                Ok((boite, p.libre))
             })
             .map_err(|r| r.to_string())?;
-        Ok(pose(&id, boite))
+        Ok(posee(&id, boite, libre))
     }
 
     fn agent_poser_membrane(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
@@ -214,15 +215,13 @@ impl GlucoseApp {
             .or(avant.map(|b| b.height))
             .unwrap_or(defaut_h);
         let titre = a.texte("titre").map(str::to_string);
-        let (dans, voulu) = (a.texte("dans"), position(a, avant));
-        let boite = self
+        let (dans, demandee) = (a.texte("dans"), demandee(a));
+        let (boite, libre) = self
             .store
             .geste_d_agent(|s| {
-                let (x, y) = match voulu {
-                    Some(p) => p,
-                    None => s.place_pour_un_agent(board, dans)?,
-                };
-                let boite = Rect::new(x, y, largeur, hauteur);
+                let taille = (largeur, hauteur);
+                let p = placer(s, board, (demandee, avant), taille, dans, &[&id])?;
+                let boite = Rect::new(p.x, p.y, largeur, hauteur);
                 if let Some(m) = dans {
                     s.agrandir_la_membrane_pour(board, m, boite)?;
                 }
@@ -230,10 +229,10 @@ impl GlucoseApp {
                 let ann = partir::une_membrane(s, board, &id, boite, dit);
                 s.poser_pour_un_agent(board, ann, dans)?;
                 domaines::poser_les_domaines(s, board, &[&id], &voulus)?;
-                Ok(boite)
+                Ok((boite, p.libre))
             })
             .map_err(|r| r.to_string())?;
-        Ok(pose(&id, boite))
+        Ok(posee(&id, boite, libre))
     }
 
     fn agent_ecrire(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
@@ -291,10 +290,13 @@ impl GlucoseApp {
         let (Some(x), Some(y)) = (a.nombre("x"), a.nombre("y")) else {
             return Err("les arguments « x » et « y » sont des nombres".to_string());
         };
-        self.store
+        let place = self
+            .store
             .geste_d_agent(|s| s.deplacer_pour_un_agent(board, id, (x, y)))
             .map_err(|r| r.to_string())?;
-        Ok(Json::objet([("id", Json::from(id))]))
+        let ou = Json::objet([("x", Json::Nombre(place.x)), ("y", Json::Nombre(place.y))]);
+        let dit = Json::objet([("id", Json::from(id)), ("place", ou)]);
+        Ok(attention(dit, place.libre))
     }
 
     fn agent_retirer(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
@@ -357,23 +359,20 @@ impl GlucoseApp {
         let hauteur_photo = capture
             .as_ref()
             .map_or(0.0, |(_, (w, h))| largeur * h / w.max(1.0));
-        let (dans, voulu) = (
-            a.texte("dans"),
-            position(a, self.boite_d_une_page(board, &id)),
-        );
-        let boite = self
+        let (dans, demandee) = (a.texte("dans"), demandee(a));
+        let avant = self.boite_d_une_page(board, &id);
+        let (boite, libre) = self
             .store
             .geste_d_agent(|s| {
-                let (x, y) = match voulu {
-                    Some(p) => p,
-                    None => s.place_pour_un_agent(board, dans)?,
-                };
                 let ecart = if capture.is_some() {
                     glucose_core::store::zones::MARGE
                 } else {
                     0.0
                 };
-                let boite = Rect::new(x, y, largeur, hauteur_photo + ecart + hauteur_texte);
+                let taille = (largeur, hauteur_photo + ecart + hauteur_texte);
+                let p = placer(s, board, (demandee, avant), taille, dans, &[&id, &legende])?;
+                let (x, y) = (p.x, p.y);
+                let boite = Rect::new(x, y, taille.0, taille.1);
                 if let Some(m) = dans {
                     s.agrandir_la_membrane_pour(board, m, boite)?;
                 }
@@ -398,15 +397,18 @@ impl GlucoseApp {
                 let photo = capture.is_some().then_some(id.as_str());
                 let noeuds: Vec<&str> = photo.into_iter().chain([legende.as_str()]).collect();
                 domaines::poser_les_domaines(s, board, &noeuds, &voulus)?;
-                Ok(boite)
+                Ok((boite, p.libre))
             })
             .map_err(|r| r.to_string())?;
         let photo = capture.is_some().then(|| id.clone());
-        Ok(Json::objet([
-            ("photo", Json::from(photo)),
-            ("texte", Json::from(legende)),
-            ("boite", boite_en_json(boite)),
-        ]))
+        Ok(attention(
+            Json::objet([
+                ("photo", Json::from(photo)),
+                ("texte", Json::from(legende)),
+                ("boite", boite_en_json(boite)),
+            ]),
+            libre,
+        ))
     }
 
     /// La boîte d'une page déjà posée — sa photo, ou son texte seul.
@@ -437,12 +439,36 @@ impl GlucoseApp {
     }
 }
 
-/// La position demandée — ou celle qu'a déjà le nœud, s'il existe et qu'on n'en donne pas.
-fn position(a: &Args<'_>, avant: Option<Rect>) -> Option<(f64, f64)> {
-    match (a.nombre("x"), a.nombre("y")) {
-        (Some(x), Some(y)) => Some((x, y)),
-        _ => avant.map(|b| (b.left, b.top)),
-    }
+/// La position que l'agent demande, s'il en donne une.
+fn demandee(a: &Args<'_>) -> Option<(f64, f64)> {
+    a.nombre("x").zip(a.nombre("y"))
+}
+
+/// **La place d'un nœud qu'un agent pose** (PLACE-1, fiche 185) : la position demandée — sans
+/// elle, la place d'un nœud neuf (sous le contenu de `dans`, ou à droite du tableau) —, glissée à
+/// la place libre la plus proche ([`Store::place_libre`]). Un nœud qui existe déjà et dont on ne
+/// donne pas la position reste où il est : seul son contenu change.
+fn placer(
+    s: &Store,
+    board: &str,
+    (demandee, avant): (Option<(f64, f64)>, Option<Rect>),
+    (l, h): (f64, f64),
+    dans: Option<&str>,
+    bougent: &[&str],
+) -> Result<Place, Refus> {
+    let (x, y) = match (demandee, avant) {
+        (Some(p), _) => p,
+        (None, Some(b)) => {
+            return Ok(Place {
+                x: b.left,
+                y: b.top,
+                libre: true,
+            })
+        }
+        (None, None) => s.place_pour_un_agent(board, dans)?,
+    };
+    let maison = dans.map_or(Maison::OuIlTombe, Maison::Dite);
+    s.place_libre(board, Rect::new(x, y, l, h), maison, bougent)
 }
 
 /// Ce qu'une page dit sous sa capture : son titre en gras, son adresse en lien (`Ctrl`+clic
@@ -467,6 +493,25 @@ fn legende_d_une_page(titre: Option<&str>, adresse: &str, texte: Option<&str>) -
 
 fn pose(id: &str, boite: Rect) -> Json {
     Json::objet([("id", Json::from(id)), ("boite", boite_en_json(boite))])
+}
+
+fn posee(id: &str, boite: Rect, libre: bool) -> Json {
+    attention(pose(id, boite), libre)
+}
+
+/// **Aucune place libre près de là** (PLACE-1) : la plus proche a été prise quand même, et l'IA
+/// le sait — un chevauchement qu'elle ignorerait, l'humain le verrait seul.
+fn attention(mut dit: Json, libre: bool) -> Json {
+    if let (false, Json::Objet(champs)) = (libre, &mut dit) {
+        champs.push((
+            "attention".to_string(),
+            Json::from(
+                "aucune place libre près de là : posé au plus près, il chevauche ou fait \
+                 déborder une membrane — glucose_verifier dit quoi ; déplace-le ou range autour",
+            ),
+        ));
+    }
+    dit
 }
 
 #[cfg(test)]

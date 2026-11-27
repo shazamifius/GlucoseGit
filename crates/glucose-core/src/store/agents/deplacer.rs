@@ -6,13 +6,14 @@
 //! de quasi la même façon »* (VISION § 1) : le geste de l'agent passe donc par la translation même
 //! du glisser, et rien d'autre.
 
+use super::place::{Maison, Place};
 use super::Refus;
 use crate::geometry::Rect;
 use crate::store::Store;
 
 impl Store {
     /// **Déplace un nœud comme la main le déplace** (DEPLACER-1, fiche 139) : le coin haut gauche
-    /// de sa boîte va en `(x, y)`, une membrane emporte ce qu'elle porte, les flèches accrochées
+    /// de sa boîte va en `(x, y)` — ou à la place libre la plus proche (PLACE-1, fiche 185) —, une membrane emporte ce qu'elle porte, les flèches accrochées
     /// suivent, et il appartient ensuite à la membrane où il tombe (MEMB-1). Un dossier se
     /// déplace aussi ; une photo verrouillée, non.
     ///
@@ -26,7 +27,7 @@ impl Store {
         board_id: &str,
         id: &str,
         (x, y): (f64, f64),
-    ) -> Result<(), Refus> {
+    ) -> Result<Place, Refus> {
         let photo = self.image(board_id, id).map(|i| (i.locked, i.rect()));
         let boite = match (photo, self.boite_d_un_dossier(board_id, id)) {
             (Some((true, _)), _) => return Err(Refus::Verrouillee(id.to_string())),
@@ -44,9 +45,13 @@ impl Store {
                 boite
             }
         };
-        self.move_selected(board_id, x - boite.left, y - boite.top);
+        // **Là où il demande, si c'est libre ; sinon la place libre la plus proche** (PLACE-1) :
+        // ni sur un voisin, ni à cheval sur une membrane. Ce qu'une membrane emporte ne gêne pas.
+        let voulue = Rect::new(x, y, boite.width, boite.height);
+        let place = self.place_libre(board_id, voulue, Maison::OuIlTombe, &[id])?;
+        self.move_selected(board_id, place.x - boite.left, place.y - boite.top);
         self.rattacher_la_selection(board_id);
-        Ok(())
+        Ok(place)
     }
 
     /// La boîte d'un dossier de ce tableau, s'il en est un.
