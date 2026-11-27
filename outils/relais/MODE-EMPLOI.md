@@ -130,6 +130,13 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   chaque appel — un `relais.py` cassé casse aussi la barre d'état.
 - Une fenêtre de jauge pleine se vide à sa remise ; une jauge jamais lue compte pour libre : le
   lancement la lit (la barre d'état ne la donne qu'après la première réponse).
+- **Une jauge qui dit « plein » se redemande au serveur d'Anthropic** (`serveur.py`, fiche 182), au
+  plus toutes les dix minutes par compte : la barre d'état ne la relit que dans une session, et un
+  compte cru plein n'en reçoit plus (le 27/11, a gardé à 99 % était remis à 2 % : six heures de
+  sommeil). L'adresse de `/usage` (`api/oauth/usage`), avec la connexion du compte, lue jamais écrite ;
+  expirée, la jauge gardée reste et le battement le dit. **Des crédits en plus**, activés avec un
+  plafond mensuel, font travailler un compte au-delà de son abonnement jusqu'à 97 % du plafond ; sans
+  plafond, ils ne comptent pas.
 - La fin d'une commande en arrière-plan réveille une session par « UserPromptSubmit » : elle ne prend
   pas la main (`NOTIFICATIONS`) — sinon une session qui ne fait que veiller interromprait le relais.
 - `saboter.py` compile Python dans un dossier vierge : une copie compilée périmée jouait le

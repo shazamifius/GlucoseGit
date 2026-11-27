@@ -40,6 +40,7 @@ from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, FERMEE_ENDORMIE, INVITE_R
 from loi import ENDORMIE, MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (épreuves)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
+import serveur  # noqa: E402
 
 ETAT = MAISON / ".local/state/relais"
 # a : le dossier par défaut de Claude Code (~/.claude) ; b : son propre dossier — sa connexion à lui,
@@ -98,19 +99,32 @@ def charge(compte, maintenant):
     return fenetres
 
 
+def murs_de_l_abonnement(compte, maintenant, seuils=SEUILS):
+    """Les remises des fenêtres de l'abonnement qui ont passé leur seuil — sans ses crédits."""
+    return [remise for nom, (pct, remise) in charge(compte, maintenant).items()
+            if nom != "credits" and pct >= seuils.get(nom, 100.0)]
+
+
+def credits_libres(compte, maintenant, seuils=SEUILS):
+    """**Des crédits en plus, achetés, sous leur plafond** (fiche 182) : l'abonnement au bout, le
+    compte travaille encore — sur ce qu'il a payé pour ça, jusqu'au même seuil que sa semaine."""
+    pct, _ = charge(compte, maintenant).get("credits", (100.0, 0.0))
+    return pct < seuils.get("seven_day", 100.0)
+
+
 def plein(compte, maintenant, seuils=SEUILS):
     """Ce compte a-t-il passé ses seuils ? Et si oui, quand redevient-il libre (None : il l'est).
 
     Libre seulement quand **toutes** ses fenêtres pleines sont remises : la plus lointaine de leurs
     remises, jamais la plus proche (le 23/11, une semaine pleine jusqu'à 16 h et cinq heures
-    pleines jusqu'à 4 h ne rendaient pas le compte à 4 h).
+    pleines jusqu'à 4 h ne rendaient pas le compte à 4 h). Ou tant que ses crédits en plus tiennent.
 
-    Une jauge lue il y a longtemps reste vraie de ce côté-là : dans une fenêtre, l'usage ne fait que
-    s'ajouter jusqu'à sa remise. Elle ne peut que **sous-estimer** (le compte servi ailleurs,
-    claude.ai compris) — d'où le veilleur, qui ferme une session que le serveur refuse."""
-    murs = [remise for nom, (pct, remise) in charge(compte, maintenant).items()
-            if pct >= seuils.get(nom, 100.0)]
-    return (True, max(murs)) if murs else (False, None)
+    Une jauge gardée peut se tromper dans les deux sens : trop basse (le compte servi ailleurs,
+    claude.ai compris — le veilleur ferme une session que le serveur refuse) ; trop haute (une limite
+    remise par Anthropic, des crédits achetés : le 27/11, 99 % gardé, 2 % au serveur). Celle-là, le
+    veilleur la redemande au serveur (`relire`) : on ne la croit jamais pleine sans lui."""
+    murs = murs_de_l_abonnement(compte, maintenant, seuils)
+    return (True, max(murs)) if murs and not credits_libres(compte, maintenant, seuils) else (False, None)
 
 
 def ailleurs(compte, maintenant):
@@ -152,8 +166,12 @@ def jauges():
     limites = entree.get("rate_limits") or {}
     if limites:
         compte = compte_courant()
-        avant = lire_json(ETAT / f"jauges-{compte}.json", {}).get("rate_limits") or {}
-        ecrire_json(ETAT / f"jauges-{compte}.json", {"lu": time.time(), "rate_limits": limites})
+        garde = lire_json(ETAT / f"jauges-{compte}.json", {})
+        avant = garde.get("rate_limits") or {}
+        # Ses crédits, la barre d'état ne les dit pas : ceux que le serveur a dits restent.
+        gardes = {**({"credits": avant["credits"]} if "credits" in avant else {}), **limites}
+        ecrire_json(ETAT / f"jauges-{compte}.json", {"lu": time.time(), "rate_limits": gardes,
+                                                     **({"serveur": garde["serveur"]} if "serveur" in garde else {})})
         garder_l_histoire(compte, avant, limites, entree.get("session_id"))
     fenetre = entree.get("context_window") or {}
     if os.environ.get("RELAIS") == "1" and fenetre.get("used_percentage") is not None:
@@ -165,6 +183,30 @@ def jauges():
         if "used_percentage" in f:
             morceaux.append(f"{titre} {round(float(f['used_percentage']))} %")
     print(" · ".join(m for m in morceaux if m))
+
+
+def relire(maintenant):
+    """**Une jauge qui dit « plein », redemandée au serveur** (fiche 182), au plus toutes les dix
+    minutes par compte : seule la barre d'état d'une session la relisait, et un compte cru plein ne
+    reçoit plus de session — le 27/11, le relais a dormi six heures sur un compte remis à 2 %. Les
+    crédits en plus aussi, tant qu'ils servent : la barre d'état ne les compte pas."""
+    essais = lire_json(ETAT / "serveur.json", {})
+    for compte in COMPTES:
+        if not connecte(compte) or not murs_de_l_abonnement(compte, maintenant) \
+                or maintenant - essais.get(compte, {}).get("t", 0) < serveur.INTERVALLE:
+            continue
+        limites, pourquoi = serveur.demander(COMPTES[compte] or MAISON / ".claude")
+        if limites is None and pourquoi != essais.get(compte, {}).get("echec"):  # dit une fois, pas toutes les dix minutes
+            journal(f"jauges du compte {compte} non relues au serveur : {pourquoi}")
+        essais[compte] = {"t": maintenant, "echec": pourquoi}
+        if limites is None:
+            continue
+        avant = lire_json(ETAT / f"jauges-{compte}.json", {}).get("rate_limits") or {}
+        ecrire_json(ETAT / f"jauges-{compte}.json", {"lu": maintenant, "serveur": maintenant, "rate_limits": limites})
+        garder_l_histoire(compte, avant, limites, "serveur")
+        journal(f"jauges du compte {compte} relues au serveur : "
+                + ", ".join(f"{n} {round(f['used_percentage'])} %" for n, f in limites.items()))
+    ecrire_json(ETAT / "serveur.json", essais)
 
 
 # ── Glucose, par sa porte ─────────────────────────────────────────────────────────────────────
@@ -348,6 +390,8 @@ def gardee(compte, maintenant):
     sa consigne : « h24 actif »). Dans la dernière fenêtre avant la remise, la réserve se dépense au
     travail : sinon elle serait perdue. Rendue (None) : l'heure où elle se rend au travail."""
     pct, remise = charge(compte, maintenant).get("seven_day", (0.0, 0.0))
+    if credits_libres(compte, maintenant):  # ses crédits achetés : la semaine n'est plus la fin
+        return None
     return remise - FENETRE if pct >= SEUILS["seven_day"] and remise - maintenant > FENETRE else None
 
 
@@ -588,10 +632,17 @@ def relancer(session, texte, ok, pause, sien=None):
 
 def jauge_en_mots(compte, maintenant):
     f = charge(compte, maintenant)
-    mots = [f"{t} {round(f[n][0])} %" for n, t in (("five_hour", "5 h"), ("seven_day", "semaine")) if n in f]
+    mots = [f"{t} {round(f[n][0])} %" for n, t in (("five_hour", "5 h"), ("seven_day", "semaine"),
+                                                    ("credits", "crédits achetés")) if n in f]
     au_seuil, libre_a = plein(compte, maintenant)
     if au_seuil and libre_a:
         mots.append(f"libre à {heure(libre_a)}")
+    garde = lire_json(ETAT / f"jauges-{compte}.json", {})
+    if garde.get("lu"):
+        mots.append(f"lu {'au serveur' if garde.get('serveur') == garde['lu'] else 'en session'} à {heure(garde['lu'])}")
+    echec = lire_json(ETAT / "serveur.json", {}).get(compte, {}).get("echec")
+    if echec and au_seuil:
+        mots.append(f"serveur : {echec}")
     return ", ".join(mots) or "jauges pas encore lues"
 
 
@@ -650,6 +701,7 @@ def un_tour():
     ok, pause = signee(n, memoire, histoire), en_pause(n.get("texte"))
     memoire["paroles"] = ses_paroles(histoire, memoire.get("paroles", []))
     humaine_la = main_humaine(maintenant)
+    relire(maintenant)
     vivante = ecran() is not None and tenir(session, memoire, humaine_la, maintenant)
     if vivante:
         surveiller(memoire, histoire, maintenant)
@@ -706,6 +758,7 @@ def renouveler():
 
 def etat():
     maintenant = time.time()
+    relire(maintenant)
     for compte in COMPTES:
         print(f"compte {compte} : connecté={connecte(compte)} plein={plein(compte, maintenant)} "
               f"jauges={charge(compte, maintenant)}")

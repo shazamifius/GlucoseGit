@@ -244,6 +244,8 @@ class Veilleur(unittest.TestCase):
                             ("taper", self.taper), ("battre", mock.Mock()), ("surveiller", mock.Mock()),
                             ("journal", mock.Mock())):
             self.retouches.append(mock.patch.object(r, nom, valeur))
+        # Jamais le vrai serveur d'Anthropic dans une épreuve : muet, la jauge gardée reste (fiche 182).
+        self.retouches.append(mock.patch.object(r.serveur, "demander", return_value=(None, "épreuve")))
         for retouche in self.retouches:
             retouche.start()
         r.ecrire_json(r.ETAT / "veilleur.json", {"consigne_signee": "e", "compte": "b"})
@@ -267,6 +269,19 @@ class Veilleur(unittest.TestCase):
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
         self.lancer.assert_called_once_with("a", [], None, [])
         self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), "compte à sa limite")
+
+    def test_un_compte_cru_plein_est_redemande_au_serveur_a_chaque_tour(self):
+        """Le 27/11 (fiche 182) : a gardé à 99 % de sa semaine, 2 % au serveur — six heures sans
+        personne. Le tour du veilleur le redemande, et le relance."""
+        self.jauge("b", 4, 100)
+        self.jauge("a", 10, 99)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
+        remis = {"five_hour": {"used_percentage": 12, "resets_at": self.maintenant + 3600},
+                 "seven_day": {"used_percentage": 2, "resets_at": self.maintenant + 9000}}
+        reponses = {r.COMPTES["b"]: (None, "épreuve")}
+        with mock.patch.object(r.serveur, "demander", side_effect=lambda d: reponses.get(d, (remis, None))):
+            r.un_tour()
+        self.lancer.assert_called_once_with("a", [], None, [])
 
     def test_au_mur_des_deux_comptes_il_attend_la_plus_lointaine_remise(self):
         self.jauge("b", 95, 100)

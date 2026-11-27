@@ -1,0 +1,210 @@
+[
+ {
+  "nom": "RELAIS-SERVEUR — une jauge pleine n'est plus redemandée au serveur",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    relire(maintenant)\n    vivante",
+  "apres": "    vivante",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — les crédits achetés ne comptent pas",
+  "fichier": "outils/relais/relais.py",
+  "avant": "return (True, max(murs)) if murs and not credits_libres(compte, maintenant, seuils) else (False, None)",
+  "apres": "return (True, max(murs)) if murs else (False, None)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — les crédits au seuil comptent encore",
+  "fichier": "outils/relais/relais.py",
+  "avant": "return pct < seuils.get(\"seven_day\", 100.0)",
+  "apres": "return pct <= 100.0",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — la fin de semaine reste gardée malgré les crédits",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if credits_libres(compte, maintenant):  # ses crédits achetés : la semaine n'est plus la fin\n        return None\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — le serveur interrogé même sous les seuils",
+  "fichier": "outils/relais/relais.py",
+  "avant": "if not connecte(compte) or not murs_de_l_abonnement(compte, maintenant) \\",
+  "apres": "if not connecte(compte) \\",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — le serveur interrogé à chaque tour",
+  "fichier": "outils/relais/relais.py",
+  "avant": "< serveur.INTERVALLE:",
+  "apres": "< 0:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — la barre d'état oublie les crédits",
+  "fichier": "outils/relais/relais.py",
+  "avant": "**({\"credits\": avant[\"credits\"]} if \"credits\" in avant else {}), ",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — le battement tait l'échec du serveur",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        mots.append(f\"serveur : {echec}\")",
+  "apres": "        pass",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — crédits sans plafond comptés",
+  "fichier": "outils/relais/serveur.py",
+  "avant": "isinstance(plafond, (int, float)) and plafond > 0",
+  "apres": "True",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — crédits éteints comptés",
+  "fichier": "outils/relais/serveur.py",
+  "avant": "extra.get(\"is_enabled\") and ",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — la remise du serveur oubliée",
+  "fichier": "outils/relais/serveur.py",
+  "avant": "\"resets_at\": en_secondes(f.get(\"resets_at\"))}",
+  "apres": "\"resets_at\": 0.0}",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — la connexion du compte pas portée",
+  "fichier": "outils/relais/serveur.py",
+  "avant": "\"Authorization\": f\"Bearer {cle}\", ",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "RELAIS-SERVEUR — une connexion expirée tue",
+  "fichier": "outils/relais/serveur.py",
+  "avant": "    except urllib.error.HTTPError as e:",
+  "apres": "    except ZeroDivisionError as e:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ }
+]
