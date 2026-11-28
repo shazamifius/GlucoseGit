@@ -37,6 +37,7 @@
 //! autre. Il disparaissait **aussi pendant l'édition**, si bien qu'on éditait `# Titre` en
 //! voyant `Titre` — et qu'écrire au tout début du texte insérait avant un `#` invisible.
 
+pub mod brut;
 pub mod draw;
 mod genre;
 pub mod hit;

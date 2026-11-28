@@ -245,3 +245,65 @@ fn test_opening_a_card_aims_in_the_view_the_user_was_looking_at() {
         "le double-clic doit prendre le mot visé, pas celui qui le suit"
     );
 }
+
+/// Le point écran d'`offset` dans le nœud en saisie, quel qu'il soit : sa marge et son corps à lui.
+fn point_dans(app: &GlucoseApp, offset: usize) -> (f64, f64) {
+    let session = app.editing_session.as_ref().expect("en saisie");
+    let boite = app.card_box(&session.ann_id).expect("sa boîte");
+    let (layout, corps) = app.editing_layout().expect("sa mise en page");
+    let index = crate::renderer::richtext::hit::line_of_offset(&layout, offset);
+    let line = &layout.lines[index];
+    let font = crate::renderer::richtext::font_of(line.kind, corps.body);
+    let x = offset_to_x(
+        &app.renderer.typography,
+        &layout,
+        line,
+        &session.buffer,
+        offset,
+        font,
+    );
+    let vp = app
+        .store
+        .active_board()
+        .map(|b| b.viewport)
+        .expect("un tableau");
+    let monde = (
+        boite.origin.0 + f64::from(boite.marge.0 + x),
+        boite.origin.1 + f64::from(boite.marge.1 + (index as f32 + 0.5) * corps.line_height),
+    );
+    world_to_screen(monde.0, monde.1, &vp)
+}
+
+/// **POST-IT-SEL — dans un post-it, la souris choisit des mots** (fiche 188 ; sa note du 27/11,
+/// `text-n3rk-2587` : « il n'existe aucun système de sélection de texte à la souris »). Le clic,
+/// le double-clic et le glisser y font ce qu'ils font dans un texte.
+#[test]
+fn test_post_it_sel_la_souris_choisit_dans_un_post_it() {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    let vue = Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: 1.0,
+    };
+    app.store.set_viewport(&board, vue);
+    let mut papier = Annotation::sticky("p", 0.0, 0.0, TEXTE);
+    if let Annotation::Sticky { width, height, .. } = &mut papier {
+        (*width, *height) = (Some(300.0), Some(200.0));
+    }
+    app.store.add_annotation(&board, papier);
+    app.start_text_edit("p".into(), TEXTE.into());
+
+    let chat = TEXTE.find("chat").expect("le mot est là");
+    assert!(app.click_text_at(point_dans(&app, chat + 1), 2, false));
+    assert_eq!(selectionne(&app), "chat", "le double-clic prend le mot");
+    app.end_text_drag();
+    assert!(app.click_text_at(point_dans(&app, chat), 1, false));
+    let fin = TEXTE.find("tapis").expect("le mot est là") + 5;
+    assert!(app.drag_text_to(point_dans(&app, fin)));
+    assert_eq!(
+        selectionne(&app),
+        "chat dort\nsur le tapis",
+        "le glisser étend"
+    );
+}

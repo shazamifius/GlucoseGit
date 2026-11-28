@@ -362,12 +362,11 @@ fn test_no_command_ever_leaves_the_cursor_inside_a_character() {
     }
 }
 
-/// **Sur un pense-bête, les touches font quand même quelque chose.** Son texte ne passe pas
-/// encore par la mise en page refluée ; `↑`, `↓`, `Début` et `Fin` se replient alors sur la
-/// ligne **logique**, colonne gardée — moins juste qu'un pas de ligne visuelle, mais infiniment
-/// préférable à une touche inerte.
+/// **Sur un pense-bête, les touches suivent ses lignes visuelles** (fiche 188) : son texte brut
+/// passe par la même mise en page que celui d'un nœud de texte ; `↑`, `↓`, `Début` et `Fin`
+/// marchent comme partout. Avant, ils se repliaient sur la ligne logique.
 #[test]
-fn test_a_sticky_note_still_answers_the_vertical_keys() {
+fn test_a_sticky_note_answers_the_vertical_keys() {
     let mut app = GlucoseApp::new();
     let board = app.store.project.active_board_id.clone();
     let texte = "premiere ligne\nseconde ligne";
@@ -375,8 +374,8 @@ fn test_a_sticky_note_still_answers_the_vertical_keys() {
         .add_annotation(&board, Annotation::sticky("s", 0.0, 0.0, texte));
     app.start_text_edit("s".into(), texte.into());
     assert!(
-        app.editing_layout().is_none(),
-        "un pense-bête n'a pas encore de mise en page refluée : c'est le cas que ce test couvre"
+        app.editing_layout().is_some(),
+        "un pense-bête a sa mise en page refluée (fiche 188)"
     );
 
     pose(&mut app, Selection::at(3));

@@ -232,7 +232,7 @@ impl GlucoseApp {
         {
             return;
         }
-        let Some((layout, width)) = self.editing_layout() else {
+        let Some((layout, bx)) = self.editing_layout() else {
             return;
         };
         let Some(session) = self.editing_session.as_ref() else {
@@ -242,7 +242,6 @@ impl GlucoseApp {
         let Some(line) = layout.lines.get(index) else {
             return;
         };
-        let bx = crate::renderer::card::text_box(width);
         let x = offset_to_x(
             &self.renderer.typography,
             &layout,
@@ -278,7 +277,7 @@ impl GlucoseApp {
     /// d'une ligne de titre à une ligne de corps ne doit pas décaler le curseur, alors que les
     /// deux n'ont ni la même police ni le même nombre de caractères par ligne.
     fn line_step(&self, selection: Selection, dir: Direction) -> usize {
-        let Some((layout, width)) = self.editing_layout() else {
+        let Some((layout, bx)) = self.editing_layout() else {
             return self.logical_line_step(selection, dir);
         };
         let Some(session) = self.editing_session.as_ref() else {
@@ -292,7 +291,6 @@ impl GlucoseApp {
             Direction::Forward if index + 1 >= layout.lines.len() => return source.len(),
             Direction::Forward => index + 1,
         };
-        let bx = crate::renderer::card::text_box(width);
         // COLUMN-1 : l'abscisse visée est celle du premier `↑` ou `↓` de la série, pas celle
         // de la position courante — sans quoi le curseur dériverait vers la gauche, ligne
         // après ligne, en s'arrondissant chaque fois à la frontière la plus proche.

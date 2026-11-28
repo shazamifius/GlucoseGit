@@ -16,7 +16,6 @@
 //! où l'on écrit, après chaque commande d'écriture.
 
 use crate::app::GlucoseApp;
-use crate::renderer::card::{text_box, TEXT_ORIGIN};
 use crate::renderer::richtext::hit::{line_of_offset, offset_to_x};
 use glucose_core::geometry::Rect;
 use glucose_core::types::{Annotation, Viewport};
@@ -67,13 +66,12 @@ impl GlucoseApp {
         let Some(session) = self.editing_session.as_ref() else {
             return;
         };
-        let (Some(boite), Some((mise_en_page, largeur))) =
+        let (Some(boite), Some((mise_en_page, corps))) =
             (self.card_box(&session.ann_id), self.editing_layout())
         else {
             return;
         };
         let rang = line_of_offset(&mise_en_page, session.selection.head);
-        let corps = text_box(largeur);
         let x_du_curseur = mise_en_page.lines.get(rang).map_or(0.0, |ligne| {
             let police = crate::renderer::richtext::font_of(ligne.kind, corps.body);
             let (typo, tampon) = (&self.renderer.typography, &session.buffer);
@@ -92,8 +90,8 @@ impl GlucoseApp {
         };
         let (mut vue, id) = (board.viewport, board.id.clone());
         let s = vue.scale;
-        let haut = (boite.origin.1 + f64::from(TEXT_ORIGIN.1) + rang as f64 * hauteur) * s + vue.y;
-        let x = (boite.origin.0 + f64::from(TEXT_ORIGIN.0 + x_du_curseur)) * s + vue.x;
+        let haut = (boite.origin.1 + f64::from(boite.marge.1) + rang as f64 * hauteur) * s + vue.y;
+        let x = (boite.origin.0 + f64::from(boite.marge.0 + x_du_curseur)) * s + vue.x;
         let air = hauteur * s;
         let plafond = f64::from(self.ui.header_height());
         let (droite, plancher) = self.ce_qui_se_voit();
@@ -293,13 +291,12 @@ mod tests {
 
     /// Le haut et le bas de la ligne du curseur à l'écran, et l'abscisse du curseur, sous `v`.
     fn ligne_a_l_ecran(app: &GlucoseApp, v: Viewport) -> (f64, f64, f64) {
-        use crate::renderer::card::{text_box, TEXT_ORIGIN};
+        use crate::renderer::card::TEXT_ORIGIN;
         use crate::renderer::richtext::{font_of, hit};
         let session = app.editing_session.as_ref().expect("en saisie");
         let boite = app.card_box("t").expect("sa boîte");
-        let (mise, largeur) = app.editing_layout().expect("sa mise en page");
+        let (mise, corps) = app.editing_layout().expect("sa mise en page");
         let rang = hit::line_of_offset(&mise, session.selection.head);
-        let corps = text_box(largeur);
         let ligne = &mise.lines[rang];
         let typo = &app.renderer.typography;
         let police = font_of(ligne.kind, corps.body);

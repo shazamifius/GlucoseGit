@@ -13,22 +13,27 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use crate::renderer::card::{card_text_layout, text_box, TEXT_ORIGIN};
+use crate::renderer::note::{sticky_text_box, STICKY_TEXT_ORIGIN};
+use crate::renderer::richtext::brut::layout_brut;
 use crate::renderer::richtext::hit::offset_at;
-use crate::renderer::richtext::{TextLayout, TextMode};
+use crate::renderer::richtext::{TextBox, TextLayout, TextMode};
 use glucose_core::types::Annotation;
 
-/// Ce qu'il faut d'une carte pour y poser un point : son coin et sa largeur, en unités monde.
+/// Ce qu'il faut d'un nœud pour y poser un point : son coin, sa largeur, la boîte de son texte
+/// et le coin de celui-ci, en unités monde — et s'il est brut (un post-it, fiche 188).
 pub(crate) struct CardBox {
     pub origin: (f64, f64),
     pub width: f32,
+    pub corps: TextBox,
+    pub marge: (f32, f32),
+    pub brut: bool,
 }
 
 impl GlucoseApp {
-    /// La boîte d'une carte de texte du tableau actif.
-    ///
-    /// Les pense-bêtes et les membranes s'éditent aussi, mais leur texte ne se reflue pas de
-    /// la même façon ; la sélection à la souris s'y branchera quand leur mise en page passera
-    /// par [`crate::renderer::richtext`], et rendre `None` ici est la façon honnête de le dire.
+    /// La boîte d'un nœud dont on choisit le texte : un nœud de texte, ou un post-it (fiche 188 ;
+    /// sa note du 27/11, `text-n3rk-2587` : on n'y pouvait choisir aucun mot). Un post-it devenu
+    /// opérateur (une pilule) n'a qu'un mot, et le titre d'une membrane se tient sur sa bande :
+    /// `None`, la façon honnête de dire qu'aucune géométrie de texte ne les décrit encore.
     pub(crate) fn card_box(&self, id: &str) -> Option<CardBox> {
         let ann = self
             .store
@@ -36,41 +41,56 @@ impl GlucoseApp {
             .annotations
             .iter()
             .find(|a| a.id() == id)?;
-        let Annotation::Text { x, y, .. } = ann else {
-            return None;
-        };
         let (w, _) = ann.size()?;
-        Some(CardBox {
-            origin: (*x, *y),
-            width: w as f32,
-        })
+        let width = w as f32;
+        match ann {
+            Annotation::Text { x, y, .. } => Some(CardBox {
+                origin: (*x, *y),
+                width,
+                corps: text_box(width),
+                marge: TEXT_ORIGIN,
+                brut: false,
+            }),
+            Annotation::Sticky {
+                x,
+                y,
+                operator: None,
+                ..
+            } => Some(CardBox {
+                origin: (*x, *y),
+                width,
+                corps: sticky_text_box(width),
+                marge: STICKY_TEXT_ORIGIN,
+                brut: true,
+            }),
+            _ => None,
+        }
     }
 
-    /// La mise en page qu'aurait `text` dans la carte `id`, **dans le mode demandé**.
+    /// La mise en page qu'aurait `text` dans le nœud `id`, **dans le mode demandé**.
     ///
     /// Le mode n'est pas un détail : une carte au repos et une carte en saisie ne posent pas
     /// le même texte aux mêmes abscisses (MODE-1). Viser un mot pour ouvrir la saisie doit
     /// donc se faire dans la vue que l'utilisateur avait **sous les yeux** — la vue rendue —
-    /// et non dans celle qui n'apparaîtra qu'après son geste.
+    /// et non dans celle qui n'apparaîtra qu'après son geste. Un texte brut n'a qu'une vue.
     pub(crate) fn card_layout_of(
         &self,
         id: &str,
         text: &str,
         mode: TextMode,
-    ) -> Option<(TextLayout, f32)> {
-        let width = self.card_box(id)?.width;
-        let layout = card_text_layout(
-            &self.renderer.typography,
-            &self.renderer.math,
-            text,
-            width,
-            mode,
-        );
-        Some((layout, width))
+    ) -> Option<(TextLayout, TextBox)> {
+        let boite = self.card_box(id)?;
+        let typo = &self.renderer.typography;
+        let layout = if boite.brut {
+            layout_brut(typo, text, boite.corps)
+        } else {
+            card_text_layout(typo, &self.renderer.math, text, boite.width, mode)
+        };
+        Some((layout, boite.corps))
     }
 
     /// La mise en page du texte en cours de saisie — **celle qui est dessinée** (MODE-1).
-    pub(crate) fn editing_layout(&self) -> Option<(TextLayout, f32)> {
+    pub(crate) fn editing_layout(&self) -> Option<(TextLayout, TextBox)> {
         let session = self.editing_session.as_ref()?;
         self.card_layout_of(&session.ann_id, &session.buffer, TextMode::Source)
     }
@@ -93,19 +113,19 @@ impl GlucoseApp {
         mode: TextMode,
     ) -> Option<usize> {
         let boite = self.card_box(id)?;
-        let (layout, width) = self.card_layout_of(id, text, mode)?;
+        let (layout, corps) = self.card_layout_of(id, text, mode)?;
         let vp = self.store.active_board().map(|b| b.viewport)?;
         let (wx, wy) = screen_to_world(screen.0, screen.1, &vp);
         let at = (
-            (wx - boite.origin.0) as f32 - TEXT_ORIGIN.0,
-            (wy - boite.origin.1) as f32 - TEXT_ORIGIN.1,
+            (wx - boite.origin.0) as f32 - boite.marge.0,
+            (wy - boite.origin.1) as f32 - boite.marge.1,
         );
         Some(offset_at(
             &self.renderer.typography,
             &layout,
             text,
             at,
-            &text_box(width),
+            &corps,
         ))
     }
 }

@@ -24,13 +24,16 @@
 
 use super::handles::draw_resize_handles;
 use super::pass::{Pass, SELECTION_RING};
+use super::richtext::brut::layout_brut;
+use super::richtext::draw::{draw_line, draw_line_selection};
+use super::richtext::{Ink, TextLayout};
 use super::scale::WorldScale;
-use super::wrap::wrap_paragraph;
 use super::{parse_hex_rgb, push_rounded_rect, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::theme::operator_color;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::resize::Handle;
+use glucose_core::text::Selection;
 use glucose_core::types::{Annotation, StickyOperator};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
@@ -144,6 +147,7 @@ pub(super) fn draw_sticky(
                 cursor: editing
                     .filter(|s| s.curseur_visible)
                     .map(|s| s.selection.head),
+                selection: editing.map(|s| s.selection).unwrap_or_default(),
             };
             draw_paper(ctx, pixmap, at, &layout, &paper, highlighted);
         }
@@ -171,6 +175,8 @@ struct Paper<'a> {
     world_width: f32,
     /// Position du curseur d'édition à dessiner, si la session clignote « allumé ».
     cursor: Option<usize>,
+    /// Ce qui est sélectionné dans la saisie — vide hors d'elle (fiche 188).
+    selection: Selection,
 }
 
 /// Le papier : son ombre, son fond, son anneau s'il est sélectionné, puis son texte.
@@ -201,13 +207,14 @@ fn draw_paper(
     }
 
     // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
-    let lines = sticky_lines(ctx.typography, paper.text, paper.world_width);
+    let mise = sticky_text_layout(ctx.typography, paper.text, paper.world_width);
     // SCALE-2 — sous le seuil, une lettre ne se lit plus : le gris de chaque ligne (GRIS-1).
     if !ctx.scale.draws_detail() {
+        let lines: Vec<(usize, usize)> = mise.lines.iter().map(|l| (l.start, l.end)).collect();
         draw_paper_gris(ctx, pixmap, at, layout, (paper, &lines));
         return;
     }
-    draw_paper_text(ctx, pixmap, at, layout, paper, &lines);
+    draw_paper_text(ctx, pixmap, at, layout, paper, &mise);
 }
 
 /// **GRIS-1 — de loin, le gris de chaque ligne du papier** (fiche 95) : la loi des nœuds de texte
@@ -340,21 +347,30 @@ fn ring(ctx: &Pass, pixmap: &mut PixmapMut, path: &tiny_skia::Path, boite: (f32,
     );
 }
 
-/// WRAP-1 — les lignes visuelles d'un pense-bête de `width` unités monde, en tranches
-/// d'octets de `content`. Un pense-bête n'a pas de Markdown : chaque ligne source est un
-/// paragraphe tel quel.
-fn sticky_lines(typography: &Typography, content: &str, width: f32) -> Vec<(usize, usize)> {
-    let usable = (width - STICKY_PAD * 2.0).max(STICKY_FONT);
-    let advance = |_: usize, ch: char| typography.advance(ch, STICKY_FONT, Face::Regular);
-    let mut lines = Vec::new();
-    let mut offset = 0usize;
-    for paragraph in content.split('\n') {
-        for (s, e) in wrap_paragraph(paragraph, usable, advance) {
-            lines.push((offset + s, offset + e));
-        }
-        offset += paragraph.len() + 1;
+/// **La boîte du texte d'un pense-bête** de `width` unités monde : sa marge retirée, son corps,
+/// son interligne — ce que le dessin, le clic et le clavier lisent ensemble (fiche 188).
+pub(crate) fn sticky_text_box(width: f32) -> crate::renderer::richtext::TextBox {
+    crate::renderer::richtext::TextBox {
+        usable: (width - STICKY_PAD * 2.0).max(STICKY_FONT),
+        body: STICKY_FONT,
+        bullet_indent: 0.0,
+        line_height: STICKY_FONT * STICKY_LINE_FACTOR,
     }
-    lines
+}
+
+/// Le coin du texte d'un pense-bête, depuis le coin du papier, en unités monde.
+pub(crate) const STICKY_TEXT_ORIGIN: (f32, f32) = (STICKY_PAD, STICKY_PAD);
+
+/// WRAP-1 — la mise en page d'un pense-bête de `width` unités monde. Un pense-bête n'a pas de
+/// Markdown : chaque ligne source est un paragraphe tel quel ([`layout_brut`]).
+pub(crate) fn sticky_text_layout(typography: &Typography, content: &str, width: f32) -> TextLayout {
+    layout_brut(typography, content, sticky_text_box(width))
+}
+
+/// Ses lignes visuelles, en tranches d'octets de `content`.
+fn sticky_lines(typography: &Typography, content: &str, width: f32) -> Vec<(usize, usize)> {
+    let mise = sticky_text_layout(typography, content, width);
+    mise.lines.iter().map(|l| (l.start, l.end)).collect()
 }
 
 fn draw_paper_text(
@@ -363,42 +379,57 @@ fn draw_paper_text(
     at: (f32, f32),
     layout: &StickyLayout,
     paper: &Paper<'_>,
-    lines: &[(usize, usize)],
+    mise: &TextLayout,
 ) {
-    let typography = ctx.typography;
-    let style = TextStyle {
-        size: layout.font,
-        color: paper.ink,
-        face: Face::Regular,
+    let encre = Ink {
+        text: paper.ink,
+        marker: paper.ink,
+        link: paper.ink,
+        eclat: paper.ink,
     };
     // STICKY-FIT-1 : le papier est fixe, une ligne qui ne tient plus n'est pas dessinée.
     let floor = at.1 + layout.height - layout.pad;
+    let gauche = at.0 + layout.pad;
     let mut cur_y = at.1 + layout.pad;
     let mut cursor_drawn = false;
-    for (num, &(start, end)) in lines.iter().enumerate() {
+    for (num, line) in mise.lines.iter().enumerate() {
         if cur_y + layout.line_height > floor + 1e-3 {
             break;
         }
-        typography.draw_text(
+        // Le surlignage passe sous le texte (fiche 188), comme dans un nœud de texte.
+        let corps = (layout.font, layout.line_height);
+        let ligne = (mise, line);
+        draw_line_selection(
+            ctx,
             pixmap,
-            &paper.text[start..end],
-            at.0 + layout.pad,
-            cur_y,
-            style,
+            (gauche, cur_y),
+            ligne,
+            corps,
+            paper.text,
+            paper.selection,
         );
-        let last = num + 1 == lines.len();
+        draw_line(
+            ctx,
+            pixmap,
+            (gauche, cur_y),
+            ligne,
+            (layout.font, encre),
+            paper.text,
+        );
+        let (start, end) = (line.start, line.end);
+        let last = num + 1 == mise.lines.len();
         if let Some(idx) = paper
             .cursor
             .filter(|&i| !cursor_drawn && i >= start && (i <= end || last))
         {
-            let (prefix_w, _) = typography.measure_text(
+            let (prefix_w, _) = ctx.typography.measure_text(
                 &paper.text[start..idx.clamp(start, end)],
                 layout.font,
                 Face::Regular,
             );
             crate::renderer::curseur::poser(
                 pixmap,
-                (at.0 + layout.pad + prefix_w, cur_y),
+                (gauche + prefix_w, cur_y),
                 layout.font,
                 ctx.scale,
                 paper.ink,
@@ -500,5 +531,60 @@ mod tests {
         let (pres, loin) = (ecart_de_l_anneau(1.0), ecart_de_l_anneau(0.06));
         assert!(pres >= 100, "l'anneau d'un post-it de pres : {pres}");
         assert!(loin < pres / 3, "de loin il garde {loin} contre {pres}");
+    }
+
+    /// **POST-IT-SEL — ce qu'on choisit dans un post-it se voit** (fiche 188) : il ne dessinait
+    /// qu'un curseur, et une sélection au clavier (`Maj`+flèches) n'y était pas surlignée.
+    #[test]
+    fn test_post_it_sel_la_selection_se_surligne() {
+        let renderer = crate::renderer::Renderer::new();
+        let kit = renderer.kit();
+        let ctx = Pass {
+            typography: kit.typography,
+            math: kit.math,
+            mises_en_page: kit.mises_en_page,
+            tints: kit.tints,
+            theme: kit.theme,
+            vp: glucose_core::types::Viewport {
+                scale: 1.0,
+                x: 0.0,
+                y: 0.0,
+            },
+            scale: WorldScale::new(1.0, 1.0),
+            clip: crate::renderer::pass::Clip {
+                width: 300.0,
+                height: 200.0,
+                top: 0.0,
+            },
+            poignees: false,
+        };
+        let texte = "le chat dort";
+        let note = Annotation::sticky("n", 0.0, 0.0, texte);
+        let peindre = |selection: Selection| {
+            let session = TextEditSession {
+                ann_id: "n".into(),
+                buffer: texte.into(),
+                selection,
+                goal_x: None,
+                blink_timer: std::time::Instant::now(),
+                curseur_visible: false,
+            };
+            let mut p = tiny_skia::Pixmap::new(300, 200).expect("pixmap");
+            draw_sticky(&ctx, &mut p.as_mut(), &note, false, (Some(&session), 1.0));
+            p
+        };
+        let (avec, sans) = (
+            peindre(Selection { anchor: 0, head: 7 }),
+            peindre(Selection::at(0)),
+        );
+        // La bande de la première ligne, sous « le chat » : la marge, puis une ligne de corps.
+        let differents = (12..26)
+            .flat_map(|y| (12..40).map(move |x| (y * 300 + x) as usize))
+            .filter(|&i| avec.pixels()[i] != sans.pixels()[i])
+            .count();
+        assert!(
+            differents > 100,
+            "le surlignage couvre « le chat » : {differents} pixels"
+        );
     }
 }
