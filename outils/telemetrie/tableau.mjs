@@ -47,11 +47,28 @@ function lireLaBase() {
   // Une seule chaîne, la requête entre guillemets : `npx` est un script de commande sous
   // Windows, qui ne se lance que par un shell, et un shell recolle les arguments.
   const commande = `npx wrangler d1 execute glucose-boite-noire --remote --json --command "${sql}"`;
-  const sortie = execSync(commande, {
-    cwd: ICI,
-    encoding: "utf-8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  let sortie;
+  try {
+    sortie = execSync(commande, {
+      cwd: ICI,
+      encoding: "utf-8",
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e) {
+    // **Une phrase, pas une pile** (28/11) : chaque session lit cette sortie ; la pile de Node
+    // coûtait 38 lignes pour dire « pas connecté ».
+    const dit = `${e.stdout ?? ""}${e.stderr ?? ""}`;
+    if (/CLOUDFLARE_API_TOKEN|not authenticated|wrangler login|Authentication error/i.test(dit)) {
+      console.error(
+        "Pas connecté à Cloudflare : la télémétrie ne se lit pas. Demander son clic " +
+          "(CLAUDE.md, « Cloudflare »), une seule fois.",
+      );
+      process.exit(2);
+    }
+    console.error(`La base ne se lit pas : ${dit.trim().slice(0, 400)}`);
+    process.exit(1);
+  }
   return JSON.parse(sortie)[0].results;
 }
 
