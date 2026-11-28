@@ -225,6 +225,7 @@ impl Ecriture {
                 if !reste_dehors(&disque, board, img) {
                     self.sceller(img, objets);
                 }
+                self.sceller_l_affiche(img, objets);
             }
             let auteur = self.signer(&main);
             let contenu = histoire::contenu_geste(&Geste {
@@ -350,9 +351,20 @@ impl Ecriture {
 
     /// Confie au scribe les octets d'une image qui n'est pas encore dans le document.
     fn sceller(&mut self, img: &BoardImage, objets: &Objets) {
-        let Some(cle) = img.src.as_deref() else {
-            return;
-        };
+        if let Some(cle) = img.src.as_deref() {
+            self.sceller_la_cle(cle, objets);
+        }
+    }
+
+    /// **L'affiche d'une vidéo gardée à côté** se scelle, elle : la vidéo reste dehors, sa
+    /// première image entre au document (fiche 195).
+    fn sceller_l_affiche(&mut self, img: &BoardImage, objets: &Objets) {
+        if let Some(cle) = img.affiche.as_deref() {
+            self.sceller_la_cle(cle, objets);
+        }
+    }
+
+    fn sceller_la_cle(&mut self, cle: &str, objets: &Objets) {
         if self.confiees.contains(cle) || objets.est_scellee(cle) {
             return;
         }
@@ -382,6 +394,9 @@ impl Ecriture {
         // Une photo d'un miroir du disque y reste (DISQUE-1, fiche 164).
         for img in images_hors_du_disque(projet) {
             self.sceller(img, objets);
+        }
+        for img in projet.toutes_les_images() {
+            self.sceller_l_affiche(img, objets);
         }
     }
 

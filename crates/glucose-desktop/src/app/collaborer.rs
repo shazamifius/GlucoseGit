@@ -504,10 +504,9 @@ impl GlucoseApp {
                 Envoi::Base(p) => Corps::Base(p),
                 Envoi::Geste(g) => {
                     // Les photos que mes gestes posent partent juste après eux (B1).
-                    let photos: Vec<String> = g
-                        .images_posees()
-                        .iter()
-                        .filter_map(|i| i.src.clone())
+                    let photos: Vec<String> = (g.images_posees().iter())
+                        .flat_map(|i| i.cles_qui_voyagent())
+                        .map(str::to_string)
                         .collect();
                     for cle in photos {
                         cp.photos.porter(cle);

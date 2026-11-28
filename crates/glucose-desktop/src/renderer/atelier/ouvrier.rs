@@ -150,7 +150,7 @@ pub(crate) fn decoder(
 }
 
 /// Les pixels d'une image, encodés en PNG, en mémoire.
-fn encoder_en_png(rgba: &[u8], (l, h): (u32, u32)) -> Option<Vec<u8>> {
+pub(crate) fn encoder_en_png(rgba: &[u8], (l, h): (u32, u32)) -> Option<Vec<u8>> {
     use image::ImageEncoder;
     let mut png = Vec::new();
     image::codecs::png::PngEncoder::new(&mut png)

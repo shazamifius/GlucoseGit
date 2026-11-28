@@ -102,6 +102,8 @@ pub struct ArrowTrait {
 pub struct ImageTrait {
     pub src: Option<Box<str>>,
     pub source_url: Option<Box<str>>,
+    /// L'affiche d'une vidéo gardée à côté (fiche 195).
+    pub affiche: Option<Box<str>>,
     pub slot_id: Option<Box<str>>,
     pub fit: Option<Box<str>>,
     pub tags: Vec<Box<str>>,
@@ -112,6 +114,7 @@ impl ImageTrait {
     pub fn is_empty(&self) -> bool {
         self.src.is_none()
             && self.source_url.is_none()
+            && self.affiche.is_none()
             && self.slot_id.is_none()
             && self.fit.is_none()
             && self.tags.is_empty()

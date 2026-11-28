@@ -97,6 +97,7 @@ impl Bridge {
             rotation: self.doc.rotation.get(id).copied().unwrap_or(0.0) as f64,
             miroir: self.doc.miroir.get(id).is_some(),
             video: self.doc.video.get(id).copied().unwrap_or_default(),
+            affiche: t.and_then(|t| t.affiche.as_deref()).map(str::to_string),
             locked: f.has(Flags::LOCKED),
             tags: t
                 .map(|t| t.tags.iter().map(|s| s.to_string()).collect())

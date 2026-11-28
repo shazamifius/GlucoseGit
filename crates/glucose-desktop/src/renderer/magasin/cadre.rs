@@ -33,8 +33,9 @@ impl Magasin {
     /// **Le cadre de ce nœud**, dont l'image n'est pas là : son fichier introuvable s'il est lié,
     /// sinon ce que dit l'attente (Q18) ou son identifiant.
     pub fn cadre(&self, img: &BoardImage) -> Cadre {
-        let src = img.src.as_deref();
-        let lie = matches!(img.asset, Some(AssetRef::Link { .. }));
+        // Une vidéo à côté qui montre son affiche : c'est elle qui manque (fiche 195).
+        let src = self.cle_montree(img);
+        let lie = matches!(img.asset, Some(AssetRef::Link { .. })) && src == img.src.as_deref();
         match src.filter(|s| lie && self.echecs.contains(*s) && self.introuvables.contains(*s)) {
             Some(chemin) => Cadre {
                 texte: format!("Introuvable : {}", nom_du_fichier(chemin)),
@@ -50,7 +51,7 @@ impl Magasin {
 
 /// Le nom d'un fichier, quel que soit le système qui a écrit son chemin : un document partagé
 /// porte les chemins de Windows jusqu'au Mac, et l'inverse.
-fn nom_du_fichier(chemin: &str) -> &str {
+pub(super) fn nom_du_fichier(chemin: &str) -> &str {
     chemin.rsplit(['/', '\\']).next().unwrap_or(chemin)
 }
 

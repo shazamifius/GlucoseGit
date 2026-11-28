@@ -521,6 +521,7 @@ impl Renderer {
             // ▶ et le son des vidéos, par-dessus, comme les ornements (VIDEO-1).
             if ui.lecture.is_none() {
                 video::commandes::poser(pixmap, (store, pass), &self.magasin);
+                video::legende::poser(pixmap, (store, pass), &self.magasin, kit.typography);
             }
             // Le dessus porte toujours la chrome, donc toujours de l'encre.
             encre = true;

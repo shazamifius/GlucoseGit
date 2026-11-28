@@ -154,8 +154,9 @@ pub(super) fn manque(objets: &Objets, cle: &str) -> bool {
 pub(super) fn cles_qui_manquent(projet: &Project, objets: &Objets) -> Vec<String> {
     let mut cles: Vec<String> = projet
         .toutes_les_images()
-        .filter_map(|i| i.src.clone())
+        .flat_map(|i| i.cles_qui_voyagent())
         .filter(|c| manque(objets, c))
+        .map(str::to_string)
         .collect();
     cles.sort();
     cles.dedup();
@@ -182,11 +183,7 @@ impl GlucoseApp {
         let (Main::Participant { marque, nom }, Corps::Geste(geste)) = (main, corps) else {
             return;
         };
-        for cle in geste
-            .images_posees()
-            .into_iter()
-            .filter_map(|i| i.src.as_deref())
-        {
+        for cle in (geste.images_posees().into_iter()).flat_map(|i| i.cles_qui_voyagent()) {
             self.renderer.magasin.posee_par(cle, marque, nom);
         }
     }

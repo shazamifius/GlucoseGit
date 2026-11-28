@@ -39,7 +39,7 @@ pub struct ChoixVideo {
     /// Elle joue seule (son coupé, en boucle) dès qu'elle est à l'écran, plutôt qu'à son ▶.
     pub lecture_auto: bool,
     /// Ses octets restent **à côté** du document (son chemin sur le disque) plutôt que dedans :
-    /// le document reste léger, mais elle disparaît si le fichier bouge.
+    /// le document reste léger, mais elle ne se joue plus si le fichier bouge (son affiche reste).
     pub a_cote: bool,
 }
 
@@ -77,6 +77,10 @@ pub struct BoardImage {
     pub is_video: bool,
     /// **Les choix d'une vidéo** (VIDEO-2) : rien pour une photo.
     pub video: ChoixVideo,
+    /// **L'affiche d'une vidéo gardée à côté** : la clé de sa première image, une petite photo
+    /// scellée dans le document (fiche 195). Le fichier ne voyage pas ; elle, si — les autres
+    /// appareils d'une salle la voient, et lui aussi quand le fichier a bougé.
+    pub affiche: Option<String>,
     /// **Ce qu'on retire des bords de cette image** (RECADRAGE-1).
     ///
     /// Non destructif : les octets du fichier ne bougent pas, et deux poses de la meme photo
@@ -111,12 +115,20 @@ impl BoardImage {
             original_height: height,
             is_video: false,
             video: ChoixVideo::default(),
+            affiche: None,
             crop: Recadrage::ENTIER,
             fit: None,
             domains: Vec::new(),
             mirror_of: None,
             temporal_anchor: None,
         }
+    }
+
+    /// **Les clés dont les octets voyagent avec le document** — par la salle, au scribe : sa
+    /// photo, sauf une vidéo gardée à côté (son fichier reste sur le disque), puis son affiche.
+    pub fn cles_qui_voyagent(&self) -> impl Iterator<Item = &str> {
+        let src = self.src.as_deref().filter(|_| !self.video.a_cote);
+        src.into_iter().chain(self.affiche.as_deref())
     }
 
     /// La boîte de l'image. Une image est ancrée par son **centre** (`x`, `y`) — c'est la

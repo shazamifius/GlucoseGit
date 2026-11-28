@@ -68,6 +68,8 @@ fn tableau_complet() -> Board {
             lecture_auto: true,
             a_cote: true,
         },
+        // Son affiche (fiche 195) : l'aller-retour la garde.
+        affiche: Some("affiche:1".into()),
         locked: true,
         tags: vec!["une".into(), "deux".into()],
         slot_id: Some("slot-a".into()),

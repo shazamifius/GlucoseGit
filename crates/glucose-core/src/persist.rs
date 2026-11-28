@@ -78,7 +78,10 @@ use manifest::{AssetEntry, Manifest};
 /// **Passée à 7 le 25/11/2026** : une vidéo porte ses choix (VIDEO-2). Et depuis, **chaque document
 /// s'écrit au plus petit schéma qui le dit** ([`au_plus_petit_schema`]) : 6 tant qu'aucune vidéo
 /// n'a de choix — la beta.6 de son téléphone continue de lire ses lettres et ses documents.
-pub const DOCUMENT_VERSION: u16 = 7;
+///
+/// **Passée à 8 le 28/11/2026** : une vidéo gardée à côté porte son affiche (fiche 195) — 8 pour
+/// le seul document qui en a une.
+pub const DOCUMENT_VERSION: u16 = 8;
 
 /// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
 ///
@@ -96,6 +99,8 @@ pub const SEQUENCES_DEPUIS: u16 = 5;
 pub const MIROIR_DEPUIS: u16 = 6;
 /// Le schéma depuis lequel une vidéo porte ses choix (VIDEO-2, fiche 170).
 pub const VIDEO_DEPUIS: u16 = 7;
+/// Le schéma depuis lequel une vidéo gardée à côté porte son affiche (fiche 195).
+pub const AFFICHE_DEPUIS: u16 = 8;
 /// **Le plus ancien schéma qu'on écrit encore** : celui de la beta.6. Chaque champ venu après ne
 /// le fait dépasser qu'à un document qui s'en sert — un Glucose plus ancien ne refuse que ce
 /// qu'il ne saurait pas dire.

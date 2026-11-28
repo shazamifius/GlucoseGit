@@ -30,6 +30,7 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
         original_height,
         is_video,
         video,
+        affiche,
         crop,
         fit,
         domains,
@@ -72,6 +73,12 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
     } else if !video.est_neutre() {
         w.exiger(crate::persist::VIDEO_DEPUIS);
     }
+    // Fiche 195, schéma v8 : l'affiche d'une vidéo à côté.
+    if w.schema() >= crate::persist::AFFICHE_DEPUIS {
+        w.opt_text(affiche.as_ref());
+    } else if affiche.is_some() {
+        w.exiger(crate::persist::AFFICHE_DEPUIS);
+    }
 }
 
 /// **Lit une image du schema `version`.**
@@ -88,6 +95,9 @@ pub fn read_image(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
             lecture_auto: r.flag()?,
             a_cote: r.flag()?,
         };
+    }
+    if version >= crate::persist::AFFICHE_DEPUIS {
+        image.affiche = r.opt_text()?;
     }
     Ok(image)
 }
@@ -115,6 +125,7 @@ fn read_image_v5(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
         is_video: r.flag()?,
         // Lus à la fin de la notice (schéma v7), posés après coup.
         video: ChoixVideo::default(),
+        affiche: None,
         crop: read_crop(r, version)?,
         fit: r.opt_text()?,
         domains: r.seq(read_domain_assignment)?,

@@ -165,6 +165,9 @@ impl GlucoseApp {
                 size_bytes: std::fs::metadata(path).ok().map(|m| m.len()),
             });
         }
+        if a_cote {
+            img.affiche = Some(self.promettre_l_affiche(&img.id, &src));
+        }
         img.src = Some(src);
         (img.original_width, img.original_height) = FORME_D_ATTENTE;
         img.is_video = true;
@@ -172,17 +175,52 @@ impl GlucoseApp {
         self.store.add_image(board, img);
     }
 
+    /// **L'affiche d'une vidéo gardée à côté** (fiche 195) : sa clé, promise au registre avant le
+    /// geste — le scribe et le facteur l'attendent —, tenue par un fil qui lit sa première image.
+    fn promettre_l_affiche(&mut self, id: &str, src: &str) -> String {
+        use crate::persist::objets::{Promesse, Source};
+        let horloge = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let cle = format!("affiche:{horloge}:{id}");
+        let (promesse, parole) = Promesse::nouvelle();
+        self.disque.objets.poser(&cle, Source::Promise(promesse));
+        crate::renderer::video::affiche::promettre(src.to_string(), parole);
+        cle
+    }
+
     /// **Un choix sur les vidéos choisies**, d'un seul geste annulable : basculer leur lecture
     /// automatique, ou faire entrer dans le document celles gardées à côté (VIDEO-2).
     pub(crate) fn choisir_pour_les_videos(&mut self, choix: Choix) {
         let board = self.store.project.active_board_id.clone();
-        let ids = self.store.selected_image_ids.to_vec();
+        let mut ids = self.store.selected_image_ids.to_vec();
+        if choix == Choix::DansLeDocument && self.garder_celles_d_ici(&board, &mut ids) {
+            self.ui.show_toast(
+                "Son fichier n'est pas sur cet appareil : la vidéo reste à côté, son affiche aussi",
+            );
+        }
         self.store.begin_live_edit();
         match choix {
             Choix::LectureAutomatique => _ = self.store.basculer_la_lecture_auto(&board, &ids),
             Choix::DansLeDocument => _ = self.store.mettre_dans_le_document(&board, &ids),
         }
         self.store.end_live_edit();
+    }
+
+    /// **Seules entrent au document les vidéos dont le fichier est ici** (fiche 195) : sur un
+    /// autre appareil, « à côté » perdrait son affiche pour un fichier que rien n'apporte. Rend
+    /// `true` s'il en a écarté une.
+    fn garder_celles_d_ici(&self, board: &str, ids: &mut Vec<String>) -> bool {
+        let avant = ids.len();
+        ids.retain(|id| {
+            let img = self.store.image(board, id);
+            let ailleurs = img
+                .filter(|i| i.video.a_cote)
+                .and_then(|i| i.src.as_deref());
+            ailleurs.is_none_or(|src| Path::new(src).is_file())
+        });
+        ids.len() < avant
     }
 
     /// **Le clic relâché touche-t-il une commande de vidéo ?** Rend `true` s'il en a actionné une.
@@ -238,7 +276,8 @@ fn question_des_videos(poses: &[Pose]) -> Question {
             "Une vidéo".to_string(),
             format!(
                 "Dans le document, elle voyage avec lui ({} de plus). À côté, il reste léger, \
-                 mais elle disparaît si son fichier bouge.",
+                 mais elle ne se joue plus si son fichier bouge, et tes autres appareils n'en \
+                 voient que la première image.",
                 taille_lisible(octets)
             ),
         ),
@@ -246,7 +285,8 @@ fn question_des_videos(poses: &[Pose]) -> Question {
             format!("{n} vidéos"),
             format!(
                 "Dans le document, elles voyagent avec lui ({} de plus). À côté, il reste \
-                 léger, mais chacune disparaît si son fichier bouge.",
+                 léger, mais chacune ne se joue plus si son fichier bouge, et tes autres \
+                 appareils n'en voient que la première image.",
                 taille_lisible(octets)
             ),
         ),
@@ -318,7 +358,19 @@ mod tests {
                 matches!(v.asset, Some(AssetRef::Link { .. })),
                 "son lien le dit"
             );
+            // Son affiche (fiche 195) : promise au registre, tenue par sa première image.
+            let cle = v.affiche.as_deref().expect("une affiche");
+            let png = app.disque.objets.lire_en_attendant(cle).expect("tenue");
+            let image = image::load_from_memory(&png).expect("un PNG").to_rgba8();
+            assert_eq!(image.dimensions(), (64, 48), "sa première image");
         }
+        let cles: Vec<_> = posees.iter().flat_map(|v| v.cles_qui_voyagent()).collect();
+        assert_eq!(
+            cles.len(),
+            2,
+            "deux affiches qui voyagent, aucun fichier : {cles:?}"
+        );
+        assert_ne!(cles[0], cles[1], "chacune la sienne");
         app.annuler();
         assert!(videos(&app).is_empty(), "un seul Ctrl+Z les retire toutes");
     }
@@ -330,11 +382,58 @@ mod tests {
         };
         app.repondre_a_la_question(Some(Reponse::Oui));
         assert!(videos(&app).iter().all(|v| v.is_video && !v.video.a_cote));
+        assert!(
+            videos(&app).iter().all(|v| v.affiche.is_none()),
+            "aucune affiche dedans"
+        );
         let Some(mut app) = deux_videos_deposees() else {
             return;
         };
         app.repondre_a_la_question(Some(Reponse::Annuler));
         assert!(videos(&app).is_empty(), "Annuler n'en pose aucune");
+    }
+
+    /// AFFICHE-1 (fiche 195) — **L'affiche d'une vidéo à côté se scelle, le fichier non** : le
+    /// document rouvert la relit, même le fichier parti.
+    #[test]
+    fn affiche_1_l_affiche_se_scelle_et_se_relit_sans_le_fichier() {
+        use crate::persist::disque::tests::{application, dossier, image_suivante, rouvrir};
+        if !crate::renderer::video::lisible_ici() {
+            return;
+        }
+        let d = dossier("affiche-1");
+        let video = d.join("rouge.mp4");
+        std::fs::write(&video, std::fs::read(ROUGE).expect("la vidéo")).expect("une copie");
+        let doc = d.join("doc.glucose");
+        let mut app = application(&d);
+        app.save_to(doc.clone());
+        app.drop_files(std::slice::from_ref(&video));
+        app.repondre_a_la_question(Some(Reponse::Non));
+        image_suivante(&mut app);
+        let cle = videos(&app)[0].affiche.clone().expect("une affiche");
+        let src = videos(&app)[0].src.clone().expect("son lien");
+        assert!(app.disque.objets.est_scellee(&cle), "l'affiche entre");
+        assert!(
+            !app.disque.objets.est_scellee(&src),
+            "le fichier reste dehors"
+        );
+        drop(app);
+        std::fs::remove_file(&video).expect("le fichier part");
+        let mut autre = rouvrir(&d, &doc);
+        assert_eq!(videos(&autre)[0].affiche.as_deref(), Some(cle.as_str()));
+        let png = autre.disque.objets.lire(&cle).expect("relue du document");
+        let image = image::load_from_memory(&png).expect("un PNG").to_rgba8();
+        assert_eq!(image.dimensions(), (64, 48));
+        // Sans son fichier, elle n'entre pas au document : elle garderait le vide pour l'affiche.
+        let id = videos(&autre)[0].id.clone();
+        autre.store.set_selected_image_ids(vec![id]);
+        autre.choisir_pour_les_videos(Choix::DansLeDocument);
+        assert!(videos(&autre)[0].video.a_cote, "elle reste à côté");
+        let dit = autre.ui.toast_message().map(str::to_string);
+        assert!(
+            dit.is_some_and(|t| t.contains("pas sur cet appareil")),
+            "et le dit"
+        );
     }
 
     /// RECUE-1 (fiche 172 § 8) — **Une copie reçue que plus rien ne désigne se retire** :

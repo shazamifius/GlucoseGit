@@ -116,6 +116,7 @@ impl Bridge {
         let propre = ImageTrait {
             src: img.src.as_deref().map(Into::into),
             source_url: img.source_url.as_deref().map(Into::into),
+            affiche: img.affiche.as_deref().map(Into::into),
             slot_id: img.slot_id.as_deref().map(Into::into),
             fit: img.fit.as_deref().map(Into::into),
             tags: img.tags.iter().map(|t| t.as_str().into()).collect(),

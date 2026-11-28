@@ -53,8 +53,8 @@ mod ouvrier;
 use super::apercu::{self, Apercu};
 use super::photo::{Pyramide, Retour, Transit};
 use crate::persist::objets::Parole;
-pub(crate) use ouvrier::decoder;
 use ouvrier::ouvrier;
+pub(crate) use ouvrier::{decoder, encoder_en_png};
 
 /// Ce qu'un atelier prête à un autre : où lire les octets des images, et ses aperçus.
 #[derive(Clone, Default)]

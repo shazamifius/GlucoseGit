@@ -1,0 +1,206 @@
+[
+ {
+  "nom": "195 AFFICHE-1 — le fichier d'une vidéo à côté voyage",
+  "fichier": "crates/glucose-core/src/types/image.rs",
+  "avant": "let src = self.src.as_deref().filter(|_| !self.video.a_cote);",
+  "apres": "let src = self.src.as_deref();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "affiche_1",
+   "arena::bridge"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — l'affiche ne voyage pas",
+  "fichier": "crates/glucose-core/src/types/image.rs",
+  "avant": "src.into_iter().chain(self.affiche.as_deref())",
+  "apres": "src.into_iter().chain(None)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "affiche_1",
+   "arena::bridge"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — le schéma 8 n'est pas exigé",
+  "fichier": "crates/glucose-core/src/persist/image.rs",
+  "avant": "    } else if affiche.is_some() {\n        w.exiger(crate::persist::AFFICHE_DEPUIS);\n    }",
+  "apres": "    }",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "affiche_1",
+   "arena::bridge"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — l'arène perd l'affiche",
+  "fichier": "crates/glucose-core/src/arena/bridge/export.rs",
+  "avant": "affiche: t.and_then(|t| t.affiche.as_deref()).map(str::to_string),",
+  "apres": "affiche: None,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "affiche_1",
+   "arena::bridge"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — l'affiche ne se scelle pas",
+  "fichier": "crates/glucose-desktop/src/persist/ecriture.rs",
+  "avant": "        if let Some(cle) = img.affiche.as_deref() {\n            self.sceller_la_cle(cle, objets);",
+  "apres": "        if let Some(_cle) = img.affiche.as_deref() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "affiche_1"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — aucune affiche à la pose",
+  "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+  "avant": "        if a_cote {\n            img.affiche = Some(self.promettre_l_affiche(&img.id, &src));\n        }\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "affiche_1"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — le fichier illisible, l'affiche ne se montre pas",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/videos.rs",
+  "avant": "Some(affiche) if self.echecs.contains(src) => Some(affiche),",
+  "apres": "Some(_) if self.echecs.contains(src) => Some(src),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "affiche_1"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — la légende ne sait pas chez qui",
+  "fichier": "crates/glucose-desktop/src/renderer/magasin/attentes.rs",
+  "avant": "and_then(|a| a.posees_par.get(affiche));",
+  "apres": "and_then(|a| a.posees_par.get(\"\"));",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "affiche_1"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — sans son fichier, elle entre au document",
+  "fichier": "crates/glucose-desktop/src/interactions/video.rs",
+  "avant": "ailleurs.is_none_or(|src| Path::new(src).is_file())",
+  "apres": "ailleurs.is_none_or(|_| true)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "affiche_1"
+  ]
+ },
+ {
+  "nom": "195 AFFICHE-1 — l'affiche n'est pas réduite",
+  "fichier": "crates/glucose-desktop/src/renderer/video/affiche.rs",
+  "avant": "if grand <= COTE {",
+  "apres": "if grand > 0 {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "affiche_1"
+  ]
+ }
+]

@@ -62,6 +62,25 @@ impl Magasin {
     }
 }
 
+impl Magasin {
+    /// **Ce que dit l'affiche d'une vidéo gardée à côté**, quand c'est elle qui se montre (fiche
+    /// 195) : chez qui la vidéo est restée, si un geste du partage l'a dit ; sinon que son fichier
+    /// n'est pas ici — déplacé, ou sur un autre appareil. `None` : la vidéo se montre elle-même.
+    pub fn legende_de_l_affiche(&self, img: &glucose_core::types::BoardImage) -> Option<String> {
+        let affiche = self
+            .cle_montree(img)
+            .filter(|&c| Some(c) != img.src.as_deref())?;
+        let chez = (self.attentes.as_ref()).and_then(|a| a.posees_par.get(affiche));
+        Some(match chez {
+            Some((_, nom)) => format!("Vidéo restée chez {nom}"),
+            None => format!(
+                "Vidéo introuvable ici : {}",
+                super::cadre::nom_du_fichier(img.src.as_deref().unwrap_or_default())
+            ),
+        })
+    }
+}
+
 /// « de Loup Émeraude », « d'Aigle Émeraude » : l'élision devant une voyelle (un *h* aspiré
 /// comme celui de « Hibou » n'élide pas — aucun *h* ne le fait ici).
 fn de(nom: &str) -> String {

@@ -82,3 +82,52 @@ fn video_2_une_video_qui_ne_se_lit_pas_ici_ne_se_relance_pas() {
         );
     }
 }
+
+/// AFFICHE-1 (fiche 195) — **Une vidéo à côté dont le fichier ne se lit pas ici montre son
+/// affiche** ; lisible, elle se montre elle-même ; sans affiche, son cadre dit le fichier perdu.
+#[test]
+fn affiche_1_le_fichier_illisible_ici_l_affiche_se_montre() {
+    let mut magasin = Magasin::nouveau();
+    let mut img = BoardImage::new("v", 0.0, 0.0, 160.0, 90.0);
+    img.src = Some("/sur/un/autre/pc/v.mp4".into());
+    img.is_video = true;
+    img.video.a_cote = true;
+    img.asset = Some(glucose_core::types::AssetRef::Link {
+        href: "/sur/un/autre/pc/v.mp4".into(),
+        sha256: None,
+        size_bytes: None,
+    });
+    img.affiche = Some("affiche:1:v".into());
+    assert_eq!(
+        magasin.cle_montree(&img),
+        img.src.as_deref(),
+        "tant qu'il se lit"
+    );
+    magasin.echoue("/sur/un/autre/pc/v.mp4".into());
+    assert_eq!(magasin.cle_montree(&img), Some("affiche:1:v"));
+    assert!(
+        !magasin.cadre(&img).introuvable,
+        "l'affiche attend, pas le fichier"
+    );
+    assert_eq!(
+        magasin.legende_de_l_affiche(&img).as_deref(),
+        Some("Vidéo introuvable ici : v.mp4")
+    );
+    magasin.posee_par("affiche:1:v", "a1ce", "Alice");
+    assert_eq!(
+        magasin.legende_de_l_affiche(&img).as_deref(),
+        Some("Vidéo restée chez Alice"),
+        "un geste du partage a dit chez qui"
+    );
+    img.affiche = None;
+    assert_eq!(magasin.cle_montree(&img), img.src.as_deref());
+    assert_eq!(
+        magasin.legende_de_l_affiche(&img),
+        None,
+        "la vidéo se montre elle-même"
+    );
+    assert!(
+        magasin.cadre(&img).introuvable,
+        "sans affiche, le fichier perdu se dit"
+    );
+}

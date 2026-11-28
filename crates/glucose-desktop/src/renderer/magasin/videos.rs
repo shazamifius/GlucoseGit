@@ -34,12 +34,24 @@ impl Magasin {
     /// ([`Magasin::avancer_les_videos`]). Sans elle — un fichier gardé à côté qui a bougé —, le
     /// joueur serait lâché à l'image suivante, puis relancé : un fil par image, sans fin.
     pub fn reclamer_le_noeud(&mut self, img: &BoardImage) -> Option<Numero> {
-        let src = img.src.as_deref().filter(|s| !s.is_empty())?;
-        let numero = self.reclamer_par_numero(src, img.width)?;
-        if img.is_video && img.video.lecture_auto {
+        let cle = self.cle_montree(img)?;
+        let numero = self.reclamer_par_numero(cle, img.width)?;
+        let src = img.src.as_deref().filter(|&s| s == cle);
+        if let Some(src) = src.filter(|_| img.is_video && img.video.lecture_auto) {
             self.jouer_seule(src);
         }
         Some(numero)
+    }
+
+    /// **La clé de ce que ce nœud montre** : sa photo — ou, d'une vidéo gardée à côté dont le
+    /// fichier ne se lit pas ici (il a bougé, ou il vit sur un autre appareil), son affiche
+    /// (fiche 195). Le dessin et le cadre la demandent ici : aucun ne l'oublie.
+    pub fn cle_montree<'a>(&self, img: &'a BoardImage) -> Option<&'a str> {
+        let src = img.src.as_deref().filter(|s| !s.is_empty())?;
+        match img.affiche.as_deref() {
+            Some(affiche) if self.echecs.contains(src) => Some(affiche),
+            _ => Some(src),
+        }
     }
 
     /// **Une vidéo en lecture automatique est à l'écran** : elle joue seule, en boucle, le son

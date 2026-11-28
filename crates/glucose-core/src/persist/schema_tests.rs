@@ -93,3 +93,34 @@ fn video_2_un_geste_de_l_histoire_s_ecrit_au_plus_petit_schema() {
         assert_eq!(histoire::lire_geste(&octets).expect("relu"), g);
     }
 }
+
+/// **L'affiche d'une vidéo à côté** (fiche 195) : elle seule fait monter au schéma 8 ; sans elle,
+/// une vidéo à côté s'écrit encore au 7, et rien ne se perd à l'aller-retour.
+#[test]
+fn affiche_1_seule_l_affiche_fait_monter_au_schema_8() {
+    let mut p = avec_une_video(A_COTE);
+    let relu = decode(&encode(&p, &AssetStore::new(), 0)).expect("relu");
+    assert_eq!(relu.manifest.document_version, VIDEO_DEPUIS);
+    p.boards[0].images[0].affiche = Some("affiche:1".into());
+    let relu = decode(&encode(&p, &AssetStore::new(), 0)).expect("relu");
+    assert_eq!(relu.manifest.document_version, AFFICHE_DEPUIS);
+    assert_eq!(relu.project, p, "l'affiche relue");
+    let octets = histoire::contenu_instantane(&p);
+    assert_eq!(u16::from_le_bytes([octets[0], octets[1]]), AFFICHE_DEPUIS);
+    assert_eq!(histoire::lire_instantane(&octets).expect("relu"), p);
+}
+
+/// **Ce qui voyage d'une image** : sa photo ; d'une vidéo à côté, son affiche seule.
+#[test]
+fn affiche_1_d_une_video_a_cote_seule_l_affiche_voyage() {
+    let mut img = avec_une_video(ChoixVideo::default()).boards[0].images[0].clone();
+    img.src = Some("/home/a/v.mp4".into());
+    assert_eq!(
+        img.cles_qui_voyagent().collect::<Vec<_>>(),
+        ["/home/a/v.mp4"]
+    );
+    img.video.a_cote = true;
+    assert_eq!(img.cles_qui_voyagent().count(), 0);
+    img.affiche = Some("affiche:1".into());
+    assert_eq!(img.cles_qui_voyagent().collect::<Vec<_>>(), ["affiche:1"]);
+}

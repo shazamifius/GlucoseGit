@@ -10,8 +10,10 @@
 
 use crate::persist::objets::Objets;
 
+pub(crate) mod affiche;
 pub(crate) mod commandes;
 pub(crate) mod joueur;
+pub(crate) mod legende;
 pub(crate) mod signature;
 
 #[cfg(any(windows, target_os = "macos", test))]

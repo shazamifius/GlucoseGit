@@ -368,3 +368,25 @@ fn q18_le_cadre_dit_qui_a_pose_la_photo() {
     app.quitter_le_canevas_partage();
     assert_eq!(cadre(&mut app), "Image [chat]");
 }
+
+/// AFFICHE-1 (fiche 195) — **D'une vidéo gardée à côté, seule l'affiche se demande** : son
+/// fichier vit sur le disque de qui l'a posée, et personne ne le servirait (le facteur ne lit que
+/// le registre).
+#[test]
+fn affiche_1_d_une_video_a_cote_seule_l_affiche_se_demande() {
+    let mut app = app_sans_les_octets();
+    app.disque
+        .objets
+        .poser(CLE, Source::Memoire(Arc::new(vec![1, 2, 3])));
+    let board = app.store.project.active_board_id.clone();
+    let mut video = BoardImage::new("v", 50.0, 0.0, 16.0, 9.0);
+    video.src = Some("/home/alice/Vidéos/v.mp4".into());
+    video.is_video = true;
+    video.video.a_cote = true;
+    video.affiche = Some("affiche:1:v".into());
+    app.store.add_image(&board, video);
+    assert_eq!(
+        cles_qui_manquent(&app.store.project, &app.disque.objets),
+        vec!["affiche:1:v".to_string()]
+    );
+}
