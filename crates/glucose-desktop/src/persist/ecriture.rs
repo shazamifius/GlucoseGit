@@ -320,8 +320,13 @@ impl Ecriture {
     /// **Écrit une rectification** (RECTIF-1, fiche 110) : signée de l'IA de Glucose — déclarée
     /// une fois par fichier, comme un agent —, attachée au geste de rang `geste`, ou au dernier du
     /// document (suivre une flèche n'est pas un geste : l'écrit dit où en était le document), et
-    /// nommant le nœud dont elle parle. Rien dans un document sans geste.
-    pub fn rectifier(&mut self, geste: Option<usize>, (sujet, texte): (&str, &str), instant: i64) {
+    /// nommant les nœuds dont elle parle. Rien dans un document sans geste.
+    pub fn rectifier(
+        &mut self,
+        geste: Option<usize>,
+        (sujets, texte): (&[String], &str),
+        instant: i64,
+    ) {
         let Some(rang) = geste.or(self.gestes.checked_sub(1)) else {
             return;
         };
@@ -334,7 +339,7 @@ impl Ecriture {
             auteur: ia.id,
             geste: rang as u64,
             texte: texte.to_string(),
-            sujets: vec![sujet.to_string()],
+            sujets: sujets.to_vec(),
         };
         self.envoyer(nature::NOTE, histoire::contenu_note(&note));
     }

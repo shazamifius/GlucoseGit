@@ -131,7 +131,10 @@ impl GlucoseApp {
         let rectifications = crate::parente::rectifications::des_gestes(
             &transactions,
             &self.store.project,
-            &self.renderer.sens_des_textes,
+            (
+                &self.renderer.sens_des_textes,
+                &self.store.journal.des_agents,
+            ),
         );
         let Some(ecriture) = self.disque.ecriture.as_mut() else {
             return;
@@ -155,7 +158,7 @@ impl GlucoseApp {
             instant,
         );
         for r in rectifications {
-            ecriture.rectifier(Some(premier + r.geste), (&r.sujet, &r.texte), instant);
+            ecriture.rectifier(Some(premier + r.geste), (&r.sujets, &r.texte), instant);
         }
         // La réglette de la Time Machine s'allonge sans relire le fichier.
         self.dock_manager.temps.noter(nombre, instant);

@@ -1,0 +1,162 @@
+[
+ {
+  "nom": "190 RECTIF-2 — la poussée d'une saisie s'écrit",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "if ecrit.main != Main::Humain || ecrit.etiquette.is_some() {",
+  "apres": "if ecrit.main != Main::Humain {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — le geste d'un agent s'écrit",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "if ecrit.main != Main::Humain || ecrit.etiquette.is_some() {",
+  "apres": "if ecrit.etiquette.is_some() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — ce que sa membrane emporte s'écrit",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "Annotation::Arrow { .. }) || porte ||",
+  "apres": "Annotation::Arrow { .. }) ||",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — le nœud de l'humain s'écrit",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "|| porte || !d_un_agent(a.id()) {",
+  "apres": "|| porte {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — la provenance d'avant le geste est oubliée",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "        repris_depuis.extend(ecrit.repris.iter().map(String::as_str));\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — la place se lit sur l'état final",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "let apres = decalages.get(a.id()).copied().unwrap_or_default();",
+  "apres": "let apres = (0.0, 0.0);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — la membrane rejointe est tue",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications/deplacements.rs",
+  "avant": "        dit.push_str(&format!(\", de {} à {}\", titre(de), titre(vers)));\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ },
+ {
+  "nom": "190 RECTIF-2 — ses déplacements ne sont pas lus",
+  "fichier": "crates/glucose-desktop/src/parente/rectifications.rs",
+  "avant": "let mut faites: Vec<Rectification> = deplacements::des_gestes(ecrits, projet, des_agents)",
+  "apres": "let mut faites: Vec<Rectification> = deplacements::des_gestes(&[], projet, des_agents)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rectif_2"
+  ]
+ }
+]

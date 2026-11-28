@@ -15,7 +15,8 @@
 //! * il donne sa couleur à un texte que l'IA rangeait dans une famille — le halo montrait la
 //!   couleur de l'IA, il montre la sienne ;
 //! * il retouche ou retire une flèche qu'un agent avait posée et que l'IA jugeait ;
-//! * il suit (`Ctrl`+clic) une telle flèche.
+//! * il suit (`Ctrl`+clic) une telle flèche ;
+//! * il déplace à la main ce qu'un agent avait posé (RECTIF-2, [`deplacements`]).
 //!
 //! **Aucun seuil** : chaque geste sur ce que l'IA jugeait s'écrit, avec sa sûreté — celui qui la
 //! contredit comme celui qui la confirme. Couper à « sûre à moins de 50 % » aurait jeté ce qu'une
@@ -38,25 +39,36 @@
 use crate::renderer::sens::SensDesTextes;
 use glucose_core::store::journal::{Ecrit, Edit, Main};
 use glucose_core::types::{Annotation, Project};
+use std::collections::HashSet;
+
+mod deplacements;
 
 /// **Une rectification** : le rang de son geste dans la file, le nœud dont elle parle, et ce
 /// qu'elle en dit.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Rectification {
     pub geste: usize,
-    pub sujet: String,
+    pub sujets: Vec<String>,
     pub texte: String,
 }
 
 /// **Ce que ces gestes rectifient** de ce que l'IA proposait — seulement ceux de l'humain : un
 /// agent qui recolore ne corrige pas l'IA de Glucose. L'avis lu est celui qu'elle montrait avant
-/// eux : le fil ne le refait qu'après.
+/// eux : le fil ne le refait qu'après. `des_agents` : ce que des agents ont posé (MAIN-1), dont
+/// ses déplacements parlent (RECTIF-2).
 pub(crate) fn des_gestes(
     ecrits: &[Ecrit],
     projet: &Project,
-    sens: &SensDesTextes,
+    (sens, des_agents): (&SensDesTextes, &HashSet<String>),
 ) -> Vec<Rectification> {
-    let mut faites = Vec::new();
+    let mut faites: Vec<Rectification> = deplacements::des_gestes(ecrits, projet, des_agents)
+        .into_iter()
+        .map(|(geste, sujets, texte)| Rectification {
+            geste,
+            sujets,
+            texte,
+        })
+        .collect();
     for (geste, ecrit) in ecrits.iter().enumerate() {
         if ecrit.main != Main::Humain {
             continue;
@@ -80,12 +92,14 @@ pub(crate) fn des_gestes(
             if let Some((sujet, texte)) = dit {
                 faites.push(Rectification {
                     geste,
-                    sujet,
+                    sujets: vec![sujet],
                     texte,
                 });
             }
         }
     }
+    // Dans l'ordre des gestes : un tri stable garde, pour un même geste, celui des écrits.
+    faites.sort_by_key(|r| r.geste);
     faites
 }
 
@@ -173,7 +187,7 @@ fn pour_cent(surete: f32) -> String {
 }
 
 /// Le début d'un texte : sa première ligne, coupée à soixante caractères.
-fn debut(texte: &str) -> String {
+pub(super) fn debut(texte: &str) -> String {
     let ligne = texte.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
     let court: String = ligne.trim().chars().take(60).collect();
     if court.chars().count() < ligne.trim().chars().count() {

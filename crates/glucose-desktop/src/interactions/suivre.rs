@@ -104,7 +104,7 @@ impl GlucoseApp {
         self.consigner();
         if let Some(ecriture) = self.disque.ecriture.as_mut() {
             let instant = crate::persist::now_millis();
-            ecriture.rectifier(None, (fleche, &dit), instant);
+            ecriture.rectifier(None, (&[fleche.to_string()], &dit), instant);
         }
     }
 }

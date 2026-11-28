@@ -293,3 +293,139 @@ fn rectif_1_suivre_une_fleche_jugee_s_ecrit() {
         "suivre ne la sort pas du jugement"
     );
 }
+
+/// **RECTIF-2 — déplacer à la main ce qu'un agent a posé s'écrit** (fiche 190 ; sa note du 27/11,
+/// `text-n3rk-2495` : ses intentions par ses clics). Un écrit par geste, nommant ce qui a bougé et
+/// d'où à où. **Ne s'écrivent pas** : ce que sa membrane emporte (seule la membrane est nommée),
+/// le nœud de l'humain, le déplacement d'un agent.
+#[test]
+fn rectif_2_deplacer_ce_qu_un_agent_a_pose_s_ecrit() {
+    let (mut app, _d, board) = application("rectif-2-deplacer");
+    app.store.journal.main = Main::Agent("squelette".into());
+    app.store
+        .add_annotation(&board, Annotation::text("a", 0.0, 0.0, "Le plan du relais"));
+    app.store
+        .add_annotation(&board, Annotation::membrane("m", 500.0, 0.0, 400.0, 300.0));
+    let mut dedans = Annotation::text("b", 540.0, 60.0, "Dans la bulle");
+    dedans.set_membrane_id(Some("m".into()));
+    app.store.add_annotation(&board, dedans);
+    app.store.journal.main = Main::Humain;
+    app.store
+        .add_annotation(&board, Annotation::text("h", 0.0, 900.0, "Le sien"));
+    app.consigner();
+
+    let deplacer = |app: &mut GlucoseApp, id: &str, (dx, dy): (f64, f64)| {
+        app.store.clear_selection();
+        app.store.select_annotation(id.into(), false);
+        app.store.move_selected(&board, dx, dy);
+    };
+    deplacer(&mut app, "a", (100.0, 40.0));
+    deplacer(&mut app, "m", (0.0, 400.0));
+    deplacer(&mut app, "h", (10.0, 10.0));
+    app.store.journal.main = Main::Agent("squelette".into());
+    deplacer(&mut app, "a", (5.0, 5.0));
+    app.store.journal.main = Main::Humain;
+    app.consigner();
+
+    let (notes, o) = rectifications(&mut app);
+    let sujets: Vec<&[String]> = notes.iter().map(|n| n.sujets.as_slice()).collect();
+    assert_eq!(sujets, [["a"], ["m"]], "{notes:?}");
+    let n = o.gestes.len();
+    assert_eq!(notes[0].geste as usize, n - 4, "le geste qui déplace « a »");
+    assert!(
+        notes[0]
+            .texte
+            .contains("« Le plan du relais » de (0, 0) à (100, 40)"),
+        "{}",
+        notes[0].texte
+    );
+}
+
+/// **Ce que pousse un texte qu'il écrit n'est pas son intention** (POUSSER-145) : un pas de saisie
+/// qui déplace le nœud d'un agent n'écrit rien ; le même geste, hors saisie, s'écrit.
+#[test]
+fn rectif_2_ce_que_pousse_une_saisie_ne_s_ecrit_pas() {
+    use glucose_core::store::journal::{Ecrit, Edit, Transaction};
+    let mut projet = GlucoseApp::new().store.project;
+    let board = projet.active_board_id.clone();
+    if let Some(b) = projet.boards.iter_mut().find(|b| b.id == board) {
+        b.annotations = vec![Annotation::text("a", 0.0, 50.0, "Poussé")];
+    }
+    let pousse = Ecrit {
+        transaction: Transaction {
+            edits: vec![Edit::Translation {
+                board: board.clone(),
+                delta: (0.0, 50.0),
+                images: Vec::new(),
+                annotations: vec![0],
+                folders: Vec::new(),
+                bouts: Vec::new(),
+            }],
+        },
+        main: Main::Humain,
+        part: false,
+        repris: Vec::new(),
+        etiquette: Some(7),
+    };
+    let agents: std::collections::HashSet<String> = ["a".to_string()].into();
+    assert!(
+        super::deplacements::des_gestes(std::slice::from_ref(&pousse), &projet, &agents).is_empty()
+    );
+    let a_la_main = Ecrit {
+        etiquette: None,
+        ..pousse
+    };
+    assert_eq!(
+        super::deplacements::des_gestes(&[a_la_main], &projet, &agents).len(),
+        1
+    );
+}
+
+/// **Glissé à la souris dans une membrane, le nœud dit laquelle il a rejointe** : le vrai chemin
+/// de la main (appuyer, glisser, lâcher), dont le geste rattache le nœud à sa membrane neuve.
+#[test]
+fn rectif_2_glisser_dans_une_membrane_dit_laquelle() {
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    let (mut app, _d, board) = application("rectif-2-glisser");
+    app.store.set_viewport(
+        &board,
+        glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+    );
+    let mut bulle = Annotation::membrane("m", 600.0, 100.0, 500.0, 400.0);
+    if let Annotation::Membrane { text, .. } = &mut bulle {
+        *text = Some("Les sources".into());
+    }
+    app.store.add_annotation(&board, bulle);
+    app.store.journal.main = Main::Agent("squelette".into());
+    app.store.add_annotation(
+        &board,
+        Annotation::text("a", 100.0, 200.0, "Une note d'agent"),
+    );
+    app.store.journal.main = Main::Humain;
+    app.store.clear_selection();
+    app.consigner();
+
+    let ecran = (1440.0, 900.0);
+    app.handle_cursor_moved(PhysicalPosition::new(150.0, 220.0));
+    app.handle_mouse_down(MouseButton::Left, ecran.0, ecran.1);
+    for x in [300.0, 500.0, 700.0, 800.0] {
+        app.handle_cursor_moved(PhysicalPosition::new(x, 260.0));
+    }
+    app.handle_mouse_up(MouseButton::Left);
+    app.consigner();
+
+    let (notes, _) = rectifications(&mut app);
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(
+        notes[0]
+            .texte
+            .contains("de aucune membrane à « Les sources »"),
+        "{}",
+        notes[0].texte
+    );
+}

@@ -116,6 +116,16 @@ impl Project {
             .find(|a| a.id() == id)
     }
 
+    /// L'annotation au rang `rang` du tableau `tableau` — les rangs que porte un déplacement du
+    /// journal (`Edit::Translation`).
+    pub fn annotation_au_rang(&self, tableau: &str, rang: usize) -> Option<&super::Annotation> {
+        self.boards
+            .iter()
+            .find(|b| b.id == tableau)?
+            .annotations
+            .get(rang)
+    }
+
     /// Le nombre d'annotations de tous les tableaux.
     pub fn nombre_d_annotations(&self) -> usize {
         self.boards.iter().map(|b| b.annotations.len()).sum()
