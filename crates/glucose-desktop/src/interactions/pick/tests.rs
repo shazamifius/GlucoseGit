@@ -281,3 +281,23 @@ fn test_pick_2_une_image_sous_une_carte_le_clic_prend_la_carte_et_le_reclic_l_im
         "le double-clic ouvre la carte"
     );
 }
+
+/// **Un clic dans le corps d'une membrane dont on écrit le titre valide ce titre** (fiche 188
+/// § 4). Le corps porte le même identifiant que le nom : « cliquer ailleurs valide » ne regardait
+/// que lui, et la saisie restait ouverte sous la main — vu au pilote. Un clic dans le nom, lui,
+/// est pris par le texte.
+#[test]
+fn test_titre_sel_un_clic_dans_le_corps_valide_le_titre() {
+    let mut app = app_with_stack();
+    app.store.select_annotation("dessus".into(), false);
+    app.start_text_edit("dessus".into(), "Eau".into());
+    app.apply_text_command(
+        crate::interactions::text_edit::keys::Command::Insert(" salée".into()),
+        false,
+    );
+    let point = centre(&app);
+    click_at(&mut app, point);
+    assert!(app.editing_session.is_none(), "la saisie est validée");
+    let titre = app.editable_text_of("dessus").expect("la membrane est là");
+    assert_eq!(titre, "Eau salée");
+}

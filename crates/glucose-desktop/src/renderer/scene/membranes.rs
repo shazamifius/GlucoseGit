@@ -69,15 +69,14 @@ impl MembraneLayout {
     /// Le titre suit la loi du noyau (TITRE-1) : chacune de ses mesures grandit comme la racine de
     /// la surface de la membrane, à partir de celles d'une membrane neuve.
     fn new(width: f32, height: f32) -> Self {
-        use glucose_core::membrane_titre as titre;
-        let s = titre::echelle(f64::from(width), f64::from(height));
+        let [label_font, label_dx, label_dy] = titre::mesures_de_la_loi(width, height);
         Self {
             width,
             height,
             radius: MEMBRANE_RADIUS,
-            label_dx: (titre::RETRAIT * s) as f32,
-            label_dy: (titre::ELEVATION * s) as f32,
-            label_font: (titre::CORPS * s) as f32,
+            label_dx,
+            label_dy,
+            label_font,
             border: MEMBRANE_BORDER,
             dash: MEMBRANE_DASH,
         }
@@ -241,15 +240,10 @@ impl<'a> MembraneVue<'a> {
         let label = self
             .text
             .filter(|l| self.saisie.is_some() || porte_un_titre(Some(l)))?;
-        let l = &self.monde;
-        let large = kit
-            .typography
-            .ligne_detouree(label, l.label_font, Face::Bold)
-            .avance;
-        let ajuste = (l.width / (large + 2.0 * l.label_dx)).min(1.0);
+        let taille = (self.monde.width, self.monde.height);
         Some((
             label,
-            [l.label_font, l.label_dx, l.label_dy].map(|v| v * ajuste),
+            titre::mesures_du_monde(kit.typography, label, taille),
         ))
     }
 

@@ -2,8 +2,8 @@
  {
   "nom": "188 POST-IT-SEL — le post-it n'a plus de géométrie de texte",
   "fichier": "crates/glucose-desktop/src/interactions/text_edit/geometry.rs",
-  "avant": "                operator: None,\n                ..\n            } => Some(CardBox {",
-  "apres": "                operator: Some(_),\n                ..\n            } => Some(CardBox {",
+  "avant": "                operator: None,\n                ..\n            } => (\n",
+  "apres": "                operator: Some(_),\n                ..\n            } => (\n",
   "cmd": [
    "bash",
    "outils/borne.sh",
@@ -59,6 +59,126 @@
    "--lib",
    "--",
    "post_it_sel"
+  ]
+ },
+ {
+  "nom": "188 § 4 TITRE-SEL — le titre se mesure en romain",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/geometry.rs",
+  "avant": "marge, Some(Emphasis::BOLD), Some(*y))",
+  "apres": "marge, Some(Emphasis::NONE), Some(*y))",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_sel"
+  ]
+ },
+ {
+  "nom": "188 § 4 TITRE-SEL — un clic dans le corps vise le titre",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/geometry.rs",
+  "avant": "Some(Emphasis::BOLD), Some(*y))",
+  "apres": "Some(Emphasis::BOLD), None)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_sel"
+  ]
+ },
+ {
+  "nom": "188 § 4 TITRE-SEL — le titre n'a plus de géométrie de texte",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/geometry.rs",
+  "avant": "Annotation::Membrane { x, y, .. } => {",
+  "apres": "Annotation::Membrane { x, y, .. } if false => {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_sel"
+  ]
+ },
+ {
+  "nom": "188 § 4 TITRE-SEL — le titre perd son retrait",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/geometry.rs",
+  "avant": "let marge = (retrait, -elevation);",
+  "apres": "let marge = (0.0, -elevation);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_sel"
+  ]
+ },
+ {
+  "nom": "188 § 4 TITRE-SEL — ouvrir un titre vise toute la largeur de sa membrane",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/montrer.rs",
+  "avant": "            f64::from(largeur),\n",
+  "apres": "            f64::from(boite.width.max(largeur)),\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "saisie_2"
+  ]
+ },
+ {
+  "nom": "188 § 4 TITRE-SEL — le corps de la membrane ne valide pas son titre",
+  "fichier": "crates/glucose-desktop/src/interactions/pick.rs",
+  "avant": "s.ann_id != top.id || top.owner == PickOwner::Membrane",
+  "apres": "s.ann_id != top.id",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "titre_sel"
   ]
  }
 ]

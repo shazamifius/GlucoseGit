@@ -98,7 +98,7 @@ use tiny_skia::Pixmap;
 mod contenu;
 mod formes;
 mod passage;
-pub(in crate::renderer) mod titre;
+pub(crate) mod titre;
 
 use contenu::{cadre_en_chemin, Contenu};
 use passage::{le_repos_sert, VersLEcran};

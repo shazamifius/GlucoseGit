@@ -127,11 +127,13 @@ impl GlucoseApp {
         if self.appuyer_dans_une_membrane(&top) {
             return;
         }
-        // Cliquer ailleurs valide la saisie en cours.
+        // Cliquer ailleurs valide la saisie en cours. Le corps d'une membrane dont on écrit le
+        // titre est ailleurs : un clic dans son nom a été pris plus haut, par le texte (fiche 188
+        // § 4) — le reste porte le même identifiant, mais pas les mêmes lettres.
         if self
             .editing_session
             .as_ref()
-            .is_some_and(|s| s.ann_id != top.id)
+            .is_some_and(|s| s.ann_id != top.id || top.owner == PickOwner::Membrane)
         {
             self.commit_editing();
         }

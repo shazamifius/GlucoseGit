@@ -364,7 +364,12 @@ pub(crate) const STICKY_TEXT_ORIGIN: (f32, f32) = (STICKY_PAD, STICKY_PAD);
 /// WRAP-1 — la mise en page d'un pense-bête de `width` unités monde. Un pense-bête n'a pas de
 /// Markdown : chaque ligne source est un paragraphe tel quel ([`layout_brut`]).
 pub(crate) fn sticky_text_layout(typography: &Typography, content: &str, width: f32) -> TextLayout {
-    layout_brut(typography, content, sticky_text_box(width))
+    layout_brut(
+        typography,
+        content,
+        sticky_text_box(width),
+        glucose_core::text::Emphasis::NONE,
+    )
 }
 
 /// Ses lignes visuelles, en tranches d'octets de `content`.

@@ -45,7 +45,7 @@ impl GlucoseApp {
         // et c'est la sorte de defaut qu'on ne comprend qu'apres avoir perdu du travail.
         self.historique_du_texte.oublier();
         self.ouvrir_la_poussee();
-        self.montrer_ce_qu_on_ecrit(&ann_id);
+        self.montrer_ce_qu_on_ecrit(&ann_id, &initial_text);
         self.editing_session = Some(TextEditSession {
             ann_id,
             buffer: initial_text,

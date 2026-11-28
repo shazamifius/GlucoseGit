@@ -13,58 +13,80 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use crate::renderer::card::{card_text_layout, text_box, TEXT_ORIGIN};
+use crate::renderer::composants::titre::mesures_du_monde;
+use crate::renderer::curseur;
 use crate::renderer::note::{sticky_text_box, STICKY_TEXT_ORIGIN};
 use crate::renderer::richtext::brut::layout_brut;
 use crate::renderer::richtext::hit::offset_at;
 use crate::renderer::richtext::{TextBox, TextLayout, TextMode};
+use glucose_core::text::Emphasis;
 use glucose_core::types::Annotation;
 
 /// Ce qu'il faut d'un nœud pour y poser un point : son coin, sa largeur, la boîte de son texte
-/// et le coin de celui-ci, en unités monde — et s'il est brut (un post-it, fiche 188).
+/// et le coin de celui-ci, en unités monde — et, s'il est brut, l'emphase de toutes ses lettres
+/// (le romain d'un post-it, le gras d'un titre : fiche 188).
 pub(crate) struct CardBox {
     pub origin: (f64, f64),
     pub width: f32,
     pub corps: TextBox,
     pub marge: (f32, f32),
-    pub brut: bool,
+    pub brut: Option<Emphasis>,
+    /// Sous cette ordonnée du monde, un clic ne vise plus le texte : le bord haut d'une membrane,
+    /// dont le titre se tient au-dessus — un clic dans son corps n'est pas dans son nom.
+    pub plancher: Option<f64>,
 }
 
 impl GlucoseApp {
-    /// La boîte d'un nœud dont on choisit le texte : un nœud de texte, ou un post-it (fiche 188 ;
-    /// sa note du 27/11, `text-n3rk-2587` : on n'y pouvait choisir aucun mot). Un post-it devenu
-    /// opérateur (une pilule) n'a qu'un mot, et le titre d'une membrane se tient sur sa bande :
-    /// `None`, la façon honnête de dire qu'aucune géométrie de texte ne les décrit encore.
-    pub(crate) fn card_box(&self, id: &str) -> Option<CardBox> {
+    /// La boîte d'un nœud dont on choisit le texte `text` : un nœud de texte, un post-it ou le titre
+    /// d'une membrane (fiche 188 ; sa note du 27/11, `text-n3rk-2587` : on n'y pouvait choisir aucun
+    /// mot). Le titre se mesure sur le texte qu'il porte : un titre long rétrécit pour tenir dans
+    /// sa membrane. Un post-it devenu opérateur (une pilule) n'a qu'un mot : `None`, la façon
+    /// honnête de dire qu'aucune géométrie de texte ne le décrit.
+    pub(crate) fn card_box(&self, id: &str, text: &str) -> Option<CardBox> {
         let ann = self
             .store
             .active_board()?
             .annotations
             .iter()
             .find(|a| a.id() == id)?;
-        let (w, _) = ann.size()?;
+        let (w, h) = ann.size()?;
         let width = w as f32;
-        match ann {
-            Annotation::Text { x, y, .. } => Some(CardBox {
-                origin: (*x, *y),
-                width,
-                corps: text_box(width),
-                marge: TEXT_ORIGIN,
-                brut: false,
-            }),
+        let (origin, corps, marge, brut, plancher) = match ann {
+            Annotation::Text { x, y, .. } => ((*x, *y), text_box(width), TEXT_ORIGIN, None, None),
             Annotation::Sticky {
                 x,
                 y,
                 operator: None,
                 ..
-            } => Some(CardBox {
-                origin: (*x, *y),
-                width,
-                corps: sticky_text_box(width),
-                marge: STICKY_TEXT_ORIGIN,
-                brut: true,
-            }),
-            _ => None,
-        }
+            } => (
+                (*x, *y),
+                sticky_text_box(width),
+                STICKY_TEXT_ORIGIN,
+                Some(Emphasis::NONE),
+                None,
+            ),
+            Annotation::Membrane { x, y, .. } => {
+                let typo = &self.renderer.typography;
+                let [corps, retrait, elevation] = mesures_du_monde(typo, text, (width, h as f32));
+                let bande = TextBox {
+                    usable: f32::INFINITY,
+                    body: corps,
+                    bullet_indent: 0.0,
+                    line_height: corps * curseur::HAUTEUR,
+                };
+                let marge = (retrait, -elevation);
+                ((*x, *y), bande, marge, Some(Emphasis::BOLD), Some(*y))
+            }
+            _ => return None,
+        };
+        Some(CardBox {
+            origin,
+            width,
+            corps,
+            marge,
+            brut,
+            plancher,
+        })
     }
 
     /// La mise en page qu'aurait `text` dans le nœud `id`, **dans le mode demandé**.
@@ -79,12 +101,11 @@ impl GlucoseApp {
         text: &str,
         mode: TextMode,
     ) -> Option<(TextLayout, TextBox)> {
-        let boite = self.card_box(id)?;
+        let boite = self.card_box(id, text)?;
         let typo = &self.renderer.typography;
-        let layout = if boite.brut {
-            layout_brut(typo, text, boite.corps)
-        } else {
-            card_text_layout(typo, &self.renderer.math, text, boite.width, mode)
+        let layout = match boite.brut {
+            Some(emphase) => layout_brut(typo, text, boite.corps, emphase),
+            None => card_text_layout(typo, &self.renderer.math, text, boite.width, mode),
         };
         Some((layout, boite.corps))
     }
@@ -112,10 +133,13 @@ impl GlucoseApp {
         screen: (f64, f64),
         mode: TextMode,
     ) -> Option<usize> {
-        let boite = self.card_box(id)?;
+        let boite = self.card_box(id, text)?;
         let (layout, corps) = self.card_layout_of(id, text, mode)?;
         let vp = self.store.active_board().map(|b| b.viewport)?;
         let (wx, wy) = screen_to_world(screen.0, screen.1, &vp);
+        if boite.plancher.is_some_and(|bord| wy > bord) {
+            return None;
+        }
         let at = (
             (wx - boite.origin.0) as f32 - boite.marge.0,
             (wy - boite.origin.1) as f32 - boite.marge.1,

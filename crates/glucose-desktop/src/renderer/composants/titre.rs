@@ -52,6 +52,30 @@ pub(in crate::renderer) struct TitreDuMonde<'a> {
     pub teintes: ((u8, u8, u8), Color),
 }
 
+/// **Les mesures de la loi** (TITRE-1) pour une membrane de cette taille, dans le monde : son
+/// corps, son retrait et son élévation, avant tout ajustement à sa largeur.
+pub(crate) fn mesures_de_la_loi(largeur: f32, hauteur: f32) -> [f32; 3] {
+    use glucose_core::membrane_titre as loi;
+    let s = loi::echelle(f64::from(largeur), f64::from(hauteur));
+    [loi::CORPS, loi::RETRAIT, loi::ELEVATION].map(|v| (v * s) as f32)
+}
+
+/// **Les mesures de ce titre dans le monde**, ramenées au plus grand corps qui tient dans la
+/// largeur de sa membrane, un retrait de chaque côté (TITRE-3) : celles que le dessin pose, et
+/// celles où la souris vise une lettre du titre qu'on écrit (fiche 188 § 4). Une seule fonction
+/// pour les deux : un clic tombe sur la lettre qu'on voit.
+pub(crate) fn mesures_du_monde(
+    typography: &crate::typography::Typography,
+    texte: &str,
+    (largeur, hauteur): (f32, f32),
+) -> [f32; 3] {
+    let loi = mesures_de_la_loi(largeur, hauteur);
+    let [corps, retrait, _] = loi;
+    let large = typography.ligne_detouree(texte, corps, Face::Bold).avance;
+    let ajuste = (largeur / (large + 2.0 * retrait)).min(1.0);
+    loi.map(|v| v * ajuste)
+}
+
 /// **Le titre se pose-t-il par la carte graphique ?** (TITRE-3) — vrai si sa texture tient dans
 /// la fenêtre à la plus grande échelle où elle peut se rendre dans cette vue : l'exacte, ou son
 /// palier en mouvement. Le titre qu'on écrit n'y passe jamais : l'appelant l'écarte.

@@ -17,23 +17,34 @@
 
 use crate::app::GlucoseApp;
 use crate::renderer::richtext::hit::{line_of_offset, offset_to_x};
+use crate::renderer::richtext::TextMode;
 use glucose_core::geometry::Rect;
 use glucose_core::types::{Annotation, Viewport};
 
 impl GlucoseApp {
     /// Si la saisie qui s'ouvre écrit un titre que l'écran ne montre pas en entier, la vue y
-    /// glisse.
-    pub(super) fn montrer_ce_qu_on_ecrit(&mut self, id: &str) {
+    /// glisse. **Le titre lui-même**, sa ligne telle qu'elle se pose (fiche 188 § 4) — et non la
+    /// bande de toute la largeur de sa membrane : celle-ci, plus large que l'écran, faisait glisser
+    /// la vue sous un titre qu'on voyait en entier. Vide, il garde la place de son curseur.
+    pub(super) fn montrer_ce_qu_on_ecrit(&mut self, id: &str, texte: &str) {
         let tableau = self.store.project.active_board_id.clone();
-        let Some(boite) = self
-            .store
-            .project
-            .annotation(&tableau, id)
-            .filter(|a| matches!(a, Annotation::Membrane { .. }))
-            .map(Annotation::bounds)
-        else {
+        let membrane = self.store.project.annotation(&tableau, id);
+        if !membrane.is_some_and(|a| matches!(a, Annotation::Membrane { .. })) {
+            return;
+        }
+        let (Some(boite), Some((mise, corps))) = (
+            self.card_box(id, texte),
+            self.card_layout_of(id, texte, TextMode::Source),
+        ) else {
             return;
         };
+        let largeur = mise.lines.first().map_or(0.0, |ligne| ligne.largeur);
+        let lieu = Rect::new(
+            boite.origin.0 + f64::from(boite.marge.0),
+            boite.origin.1 + f64::from(boite.marge.1),
+            f64::from(largeur),
+            f64::from(corps.line_height),
+        );
         let (l, h) = self.taille_de_la_fenetre();
         let canevas = (
             f64::from(l),
@@ -41,9 +52,7 @@ impl GlucoseApp {
             f64::from(h),
         );
         let vue = self.store.viewport();
-        if let Some(cible) =
-            vue_qui_montre(glucose_core::membrane_titre::bande(boite), vue, canevas)
-        {
+        if let Some(cible) = vue_qui_montre(lieu, vue, canevas) {
             self.vol.voler_vers(cible);
             self.mark_dirty();
         }
@@ -66,9 +75,10 @@ impl GlucoseApp {
         let Some(session) = self.editing_session.as_ref() else {
             return;
         };
-        let (Some(boite), Some((mise_en_page, corps))) =
-            (self.card_box(&session.ann_id), self.editing_layout())
-        else {
+        let (Some(boite), Some((mise_en_page, corps))) = (
+            self.card_box(&session.ann_id, &session.buffer),
+            self.editing_layout(),
+        ) else {
             return;
         };
         let rang = line_of_offset(&mise_en_page, session.selection.head);
@@ -251,6 +261,16 @@ mod tests {
         );
     }
 
+    /// **Le titre qu'on voit ne bouge pas la vue, même d'une membrane plus large que l'écran**
+    /// (fiche 188 § 4) : la saisie montrait la bande de toute sa largeur, qui n'y tenait pas, et la
+    /// vue glissait sous un titre lu en entier — vu au pilote, trente pixels au double-clic.
+    #[test]
+    fn saisie_2_le_titre_d_une_membrane_plus_large_que_l_ecran_ne_bouge_pas_la_vue() {
+        let mut app = collee_au_bandeau(Annotation::membrane("m", 0.0, 200.0, 6000.0, 240.0));
+        app.start_text_edit("m".into(), "Eau".into());
+        assert_eq!(app.vol.cible(), None);
+    }
+
     /// **Un texte s'écrit là où on l'a ouvert** : collé au bandeau lui aussi, il ne fait pas glisser
     /// la vue — on vient de double-cliquer un de ses mots.
     #[test]
@@ -294,7 +314,7 @@ mod tests {
         use crate::renderer::card::TEXT_ORIGIN;
         use crate::renderer::richtext::{font_of, hit};
         let session = app.editing_session.as_ref().expect("en saisie");
-        let boite = app.card_box("t").expect("sa boîte");
+        let boite = app.card_box("t", &session.buffer).expect("sa boîte");
         let (mise, corps) = app.editing_layout().expect("sa mise en page");
         let rang = hit::line_of_offset(&mise, session.selection.head);
         let ligne = &mise.lines[rang];

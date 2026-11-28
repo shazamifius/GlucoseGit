@@ -45,12 +45,12 @@ Puis : prendre le premier chantier ouvert du plan — **son ordre vit dans son G
 comprises, avec des arguments —, et **chercher sur internet avant de concevoir**, sources rapportées.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais renuméroter une
-fiche. **La prochaine porte le numéro 189.**
+fiche. **La prochaine porte le numéro 190.**
 
 ## Avec lui
 
-Il ne code pas, parle français, ne voit pas la console, et veut être contredit quand on a un argument. Il
-porte la vision et le ressenti ; la technique se décide et s'exécute seule. Ce qu'il lance s'écrit dans un
+Son CLAUDE.md global dit déjà qui il est et comment on travaille ; ici, ce qui tient à Glucose. Il ne
+voit pas la console : ce qu'il lance s'écrit dans un
 fichier : la commande `glucose` y envoie elle-même sa sortie (`~/sortie-glucose.txt`), qu'on lit soi-même. **C'est à nous de tester et de
 juger** (sa parole du 18/10) : une fenêtre sur son écran est permise pour un essai, puis fermée (`bash
 outils/essai_isole.sh <secondes> [capture.png]`) ; les bancs restent hors écran. **Ses données avant
@@ -68,6 +68,8 @@ Rust n'existe ici que dans `nix develop` : préfixer par `nix develop -c`. **Une
 `cargo check` prend 2 min 30 depuis zéro, la version optimisée 2 minutes).
 Le 12/11, un `cargo test --workspace` nu a lancé huit compilations à la fois et figé sa machine deux
 heures et demie (le swap compressé ne tue rien) ; bornée, une commande qui déborde meurt seule.
+**Aucune commande de plus de 30 minutes** (sa règle du 19/11 : `timeout 1800`, un réveil armé) ; ce qui
+risque de dépasser se coupe en étapes — un `rustc` tué laisse son crate à moitié écrit.
 
 ```bash
 cargo fmt --all -- --check
@@ -104,7 +106,8 @@ arrête une publication qui l'oublierait.
 * **Les messages de commit** s'écrivent dans un fichier du scratchpad, puis `git commit -F` ; le dernier
   d'un envoi porte `[skip ci]` (la CI seulement avant une publication).
 * **Jamais de jeton dans le dépôt, ni dans son Glucose.** Il vit dans `~/Projets/github.md` (il le
-  renouvelle tous les 3 jours ; aucune remarque de notre part) ; le lire au moment d'envoyer, sans
+  renouvelle tous les 3 jours ; aucune remarque de notre part — vide ou refusé, une seule phrase dans son
+  Glucose : « il me faut un jeton GitHub dans ~/Projets/github.md ») ; le lire au moment d'envoyer, sans
   l'écrire nulle part : `git push "https://x-access-token:$JETON@github.com/shazamifius/GlucoseGit.git"
   main:main`. Git n'a pas d'identité globale sur cette machine : celle du dépôt est réglée.
 * **`docs/` est un dépôt à part, privé** (`shazamifius/GlucoseGit-docs`, sa réponse du 25/11 dans

@@ -12,9 +12,17 @@ use crate::typography::{Face, Typography};
 use glucose_core::text::{BlockKind, Emphasis, SpanRole};
 
 /// La mise en page d'un texte brut dans la boîte `bx` : une ligne visuelle et un fragment par
-/// tranche que le reflux coupe, au corps courant, en romain.
-pub fn layout_brut(typography: &Typography, source: &str, bx: TextBox) -> TextLayout {
-    let advance = |_: usize, ch: char| typography.advance(ch, bx.body, Face::Regular);
+/// tranche que le reflux coupe, au corps courant, d'une seule emphase — le romain d'un post-it, le
+/// gras du titre d'une membrane (fiche 188 § 4). Le fragment la porte : le clic et le surlignage
+/// mesurent ses lettres dans la face qu'elle dit, celle du dessin.
+pub fn layout_brut(
+    typography: &Typography,
+    source: &str,
+    bx: TextBox,
+    emphasis: Emphasis,
+) -> TextLayout {
+    let face = Face::from(emphasis);
+    let advance = |_: usize, ch: char| typography.advance(ch, bx.body, face);
     let mut out = TextLayout::default();
     let mut debut = 0usize;
     for paragraphe in source.split('\n') {
@@ -27,12 +35,12 @@ pub fn layout_brut(typography: &Typography, source: &str, bx: TextBox) -> TextLa
             out.fragments.push(Fragment {
                 start,
                 end,
-                emphasis: Emphasis::NONE,
+                emphasis,
                 role: SpanRole::Text,
                 tab: NO_TAB,
                 eclaire: false,
             });
-            let lettres = paragraphe[s..e].chars().map(|ch| (ch, Some(Face::Regular)));
+            let lettres = paragraphe[s..e].chars().map(|ch| (ch, Some(face)));
             let (largeur, encre) = typography.gris(lettres, bx.body);
             out.lines.push(VisualLine {
                 start,
@@ -66,7 +74,7 @@ mod tests {
             bullet_indent: 0.0,
             line_height: 17.0,
         };
-        let mise = layout_brut(&typo, source, bx);
+        let mise = layout_brut(&typo, source, bx, Emphasis::NONE);
         assert!(mise.lines.len() >= 4, "{} lignes", mise.lines.len());
         let premier = &source[..source.find('\n').expect("deux paragraphes")];
         let couvert: String = (mise.lines.iter())

@@ -249,7 +249,9 @@ fn test_opening_a_card_aims_in_the_view_the_user_was_looking_at() {
 /// Le point écran d'`offset` dans le nœud en saisie, quel qu'il soit : sa marge et son corps à lui.
 fn point_dans(app: &GlucoseApp, offset: usize) -> (f64, f64) {
     let session = app.editing_session.as_ref().expect("en saisie");
-    let boite = app.card_box(&session.ann_id).expect("sa boîte");
+    let boite = app
+        .card_box(&session.ann_id, &session.buffer)
+        .expect("sa boîte");
     let (layout, corps) = app.editing_layout().expect("sa mise en page");
     let index = crate::renderer::richtext::hit::line_of_offset(&layout, offset);
     let line = &layout.lines[index];
@@ -306,4 +308,101 @@ fn test_post_it_sel_la_souris_choisit_dans_un_post_it() {
         "chat dort\nsur le tapis",
         "le glisser étend"
     );
+}
+
+/// Une membrane titrée `titre`, de 480 × 240 à l'origine, vue à 100 %, son titre ouvert à la saisie.
+fn titre_en_saisie(titre: &str) -> GlucoseApp {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    let vue = Viewport {
+        x: 0.0,
+        y: 300.0,
+        scale: 1.0,
+    };
+    app.store.set_viewport(&board, vue);
+    let mut m = Annotation::membrane("m", 0.0, 0.0, 480.0, 240.0);
+    if let Annotation::Membrane { text, .. } = &mut m {
+        *text = Some(titre.to_string());
+    }
+    app.store.add_annotation(&board, m);
+    app.start_text_edit("m".into(), titre.into());
+    app
+}
+
+/// Ce que la saisie a choisi dans son propre texte.
+fn choisi(app: &GlucoseApp) -> String {
+    let session = app.editing_session.as_ref().expect("en saisie");
+    session.selection.slice(&session.buffer).to_string()
+}
+
+/// Le point écran du rang `rang` du titre, **tel que le dessin le pose** : la loi du noyau
+/// (TITRE-1) et la mesure des lettres grasses du dessin (`saisie::Titre`), sans la mise en page
+/// que la souris lit — c'est elle qu'on éprouve. Le titre tient dans sa membrane : aucun
+/// ajustement.
+fn point_du_titre(app: &GlucoseApp, titre: &str, rang: usize) -> (f64, f64) {
+    use glucose_core::membrane_titre as loi;
+    let s = loi::echelle(480.0, 240.0);
+    let corps = (loi::CORPS * s) as f32;
+    let avant = app
+        .renderer
+        .typography
+        .measure_text(&titre[..rang], corps, crate::typography::Face::Bold)
+        .0;
+    let monde = (
+        loi::RETRAIT * s + f64::from(avant),
+        -loi::ELEVATION * s + f64::from(corps) * 0.6,
+    );
+    let vp = app
+        .store
+        .active_board()
+        .map(|b| b.viewport)
+        .expect("un tableau");
+    world_to_screen(monde.0, monde.1, &vp)
+}
+
+/// **TITRE-SEL — dans le titre d'une membrane, la souris choisit des mots** (fiche 188 § 4 ; sa
+/// note du 27/11, `text-n3rk-2587`). Le double-clic prend le mot sous la souris, le glisser
+/// étend, et un clic tombe à la lettre près, en lettres grasses — mesuré en romain, il tomberait
+/// des lettres trop loin.
+#[test]
+fn test_titre_sel_la_souris_choisit_dans_un_titre() {
+    const TITRE: &str = "Les eaux salées de la mer Rouge";
+    let mut app = titre_en_saisie(TITRE);
+    let mer = TITRE.find("mer").expect("le mot est là");
+    assert!(app.click_text_at(point_du_titre(&app, TITRE, mer + 1), 2, false));
+    assert_eq!(choisi(&app), "mer", "le double-clic prend le mot");
+    app.end_text_drag();
+    let eaux = TITRE.find("eaux").expect("le mot est là");
+    assert!(app.click_text_at(point_du_titre(&app, TITRE, eaux), 1, false));
+    assert!(app.drag_text_to(point_du_titre(&app, TITRE, eaux + 10)));
+    assert_eq!(choisi(&app), "eaux salé", "le glisser étend");
+    app.end_text_drag();
+    // Le gras d'Inter n'est que d'un centième plus large que son romain : sur les vingt-six
+    // lettres qui précèdent « Rouge », 2,7 pixels. Un clic aux 45 % du « R » tombe devant lui —
+    // mesuré en romain, il passerait la moitié de la lettre et tomberait derrière.
+    let rouge = TITRE.find("Rouge").expect("le mot est là");
+    let (x, y) = point_du_titre(&app, TITRE, rouge);
+    let corps = (glucose_core::membrane_titre::CORPS
+        * glucose_core::membrane_titre::echelle(480.0, 240.0)) as f32;
+    let r = app
+        .renderer
+        .typography
+        .advance('R', corps, crate::typography::Face::Bold);
+    assert!(app.click_text_at((x + f64::from(0.45 * r), y), 1, false));
+    let tete = app.editing_session.as_ref().map(|s| s.selection.head);
+    assert_eq!(
+        tete,
+        Some(rouge),
+        "le clic pose le curseur devant « Rouge »"
+    );
+}
+
+/// **Un clic dans le corps d'une membrane n'est pas dans son nom** : il ne déplace pas le
+/// curseur du titre qu'on écrit — c'est un clic de canevas, qui valide la saisie.
+#[test]
+fn test_titre_sel_un_clic_sous_le_bord_n_est_pas_dans_le_titre() {
+    let mut app = titre_en_saisie("Eau");
+    let dedans = point_du_titre(&app, "Eau", 1);
+    assert!(!app.click_text_at((dedans.0, dedans.1 + 60.0), 1, false));
+    assert!(app.click_text_at(dedans, 1, false), "sur le titre, il vise");
 }
