@@ -75,7 +75,7 @@ pub(super) fn chemin(app: &GlucoseApp) -> Vec<(f64, f64)> {
     glucose_core::arrow::path_with(fleche(app), noeuds(app)).expect("un chemin")
 }
 
-fn coudes(app: &GlucoseApp) -> Vec<(f64, f64)> {
+pub(super) fn coudes(app: &GlucoseApp) -> Vec<(f64, f64)> {
     match fleche(app) {
         Annotation::Arrow { waypoints, .. } => waypoints.iter().map(|p| (p.x, p.y)).collect(),
         _ => Vec::new(),
@@ -481,10 +481,10 @@ fn test_fleche_5_une_photo_penchee_se_contourne() {
     }
 }
 
-/// **Une flèche pliée à la main passe par où la main l'a dit** : elle ne contourne pas, même
-/// quand son chemin traverse une carte.
+/// **Un coude posé dans une carte la traverse** (COUDE-2) : on ne sort pas d'une boîte où l'on
+/// est — la main qui l'y met l'a voulu.
 #[test]
-fn test_fleche_5_une_fleche_pliee_a_la_main_ne_contourne_pas() {
+fn test_coude_2_un_coude_pose_dans_une_carte_la_traverse() {
     let mut app = application();
     let board = app.store.project.active_board_id.clone();
     app.store.insert_arrow_bend(&board, "f", 0, (300.0, 30.0));
@@ -494,15 +494,17 @@ fn test_fleche_5_une_fleche_pliee_a_la_main_ne_contourne_pas() {
     assert_eq!(c[1], (300.0, 30.0));
 }
 
-/// **Figer ne touche pas une flèche déjà pliée** : ce sont ses coudes que la main tient.
+/// **Figer un tracé qui n'est que ses coudes ne change rien** (COUDE-2) : aucun geste n'est
+/// écrit pour rien.
 #[test]
-fn test_fleche_5_figer_ne_touche_pas_une_fleche_pliee() {
+fn test_coude_2_figer_ses_seuls_coudes_ne_change_rien() {
     let mut app = application();
     let board = app.store.project.active_board_id.clone();
     app.store.insert_arrow_bend(&board, "f", 0, (300.0, 30.0));
-    app.store
-        .figer_arrow_route(&board, "f", &[(1.0, 2.0), (3.0, 4.0)]);
+    let version = app.store.version;
+    app.store.figer_arrow_route(&board, "f", &[(300.0, 30.0)]);
     assert_eq!(coudes(&app), vec![(300.0, 30.0)]);
+    assert_eq!(app.store.version, version, "rien d'écrit");
 }
 
 /// **Un nœud posé sur un bout ne relance rien** : la recherche l'ignorerait — on ne sort pas

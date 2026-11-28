@@ -239,13 +239,10 @@ fn trace_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<(Vec<(f64, f64)
         (target_id.as_ref(), target_text_sel.as_ref()),
         (*x2, *y2),
     );
-    // Une flèche sans coude contourne ce qu'elle traverserait (FLECHE-5) ; une flèche que la
-    // main a pliée passe par où la main l'a dit.
-    let mut etapes: Vec<(f64, f64)> = if waypoints.is_empty() {
-        contourner(arrow, &noeuds, (depart, arrivee))
-    } else {
-        waypoints.iter().map(|p| (p.x, p.y)).collect()
-    };
+    // Une flèche contourne ce qu'elle traverserait (FLECHE-5) ; une flèche que la main a pliée
+    // passe par ses coudes, et contourne entre eux (COUDE-2, fiche 191).
+    let coudes: Vec<(f64, f64)> = waypoints.iter().map(|p| (p.x, p.y)).collect();
+    let mut etapes = contourner(arrow, &noeuds, (depart, arrivee), &coudes);
     // Droite et parmi des parallèles : elle passe à côté des autres, par un point écarté.
     let ecartee = etapes
         .is_empty()
@@ -281,12 +278,21 @@ fn extremites(
     ((bouts.start.x, bouts.start.y), (bouts.end.x, bouts.end.y))
 }
 
-/// **L'itinéraire d'une flèche sans coude** (FLECHE-5), de l'ancre de sa source à celle de sa
-/// cible — retenu par `noeuds` s'il sait retenir. Courbe, elle se resserre là où elle mordrait.
+/// **L'itinéraire d'une flèche** (FLECHE-5), de l'ancre de sa source à celle de sa cible par
+/// ses coudes — retenu par `noeuds` s'il sait retenir. Courbe, elle se resserre là où elle
+/// mordrait.
+///
+/// **Un coude est un point de passage, pas une ligne droite** (COUDE-2, fiche 191) : le
+/// 27/11, une flèche qu'il avait pliée zigzaguait au milieu des textes de sa bulle, parce
+/// qu'une flèche pliée ne contournait rien. Chaque tronçon d'un coude au suivant contourne
+/// donc comme une flèche entière ; les coudes restent où la main les a mis. Un coude posé
+/// **dans** un nœud le traverse : on ne sort pas d'une boîte où l'on est (`contour`) — la main
+/// qui l'y met l'a voulu.
 fn contourner(
     arrow: &Annotation,
     noeuds: &impl Noeuds,
     (depart, arrivee): (ArrowAnchor, ArrowAnchor),
+    coudes: &[(f64, f64)],
 ) -> Vec<(f64, f64)> {
     let bout = |a: ArrowAnchor| Bout {
         point: (a.x, a.y),
@@ -299,6 +305,7 @@ fn contourner(
         depart: bout(depart),
         arrivee: bout(arrivee),
         courbe: est_courbe(arrow),
+        coudes,
     };
     // **Ce que contient un bout n'est pas un obstacle** (FLECHE-7) : la flèche s'arrête au bord
     // de sa source et de sa cible, rien de leur intérieur ne se voit. Vers une membrane, elle
@@ -311,12 +318,21 @@ fn contourner(
             noeuds.obstacles(zone, sortie);
             sortie.retain(|o| !interieurs.iter().flatten().any(|b| b.contains_rect(*o)));
         };
-        let (a, b) = (cle.depart.point, cle.arrivee.point);
-        let mut etapes = contour::itineraire(a, b, &mut requete);
+        let passages = std::iter::once(cle.depart.point)
+            .chain(coudes.iter().copied())
+            .chain(std::iter::once(cle.arrivee.point))
+            .collect::<Vec<_>>();
+        let mut etapes = Vec::new();
+        for (k, troncon) in passages.windows(2).enumerate() {
+            if k > 0 {
+                etapes.push(troncon[0]);
+            }
+            etapes.extend(contour::itineraire(troncon[0], troncon[1], &mut requete));
+        }
         if cle.courbe && !etapes.is_empty() {
             let bouts = |e: &[(f64, f64)]| extremites(depart, arrivee, e);
-            let exclus = [cle.depart.point, cle.arrivee.point];
-            contour::resserrer(&mut etapes, &bouts, exclus, &mut requete);
+            // Ses coudes aussi : un bloc où la main en a posé un ne se contourne pas.
+            contour::resserrer(&mut etapes, &bouts, &passages, &mut requete);
         }
         etapes
     })

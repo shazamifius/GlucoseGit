@@ -267,16 +267,11 @@ impl GlucoseApp {
     }
 }
 
-/// **Les étapes du détour d'une flèche sans coude** (FLECHE-5) : les points intérieurs de son
-/// tracé. Vide pour une flèche qui a des coudes — ce sont eux que la main tient — ou qui va
-/// droit.
+/// **Les étapes du tracé d'une flèche** (FLECHE-5, COUDE-2) : les points intérieurs de son
+/// tracé — ses coudes et les détours entre eux. Vide pour une flèche qui va droit.
 fn detour(ann: &glucose_core::types::Annotation, noeuds: impl arrow::Noeuds) -> Vec<(f64, f64)> {
-    let a_des_coudes = matches!(
-        ann,
-        glucose_core::types::Annotation::Arrow { waypoints, .. } if !waypoints.is_empty()
-    );
     let chemin = arrow::path_with(ann, noeuds).unwrap_or_default();
-    if a_des_coudes || chemin.len() <= 2 {
+    if chemin.len() <= 2 {
         return Vec::new();
     }
     chemin[1..chemin.len() - 1].to_vec()
@@ -286,6 +281,8 @@ fn detour(ann: &glucose_core::types::Annotation, noeuds: impl arrow::Noeuds) -> 
 mod contour_membrane_tests;
 #[cfg(test)]
 mod contour_tests;
+#[cfg(test)]
+mod coude_2_tests;
 #[cfg(test)]
 mod mesures_tests;
 #[cfg(test)]

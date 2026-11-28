@@ -200,10 +200,13 @@ fn recents_1_la_fouille_trouve_et_dit_qu_elle_a_fini() {
     );
     f.lancer();
     let debut = std::time::Instant::now();
-    while f.en_cours() && debut.elapsed() < std::time::Duration::from_secs(10) {
+    // Le dernier réveil suit la fin (« en_cours » tombe d'abord, pour que la boucle réveillée la
+    // voie) : on attend donc la fin ET les réveils — le 28/11, lu entre les deux, il en manquait un.
+    let reveille = || reveils.load(std::sync::atomic::Ordering::Acquire);
+    while (f.en_cours() || reveille() < 3) && debut.elapsed() < std::time::Duration::from_secs(10) {
         std::thread::yield_now();
     }
-    let reveils = reveils.load(std::sync::atomic::Ordering::Relaxed);
+    let reveils = reveille();
     assert_eq!(f.trouves().len(), 2);
     assert_eq!(f.version(), 3, "deux trouvailles, puis la fin");
     assert_eq!(reveils, 3, "la boucle réveillée à chaque fois");

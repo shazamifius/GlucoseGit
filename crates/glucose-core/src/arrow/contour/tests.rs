@@ -363,7 +363,7 @@ fn test_une_courbe_qui_mordrait_se_resserre() {
         })
     });
     assert!(mordait, "la courbe d'origine mord le bloc");
-    resserrer(&mut etapes, &bouts, [debut, fin], &mut requete);
+    resserrer(&mut etapes, &bouts, &[debut, fin], &mut requete);
     assert!(etapes.len() > 2, "des étapes ont été ajoutées");
     let apres = trace::morceaux(&chemin_complet(debut, &etapes, fin), true);
     for m in &apres {
@@ -397,7 +397,7 @@ fn test_une_courbe_se_resserre_sans_planter_au_hasard() {
             continue;
         }
         let avant = etapes.len();
-        resserrer(&mut etapes, &|_: &[Point]| (a, b), [a, b], &mut requete);
+        resserrer(&mut etapes, &|_: &[Point]| (a, b), &[a, b], &mut requete);
         resserrees += usize::from(etapes.len() > avant);
         let libres = obstacles
             .iter()

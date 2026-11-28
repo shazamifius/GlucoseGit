@@ -392,14 +392,15 @@ impl<'r> Recherche<'r> {
 /// où elle mord, le tronçon fautif et ses deux voisins se coupent en leur milieu : des étapes
 /// plus serrées tendent la courbe vers la ligne brisée, qui ne touche rien. `bouts` rend les deux
 /// extrémités de la flèche pour ces étapes — elles sortent du bloc du côté de la première et de
-/// la dernière.
+/// la dernière. Un bloc qui contient l'un des points `exclus` — ses bouts, ses coudes posés à la
+/// main (COUDE-2) — ne se contourne pas, comme dans [`itineraire`].
 ///
 /// La courbe est vérifiée par sa ligne brisée à la moitié de l'écart près, contre les blocs
 /// élargis d'autant : ce qui passe ce test ne touche aucun bloc.
 pub fn resserrer(
     etapes: &mut Vec<Point>,
     bouts: &dyn Fn(&[Point]) -> (Point, Point),
-    exclus: [Point; 2],
+    exclus: &[Point],
     requete: Requete,
 ) {
     let marge = ECART / 2.0;
@@ -438,7 +439,7 @@ pub fn resserrer(
 /// Ce morceau de courbe entre-t-il dans un bloc ?
 fn mord(
     m: &trace::Morceau,
-    (marge, exclus): (f64, [Point; 2]),
+    (marge, exclus): (f64, &[Point]),
     requete: Requete,
     (tampon, travail): (&mut Vec<Rect>, &mut usize),
 ) -> bool {
@@ -458,9 +459,7 @@ fn mord(
     *travail += tampon.len() * (n + 1) + 1;
     tampon.iter().any(|r| {
         let o = Boite::de(*r, marge);
-        !o.contient(exclus[0])
-            && !o.contient(exclus[1])
-            && brisee.windows(2).any(|s| o.traversee(s[0], s[1]))
+        !exclus.iter().any(|e| o.contient(*e)) && brisee.windows(2).any(|s| o.traversee(s[0], s[1]))
     })
 }
 

@@ -60,7 +60,7 @@ pub trait Noeuds {
 }
 
 /// **Ce dont l'itinéraire d'une flèche dépend**, hors du reste du tableau : la flèche, ses deux
-/// bouts, et si elle est courbe. Le reste — les obstacles — ne change qu'avec le document, et
+/// bouts, ses coudes, et si elle est courbe. Le reste — les obstacles — ne change qu'avec le document, et
 /// celui qui retient les itinéraires les oublie alors tous.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Itineraire<'a> {
@@ -68,6 +68,8 @@ pub struct Itineraire<'a> {
     pub depart: Bout,
     pub arrivee: Bout,
     pub courbe: bool,
+    /// Les coudes posés par la main, par où elle passe (COUDE-2) : sans détour, son chemin.
+    pub coudes: &'a [(f64, f64)],
 }
 
 impl<F: Fn(&str) -> Option<Rect>> Noeuds for F {

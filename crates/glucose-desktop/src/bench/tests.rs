@@ -287,7 +287,9 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Puis, le 25/11** (COURBE-1, fiche 152) : la flèche courbe en centripète — 59 pixels, tous sur
 /// elle (972-1120 × 621-703) ; regardée avant/après, agrandie quatre fois : la même arche, à peine
 /// plus régulière à droite.
-const EMPREINTE_TEMOIN: &str = "2fd936a2d77f623f";
+/// **Puis, le 28/11** (COUDE-2, fiche 191) : la flèche pliée « d'après Gauss » contourne « Dossier
+/// témoin » au lieu de le traverser — 7 491 pixels (628-920 × 431-604) ; regardée avant/après, agrandie.
+const EMPREINTE_TEMOIN: &str = "50de5fc2f76e3dc5";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -417,7 +419,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis, le 25/11** (COURBE-1, fiche 152) : la flèche courbe en centripète — 59 pixels, tous sur
 /// elle (972-1120 × 621-703) ; regardée avant/après, agrandie quatre fois : la même arche, à peine
 /// plus régulière à droite.
-const EMPREINTE_TEMOIN_SELECTION: &str = "d0b8995a2e0f1779";
+/// **Puis, le 28/11** (COUDE-2, fiche 191) : la flèche pliée « d'après Gauss » contourne « Dossier
+/// témoin » au lieu de le traverser — 11 925 pixels (628-1136 × 428-710) ; regardée avant/après, agrandie.
+/// La courbe pliée, près de la photo penchée, se resserre un peu à droite : elle évite la boîte
+/// droite de la photo (un obstacle est un rectangle), comme une courbe sans coude.
+const EMPREINTE_TEMOIN_SELECTION: &str = "2830ce86e8c59304";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -535,7 +541,11 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis, le 25/11** (COURBE-1, fiche 152) : la flèche courbe en centripète — 59 pixels, tous sur
 /// elle (972-1120 × 621-703) ; regardée avant/après, agrandie quatre fois : la même arche, à peine
 /// plus régulière à droite.
-const EMPREINTE_TEMOIN_MENU: &str = "4efa84bcc5148bf2";
+/// **Puis, le 28/11** (COUDE-2, fiche 191) : la flèche pliée « d'après Gauss » contourne « Dossier
+/// témoin » au lieu de le traverser — 2 770 pixels (628-1136 × 428-710) ; regardée avant/après, agrandie.
+/// La courbe pliée, près de la photo penchée, se resserre un peu à droite : elle évite la boîte
+/// droite de la photo (un obstacle est un rectangle), comme une courbe sans coude.
+const EMPREINTE_TEMOIN_MENU: &str = "715454ecaa97ff05";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

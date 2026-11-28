@@ -53,6 +53,8 @@ pub type Epoque = (u64, u64, usize, [usize; 3]);
 /// le cherchant (triés).
 struct Entree {
     bouts: (Bout, Bout, bool),
+    /// Les coudes posés par la main qu'il a vus (COUDE-2).
+    coudes: Vec<Point>,
     etapes: Vec<Point>,
     lus: Vec<u32>,
     /// Cherché pour l'état présent du document ; périmé, il se montre en attendant d'être refait.
@@ -197,7 +199,7 @@ impl Itineraires {
     ) -> Vec<Point> {
         let bouts = (cle.depart, cle.arrivee, cle.courbe);
         if let Some(entree) = self.table.borrow().get(cle.fleche) {
-            if entree.frais && entree.bouts == bouts {
+            if entree.frais && entree.bouts == bouts && entree.coudes == cle.coudes {
                 return entree.etapes.clone();
             }
         }
@@ -207,12 +209,11 @@ impl Itineraires {
             if !dettes.iter().any(|d| d == cle.fleche) {
                 dettes.push(cle.fleche.to_string());
             }
-            return self
-                .table
-                .borrow()
-                .get(cle.fleche)
-                .map(|e| e.etapes.clone())
-                .unwrap_or_default();
+            // Un coude qu'on glisse se montre sous la main, jamais à sa place d'avant : un
+            // chemin d'autres coudes cède à ses coudes, tout droit entre eux.
+            return (self.table.borrow().get(cle.fleche))
+                .filter(|e| e.coudes == cle.coudes)
+                .map_or_else(|| cle.coudes.to_vec(), |e| e.etapes.clone());
         }
         self.une_faite.set(true);
         *self.lecture.borrow_mut() = Some(Vec::new());
@@ -225,6 +226,7 @@ impl Itineraires {
             cle.fleche.to_string(),
             Entree {
                 bouts,
+                coudes: cle.coudes.to_vec(),
                 etapes: etapes.clone(),
                 lus,
                 frais: true,

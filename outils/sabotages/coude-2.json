@@ -1,0 +1,142 @@
+[
+ {
+  "nom": "191 COUDE-2 — une flèche pliée ne contourne plus",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "etapes.extend(contour::itineraire(troncon[0], troncon[1], &mut requete));",
+  "apres": "etapes.extend(contour::itineraire(troncon[0], troncon[1], &mut requete).into_iter().filter(|_| coudes.is_empty()));",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "coude_2"
+  ]
+ },
+ {
+  "nom": "191 COUDE-2 — les coudes sont oubliés",
+  "fichier": "crates/glucose-core/src/arrow.rs",
+  "avant": "                etapes.push(troncon[0]);",
+  "apres": "                let _ = troncon[0];",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "coude_2"
+  ]
+ },
+ {
+  "nom": "191 COUDE-2 — la mémoire ignore les coudes",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": "if entree.frais && entree.bouts == bouts && entree.coudes == cle.coudes {",
+  "apres": "if entree.frais && entree.bouts == bouts {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "coude_2"
+  ]
+ },
+ {
+  "nom": "191 COUDE-2 — à court de temps, la place d'avant du coude",
+  "fichier": "crates/glucose-desktop/src/renderer/arrow/itineraires.rs",
+  "avant": ".filter(|e| e.coudes == cle.coudes)",
+  "apres": ".filter(|_| true)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "coude_2"
+  ]
+ },
+ {
+  "nom": "191 COUDE-2 — figer ne touche plus une flèche pliée",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "                *waypoints = etapes.iter().map(|p| Point2D { x: p.0, y: p.1 }).collect();",
+  "apres": "                if waypoints.is_empty() {\n                    *waypoints = etapes.iter().map(|p| Point2D { x: p.0, y: p.1 }).collect();\n                }",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit"
+  ]
+ },
+ {
+  "nom": "191 COUDE-2 — le tracé d'une flèche pliée n'est pas saisi",
+  "fichier": "crates/glucose-desktop/src/interactions/arrow_edit.rs",
+  "avant": "    if chemin.len() <= 2 {\n        return Vec::new();\n    }\n    chemin[1..",
+  "apres": "    if chemin.len() <= 2 || matches!(ann, glucose_core::types::Annotation::Arrow { waypoints, .. } if !waypoints.is_empty()) {\n        return Vec::new();\n    }\n    chemin[1..",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit"
+  ]
+ },
+ {
+  "nom": "191 COUDE-2 — figer rien efface les coudes",
+  "fichier": "crates/glucose-core/src/store/annotations.rs",
+  "avant": "        if etapes.is_empty() {\n            return;\n        }\n        self.update_annotation(board_id, arrow_id, |ann| {\n            if let Annotation::Arrow { waypoints, .. } = ann {\n                *waypoints",
+  "apres": "        self.update_annotation(board_id, arrow_id, |ann| {\n            if let Annotation::Arrow { waypoints, .. } = ann {\n                *waypoints",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "arrow_edit"
+  ]
+ }
+]
