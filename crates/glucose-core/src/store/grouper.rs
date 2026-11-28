@@ -14,6 +14,9 @@
 //! * **La membrane neuve naît dans la plus proche membrane qui contient toutes les racines** — leur
 //!   ancêtre commun —, qui grandit s'il le faut, ses parentes avec elle (MEMB-7). Sans ancêtre
 //!   commun, elle est à la racine du tableau.
+//! * **Ce que son cadre entoure sans avoir été choisi y entre aussi** — la plus petite membrane qui
+//!   contient son centre, la loi du dépôt et de l'outil membrane ([`Store::adopter_ce_qu_elle_entoure`]) :
+//!   sa note du 27/11 (`text-n3rk-2526`), « la position est le seul facteur » (fiche 187).
 //! * Elle est choisie, et rien d'autre ne bouge. L'appelant en fait **un** geste.
 
 use super::Store;
@@ -87,6 +90,9 @@ impl Store {
             // Une membrane qui grandit fait grandir les siennes (MEMB-7).
             let _ = self.agrandir_la_membrane_pour(board_id, &p, cadre);
         }
+        // **Ce que son cadre entoure sans qu'on l'ait choisi y entre** (fiche 187) : dedans pour
+        // l'œil, il l'est pour l'IA — la loi de l'outil membrane, celle du dépôt (son centre).
+        self.adopter_ce_qu_elle_entoure(board_id, &id);
         Some(id)
     }
 }

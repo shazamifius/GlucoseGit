@@ -1,0 +1,22 @@
+[
+ {
+  "nom": "187 GROUPER — le cadre neuf n'adopte rien de ce qu'il entoure",
+  "fichier": "crates/glucose-core/src/store/grouper.rs",
+  "avant": "        self.adopter_ce_qu_elle_entoure(board_id, &id);\n        Some(id)",
+  "apres": "        Some(id)",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "grouper_1"
+  ]
+ }
+]

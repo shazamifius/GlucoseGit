@@ -99,3 +99,24 @@ fn grouper_1_rien_sans_boite() {
     assert_eq!(store.grouper_dans_une_membrane(), None);
     assert_eq!(store.undo_depth(), profondeur, "rien n'est écrit");
 }
+
+/// **Ce que le cadre entoure sans avoir été choisi y entre** (fiche 187 ; sa note du 27/11,
+/// `text-n3rk-2526` : « la position est le seul facteur ») : un texte « c » entre « a » et « b »,
+/// non choisi, était dedans pour l'œil et dehors pour l'IA. Celui qui reste dehors, dehors.
+#[test]
+fn grouper_1_ce_que_le_cadre_entoure_y_entre() {
+    let mut store = Store::new("grouper");
+    texte(&mut store, "a", 0.0, 0.0);
+    texte(&mut store, "b", 800.0, 600.0);
+    texte(&mut store, "c", 400.0, 300.0);
+    texte(&mut store, "loin", 3000.0, 3000.0);
+    let avant = store.project.clone();
+    store.set_selected_annotation_ids(vec!["a".into(), "b".into()]);
+    store.begin_live_edit();
+    let g = store.grouper_dans_une_membrane().expect("une membrane");
+    store.end_live_edit();
+    assert_eq!(membrane_id(&store, "c").as_deref(), Some(g.as_str()));
+    assert_eq!(membrane_id(&store, "loin"), None);
+    assert!(store.undo(), "un geste");
+    assert_eq!(store.project, avant, "Ctrl+Z rend tout");
+}

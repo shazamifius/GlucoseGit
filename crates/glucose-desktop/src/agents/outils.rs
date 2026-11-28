@@ -173,7 +173,8 @@ const OUTILS: &[(&str, &str, &str)] = &[
     (
         "glucose_grouper",
         "Entoure ces nœuds d'une membrane neuve — une région —, née dans la plus proche membrane \
-         qui les contient tous ; ce qu'une membrane nommée contient la suit sans changer de place. \
+         qui les contient tous ; ce qu'une membrane nommée contient la suit sans changer de place ; \
+         un voisin que son cadre entoure (son centre dedans) y entre aussi, comme l'œil le voit. \
          Le geste « Grouper dans une membrane » (Ctrl+G) de l'humain, en un geste qu'il défait par \
          Ctrl+Z. Rend l'identifiant de la membrane et sa boîte.",
         r##"{"type":"object","properties":{"ids":{"type":"array","items":{"type":"string"},"description":"les nœuds à entourer"},"titre":{"type":"string"},"couleur":{"type":"string","description":"#rrggbb"},"tableau":{"type":"string"}},"required":["ids"]}"##,

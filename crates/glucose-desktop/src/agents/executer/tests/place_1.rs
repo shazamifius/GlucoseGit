@@ -97,23 +97,38 @@ fn place_1_une_membrane_agrandie_sur_un_voisin_le_dit() {
     assert!(dit.get("attention").is_some(), "{}", dit.ecrire());
 }
 
-/// **Un texte allongé qui pousse sa membrane sur un voisin, l'IA le sait** (fiche 185 § 5) : le
-/// 27/11, le plan du relais allongé a poussé sa bulle sur une note de l'humain, sans un mot.
+/// **Un texte qu'une IA allonge pousse comme sous la main de l'humain** (fiche 185 § 7,
+/// POUSSER-145) : le 27/11, le plan du relais allongé a fait grandir sa bulle sur une note de
+/// l'humain. Sa membrane grandit, et le voisin de dessous descend : rien ne se chevauche.
 #[test]
-fn place_1_un_texte_allonge_sur_un_voisin_le_dit() {
+fn place_1_un_texte_allonge_pousse_le_voisin_de_sa_membrane() {
     let mut app = une_membrane_et_son_texte();
     appeler(
         &mut app,
         "glucose_poser_texte",
         r#"{"id":"v","texte":"Voisin.","x":400,"y":700}"#,
     );
-    let court = r#"{"id":"t","texte":"Dedans, deux lignes.\n\nPas plus."}"#;
-    let dit = appeler(&mut app, "glucose_ecrire", court);
-    assert!(dit.get("attention").is_none(), "{}", dit.ecrire());
+    let avant = boite(&app, "v");
     let long = format!(
         r#"{{"id":"t","texte":"{}"}}"#,
         "Une ligne.\\n\\n".repeat(20)
     );
-    let dit = appeler(&mut app, "glucose_ecrire", &long);
-    assert!(dit.get("attention").is_some(), "{}", dit.ecrire());
+    appeler(&mut app, "glucose_ecrire", &long);
+    let (m, v) = (boite(&app, "m"), boite(&app, "v"));
+    assert!(
+        m.bottom() > avant.top,
+        "la membrane a grandi jusqu'au voisin : {m:?}"
+    );
+    assert!(
+        v.top >= m.bottom(),
+        "le voisin est poussé sous elle : {v:?} {m:?}"
+    );
+    assert_eq!(v.left, avant.left, "il descend, sans glisser de côté");
+    let dit = appeler(&mut app, "glucose_verifier", "{}");
+    assert_eq!(
+        dit.get("propre"),
+        Some(&Json::Bool(true)),
+        "{}",
+        dit.ecrire()
+    );
 }

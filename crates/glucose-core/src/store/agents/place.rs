@@ -250,29 +250,21 @@ mod tests;
 
 impl Store {
     /// **Un texte prend la hauteur de son contenu** (TEXT-FIT-1) — que l'application mesure,
-    /// le noyau ne connaissant pas les polices — et la membrane qui le contient grandit avec
-    /// lui : un document qu'un agent allonge ne déborde jamais de sa bulle.
+    /// le noyau ne connaissant pas les polices — et **pousse comme sous la main de l'humain**
+    /// (POUSSER-145, fiche 145) : ses voisins de dessous descendent, sa membrane grandit jusqu'à
+    /// eux et pousse les siens, étage après étage. Le 27/11, le plan du relais allongé a fait
+    /// grandir sa bulle sur une note de l'humain : une seule loi pour les deux mains (fiche 185 § 7).
     pub fn tenir_la_hauteur_pour_un_agent(
         &mut self,
         board_id: &str,
         id: &str,
         hauteur: f64,
-    ) -> Result<bool, Refus> {
+    ) -> Result<(), Refus> {
         let Some(a) = self.project.annotation(board_id, id) else {
             return Err(Refus::NoeudInconnu(id.to_string()));
         };
         let (Annotation::Text { height, .. }, Some(boite)) = (a, a.rect()) else {
-            return Ok(true);
-        };
-        let membrane = a.membrane_id().map(str::to_string);
-        // **Allongé sur un voisin, ou sa membrane grandie sur une voisine, l'IA le sait** (PLACE-1,
-        // fiche 185 § 5) : le 27/11, le plan du relais allongé a poussé sa bulle sur une note de
-        // l'humain, sans un mot. Le texte reste où il est — c'est son contenu qui a grandi.
-        let grandi = Rect::new(boite.left, boite.top, boite.width, hauteur);
-        let maison = membrane.as_deref().map_or(Maison::OuIlTombe, Maison::Dite);
-        let libre = hauteur <= boite.height || {
-            let p = self.place_libre(board_id, grandi, maison, &[id])?;
-            (p.x, p.y) == (grandi.left, grandi.top)
+            return Ok(());
         };
         if *height != Some(hauteur) {
             self.update_annotation(board_id, id, |a| {
@@ -281,9 +273,8 @@ impl Store {
                 }
             });
         }
-        if let Some(m) = membrane {
-            self.agrandir_la_membrane_pour(board_id, &m, grandi)?;
-        }
-        Ok(libre)
+        let mut origines = vec![(id.to_string(), boite)];
+        self.pousser_en_ecrivant(board_id, &mut origines, id, boite.top + hauteur);
+        Ok(())
     }
 }

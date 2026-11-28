@@ -300,10 +300,10 @@
   ]
  },
  {
-  "nom": "PLACE-1 — un texte allongé sans le dire",
+  "nom": "PLACE-1 — un texte allongé par une IA ne pousse rien (fiche 185 § 7)",
   "fichier": "crates/glucose-core/src/store/agents/place.rs",
-  "avant": "(p.x, p.y) == (grandi.left, grandi.top)",
-  "apres": "(p.x, p.y) == (grandi.left, grandi.top) || true",
+  "avant": "        self.pousser_en_ecrivant(board_id, &mut origines, id, boite.top + hauteur);",
+  "apres": "        let _ = (&mut origines, boite);",
   "cmd": [
    "bash",
    "outils/borne.sh",
