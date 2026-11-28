@@ -522,3 +522,28 @@ fn agents_toujours_pas_retenu_sur_le_disque_se_dit() {
         question.texte
     );
 }
+
+/// **L'IA d'un lecteur n'écrit pas, et le sait** (LECTEUR-1, fiche 193) : son écriture rend une
+/// erreur qui dit pourquoi, au lieu d'un succès dont rien ne resterait ; sa lecture passe.
+#[test]
+fn lecteur_1_l_ia_d_un_lecteur_n_ecrit_pas_et_le_sait() {
+    let (mut app, boite) = app_et_boite();
+    assert!(app.store.rejoindre("c9", false, 0));
+    let ecrire = appeler(
+        &boite,
+        "proteo",
+        "glucose_poser_texte",
+        r#"{"id":"a","texte":"x"}"#,
+    );
+    app.suivre_les_agents();
+    repondre(&mut app, Reponse::Oui);
+    let ligne = ecrire.try_recv().expect("répondu");
+    assert!(
+        en_erreur(&ligne) && ligne.contains("lecture seule"),
+        "{ligne}"
+    );
+    assert!(!existe(&app, "a"));
+    let lire = appeler(&boite, "proteo", "glucose_lire", "{}");
+    app.suivre_les_agents();
+    assert!(!en_erreur(&lire.try_recv().expect("répondu")));
+}

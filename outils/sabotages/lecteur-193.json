@@ -118,5 +118,45 @@
    "--",
    "lecteur"
   ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — l'IA d'un lecteur écrit",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "if self.store.lecteur() && !outils::lit_seulement(&d.appel.nom) {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — l'IA d'un lecteur ne lit plus",
+  "fichier": "crates/glucose-desktop/src/app/agents.rs",
+  "avant": "if self.store.lecteur() && !outils::lit_seulement(&d.appel.nom) {",
+  "apres": "if self.store.lecteur() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
  }
 ]

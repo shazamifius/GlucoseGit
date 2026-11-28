@@ -135,6 +135,10 @@ enum Prochaine {
     Rien { a_demander: Option<String> },
 }
 
+/// Pourquoi l'IA d'un lecteur n'écrit pas.
+const LECTURE_SEULE: &str =
+    "ce canevas est partagé en lecture seule (le code de l'humain ne fait que regarder)";
+
 /// Le titre de la question d'accord.
 const TITRE: &str = "Un agent veut travailler ici";
 
@@ -241,6 +245,12 @@ impl GlucoseApp {
         // Une photo se lit sur un fil, qui répond lui-même (MCP-VOIR).
         if d.appel.nom == "glucose_voir" {
             return self.voir_pour_un_agent(d);
+        }
+        // Un lecteur ne modifie rien (LECTEUR-1, fiche 193) : l'IA qu'il a branchée non plus —
+        // et elle le sait, au lieu d'un succès dont rien ne resterait.
+        if self.store.lecteur() && !outils::lit_seulement(&d.appel.nom) {
+            let client = d.appel.client.clone();
+            return refuser(d, &client, LECTURE_SEULE);
         }
         if !d.appel.portee.machine {
             // L'onglet que l'appel vise : le sien, ou celui qu'il regarde.
