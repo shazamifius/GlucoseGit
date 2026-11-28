@@ -55,6 +55,14 @@ pub enum Command {
 }
 
 impl Command {
+    /// **Cette intention change-t-elle le texte ?** Ce qu'un lecteur ne fait pas.
+    pub fn ecrit(&self) -> bool {
+        matches!(
+            self,
+            Self::Insert(_) | Self::Delete(..) | Self::Cut | Self::Paste | Self::Undo | Self::Redo
+        )
+    }
+
     /// L'intention d'une frappe, et si elle étend la sélection au lieu de la déplacer.
     ///
     /// `None` quand la frappe ne veut rien dire ici : elle est alors **avalée** malgré tout,
@@ -165,6 +173,10 @@ impl GlucoseApp {
 
     /// Exécute une intention sur la saisie en cours.
     pub(crate) fn apply_text_command(&mut self, command: Command, extend: bool) {
+        // Un lecteur choisit et copie ; il n'écrit pas (LECTEUR-1, fiche 193).
+        if command.ecrit() && self.store.lecteur_refuse_un_geste() {
+            return;
+        }
         // **Le point unique ou toute modification passe** : c'est donc le seul endroit ou
         // l'historique ait a se tenir, et aucune commande ne peut lui echapper par distraction.
         self.noter_pour_annulation(&command);

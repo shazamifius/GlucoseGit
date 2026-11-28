@@ -49,8 +49,9 @@ impl GlucoseApp {
             return;
         };
         // Un geste déjà ouvert (un glisser) n'est pas le nôtre : le pas suivant, ou la validation,
-        // rattrapera la hauteur.
-        if self.store.in_live_edit() {
+        // rattrapera la hauteur. Un lecteur n'écrit rien : sa hauteur est celle qu'il lit
+        // (LECTEUR-1), et un refus qu'il n'a pas demandé ne doit pas lui être dit.
+        if self.store.in_live_edit() || self.store.lecteur() {
             return;
         }
         self.store.begin_live_edit();

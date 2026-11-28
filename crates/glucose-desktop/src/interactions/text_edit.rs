@@ -42,9 +42,10 @@ impl GlucoseApp {
         initial_text: String,
         selection: Selection,
     ) {
-        // Un lecteur n'écrit pas (LECTEUR-1) : la saisie ne s'ouvre pas — chaque frappe serait
-        // refusée sous ses yeux.
-        if self.store.lecteur_refuse_un_geste() {
+        // Un lecteur ouvre la saisie d'un nœud qui existe pour y choisir et copier, sans écrire
+        // (LECTEUR-1, `apply_text_command`) ; celui qu'il voulait poser a été refusé.
+        let tableau = &self.store.project.active_board_id;
+        if self.store.lecteur() && self.store.project.annotation(tableau, &ann_id).is_none() {
             return;
         }
         let selection = selection.clamped(&initial_text);
@@ -81,6 +82,11 @@ impl GlucoseApp {
         let Some(session) = self.editing_session.take() else {
             return;
         };
+        // Un lecteur n'a rien écrit (LECTEUR-1) : la saisie se ferme, rien ne s'enregistre — pas
+        // même la hauteur que sa machine mesurerait autrement.
+        if self.store.lecteur() {
+            return;
+        }
         let board = self.store.project.active_board_id.clone();
         let is_empty = session.buffer.trim().is_empty();
         let is_text_card = self

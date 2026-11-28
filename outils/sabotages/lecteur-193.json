@@ -100,26 +100,6 @@
   ]
  },
  {
-  "nom": "193 LECTEUR-1 — la saisie s'ouvre au lecteur",
-  "fichier": "crates/glucose-desktop/src/interactions/text_edit.rs",
-  "avant": "        if self.store.lecteur_refuse_un_geste() {\n            return;\n        }\n        let selection",
-  "apres": "        let selection",
-  "cmd": [
-   "bash",
-   "outils/borne.sh",
-   "nix",
-   "develop",
-   "-c",
-   "cargo",
-   "test",
-   "-p",
-   "glucose-desktop",
-   "--lib",
-   "--",
-   "lecteur"
-  ]
- },
- {
   "nom": "193 LECTEUR-1 — l'IA d'un lecteur écrit",
   "fichier": "crates/glucose-desktop/src/app/agents.rs",
   "avant": "if self.store.lecteur() && !outils::lit_seulement(&d.appel.nom) {",
@@ -144,6 +124,106 @@
   "fichier": "crates/glucose-desktop/src/app/agents.rs",
   "avant": "if self.store.lecteur() && !outils::lit_seulement(&d.appel.nom) {",
   "apres": "if self.store.lecteur() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — la saisie d'un nœud refusé s'ouvre",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit.rs",
+  "avant": "if self.store.lecteur() && self.store.project.annotation(tableau, &ann_id).is_none() {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — le lecteur écrit dans un texte",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/keys.rs",
+  "avant": "if command.ecrit() && self.store.lecteur_refuse_un_geste() {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — effacer n'est plus écrire",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/keys.rs",
+  "avant": "Self::Insert(_) | Self::Delete(..) | Self::Cut",
+  "apres": "Self::Insert(_) | Self::Cut",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — choisir écrit la hauteur",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit/poussee.rs",
+  "avant": "if self.store.in_live_edit() || self.store.lecteur() {",
+  "apres": "if self.store.in_live_edit() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — sortir écrit",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit.rs",
+  "avant": "        if self.store.lecteur() {\n            return;\n        }\n        let board",
+  "apres": "        let board",
   "cmd": [
    "bash",
    "outils/borne.sh",
