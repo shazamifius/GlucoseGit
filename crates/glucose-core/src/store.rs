@@ -53,6 +53,7 @@ mod ids;
 mod images;
 mod importer;
 pub mod journal;
+mod lecteur;
 mod lot;
 mod membranes;
 pub mod mesurer;

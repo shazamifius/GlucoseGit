@@ -96,11 +96,7 @@ fn dessiner_le_temoin(
     let (mot, couleur, plein) = match synchro {
         Synchro::Reliee => ("synchro".to_string(), theme.text_muted, true),
         Synchro::EnRoute => ("synchro…".to_string(), theme.text_muted, false),
-        Synchro::Regarde => (
-            "lecture seule : tes gestes restent ici".into(),
-            theme.danger,
-            false,
-        ),
+        Synchro::Regarde => ("lecture seule : tu regardes".into(), theme.danger, false),
         Synchro::Coupee(0) => ("synchro coupée".into(), theme.danger, false),
         Synchro::Coupee(n) => (
             format!("synchro coupée · {n} en attente"),

@@ -597,3 +597,6 @@ fn fondre_145_un_geste_defait_ne_se_refond_pas() {
     }
     assert_eq!(xs(&alice).len(), 2, "seul le pas b s'est défait");
 }
+
+#[path = "lecteur_tests.rs"]
+mod lecteur_tests;

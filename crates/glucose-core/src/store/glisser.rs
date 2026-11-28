@@ -186,6 +186,10 @@ impl Store {
         total: (f64, f64),
         emporte: impl FnOnce(&Store) -> Option<Edit>,
     ) {
+        // Un lecteur ne déplace rien (LECTEUR-1) : rien ne bouge sous sa main, pas même un pas.
+        if self.lecteur_refuse_un_geste() {
+            return;
+        }
         let suit = self.glisser.as_ref().is_some_and(|g| {
             g.geste == geste && g.board == board_id && g.premier + g.pas == ecrits
         });

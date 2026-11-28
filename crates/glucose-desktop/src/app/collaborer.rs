@@ -141,7 +141,9 @@ const SALLE_VIDE: &str = "Ce code ne mène encore à aucun canevas : vérifie qu
 /// lecteur, défaits.
 fn ce_qui_n_a_pas_tenu(croises: bool, defaits: usize) -> Option<String> {
     match (croises, defaits) {
-        (_, d) if d > 0 => Some("Ton code ne fait que regarder : tes gestes ne partent pas".into()),
+        (_, d) if d > 0 => {
+            Some("Ton code ne fait que regarder : ce canevas ne se modifie pas d'ici".into())
+        }
         (true, _) => Some("Deux gestes ont touché le même nœud : le plus récent l'emporte".into()),
         _ => None,
     }

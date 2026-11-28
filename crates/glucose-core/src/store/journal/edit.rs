@@ -157,7 +157,7 @@ impl Edit {
         }
     }
 
-    pub(super) fn flip(&mut self) {
+    pub(crate) fn flip(&mut self) {
         match self {
             Self::Image { slot, .. } => slot.flip(),
             Self::Annotation { slot, .. } => slot.flip(),

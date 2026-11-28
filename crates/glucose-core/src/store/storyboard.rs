@@ -452,6 +452,9 @@ impl Store {
         images: &[String],
         total: (f64, f64),
     ) {
+        if self.lecteur_refuse_un_geste() {
+            return;
+        }
         let Some((_, edits)) = self.journal.en_cours() else {
             return;
         };
@@ -484,7 +487,7 @@ impl Store {
             }
             None => {
                 let slot = Slot::changed(index, actuelle, neuve);
-                self.journal.record(Edit::Panel { board, slot });
+                self.record_edit(Edit::Panel { board, slot });
             }
         }
         self.glisser_ces_images(board_id, images, total);

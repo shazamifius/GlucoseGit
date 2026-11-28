@@ -165,6 +165,9 @@ impl Store {
     /// changement n'est publié qu'au relâchement, par `end_live_edit`. Un geste abandonné en
     /// route ne doit donc laisser aucune trace, pas même un numéro de version consommé.
     pub(super) fn record_edit(&mut self, edit: crate::store::journal::Edit) {
+        if self.refuser_au_lecteur(std::slice::from_ref(&edit)) {
+            return;
+        }
         if self.journal.record(edit) {
             self.bump_version();
         }
@@ -176,7 +179,7 @@ impl Store {
     /// Une liste vide ne laisse aucune trace — une suppression qui ne supprime rien n'est pas
     /// un geste.
     pub(super) fn record_as_one_gesture(&mut self, edits: Vec<crate::store::journal::Edit>) {
-        if edits.is_empty() {
+        if edits.is_empty() || self.refuser_au_lecteur(&edits) {
             return;
         }
         let already_open = self.journal.is_open();

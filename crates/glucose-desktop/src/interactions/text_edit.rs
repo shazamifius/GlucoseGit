@@ -13,6 +13,9 @@
 pub mod geometry;
 pub mod historique;
 pub(crate) mod keys;
+#[cfg(test)]
+#[path = "text_edit/lecteur_tests.rs"]
+mod lecteur_tests;
 pub mod miroir;
 mod montrer;
 pub mod poussee;
@@ -39,6 +42,11 @@ impl GlucoseApp {
         initial_text: String,
         selection: Selection,
     ) {
+        // Un lecteur n'écrit pas (LECTEUR-1) : la saisie ne s'ouvre pas — chaque frappe serait
+        // refusée sous ses yeux.
+        if self.store.lecteur_refuse_un_geste() {
+            return;
+        }
         let selection = selection.clamped(&initial_text);
         // **Le passe d'une saisie ne se prolonge pas dans une autre** (TEXTE-UNDO-1). Sans
         // cet oubli, annuler dans une carte y reposerait le texte d'une carte precedente --

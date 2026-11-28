@@ -229,7 +229,8 @@ impl Store {
                 continue;
             }
             if !p.ecrivain {
-                // Un lecteur regarde : ce qu'il fait ne part pas, et se défait aussitôt.
+                // Un filet : le journal refuse déjà ce qu'un lecteur ferait (LECTEUR-1) ; ce qui
+                // y échapperait ne part pas, et se défait aussitôt.
                 let defait = geste.inverse().appliquer(project).realisee;
                 journal.publier_tel(defait, Main::Humain);
                 refuses += 1;

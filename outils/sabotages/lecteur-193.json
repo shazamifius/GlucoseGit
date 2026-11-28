@@ -1,0 +1,122 @@
+[
+ {
+  "nom": "193 LECTEUR-1 — le journal ne refuse rien",
+  "fichier": "crates/glucose-core/src/store/lecteur.rs",
+  "avant": "if !self.lecteur() || edits.iter().all(Edit::is_noop) {",
+  "apres": "if true {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — les éditions retournées dans l'ordre",
+  "fichier": "crates/glucose-core/src/store/lecteur.rs",
+  "avant": "edits.iter().rev()",
+  "apres": "edits.iter()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — une saisie en bloc n'est plus refusée",
+  "fichier": "crates/glucose-core/src/store/undo.rs",
+  "avant": "if edits.is_empty() || self.refuser_au_lecteur(&edits) {",
+  "apres": "if edits.is_empty() {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — un glisser bouge sous sa main",
+  "fichier": "crates/glucose-core/src/store/glisser.rs",
+  "avant": "        if self.lecteur_refuse_un_geste() {\n            return;\n        }\n        let suit =",
+  "apres": "        let suit =",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — un refus n'est plus compté",
+  "fichier": "crates/glucose-core/src/store/lecteur.rs",
+  "avant": "                p.defaits_au_lecteur += 1;\n",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — la saisie s'ouvre au lecteur",
+  "fichier": "crates/glucose-desktop/src/interactions/text_edit.rs",
+  "avant": "        if self.store.lecteur_refuse_un_geste() {\n            return;\n        }\n        let selection",
+  "apres": "        let selection",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur"
+  ]
+ }
+]

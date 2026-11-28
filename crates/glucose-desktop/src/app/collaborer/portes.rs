@@ -131,7 +131,7 @@ impl GlucoseApp {
         let pouvoir = if cp.code.peut_ecrire() {
             ""
         } else {
-            "\n\nTon code ne fait que regarder : tes gestes ne partent pas."
+            "\n\nTon code ne fait que regarder : tu vois tout, tu ne modifies rien."
         };
         let photos = self.photos_en_attente();
         let avec = avec(cp);
