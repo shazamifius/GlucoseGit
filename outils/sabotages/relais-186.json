@@ -1,0 +1,306 @@
+[
+ {
+  "nom": "186 FIGÉE — seule l'arrêtée se ferme (comme avant : dix-huit heures ouverte)",
+  "fichier": "outils/relais/loi.py",
+  "avant": "    if maintenant - immobile_depuis < ENDORMIE:\n        return None",
+  "apres": "    if maintenant - immobile_depuis < ENDORMIE or not session.get(\"laissee\"):\n        return None",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — les essais ne s'espacent pas",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return min(PREMIER_ESSAI * 2 ** max(fois - 1, 0), ENDORMIE)",
+  "apres": "return PREMIER_ESSAI",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — les essais s'espacent sans fin, au-delà de la vie du cache",
+  "fichier": "outils/relais/loi.py",
+  "avant": "return min(PREMIER_ESSAI * 2 ** max(fois - 1, 0), ENDORMIE)",
+  "apres": "return PREMIER_ESSAI * 2 ** max(fois - 1, 0)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — le veilleur ne réessaie jamais (comme avant)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if not reessayer(session, memoire, maintenant):\n        return False\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — la relance se retape à chaque tour",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    memoire[\"reessaye\"] = refuse.get(\"t\")\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — un autre compte libre ne la reprend pas",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        if not ailleurs(compte, maintenant)[0]:\n            return True",
+  "apres": "        if True:\n            return True",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — réveillée après la vie de son cache",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if maintenant - float(session.get(\"tour\") or session.get(\"depuis\") or 0) >= ENDORMIE:",
+  "apres": "    if False:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — un tour réussi ne l'efface pas",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    accepte(compte)\n",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — un compte refusé est choisi quand même",
+  "fichier": "outils/relais/relais.py",
+  "avant": "            if refuse is not None:  # refusé",
+  "apres": "            if False:  # refusé",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — ailleurs croit libre un compte refusé",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        if not au_seuil and refuse is None:",
+  "apres": "        if not au_seuil:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 REFUS — le battement ne le dit pas",
+  "fichier": "outils/relais/loi.py",
+  "avant": "    if refus:\n        return f\"⛔",
+  "apres": "    if False:\n        return f\"⛔",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 NOTES — lancée pour ses notes sans la marque (comme avant : trois sessions closes en cinq minutes)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "garde = bool(gardee(compte, maintenant)) or plein(compte, maintenant)[0]",
+  "apres": "garde = bool(gardee(compte, maintenant))",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 NOTES — sa réponse faite, elle continue au-delà du seuil",
+  "fichier": "outils/relais/relais.py",
+  "avant": " or (session.get(\"notes\") and plein(compte, maintenant)[0])",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 QUOI-DE-NEUF — le rang de ses notes n'est pas gardé (comme avant : la liste ids=…)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    elif not avant:  # ses premières notes",
+  "apres": "    elif False:  # ses premières notes",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 DÉPART — son texte sans point se colle à la suite",
+  "fichier": "outils/relais/loi.py",
+  "avant": "    return \"\\n\\n\".join(m for m in morceaux if m)",
+  "apres": "    return \" \".join(m for m in morceaux if m)",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 ALERTE — elle naît hors de la bulle du relais",
+  "fichier": "outils/relais/relais.py",
+  "avant": ", **({} if noeud(BLOQUE) else {\"dans\": \"relais\", \"largeur\": 700})",
+  "apres": "",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 ALERTE — elle ne se lève jamais",
+  "fichier": "outils/relais/relais.py",
+  "avant": "        if memoire.get(\"bloque_signale\"):\n            lever_l_alerte(memoire, maintenant)\n        memoire.update(",
+  "apres": "        memoire.update(",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 ALERTE — elle répète le refus que le ❤️ dit déjà",
+  "fichier": "outils/relais/relais.py",
+  "avant": "            and not refusee:",
+  "apres": "            and True:",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 ALERTE — ce qu'une IA y écrit est tapé",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    if texte.strip() and humaine(geste.get(\"auteur\")):",
+  "apres": "    if texte.strip():",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ }
+]

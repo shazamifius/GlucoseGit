@@ -43,11 +43,20 @@ l'autre, et bat son cœur dans le nœud ❤️ `relais-battement` (membrane « �
    fiche 147 § 5) : relire ~40 % de la jauge, écrire ~36 %, ajouter ~24 % ; le seuil reste.
 5. **La relance** : le crochet « Stop » (`relais.py fin-de-tour`) relance une fois ; la suivante est
    tapée par le veilleur — Claude Code coupe au 8ᵉ blocage de suite (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`).
-   **Jamais réveillée endormie** (sa note du 25/11) : une session arrêtée dont l'écran n'a pas bougé
-   depuis 50 minutes a perdu son cache (une heure) — la réveiller lui ferait tout relire au prix fort.
-   Le veilleur la ferme ; une neuve repart de la passation, avec ses notes.
+   **Jamais réveillée endormie** (sa note du 25/11) : une session dont l'écran n'a pas bougé depuis
+   50 minutes a perdu son cache (une heure) — la réveiller lui ferait tout relire au prix fort. Le
+   veilleur la ferme, **arrêtée ou figée** (fiche 186 : le 27/11, figée sans que « Stop » parte, une
+   session est restée ouverte dix-huit heures) ; une neuve repart de la passation, avec ses notes.
 6. **Rien n'attend en silence** : 35 minutes sans un changement à l'écran, l'écran part dans
-   `relais-bloque`, et le ❤️ dit « figée » ; ce qu'il écrit dans `relais-reponse` est tapé dans la session.
+   `relais-bloque`, et le ❤️ dit « figée » ; ce qu'il écrit **dans l'alerte même**, sous « ✍️ Ta
+   réponse : », est tapé dans la session. L'écran qui repart, ou la session close, lève l'alerte.
+   **Un tour refusé par Anthropic** (abonnement, connexion, limite, surcharge) déclenche
+   « StopFailure », *à la place* de « Stop » (`relais.py echec`, fiche 186) : le compte est noté refusé
+   (`refus.json`), le ❤️ le dit en clair avec l'heure du prochain essai, et le veilleur tape la relance à
+   5, 10, 20, 40 minutes, puis toutes les 50 — un essai refusé ne coûte aucun jeton. Un autre compte
+   libre reprend aussitôt ; son cache mort, la session est close plutôt que réveillée. Un tour réussi
+   efface le refus. **Un seul compte suffit** : celui qui est refusé ou plein attend, l'autre n'est
+   jamais nécessaire.
 7. **Jamais bloqué** (sa réponse du 23/11) : les sessions se lancent en **bypass** (jamais le mode
    auto) et avec `--no-chrome` — toute question que Claude Code pose au démarrage fige une session que
    personne ne regarde : la régler par une option à chaque lancement (fiche 134).
@@ -106,8 +115,9 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   les 20 secondes par `.vscode/tasks.json`) : jusqu'au 24/11, chaque VS Code ne suivait que la session de
   son compte, et celui du compte a, vide toute une nuit (sa semaine pleine), lui a fait croire le relais
   en panne (fiche 141).
-- **Les cinq nœuds du relais ne s'archivent jamais** (`relais-consigne`, `-passation`, `-battement`,
-  `-bloque`, `-reponse` : `loi.py`, ligne 9). Un rangement de sa carte a mis `relais-bloque` dans une
+- **Les quatre nœuds du relais ne s'archivent jamais** (`relais-consigne`, `-passation`, `-battement`,
+  `-bloque` : `loi.py`, ligne 9 ; `relais-reponse`, qu'il a retiré le 27/11, n'existe plus — sa réponse
+  s'écrit dans l'alerte). Un rangement de sa carte a mis `relais-bloque` dans une
   archive (`board-f5fn-356`) et effacé `relais-reponse` : le 24/11 à 10 h 00, l'alerte d'une session figée
   n'a pas pu se poser (« l'identifiant est déjà pris ailleurs », journal). Remis dans sa membrane le
   24/11 à 10 h 33 ; l'ancienne alerte reste à l'archive sous `relais-bloque-archive-2311`.
@@ -126,6 +136,11 @@ python3 outils/saboter.py outils/sabotages/relais-132.json        # et leurs sab
   § 5) : Gmail, Drive, Hugging Face… pesaient ~13 000 jetons relus à chaque réponse, jamais servis.
 - `python3 -I` ne met pas le dossier du programme dans le chemin : `relais.py` l'ajoute à la fin.
 - Les crochets se lisent au lancement d'une session : un crochet ajouté ne vaut que pour les suivantes.
+- **Une session lancée pour ses notes au-delà d'un seuil** (fin de semaine gardée, ou cinq heures au
+  seuil sans autre compte) porte `notes` : elle répond, puis écrit sa passation à la fin de son tour.
+  Sans cette marque, le 27/11 de 19 h 33 à 19 h 38, trois sessions furent closes avant de lui répondre.
+- **Ses notes se lisent par `glucose_quoi_de_neuf depuis=N`** (N : le rang de son premier geste depuis
+  la dernière session, `paroles_depuis`), jamais par une liste « ids=… » qui s'allongeait sans fin.
 - Le veilleur relancé (`systemctl --user restart`) lit le code neuf ; les crochets le lisent à
   chaque appel — un `relais.py` cassé casse aussi la barre d'état.
 - Une fenêtre de jauge pleine se vide à sa remise ; une jauge jamais lue compte pour libre : le

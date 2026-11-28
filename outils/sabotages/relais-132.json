@@ -290,7 +290,7 @@
  {
   "nom": "SES-NOTES — le battement compte pour une note",
   "fichier": "outils/relais/loi.py",
-  "avant": "                elif ident not in ids and ident not in (BATTEMENT, REPONSE):",
+  "avant": "                elif ident not in ids and ident not in (BATTEMENT, BLOQUE):",
   "apres": "                elif ident not in ids:",
   "cmd": [
    "python3",
@@ -322,8 +322,8 @@
  {
   "nom": "SES-NOTES — le départ ne donne pas ses notes",
   "fichier": "outils/relais/loi.py",
-  "avant": "tableau=….\" if paroles else \"\")",
-  "apres": "tableau=….\" if False else \"\")",
+  "avant": "(chaque dossier dit le tableau qu'il ouvre).\" if paroles else \"\")",
+  "apres": "(chaque dossier dit le tableau qu'il ouvre).\" if False else \"\")",
   "cmd": [
    "python3",
    "-m",
@@ -386,8 +386,8 @@
  {
   "nom": "SES-NOTES — tapées à chaque tour",
   "fichier": "outils/relais/relais.py",
-  "avant": "taper(raison_entendre(memoire.pop(\"paroles\")))",
-  "apres": "taper(raison_entendre(memoire.get(\"paroles\")))",
+  "avant": "taper(raison_entendre(memoire.pop(\"paroles\"), memoire.pop(\"paroles_depuis\", None)))",
+  "apres": "taper(raison_entendre(memoire.get(\"paroles\"), memoire.get(\"paroles_depuis\")))",
   "cmd": [
    "python3",
    "-m",
@@ -402,8 +402,8 @@
  {
   "nom": "SA-REPONSE — de l'autre appareil, elle n'est pas tapée",
   "fichier": "outils/relais/relais.py",
-  "avant": "    if texte and humaine(geste.get(\"auteur\")):",
-  "apres": "    if texte and geste.get(\"auteur\") == \"humain\":",
+  "avant": "    if texte.strip() and humaine(geste.get(\"auteur\")):",
+  "apres": "    if texte.strip() and geste.get(\"auteur\") == \"humain\":",
   "cmd": [
    "python3",
    "-m",

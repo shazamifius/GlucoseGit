@@ -8,6 +8,7 @@ et l'autre compte reprend. La bibliothèque standard seulement ; la loi sans eff
 
   relais.py jauges       la barre d'état de Claude Code : garde les deux jauges du compte
   relais.py fin-de-tour  le crochet « Stop » : continuer selon SA consigne, ou écrire la passation
+  relais.py echec        le crochet « StopFailure » : un tour refusé par Anthropic, réessayé plus tard
   relais.py parole       le crochet « UserPromptSubmit » : une session à lui prend la main
   relais.py rendre       une session à lui rend la main en partant
   relais.py veiller      le service : lance, relaie, réveille, lui répond, bat le cœur dans Glucose
@@ -33,11 +34,15 @@ from pathlib import Path
 # Lancé par `python3 -I`, le dossier du programme n'est pas dans le chemin : `loi` y est. À la fin,
 # pour que la bibliothèque standard passe toujours devant.
 sys.path.append(str(Path(__file__).resolve().parent))
-from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, FERMEE_ENDORMIE, INVITE_REPONSE, NOTIFICATIONS,  # noqa: E402
-                 PASSATION, REGLES, REPONSE, SILENCE, TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE, TEXTES,
-                 contexte_plein, decider, depart, dernier_geste, dire_session, en_pause, endormie, heure, humaine, meme_etat,
-                 il_ecrit, raison_continuer, raison_entendre, raison_passation, ses_fleches, ses_paroles, signee)
-from loi import ENDORMIE, MODE_EMPLOI, POURQUOI, RAISON_PASSATION, SEUIL_JETONS, lire_ids  # noqa: E402,F401  (épreuves)
+from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, ENDORMIE, FERMEE_REFUSEE,  # noqa: E402
+                 FERMEES_SANS_PASSATION, INVITE_REPONSE, NOTIFICATIONS, PASSATION, REGLES, SILENCE, TEXTE_DEPART,
+                 TEXTE_PASSATION, TEXTE_RELANCE, TEXTES,
+                 contexte_plein, decider, delai_essai, depart, dernier_geste, dire_session, en_pause, endormie, heure,
+                 humaine, meme_etat, il_ecrit, raison_continuer, raison_entendre, raison_passation, raison_reessayer,
+                 refus_en_mots,
+                 ses_fleches, ses_paroles, signee)
+from loi import (FERMEE_ENDORMIE, FERMEE_FIGEE, MODE_EMPLOI, POURQUOI, RAISON_PASSATION,  # noqa: E402,F401  (épreuves)
+                 SEUIL_JETONS, lire_ids)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
 import serveur  # noqa: E402
@@ -136,10 +141,62 @@ def ailleurs(compte, maintenant):
         if autre_compte == compte or not connecte(autre_compte):
             continue
         au_seuil, libre_a = plein(autre_compte, maintenant)
-        if not au_seuil:
+        refuse = refuse_jusqu_a(autre_compte, maintenant)
+        if not au_seuil and refuse is None:
             return True, None
-        murs.append(libre_a)
+        murs.append(max(libre_a or 0, refuse or 0))
     return False, min(murs, default=None)
+
+
+# ── Les refus d'Anthropic ─────────────────────────────────────────────────────────────────────
+
+def refus():
+    """Les comptes dont le dernier tour a été refusé (`echec`) : {compte: {t, erreur, detail, fois,
+    jusqu_a}}. Un fichier à lui : le crochet l'écrit pendant que le veilleur récrit les siens."""
+    return lire_json(ETAT / "refus.json", {})
+
+
+def refuse_jusqu_a(compte, maintenant):
+    """L'heure du prochain essai d'un compte refusé, ou None s'il peut servir."""
+    jusqu_a = float((refus().get(compte) or {}).get("jusqu_a") or 0)
+    return jusqu_a if jusqu_a > maintenant else None
+
+
+def echec():
+    """Le crochet « StopFailure » : une erreur de l'API a fini le tour, **à la place de « Stop »**
+    (fiche 186) — le 27/11 à 21 h 31, un refus d'abonnement passager a laissé une session ouverte dix-
+    huit heures, le relais la croyant au travail. Le refus est noté pour le compte, avec l'heure du
+    prochain essai (`delai_essai`) ; le veilleur réessaie, ou passe à l'autre compte (`tenir`)."""
+    if os.environ.get("RELAIS") != "1":
+        return 0  # une session à lui : elle voit son erreur, le relais n'y touche pas
+    try:
+        entree = json.load(sys.stdin)
+    except ValueError:
+        entree = {}
+    maintenant, compte = time.time(), compte_courant()
+    tous = refus()
+    fois = int((tous.get(compte) or {}).get("fois") or 0) + 1
+    tous[compte] = {"t": maintenant, "erreur": str(entree.get("error") or "unknown"),
+                    "detail": str(entree.get("error_details") or entree.get("last_assistant_message")
+                                  or "")[:300],
+                    "fois": fois, "jusqu_a": maintenant + delai_essai(fois)}
+    ecrire_json(ETAT / "refus.json", tous)
+    journal(f"tour refusé par Anthropic sur le compte {compte} : {refus_en_mots(tous[compte])}")
+    return 0
+
+
+def refus_de(session):
+    """Le refus qui pèse sur cette session : un tour refusé depuis son lancement, pas encore réussi."""
+    refuse = refus().get(session.get("compte")) or {}
+    return refuse if refuse and float(refuse.get("t") or 0) >= float(session.get("depuis") or 0) else None
+
+
+def accepte(compte):
+    """Un tour réussi : le compte répond de nouveau, son refus s'efface."""
+    tous = refus()
+    if tous.pop(compte, None) is not None:
+        ecrire_json(ETAT / "refus.json", tous)
+        journal(f"le compte {compte} répond de nouveau")
 
 
 def garder_l_histoire(compte, avant, limites, session):
@@ -345,11 +402,14 @@ def fin_de_tour():
     n = noeud(CONSIGNE)
     texte = (n or {}).get("texte", "")
     compte = compte_courant()
+    accepte(compte)
+    session["tour"] = maintenant  # le dernier tour réussi : son cache vit une heure (`tenir`)
     motif = "retrait" if main_humaine(maintenant) else "contexte" if contexte_plein(
         lire_json(ETAT / "contexte.json", {}), session) else "renouveler" if session.get("renouveler") else (
         "limite" if plein(compte, maintenant)[0] and ailleurs(compte, maintenant)[0] else
         "repos" if plein(compte, maintenant, repli(session.get("notes")))[0] else
-        "reserve" if gardee(compte, maintenant) else None)
+        "reserve" if gardee(compte, maintenant) or (session.get("notes") and plein(compte, maintenant)[0])
+        else None)
     textes = memoire.get("textes", {})
     action, pourquoi = decider(session, texte, en_pause(texte), signee(n, memoire, gestes_neufs(memoire)),
                                motif, maintenant, passation_ecrite(session),
@@ -418,6 +478,10 @@ def choisir(courant, maintenant, notes=False):
         for compte in ordre:
             if not connecte(compte):
                 continue
+            refuse = refuse_jusqu_a(compte, maintenant)
+            if refuse is not None:  # refusé par Anthropic : il attend son prochain essai (`echec`)
+                murs.append(refuse)
+                continue
             au_seuil, libre_a = plein(compte, maintenant, seuils)
             rendue = None if au_seuil or notes or seuils is SEUILS else gardee(compte, maintenant)
             if not au_seuil and rendue is None:
@@ -451,7 +515,7 @@ def importants():
 SANS_OUTILS = ("Artifact", "AskUserQuestion", "ScheduleWakeup", "SendFeedback", "ReportFindings")
 
 
-def lancer(compte, paroles=(), texte=None, designes=()):
+def lancer(compte, paroles=(), texte=None, designes=(), depuis=None):
     """Lance la session du relais sur ce compte — **jamais une seconde** : s'il en vit une, rien."""
     if session_tmux():
         journal("une session du relais vit déjà : pas de seconde")
@@ -463,8 +527,13 @@ def lancer(compte, paroles=(), texte=None, designes=()):
     if COMPTES[compte]:
         reglages.append(f"CLAUDE_CONFIG_DIR={COMPTES[compte]}")
     binaire = claude_binaire()
-    garde = bool(gardee(compte, time.time()))
-    orpheline = lire_json(ETAT / "session.json", {}).get("laissee") == FERMEE_ENDORMIE
+    # **Pour ses notes seulement** : la fin d'une semaine gardée (RESERVE-1), ou un compte lancé
+    # au-delà de son seuil parce qu'il a écrit (`choisir`, `repli`). Sans cette marque, le veilleur
+    # lui redemandait sa passation la minute suivante : le 27/11 de 19 h 33 à 19 h 38, trois
+    # sessions lancées pour ses notes, closes avant d'avoir pu lui répondre (fiche 186).
+    maintenant = time.time()
+    garde = bool(gardee(compte, maintenant)) or plein(compte, maintenant)[0]
+    orpheline = lire_json(ETAT / "session.json", {}).get("laissee") in FERMEES_SANS_PASSATION
     # --ide : branché sur le VS Code de ce compte. --no-chrome : sans lui, un compte qui n'a jamais
     # répondu à « Claude in Chrome » se fige au démarrage sur cette question (le 23/11, 1 h 48). Le
     # bypass, jamais le mode auto (sa réponse du 23/11 : « il faut que Claude ne soit JAMAIS bloqué ») :
@@ -474,13 +543,13 @@ def lancer(compte, paroles=(), texte=None, designes=()):
                 "env", *reglages, binaire, "--ide", "--no-chrome", "--permission-mode", "bypassPermissions",
                 "--allow-dangerously-skip-permissions", "--disallowedTools", ",".join(SANS_OUTILS),
                 "--remote-control", f"relais-{compte}",
-                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes, garde, orpheline))
+                "--append-system-prompt", REGLES, depart(compte, paroles, texte, designes, garde, orpheline, depuis))
     if fait.returncode != 0:
         journal(f"tmux refuse la session : {fait.stderr.strip()[:200]}")
         return False
     ecrire_json(ETAT / "session.json", {"compte": compte, "depuis": time.time(), **({"notes": True} if garde else {})})
     notes = f", avec {len(paroles)} nœud(s) qu'il a écrits" if paroles else ""
-    notes += ", sur la fin de sa semaine, pour ses notes seulement" if garde else ""
+    notes += ", au-delà de son seuil, pour ses notes seulement" if garde else ""
     journal(f"session lancée sur le compte {compte}{notes} ({binaire})")
     return True
 
@@ -554,11 +623,41 @@ def autre(compte):
     return next((c for c in COMPTES if c != compte), compte)
 
 
+def reessayer(session, memoire, maintenant):
+    """**Un tour refusé par Anthropic** (`echec`, fiche 186) : à l'heure de son prochain essai, la
+    relance est tapée (« Once fixed, resend your message ») ; avant, un autre compte libre la reprend
+    (la session est close, la suivante part sur lui). Son cache mort depuis son dernier tour réussi,
+    elle est close au lieu d'être réveillée, et une neuve partira (`endormie`, sa note du 25/11).
+    Rend False si la session est close."""
+    refuse = refus_de(session)
+    if not refuse or memoire.get("reessaye") == refuse.get("t"):
+        return True
+    compte = session.get("compte")
+    if maintenant < float(refuse.get("jusqu_a") or 0):
+        if not ailleurs(compte, maintenant)[0]:
+            return True
+        fermer(session, FERMEE_REFUSEE)
+        memoire["compte"] = autre(compte)
+        return False
+    if maintenant - float(session.get("tour") or session.get("depuis") or 0) >= ENDORMIE:
+        fermer(session, FERMEE_REFUSEE)
+        return False
+    consigne = (noeud(CONSIGNE) or {}).get("texte", "")
+    taper(raison_reessayer(refuse, consigne, memoire.get("textes", {}).get(TEXTE_RELANCE)))
+    memoire["reessaye"] = refuse.get("t")
+    journal(f"nouvel essai tapé dans la session du compte {compte} ({refuse.get('fois')}ᵉ refus)")
+    return True
+
+
 def tenir(session, memoire, humaine_la, maintenant):
     """Ce que le veilleur fait de la session du relais qui vit (`garder`) ; False s'il l'a close.
-    Endormie, elle est close avant tout (`endormie`) : jamais réveillée, cache perdu."""
-    if endormie(session, memoire.get("ecran_depuis", maintenant), maintenant):
-        fermer(session, FERMEE_ENDORMIE)
+    Endormie ou figée, elle est close avant tout (`endormie`) : jamais réveillée, cache perdu.
+    Refusée par Anthropic, elle attend son prochain essai (`reessayer`)."""
+    fermee = endormie(session, memoire.get("ecran_depuis", maintenant), maintenant)
+    if fermee:
+        fermer(session, fermee)
+        return False
+    if not reessayer(session, memoire, maintenant):
         return False
     geste = garder(session, maintenant, humaine_la)
     if geste == "fermer" or (session.get("passation_demandee") and session.get("laissee") == "relayer"):
@@ -582,32 +681,62 @@ def tenir(session, memoire, humaine_la, maintenant):
     return True
 
 
-def surveiller(memoire, histoire, maintenant):
+def alerter(texte, memoire):
+    """Récrit l'alerte (`relais-bloque`) ; née dans la membrane du relais, ensuite à la place qu'il lui
+    donne (le 27/11 à 22 h 07, posée sans bulle, elle est tombée hors de tout). Son empreinte est
+    gardée : ce qui la change ensuite vient de lui."""
+    ecrire(BLOQUE, texte, **({} if noeud(BLOQUE) else {"dans": "relais", "largeur": 700}))
+    memoire["bloque_vu"] = (noeud(BLOQUE) or {}).get("empreinte")
+
+
+def lever_l_alerte(memoire, maintenant):
+    """Plus rien de figé : l'alerte se lève, au lieu de crier 🆘 sur un écran d'hier."""
+    alerter(f"✅ **Relais : rien de bloqué** (alerte levée à {heure(maintenant)}). Ici, l'écran d'une "
+            f"session qui ne bouge plus depuis {SILENCE // 60} minutes.", memoire)
+    memoire["bloque_signale"] = False
+
+
+def surveiller(memoire, histoire, maintenant, refusee=False):
+    """L'écran de la session : immobile depuis SILENCE, il part dans son Glucose (`relais-bloque`) —
+    sauf refusée par Anthropic, que le ❤️ dit déjà ; ce qu'il écrit sous « ✍️ Ta réponse : », dans
+    ce même nœud, est tapé dans la session (`sa_reponse`) ; l'écran qui bouge lève l'alerte."""
     vu = ecran()
     if vu is None:
         return
     empreinte = hashlib.sha256(vu.encode()).hexdigest()
     if empreinte != memoire.get("ecran"):
+        if memoire.get("bloque_signale"):
+            lever_l_alerte(memoire, maintenant)
         memoire.update(ecran=empreinte, ecran_depuis=maintenant, bloque_signale=False)
-    elif maintenant - memoire.get("ecran_depuis", maintenant) >= SILENCE and not memoire.get("bloque_signale"):
+    elif maintenant - memoire.get("ecran_depuis", maintenant) >= SILENCE and not memoire.get("bloque_signale") \
+            and not refusee:
         lignes = "\n".join(vu.rstrip().splitlines()[-40:])
-        ecrire(BLOQUE, f"🆘 **Relais : rien ne bouge depuis 35 minutes** ({heure(maintenant)}). "
-               f"L'écran de la session :\n```\n{lignes}\n```\nRéponds dans le nœud « {REPONSE} » : "
-               "ton texte sera tapé dans la session.")
+        alerter(f"🆘 **Relais : rien ne bouge depuis {SILENCE // 60} minutes** ({heure(maintenant)}). "
+                f"L'écran de la session :\n```\n{lignes}\n```\nSi elle attend quelque chose de toi, "
+                f"écris-le sous la dernière ligne, dans ce même nœud : ce sera tapé dans la session. Sans "
+                f"rien de toi, elle sera close {ENDORMIE // 60} minutes après son dernier mouvement, et "
+                f"une neuve repartira.\n\n{INVITE_REPONSE} ", memoire)
         memoire["bloque_signale"] = True
-        journal("silence de 35 minutes : écran posé dans Glucose")
-    r = noeud(REPONSE)
-    if not r or r.get("empreinte") == memoire.get("reponse_vue"):
+        journal(f"silence de {SILENCE // 60} minutes : écran posé dans Glucose")
+    if memoire.get("bloque_signale"):
+        sa_reponse(memoire, histoire, maintenant)
+
+
+def sa_reponse(memoire, histoire, maintenant):
+    """Ce qu'il écrit sous « ✍️ Ta réponse : » dans l'alerte, de ce Glucose ou d'un autre appareil,
+    tapé une fois dans la session ; jamais ce qu'une IA y écrit."""
+    b = noeud(BLOQUE)
+    if not b or b.get("empreinte") == memoire.get("bloque_vu"):
         return
-    geste = dernier_geste(REPONSE, histoire)
+    geste = dernier_geste(BLOQUE, histoire)
     if geste is None:
         return  # son geste n'est pas encore dans l'histoire lue : il le sera au tour suivant
-    memoire["reponse_vue"] = r.get("empreinte")
-    texte = r.get("texte", "").replace(INVITE_REPONSE, "").strip()
-    if texte and humaine(geste.get("auteur")):
-        taper(texte)
-        ecrire(REPONSE, INVITE_REPONSE)
-        memoire["reponse_vue"] = (noeud(REPONSE) or {}).get("empreinte")
+    memoire["bloque_vu"] = b.get("empreinte")
+    avant, _, texte = (b.get("texte") or "").partition(INVITE_REPONSE)
+    if texte.strip() and humaine(geste.get("auteur")):
+        taper(texte.strip())
+        alerter(f"{avant.rstrip()}\n\n✅ Tapé dans la session à {heure(maintenant)} : « {texte.strip()} »"
+                f"\n\n{INVITE_REPONSE} ", memoire)
         journal("sa réponse tapée dans la session")
 
 
@@ -615,7 +744,7 @@ def entendre(memoire, histoire):
     """Ce qu'il écrit pendant qu'une session travaille lui est tapé **une fois qu'il a fini
     d'écrire** — un tour du veilleur sans un geste de lui —, en un seul message."""
     if memoire.get("paroles") and not il_ecrit(histoire):
-        taper(raison_entendre(memoire.pop("paroles")))
+        taper(raison_entendre(memoire.pop("paroles"), memoire.pop("paroles_depuis", None)))
         journal("ses notes tapées dans la session")
 
 
@@ -640,6 +769,8 @@ def jauge_en_mots(compte, maintenant):
     echec = lire_json(ETAT / "serveur.json", {}).get(compte, {}).get("echec")
     if echec and au_seuil:
         mots.append(f"serveur : {echec}")
+    if refuse_jusqu_a(compte, maintenant):
+        mots.append(f"⛔ {refus_en_mots(refus()[compte])}")
     return ", ".join(mots) or "jauges pas encore lues"
 
 
@@ -669,6 +800,10 @@ def attendre(memoire, ok, pause, humaine_la, maintenant, ecrit=False):
         return "tu écris : une session partira quand tu auras fini (une minute sans geste de toi)"
     compte, libre_a = choisir(memoire.get("compte", "a"), maintenant, bool(memoire.get("paroles")))
     if not compte:
+        refuses = [f"compte {c} {refus_en_mots(refus()[c])}" for c in COMPTES
+                   if connecte(c) and refuse_jusqu_a(c, maintenant)]
+        if refuses:
+            return "⛔ " + " · ".join(refuses) + (f" — reprise vers {heure(libre_a)}" if libre_a else "")
         garde = [c for c in COMPTES if connecte(c) and gardee(c, maintenant) and not plein(c, maintenant, MUR)[0]]
         if garde:
             return (f"la fin de la semaine du compte {garde[0]} est gardée pour tes notes : écris dans ton "
@@ -676,9 +811,10 @@ def attendre(memoire, ok, pause, humaine_la, maintenant, ecrit=False):
                     f"{heure(libre_a) if libre_a else '?'}")
         return "les comptes sont à leur limite : reprise vers " + (heure(libre_a) if libre_a else "?")
     if not lancer(compte, memoire.get("paroles", []), memoire.get("textes", {}).get(TEXTE_DEPART),
-                  importants()):
+                  importants(), depuis=memoire.get("paroles_depuis")):
         return "une session du relais vit déjà : jamais une seconde"
     memoire["compte"], memoire["paroles"] = compte, []
+    memoire.pop("paroles_depuis", None)
     return f"session lancée sur le compte {compte}"
 
 
@@ -696,17 +832,25 @@ def un_tour():
     histoire = neufs or {"gestes": []}
     memoire["textes"] = ses_textes(memoire, histoire)
     ok, pause = signee(n, memoire, histoire), en_pause(n.get("texte"))
-    memoire["paroles"] = ses_paroles(histoire, memoire.get("paroles", []))
+    avant = memoire.get("paroles") or []
+    memoire["paroles"] = ses_paroles(histoire, avant)
+    if not memoire["paroles"]:
+        memoire.pop("paroles_depuis", None)
+    elif not avant:  # ses premières notes depuis la dernière session : d'où « quoi de neuf » partira
+        memoire["paroles_depuis"] = next((g["rang"] for g in histoire.get("gestes", [])
+                                          if humaine(g.get("auteur")) and "rang" in g), None)
     humaine_la = main_humaine(maintenant)
     relire(maintenant)
     vivante = ecran() is not None and tenir(session, memoire, humaine_la, maintenant)
     if vivante:
-        surveiller(memoire, histoire, maintenant)
+        surveiller(memoire, histoire, maintenant, refus_de(session) is not None)
         if not humaine_la and not session.get("passation_demandee"):
             entendre(memoire, histoire)
             relancer(session, n.get("texte", ""), ok, pause, memoire["textes"].get(TEXTE_RELANCE))
-        dit = dire_session(session, memoire, maintenant)
+        dit = dire_session(session, memoire, maintenant, refus_de(session))
     else:
+        if memoire.get("bloque_signale"):  # la session figée est close : l'alerte n'a plus d'objet
+            lever_l_alerte(memoire, maintenant)
         dit = attendre(memoire, ok, pause, humaine_la, maintenant, il_ecrit(histoire))
     if neufs is not None:
         memoire["vu"] = neufs["total"]
@@ -774,5 +918,5 @@ if __name__ == "__main__":
     if geste == "installer":
         import installer
         sys.exit(installer.installer())
-    sys.exit({"jauges": jauges, "fin-de-tour": fin_de_tour, "parole": parole, "rendre": rendre,
+    sys.exit({"jauges": jauges, "fin-de-tour": fin_de_tour, "echec": echec, "parole": parole, "rendre": rendre,
               "renouveler": renouveler, "veiller": veiller, "etat": etat}[geste]() or 0)

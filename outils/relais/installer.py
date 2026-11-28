@@ -26,9 +26,8 @@ CONSIGNE_PROPOSEE = (
 NOEUDS = [  # (id, texte, dx, dy, largeur)
     (r.CONSIGNE, CONSIGNE_PROPOSEE, 40, 90, 700),
     (r.BATTEMENT, "❤️ **Relais** · pas encore démarré", 790, 90, 520),
-    (r.BLOQUE, "🆘 Rien pour l'instant : ici, l'écran d'une session qui ne bouge plus depuis 35 minutes.",
+    (r.BLOQUE, "✅ Rien de bloqué : ici, l'écran d'une session qui ne bouge plus depuis 35 minutes.",
      790, 330, 520),
-    (r.REPONSE, r.INVITE_REPONSE, 790, 620, 520),
     (r.PASSATION, "🔁 **Passation du relais** — vide jusqu'au premier relais ; la passation 130 "
      "(nœud passation-130) vaut jusque-là.", 40, 760, 700),
 ]
@@ -53,20 +52,18 @@ def membrane_dans_glucose():
         if ident not in ids:
             r.ecrire(ident, texte, dans="relais", x=x0 + dx, y=y0 + dy, largeur=largeur)
             poses.append(ident)
-    reponse = r.noeud(r.REPONSE)
-    memoire = r.lire_json(r.ETAT / "veilleur.json", {})
-    memoire.setdefault("reponse_vue", (reponse or {}).get("empreinte"))
-    r.ecrire_json(r.ETAT / "veilleur.json", memoire)
     return f"Glucose : {', '.join(poses) or 'déjà en place'}"
 
 
 def reglages_claude():
-    """La barre d'état (les jauges), le crochet « Stop » (continuer, passer la main) et le crochet
+    """La barre d'état (les jauges), le crochet « Stop » (continuer, passer la main), le crochet
+    « StopFailure » (un tour refusé par Anthropic, réessayé : fiche 186) et le crochet
     « UserPromptSubmit » (une session à lui prend la main : une seule session à la fois, 23/11)."""
     chemin = r.MAISON / ".claude/settings.json"
     reglages = json.loads(chemin.read_text())
     reglages["statusLine"] = {"type": "command", "command": f"{COMMANDE} jauges"}
-    for moment, geste, delai in (("Stop", "fin-de-tour", 300), ("UserPromptSubmit", "parole", 10)):
+    for moment, geste, delai in (("Stop", "fin-de-tour", 300), ("StopFailure", "echec", 10),
+                                 ("UserPromptSubmit", "parole", 10)):
         crochets = reglages.setdefault("hooks", {}).setdefault(moment, [])
         voulu = f"{COMMANDE} {geste}"
         if not any(h.get("command") == voulu for g in crochets for h in g.get("hooks", [])):
@@ -74,7 +71,7 @@ def reglages_claude():
     provisoire = chemin.with_suffix(".relais.tmp")
     provisoire.write_text(json.dumps(reglages, ensure_ascii=False, indent=2) + "\n")
     os.replace(provisoire, chemin)
-    return "Claude Code : barre d'état, crochets Stop et UserPromptSubmit"
+    return "Claude Code : barre d'état, crochets Stop, StopFailure et UserPromptSubmit"
 
 
 def second_compte():

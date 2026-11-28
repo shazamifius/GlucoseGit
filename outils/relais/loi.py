@@ -6,8 +6,11 @@ import re
 import time
 
 MODE_EMPLOI = "outils/relais/MODE-EMPLOI.md"
-CONSIGNE, PASSATION, BATTEMENT, BLOQUE, REPONSE = (
-    "relais-consigne", "relais-passation", "relais-battement", "relais-bloque", "relais-reponse")
+CONSIGNE, PASSATION, BATTEMENT, BLOQUE = (
+    "relais-consigne", "relais-passation", "relais-battement", "relais-bloque")
+# Sa réponse à une session figée s'écrit **dans l'alerte même**, sous cette ligne : le nœud à part
+# (relais-reponse) qu'il a retiré le 27/11 à 14 h 29 laissait l'alerte de 22 h 07 renvoyer à un
+# nœud qui n'existait plus (fiche 186).
 INVITE_REPONSE = "✍️ Ta réponse :"
 # Aucune commande ne dure plus de 30 minutes (sa règle du 19/11) : une session qui travaille change
 # son écran, ou écrit sa conversation, au moins aussi souvent. 35 minutes sans un signe : elle ne
@@ -25,10 +28,48 @@ SEUIL_CONTEXTE = 90.0
 # **Endormie** (sa note du 25/11, img-utzs-2460 : « ne jamais réveiller une session Claude qui attend
 # depuis plus de 50 minutes ») : le serveur garde la conversation en cache une heure (`ephemeral_1h`,
 # lu dans les journaux de Claude Code le 25/11) ; passé ce délai, la réveiller la fait réécrire
-# entière, au prix d'un jeton neuf — jusqu'à 300 000. Une session arrêtée au bout de son tour et dont
-# l'écran n'a pas bougé depuis ENDORMIE est close ; une neuve repart de la passation.
+# entière, au prix d'un jeton neuf — jusqu'à 300 000. Une session dont l'écran n'a pas bougé depuis
+# ENDORMIE est close — arrêtée au bout de son tour **ou figée** : une session qui travaille anime son
+# écran (le compteur de Claude Code tourne pendant qu'il pense comme pendant une commande, et aucune
+# ne dure plus de 30 minutes). Le 27/11 à 21 h 31, figée sur un refus d'Anthropic, une session est
+# restée ouverte dix-huit heures : seule l'arrêtée se fermait (fiche 186). Une neuve repart de la passation.
 ENDORMIE = 50 * 60
 FERMEE_ENDORMIE = "endormie depuis plus de 50 minutes"
+FERMEE_FIGEE = "figée depuis plus de 50 minutes"
+FERMEE_REFUSEE = "refusée par Anthropic"
+FERMEES_SANS_PASSATION = (FERMEE_ENDORMIE, FERMEE_FIGEE, FERMEE_REFUSEE)
+
+# **Un tour refusé par Anthropic** (le crochet « StopFailure », qui part *à la place* de « Stop » :
+# l'abonnement, la connexion, une limite, un serveur surchargé). Le 27/11 à 21 h 31, « can't use
+# your Claude subscription, usually because a payment is past due » : passager — la même session a
+# répondu le lendemain —, mais le relais n'écoutait que « Stop », et personne n'a réessayé. Un essai
+# refusé ne coûte aucun jeton ; Claude Code a déjà réessayé dans le tour avant de renoncer. Le relais
+# réessaie donc de plus en plus loin (5, 10, 20, 40 minutes), **jamais plus loin que la vie du cache**
+# (ENDORMIE) : au-delà, attendre ne garde plus rien, et une panne longue est réessayée toutes les
+# 50 minutes, sans compter. Un tour réussi efface le refus.
+PREMIER_ESSAI = 5 * 60
+ERREURS = {
+    "billing_error": "abonnement refusé (un paiement en retard ?)",
+    "authentication_failed": "connexion refusée (un /login à refaire ?)",
+    "oauth_org_not_allowed": "connexion refusée par l'organisation",
+    "account_on_hold": "compte suspendu par Anthropic",
+    "verification_required": "Anthropic demande une vérification du compte",
+    "rate_limit": "limite atteinte",
+    "overloaded": "serveurs d'Anthropic surchargés",
+    "server_error": "serveurs d'Anthropic en panne",
+}
+
+
+def delai_essai(fois):
+    """Le temps avant le `fois`-ième nouvel essai d'un compte refusé : il double, jusqu'à ENDORMIE."""
+    return min(PREMIER_ESSAI * 2 ** max(fois - 1, 0), ENDORMIE)
+
+
+def refus_en_mots(refus):
+    """Ce que le ❤️ dit d'un compte refusé : l'erreur en clair, et l'heure du prochain essai."""
+    erreur = refus.get("erreur") or "unknown"
+    return (f"refusé par Anthropic ({ERREURS.get(erreur, erreur)}, {refus.get('fois', 1)} fois) — "
+            f"nouvel essai à {heure(refus.get('jusqu_a', 0))}")
 # Ce qui réveille une session sans qu'il ait rien écrit : la fin d'une commande en arrière-plan (le
 # 23/11 à 14 h 41, la vérification de Claude, réveillée ainsi, a pris la main au relais). Une session
 # à lui qui travaille garde la main par son journal ; une session qui ne fait que veiller ne la prend plus.
@@ -75,12 +116,17 @@ TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE = (
 TEXTES = {
     # Sans relire ce que Claude Code charge déjà (ses règles, celles du dépôt, l'index des mémoires) :
     # le démarrage d'une conversation lisait 110 000 jetons, et chaque réponse les relisait (fiche 142).
+    # Son texte à lui (relais-texte-depart, 27/11), corrigé à sa demande (relais-rep-texte-depart) :
+    # le même, qu'il l'ait retouché ou non.
     TEXTE_DEPART: (
-        f"Lis dans son Glucose sa consigne et la passation (glucose lire tableau=main ids={CONSIGNE} "
-        f"ids={PASSATION}). Tes règles et l'index de tes mémoires sont déjà chargés : du mode d'emploi "
-        f"du relais ({MODE_EMPLOI}, seulement si ton travail touche au relais), de ~/Projets/LISEZ-MOI.md, "
-        "d'une mémoire, de VISION, ÉTAT, SUITE ou MÉTHODE, ne lis que la section dont ton travail a "
-        "besoin — les jetons sont sa priorité (24/11). Puis travaille selon la consigne."),
+        "Bonjour ! Tu reprends Glucose, un projet qui vise à créer un canevas incroyable. Ce qui est "
+        "particulier, c'est que tu dois utiliser Glucose pour créer et améliorer Glucose.\n\n"
+        f"Lis dans son Glucose (tu as la porte MCP) sa consigne et la passation (glucose lire "
+        f"tableau=main ids={CONSIGNE} ids={PASSATION}). Tes règles et l'index de tes mémoires sont déjà "
+        f"chargés : du mode d'emploi du relais ({MODE_EMPLOI}, seulement si ton travail touche au "
+        "relais), de ~/Projets/LISEZ-MOI.md, d'une mémoire, de VISION, ÉTAT, SUITE ou MÉTHODE, ne lis "
+        "que la section dont ton travail a besoin — les jetons sont sa priorité (24/11). Puis travaille "
+        "selon la consigne."),
     # Sa note du 25/11 (text-bmgs-2413) : *« c'est nul le fait qu'il met les récaps de ce qui s'est
     # passé, ça tu le vois par toi-même grâce au MCP »*. Ce qui est fait, `git log` et son Glucose le
     # disent ; la passation de ce matin-là, allongée de session en session, pesait 1 500 mots relus à
@@ -99,25 +145,39 @@ TEXTES = {
 }
 
 
-def depart(compte, paroles=(), texte=None, importants=(), garde=False, orpheline=False):
+def ses_notes(paroles, depuis=None):
+    """**Où lire ce qu'il a écrit** : « quoi de neuf » depuis son premier geste (sa note du 27/11,
+    text-kix1-2714 : la liste « ids=… » de chaque nœud touché s'allongeait sans fin quand une session
+    à lui tenait la main) — chaque nœud une fois, son tableau, ce qui a changé ligne à ligne, les
+    dossiers compris. La liste ne reste que faute de rang connu (un veilleur d'avant ce changement)."""
+    if depuis is not None:
+        return (f"glucose_quoi_de_neuf depuis={depuis} : chaque nœud une fois, ce qui a changé, où ; "
+                "relis ensuite en entier seulement ceux dont tu as besoin")
+    return lire_ids(paroles)
+
+
+def depart(compte, paroles=(), texte=None, importants=(), garde=False, orpheline=False, depuis=None):
     """Le premier message d'une session du relais : son texte, et **d'abord ce qu'il a écrit
     depuis la dernière** — elle lui répond avant tout (sa parole du 23/11 : « soit actif sur le
-    Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait). Sur la fin de la
-    semaine d'un compte (`garde`, RESERVE-1, fiche 163), elle ne fait que lui répondre."""
-    ecrit = (f" Depuis la dernière session, il a écrit dans son Glucose ({lire_ids(paroles)}) : lis-le "
-             "en premier et réponds-lui dans son Glucose — une réponse à côté de chaque note, ou reliée "
-             "par une flèche — avant toute autre tâche. Une note que cette lecture dit introuvable est "
-             "dans un dossier : chaque dossier dit le tableau qu'il ouvre (ouvre), lis-le avec "
-             "tableau=…." if paroles else "")
-    designe = (f" Sa consigne désigne par ses flèches ce qu'il juge le plus important "
+    Glucose car j'ai besoin de toi », écrite quand aucune session ne tournait). Sur un compte qui a
+    passé son seuil, lancée pour ses notes (`garde`, RESERVE-1, fiche 163 ; fiche 186), elle ne fait
+    que lui répondre. Chaque morceau son paragraphe : son texte finit sans point (« …en prioriter »),
+    et la suite s'y collait."""
+    ecrit = (f"Depuis la dernière session, il a écrit dans son Glucose ({ses_notes(paroles, depuis)}) : "
+             "lis-le en premier et réponds-lui dans son Glucose — une réponse à côté de chaque note, ou "
+             "reliée par une flèche — avant toute autre tâche. Une note dans un dossier se lit avec "
+             "tableau=… (chaque dossier dit le tableau qu'il ouvre)." if paroles else "")
+    designe = (f"Sa consigne désigne par ses flèches ce qu'il juge le plus important "
                f"({lire_ids(importants)}) : lis-le juste après elle." if importants else "")
-    reserve = (f" {POURQUOI['reserve']} Réponds à ses notes, à rien d'autre, puis termine ton tour."
+    reserve = (f"{POURQUOI['reserve']} Réponds à ses notes, à rien d'autre, puis termine ton tour."
                if garde else "")
-    # Close endormie (`endormie`), la session d'avant n'a pas récrit sa passation : son travail peut
-    # attendre dans l'arbre, non commité.
-    avant = (" La session d'avant a été close endormie, sans récrire la passation : `git status` avant "
-             "de t'y fier." if orpheline else "")
-    return f"Session du relais (compte {compte}). {texte or TEXTES[TEXTE_DEPART]}{designe}{ecrit}{reserve}{avant}"
+    # Close endormie ou figée (`endormie`), la session d'avant n'a pas récrit sa passation : son
+    # travail peut attendre dans l'arbre, non commité.
+    avant = ("La session d'avant a été close sans récrire la passation : `git status` avant de t'y fier."
+             if orpheline else "")
+    morceaux = (f"Session du relais (compte {compte}). {(texte or TEXTES[TEXTE_DEPART]).strip()}",
+                designe, ecrit, reserve, avant)
+    return "\n\n".join(m for m in morceaux if m)
 
 
 def ses_fleches(noeuds, gestes, depuis=CONSIGNE, profondeur=2):
@@ -181,7 +241,7 @@ def en_pause(texte):
 def ses_paroles(histoire, avant=()):
     """**Ce qu'il a écrit** : à la suite de `avant`, les nœuds que sa main pose ou change, dans
     l'ordre, chacun une fois ; un nœud qu'il retire en sort. Le battement est au relais ; sa réponse
-    (relais-reponse) est tapée telle quelle (`surveiller`)."""
+    à une alerte (relais-bloque) est tapée telle quelle (`surveiller`)."""
     ids = list(avant)
     for geste in (histoire or {}).get("gestes", []):
         if not humaine(geste.get("auteur")):
@@ -200,7 +260,7 @@ def ses_paroles(histoire, avant=()):
             for ident in re.findall(r"«\s*([^»]+?)\s*»", fait):
                 if fait.startswith("retire"):
                     ids = [i for i in ids if i != ident]
-                elif ident not in ids and ident not in (BATTEMENT, REPONSE):
+                elif ident not in ids and ident not in (BATTEMENT, BLOQUE):
                     ids.append(ident)
     return ids
 
@@ -244,10 +304,14 @@ def decider(session, consigne_texte, pause, a_signee, relayer, maintenant, ecrit
 
 
 def endormie(session, immobile_depuis, maintenant):
-    """Arrêtée au bout d'un tour (`laissee`), l'écran immobile depuis ENDORMIE : son cache est
-    perdu, la réveiller coûterait sa relecture entière. L'écran, pas l'heure de l'arrêt : une note
-    tapée dans une session arrêtée la fait travailler sans lever `laissee`, et son écran bouge."""
-    return bool(session.get("laissee")) and maintenant - immobile_depuis >= ENDORMIE
+    """L'écran immobile depuis ENDORMIE : son cache est perdu, la réveiller coûterait sa relecture
+    entière — arrêtée au bout d'un tour (`laissee`) ou figée (sans rien de `laissee` : un refus
+    d'Anthropic, une question au démarrage). Rend la raison de la fermer, ou None. L'écran, pas
+    l'heure de l'arrêt : une note tapée dans une session arrêtée la fait travailler sans lever
+    `laissee`, et son écran bouge."""
+    if maintenant - immobile_depuis < ENDORMIE:
+        return None
+    return FERMEE_ENDORMIE if session.get("laissee") else FERMEE_FIGEE
 
 
 def contexte_plein(contexte, session):
@@ -259,11 +323,14 @@ def contexte_plein(contexte, session):
     return pct >= SEUIL_CONTEXTE or pct * taille / 100 >= SEUIL_JETONS
 
 
-def dire_session(session, memoire, maintenant):
+def dire_session(session, memoire, maintenant, refus=None):
     """Ce que le ❤️ dit d'une session vivante. **Figée, elle ne se dit pas « au travail »** : le
     23/11, une session est restée 1 h 48 devant une question de Claude Code au démarrage pendant que
-    le ❤️ disait « au travail depuis 16:00 » (fiche 134)."""
+    le ❤️ disait « au travail depuis 16:00 » (fiche 134). **Refusée par Anthropic, elle le dit**, en
+    clair, avec l'heure du prochain essai (fiche 186)."""
     compte = session.get("compte")
+    if refus:
+        return f"⛔ session du compte {compte} {refus_en_mots(refus)}"
     if memoire.get("bloque_signale"):
         return (f"🆘 session du compte {compte} figée : rien ne bouge à son écran depuis "
                 f"{heure(memoire.get('ecran_depuis', maintenant))} — son écran est dans « {BLOQUE} »")
@@ -273,6 +340,13 @@ def dire_session(session, memoire, maintenant):
 
 def raison_continuer(consigne_texte, texte=None):
     return f"[Relais] {texte or TEXTES[TEXTE_RELANCE]} Sa consigne :\n{consigne_texte.strip()}"
+
+
+def raison_reessayer(refus, consigne_texte, texte=None):
+    """Le nouvel essai d'un tour refusé (« Once fixed, resend your message », dit Claude Code)."""
+    erreur = refus.get("erreur") or "unknown"
+    return (f"[Relais] Ton dernier tour a été refusé par Anthropic ({ERREURS.get(erreur, erreur)}) : "
+            f"reprends où tu en étais. {raison_continuer(consigne_texte, texte)[len('[Relais] '):]}")
 
 
 POURQUOI = {
@@ -287,9 +361,9 @@ POURQUOI = {
     "repos": "Ce compte arrive à sa limite et aucun autre ne peut reprendre : écris ta passation et "
              "arrête-toi, le relais reprendra seul à sa remise. Jamais au mur : coupée en route, une "
              "session perd son travail (le 24/11 à 19 h 37, il a dû l'arrêter lui-même).",
-    "reserve": "La semaine de ce compte a passé son seuil et aucun autre ne peut reprendre : ce qui en "
-               "reste est gardé pour lui répondre quand il écrit (RESERVE-1, fiche 163) — une session "
-               "se lancera pour ses notes.",
+    "reserve": "Ce compte a passé son seuil et aucun autre ne peut reprendre : ce qui en reste est gardé "
+               "pour lui répondre quand il écrit (RESERVE-1, fiche 163 ; fiche 186) — une session se "
+               "lancera pour ses notes.",
 }
 
 
@@ -300,8 +374,8 @@ def raison_passation(motif=None, texte=None):
 RAISON_PASSATION = raison_passation()
 
 
-def raison_entendre(paroles):
-    return (f"[Relais] Il vient d'écrire dans son Glucose ({lire_ids(paroles)}). S'il te demande "
+def raison_entendre(paroles, depuis=None):
+    return (f"[Relais] Il vient d'écrire dans son Glucose ({ses_notes(paroles, depuis)}). S'il te demande "
             "quelque chose ou te répond, réponds-lui dans son Glucose maintenant, puis reprends ton travail.")
 
 

@@ -12,6 +12,8 @@ from unittest import mock
 import machine as m
 import relais as r
 
+LANCER = r.lancer  # le vrai, gardé avant que le banc du veilleur ne le remplace
+
 H = {"gestes": [
     {"auteur": "agent le terminal", "fait": ["pose le texte « relais-consigne »"]},
     {"auteur": "humain", "fait": ["déplace des nœuds"]},
@@ -267,7 +269,7 @@ class Veilleur(unittest.TestCase):
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
         r.un_tour()
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
-        self.lancer.assert_called_once_with("a", [], None, [])
+        self.lancer.assert_called_once_with("a", [], None, [], depuis=None)
         self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), "compte à sa limite")
 
     def test_un_compte_cru_plein_est_redemande_au_serveur_a_chaque_tour(self):
@@ -281,7 +283,7 @@ class Veilleur(unittest.TestCase):
         reponses = {r.COMPTES["b"]: (None, "épreuve")}
         with mock.patch.object(r.serveur, "demander", side_effect=lambda d: reponses.get(d, (remis, None))):
             r.un_tour()
-        self.lancer.assert_called_once_with("a", [], None, [])
+        self.lancer.assert_called_once_with("a", [], None, [], depuis=None)
 
     def test_au_mur_des_deux_comptes_il_attend_la_plus_lointaine_remise(self):
         self.jauge("b", 95, 100)
@@ -310,7 +312,7 @@ class Veilleur(unittest.TestCase):
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
         dits = [appel.args[0] for appel in r.journal.call_args_list]
         self.assertTrue(any("passation écrite" in dit for dit in dits), dits)
-        self.lancer.assert_called_once_with("a", [], None, [])
+        self.lancer.assert_called_once_with("a", [], None, [], depuis=None)
 
     def test_relayee_sans_passation_neuve_il_le_dit(self):
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": 0, "passation_demandee": 1,
@@ -409,7 +411,7 @@ class Veilleur(unittest.TestCase):
             r.un_tour()
             self.lancer.assert_not_called()  # il écrit encore : un tour sans geste de lui d'abord
             r.un_tour()
-        self.lancer.assert_called_once_with("a", ["note-1"], None, [])
+        self.lancer.assert_called_once_with("a", ["note-1"], None, [], depuis=3)
         memoire = r.lire_json(r.ETAT / "veilleur.json", {})
         self.assertEqual((memoire["vu"], memoire["paroles"]), (5, []))
 
@@ -422,7 +424,7 @@ class Veilleur(unittest.TestCase):
         with self.histoire(total=1):
             r.un_tour()
             r.un_tour()
-        self.taper.assert_called_once_with(r.raison_entendre(["note-2"]))
+        self.taper.assert_called_once_with(r.raison_entendre(["note-2"], 0))
 
     # ── Le plafond des relances de Claude Code ──
 
@@ -450,16 +452,26 @@ class Veilleur(unittest.TestCase):
         self.endormir("à vide", r.ENDORMIE)
         self.tmux.assert_any_call("kill-session", "-t", "relais-b")
         self.taper.assert_not_called()
-        self.lancer.assert_called_once_with("b", ["text-1"], None, [])
+        self.lancer.assert_called_once_with("b", ["text-1"], None, [], depuis=None)
         self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), r.FERMEE_ENDORMIE)
 
-    def test_assoupie_ou_au_travail_elle_vit(self):
-        """Arrêtée depuis moins de 50 minutes, son cache tient : ses notes lui sont tapées. Au travail
-        (rien de `laissee`), un écran immobile est une session figée, pas endormie (`surveiller`)."""
+    def test_assoupie_elle_vit(self):
+        """Arrêtée depuis moins de 50 minutes, son cache tient : ses notes lui sont tapées."""
         self.endormir("à vide", r.ENDORMIE - 60)
-        self.endormir(None, 3 * r.ENDORMIE)
         self.tmux.assert_not_called()
         self.lancer.assert_not_called()
+
+    def test_figee_elle_est_close_comme_l_endormie(self):
+        """Fiche 186 : le 27/11 à 21 h 31, figée sur un refus d'Anthropic sans que « Stop » parte (rien
+        de `laissee`), une session est restée ouverte dix-huit heures. Cette épreuve disait le
+        contraire (« au travail, un écran immobile est figé, pas endormi ») : elle gardait le défaut.
+        Un écran immobile depuis 50 minutes ne travaille plus : close, et une neuve repart."""
+        self.endormir(None, r.ENDORMIE - 60)
+        self.tmux.assert_not_called()
+        self.endormir(None, r.ENDORMIE)
+        self.tmux.assert_any_call("kill-session", "-t", "relais-b")
+        self.lancer.assert_called_once_with("b", ["text-1"], None, [], depuis=None)
+        self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), r.FERMEE_FIGEE)
 
     def test_le_crochet_cede_a_sa_session(self):
         self.bail()
@@ -501,7 +513,7 @@ class Veilleur(unittest.TestCase):
         with mock.patch.object(r, "ses_textes", lambda memoire, histoire: siens), \
                 mock.patch.object(r, "ecran", lambda: None):
             r.un_tour()
-        self.lancer.assert_called_once_with("b", [], "Mon départ.", [])
+        self.lancer.assert_called_once_with("b", [], "Mon départ.", [], depuis=None)
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant, "laissee": "relancer"})
         with mock.patch.object(r, "ses_textes", lambda memoire, histoire: siens):
             r.un_tour()
@@ -550,7 +562,7 @@ class Veilleur(unittest.TestCase):
             self.lancer.assert_not_called()
             self.assertIn("tu écris", r.lire_json(r.ETAT / "veilleur.json", {})["dit"])
             r.un_tour()
-        self.lancer.assert_called_once_with("b", ["sa-note"], None, [])
+        self.lancer.assert_called_once_with("b", ["sa-note"], None, [], depuis=None)
         r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "notes": True, "depuis": self.maintenant})
         dire, session = self.crochet()
         self.assertIn(json.dumps(r.raison_passation("reserve"), ensure_ascii=False), dire.call_args.args[0])
@@ -570,6 +582,137 @@ class Veilleur(unittest.TestCase):
         self.assertIn("figée", dit)
         self.assertNotIn("au travail", dit)
         self.assertIn(r.heure(self.maintenant - 2200), dit)
+
+
+    # ── Un tour refusé par Anthropic (fiche 186) ──
+
+    def refuser(self, compte="b", erreur="billing_error", fois=1):
+        """Le crochet « StopFailure » de la session, `fois` fois de suite."""
+        for _ in range(fois):
+            with mock.patch("sys.stdin") as stdin, \
+                    mock.patch.dict("os.environ", {"RELAIS": "1", "RELAIS_COMPTE": compte}):
+                stdin.read.return_value = json.dumps({"error": erreur, "error_details": "payment is past due"})
+                r.echec()
+        return r.refus()[compte]
+
+    def test_le_crochet_note_le_refus_et_espace_les_essais_jusqu_a_la_vie_du_cache(self):
+        """Un essai refusé ne coûte rien ; Claude Code a déjà réessayé dans le tour. 5, 10, 20, 40
+        minutes, puis jamais plus loin que la vie du cache : une panne longue est réessayée toutes les
+        50 minutes, et le compte repart au plus tard 50 minutes après qu'elle est réparée."""
+        delais = []
+        for fois in range(1, 8):
+            refuse = self.refuser()
+            self.assertEqual(refuse["fois"], fois)
+            delais.append(round((refuse["jusqu_a"] - refuse["t"]) / 60))
+        self.assertEqual(delais, [5, 10, 20, 40, 50, 50, 50])
+        self.assertEqual(refuse["erreur"], "billing_error")
+        with mock.patch("sys.stdin") as stdin, mock.patch.dict("os.environ", {"RELAIS": "0"}):
+            stdin.read.return_value = "{}"
+            r.echec()  # une session à lui : son erreur est la sienne
+        self.assertEqual(r.refus()["b"]["fois"], 7)
+
+    def test_un_tour_reussi_efface_le_refus(self):
+        self.refuser(fois=3)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b"})
+        _, session = self.crochet()
+        self.assertNotIn("b", r.refus())
+        self.assertIn("tour", session)
+
+    def test_refusee_elle_attend_son_essai_puis_la_relance_est_tapee_une_fois(self):
+        """Le 27/11 à 21 h 31 : refusée, la session est restée dix-huit heures sans un essai."""
+        self.jauge("a", 10, 100)  # a plein : personne pour reprendre
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 120})
+        refuse = self.refuser()
+        with mock.patch.object(r.time, "time", lambda: refuse["jusqu_a"] - 60):
+            r.un_tour()
+        self.taper.assert_not_called()
+        self.tmux.assert_not_called()
+        dit = r.lire_json(r.ETAT / "veilleur.json", {})["dit"]
+        self.assertIn("⛔", dit)
+        self.assertIn("abonnement refusé", dit)
+        with mock.patch.object(r.time, "time", lambda: refuse["jusqu_a"] + 1):
+            r.un_tour()
+            r.un_tour()
+        self.taper.assert_called_once_with(r.raison_reessayer(refuse, "continue"))
+        self.tmux.assert_not_called()
+        encore = self.refuser()  # refusée de nouveau : un nouvel essai, plus loin
+        with mock.patch.object(r.time, "time", lambda: encore["jusqu_a"] + 1):
+            r.un_tour()
+        self.assertEqual(self.taper.call_count, 2)
+
+    def test_refusee_un_autre_compte_libre_la_reprend_dans_le_meme_tour(self):
+        self.jauge("a", 10, 10)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 120})
+        self.refuser()
+        r.un_tour()
+        self.tmux.assert_any_call("kill-session", "-t", "relais-b")
+        self.lancer.assert_called_once_with("a", [], None, [], depuis=None)
+        self.assertEqual(r.lire_json(r.ETAT / "session.json", {}).get("laissee"), r.FERMEE_REFUSEE)
+
+    def test_refusee_son_cache_mort_elle_est_close_pas_reveillee(self):
+        """Réveiller une conversation après la vie de son cache la fait relire entière (25/11)."""
+        self.jauge("a", 10, 100)
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 2 * r.ENDORMIE,
+                                                "tour": self.maintenant - 2 * r.ENDORMIE})
+        refuse = self.refuser(fois=6)
+        with mock.patch.object(r.time, "time", lambda: refuse["jusqu_a"] + 1):
+            r.un_tour()
+        self.taper.assert_not_called()
+        self.tmux.assert_any_call("kill-session", "-t", "relais-b")
+        self.assertIn(r.FERMEE_REFUSEE, r.FERMEES_SANS_PASSATION)
+
+    def test_un_compte_refuse_n_est_pas_choisi_et_le_battement_dit_pourquoi(self):
+        self.jauge("a", 10, 100)
+        self.jauge("b", 10, 10)
+        self.refuser("b")
+        with mock.patch.object(r, "ecran", lambda: None):
+            r.un_tour()
+        self.lancer.assert_not_called()
+        dit = r.lire_json(r.ETAT / "veilleur.json", {})["dit"]
+        self.assertTrue(dit.startswith("⛔ compte b refusé par Anthropic"), dit)
+        self.assertFalse(r.ailleurs("a", self.maintenant)[0])
+
+    # ── La session lancée pour ses notes, au-delà du seuil (fiche 186) ──
+
+    def test_lancee_pour_ses_notes_au_dela_des_cinq_heures_elle_lui_repond_d_abord(self):
+        """Le 27/11 de 19 h 33 à 19 h 38 : a à 91 % de ses 5 h, b plein ; trois sessions lancées pour
+        ses notes, chacune close une minute après, sa passation demandée avant toute réponse."""
+        self.jauge("a", 91, 13)
+        self.jauge("b", 0, 100)
+        with mock.patch.object(r, "ses_paroles", lambda h, avant: ["sa-note"]), \
+                mock.patch.object(r, "ecran", lambda: None), mock.patch.object(r, "lancer", LANCER), \
+                mock.patch.object(r, "session_tmux", lambda: None), \
+                mock.patch.object(r, "claude_binaire", lambda: "claude"), \
+                mock.patch.object(r, "tmux", mock.Mock(
+                    return_value=subprocess.CompletedProcess([], 0, "", ""))) as tmux:
+            r.un_tour()
+        self.assertIn(r.POURQUOI["reserve"], tmux.call_args.args[-1])
+        session = r.lire_json(r.ETAT / "session.json", {})
+        self.assertEqual((session["compte"], session.get("notes")), ("a", True))
+        r.un_tour()  # la session vit : pas de passation en plein tour
+        self.taper.assert_not_called()
+        with mock.patch("sys.stdin") as stdin, mock.patch("builtins.print") as dire, \
+                mock.patch.dict("os.environ", {"RELAIS": "1", "RELAIS_COMPTE": "a"}):
+            stdin.read.return_value = "{}"
+            r.fin_de_tour()  # sa réponse faite, la passation à la fin de son tour
+        self.assertIn(json.dumps(r.raison_passation("reserve"), ensure_ascii=False), dire.call_args.args[0])
+
+    def test_ses_notes_se_lisent_par_quoi_de_neuf_depuis_son_premier_geste(self):
+        """Sa note du 27/11 (text-kix1-2714) : la liste « ids=… » s'allongeait sans fin."""
+        r.ecrire_json(r.ETAT / "veilleur.json", {"consigne_signee": "e", "compte": "a", "vu": 40})
+        gestes = [{"rang": 40, "auteur": "agent le terminal", "fait": ["change le texte « relais-battement »"]},
+                  {"rang": 41, "auteur": "Aigle Émeraude", "fait": ["pose le texte « note-1 »"]},
+                  {"rang": 42, "auteur": "humain", "fait": ["pose le texte « note-2 »"]}]
+        with self.histoire(*gestes, total=43), mock.patch.object(r, "ecran", lambda: None):
+            r.un_tour()
+        self.assertEqual(r.lire_json(r.ETAT / "veilleur.json", {})["paroles_depuis"], 41)
+        with self.histoire(total=43), mock.patch.object(r, "ecran", lambda: None):
+            r.un_tour()
+        self.lancer.assert_called_once_with("a", ["note-1", "note-2"], None, [], depuis=41)
+        self.assertNotIn("paroles_depuis", r.lire_json(r.ETAT / "veilleur.json", {}))
+        depart = r.depart("a", ["note-1", "note-2"], depuis=41)
+        self.assertIn("glucose_quoi_de_neuf depuis=41", depart)
+        self.assertNotIn("ids=note-1", depart)
 
 
 class Lancement(unittest.TestCase):
@@ -629,6 +772,11 @@ class Lancement(unittest.TestCase):
             self.assertTrue(r.lancer("b"))
         commande = tmux.call_args.args
         self.assertIn("ENABLE_CLAUDEAI_MCP_SERVERS=false", commande[:commande.index("claude")])
+
+    def test_son_texte_sans_point_ne_se_colle_pas_a_la_suite(self):
+        """Son texte finit sur « …en prioriter », sans point : « …en prioriter Depuis… » se collait."""
+        depart = r.depart("a", ["note-1"], "points a faire en prioriter")
+        self.assertIn("en prioriter\n\nDepuis la dernière session", depart)
 
     def test_son_texte_de_depart(self):
         self.assertIn("Mon départ.", self.lancer("b", [], "Mon départ.")[-1])
@@ -736,7 +884,7 @@ class Mains(unittest.TestCase):
             {"auteur": "agent claude-code", "fait": ["change le texte « note-2 »"]},
             {"auteur": "Aigle Émeraude", "fait": ["change le texte « note-1 »", "pose la membrane « urgent »"]},
             {"auteur": "humain", "fait": ["change le texte « relais-battement »", "déplace des nœuds"]},
-            {"auteur": "humain", "fait": ["change le texte « relais-reponse »"]},
+            {"auteur": "humain", "fait": ["change le texte « relais-bloque »"]},
             {"auteur": "Aigle Émeraude", "fait": ["retire le texte « vieille »"]},
         ]}
         self.assertEqual(r.ses_paroles(h, ["vieille", "avant"]), ["avant", "note-1", "urgent"])
@@ -900,18 +1048,22 @@ class Parole(unittest.TestCase):
         self.assertEqual(subprocess.run([sys.executable, "-c", essai, chemin]).returncode, 0)
 
 
-class Reponse(unittest.TestCase):
-    """Sa réponse dans relais-reponse est tapée dans la session — écrite de ce Glucose ou d'ailleurs."""
+class Alerte(unittest.TestCase):
+    """L'alerte d'une session figée (relais-bloque) : sa réponse s'écrit dans l'alerte même, sous
+    « ✍️ Ta réponse : », de ce Glucose ou d'ailleurs, et est tapée une fois ; l'alerte se lève quand
+    l'écran repart (fiche 186 : il avait retiré relais-reponse, l'alerte renvoyait à un nœud mort)."""
 
     def setUp(self):
         self.dossier = tempfile.TemporaryDirectory()
-        self.reponse = {"id": r.REPONSE, "empreinte": "r2", "texte": f"{r.INVITE_REPONSE} oui, vas-y"}
-        self.taper = mock.Mock()
+        self.bloque = {"id": r.BLOQUE, "empreinte": "b2",
+                       "texte": f"🆘 l'écran\n\n{r.INVITE_REPONSE} oui, vas-y"}
+        self.taper, self.ecrire = mock.Mock(), mock.Mock()
+        self.vu = "l'écran"
         self.retouches = [mock.patch.object(r, "ETAT", Path(self.dossier.name)),
-                          mock.patch.object(r, "ecran", lambda: "l'écran"),
-                          mock.patch.object(r, "noeud", lambda ident: self.reponse),
+                          mock.patch.object(r, "ecran", lambda: self.vu),
+                          mock.patch.object(r, "noeud", lambda ident: self.bloque if ident == r.BLOQUE else None),
                           mock.patch.object(r, "taper", self.taper),
-                          mock.patch.object(r, "ecrire", mock.Mock()), mock.patch.object(r, "journal", mock.Mock())]
+                          mock.patch.object(r, "ecrire", self.ecrire), mock.patch.object(r, "journal", mock.Mock())]
         for retouche in self.retouches:
             retouche.start()
 
@@ -920,21 +1072,52 @@ class Reponse(unittest.TestCase):
             retouche.stop()
         self.dossier.cleanup()
 
+    def signalee(self):
+        import hashlib
+        return {"bloque_signale": True, "bloque_vu": "b1", "ecran_depuis": 0,
+                "ecran": hashlib.sha256(self.vu.encode()).hexdigest()}
+
     def test_sa_reponse_depuis_l_autre_appareil_est_tapee_une_fois_son_geste_lu(self):
-        memoire = {"reponse_vue": "r1"}
+        memoire = self.signalee()
         r.surveiller(memoire, {"gestes": []}, 0)
         self.taper.assert_not_called()
-        self.assertEqual(memoire["reponse_vue"], "r1", "son geste pas encore lu : on attend le tour suivant")
-        geste = {"auteur": "Aigle Émeraude", "fait": [f"change le texte « {r.REPONSE} »"]}
+        self.assertEqual(memoire["bloque_vu"], "b1", "son geste pas encore lu : on attend le tour suivant")
+        geste = {"auteur": "Aigle Émeraude", "fait": [f"change le texte « {r.BLOQUE} »"]}
         r.surveiller(memoire, {"gestes": [geste]}, 0)
         self.taper.assert_called_once_with("oui, vas-y")
+        self.assertIn("Tapé dans la session", self.ecrire.call_args.args[1])
+        r.surveiller(memoire, {"gestes": [geste]}, 0)
+        self.taper.assert_called_once()
 
     def test_ecrite_par_une_ia_elle_n_est_pas_tapee(self):
-        memoire = {"reponse_vue": "r1"}
-        geste = {"auteur": "agent claude-code", "fait": [f"change le texte « {r.REPONSE} »"]}
+        memoire = self.signalee()
+        geste = {"auteur": "agent claude-code", "fait": [f"change le texte « {r.BLOQUE} »"]}
         r.surveiller(memoire, {"gestes": [geste]}, 0)
         self.taper.assert_not_called()
-        self.assertEqual(memoire["reponse_vue"], "r2")
+        self.assertEqual(memoire["bloque_vu"], "b2")
+
+    def test_l_alerte_nait_dans_la_bulle_du_relais_et_se_leve_quand_l_ecran_repart(self):
+        """Le 27/11 à 22 h 07, posée sans bulle, elle est tombée hors de tout ; et son 🆘 criait
+        encore le lendemain, la session close."""
+        self.bloque = None
+        memoire = {}
+        r.surveiller(memoire, {"gestes": []}, 0)
+        r.surveiller(memoire, {"gestes": []}, r.SILENCE)
+        texte, place = self.ecrire.call_args.args[1], self.ecrire.call_args.kwargs
+        self.assertTrue(texte.startswith("🆘") and texte.rstrip().endswith(r.INVITE_REPONSE))
+        self.assertEqual(place.get("dans"), "relais")
+        self.assertTrue(memoire["bloque_signale"])
+        self.vu = "l'écran a bougé"
+        r.surveiller(memoire, {"gestes": []}, r.SILENCE + 60)
+        self.assertTrue(self.ecrire.call_args.args[1].startswith("✅"))
+        self.assertFalse(memoire["bloque_signale"])
+
+    def test_refusee_par_anthropic_pas_d_alerte(self):
+        """Le ❤️ dit déjà le refus et l'heure du prochain essai : l'alerte ne le répète pas."""
+        memoire = {}
+        r.surveiller(memoire, {"gestes": []}, 0, refusee=True)
+        r.surveiller(memoire, {"gestes": []}, r.SILENCE, refusee=True)
+        self.ecrire.assert_not_called()
 
 
 class Vue(unittest.TestCase):
