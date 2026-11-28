@@ -20,17 +20,15 @@ fn app() -> GlucoseApp {
     app
 }
 
-/// Collaborer, la porte humain, puis « Rejoindre… », par la question elle-même.
+/// Collaborer, puis « Rejoindre… », par la question elle-même.
 fn ouvrir(app: &mut GlucoseApp) {
     app.montrer_collaborer();
-    for libelle in ["Porte humain…", "Rejoindre…"] {
-        let bouton = app.ui.question.as_ref().and_then(|(q, _)| {
-            let choix = q.choix.iter().find(|(l, _)| l == libelle);
-            choix.map(|(_, r)| *r)
-        });
-        let bouton = bouton.unwrap_or_else(|| panic!("« {libelle} » parmi les choix"));
-        app.repondre_a_la_question(Some(bouton));
-    }
+    let bouton = app.ui.question.as_ref().and_then(|(q, _)| {
+        let choix = q.choix.iter().find(|(l, _)| l == "Rejoindre…");
+        choix.map(|(_, r)| *r)
+    });
+    let bouton = bouton.expect("« Rejoindre… » parmi les choix");
+    app.repondre_a_la_question(Some(bouton));
     // La première fois, son nom et sa couleur d'abord (IDENTITE-2) : il garde ceux qu'on propose.
     if matches!(app.ui.question, Some((_, Suite::Identite(_)))) {
         app.repondre_a_la_question(Some(crate::ui::question::Reponse::Oui));

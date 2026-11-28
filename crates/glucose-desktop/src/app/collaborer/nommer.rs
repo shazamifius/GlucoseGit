@@ -112,7 +112,7 @@ impl GlucoseApp {
         puis: Option<Puis>,
     ) {
         if reponse != Reponse::Oui {
-            return self.montrer_la_porte_humain(None);
+            return self.montrer_collaborer_avec(None);
         }
         let avant = Identite::la_sienne(&self.disque.identite);
         let couleur = pastille
@@ -137,7 +137,7 @@ impl GlucoseApp {
         match puis {
             Some(Puis::Partager) => self.partager_ce_canevas(),
             Some(Puis::Rejoindre) => self.demander_le_code(),
-            None => self.montrer_la_porte_humain(None),
+            None => self.montrer_collaborer_avec(None),
         }
     }
 }

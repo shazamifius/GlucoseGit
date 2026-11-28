@@ -56,12 +56,10 @@ fn test_the_collab_button_opens_collaboration_and_the_public_door() {
             .unwrap_or_else(|| panic!("« {debut} » parmi les choix"))
     };
     app.ui.question = Some((question, Suite::Collaborer));
-    // Trois portes (fiche 154) : les humains partagent et rejoignent, les IA ont leur porte.
-    app.repondre_a_collaborer(reponse(&app, "Porte humain"));
+    // Une seule fenêtre (fiche 192) : on y partage et rejoint ; les IA ont leur étage.
     reponse(&app, "Partager ce canevas");
     reponse(&app, "Rejoindre");
-    app.repondre_a_collaborer(reponse(&app, "Retour"));
-    app.repondre_a_collaborer(reponse(&app, "Porte IA"));
+    app.repondre_a_collaborer(reponse(&app, "IA…"));
     app.repondre_a_collaborer(reponse(&app, "La porte aux IA"));
     let Some((porte, Suite::PortePublique)) = &app.ui.question else {
         panic!("la question de la porte");

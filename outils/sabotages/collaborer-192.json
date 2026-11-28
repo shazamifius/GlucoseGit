@@ -1,0 +1,142 @@
+[
+ {
+  "nom": "192 COLLAB-1 — plus de bouton IA…",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "choix(\"IA…\", IA),",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "192 COLLAB-1 — Retour ne remonte pas",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "RETOUR => self.montrer_collaborer(),",
+  "apres": "RETOUR => {}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "192 COLLAB-1 — les programmes ne se disent plus",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "self.les_programmes()",
+  "apres": "String::new()",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "192 COLLAB-1 — l'étage IA ne dit plus son chemin",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "titre: \"Collaborer › IA\".into(),",
+  "apres": "titre: \"IA\".into(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "192 COLLAB-1 — l'étage IA ne mène plus aux IA du nuage",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "choix(\"Les IA du nuage…\", LES_IA_DU_NUAGE),",
+  "apres": "",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "192 COLLAB-1 — seul, il ne dit plus qu'il n'est pas partagé",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/revenir.rs",
+  "avant": "\"Ce canevas n'est pas partagé.\\n\\n{partager}",
+  "apres": "\"{partager}",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "192 COLLAB-1 — une note ne se dit plus",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "texte = format!(\"{n}\\n\\n{texte}\");",
+  "apres": "let _ = n;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ }
+]

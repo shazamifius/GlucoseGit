@@ -193,7 +193,7 @@ impl GlucoseApp {
                 });
                 if let Some(t) = texte {
                     let note = self.copier_un_code(t);
-                    self.montrer_la_porte_humain(Some(note));
+                    self.montrer_collaborer_avec(Some(note));
                 }
             }
             QUITTER => {
@@ -236,10 +236,10 @@ impl GlucoseApp {
             .and_then(|m| crate::plateforme::hasard::octets::<32>().map(|h| (m, Code::neuf(h))));
         let (marque, code) = match prepare {
             Ok(p) => p,
-            Err(e) => return self.montrer_la_porte_humain(Some(format!("Partager : {e}."))),
+            Err(e) => return self.montrer_collaborer_avec(Some(format!("Partager : {e}."))),
         };
         let Some(lien) = self.relier(code.clone(), 0) else {
-            return self.montrer_la_porte_humain(Some(PAS_DE_RESEAU.into()));
+            return self.montrer_collaborer_avec(Some(PAS_DE_RESEAU.into()));
         };
         self.terminer_les_gestes_en_cours();
         self.consigner();
@@ -257,17 +257,17 @@ impl GlucoseApp {
         self.ui.porte_ouverte = true;
         self.retenir_le_canevas_en_cours();
         let note = code.texte_ecrire().map(|t| self.copier_un_code(t));
-        self.montrer_la_porte_humain(note);
+        self.montrer_collaborer_avec(note);
     }
 
     /// Le document laissé : un canevas vide attend la base, le fil part.
     pub(crate) fn commencer_a_rejoindre(&mut self, code: Code) {
         let marque = match nouvelle_marque() {
             Ok(m) => m,
-            Err(e) => return self.montrer_la_porte_humain(Some(format!("Rejoindre : {e}."))),
+            Err(e) => return self.montrer_collaborer_avec(Some(format!("Rejoindre : {e}."))),
         };
         let Some(lien) = self.relier(code.clone(), 0) else {
-            return self.montrer_la_porte_humain(Some(PAS_DE_RESEAU.into()));
+            return self.montrer_collaborer_avec(Some(PAS_DE_RESEAU.into()));
         };
         self.quitter_le_canevas_partage();
         self.adopter_un_document_vierge();
@@ -282,7 +282,7 @@ impl GlucoseApp {
             objets,
         ));
         self.ui.porte_ouverte = true;
-        self.montrer_la_porte_humain(None);
+        self.montrer_collaborer_avec(None);
     }
 
     /// **Quitte le partage** : le canevas reste ici, à soi seul ; les autres continuent sans soi.
@@ -392,7 +392,7 @@ impl GlucoseApp {
         // Jamais par-dessus une autre question (une IA qui demande la porte, un travail à garder).
         let libre = matches!(self.ui.question, None | Some((_, Suite::Collaborer)));
         if attend && n == 0 && libre {
-            self.montrer_la_porte_humain(Some(SALLE_VIDE.into()));
+            self.montrer_collaborer_avec(Some(SALLE_VIDE.into()));
         }
     }
 
