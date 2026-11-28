@@ -22,7 +22,9 @@ SILENCE = 35 * 60
 # 3 191 requêtes du relais, relire coûtait 78 % des jetons, à 318 000 jetons de contexte en moyenne
 # (784 000 au plus). Sa réponse du 24/11 (relais-q-h24-quotas) : *« relire la conversation, c'est
 # vraiment à ne jamais faire »*. Simulé sur ces sessions, le coût est au plus bas vers 300 000
-# (fiche 142). Une fenêtre plus petite garde l'ancien seuil, en pourcentage.
+# (fiche 142) ; remesuré le 28/11 sur 206 intervalles de jauge, le creux est à 277 000 et la
+# fenêtre entière coûterait 80 % de plus par requête (fiche 147 § 7). Une fenêtre plus petite garde
+# l'ancien seuil, en pourcentage.
 SEUIL_JETONS = 300_000
 SEUIL_CONTEXTE = 90.0
 # **Endormie** (sa note du 25/11, img-utzs-2460 : « ne jamais réveiller une session Claude qui attend
