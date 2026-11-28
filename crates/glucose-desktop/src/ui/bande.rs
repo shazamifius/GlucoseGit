@@ -32,7 +32,7 @@ mod rangee;
 use super::{
     layout_tabs, layout_topbar, ActiveTool, TabButtonLayout, TopbarButtonDef, TopbarLayout, UiState,
 };
-use crate::params::{ButtonState, Pointer, ScaledRect};
+use crate::params::{Pointer, ScaledRect};
 use crate::renderer::scale::fill_crisp;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
@@ -386,10 +386,7 @@ fn render_topbar(
     }
 
     for (i, btn) in layout.buttons.iter().enumerate() {
-        let state = ButtonState {
-            active: btn.active,
-            hover: survole == Some(i),
-        };
+        let state = btn.etat(survole == Some(i));
         if btn.is_tool {
             super::boutons::draw_tool_button(pixmap, theme, box_of(btn, s), btn.icon, state);
         } else {

@@ -47,6 +47,19 @@ pub struct TopbarButtonDef {
     pub nom: &'static str,
     pub active: bool,
     pub is_tool: bool,
+    /// Ce qu'il ferait est refusé ici ([`eteint`]).
+    pub eteint: bool,
+}
+
+impl TopbarButtonDef {
+    /// **Ce qu'il vit à l'image** : un bouton éteint ne s'allume pas sous la souris.
+    pub(crate) fn etat(&self, survole: bool) -> crate::params::ButtonState {
+        crate::params::ButtonState {
+            active: self.active,
+            hover: survole && !self.eteint,
+            eteint: self.eteint,
+        }
+    }
 }
 
 /// **Un libellé mesuré** : la largeur du bouton, ce qu'il montre, et son nom.
@@ -87,6 +100,8 @@ struct Regle<'a> {
     /// La hauteur d'un bouton d'action et son ordonnée.
     action: (f32, f32),
     typo: &'a Typography,
+    /// Un lecteur regarde : les boutons qui posent ou rangent sont éteints.
+    lecteur: bool,
     /// Les libellés cèdent la place quand la barre ne tient pas : d'abord ceux de droite
     /// (compact), puis tous (ultra-compact).
     compact: bool,
@@ -110,6 +125,7 @@ impl<'a> Regle<'a> {
         let cote = 30.0 * s;
         let haut_action = 28.0 * s;
         Self {
+            lecteur: ui.synchro == Some(super::Synchro::Regarde),
             boutons: Vec::new(),
             separateurs: Vec::new(),
             x: 100.0 * s,
@@ -139,6 +155,7 @@ impl<'a> Regle<'a> {
 
     /// Un outil carré : il n'a qu'une icône, et il est actif ou non.
     fn outil(&mut self, action: UiAction, icon: IconType, nom: &'static str, actif: bool) {
+        let eteint = self.lecteur && ecrit(&action);
         let (cote, y) = self.outil;
         self.boutons.push(TopbarButtonDef {
             action,
@@ -151,6 +168,7 @@ impl<'a> Regle<'a> {
             nom,
             active: actif,
             is_tool: true,
+            eteint,
         });
         self.x += cote + 2.0 * self.s;
     }
@@ -175,6 +193,7 @@ impl<'a> Regle<'a> {
             montre: label,
             nom,
         } = libelle;
+        let eteint = self.lecteur && ecrit(&action);
         let (hauteur, y) = self.action;
         self.boutons.push(TopbarButtonDef {
             action,
@@ -187,6 +206,7 @@ impl<'a> Regle<'a> {
             nom,
             active: actif,
             is_tool: false,
+            eteint,
         });
         self.x += largeur + ecart * self.s;
     }
@@ -241,10 +261,36 @@ pub(crate) fn les_boutons(ui: &UiState, typo: &Typography) -> Vec<TopbarButtonDe
         .buttons
 }
 
+/// **Les boutons qui posent ou rangent** : ce qu'un lecteur ne fait pas (LECTEUR-1, fiche 193).
+fn ecrit(action: &UiAction) -> bool {
+    matches!(
+        action,
+        UiAction::SelectTool(
+            ActiveTool::Text
+                | ActiveTool::Sticky
+                | ActiveTool::Arrow
+                | ActiveTool::Folder
+                | ActiveTool::Membrane
+        ) | UiAction::AddImages
+            | UiAction::Organize
+    )
+}
+
+/// **Ce bouton est-il éteint ?** Pour un lecteur, ceux qui écrivent : il les voit, pâles, et un
+/// clic lui dit pourquoi au lieu de choisir un outil dont chaque geste serait refusé.
+pub(crate) fn eteint(ui: &UiState, action: &UiAction) -> bool {
+    ui.synchro == Some(super::Synchro::Regarde) && ecrit(action)
+}
+
 /// **Ce qu'un bouton de la barre fait lui-même**, avant que l'application n'en reçoive
 /// l'action : l'aimant bascule et le dit, Trans-domaines dit qu'il n'existe pas encore.
 /// Une seule fois, pour la barre et pour le rail.
-pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
+pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> Option<UiAction> {
+    // Un bouton éteint dit pourquoi, et ne fait rien.
+    if eteint(ui, &action) {
+        ui.show_toast("Tu regardes seulement : ce canevas ne se modifie pas d'ici");
+        return None;
+    }
     match action {
         UiAction::ToggleMagnet => {
             ui.smart_align = !ui.smart_align;
@@ -257,7 +303,7 @@ pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
         UiAction::TransDomain => ui.show_toast(super::NOT_YET_TRANS_DOMAINES),
         _ => {}
     }
-    action
+    Some(action)
 }
 
 /// La barre à cette densité, et si elle tient dans une fenêtre large de `width`.

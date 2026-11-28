@@ -238,5 +238,85 @@
    "--",
    "lecteur"
   ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — Ordonner reste allumé",
+  "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+  "avant": "            | UiAction::Organize\n",
+  "apres": "\n",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur_1_les_boutons"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — rien n'est éteint",
+  "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+  "avant": "let eteint = self.lecteur && ecrit(&action);\n        let (cote, y) = self.outil;",
+  "apres": "let eteint = false;\n        let (cote, y) = self.outil;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur_1_les_boutons"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — un bouton éteint choisit quand même",
+  "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+  "avant": "        return None;\n    }\n    match action {",
+  "apres": "    }\n    match action {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur_1_les_boutons"
+  ]
+ },
+ {
+  "nom": "193 LECTEUR-1 — un bouton éteint s'allume sous la souris",
+  "fichier": "crates/glucose-desktop/src/ui/boutons.rs",
+  "avant": "hover: survole && !self.eteint,",
+  "apres": "hover: survole,",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "lecteur_1_les_boutons"
+  ]
  }
 ]

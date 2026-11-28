@@ -39,7 +39,7 @@
 
 use super::boutons::{draw_tool_button, effet_du_bouton, les_boutons, TopbarButtonDef};
 use super::{UiAction, UiState};
-use crate::params::{ButtonState, ScaledRect};
+use crate::params::ScaledRect;
 use crate::renderer::scale::fill_crisp;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
@@ -205,7 +205,7 @@ pub fn clic(
         .find(|b| dans((b.x, b.y, b.w, b.h), x, y))
     {
         ui.rail.ouvert = false;
-        return Some(Some(effet_du_bouton(ui, b.action.clone())));
+        return Some(effet_du_bouton(ui, b.action.clone()));
     }
     rail.panneau.filter(|p| dans(*p, x, y)).map(|_| None)
 }
@@ -327,14 +327,13 @@ fn dessiner(
             h: b.h,
             scale: s * CASE / 30.0,
         };
-        let etat = ButtonState {
-            active: b.active,
-            hover: false,
-        };
+        let etat = b.etat(false);
         draw_tool_button(tampon, theme, rect, b.icon, etat);
         let style = TextStyle {
             size: NOM * s,
-            color: if b.active {
+            color: if b.eteint {
+                theme.text_muted
+            } else if b.active {
                 theme.text_primary
             } else {
                 theme.text_secondary

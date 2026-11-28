@@ -923,3 +923,40 @@ fn test_dossier_2_le_rectangle_prend_le_dossier_par_la_vraie_souris() {
         "et le texte"
     );
 }
+
+/// **Un lecteur voit éteints les boutons qui écrivent** (LECTEUR-1, fiche 193) : les cinq outils
+/// qui posent, Images et Ordonner ; un clic dit pourquoi et ne choisit rien ; les autres marchent.
+#[test]
+fn lecteur_1_les_boutons_qui_ecrivent_sont_eteints() {
+    let mut app = GlucoseApp::new();
+    app.ui.synchro = Some(crate::ui::Synchro::Regarde);
+    let layout = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, 0);
+    let eteints: Vec<UiAction> = (layout.buttons.iter())
+        .filter(|b| b.eteint)
+        .map(|b| b.action.clone())
+        .collect();
+    assert_eq!(eteints.len(), 7, "{eteints:?}");
+    let pale = layout
+        .buttons
+        .iter()
+        .find(|b| b.eteint)
+        .map(|b| b.etat(true));
+    assert!(
+        pale.is_some_and(|e| !e.hover),
+        "un bouton éteint ne s'allume pas"
+    );
+    let avant = app.ui.active_tool;
+    click_topbar(&mut app, UiAction::SelectTool(ActiveTool::Text));
+    assert_eq!(app.ui.active_tool, avant, "l'outil n'est pas choisi");
+    let dit = app.ui.toast_message().map(|t| t.to_string());
+    assert!(dit.is_some_and(|t| t.contains("regardes seulement")));
+    click_topbar(&mut app, UiAction::SelectTool(ActiveTool::Pan));
+    assert_eq!(app.ui.active_tool, ActiveTool::Pan, "la main marche");
+
+    app.ui.synchro = None;
+    let layout = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, 0);
+    assert!(
+        !layout.buttons.iter().any(|b| b.eteint),
+        "seul, rien n'est éteint"
+    );
+}

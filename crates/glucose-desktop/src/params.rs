@@ -69,6 +69,8 @@ pub struct Pen {
 pub struct ButtonState {
     pub active: bool,
     pub hover: bool,
+    /// **Éteint** : ce qu'il ferait est refusé ici — un lecteur ne pose rien (LECTEUR-1).
+    pub eteint: bool,
 }
 
 /// Éléments transitoires superposés à la scène pour une frame : guides

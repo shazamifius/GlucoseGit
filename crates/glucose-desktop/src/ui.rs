@@ -481,7 +481,7 @@ pub fn handle_ui_click(
         let layout = layout_topbar(screen_w, ui, typo, img_count);
         for btn in layout.buttons {
             if x >= btn.x && x < btn.x + btn.w && y >= btn.y && y < btn.y + btn.h {
-                return Some(boutons::effet_du_bouton(ui, btn.action));
+                return boutons::effet_du_bouton(ui, btn.action);
             }
         }
     } else if y >= topbar_h && y < header_h {

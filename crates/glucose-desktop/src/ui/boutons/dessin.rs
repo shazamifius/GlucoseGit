@@ -31,7 +31,7 @@ pub fn draw_tool_button(
     state: ButtonState,
 ) {
     let ScaledRect { x, y, w, h, scale } = rect;
-    let ButtonState { active, hover } = state;
+    let ButtonState { active, hover, .. } = state;
     let bg_color = if active {
         theme.bg_active
     } else if hover {
@@ -113,7 +113,7 @@ fn fond_du_bouton(
     rayon: f32,
 ) {
     let ScaledRect { x, y, w, h, scale } = rect;
-    let ButtonState { active, hover } = state;
+    let ButtonState { active, hover, .. } = state;
     let bg_color = if active {
         theme.bg_active
     } else if hover {
@@ -169,7 +169,9 @@ fn fond_du_bouton(
 
 /// La couleur du contenu d'un bouton, selon ce qu'il vit.
 fn teinte_du_contenu(theme: &Theme, state: ButtonState) -> Color {
-    if state.active {
+    if state.eteint {
+        theme.text_muted
+    } else if state.active {
         theme.text_accent
     } else if state.hover {
         theme.text_primary
