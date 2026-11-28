@@ -1,0 +1,102 @@
+[
+ {
+  "nom": "194 CODES-1 — sans confirmation",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "changer::CHANGER => self.demander_de_changer_les_codes(),",
+  "apres": "changer::CHANGER => self.changer_les_codes(),",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "194 CODES-1 — sans réseau, il quitte quand même",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/changer.rs",
+  "avant": "Err(e) => return self.montrer_collaborer_avec(Some(e)),",
+  "apres": "Err(e) => {\n                self.quitter_le_canevas_partage();\n                return self.montrer_collaborer_avec(Some(e));\n            }",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "194 CODES-1 — un lecteur voit le bouton",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/portes.rs",
+  "avant": "if cp.code.peut_ecrire() {\n                    liste.push(choix(\"Changer les codes…\"",
+  "apres": "if true {\n                    liste.push(choix(\"Changer les codes…\"",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "194 CODES-1 — les codes ne changent pas",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/changer.rs",
+  "avant": "        self.ouvrir_la_salle(salle);",
+  "apres": "        drop(salle);\n        self.montrer_collaborer();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ },
+ {
+  "nom": "194 CODES-1 — un lecteur change les codes",
+  "fichier": "crates/glucose-desktop/src/app/collaborer/changer.rs",
+  "avant": "if !peut {",
+  "apres": "if false {",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "collab"
+  ]
+ }
+]

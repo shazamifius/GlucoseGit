@@ -7,7 +7,7 @@
 //! étage, un seul, dont le titre dit le chemin (« Collaborer › IA »). Toutes ses réponses passent
 //! par [`GlucoseApp::repondre_a_collaborer`], « Retour » remonte.
 
-use super::{photos, CanevasPartage, COPIER_ECRIRE, COPIER_LIRE, NOMMER, PORTE, QUITTER};
+use super::{changer, photos, CanevasPartage, COPIER_ECRIRE, COPIER_LIRE, NOMMER, PORTE, QUITTER};
 use crate::app::GlucoseApp;
 use crate::ui::question::{Question, Reponse, Suite};
 
@@ -41,6 +41,9 @@ impl GlucoseApp {
                     liste.push(choix("Copier le code pour y travailler", COPIER_ECRIRE));
                 }
                 liste.push(choix("Copier le code pour regarder", COPIER_LIRE));
+                if cp.code.peut_ecrire() {
+                    liste.push(choix("Changer les codes…", changer::CHANGER));
+                }
                 liste.push(choix("Quitter le partage", QUITTER));
                 (self.etat_du_partage(cp), liste)
             }
@@ -101,6 +104,8 @@ impl GlucoseApp {
     pub(super) fn repondre_aux_portes(&mut self, reponse: Reponse) {
         match reponse {
             IA => self.montrer_les_ia_de_collaborer(),
+            changer::CHANGER => self.demander_de_changer_les_codes(),
+            changer::CHANGER_VRAIMENT => self.changer_les_codes(),
             RETOUR => self.montrer_collaborer(),
             LES_IA_DU_NUAGE => self.montrer_les_ia(),
             LES_PROGRAMMES => self.demander_a_oublier_les_agents(),

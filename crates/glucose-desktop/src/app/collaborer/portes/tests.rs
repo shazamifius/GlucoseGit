@@ -120,6 +120,7 @@ fn partage_la_fenetre_dit_qui_est_la_et_donne_les_codes_permis() {
     let attendus = [
         "Copier le code pour y travailler",
         "Copier le code pour regarder",
+        "Changer les codes…",
         "Quitter le partage",
         "Ton nom et ta couleur…",
         "IA…",
@@ -146,7 +147,62 @@ fn partage_la_fenetre_dit_qui_est_la_et_donne_les_codes_permis() {
     partager(&mut app, lire, &[]);
     app.montrer_collaborer_avec(None);
     let (_, texte, choix) = ouverte(&app);
-    assert_eq!(choix, attendus[1..]);
+    let lecteur: Vec<&str> = (attendus.iter().copied())
+        .filter(|l| !l.starts_with("Copier le code pour y") && !l.starts_with("Changer"))
+        .collect();
+    assert_eq!(choix, lecteur, "un lecteur ne donne ni ne change de code");
     assert!(texte.contains("Ton code ne fait que regarder"), "{texte}");
     assert!(texte.contains("Personne d'autre"), "{texte}");
+}
+
+/// **Changer les codes** (fiche 194) : une salle neuve sous des codes neufs ; sans réseau, rien ne
+/// change et il reste dans la sienne.
+#[test]
+fn changer_les_codes_ouvre_une_salle_neuve() {
+    let mut app = GlucoseApp::new();
+    let ancien = Code::neuf([7; 32]);
+    partager(&mut app, ancien.clone(), &[]);
+    let code = |app: &GlucoseApp| {
+        app.lancement
+            .agents
+            .partage
+            .as_ref()
+            .map(|cp| cp.code.texte_lire())
+    };
+
+    app.montrer_collaborer();
+    cliquer(&mut app, "Changer les codes…");
+    assert_eq!(ouverte(&app).0, "Collaborer › Changer les codes");
+    cliquer(&mut app, "Changer les codes");
+    assert_eq!(
+        code(&app),
+        Some(ancien.texte_lire()),
+        "sans réseau, rien ne change"
+    );
+    assert!(ouverte(&app).1.contains("pas de réseau"), "et il le sait");
+
+    app.lancement.agents.boite = Some(crate::agents::Boite::nouvelle(Arc::new(|| {})));
+    app.lancement.agents.relais = Some("http://127.0.0.1:9".into());
+    app.montrer_collaborer();
+    cliquer(&mut app, "Changer les codes…");
+    cliquer(&mut app, "Retour");
+    assert_eq!(
+        code(&app),
+        Some(ancien.texte_lire()),
+        "Retour ne change rien"
+    );
+    cliquer(&mut app, "Changer les codes…");
+    cliquer(&mut app, "Changer les codes");
+    let neuf = code(&app).expect("toujours partagé");
+    assert_ne!(neuf, ancien.texte_lire(), "une salle neuve");
+    assert!(app.store.partage.is_some(), "le canevas y part");
+
+    let lire = Code::lire_le_texte(&ancien.texte_lire()).expect("un code lisible");
+    partager(&mut app, lire, &[]);
+    app.repondre_a_collaborer(super::super::changer::CHANGER_VRAIMENT);
+    assert_eq!(
+        code(&app),
+        Some(ancien.texte_lire()),
+        "un lecteur ne change rien"
+    );
 }

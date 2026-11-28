@@ -7,6 +7,7 @@
 //! dire : qui est là, ce qu'un code permet, quand deux gestes se sont croisés.
 
 pub mod api;
+mod changer;
 pub mod identite;
 pub mod nommer;
 pub mod photos;
@@ -234,15 +235,23 @@ impl GlucoseApp {
         if self.revenir_dans_sa_salle() {
             return;
         }
+        match self.preparer_une_salle() {
+            Ok(salle) => self.ouvrir_la_salle(salle),
+            Err(e) => self.montrer_collaborer_avec(Some(e)),
+        }
+    }
+
+    /// Une salle neuve : sa marque, son code, le fil vers elle — rien n'a encore changé ici.
+    fn preparer_une_salle(&self) -> Result<(String, Code, Lien), String> {
         let prepare = nouvelle_marque()
             .and_then(|m| crate::plateforme::hasard::octets::<32>().map(|h| (m, Code::neuf(h))));
-        let (marque, code) = match prepare {
-            Ok(p) => p,
-            Err(e) => return self.montrer_collaborer_avec(Some(format!("Partager : {e}."))),
-        };
-        let Some(lien) = self.relier(code.clone(), 0) else {
-            return self.montrer_collaborer_avec(Some(PAS_DE_RESEAU.into()));
-        };
+        let (marque, code) = prepare.map_err(|e| format!("Partager : {e}."))?;
+        let lien = self.relier(code.clone(), 0).ok_or(PAS_DE_RESEAU)?;
+        Ok((marque, code, lien))
+    }
+
+    /// Ce canevas part dans cette salle neuve.
+    fn ouvrir_la_salle(&mut self, (marque, code, lien): (String, Code, Lien)) {
         self.terminer_les_gestes_en_cours();
         self.consigner();
         self.store.partager_ce_canevas(&marque);
