@@ -298,5 +298,25 @@
    "--",
    "place_1"
   ]
+ },
+ {
+  "nom": "PLACE-1 — un texte allongé sans le dire",
+  "fichier": "crates/glucose-core/src/store/agents/place.rs",
+  "avant": "(p.x, p.y) == (grandi.left, grandi.top)",
+  "apres": "(p.x, p.y) == (grandi.left, grandi.top) || true",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "place_1"
+  ]
  }
 ]

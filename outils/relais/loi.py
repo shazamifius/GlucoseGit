@@ -111,6 +111,8 @@ def lire_ids(ids):
 # pour le script de stop »*. Chaque texte vit dans un nœud de sa membrane « relais » ; le relais y
 # ajoute les faits du moment (le compte, ses notes, le motif, sa consigne). Sa version ne vaut que
 # si sa main l'a écrite en dernier — jamais une IA (`signee`) ; sinon, celle-ci.
+# Son bloc « URGENT IMPORTANT » (23/11) : ses flèches désignent ce qui presse (sa note du 24/11).
+URGENT = "text-f5fn-345"
 TEXTE_DEPART, TEXTE_PASSATION, TEXTE_RELANCE = (
     "relais-texte-depart", "relais-texte-passation", "relais-texte-relance")
 TEXTES = {
@@ -125,8 +127,9 @@ TEXTES = {
         f"tableau=main ids={CONSIGNE} ids={PASSATION}). Tes règles et l'index de tes mémoires sont déjà "
         f"chargés : du mode d'emploi du relais ({MODE_EMPLOI}, seulement si ton travail touche au "
         "relais), de ~/Projets/LISEZ-MOI.md, d'une mémoire, de VISION, ÉTAT, SUITE ou MÉTHODE, ne lis "
-        "que la section dont ton travail a besoin — les jetons sont sa priorité (24/11). Puis travaille "
-        "selon la consigne."),
+        "que la section dont ton travail a besoin — les jetons sont sa priorité (24/11).\n\n"
+        f"Lis aussi son bloc URGENT IMPORTANT : chaque flèche qui en part désigne un point à traiter en "
+        f"priorité (glucose lire tableau=main ids={URGENT} fleches=true). Puis travaille selon la consigne."),
     # Sa note du 25/11 (text-bmgs-2413) : *« c'est nul le fait qu'il met les récaps de ce qui s'est
     # passé, ça tu le vois par toi-même grâce au MCP »*. Ce qui est fait, `git log` et son Glucose le
     # disent ; la passation de ce matin-là, allongée de session en session, pesait 1 500 mots relus à

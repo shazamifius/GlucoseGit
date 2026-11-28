@@ -96,3 +96,24 @@ fn place_1_une_membrane_agrandie_sur_un_voisin_le_dit() {
     );
     assert!(dit.get("attention").is_some(), "{}", dit.ecrire());
 }
+
+/// **Un texte allongé qui pousse sa membrane sur un voisin, l'IA le sait** (fiche 185 § 5) : le
+/// 27/11, le plan du relais allongé a poussé sa bulle sur une note de l'humain, sans un mot.
+#[test]
+fn place_1_un_texte_allonge_sur_un_voisin_le_dit() {
+    let mut app = une_membrane_et_son_texte();
+    appeler(
+        &mut app,
+        "glucose_poser_texte",
+        r#"{"id":"v","texte":"Voisin.","x":400,"y":700}"#,
+    );
+    let court = r#"{"id":"t","texte":"Dedans, deux lignes.\n\nPas plus."}"#;
+    let dit = appeler(&mut app, "glucose_ecrire", court);
+    assert!(dit.get("attention").is_none(), "{}", dit.ecrire());
+    let long = format!(
+        r#"{{"id":"t","texte":"{}"}}"#,
+        "Une ligne.\\n\\n".repeat(20)
+    );
+    let dit = appeler(&mut app, "glucose_ecrire", &long);
+    assert!(dit.get("attention").is_some(), "{}", dit.ecrire());
+}

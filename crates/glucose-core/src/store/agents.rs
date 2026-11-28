@@ -502,38 +502,6 @@ impl Store {
         Ok(())
     }
 
-    /// **Un texte prend la hauteur de son contenu** (TEXT-FIT-1) — que l'application mesure,
-    /// le noyau ne connaissant pas les polices — et la membrane qui le contient grandit avec
-    /// lui : un document qu'un agent allonge ne déborde jamais de sa bulle.
-    pub fn tenir_la_hauteur_pour_un_agent(
-        &mut self,
-        board_id: &str,
-        id: &str,
-        hauteur: f64,
-    ) -> Result<(), Refus> {
-        let Some(a) = self.project.annotation(board_id, id) else {
-            return Err(Refus::NoeudInconnu(id.to_string()));
-        };
-        let (Annotation::Text { height, .. }, Some(boite)) = (a, a.rect()) else {
-            return Ok(());
-        };
-        let membrane = a.membrane_id().map(str::to_string);
-        if *height != Some(hauteur) {
-            self.update_annotation(board_id, id, |a| {
-                if let Annotation::Text { height, .. } = a {
-                    *height = Some(hauteur);
-                }
-            });
-        }
-        match membrane {
-            Some(m) => {
-                let boite = Rect::new(boite.left, boite.top, boite.width, hauteur);
-                self.agrandir_la_membrane_pour(board_id, &m, boite)
-            }
-            None => Ok(()),
-        }
-    }
-
     pub(super) fn tableau_existe(&self, board_id: &str) -> Result<(), Refus> {
         self.project
             .boards

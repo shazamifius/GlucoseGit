@@ -461,6 +461,16 @@ class Veilleur(unittest.TestCase):
         self.tmux.assert_not_called()
         self.lancer.assert_not_called()
 
+    def test_une_neuve_n_herite_pas_l_immobilite_de_la_session_d_avant(self):
+        """Le 28/11 à 15 h 58 : lancée à 15 h 57, close une minute après, « figée depuis plus de 50
+        minutes » — l'écran gardé était celui de la session d'avant, immobile depuis des heures."""
+        r.ecrire_json(r.ETAT / "session.json", {"compte": "b", "depuis": self.maintenant - 60})
+        r.ecrire_json(r.ETAT / "veilleur.json", {"consigne_signee": "e", "compte": "b",
+                                                 "ecran_depuis": self.maintenant - 3 * r.ENDORMIE})
+        r.un_tour()
+        self.tmux.assert_not_called()
+        self.lancer.assert_not_called()
+
     def test_figee_elle_est_close_comme_l_endormie(self):
         """Fiche 186 : le 27/11 à 21 h 31, figée sur un refus d'Anthropic sans que « Stop » parte (rien
         de `laissee`), une session est restée ouverte dix-huit heures. Cette épreuve disait le
@@ -961,6 +971,12 @@ class Mains(unittest.TestCase):
         self.assertNotIn("toutes tes mémoires", r.TEXTES[r.TEXTE_DEPART])
         self.assertNotIn("~/.claude/CLAUDE.md", r.TEXTES[r.TEXTE_DEPART])
         self.assertIn("aucun compte rendu", r.REGLES)
+
+    def test_le_depart_mene_a_son_bloc_urgent(self):
+        """Son texte de démarrage, corrigé à sa demande (relais-rep-texte-depart, 27/11) : il mène à
+        son bloc URGENT IMPORTANT et à ses flèches, qui ne partent pas de sa consigne (`ses_fleches`
+        ne les suit pas)."""
+        self.assertIn(f"ids={r.URGENT} fleches=true", r.depart("a"))
 
     def test_une_relance_du_crochet_passe_par_le_veilleur(self):
         self.assertEqual(r.decider({}, "x", False, True, None, 0, suite=True), ("laisser", "relancer"))

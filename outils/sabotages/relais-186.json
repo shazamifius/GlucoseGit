@@ -302,5 +302,37 @@
    "-p",
    "test_*.py"
   ]
+ },
+ {
+  "nom": "186 FIGÉE — une neuve hérite l'immobilité de la session d'avant (le 28/11 à 15 h 58)",
+  "fichier": "outils/relais/relais.py",
+  "avant": "    immobile_depuis = max(float(memoire.get(\"ecran_depuis\", maintenant)), float(session.get(\"depuis\") or 0))",
+  "apres": "    immobile_depuis = float(memoire.get(\"ecran_depuis\", maintenant))",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
+ },
+ {
+  "nom": "186 DÉPART — son texte de démarrage ne mène plus à son bloc URGENT IMPORTANT (relais-rep-texte-depart)",
+  "fichier": "outils/relais/loi.py",
+  "avant": "priorité (glucose lire tableau=main ids={URGENT} fleches=true). Puis",
+  "apres": "priorité. Puis",
+  "cmd": [
+   "python3",
+   "-m",
+   "unittest",
+   "discover",
+   "-s",
+   "outils/relais",
+   "-p",
+   "test_*.py"
+  ]
  }
 ]

@@ -42,7 +42,7 @@ from loi import (AVERTIR, BATTEMENT, BLOQUE, CONSIGNE, ENDORMIE, FERMEE_REFUSEE,
                  refus_en_mots,
                  ses_fleches, ses_paroles, signee)
 from loi import (FERMEE_ENDORMIE, FERMEE_FIGEE, MODE_EMPLOI, POURQUOI, RAISON_PASSATION,  # noqa: E402,F401  (épreuves)
-                 SEUIL_JETONS, lire_ids)
+                 SEUIL_JETONS, URGENT, lire_ids)
 from machine import (DEPOT, MAISON, claude_binaire, dernier_signe, ecrire_json, jeton_github,  # noqa: E402
                      lire_json, travail)
 import serveur  # noqa: E402
@@ -653,7 +653,11 @@ def tenir(session, memoire, humaine_la, maintenant):
     """Ce que le veilleur fait de la session du relais qui vit (`garder`) ; False s'il l'a close.
     Endormie ou figée, elle est close avant tout (`endormie`) : jamais réveillée, cache perdu.
     Refusée par Anthropic, elle attend son prochain essai (`reessayer`)."""
-    fermee = endormie(session, memoire.get("ecran_depuis", maintenant), maintenant)
+    # Immobile depuis son dernier changement d'écran — jamais avant sa naissance : l'écran gardé est
+    # peut-être celui de la session d'avant (le 28/11 à 15 h 58, une neuve close une minute après son
+    # lancement, « figée depuis plus de 50 minutes », sur l'immobilité de sa devancière).
+    immobile_depuis = max(float(memoire.get("ecran_depuis", maintenant)), float(session.get("depuis") or 0))
+    fermee = endormie(session, immobile_depuis, maintenant)
     if fermee:
         fermer(session, fermee)
         return False

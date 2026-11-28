@@ -255,7 +255,8 @@ impl GlucoseApp {
         let (id, texte) = (a.requis("id")?, a.requis("texte")?);
         let ajouter = a.oui("ajouter");
         let (typo, math) = (&self.renderer.typography, &self.renderer.math);
-        self.store
+        let libre = self
+            .store
             .geste_d_agent(|s| {
                 s.ecrire_pour_un_agent(board, id, texte, ajouter)?;
                 // Une carte de texte se tient à la hauteur de son contenu (TEXT-FIT-1).
@@ -263,15 +264,17 @@ impl GlucoseApp {
                     Annotation::Text { text, .. } => Some((text.clone(), n.bounds().width)),
                     _ => None,
                 });
-                if let Some((texte, largeur)) = tenue {
-                    let hauteur = text_card_fit_height(typo, math, &texte, largeur);
-                    s.tenir_la_hauteur_pour_un_agent(board, id, hauteur)?;
+                match tenue {
+                    Some((texte, largeur)) => {
+                        let hauteur = text_card_fit_height(typo, math, &texte, largeur);
+                        s.tenir_la_hauteur_pour_un_agent(board, id, hauteur)
+                    }
+                    None => Ok(true),
                 }
-                Ok(())
             })
             .map_err(|r| r.to_string())?;
         let boite = self.boite_existante(board, id).unwrap_or(Rect::ZERO);
-        Ok(pose(id, boite))
+        Ok(posee(id, boite, libre))
     }
 
     fn agent_relier(&mut self, board: &str, a: &Args<'_>) -> Result<Json, String> {
