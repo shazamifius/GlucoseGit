@@ -177,3 +177,22 @@ fn une_phrase_introuvable_est_vide() {
     };
     assert_eq!(passage_du(&s.project, &perdu, "eau"), "");
 }
+
+/// **Les éclats d'un résultat** (fiche 196) : où chaque mot cherché se lit dans la phrase telle
+/// qu'elle s'écrit — accents et majuscules pliés, les tranches qui se touchent fondues.
+#[test]
+fn eclats_1_ce_qu_on_cherche_se_situe_dans_la_phrase_d_origine() {
+    let phrase = "Un Été parfait, c'est PARFAIT.";
+    let e = eclats(phrase, "ete parf");
+    let lu: Vec<&str> = e.iter().map(|&(a, b)| &phrase[a..b]).collect();
+    assert_eq!(lu, ["Été", "parf", "PARF"]);
+    assert_eq!(eclats("abcabc", "abc bca"), [(0, 6)], "fondues");
+    assert!(eclats("rien ici", "chat").is_empty());
+    assert!(eclats("chat", "").is_empty());
+    let lig = "Cœur";
+    assert_eq!(
+        eclats(lig, "coeur"),
+        [(0, lig.len())],
+        "une lettre pliée en deux"
+    );
+}

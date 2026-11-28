@@ -188,7 +188,14 @@ fn liste() -> Question {
         .map(|(i, (_, age))| {
             let texte = age.to_string();
             let introuvable = false;
-            (Reponse::Choix(i), Precision { texte, introuvable })
+            (
+                Reponse::Choix(i),
+                Precision {
+                    texte,
+                    introuvable,
+                    eclats: Vec::new(),
+                },
+            )
         })
         .collect();
     Question {

@@ -48,6 +48,34 @@ pub fn pli(texte: &str) -> String {
     out
 }
 
+/// **Où ce qu'on cherche se trouve dans ce texte** (fiche 196) : les tranches du texte **tel qu'il
+/// s'écrit** — octets de début et de fin — où un mot de la requête se lit, pli fait (PLI-1),
+/// dans l'ordre et fondues quand elles se touchent. C'est ce que la liste des résultats éclaire.
+pub fn eclats(texte: &str, requete: &str) -> Vec<(usize, usize)> {
+    // Chaque octet du texte plié se souvient de la lettre d'origine qui l'a donné.
+    let mut plie = String::with_capacity(texte.len());
+    let mut origine: Vec<(usize, usize)> = Vec::with_capacity(texte.len());
+    for (i, c) in texte.char_indices() {
+        plie.push_str(&pli(c.encode_utf8(&mut [0; 4])));
+        origine.resize(plie.len(), (i, i + c.len_utf8()));
+    }
+    let mut tranches: Vec<(usize, usize)> = mots_de(requete)
+        .iter()
+        .flat_map(|m| plie.match_indices(m.as_str()).map(|(i, m)| (i, m.len())))
+        .filter(|&(_, n)| n > 0)
+        .map(|(i, n)| (origine[i].0, origine[i + n - 1].1))
+        .collect();
+    tranches.sort_unstable();
+    let mut fondues: Vec<(usize, usize)> = Vec::with_capacity(tranches.len());
+    for (debut, fin) in tranches {
+        match fondues.last_mut() {
+            Some(der) if debut <= der.1 => der.1 = der.1.max(fin),
+            _ => fondues.push((debut, fin)),
+        }
+    }
+    fondues
+}
+
 /// La lettre de base d'une lettre latine accentuée, majuscule ou minuscule.
 fn base_latine(c: char) -> Option<&'static str> {
     let b = match c as u32 {

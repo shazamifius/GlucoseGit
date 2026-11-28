@@ -213,11 +213,12 @@ impl GlucoseApp {
                 .enumerate()
                 .map(|(i, t)| {
                     let montree = (etat.debut..etat.debut + MONTRES).contains(&i);
-                    if montree {
-                        self.dire_le_trouve(t, &etat.filtre)
-                    } else {
-                        String::new()
+                    if !montree {
+                        return String::new();
                     }
+                    let (phrase, precision) = self.dire_le_trouve(t, &etat.filtre);
+                    precisions.push((Reponse::Choix(i), precision));
+                    phrase
                 })
                 .collect(),
             _ => trouvees_pour(&etat.filtre, etat.but, &|c| self.s_applique(c))

@@ -51,11 +51,13 @@ fn ctrl_f_trouve_dans_tous_les_onglets() {
     assert_eq!(ids, ["pres", "loin"]);
     let (q, _) = app.ui.question.as_ref().expect("la question");
     assert!(q.texte.starts_with("2 résultats"), "{}", q.texte);
+    let (_, r) = (q.choix.iter())
+        .find(|(l, _)| l == "Eau = H2O.")
+        .expect("la phrase, seule dans sa rangée");
+    let precision = q.precisions.iter().find(|(p, _)| p == r).map(|(_, p)| p);
     assert!(
-        q.choix
-            .iter()
-            .any(|(l, _)| l.contains("Eau = H2O.") && l.contains("Chimie")),
-        "la phrase, et l'onglet : {:?}",
+        precision.is_some_and(|p| p.texte.contains("Chimie") && p.eclats == [(0, 3)]),
+        "l'onglet, et le mot éclairé : {:?}",
         q.choix
     );
     ecrire(&mut app, "feu");
@@ -164,9 +166,9 @@ fn un_resultat_dans_un_dossier_s_atteint() {
     let (q, _) = app.ui.question.as_ref().expect("la question");
     let premier_onglet = app.store.onglets().next().map(|(_, n, _)| n.to_string());
     assert!(
-        q.choix[0].0.ends_with(&premier_onglet.unwrap()),
+        q.precisions[0].1.texte.ends_with(&premier_onglet.unwrap()),
         "l'onglet qui le porte : {:?}",
-        q.choix
+        q.precisions
     );
     app.repondre_a_la_question(Some(Reponse::Choix(0)));
     assert_eq!(app.store.project.active_board_id, dedans, "on y entre");
@@ -232,4 +234,20 @@ fn entree_vole_jusqu_a_une_fleche() {
         (centre.0 - 4200.0).abs() < 1e-6 && (centre.1 - 50.0).abs() < 1e-6,
         "le centre de son encre au centre de l'écran : {centre:?}"
     );
+}
+
+/// **Une rangée se lit comme le nœud** (fiche 196) : sans les signes du Markdown, le mot cherché situé dans la phrase montrée.
+#[test]
+fn recherche_196_la_rangee_se_lit_sans_les_signes() {
+    let mut app = app();
+    let un = app.store.project.active_board_id.clone();
+    app.store.add_annotation(
+        &un,
+        Annotation::text("gras", 0.0, 400.0, "Le **chat** dort.\nLa suite."),
+    );
+    app.executer(Commande::Chercher);
+    ecrire(&mut app, "chat");
+    let (q, _) = app.ui.question.as_ref().expect("la question");
+    assert_eq!(q.choix[0].0, "Le chat dort.", "{:?}", q.choix);
+    assert_eq!(q.precisions[0].1.eclats, [(3, 7)], "{:?}", q.precisions);
 }

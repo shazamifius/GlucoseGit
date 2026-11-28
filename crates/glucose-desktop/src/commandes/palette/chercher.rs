@@ -10,15 +10,14 @@
 
 use super::Etat;
 use crate::app::GlucoseApp;
-use glucose_core::recherche::{passage_du, Genre, Index, Trouve};
+use crate::ui::question::Precision;
+use glucose_core::recherche::{eclats, passage_du, Genre, Index, Trouve};
 use glucose_core::store::agents::Sorte;
+use glucose_core::text::plain_text;
 
 /// Ce que la palette dit tant qu'on n'a rien écrit.
 pub(super) const AIDE: &str =
     "Textes, post-it, membranes, photos, tableaux… Entrée y va ; F3 va au suivant.";
-
-/// La longueur, en lettres, de la phrase qu'une rangée montre : au-delà, elle se coupe.
-const LETTRES: usize = 64;
 
 /// **Ce que la palette dit de ses résultats.**
 pub(super) fn compte(etat: &Etat) -> String {
@@ -28,16 +27,6 @@ pub(super) fn compte(etat: &Etat) -> String {
         (false, 1) => "1 résultat. Entrée y va.".to_string(),
         (false, n) => format!("{n} résultats. Entrée va au premier en évidence ; F3 au suivant."),
     }
-}
-
-/// La phrase, coupée à [`LETTRES`] lettres avec « … ».
-fn coupee(phrase: &str) -> String {
-    let phrase = phrase.trim();
-    if phrase.chars().count() <= LETTRES {
-        return phrase.to_string();
-    }
-    let court: String = phrase.chars().take(LETTRES - 1).collect();
-    format!("{}…", court.trim_end())
 }
 
 impl GlucoseApp {
@@ -56,19 +45,26 @@ impl GlucoseApp {
         }
     }
 
-    /// **Une rangée de la recherche** : la phrase trouvée, ce qu'est le nœud, et son onglet quand le
-    /// document en a plusieurs.
-    pub(super) fn dire_le_trouve(&self, t: &Trouve, requete: &str) -> String {
-        let phrase = coupee(&passage_du(&self.store.project, t, requete));
+    /// **Une rangée de la recherche** : la phrase trouvée telle qu'on la lit (sans les signes du
+    /// Markdown), et sa précision — ce qu'est le nœud, son onglet quand le document
+    /// en a plusieurs, et où les mots cherchés s'y lisent (fiche 196).
+    pub(super) fn dire_le_trouve(&self, t: &Trouve, requete: &str) -> (String, Precision) {
+        let passage = plain_text(&passage_du(&self.store.project, t, requete));
+        let phrase = passage.trim().to_string();
         let genre = t.genre.nom();
         // L'onglet qui le porte : un tableau rangé dans un dossier se dit par son onglet racine.
         let plusieurs = self.store.onglets().nth(1).is_some();
-        match self.store.nom_de_l_onglet(&t.tableau) {
-            Some(nom) if plusieurs && t.genre != Genre::Tableau => {
-                format!("{phrase}   — {genre}, {nom}")
-            }
-            _ => format!("{phrase}   — {genre}"),
-        }
+        let texte = match self.store.nom_de_l_onglet(&t.tableau) {
+            Some(nom) if plusieurs && t.genre != Genre::Tableau => format!("{genre}, {nom}"),
+            _ => genre.to_string(),
+        };
+        let eclats = eclats(&phrase, requete);
+        let precision = Precision {
+            texte,
+            introuvable: false,
+            eclats,
+        };
+        (phrase, precision)
     }
 
     /// **Va à ce résultat**, et s'en souvient pour `F3` (TROUVE-2).

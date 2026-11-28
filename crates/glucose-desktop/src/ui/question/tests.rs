@@ -230,3 +230,40 @@ fn test_tronquer_1_une_reponse_trop_longue_tient_dans_sa_case() {
     );
     assert_eq!(p.boutons[1].1, "Annuler", "ce qui tient reste entier");
 }
+
+/// **Le mot trouvé se lit** (fiche 196) : loin dans sa phrase, elle perd son début à une frontière
+/// de mot, et l'éclat suit ; près du début, rien ne bouge.
+#[test]
+fn rapprochee_1_la_phrase_commence_pres_du_mot_trouve() {
+    let un = |_| 1.0;
+    let phrase = "un long debut de phrase avant le mot cherche ici";
+    let debut = phrase.find("cherche").unwrap();
+    let (nom, e) = boutons::rapprochee(phrase, &[(debut, debut + 7)], 30.0, un);
+    assert!(nom.starts_with('…'), "{nom}");
+    assert_eq!(&nom[e[0].0..e[0].1], "cherche");
+    assert!(
+        nom[..e[0].0].chars().count() <= 11,
+        "un tiers de contexte : {nom}"
+    );
+    let reste = nom.strip_prefix('…').expect("« … » en tête");
+    assert!(
+        phrase[..phrase.len() - reste.len()].ends_with(' '),
+        "à une frontière de mot : {nom}"
+    );
+    let (nom, e) = boutons::rapprochee(phrase, &[(3, 7)], 30.0, un);
+    assert_eq!((nom.as_str(), e), (phrase, vec![(3, 7)]));
+}
+
+/// **Le nom en morceaux** : l'éclat seul s'éclaire, et ce que la coupe a ôté n'en est plus.
+#[test]
+fn morceaux_1_seul_l_eclat_s_eclaire() {
+    assert_eq!(
+        boutons::morceaux("le chat dort", &[(3, 7)]),
+        [("le ", false), ("chat", true), (" dort", false)]
+    );
+    assert_eq!(
+        boutons::morceaux("le ch…", &[(3, 7)]),
+        [("le ", false), ("ch", true), ("…", false)]
+    );
+    assert_eq!(boutons::morceaux("le chat", &[]), [("le chat", false)]);
+}

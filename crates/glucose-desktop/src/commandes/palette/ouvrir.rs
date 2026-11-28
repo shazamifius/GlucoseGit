@@ -181,6 +181,7 @@ pub(super) fn rangee(document: &Document, dossier: Option<String>) -> (String, P
     let precision = Precision {
         texte: recents::precision(document, dossier, std::time::SystemTime::now()),
         introuvable: document.sorte == Sorte::Introuvable,
+        eclats: Vec::new(),
     };
     (nom_de(&document.chemin), precision)
 }

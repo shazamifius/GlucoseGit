@@ -1,0 +1,142 @@
+[
+ {
+  "nom": "196 — les éclats ne plient pas les accents",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "plie.push_str(&pli(c.encode_utf8(&mut [0; 4])));",
+  "apres": "plie.push(c);",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "eclats_1"
+  ]
+ },
+ {
+  "nom": "196 — les éclats qui se touchent ne fondent pas",
+  "fichier": "crates/glucose-core/src/recherche.rs",
+  "avant": "Some(der) if debut <= der.1 =>",
+  "apres": "Some(der) if debut < der.0 =>",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-core",
+   "--lib",
+   "--",
+   "eclats_1"
+  ]
+ },
+ {
+  "nom": "196 — la phrase ne se rapproche jamais du mot",
+  "fichier": "crates/glucose-desktop/src/ui/question/boutons.rs",
+  "avant": "let contexte = interieur / 3.0;",
+  "apres": "let contexte = interieur * 10.0;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rapprochee_1"
+  ]
+ },
+ {
+  "nom": "196 — la coupe tombe au milieu d'un mot",
+  "fichier": "crates/glucose-desktop/src/ui/question/boutons.rs",
+  "avant": "        if c == ' ' {\n            depart = i + 1;",
+  "apres": "        if c != '\\u{0}' {\n            depart = i;",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "rapprochee_1"
+  ]
+ },
+ {
+  "nom": "196 — « … » de la coupe compte comme éclat",
+  "fichier": "crates/glucose-desktop/src/ui/question/boutons.rs",
+  "avant": "let garde = nom.strip_suffix('…').map_or(nom.len(), str::len);",
+  "apres": "let garde = nom.len();",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "morceaux_1"
+  ]
+ },
+ {
+  "nom": "196 — les signes du Markdown restent dans la rangée",
+  "fichier": "crates/glucose-desktop/src/commandes/palette/chercher.rs",
+  "avant": "let passage = plain_text(&passage_du(",
+  "apres": "let passage = String::from(&passage_du(",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "recherche_196"
+  ]
+ },
+ {
+  "nom": "196 — la recherche ne donne pas ses précisions",
+  "fichier": "crates/glucose-desktop/src/commandes/palette.rs",
+  "avant": "                    precisions.push((Reponse::Choix(i), precision));\n                    phrase",
+  "apres": "                    let _ = precision;\n                    phrase",
+  "cmd": [
+   "bash",
+   "outils/borne.sh",
+   "nix",
+   "develop",
+   "-c",
+   "cargo",
+   "test",
+   "-p",
+   "glucose-desktop",
+   "--lib",
+   "--",
+   "ctrl_f_trouve"
+  ]
+ }
+]
